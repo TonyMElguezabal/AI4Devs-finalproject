@@ -1,0 +1,43 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+context: |
+  Standards (all paths relative to project root):
+  - docs/base-standards.md is the single source of truth for project-wide standards.
+  - docs/backend-standards.md: API development, database patterns, testing, security and backend best practices.
+  - docs/frontend-standards.md: React components, UI/UX guidelines, and frontend architecture.
+  - docs/documentation-standards.md: technical documentation structure, formatting, and maintenance guidelines.
+
+  Contracts and data model:
+  - docs/api-spec.yml is the API contract.
+  - docs/data-model.md describes the data model.
+
+  Agent personas:
+  - Adopt ai-specs/agents/backend-developer.md when working on backend tasks.
+  - Adopt ai-specs/agents/frontend-developer.md when working on frontend tasks.
+
+  Workflow guidance:
+  - Consult ai-specs/skills for workflow guidance relevant to the task at hand.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+rules:
+# Global: apply ai-specs when creating any artifact
+  _global:
+    - Before creating any artifact, read and apply docs/base-standards.md
+    - For backend-related artifacts, read docs/backend-standards.md and adopt guidelines from ai-specs/agents/backend-developer.md
+    - For frontend-related artifacts, read docs/frontend-standards.md and adopt guidelines from ai-specs/agents/frontend-developer.md
+    - Use docs/api-spec.yml and docs/data-model.md for API and data consistency in specs and tasks
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
