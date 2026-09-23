@@ -14,6 +14,7 @@
 ## 0. Ficha del proyecto
 
 ### **0.1. Tu nombre completo:**
+Jose Antonio Munoz Elguezabal
 
 Jose 
 
