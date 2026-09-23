@@ -282,7 +282,49 @@ erDiagram
 
 ## 4. Especificación de la API
 
-> Si tu backend se comunica a través de API, describe los endpoints principales (máximo 3) en formato OpenAPI. Opcionalmente puedes añadir un ejemplo de petición y de respuesta para mayor claridad
+Vid4You no expone ninguna API propia para ser consumida por terceros. Es un sistema **consumidor**: llama a los servicios de varios proveedores de IA externos, uno por etapa (`docs/PRD.md` §11). Por eso, en lugar de una especificación OpenAPI de endpoints propios, esta sección documenta el mapeo de las integraciones salientes actualmente contempladas.
+
+> Los proveedores concretos detrás de cada capacidad no están nombrados aquí: razonamiento, voz y alignment siguen abiertos, y aunque imagen y video ya están decididos con credenciales obtenidas (`openspec/changes/define-provider-configuration/`), esa propuesta todavía no cierra con un ADR publicado en el repo. El mapeo se documenta por capacidad, no por vendor, hasta que esa decisión quede registrada formalmente.
+
+```mermaid
+flowchart LR
+    Backend["Backend / orquestador de etapas"]
+
+    subgraph Externos["Servicios externos consumidos (uno por etapa, PRD §11)"]
+        Razonamiento["Razonamiento
+capacidad ≥ Sonnet 4.6
+proveedor: pendiente"]
+        Voz["Voz
+proveedor: pendiente"]
+        Alignment["Alignment
+proveedor: pendiente"]
+        Imagen["Imagen
+proveedor: decidido
+(credenciales obtenidas)"]
+        Video["Video
+proveedor: decidido
+(credenciales obtenidas)"]
+    end
+
+    Backend -->|guion completo| Razonamiento
+    Backend -->|guion completo| Voz
+    Backend -->|MP3 + guion, solo si Voz no entrega marcas usables| Alignment
+    Backend -->|instrucción IMAGE| Imagen
+    Backend -->|imagen + instrucción VIDEO + duración solicitada| Video
+```
+
+| Servicio (etapa) | Capacidad requerida | Entrada | Salida | Estado del proveedor | Referencia PRD |
+|---|---|---|---|---|---|
+| Razonamiento | Dividir el guion con fidelidad (§6.1) y generar las instrucciones `IMAGE`/`VIDEO` de cada chunk. Referencia de capacidad: equivalente a Sonnet 4.6 o superior. | Guion completo (texto) | Chunks con `PROMPT`/`IMAGE`/`VIDEO` | Pendiente de decidir (`define-provider-configuration`) | §6.1, §11 |
+| Voz | Producir la narración completa en MP3, con voz/calidad/velocidad preconfiguradas, y entregar marcas de tiempo nativas cuando el proveedor las soporte. | Guion completo (texto) | Archivo MP3 + marcas de tiempo nativas (si existen) | Pendiente de decidir | §11, §11.1 |
+| Alignment | Derivar las marcas de tiempo alineando el MP3 contra el guion, mecanismo de respaldo cuando las nativas no existen o no son usables. | MP3 generado + guion | Marcas de tiempo por fragmento | Pendiente de decidir | §11.1 |
+| Imagen | Generar una imagen 16:9 con resolución mínima 1920×1080 a partir de texto. | Instrucción `IMAGE` (texto) | Imagen (archivo) | Decidido — credenciales ya obtenidas | §7.1, §11 |
+| Video | Animar una imagen de referencia según una instrucción, respetando las duraciones admitidas por el proveedor. | Imagen generada + instrucción `VIDEO` + duración solicitada | Clip de video (archivo) | Decidido — credenciales ya obtenidas | §7.2, §11 |
+
+**Notas de integración:**
+- Hay un único proveedor activo por etapa, hardcodeado en la aplicación; no hay ficheros de configuración ni interfaz de administración para cambiarlo en el MVP (§2.3, §11), ni cambio de proveedor en tiempo de ejecución (§11.2).
+- Las credenciales se leen desde el entorno local o un fichero de secretos local; nunca se hardcodean ni se versionan (§11).
+- El resultado de cada llamada (proveedor usado, intentos realizados, si el fallo fue no reintentable) se registra en la entidad `StageExecution` descrita en la sección 3, sin exponer credenciales.
 
 ---
 
