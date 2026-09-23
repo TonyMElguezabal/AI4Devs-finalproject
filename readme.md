@@ -192,14 +192,91 @@ La ejecución real de estos tests comenzará cuando exista código de aplicació
 
 ## 3. Modelo de Datos
 
+> El motor de persistencia concreto todavía no está decidido (pendiente de `define-persistence`, ver sección 2). Por eso los tipos de dato son aproximados y los identificadores se muestran como `string` genérico; se afinarán al cerrar esa decisión. Las entidades `User` y `Role`, y el campo `Session.owner_id`, son diseño **a futuro**: el MVP no implementa autenticación ni cuentas (`docs/PRD.md` §2.1, §2.3, §12.3; ver también sección 2.5 del README), pero el modelo se prepara para soportarlo sin necesitar una migración disruptiva más adelante.
+
 ### **3.1. Diagrama del modelo de datos:**
 
-> Recomendamos usar mermaid para el modelo de datos, y utilizar todos los parámetros que permite la sintaxis para dar el máximo detalle, por ejemplo las claves primarias y foráneas.
+```mermaid
+erDiagram
+    ROLE ||--o{ USER : "clasifica (futuro)"
+    USER ||--o{ SESSION : "posee (futuro, owner_id nullable)"
+    SESSION ||--o{ CHUNK : "contiene"
+    SESSION ||--o{ STAGE_EXECUTION : "registra (etapas de sesión)"
+    CHUNK ||--o{ STAGE_EXECUTION : "registra (etapas de escena)"
 
+    SESSION {
+        string id PK
+        string title
+        text script
+        string script_language
+        string status
+        boolean is_paused
+        string folder_name
+        string voice_over_path "nullable hasta voice-over-complete"
+        string timestamps_path "nullable hasta chunk-decomposing completo"
+        string final_video_path "nullable hasta final-video"
+        string owner_id FK "nullable, futuro (User.id)"
+        datetime created_at
+    }
+
+    CHUNK {
+        string id PK
+        string session_id FK
+        int sequence_number "1..N, único por sesión, inmutable"
+        text prompt
+        text image_instruction
+        text video_instruction
+        decimal narration_start_seconds
+        decimal narration_duration_seconds
+        decimal requested_duration_seconds
+        decimal speed_factor
+        boolean speed_factor_warning
+        string status
+        string image_result_path "nullable"
+        string video_result_path "nullable"
+    }
+
+    STAGE_EXECUTION {
+        string id PK
+        string owner_type "session | chunk"
+        string owner_id FK "Session.id o Chunk.id según owner_type"
+        string stage_name "voice | timestamps | decomposition | image | video | assembly"
+        string provider "nullable para assembly, sin proveedor externo"
+        int attempts
+        string status
+        boolean not_retryable "solo relevante si status = failed"
+        text error_message "nullable"
+    }
+
+    USER {
+        string id PK
+        string email "futuro"
+        string google_subject "futuro, pendiente de validar (depende del proveedor OAuth)"
+        string role_id FK "futuro"
+        datetime created_at "futuro"
+    }
+
+    ROLE {
+        string id PK
+        string name "user | administrator — futuro"
+    }
+```
+
+**Nota de implementación sobre `STAGE_EXECUTION`.** El par `owner_type`/`owner_id` es una asociación polimórfica a nivel lógico (una etapa puede pertenecer a una `Session` o a un `Chunk`, nunca a ambas). Un motor relacional clásico no expresa esto como una única FK tipada; la implementación física habitual sería dos columnas nullable mutuamente excluyentes (`session_id`, `chunk_id`) o una tabla de enlace por tipo de dueño. Se deja como decisión de `define-persistence`.
 
 ### **3.2. Descripción de entidades principales:**
 
-> Recuerda incluir el máximo detalle de cada entidad, como el nombre y tipo de cada atributo, descripción breve si procede, claves primarias y foráneas, relaciones y tipo de relación, restricciones (unique, not null…), etc.
+| Entidad | Propósito | Campos clave | Origen (PRD) |
+|---|---|---|---|
+| **Session** | Representa un proyecto de video: título, guion, idioma, progreso y resultados. | `id` PK; `title`, `script`, `script_language` (no vacíos, guion inmutable tras iniciar el proyecto); `status` (uno de los 8 estados de sesión); `is_paused` (marca independiente del estado); `folder_name` (carpeta de proyecto); `voice_over_path`, `timestamps_path`, `final_video_path`; `owner_id` FK nullable (futuro). | §3, §4.1, §4.2, §8.1, §9, §12.1, §12.2 |
+| **Chunk** | Una escena del video: fragmento narrado, instrucciones visuales, intervalo de narración y resultados. | `id` PK; `session_id` FK; `sequence_number` (identificador 1..N único por sesión, inmutable); `prompt`, `image_instruction`, `video_instruction`; `narration_start_seconds`/`narration_duration_seconds`; `requested_duration_seconds`/`speed_factor`/`speed_factor_warning`; `status` (uno de los 6 estados de chunk); `image_result_path`/`video_result_path`. | §3, §6, §6.1, §7.2, §7.3, §8.2 |
+| **StageExecution** | Registro diagnóstico de una etapa (proveedor usado e intentos realizados), sin exponer credenciales. Cubre las 6 etapas recuperables del PRD: voz, marcas de tiempo, descomposición, imagen, video y montaje. | `id` PK; `owner_type`/`owner_id` (Session para voz/timestamps/descomposición/montaje, Chunk para imagen/video); `stage_name`; `provider`; `attempts` (hasta 4: intento inicial + 3 reintentos); `status`; `not_retryable`; `error_message`. | §3 ("cada etapa conserva la identificación del proveedor..."), §10.1, §10.3, §11, §11.1 |
+| **User** *(futuro)* | Cuenta de usuario para la versión con autenticación. No existe en el MVP. | `id` PK; `email`; `google_subject` (pendiente de validar, depende del proveedor OAuth elegido); `role_id` FK. | Aclaración del propietario del producto (auth a futuro); PRD §2.1/§11.2 (rol Administrador post-MVP) |
+| **Role** *(futuro)* | Rol de autorización: `user` (por defecto) o `administrator`. No existe en el MVP. | `id` PK; `name`. | PRD §2.1, §11.2 (capacidades del rol Administrador: configuración, diagnóstico, cambio de proveedor, reportes en `/admin`) |
+
+**No incluidas como entidades propias:**
+- **Proveedores de IA**: en el MVP están hardcodeados (`docs/PRD.md` §11, sin ficheros de configuración ni interfaz de administración), por lo que `StageExecution.provider` es un valor identificador simple, no una fila de una tabla `Provider` configurable. Esa tabla podría introducirse si el rol Administrador post-MVP llega a reasignar proveedores (§11.2).
+- **Marcas de tiempo detalladas (timestamps crudos)**: el PRD las trata como un fichero conservado localmente (§12.1, `Session.timestamps_path`), no como filas individuales por marca; el intervalo ya asignado a cada escena vive en `Chunk.narration_start_seconds`/`narration_duration_seconds`.
 
 ---
 
