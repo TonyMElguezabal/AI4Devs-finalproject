@@ -111,46 +111,6 @@ Lee antes el contexto de la aplicación de docs/PRD.md y lee tambien docs/base-s
 No inventes componentes, servicios ni decisiones de infraestructura que no te haya dado. Si necesitas decidir algo no especificado, pregúntamelo antes de asumir.
 
 
-### **2.2. Descripción de componentes principales:**
-
-**Prompt 1:**
-
-**Prompt 2:**
-
-**Prompt 3:**
-
-### **2.3. Descripción de alto nivel del proyecto y estructura de ficheros**
-
-**Prompt 1:**
-
-**Prompt 2:**
-
-**Prompt 3:**
-
-### **2.4. Infraestructura y despliegue**
-
-**Prompt 1:**
-
-**Prompt 2:**
-
-**Prompt 3:**
-
-### **2.5. Seguridad**
-
-**Prompt 1:**
-
-**Prompt 2:**
-
-**Prompt 3:**
-
-### **2.6. Tests**
-
-**Prompt 1:**
-
-**Prompt 2:**
-
-**Prompt 3:**
-
 ---
 
 ### 3. Modelo de Datos
