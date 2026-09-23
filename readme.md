@@ -15,6 +15,8 @@
 
 ### **0.1. Tu nombre completo:**
 
+Jose 
+
 ### **0.2. Nombre del proyecto:**
 
 ### **0.3. Descripción breve del proyecto:**
