@@ -87,19 +87,29 @@ Para "Instrucciones de instalación": genera el bloque estándar basado en el st
 No inventes funcionalidades, integraciones ni datos de UX que no te haya dado. Si te falta algo para alguno de los 4 subapartados, pregúntamelo en vez de asumir.
 
 
-**Prompt 3:**
-
 ---
 
 ## 2. Arquitectura del Sistema
 
 ### **2.1. Diagrama de arquitectura:**
 
-**Prompt 1:**
+Vamos a redactar el Apartado "2. Arquitectura del sistema" del README de Vid4You, siguiendo la plantilla oficial de AI4Devs-finalproject. 
 
-**Prompt 2:**
+Debe cubrir: “2.1 Diagrama de arquitectura”, en esta sección del diagrama utiliza mermaid para presentar el diagrama editable con los componentes principales de la aplicación y las tecnologías utilizadas. Explica si sigue algún patrón predefinido, justifica por qué se ha elegido esta arquitectura, y destaca los beneficios principales que aportan al proyecto y justifican su uso, así como los sacrificios o déficits que implica.
+En las secciones subsecuentes 2.2 describe los componentes principales, 2.3 Descripción de alto nivel del proyecto y estructura de ficheros, 2.4 Infraestructura de despliegue, 2.5 Seguridad, 2.6 Tests. descripción de componentes principales, estructura de ficheros, infraestructura y despliegue, seguridad, y estrategia de tests.
 
-**Prompt 3:**
+Considera que:
+El diagrama de arquitectura en formato Mermaid (tipo "graph" o "flowchart"), mostrando cada componente que interactúa con el sistema incluido el usuario, la máquina (EC2 o similar), el backend, las API de los proveedores, la BD y agrupa los componentes que son parte de este sistema y los externos.
+En la justificación menciona porque se decidió cierto patrón de arquitectura y menciona brevemente cómo evolucionaría si el uso creciera — sin comprometerte a implementarlo ahora.
+Describe los componentes principales (backend, frontend, db, integraciones API) en una tabla o lista breve con su responsabilidad.
+Mencionar la estructura de carpetas del repositorio (backend/, frontend/, docs/, ai-specs/, y lo que sea necesario dentro de cada uno según el stack), coherente con lo que ya generamos en docs/base-standards.md.
+Menciona la infraestructura y el despliegue con sus respectivas variables de entorno gestionadas vía .env, sin inventar pipeline de CI/CD que aún no hemos decidido (si crees que hace falta uno, pregúntamelo en vez de asumirlo).
+En la sección de seguridad: Google OAuth para autenticación, autorización por roles en backend que podra el usuario Administrador gestionar, gestión de secretos vía .env con permisos restringidos, HTTPS, y cualquier otra medida básica razonable para este alcance (sin sobredimensionar). Recuerda que para el MVP la autorizacion y autenticacion no es necesaria, cualquiera con la URL del MVP puede utilizar el sistema.
+Menciona la estrategia de tests general, aclarando que en esta entrega 1 aún no hay código, por lo que es la estrategia planificada, no resultados.
+
+Lee antes el contexto de la aplicación de docs/PRD.md y lee tambien docs/base-standards.md (ya actualizado con el stack) para mantener coherencia total con lo que ya está documentado ahí, y no dupliques información — si algo ya está bien explicado ahi, referencia esa sección en vez de repetirla en el README.
+No inventes componentes, servicios ni decisiones de infraestructura que no te haya dado. Si necesitas decidir algo no especificado, pregúntamelo antes de asumir.
+
 
 ### **2.2. Descripción de componentes principales:**
 
