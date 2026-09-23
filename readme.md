@@ -14,41 +14,78 @@
 ## 0. Ficha del proyecto
 
 ### **0.1. Tu nombre completo:**
+
 Jose Antonio Munoz Elguezabal
 
 ### **0.2. Nombre del proyecto:**
 
+Vid4You
+
 ### **0.3. Descripción breve del proyecto:**
+
+El sistema es una plataforma de generación de contenido End to End, la imagen y el video de cada chunk pueden ser entregables independientes, mientras procesa cada imagen y cada video se pueden descargar por partes, finalmente el video editado final contiene todos los chunks de video editados, unidos y narrados por el voice-over generado.
 
 ### **0.4. URL del proyecto:**
 
-> Puede ser pública o privada, en cuyo caso deberás compartir los accesos de manera segura. Puedes enviarlos a [alvaro@lidr.co](mailto:alvaro@lidr.co) usando algún servicio como [onetimesecret](https://onetimesecret.com/).
+TBD
 
 ### 0.5. URL o archivo comprimido del repositorio
 
-> Puedes tenerlo alojado en público o en privado, en cuyo caso deberás compartir los accesos de manera segura. Puedes enviarlos a [alvaro@lidr.co](mailto:alvaro@lidr.co) usando algún servicio como [onetimesecret](https://onetimesecret.com/). También puedes compartir por correo un archivo zip con el contenido
+https://github.com/TonyMElguezabal/AI4Devs-finalproject
 
 
 ---
 
 ## 1. Descripción general del producto
 
-> Describe en detalle los siguientes aspectos del producto:
+Vid4You es una aplicación web que convierte un script de vídeo finalmente en un video completo pasando por una lista de escenas narradas (“chunks”) en un conjunto de imágenes y videos cortos generados por IA: una imagen y un video por cada chunk.
 
 ### **1.1. Objetivo:**
 
-> Propósito del producto. Qué valor aporta, qué soluciona, y para quién.
+Vid4You es una aplicación web que convierte un guion de texto en un video narrado listo para publicar, en formato horizontal MP4 (16:9). El usuario solo aporta un título y un guion: el sistema genera automáticamente la narración en audio, las imágenes y los clips de cada escena, y monta el video final sincronizado con la voz. Así resuelve el problema de producir contenido narrado (por ejemplo, para YouTube) sin necesidad de grabar voz, editar video ni tener conocimientos de edición audiovisual.
 
 ### **1.2. Características y funcionalidades principales:**
 
-> Enumera y describe las características y funcionalidades específicas que tiene el producto para satisfacer las necesidades identificadas.
+- Creación de sesiones (proyectos de video) a partir de un título y un guion.
+- Generación automática de un voice-over (narración en audio) completo por guion, en el idioma seleccionado por el usuario.
+- Obtención de las marcas de tiempo que sitúan cada fragmento del guion dentro del audio narrado.
+- División automática del guion en escenas (chunks) respetando fronteras de oración, y generación de las instrucciones visuales de imagen y video de cada escena.
+- Generación de una imagen y un clip de video por escena, sincronizados con su fragmento narrado.
+- Montaje del video final: sincronización de los clips con el audio completo y ensamblado en un único MP4 horizontal.
+- Visualización en tiempo real del progreso por fase y por escena, incluyendo resultados disponibles y errores.
+- Pausa de la generación antes del lanzamiento de una fase, y continuación explícita por parte del usuario.
+- Descarga parcial de resultados (imágenes y clips de escenas individuales) durante el procesamiento, y descarga del video final al completarse.
+- Reintentos automáticos (hasta 3 por etapa) y reintento manual ante fallos.
+- Corrección del prompt visual (imagen o video) de una escena que haya fallado, sin alterar el guion ni el orden narrativo.
+- Persistencia de sesiones, estados y resultados, incluso tras reinicios del sistema.
 
 ### **1.3. Diseño y experiencia de usuario:**
 
-> Proporciona imágenes y/o videotutorial mostrando la experiencia del usuario desde que aterriza en la aplicación, pasando por todas las funcionalidades principales.
+_Pendiente. Aún no existen mockups, wireframes ni capturas de la interfaz, ya que el frontend todavía no se ha implementado. Esta sección se completará con imágenes y/o un videotutorial de la experiencia de usuario una vez el frontend esté definido y construido. (TBD mockups after frontend)_
 
 ### **1.4. Instrucciones de instalación:**
-> Documenta de manera precisa las instrucciones para instalar y poner en marcha el proyecto en local (librerías, backend, frontend, servidor, base de datos, migraciones y semillas de datos, etc.)
+
+_Borrador — pendiente de actualizar cuando se cierre la decisión de stack (backend y frontend) y de persistencia del proyecto._
+
+```bash
+# 1. Clonar el repositorio
+git clone <URL_DEL_REPOSITORIO>
+cd AI4Devs-finalproject
+
+# 2. Instalar dependencias
+# TBD — comando exacto pendiente de la decisión de stack (backend y frontend)
+
+# 3. Configurar variables de entorno
+# Crear un archivo .env local (no versionado) con, como mínimo, las credenciales de los
+# proveedores de IA usados por cada etapa (razonamiento, voz, alineación, imagen y video).
+# TBD — nombres exactos de las variables, pendientes de la decisión de stack
+
+# 4. Base de datos (si aplica)
+# TBD — pendiente de la decisión de persistencia
+
+# 5. Arrancar el proyecto
+# TBD — comando de arranque pendiente de la decisión de stack
+```
 
 ---
 
