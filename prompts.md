@@ -115,11 +115,16 @@ No inventes componentes, servicios ni decisiones de infraestructura que no te ha
 
 ### 3. Modelo de Datos
 
-**Prompt 1:**
-
-**Prompt 2:**
-
-**Prompt 3:**
+Vamos a redactar el Apartado "3. Modelo de datos" del README de Vid4You siguiendo la plantilla oficial de AI4Devs-finalproject. Debe incluir un diagrama Mermaid con las entidades, sus atributos clave, PK/FK, y una descripción de cada entidad.
+Contexto principal docs/PRD.md 
+Contexto adicional preguntamelo ante cualquier duda.
+Lee antes docs/base-standards.md y la sección 2 del README ya redactada, para no contradecir nada. No inventes entidades ni relaciones que no se deduzcan del contexto dado o de los ficheros reales — pregúntame antes de asumir cualquier cosa que no esté clara.
+Recuerda que aunque en la versión inicial MVP no consideramos Autorización y Autenticación, en la versión final si es requerido, por lo cual el modelo de datos debe soportarlo.
+Necesito que:
+Identifiques las entidades necesarias a partir del contexto, sin inventar campos que no se deduzcan de lo descrito — si te falta un dato concreto márcalo como pendiente de validar en vez de asumir un valor.
+Generes el diagrama Mermaid con las entidades, sus atributos principales (con tipo aproximado), y las relaciones con cardinalidad, marcando claramente PK y FK.
+Describas cada entidad en una tabla o lista breve: propósito y campos clave, indicando de qué fichero proviene cada uno cuando aplique.
+Mantengas coherencia con lo ya definido en docs/base-standards.md y con la sección de arquitectura del README (nombres de servicios, stack).
 
 ---
 
