@@ -130,38 +130,52 @@ Mantengas coherencia con lo ya definido en docs/base-standards.md y con la secci
 
 ### 4. Especificación de la API
 
-**Prompt 1:**
-
-**Prompt 2:**
-
-**Prompt 3:**
+Vamos a redactar el Apartado "4. Especificacion de la API" del README de Vid4You siguiendo la plantilla oficial de AI4Devs-finalproject. En este caso la aplicacion no expondra ninguna API para ser consumida, la aplicacion solo consumira los servicios de varios proveedores. Crea un diagrama de especificacion de los servicios que estan actualmente mapeados y considerados en el docs/PRD.md
 
 ---
 
 ### 5. Historias de Usuario
 
-**Prompt 1:**
+Vamos a actualizar la seccion "5. Historias de Usuario" del README de Vid4You, usando la skill enrich-us cuando la Historia de usuario no haya sido enriquecida, si ya previamente fue enrique
+Contexto: docs/PRD.md
+La plantilla del README pide 3 historias de usuario principales pero agrega las que son las mas importantes asi sean mas de 3. Lo que deben representar es el flujo MVP.
+Si una de las Historias de Usuario no ha sido desarrollada o enriquecida (utilizando el skill enrich-us) entonces trabajala con la skill enrich-us primero cada una en formato:
+Como [rol], quiero [acción], para [beneficio/objetivo].
+Criterios de aceptación: (lista clara y verificable, en formato Given/When/Then o checklist)
+Para cada historia, apóyate en docs/data-model.md y docs/base-standards.md ya generados para que los criterios de aceptación sean coherentes con las entidades y el stack reales, no genéricos.
+No inventes funcionalidades ni reglas de negocio que no se deduzcan de lo ya documentado en el proyecto. Si un criterio de aceptación requiere una regla de negocio que no está clara, pregúntamelo en vez de asumir un comportamiento.
+Añade las historias necesarias resultantes a la sección 5 del readme.md.
 
-**Prompt 2:**
-
-**Prompt 3:**
 
 ---
 
 ### 6. Tickets de Trabajo
 
-**Prompt 1:**
+Actualiza el apartado “6. Tickets de trabajo" del README de Vid4You, a partir de las historias de usuario ya definidas en la sección 5.
+Para cada una de las historias, crea el change correspondiente en OpenSpec (flujo /new seguido de /ff) para obtener el desglose técnico de tareas, apoyándote en docs/data-model.md y docs/base-standards.md para que las tareas sean coherentes con el modelo de datos y el stack reales.
+La plantilla del README exige exactamente 3 tickets de trabajo: uno de backend, uno de frontend y uno de base de datos. Del conjunto de tareas generadas por OpenSpec para las 3 historias, selecciona las 3 que mejor representen el trabajo técnico núcleo de cada categoría (backend/frontend/BD) — prioriza tareas que sean representativas del esfuerzo real del proyecto, no las más triviales.
+Para cada uno de los 3 tickets seleccionados, documenta en el README con este formato:
+Título
+Descripción
+Criterios de aceptación
+Prioridad (alta/media/baja, justificada brevemente)
+Estimación (en puntos o en tiempo, tu mejor estimación razonada según la complejidad de la tarea)
+Historia de usuario relacionada
+No inventes tareas que no se deduzcan del desglose real generado por OpenSpec para estas las historias. Si al desglosar alguna historia encuentras ambigüedad técnica que afecta a la estimación o al alcance del ticket, pregúntamelo antes de asumir.
+Añade los tickets resultantes a la sección 6 del readme.md.
 
-**Prompt 2:**
-
-**Prompt 3:**
 
 ---
 
 ### 7. Pull Requests
 
-**Prompt 1:**
+Edita el Apartado "7. Pull Requests" del README de Vid4You, siguiendo la plantilla oficial de AI4Devs-finalproject, que pide documentar 3 Pull Requests.
+En esta Entrega 1 solo existe una PR real: la que recoge todo el trabajo de documentación de esta rama (feature/entrega-1-JAME contra main). Las otras 2 PRs corresponden a código y llegarán en las Entregas 2 y 3.
+Para generar el contenido de la PR 1, revisa el diff real de esta rama (feature/entrega-1-JAME) contra main — usa git para verlo (git diff main... o git log main..HEAD) en vez de asumir qué se ha hecho.
+Por Favor documenta este Pull Request 1 con este formato:
+Título de la PR (conciso, tipo "docs: documentación técnica entrega 1 - Vid4You - JAME")
+Descripción: resumen de qué incluye (secciones 0-3, 5, 6 del README, docs/base- standards.md, docs/data-model.md, docker-compose.yml, prompts.md), basado en los ficheros realmente modificados/creados en el diff.
+Cómo probarlo/revisarlo: qué debería mirar quien revise (ej. "revisar que el readme.md siga la estructura de la plantilla oficial", "validar el modelo de datos contra campaigns.xlsx")
+Para la Pull Request 2 y Pull Request 3, deja placeholders claros indicando "Pendiente — se documentará en la Entrega 2/Entrega Final, al incluir código funcional" — no inventes contenido de código que todavía no existe.
+Añade el resultado a la sección 7 del readme.md.
 
-**Prompt 2:**
-
-**Prompt 3:**
