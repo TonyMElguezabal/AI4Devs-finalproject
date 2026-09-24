@@ -500,9 +500,36 @@ Nota de coherencia: `docs/data-model.md` y `docs/base-standards.md` (mencionados
 
 > Documenta 3 de las Pull Requests realizadas durante la ejecución del proyecto
 
-**Pull Request 1**
+En esta Entrega 1 existe una única PR real: la rama `feature/entrega-1-JAME` contra `main`, que recoge todo el trabajo de documentación de esta entrega (basado en `git diff main...HEAD`, no asumido). Las PR 2 y 3 corresponden a código funcional y llegarán en las Entregas 2 y 3.
+
+**Pull Request 1 — `feature/entrega-1-JAME` → `main`**
+
+**Título:** `docs: documentación técnica Entrega 1 - Vid4You - JAME`
+
+**Descripción:**
+- `readme.md`: ficha del proyecto y secciones **1 a 6** completas —
+  - 1. Descripción general del producto (objetivo, características, placeholder de UX pendiente de frontend, instrucciones de instalación en borrador).
+  - 2. Arquitectura del sistema (diagrama Mermaid, componentes, estructura de ficheros, infraestructura/despliegue, seguridad, estrategia de tests).
+  - 3. Modelo de datos (diagrama ER Mermaid: `Session`, `Chunk`, `StageExecution`, y `User`/`Role` a futuro).
+  - 4. Especificación de la API (la app no expone API propia; se documenta el mapeo de las integraciones salientes con los 5 proveedores de IA).
+  - 5. Historias de usuario (8 historias que cubren el flujo MVP de principio a fin).
+  - 6. Tickets de trabajo (uno de backend, uno de frontend, uno de base de datos).
+- `openspec/changes/`: 4 changes nuevos y completos (`decompose-script-into-chunks`, `generate-chunk-image`, `generate-chunk-video`, `assemble-final-video`), cada uno con `proposal.md`, `design.md`, especificación en Given/When/Then y `tasks.md`, generados con las skills `enrich-us` y `openspec-propose` a partir de `docs/PRD.md`.
+- `prompts.md`: registro de los prompts usados para producir las secciones anteriores.
+- **Nota de alcance:** `docs/base-standards.md` y `docs/data-model.md` no se modifican en esta PR — siguen siendo contenido heredado de un proyecto anterior no relacionado con Vid4You (ver nota en la sección 6 del README). Tampoco existe ningún `docker-compose.yml` en el repositorio; no forma parte de este diff.
+
+**Cómo probarlo/revisarlo:**
+- Confirmar que `readme.md` sigue la estructura de la plantilla oficial de AI4Devs-finalproject (índice, numeración y anclas de las secciones 0 a 7).
+- Revisar que el diagrama Mermaid de la sección 3 (modelo de datos) sea coherente con las entidades usadas en las secciones 5 y 6 (`Session`, `Chunk`, `StageExecution`).
+- Ejecutar `openspec validate <nombre-del-change> --strict` sobre cada uno de los 4 changes nuevos y confirmar que devuelve "is valid".
+- Revisar que los 3 tickets de la sección 6 no excedan el alcance descrito en los `tasks.md` de los que provienen.
+- Confirmar que ninguna sección afirma como decidido un stack, proveedor o pieza de infraestructura que en realidad sigue pendiente (deben quedar marcados explícitamente como TBD).
 
 **Pull Request 2**
 
+_Pendiente — se documentará en la Entrega 2, al incluir código funcional._
+
 **Pull Request 3**
+
+_Pendiente — se documentará en la Entrega Final, al incluir código funcional._
 
