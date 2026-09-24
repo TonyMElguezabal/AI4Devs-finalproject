@@ -330,13 +330,101 @@ proveedor: decidido
 
 ## 5. Historias de Usuario
 
-> Documenta 3 de las historias de usuario principales utilizadas durante el desarrollo, teniendo en cuenta las buenas prácticas de producto al respecto.
+La plantilla pide 3 historias principales; aquí se documentan las **8** que representan el flujo MVP completo de principio a fin (`docs/PRD.md` §5), en orden. Cada una tiene ya su change de OpenSpec con especificación completa en Given/When/Then (`openspec/changes/<slug>/specs/`); esta sección resume cada historia en el formato estándar y enlaza al detalle técnico en vez de duplicarlo. Los criterios de aceptación referencian las entidades reales de la sección 3 (`Session`, `Chunk`, `StageExecution`), no `docs/data-model.md` (contenido heredado de otro proyecto, aún sin actualizar).
 
-**Historia de Usuario 1**
+**Historia de Usuario 1 — Iniciar un proyecto de video**
+_Detalle técnico: [`openspec/changes/start-video-project`](../openspec/changes/start-video-project)_
 
-**Historia de Usuario 2**
+Como usuario, quiero iniciar un proyecto con un título, un guion y un idioma, para que el sistema comience a generar mi video narrado.
 
-**Historia de Usuario 3**
+Criterios de aceptación:
+- **Given** un título y un guion no vacíos y un idioma de la lista soportada, **when** inicio el proyecto, **then** se registra una `Session` con un identificador único y estado `submitted`.
+- **Given** un título o un guion vacío (o solo espacios), **when** intento iniciar el proyecto, **then** no se registra ninguna sesión y se informa la causa.
+- **Given** un guion sin idioma seleccionado, **when** intento iniciar el proyecto, **then** no se registra la sesión y no se llama a ningún proveedor.
+- **Given** una sesión ya registrada, **when** se consulta su título, guion o idioma, **then** son exactamente lo enviado y no pueden modificarse después.
+
+**Historia de Usuario 2 — Generar la narración completa (voice-over)**
+_Detalle técnico: [`openspec/changes/generate-voice-over`](../openspec/changes/generate-voice-over)_
+
+Como usuario, quiero que el sistema narre automáticamente mi guion completo en un único audio, para no tener que grabar ni contratar una voz.
+
+Criterios de aceptación:
+- **Given** una `Session` en `submitted`, **when** se registra, **then** la generación de voz se lanza sin acción mía y la sesión pasa a `voice-over-generating` antes de llamar al proveedor.
+- **Given** una narración exitosa, **when** el proveedor devuelve el audio, **then** se guarda exactamente un MP3 en la carpeta del proyecto, se registra su duración, y la sesión pasa a `voice-over-complete`.
+- **Given** un rechazo no reintentable del proveedor (p. ej. filtro de contenido), **when** ocurre, **then** la sesión pasa a `failed` con causa mostrada, sin reintento automático y sin alterar el guion.
+- **Given** una narración ya completada, **when** llega una segunda confirmación de éxito, **then** no se crea un segundo voice-over ni se relanza ninguna fase.
+
+**Historia de Usuario 3 — Descomponer el guion en escenas**
+_Detalle técnico: [`openspec/changes/decompose-script-into-chunks`](../openspec/changes/decompose-script-into-chunks)_
+
+Como usuario, quiero que el sistema divida automáticamente mi guion narrado en escenas con sus instrucciones visuales, para no tener que segmentarlo ni describir cada imagen manualmente.
+
+Criterios de aceptación:
+- **Given** una sesión en `voice-over-complete`, **when** se lanza la descomposición, **then** la sesión pasa a `chunk-decomposing` y se obtienen las marcas de tiempo (nativas o por alineación, nunca ambas para el mismo intento).
+- **Given** el guion segmentado, **when** se generan los `Chunk`, **then** cada uno tiene `sequence_number` consecutivo, y `PROMPT`/`IMAGE`/`VIDEO` completos.
+- **Given** los `PROMPT` de todos los chunks unidos en orden, **when** se comparan con el guion bloqueado, **then** son idénticos salvo normalización de espacios.
+- **Given** los intervalos de narración de todos los chunks, **when** se ordenan por `sequence_number`, **then** son contiguos, sin solapes, y cubren de 0 a la duración total del voice-over.
+- **Given** una oración que no cabe en las cotas de duración y no tiene frontera de cláusula, **when** se segmenta, **then** se conserva entera con una advertencia de factor de velocidad, sin que esto sea un fallo.
+
+**Historia de Usuario 4 — Generar la imagen de una escena**
+_Detalle técnico: [`openspec/changes/generate-chunk-image`](../openspec/changes/generate-chunk-image)_
+
+Como usuario, quiero que el sistema genere automáticamente la imagen de cada escena a partir de su instrucción visual, para no tener que crear ni subir imágenes manualmente.
+
+Criterios de aceptación:
+- **Given** un `Chunk` con instrucción `IMAGE` no vacía, **when** se lanza la generación, **then** el chunk pasa a `image-generating` y, al terminar con éxito, a `image-complete` con `image_result_path` guardado localmente.
+- **Given** un resultado entregado como enlace temporal, **when** se recibe, **then** se descarga y persiste localmente antes de marcar la etapa como exitosa.
+- **Given** un chunk cuya etapa de imagen está `failed`, **when** el usuario reintenta con la misma instrucción o corrige únicamente `IMAGE`, **then** se lanza un nuevo intento sin tocar `ID`, `PROMPT` ni el orden.
+- **Given** una escena que falla en esta etapa, **when** otras escenas de la sesión siguen procesando, **then** no se ven afectadas por ese fallo.
+
+**Historia de Usuario 5 — Generar el clip de video de una escena**
+_Detalle técnico: [`openspec/changes/generate-chunk-video`](../openspec/changes/generate-chunk-video)_
+
+Como usuario, quiero que el sistema anime automáticamente la imagen de cada escena ajustando su duración a lo narrado, para obtener un clip sincronizado sin animarlo manualmente.
+
+Criterios de aceptación:
+- **Given** un chunk en `image-complete`, **when** se lanza la generación de video, **then** el chunk pasa a `video-generating` y se solicita al proveedor la duración admitida que requiere el **menor cambio de velocidad** respecto al intervalo narrado (no la más cercana en segundos); un empate exacto elige la duración más larga.
+- **Given** un intervalo narrado menor que la duración mínima admitida, **when** se solicita el clip, **then** se pide esa duración mínima.
+- **Given** un clip generado, **when** se completa, **then** se registran `requested_duration_seconds` y `speed_factor`, y si este supera el límite hardcodeado, se marca `speed_factor_warning` sin que sea un fallo.
+- **Given** un chunk cuya etapa de video está `failed`, **when** el usuario reintenta o corrige `VIDEO`, **then** la imagen ya exitosa se reutiliza sin regenerarse, y `ID`/`PROMPT`/`IMAGE`/orden permanecen intactos.
+- **Given** un clip exitoso, **when** otras escenas siguen procesando o han fallado, **then** ese clip puede descargarse individualmente.
+
+**Historia de Usuario 6 — Montar el video final**
+_Detalle técnico: [`openspec/changes/assemble-final-video`](../openspec/changes/assemble-final-video)_
+
+Como usuario, quiero que el sistema una automáticamente todas mis escenas completas con la narración en un único MP4, para obtener un video listo para publicar sin editarlo manualmente.
+
+Criterios de aceptación:
+- **Given** todos los chunks de una sesión en `chunk-complete`, **when** se cumple esa condición, **then** el montaje se lanza automáticamente y la sesión pasa a `final-video-generating`.
+- **Given** una sesión con al menos un chunk `failed` o pendiente, **when** se evalúa el lanzamiento del montaje, **then** no se lanza y la sesión nunca alcanza `final-video`.
+- **Given** los clips ya generados, **when** se montan, **then** se ordenan por `sequence_number` ascendente (no por orden de finalización) y cada uno se coloca en su intervalo de narración ya persistido.
+- **Given** el video final, **when** se produce, **then** su única pista de audio es el voice-over completo (se descarta el audio de cada clip), en H.264/AAC a la resolución y frame rate hardcodeados.
+- **Given** un fallo de montaje, **when** se reintenta, **then** se reutilizan el voice-over y todas las escenas ya exitosas, sin regenerar ninguna.
+- **Given** una sesión en `final-video`, **when** se consulta, **then** el MP4 final está disponible para descarga (el MP3, las marcas de tiempo y los textos generados nunca lo están).
+
+**Historia de Usuario 7 — Consultar el progreso de una sesión**
+_Detalle técnico: [`openspec/changes/consult-session`](../openspec/changes/consult-session)_
+
+Como usuario, quiero consultar el progreso, los resultados y los errores de mi sesión por su identificador, para hacer seguimiento de mi video sin necesitar una cuenta.
+
+Criterios de aceptación:
+- **Given** el identificador de una sesión existente, **when** se consulta, **then** se muestran su título, guion, idioma, estado, marca de pausa, y sus escenas en orden ascendente de `sequence_number`, sin importar el orden en que terminaron.
+- **Given** dos sesiones con el mismo título o chunks con el mismo `sequence_number`, **when** se consulta una de ellas, **then** solo se muestran sus propios datos.
+- **Given** un identificador que no corresponde a ninguna sesión, **when** se consulta, **then** se informa que no fue encontrada, sin revelar nada de otras sesiones.
+- **Given** una sesión consultada, **when** se revisa qué se expone, **then** no hay descarga del MP3, las marcas de tiempo o los textos generados, ni se requiere cuenta, login o credencial.
+- **Given** una página de sesión abierta, **when** cambia el estado de una fase o escena, **then** se refleja en vivo sin recargar la página.
+
+**Historia de Usuario 8 — Reintentar automáticamente ante fallos transitorios**
+_Detalle técnico: [`openspec/changes/bounded-retry-policy`](../openspec/changes/bounded-retry-policy) y [`openspec/changes/stage-execution-time-limit`](../openspec/changes/stage-execution-time-limit)_
+
+Como usuario, quiero que el sistema reintente automáticamente una etapa que falla por una causa temporal, para no perder mi progreso ante errores pasajeros de los proveedores.
+
+Criterios de aceptación:
+- **Given** un fallo transitorio en cualquier etapa (voz, marcas de tiempo, descomposición, imagen, video o montaje), **when** el ciclo tiene menos de 4 intentos, **then** se programa un nuevo intento automáticamente sobre la misma instancia de etapa.
+- **Given** 4 intentos fallidos por causa transitoria, **when** se agota el ciclo, **then** la etapa pasa a `failed` como fallo reintentable manualmente, sin más intentos automáticos.
+- **Given** un fallo no reintentable (p. ej. rechazo de contenido), **when** ocurre en el primer intento, **then** la etapa pasa a `failed` de inmediato, sin consumir el presupuesto de reintentos.
+- **Given** un intento enviado a un proveedor, **when** no responde dentro del tiempo máximo hardcodeado de su etapa, **then** se registra como fallo transitorio por timeout y se entrega a la política de reintentos, sin contar el tiempo de espera previo al envío.
+- **Given** una sesión pausada, **when** un reintento programado se cumple, **then** no se envía hasta que el usuario continúe explícitamente.
 
 ---
 
