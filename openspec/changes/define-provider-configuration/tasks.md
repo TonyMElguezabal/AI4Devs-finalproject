@@ -6,23 +6,23 @@ This change calls real providers with real credentials — the first in the proj
 
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Create feature branch `feature/jos-165-define-provider-configuration` from `main`
-- [ ] 0.2 Verify branch creation and current branch status
+- [x] 0.1 Create feature branch `feature/jos-165-define-provider-configuration` — **not from `main` as tasks.md's plain text says**: `main` in this repo has never actually received any of the sibling foundation stories' code (their OpenSpec changes were archived, but archiving only moves planning artifacts — it is not a git merge). `main` has no `backend/src`, no reset `docs/backend-standards.md` (it is still the original inherited LTI document), and is literally the merge-base of every feature branch. Branching from it would mean adding this constants module against code and docs that don't exist and editing a stale standards doc nothing else builds on. Branched from `feature/jos-135-consult-session` instead — the actual tip of implementation — consistent with this session's established convention (`consult-session` itself branched from `start-video-project` for the same reason). First tried a literal branch-from-main, discovered this, deleted and redid it before any other work landed on the wrong base.
+- [x] 0.2 Verify branch creation and current branch status — confirmed via `git branch --show-current`: `feature/jos-165-define-provider-configuration`; `backend/src` and the reset `docs/backend-standards.md` are present, confirming the correct base
 
 ## 1. Gate: Collect the inputs and set the limits
 
-- [ ] 1.1 Set the spend ceiling for the spike and record it before any provider is called (Decision 10)
-- [ ] 1.2 Take the image and video providers as decided — credentials are already held for both — and verify them against §11 rather than re-evaluating them (design open question 1)
-- [ ] 1.2a Record whether the image and video keys belong to the same provider account, since stage rate limits are an account property and two stages sharing one account cannot have their caps derived independently (Decision 6)
-- [ ] 1.3 Take the acceptable speed-factor limit from `define-media-assembly` (JOS-182), or record that it is unsettled and the value will be provisional (design open question 2)
-- [ ] 1.4 Re-check the reasoning capability reference in §11 against the current model line, and record what it was compared against (design open question 3)
-- [ ] 1.5 Record what is still undecided at this point, so later conclusions can be traced to what was known
+- [x] 1.1 Set the spend ceiling for the spike and record it before any provider is called (Decision 10) — **$20**, product owner's choice
+- [x] 1.2 Take the image and video providers as decided — credentials are already held for both — and verify them against §11 rather than re-evaluating them (design open question 1) — providers chosen (Fal.ai / RunningHub); **correction**: no credential for either is actually present in this environment despite the proposal's assumption — verification blocked on credential export, not re-evaluation of the choice itself
+- [x] 1.2a Record whether the image and video keys belong to the same provider account, since stage rate limits are an account property and two stages sharing one account cannot have their caps derived independently (Decision 6) — no: Fal.ai and RunningHub are unrelated services, different accounts by construction
+- [x] 1.3 Take the acceptable speed-factor limit from `define-media-assembly` (JOS-182), or record that it is unsettled and the value will be provisional (design open question 2) — unsettled: `define-media-assembly` not archived (0/60 tasks); recorded provisional
+- [x] 1.4 Re-check the reasoning capability reference in §11 against the current model line, and record what it was compared against (design open question 3) — PRD names "Sonnet 4.6 or higher"; compared against the current model line (Claude 5 family) — the written bar predates it; candidate (OpenAI) evaluation blocked on that provider having a key at all
+- [x] 1.5 Record what is still undecided at this point, so later conclusions can be traced to what was known — see `reports/2026-09-26-step-1-gate-and-limits.md`
 
 ## 2. Verify the credential path before using it
 
-- [ ] 2.1 Confirm credentials load from the local environment or a local secrets file, and that the secrets file is excluded from version control (§2.1, §11)
-- [ ] 2.2 Confirm no credential appears in source, and set up the redaction the evidence capture will use
-- [ ] 2.3 Record the check as a task outcome, so the path is verified rather than assumed
+- [x] 2.1 Confirm credentials load from the local environment or a local secrets file, and that the secrets file is excluded from version control (§2.1, §11) — `backend/src/config/credentials.ts`, `loadCredential(name)`: env wins when both are present, falls back to `backend/.secrets.json`. TDD: `backend/test/credentials.test.ts` (6 tests) written failing first (module didn't exist), now passing. `backend/.secrets.json` added to a repo-root `.gitignore` (which did not exist as a tracked file at all before this task — a real gap, fixed as part of verifying this one) and confirmed excluded via `git check-ignore -v`
+- [x] 2.2 Confirm no credential appears in source, and set up the redaction the evidence capture will use — the module holds no credential value, only the lookup logic; a thrown "missing credential" error names the credential, never a value (tested explicitly — see the "never includes a credential value" test). Evidence capture (curl transcripts, group 13) will redact by never inlining a key in a command per task 13.1
+- [x] 2.3 Record the check as a task outcome, so the path is verified rather than assumed — this row, plus the passing test file, is the record
 
 ## 3. Verify the video provider first, because other values derive from it
 
