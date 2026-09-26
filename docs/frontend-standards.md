@@ -63,7 +63,7 @@ frontend/
 └── package.json
 ```
 
-This mirrors the proven prototype at `openspec/changes/define-frontend-stack/prototype/` (kept as the project seed, `docs/adr/0004-frontend-stack.md` § Consequences) — not a separate structure to migrate to later.
+**`frontend/` now exists** — promoted from the proven prototype (`start-video-project`, JOS-134, extending `docs/adr/0004-frontend-stack.md` § Consequences' "kept as the project seed" decision), not a hypothetical target structure.
 
 ## Screen Inventory
 

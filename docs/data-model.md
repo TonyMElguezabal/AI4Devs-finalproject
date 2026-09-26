@@ -13,15 +13,16 @@ The store is embedded SQLite via Node's built-in `node:sqlite` — see `docs/adr
 Represents one video project. PRD §3, §4.1, §8.1, §9, §12.2.
 
 **Fields:**
-- `id`: system-generated identifier (Primary Key) — §3
+- `id`: system-generated identifier (Primary Key) — §3. **ULID**, not a random UUID (`start-video-project`, JOS-134, Decision 3): opaque (not derived from the title) *and* creation-ordered (sorts lexicographically by creation time), which a UUIDv4 is not.
 - `title`: the project's title — §3
-- `language`: script language, selected from the hardcoded supported list; a session cannot exist without one — §4.1
+- `script`: the script exactly as submitted, **write-once from registration onward** — §4.2/D10 (`start-video-project`, JOS-134, Decisions 1 and 2). Emptiness is judged on a trimmed view at the validation boundary; the stored value is never trimmed. No operation updates this column after creation.
+- `language`: script language, selected from the hardcoded supported list; a session cannot exist without one — §4.1. Also write-once, same as `script`.
 - `created_at`: creation timestamp; also drives the project-folder name, to the minute — §12.2
-- `state`: **derived**, not stored — one of the eight session states in §8.1, computed from the session's scenes each time it is read (`orchestrator.ts`'s `deriveSessionState`). This skeleton only ever produces `chunks-processing`, `final-video` or `failed`, since voice-over and decomposition phases aren't modelled.
+- `state`: **derived**, not stored — one of the eight session states in §8.1, computed from the session's scenes each time it is read (`orchestrator.ts`'s `deriveSessionState`). A session with zero scenes (the state immediately after `start-video-project` registers it, before decomposition creates any) derives to `submitted`. This skeleton only ever produces `submitted`, `chunks-processing`, `final-video` or `failed`, since voice-over and decomposition phases aren't modelled.
 - `paused`: a marker on top of the current state, never a state itself, per §8.1/§9 (Decision 8, `define-live-updates`)
 - `project_folder`: the real per-project folder name under a configured root, named `<title> <YYYY-MM-DD HH-mm>` with a counter suffix on collision — §12.2 (Decision 4, `define-persistence`)
 
-**Not modelled** (no consumer yet — see the scope note): `script` (§4.2, decomposition isn't simulated), voice-over/alignment provider bindings, MP3 and timestamp references, total narration duration (§11.2) — these belong to stages this skeleton doesn't simulate.
+**Not modelled** (no consumer yet — see the scope note): voice-over/alignment provider bindings, MP3 and timestamp references, total narration duration (§11.2) — these belong to stages this skeleton doesn't simulate.
 
 **Relationships:** one session has many scenes.
 
@@ -78,8 +79,9 @@ Tracks which versioned migrations have been applied, so an existing session's da
 ```mermaid
 erDiagram
     Session {
-        String id PK
+        String id PK "ULID"
         String title
+        String script
         String language
         String created_at
         Boolean paused
@@ -129,6 +131,6 @@ erDiagram
 
 ## Notes
 
-- All identifiers are opaque strings (UUIDs in the current implementation), not auto-incrementing integers, consistent with §3's "system-generated identifier."
+- All identifiers are opaque strings, not auto-incrementing integers, consistent with §3's "system-generated identifier." **Session** identifiers are ULIDs (`start-video-project`, JOS-134, Decision 3 — opaque *and* creation-ordered, which §12.2's "two sessions in the same minute" case relies on being observable). Scene, provider-request and scene-result identifiers remain UUIDs — §12.3's "reached by identifier" guarantee is specifically about sessions, not these internal records.
 - No entity in this model is a security boundary — per §12.3, session separation is a functional-integrity property (a project must not show or overwrite another project's data), not an access-control mechanism. There are no accounts, roles or permissions in this data model.
 - What's still open: the real persistence engine choice is **not** open — that's `docs/adr/0002-persistence.md`, this document's basis. What remains genuinely open is the full multi-stage model (voice, alignment, video as their own simulated stages) and the real hardcoded parameter values (US-33), both out of scope for the changes that produced this document.

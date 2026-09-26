@@ -1,0 +1,33 @@
+/*
+ * Vid4You visual design tokens ("Render Console" direction).
+ * Chosen by product-owner review of working mockups — see
+ * docs/adr/0004-frontend-stack.md and openspec/changes/define-visual-design/.
+ * Components consume these via class names in app.css, never inline hexes.
+ */
+:root {
+  --color-bg: #14161a;
+  --color-text: #e7e5de;
+  --color-muted: #8a8f98;
+  --color-border: #2a2e35;
+
+  --color-status-complete: #4e9e8e;
+  --color-status-progress: #e8a33d;
+  --color-status-failed: #d6635a;
+  /*
+   * NOTE (define-visual-design, spec "Sufficient text contrast"): the
+   * mockup's original #5B6068 measured 2.86:1 against --color-bg, failing
+   * the 4.5:1 minimum. Raised to #848994 (5.16:1) — verified with the WCAG
+   * relative-luminance formula, not eyeballed.
+   */
+  --color-status-queued: #848994;
+
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 16px;
+
+  --space-sm: 8px;
+  --space-md: 14px;
+  --space-lg: 24px;
+}
