@@ -1,4 +1,5 @@
 import type { SessionEventPayload } from "../types";
+import { sessionStatusClass } from "../styles/status";
 
 interface Props {
   session: SessionEventPayload;
@@ -14,8 +15,8 @@ export function SessionHeader({ session, onPause, onContinue }: Props) {
   const isRunning = session.state === "chunks-processing" || session.state === "final-video-generating";
 
   return (
-    <section aria-label="Session status">
-      <p>
+    <section aria-label="Session status" className={`session-header ${sessionStatusClass(session.state)}`}>
+      <p className={`session-state-line${session.paused ? " paused" : ""}`}>
         Session state: <strong>{session.state}</strong>
         {session.paused && <span> — paused</span>}
       </p>

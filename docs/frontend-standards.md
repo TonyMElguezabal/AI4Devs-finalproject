@@ -17,6 +17,7 @@ alwaysApply: true
 - [Accessible Naming Convention](#accessible-naming-convention)
 - [Testing Standards](#testing-standards)
 - [Development Workflow](#development-workflow)
+- [Visual Design](#visual-design)
 - [Not Yet Decided](#not-yet-decided)
 
 ---
@@ -33,7 +34,7 @@ The stack decision, its rejected alternatives, and the live evidence behind it a
 - **TypeScript**, `strict: true` — per `docs/base-standards.md`'s project-wide "all code must be fully typed."
 - **Vite** — build tooling and dev server; replaces the previous (inherited) Create React App, which is unmaintained.
 - **Vitest + React Testing Library** — one test runner shared conceptually with the backend (`define-backend-stack` also uses Vitest), per `docs/base-standards.md`'s incremental-tooling preference. No Cypress — E2E verification for this project is agent-driven browser automation (see [Testing Standards](#testing-standards)), not a separate E2E framework.
-- **No UI component library** (no Bootstrap or equivalent) — plain semantic HTML and CSS. This is a deliberate choice, not an oversight: visual design was explicitly deferred by the product owner during this stack's own spike ("come back to the UI design later"), and plain markup is also the safest default for agent-driven automation (fewer opaque, framework-owned DOM structures to work around). Revisit once visual design work actually happens — this document's accessible-naming convention below does not change when that happens, only the styling does.
+- **No UI component library** (no Bootstrap or equivalent) — plain semantic HTML and CSS. This was a deliberate choice from the start, not an oversight, and held once visual design was actually decided (see [Visual Design](#visual-design)): plain markup is the safest default for agent-driven automation (fewer opaque, framework-owned DOM structures to work around). The accessible-naming convention below did not change when styling was applied, exactly as anticipated here.
 - **No client-side router** — there is effectively one real page (the session view, reached by identifier) plus the start form; a router is unnecessary ceremony until the product-list gap (see [Not Yet Decided](#not-yet-decided)) is resolved and a second real route exists.
 
 ## Project Structure
@@ -50,6 +51,10 @@ frontend/
 │   │   ├── SceneList.tsx
 │   │   ├── SceneRow.tsx
 │   │   └── FinalVideoDownload.tsx
+│   ├── styles/
+│   │   ├── tokens.css           # color/type design tokens (see Visual Design)
+│   │   ├── app.css              # layout + per-status classes, consumes tokens.css
+│   │   └── status.ts            # the one state→status-class mapping every component uses
 │   ├── types.ts                 # mirrors the backend's wire contract (see Not Yet Decided)
 │   └── App.tsx                  # identifier-based routing via a URL query param
 ├── test/
@@ -131,11 +136,19 @@ npm run dev        # start the dev server for manual/E2E testing (fixed local UR
 - `npx tsc --noEmit` and `npx vitest run` must both pass before any commit touching the frontend.
 - Every user-facing story follows this document's screen inventory and accessible-naming convention rather than inventing its own.
 
+## Visual Design
+
+Decided in `define-visual-design` (JOS-180 follow-up), resolving the deferral recorded in `docs/adr/0004-frontend-stack.md`. Two working mockups of the real session-view screen were built and product-owner reviewed before implementation; the chosen direction — **"Render Console"** — is a dark, monospace, pipeline-monitor aesthetic, deliberately fixed (no light-mode variant, no `prefers-color-scheme` adaptation).
+
+- **Tokens**: `src/styles/tokens.css` — CSS custom properties for color (`--color-bg`, `--color-text`, `--color-muted`, `--color-border`, `--color-status-complete`, `--color-status-progress`, `--color-status-failed`, `--color-status-queued`) and type (`--font-mono`: `IBM Plex Mono` with a system-monospace fallback). Components style themselves against these tokens in `src/styles/app.css` — no component hardcodes a color or font literal.
+- **Status encoding**: `src/styles/status.ts` exports `sceneStatusClass`/`sessionStatusClass`, the one shared mapping from every chunk state (6) and session state (8) to one of four status classes (`status-complete`, `status-progress`, `status-failed`, `status-queued`), rendered as a left-edge color bar plus matching text color. Status is **never color-only**: the existing text label (e.g. "chunk-complete", "failed — image generation", "— paused") is what a component already rendered before this change, and remains the primary signal; color is additive.
+- **No UI component library**: unchanged from the original stack decision — plain CSS, no Bootstrap/MUI/Tailwind runtime.
+- **No markup or accessible-name change**: this was a CSS-and-classname-only change over the prototype `define-frontend-stack` proved automatable. See `openspec/changes/define-visual-design/` for the full proposal, design rationale, and verification reports (unit tests, curl check, browser-driven E2E).
+
 ## Not Yet Decided
 
 Tracked here so this document is never mistaken for settling more than it has:
 
-- **Visual design** — explicitly deferred by the product owner. The current prototype is intentionally plain, unstyled semantic HTML; a design pass is future work, not a gap in this document.
 - **Project-list screen** — no project-list screen exists in the PRD or backlog; §12.3 describes reaching a session only by identifier. This is a product decision for the owner, not a spike's to make (`docs/adr/0004-frontend-stack.md` § Screen Inventory). Built against identifier-based access meanwhile — the session's address, containing its identifier, is the bookmark.
 - **Whether an OpenAPI-generated API client is used**, or types continue to be hand-mirrored from the backend's own `types.ts` (as they are today, documented explicitly as a manual-sync point in both files' headers) — deferred until the real backend's API surface is finalized (`define-backend-stack` task 1.3, `define-frontend-stack` task 12.2 is the ticket that would answer it for real).
 - **A router**, if and when a second real route (e.g. a project list) exists.

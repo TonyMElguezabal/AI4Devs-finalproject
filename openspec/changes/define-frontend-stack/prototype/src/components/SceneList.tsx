@@ -20,7 +20,7 @@ export function SceneList({ sessionId, scenes, onRetry, onCorrect }: Props) {
 
   return (
     <section aria-label="Scenes">
-      <ul>
+      <ul className="scene-list">
         {ordered.map((scene) => (
           <SceneRow
             key={scene.sceneId}

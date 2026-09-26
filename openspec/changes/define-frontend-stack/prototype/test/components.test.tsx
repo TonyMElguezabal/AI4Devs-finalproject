@@ -3,8 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { SceneList } from "../src/components/SceneList";
 import { SceneRow } from "../src/components/SceneRow";
+import { SessionHeader } from "../src/components/SessionHeader";
 import { FinalVideoDownload } from "../src/components/FinalVideoDownload";
-import type { SceneEventPayload } from "../src/types";
+import type { SceneEventPayload, SceneState, SessionEventPayload, SessionState } from "../src/types";
+import { sceneStatusClass, sessionStatusClass } from "../src/styles/status";
 
 function makeScene(overrides: Partial<SceneEventPayload>): SceneEventPayload {
   return {
@@ -16,6 +18,19 @@ function makeScene(overrides: Partial<SceneEventPayload>): SceneEventPayload {
     provider: "stub-image-provider",
     attempts: 0,
     instruction: "",
+    updatedAt: "2026-09-25T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function makeSession(overrides: Partial<SessionEventPayload>): SessionEventPayload {
+  return {
+    type: "session",
+    sessionId: "s1",
+    title: "A title",
+    language: "en",
+    state: "submitted",
+    paused: false,
     updatedAt: "2026-09-25T00:00:00.000Z",
     ...overrides,
   };
@@ -116,5 +131,85 @@ describe("Accessible naming convention (Decision 5)", () => {
 
     expect(screen.getByRole("listitem", { name: "Scene 7" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View scene 7 details" })).toBeInTheDocument();
+  });
+});
+
+// define-visual-design tasks 1.2/1.3 — every one of the 6 chunk states
+// resolves to its mapped status class (Decision 2: one shared mapping, never
+// a per-component literal), and the existing text label survives unchanged
+// (Decision 3: color is additive, never a replacement for text).
+describe("Scene status class mapping (define-visual-design, Decision 2)", () => {
+  const ALL_SCENE_STATES: SceneState[] = [
+    "submitted",
+    "image-generating",
+    "image-complete",
+    "video-generating",
+    "chunk-complete",
+    "failed",
+  ];
+
+  for (const state of ALL_SCENE_STATES) {
+    it(`renders scene state "${state}" with its mapped status class and unchanged text label`, () => {
+      const scene = makeScene({ sceneId: `st-${state}`, index: 1, state });
+      render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+
+      const row = screen.getByRole("listitem", { name: "Scene 1" });
+      expect(row.className.split(/\s+/)).toContain(sceneStatusClass(state));
+      expect(screen.getByText(new RegExp(`— ${state}$`))).toBeInTheDocument();
+    });
+  }
+});
+
+// define-visual-design tasks 1.2/1.3 — same guarantee for the 8 session
+// states, plus the paused marker (Decision: paused is never color-only).
+describe("Session status class mapping (define-visual-design, Decision 2)", () => {
+  const ALL_SESSION_STATES: SessionState[] = [
+    "submitted",
+    "voice-over-generating",
+    "voice-over-complete",
+    "chunk-decomposing",
+    "chunks-processing",
+    "final-video-generating",
+    "final-video",
+    "failed",
+  ];
+
+  for (const state of ALL_SESSION_STATES) {
+    it(`renders session state "${state}" with its mapped status class and unchanged text label`, () => {
+      const session = makeSession({ state });
+      render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+      const section = screen.getByRole("region", { name: "Session status" });
+      expect(section.className.split(/\s+/)).toContain(sessionStatusClass(state));
+      expect(screen.getByText(new RegExp(state))).toBeInTheDocument();
+    });
+  }
+
+  it("keeps the paused marker identifiable by text, not color alone", () => {
+    const session = makeSession({ state: "chunks-processing", paused: true });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.getByText(/paused/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue session" })).toBeInTheDocument();
+  });
+});
+
+// define-visual-design task 1.4 — regression guard: applying status classes
+// must not change any accessible name `define-frontend-stack` established.
+describe("Styling does not regress accessible names (define-visual-design)", () => {
+  it("keeps SceneRow's accessible names exactly as documented once status classes are applied", () => {
+    const scene = makeScene({ sceneId: "acc1", index: 9, state: "failed" });
+    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+
+    expect(screen.getByRole("listitem", { name: "Scene 9" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View scene 9 details" })).toBeInTheDocument();
+  });
+
+  it("keeps SessionHeader's accessible names exactly as documented once status classes are applied", () => {
+    const session = makeSession({ state: "chunks-processing" });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.getByRole("region", { name: "Session status" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pause session" })).toBeInTheDocument();
   });
 });

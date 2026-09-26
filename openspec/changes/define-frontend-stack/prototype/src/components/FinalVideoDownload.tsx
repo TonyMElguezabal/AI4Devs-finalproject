@@ -11,7 +11,7 @@ interface Props {
 export function FinalVideoDownload({ state, url }: Props) {
   if (state !== "final-video") return null;
   return (
-    <p>
+    <p className="final-video">
       <a href={url}>Download final video</a>
     </p>
   );

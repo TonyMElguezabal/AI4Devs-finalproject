@@ -28,16 +28,16 @@ export function StartProjectForm({ onStart, submitting }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} aria-label="Start a project">
-      <div>
+    <form onSubmit={handleSubmit} aria-label="Start a project" className="start-form">
+      <div className="field">
         <label htmlFor="project-title">Title</label>
         <input id="project-title" value={title} onChange={(e) => setTitle(e.target.value)} />
       </div>
-      <div>
+      <div className="field">
         <label htmlFor="project-script">Script</label>
         <textarea id="project-script" value={script} onChange={(e) => setScript(e.target.value)} rows={8} />
       </div>
-      <div>
+      <div className="field">
         <label htmlFor="project-language">Language</label>
         <select id="project-language" value={language} onChange={(e) => setLanguage(e.target.value)}>
           <option value="">Select a language</option>

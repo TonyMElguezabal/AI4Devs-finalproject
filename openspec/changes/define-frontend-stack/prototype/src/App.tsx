@@ -51,8 +51,8 @@ export default function App() {
 
   if (!sessionId) {
     return (
-      <main>
-        <h1>Vid4You (prototype)</h1>
+      <main className="app-shell">
+        <h1 className="app-title">Vid4You (prototype)</h1>
         <StartProjectForm onStart={handleStart} submitting={starting} />
         {startError && <p role="alert">{startError}</p>}
       </main>
@@ -60,9 +60,9 @@ export default function App() {
   }
 
   return (
-    <main>
-      <h1>Vid4You (prototype)</h1>
-      <p>
+    <main className="app-shell">
+      <h1 className="app-title">Vid4You (prototype)</h1>
+      <p className="session-meta">
         Session: <code>{sessionId}</code> — {connected ? "connected" : "connecting…"}
       </p>
       {error && <p role="alert">{error}</p>}

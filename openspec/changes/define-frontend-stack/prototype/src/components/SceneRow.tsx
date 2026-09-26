@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { SceneEventPayload } from "../types";
+import { sceneStatusClass } from "../styles/status";
 
 interface Props {
   scene: SceneEventPayload;
@@ -27,8 +28,8 @@ export function SceneRow({ scene, onRetry, onCorrect, imageDownloadUrl, videoDow
   const isComplete = scene.state === "chunk-complete";
 
   return (
-    <li aria-label={`Scene ${scene.index}`}>
-      <span>
+    <li aria-label={`Scene ${scene.index}`} className={`scene-row ${sceneStatusClass(scene.state)}`}>
+      <span className="scene-summary">
         #{scene.index} — {scene.state}
       </span>
       {isFailed && <span role="alert"> {scene.errorCause}</span>}
@@ -37,7 +38,7 @@ export function SceneRow({ scene, onRetry, onCorrect, imageDownloadUrl, videoDow
       </button>
 
       {expanded && (
-        <div>
+        <div className="scene-details">
           <dl>
             <dt>Instruction</dt>
             <dd>{scene.instruction}</dd>
@@ -54,6 +55,7 @@ export function SceneRow({ scene, onRetry, onCorrect, imageDownloadUrl, videoDow
               </button>
               <form
                 aria-label={`Correct scene ${scene.index} image instruction`}
+                className="correction-form"
                 onSubmit={(e) => {
                   e.preventDefault();
                   onCorrect(scene.sceneId, draftInstruction);
@@ -71,8 +73,8 @@ export function SceneRow({ scene, onRetry, onCorrect, imageDownloadUrl, videoDow
           )}
 
           {isComplete && (
-            <p>
-              <a href={imageDownloadUrl}>Download scene {scene.index} image</a>{" "}
+            <p className="download-links">
+              <a href={imageDownloadUrl}>Download scene {scene.index} image</a>
               <a href={videoDownloadUrl}>Download scene {scene.index} video</a>
             </p>
           )}

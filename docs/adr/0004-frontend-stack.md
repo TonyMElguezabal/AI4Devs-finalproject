@@ -74,7 +74,7 @@ This change was built **after** `define-live-updates` had already decided its me
 
 - **The project-list gap** (§ Screen Inventory) is a product decision for the owner, not resolved by this spike.
 - **`scene.result` is unused by the UI** (§ Real findings) — noted as a real, if minor, prototype gap rather than left silent.
-- **Visual/UI design was explicitly deferred** by the product owner during this session ("we can come back to the UI design later") — the prototype is intentionally plain, unstyled semantic HTML, chosen for automation stability over appearance. This is a stated decision, not an oversight, but it means no visual-design evidence exists yet.
+- **Visual/UI design was explicitly deferred** by the product owner during this session ("we can come back to the UI design later") — the prototype was intentionally plain, unstyled semantic HTML, chosen for automation stability over appearance. This was a stated decision, not an oversight. **Resolved in `define-visual-design`** (JOS-180 follow-up): the product owner reviewed two working mockups of the real session-view screen and chose a direction ("Render Console"); see `docs/frontend-standards.md` § Visual Design. That change confirmed the automation-stability property held: the accessible-naming convention and DOM structure this ADR's evidence proved automatable were unchanged by applying the styling.
 
 ## Consequences
 
