@@ -1,531 +1,141 @@
 ---
-description: Frontend development standards, best practices, and conventions for the LTI React application including component patterns, state management, UI/UX guidelines, and testing practices
-globs: ["frontend/src/**/*.{js,jsx,ts,tsx}", "frontend/cypress/**/*.{ts,js}", "frontend/tsconfig.json", "frontend/cypress.config.ts", "frontend/package.json"]
+description: Frontend development standards, best practices, and conventions for the Vid4You React/TypeScript/Vite application, covering stack, screen inventory, accessible-naming conventions for agent-driven E2E, live-update consumption, and testing
+globs: ["frontend/src/**/*.{ts,tsx}", "frontend/test/**/*.{ts,tsx}", "frontend/tsconfig.json", "frontend/package.json", "frontend/vite.config.ts"]
 alwaysApply: true
 ---
 
-# Frontend Project Configuration and Best Practices
+# Frontend Project Standards and Best Practices
 
 ## Table of Contents
 
 - [Overview](#overview)
 - [Technology Stack](#technology-stack)
-  - [Core Technologies](#core-technologies)
-  - [UI Framework](#ui-framework)
-  - [State Management & Data Flow](#state-management--data-flow)
-  - [Testing Framework](#testing-framework)
-  - [Development Tools](#development-tools)
 - [Project Structure](#project-structure)
+- [Screen Inventory](#screen-inventory)
+- [Architecture: The Live-Update Seam](#architecture-the-live-update-seam)
 - [Coding Standards](#coding-standards)
-  - [Language and Naming Conventions](#language-and-naming-conventions)
-  - [Component Conventions](#component-conventions)
-  - [State Management](#state-management)
-  - [Service Layer Architecture](#service-layer-architecture)
-- [UI/UX Standards](#uiux-standards)
-  - [Bootstrap Integration](#bootstrap-integration)
-  - [Form Handling](#form-handling)
-  - [Navigation Patterns](#navigation-patterns)
-  - [Accessibility](#accessibility)
+- [Accessible Naming Convention](#accessible-naming-convention)
 - [Testing Standards](#testing-standards)
-  - [End-to-End Testing with Cypress](#end-to-end-testing-with-cypress)
-  - [Test Organization](#test-organization)
-- [Configuration Standards](#configuration-standards)
-  - [TypeScript Configuration](#typescript-configuration)
-  - [ESLint Configuration](#eslint-configuration)
-  - [Environment Configuration](#environment-configuration)
-- [Performance Best Practices](#performance-best-practices)
-  - [Component Optimization](#component-optimization)
-  - [Bundle Optimization](#bundle-optimization)
-  - [API Efficiency](#api-efficiency)
 - [Development Workflow](#development-workflow)
-  - [Git Workflow](#git-workflow)
-  - [Development Scripts](#development-scripts)
-  - [Code Quality](#code-quality)
-- [Migration Strategy](#migration-strategy)
-  - [TypeScript Migration](#typescript-migration)
-  - [Component Modernization](#component-modernization)
+- [Not Yet Decided](#not-yet-decided)
 
 ---
 
 ## Overview
 
-This document outlines the best practices, conventions, and standards used in the LTI frontend application. These practices ensure code consistency, maintainability, and optimal development experience.
+This document describes the frontend standards for Vid4You: a local, single-user React application rendering session progress, per-scene diagnostics, correction and download actions, driven live by the backend's push mechanism. It replaces the previous version, which described an unrelated inherited application's stack (React 18 / Create React App / Bootstrap 5 / Cypress) and referenced that application's own domain objects throughout — content with no bearing on this product, now fully removed.
+
+The stack decision, its rejected alternatives, and the live evidence behind it are recorded in `docs/adr/0004-frontend-stack.md`. Read it before this document for the "why"; this is the "how." The live-update mechanism this frontend consumes is decided in `docs/adr/0003-live-updates.md`.
 
 ## Technology Stack
 
-### Core Technologies
-- **React 18.3.1**: Modern React with functional components and hooks
-- **TypeScript 4.9.5**: For type safety and better development experience
-- **Create React App 5.0.1**: Build tooling and development server
-- **React Router DOM 6.23.1**: Client-side routing and navigation
-
-### UI Framework
-- **Bootstrap 5.3.3**: CSS framework for responsive design
-- **React Bootstrap 2.10.2**: Bootstrap components for React
-- **React Bootstrap Icons 1.11.4**: Icon library
-- **React DatePicker 6.9.0**: Date input components
-
-### State Management & Data Flow
-- **React Hooks**: useState, useEffect for local state management
-- **React Beautiful DND 13.1.1**: Drag and drop functionality
-- **Axios**: HTTP client for API communication
-
-### Testing Framework
-- **Cypress 14.4.1**: End-to-end testing
-- **Jest**: Unit testing (via Create React App)
-- **React Testing Library**: Component testing utilities
-
-### Development Tools
-- **ESLint**: Code linting with React-specific rules
-- **TypeScript**: Static type checking
-- **Web Vitals**: Performance monitoring
+- **React 18** — chosen over a server-rendered-with-thin-client approach and a meta-framework (Next.js) after independently-scored evaluation (`docs/adr/0004-frontend-stack.md`) — not a default, not inherited.
+- **TypeScript**, `strict: true` — per `docs/base-standards.md`'s project-wide "all code must be fully typed."
+- **Vite** — build tooling and dev server; replaces the previous (inherited) Create React App, which is unmaintained.
+- **Vitest + React Testing Library** — one test runner shared conceptually with the backend (`define-backend-stack` also uses Vitest), per `docs/base-standards.md`'s incremental-tooling preference. No Cypress — E2E verification for this project is agent-driven browser automation (see [Testing Standards](#testing-standards)), not a separate E2E framework.
+- **No UI component library** (no Bootstrap or equivalent) — plain semantic HTML and CSS. This is a deliberate choice, not an oversight: visual design was explicitly deferred by the product owner during this stack's own spike ("come back to the UI design later"), and plain markup is also the safest default for agent-driven automation (fewer opaque, framework-owned DOM structures to work around). Revisit once visual design work actually happens — this document's accessible-naming convention below does not change when that happens, only the styling does.
+- **No client-side router** — there is effectively one real page (the session view, reached by identifier) plus the start form; a router is unnecessary ceremony until the product-list gap (see [Not Yet Decided](#not-yet-decided)) is resolved and a second real route exists.
 
 ## Project Structure
 
 ```
 frontend/
-├── public/                 # Static assets
 ├── src/
-│   ├── components/        # Reusable UI components
-│   ├── services/         # API service layer
-│   ├── pages/           # Page components (future organization)
-│   ├── assets/          # Images, fonts, static resources
-│   ├── App.js           # Main application component
-│   ├── index.tsx        # Application entry point
-│   └── index.css        # Global styles
-├── cypress/
-│   └── e2e/            # End-to-end test files
-├── package.json         # Dependencies and scripts
-├── tsconfig.json       # TypeScript configuration
-└── cypress.config.ts   # Cypress configuration
+│   ├── api/
+│   │   ├── client.ts           # typed fetch wrappers, one per backend endpoint
+│   │   └── useLiveSession.ts   # the ONE seam every view consumes live state through
+│   ├── components/
+│   │   ├── StartProjectForm.tsx
+│   │   ├── SessionHeader.tsx
+│   │   ├── SceneList.tsx
+│   │   ├── SceneRow.tsx
+│   │   └── FinalVideoDownload.tsx
+│   ├── types.ts                 # mirrors the backend's wire contract (see Not Yet Decided)
+│   └── App.tsx                  # identifier-based routing via a URL query param
+├── test/
+├── tsconfig.json
+├── vite.config.ts
+└── package.json
 ```
+
+This mirrors the proven prototype at `openspec/changes/define-frontend-stack/prototype/` (kept as the project seed, `docs/adr/0004-frontend-stack.md` § Consequences) — not a separate structure to migrate to later.
+
+## Screen Inventory
+
+Every screen traces to a PRD section; none was invented beyond what the PRD implies (full reasoning: `docs/adr/0004-frontend-stack.md` § Screen Inventory).
+
+| Screen | PRD source | Key content |
+|---|---|---|
+| Start a project | §4.1, AC01 | Title, script, language selector limited to the hardcoded supported list; cannot start without a language |
+| Session view | §8.1, §8.3, AC21 | Current session state, the failed phase and its actions, provider + attempts for session-level stages |
+| Scene list | §6, §8.2, AC21 | Ascending scene-identifier order regardless of completion order, chunk state, results, errors, actions |
+| Scene details | §3, §7.2, AC23 | `PROMPT`/`IMAGE`/`VIDEO`, narration interval, requested duration, speed factor + warning, provider + attempts |
+| Correction form | §10.3, AC09 | Present only on a failed image or video stage; never exposes `ID`, `PROMPT`, or order |
+| Pause / continue | §8.1, §9, AC07 | Session-level control; the paused marker shown on top of current state, distinct from a generation still running |
+| Downloads | §12.3 | Per-scene image/clip during processing; final MP4 only at `final-video`; nothing offered for MP3, timestamps or generated texts |
+
+**Recorded gap, not invented:** no project-list screen exists anywhere in the PRD or backlog (§12.3 describes reaching a session only by identifier) — see [Not Yet Decided](#not-yet-decided).
+
+## Architecture: The Live-Update Seam
+
+Every view consumes live session state through exactly one hook, `useLiveSession(sessionId)` — never directly through `EventSource` or a raw `fetch`. This is deliberate: the live-update mechanism (`docs/adr/0003-live-updates.md`) can be swapped, extended, or reimplemented without touching a single view component, because every view's contract is `{ snapshot, connected, error }`, not "however this particular transport happens to work."
+
+The hook owns two responsibilities that must never leak into views:
+1. **Opening and maintaining the stream** (currently `EventSource` against `GET /events?sessionId=`).
+2. **The catch-up rule**: resyncing the full snapshot (`GET /sessions/:sessionId`) on every `onopen` — which fires on the *first* connection **and** every automatic browser reconnect after a drop. A client that resyncs only once, at mount, can go stale forever after a dropped connection with no visible symptom — a real bug found and fixed during this stack's own development (`docs/adr/0001-backend-stack.md` § Evidence; `docs/adr/0003-live-updates.md` § "Real bugs found and fixed").
+
+Every message and snapshot carries **current state, never a delta** (`docs/adr/0003-live-updates.md` Decision 2) — a component applies one by replacing what it holds for that entity, never by merging a partial update into previous state. This is what makes a duplicate or out-of-order delivery harmless to render.
 
 ## Coding Standards
 
-### Naming Conventions
+Naming, typing, TDD and English-only rules are inherited from `docs/base-standards.md` and are not restated here.
 
-- **Component Naming**: Use PascalCase for React components (e.g., `CandidateCard`, `PositionDetails`, `RecruiterDashboard`)
-- **Variable Naming**: Use camelCase for variables and functions (e.g., `candidateId`, `handleSubmit`, `fetchPositions`)
-- **Constants Naming**: Use UPPER_SNAKE_CASE for constants (e.g., `MAX_CANDIDATES_PER_PAGE`, `API_BASE_URL`)
-- **Type/Interface Naming**: Use PascalCase for types and interfaces (e.g., `CandidateData`, `PositionProps`, `ICandidateService`)
-- **File Naming**: Use PascalCase for component files (e.g., `CandidateCard.tsx`, `PositionDetails.tsx`) and camelCase for utility files (e.g., `candidateService.js`, `apiUtils.ts`)
-- **CSS Class Naming**: Use kebab-case for CSS classes (e.g., `candidate-card`, `position-details`)
-- **Hook Naming**: Use camelCase starting with "use" prefix (e.g., `useCandidate`, `usePositionData`, `useFormValidation`)
+- **Components**: PascalCase, one component per file, named for what it renders (`SceneRow`, not `SceneItem` or `Row`).
+- **Files**: PascalCase for components (`SceneRow.tsx`), camelCase for everything else (`useLiveSession.ts`, `client.ts`).
+- **State derivation, never duplication**: a component never stores its own copy of session/scene state in local `useState` and reconciles it against the live snapshot — it reads directly from the snapshot the seam hook returns. `SceneRow`'s only local state is UI-only (whether its details are expanded, the draft text in the correction textarea) — never a shadow copy of server truth.
+- **Conditional rendering derives from state, never from a stored flag** (`docs/adr/0004-frontend-stack.md` Decision 4, proven in `test/components.test.tsx`): the correction form's presence is `scene.state === "failed"`, computed at render time — never a `canEdit` flag set once and left to drift out of sync with the state that actually governs it.
 
-**Examples:**
+## Accessible Naming Convention
 
-```typescript
-// Good: All in English
-import React, { useState, useEffect } from 'react';
+Fixed here as a documented convention, not left to per-story judgement (`docs/adr/0004-frontend-stack.md` Decision 5) — this is what keeps agent-driven E2E stable across stories written at different times, since every later story's automation depends on names earlier stories already established.
 
-type CandidateCardProps = {
-    candidate: Candidate;
-    index: number;
-    onClick: (candidate: Candidate) => void;
-};
+| Element | Accessible name pattern | Example |
+|---|---|---|
+| A scene row | `Scene {index}` (`aria-label` on the `<li>`) | `Scene 7` |
+| Expand/collapse a scene's details | `View scene {index} details` / `Hide scene {index} details` | `View scene 7 details` |
+| Retry a failed scene | `Retry scene {index}` | `Retry scene 7` |
+| The correction form | `Correct scene {index} image instruction` (`aria-label` on the `<form>`) | `Correct scene 7 image instruction` |
+| The correction textarea | `Corrected image instruction for scene {index}` | — |
+| Per-scene downloads | `Download scene {index} image` / `Download scene {index} video` | `Download scene 7 image` |
+| The final video download | `Download final video` | — |
+| Session control | `Pause session` / `Continue session` | — |
+| Start-form fields | Plain `<label htmlFor>` — `Title`, `Script`, `Language` | — |
 
-const CandidateCard: React.FC<CandidateCardProps> = ({ candidate, index, onClick }) => {
-    const [isLoading, setIsLoading] = useState(false);
-    
-    // Handle candidate card click event
-    const handleCardClick = () => {
-        onClick(candidate);
-    };
-    
-    return (
-        <div className="candidate-card" onClick={handleCardClick}>
-            {/* Component JSX */}
-        </div>
-    );
-};
-
-// Avoid: Non-English comments or names
-const TarjetaCandidato: React.FC<PropsTarjetaCandidato> = ({ candidato, indice, alHacerClic }) => {
-    const [estaCargando, setEstaCargando] = useState(false);
-    
-    // Manejar evento de clic en la tarjeta de candidato
-    const manejarClicTarjeta = () => {
-        alHacerClic(candidato);
-    };
-    
-    return (
-        <div className="tarjeta-candidato" onClick={manejarClicTarjeta}>
-            {/* JSX del componente */}
-        </div>
-    );
-};
-```
-
-**Error Messages and Console Logs:**
-
-```typescript
-// Good: English error messages
-catch (error) {
-    console.error('Failed to fetch candidates:', error);
-    setError('Unable to load candidates. Please try again later.');
-}
-
-// Avoid: Non-English messages
-catch (error) {
-    console.error('Error al obtener candidatos:', error);
-    setError('No se pudieron cargar los candidatos. Por favor, inténtelo de nuevo más tarde.');
-}
-```
-
-**Service Layer Examples:**
-
-```typescript
-// Good: English naming in services
-export const candidateService = {
-    getAllCandidates: async () => {
-        try {
-            const response = await axios.get(`${API_BASE_URL}/candidates`);
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching candidates:', error);
-            throw error;
-        }
-    }
-};
-
-// Avoid: Non-English naming
-export const servicioCandidatos = {
-    obtenerTodosLosCandidatos: async () => {
-        try {
-            const respuesta = await axios.get(`${API_BASE_URL}/candidates`);
-            return respuesta.data;
-        } catch (error) {
-            console.error('Error al obtener candidatos:', error);
-            throw error;
-        }
-    }
-};
-```
-
-### Component Conventions
-
-#### Functional Components
-- **Always use functional components** with hooks instead of class components
-- Use **TypeScript for new components** when possible
-- Keep **JavaScript for legacy components** until migration
-
-```typescript
-// Preferred - TypeScript functional component
-import React, { useState, useEffect } from 'react';
-
-type Position = {
-    id: number;
-    title: string;
-    status: 'Open' | 'Contratado' | 'Cerrado' | 'Borrador';
-};
-
-const Positions: React.FC = () => {
-    const [positions, setPositions] = useState<Position[]>([]);
-    // Component logic
-};
-```
-
-#### Component Props
-- **Define TypeScript interfaces** for component props when using TypeScript
-- Use **destructuring** for props
-- Include **default values** where appropriate
-
-```typescript
-type CandidateCardProps = {
-    candidate: Candidate;
-    index: number;
-    onClick: (candidate: Candidate) => void;
-};
-
-const CandidateCard: React.FC<CandidateCardProps> = ({ candidate, index, onClick }) => {
-    // Component implementation
-};
-```
-
-### State Management
-
-#### Local State with Hooks
-- Use **useState** for component-level state
-- Use **useEffect** for side effects and data fetching
-- **Extract custom hooks** for reusable stateful logic
-
-```javascript
-const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    status: 'Borrador'
-});
-
-const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-        ...prev,
-        [name]: value
-    }));
-};
-```
-
-#### Loading and Error States
-- **Always handle loading states** for async operations
-- **Implement error handling** with user-friendly messages
-- **Use React Bootstrap Alert** components for feedback
-
-```javascript
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState('');
-const [success, setSuccess] = useState('');
-
-// In async function
-try {
-    setLoading(true);
-    const data = await apiCall();
-    setSuccess('Operation completed successfully');
-} catch (error) {
-    setError('Error message: ' + error.message);
-} finally {
-    setLoading(false);
-}
-```
-
-### Service Layer Architecture
-
-#### API Services
-- **Centralize API calls** in service files
-- Use **axios** for HTTP requests
-- **Export service objects** with grouped methods
-- **Handle errors at service level** when appropriate
-
-```javascript
-import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:3010';
-
-export const positionService = {
-    getAllPositions: async () => {
-        try {
-            const response = await axios.get(`${API_BASE_URL}/positions`);
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching positions:', error);
-            throw error;
-        }
-    },
-    
-    updatePosition: async (id, positionData) => {
-        try {
-            const response = await axios.put(`${API_BASE_URL}/positions/${id}`, positionData);
-            return response.data;
-        } catch (error) {
-            console.error('Error updating position:', error);
-            throw error;
-        }
-    }
-};
-```
-
-## UI/UX Standards
-
-### Bootstrap Integration
-- Use **React Bootstrap components** instead of plain Bootstrap
-- **Import Bootstrap CSS** in the main App component
-- Follow **Bootstrap responsive grid system** (Container, Row, Col)
-
-```javascript
-import { Container, Row, Col, Card, Button, Form, Alert } from 'react-bootstrap';
-```
-
-### Form Handling
-- Use **controlled components** for form inputs
-- Implement **real-time validation** where appropriate
-- **Disable submit buttons** during form submission
-- **Clear form state** after successful submission
-
-```javascript
-<Form onSubmit={handleSubmit}>
-    <Form.Group className="mb-3">
-        <Form.Label>Title *</Form.Label>
-        <Form.Control
-            type="text"
-            name="title"
-            value={formData.title}
-            onChange={handleInputChange}
-            required
-        />
-    </Form.Group>
-    <Button type="submit" disabled={saving}>
-        {saving ? 'Saving...' : 'Save'}
-    </Button>
-</Form>
-```
-
-### Navigation Patterns
-- Use **React Router** for all navigation
-- **Implement breadcrumbs** with back navigation
-- Use **programmatic navigation** with useNavigate hook
-
-```javascript
-import { useNavigate } from 'react-router-dom';
-
-const navigate = useNavigate();
-
-// Navigation examples
-<Button variant="link" onClick={() => navigate('/')}>
-    ← Back to Dashboard
-</Button>
-```
-
-### Accessibility
-- Include **aria-label** attributes for interactive elements
-- Use **semantic HTML** elements
-- Ensure **keyboard navigation** support
-- Provide **alternative text** for images
-
-```javascript
-<Form.Control 
-    type="text" 
-    placeholder="Search by title" 
-    aria-label="Search positions by title"
-/>
-```
+**Never** a `data-testid` or other test-only attribute — every one of the names above is a real accessible name (`aria-label`, `<label>`, or the element's own text content), because the snapshot-based automation this project's mandatory E2E step uses reads the accessibility tree, and a test-only hook would let real accessibility rot while automation kept working. Verified directly: `test/components.test.tsx`'s "Accessible naming convention" suite, and every live E2E walkthrough in this project located its targets by name or role, never a coordinate guess.
 
 ## Testing Standards
 
-### End-to-End Testing with Cypress
-- **Test user workflows** rather than implementation details
-- Use **data-testid** attributes for reliable element selection
-- **Organize tests by feature** (candidates.cy.ts, positions.cy.ts)
-- **Include API testing** alongside UI testing
-
-```typescript
-describe('Positions API - Update', () => {
-    beforeEach(() => {
-        cy.window().then((win) => {
-            win.localStorage.clear();
-        });
-    });
-
-    it('should update a position successfully', () => {
-        const updateData = {
-            title: 'Updated Test Position',
-            status: 'Open'
-        };
-
-        cy.request({
-            method: 'PUT',
-            url: `${API_URL}/positions/${testPositionId}`,
-            body: updateData
-        }).then((response) => {
-            expect(response.status).to.eq(200);
-            expect(response.body.data.title).to.eq(updateData.title);
-        });
-    });
-});
+```bash
+npx tsc --noEmit   # fully-typed check
+npx vitest run     # component + hook unit tests
+npm run dev        # start the dev server for manual/E2E testing (fixed local URL, one command)
 ```
 
-### Test Organization
-- **Group related tests** with describe blocks
-- **Use descriptive test names** that explain the expected behavior
-- **Test both success and error scenarios**
-- **Include edge cases** and validation testing
-
-## Configuration Standards
-
-### TypeScript Configuration
-- Enable **strict mode** for type checking
-- Use **path mapping** with "@/*" for cleaner imports
-- Include **both Cypress and Node types**
-- Configure **ES5 target** for broader compatibility
-
-```json
-{
-    "compilerOptions": {
-        "strict": true,
-        "baseUrl": ".",
-        "paths": {
-            "@/*": ["src/*"]
-        },
-        "types": ["cypress", "node"]
-    }
-}
-```
-
-### ESLint Configuration
-- Extend **React App** configuration
-- Include **Jest rules** for testing
-- **Automatic code formatting** and error detection
-- **Consistent code style** across the project
-
-### Environment Configuration
-- Use **environment variables** for API URLs
-- **Separate configurations** for development and production
-- **Configure Cypress** with environment-specific settings
-
-```javascript
-// cypress.config.ts
-export default defineConfig({
-    e2e: {
-        baseUrl: 'http://localhost:3000',
-        env: {
-            API_URL: 'http://localhost:3010'
-        }
-    }
-});
-```
-
-## Performance Best Practices
-
-### Component Optimization
-- **Lazy load** components when appropriate
-- **Memoize expensive calculations** with useMemo
-- **Avoid unnecessary re-renders** with useCallback
-- **Extract reusable logic** into custom hooks
-
-### Bundle Optimization
-- **Tree shaking** enabled through Create React App
-- **Code splitting** at route level
-- **Optimize images** and static assets
-- **Monitor bundle size** with build tools
-
-### API Efficiency
-- **Implement proper error handling** for network requests
-- **Cache API responses** where appropriate
-- **Use loading states** to improve perceived performance
-- **Batch API calls** when possible
+- **Component tests** (`test/components.test.tsx`): scene ordering (render order always derives from `index`, never array/arrival order), conditional editing, download gating, and the accessible-naming convention itself — so drift breaks a fast unit test here, not a slow E2E run in a later story.
+- **Hook tests** (`test/useLiveSession.test.tsx`, from `define-live-updates`): the live-update seam tested against a controllable fake `EventSource`, never a real network connection — proving idempotent event application, per-scene state collapsing without cross-scene merging, the paused marker's independence from session state, and resync-on-every-reconnect.
+- **E2E**: agent-driven browser automation against the real backend harness (`openspec/changes/define-backend-stack/skeleton`), locating every element through the accessibility tree. Playwright MCP is the tool `docs/openspec-tasks-mandatory-steps.md` names; if unavailable in a session, an equivalent agent-driven real-browser tool (e.g. Claude in Chrome) is an acceptable substitute for the same intent, stated explicitly in the report when substituted.
 
 ## Development Workflow
 
-- **Feature Branches**: Develop features in separate branches, adding descriptive suffix "-frontend" to allow working in parallel and avoid conflicts or collisions
-- **Descriptive Commits**: Write descriptive commit messages in English
-- **Code Review**: Code review before merging
-- **Small Branches**: Keep branches small and focused
+- Feature branches, descriptive English commit messages, small focused changes — per `docs/base-standards.md`.
+- `npx tsc --noEmit` and `npx vitest run` must both pass before any commit touching the frontend.
+- Every user-facing story follows this document's screen inventory and accessible-naming convention rather than inventing its own.
 
-### Development Scripts
-```bash
-npm start          # Development server
-npm test           # Run unit tests
-npm run build      # Production build
-npm run cypress:open    # Open Cypress test runner
-npm run cypress:run     # Run Cypress tests headlessly
-```
+## Not Yet Decided
 
-### Code Quality
-- **ESLint validation** before commits
-- **TypeScript compilation** without errors
-- **All tests passing** before deployment
-- **Performance monitoring** with Web Vitals
+Tracked here so this document is never mistaken for settling more than it has:
 
-## Migration Strategy
-
-### TypeScript Migration
-- **Gradual migration** from JavaScript to TypeScript
-- **New components in TypeScript** by default
-- **Maintain existing JavaScript** components until planned refactor
-- **Add types incrementally** to existing code
-
-### Component Modernization
-- **Functional components** over class components
-- **Hooks** instead of lifecycle methods
-- **React Bootstrap** components for consistency
-- **Responsive design** principles throughout
-
-This document serves as the foundation for maintaining code quality and consistency across the LTI frontend application. All team members should follow these practices to ensure a maintainable and scalable codebase.
+- **Visual design** — explicitly deferred by the product owner. The current prototype is intentionally plain, unstyled semantic HTML; a design pass is future work, not a gap in this document.
+- **Project-list screen** — no project-list screen exists in the PRD or backlog; §12.3 describes reaching a session only by identifier. This is a product decision for the owner, not a spike's to make (`docs/adr/0004-frontend-stack.md` § Screen Inventory). Built against identifier-based access meanwhile — the session's address, containing its identifier, is the bookmark.
+- **Whether an OpenAPI-generated API client is used**, or types continue to be hand-mirrored from the backend's own `types.ts` (as they are today, documented explicitly as a manual-sync point in both files' headers) — deferred until the real backend's API surface is finalized (`define-backend-stack` task 1.3, `define-frontend-stack` task 12.2 is the ticket that would answer it for real).
+- **A router**, if and when a second real route (e.g. a project list) exists.

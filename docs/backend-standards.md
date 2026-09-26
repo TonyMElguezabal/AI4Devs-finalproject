@@ -1,6 +1,6 @@
 ---
-description: Backend development standards, best practices, and conventions for the LTI Node.js/TypeScript/Express application including Domain-Driven Design, SOLID principles, architecture patterns, API design, and testing practices
-globs: ["backend/src/**/*.ts", "backend/prisma/**/*.{prisma,ts}", "backend/jest.config.js", "backend/tsconfig.json", "backend/serverless.yml", "backend/package.json"]
+description: Backend development standards, best practices, and conventions for the Vid4You Node.js/TypeScript/Fastify application, covering stack, orchestration architecture, validation, API/OpenAPI conventions, testing and diagnostics
+globs: ["backend/src/**/*.ts", "backend/test/**/*.ts", "backend/tsconfig.json", "backend/package.json", "backend/vitest.config.ts"]
 alwaysApply: true
 ---
 
@@ -10,1219 +10,238 @@ alwaysApply: true
 
 - [Overview](#overview)
 - [Technology Stack](#technology-stack)
-  - [Core Technologies](#core-technologies)
-  - [Database & ORM](#database--orm)
-  - [Testing Framework](#testing-framework)
-  - [Development Tools](#development-tools)
-- [Architecture Overview](#architecture-overview)
-  - [Domain-Driven Design (DDD)](#domain-driven-design-ddd)
-  - [Layered Architecture](#layered-architecture)
-  - [Project Structure](#project-structure)
-- [Domain-Driven Design Principles](#domain-driven-design-principles)
-  - [Entities](#entities)
-  - [Value Objects](#value-objects)
-  - [Aggregates](#aggregates)
-  - [Repositories](#repositories)
-  - [Domain Services](#domain-services)
-  - [Additional Recommendations](#additional-recommendations)
-- [SOLID and DRY Principles](#solid-and-dry-principles)
-  - [Single Responsibility Principle (SRP)](#single-responsibility-principle-srp)
-  - [Open/Closed Principle (OCP)](#openclosed-principle-ocp)
-  - [Liskov Substitution Principle (LSP)](#liskov-substitution-principle-lsp)
-  - [Interface Segregation Principle (ISP)](#interface-segregation-principle-isp)
-  - [Dependency Inversion Principle (DIP)](#dependency-inversion-principle-dip)
-  - [DRY (Don't Repeat Yourself)](#dry-dont-repeat-yourself)
+- [Project Structure](#project-structure)
+- [Architecture](#architecture)
+  - [Why not classic DDD/CRUD layering](#why-not-classic-dddcrud-layering)
+  - [Core components](#core-components)
+  - [Provider adapters](#provider-adapters)
 - [Coding Standards](#coding-standards)
-  - [Language and Naming Conventions](#language-and-naming-conventions)
-  - [TypeScript Usage](#typescript-usage)
+  - [Naming Conventions](#naming-conventions)
   - [Error Handling](#error-handling)
-  - [Validation Patterns](#validation-patterns)
-  - [Logging Standards](#logging-standards)
-- [API Design Standards](#api-design-standards)
-  - [REST Endpoints](#rest-endpoints)
-  - [Request/Response Patterns](#requestresponse-patterns)
-  - [Error Response Format](#error-response-format)
-  - [CORS Configuration](#cors-configuration)
-- [Database Patterns](#database-patterns)
-  - [Prisma Schema](#prisma-schema)
-  - [Migrations](#migrations)
-  - [Repository Pattern](#repository-pattern)
+  - [Validation](#validation)
+- [API and OpenAPI Conventions](#api-and-openapi-conventions)
+- [Live Updates](#live-updates)
+- [Persistence](#persistence)
 - [Testing Standards](#testing-standards)
   - [Unit Testing](#unit-testing)
-  - [Integration Testing](#integration-testing)
-  - [Test Coverage Requirements](#test-coverage-requirements)
-  - [Mocking Standards](#mocking-standards)
-- [Performance Best Practices](#performance-best-practices)
-  - [Database Query Optimization](#database-query-optimization)
-  - [Async/Await Patterns](#asyncawait-patterns)
-  - [Error Handling Performance](#error-handling-performance)
-- [Security Best Practices](#security-best-practices)
-  - [Input Validation](#input-validation)
-  - [Environment Variables](#environment-variables)
-  - [Dependency Injection](#dependency-injection)
+  - [Manual Endpoint Testing](#manual-endpoint-testing)
+  - [End-to-End Testing](#end-to-end-testing)
+- [Logging and Diagnostics](#logging-and-diagnostics)
+- [Security and Configuration](#security-and-configuration)
 - [Development Workflow](#development-workflow)
-  - [Git Workflow](#git-workflow)
-  - [Development Scripts](#development-scripts)
-  - [Code Quality](#code-quality)
-- [Serverless Deployment](#serverless-deployment)
-  - [AWS Lambda Configuration](#aws-lambda-configuration)
-  - [Serverless Framework](#serverless-framework)
+- [Not Yet Decided](#not-yet-decided)
 
 ---
 
 ## Overview
 
-This document outlines the best practices, conventions, and standards used in the LTI backend application. The backend follows Domain-Driven Design (DDD) principles and implements a layered architecture to ensure code consistency, maintainability, and scalability.
+This document describes the backend standards for Vid4You: a local, single-user application that turns a script into a narrated MP4 through five provider-backed stages (voice, timestamps/decomposition, per-scene image, per-scene video, final assembly — `docs/PRD.md` §5). The backend's central problem is **long-running, resumable, per-scene orchestration** under a bounded retry budget and a concurrency cap shared across sessions — not CRUD. Standards here are chosen to serve that problem, not a generic REST-over-a-database template.
+
+This document replaces the previous version, which described an unrelated inherited template application and its stack. That content had no bearing on Vid4You and has been fully removed.
+
+The stack decision, its rejected alternatives, and the live evidence behind it are recorded in `docs/adr/0001-backend-stack.md`. Read it before this document for the "why"; this document is the "how."
 
 ## Technology Stack
 
-### Core Technologies
-- **Node.js**: Runtime environment
-- **TypeScript**: Type-safe development with strict mode
-- **Express.js**: Web application framework
-- **Prisma**: Modern ORM for database access
+- **Node.js** — runtime. Modern versions run TypeScript source directly (type-stripped) without a separate build step for development; a `tsc` compile step is used for the type-check gate and for producing what actually ships.
+- **TypeScript**, `strict: true` — per `docs/base-standards.md`'s project-wide "all code must be fully typed."
+- **Fastify** — HTTP framework. Chosen over AdonisJS/NestJS as the lighter-ceremony option for a backend that is primarily a background orchestrator with an HTTP surface, not a CRUD API (ADR 0001).
+- **Zod**, via `fastify-type-provider-zod` — request/response validation, with types inferred from the same schemas (no separate DTO duplication).
+- **`@fastify/swagger`** + **`@fastify/swagger-ui`** — OpenAPI generated from the Zod schemas, served at `/docs`.
+- **Vitest** — unit testing.
+- **Fastify's built-in logger (Pino)** — structured JSON logging.
+- **ffmpeg**, invoked as a subprocess — media assembly, per `define-media-assembly` (JOS-182); the pipeline itself is documented there, not duplicated here.
+- Persistence engine: embedded SQLite via `node:sqlite` — see [Persistence](#persistence) below.
 
-### Database & ORM
-- **PostgreSQL**: Relational database (Docker container)
-- **Prisma Client**: Type-safe database client
-- **Prisma Migrate**: Database migration tool
-
-### Testing Framework
-- **Jest**: Testing framework with TypeScript support
-- **Coverage Threshold**: 90% for branches, functions, lines, and statements
-- **Test Location**: `__tests__` directories and `.test.ts` files
-
-### Development Tools
-- **ESLint**: Code linting
-- **TypeScript Compiler**: Type checking and compilation
-- **Serverless Framework**: AWS Lambda deployment support
-
-## Architecture Overview
-
-### Domain-Driven Design (DDD)
-
-Domain-Driven Design is a methodology that focuses on modeling software according to business logic and domain knowledge. By centering development on a deep understanding of the domain, DDD facilitates the creation of complex systems.
-
-**Benefits:**
-- **Improved Communication**: Promotes a common language between developers and domain experts, improving communication and reducing interpretation errors.
-- **Clear Domain Models**: Helps build models that accurately reflect business rules and processes.
-- **High Maintainability**: By dividing the system into subdomains, it facilitates maintenance and software evolution.
-
-### Layered Architecture
-
-The backend follows a layered DDD architecture:
-
-**Presentation Layer** (`src/presentation/`)
-- Controllers handle HTTP requests/responses
-- Routes define API endpoints
-- Controllers use services from Application layer
-
-**Application Layer** (`src/application/`)
-- Services contain business logic and orchestration
-- Validator handles input validation
-- Services use repositories from Domain layer
-
-**Domain Layer** (`src/domain/`)
-- Models define core business entities (Candidate, Position, Application, Interview, etc.)
-- Repository interfaces define data access contracts
-- Pure business logic without external dependencies
-
-**Infrastructure Layer** (implicit)
-- Prisma ORM handles database operations
-- Repository implementations (via Prisma) satisfy domain interfaces
-
-### Project Structure
+## Project Structure
 
 ```
 backend/
 ├── src/
 │   ├── domain/
-│   │   ├── models/          # Domain entities
-│   │   └── repositories/    # Repository interfaces
-│   ├── application/
-│   │   ├── services/        # Business logic services
-│   │   └── validator.ts     # Input validation
-│   ├── presentation/
-│   │   └── controllers/     # HTTP request handlers
-│   ├── infrastructure/
-│   │   ├── logger.ts        # Logging utilities
-│   │   └── prismaClient.ts  # Prisma client setup
-│   ├── routes/              # Express route definitions
-│   ├── middleware/          # Express middleware
-│   ├── index.ts             # Application entry point
-│   └── lambda.ts            # AWS Lambda handler
-├── prisma/
-│   ├── schema.prisma        # Database schema
-│   └── migrations/          # Database migrations
-├── test-utils/
-│   ├── builders/            # Test data builders
-│   └── mocks/               # Mock helpers
-├── jest.config.js           # Jest configuration
-├── tsconfig.json            # TypeScript configuration
-├── serverless.yml           # Serverless Framework config
-└── package.json             # Dependencies and scripts
+│   │   ├── orchestrator.ts     # stage state machine: launch, retry, idempotent result handling, boot reconciliation
+│   │   ├── concurrency.ts      # per-stage FIFO semaphore, shared across sessions
+│   │   ├── retryPolicy.ts      # pure function: outcome + attempt count → Complete | ScheduleNext | Fail
+│   │   └── providers/          # one adapter per stage (voice, alignment, image, video, assembly)
+│   ├── persistence/             # store-backed repositories (embedded SQLite via `node:sqlite`)
+│   ├── http/
+│   │   ├── routes/              # one file per resource, Fastify + Zod schemas colocated
+│   │   ├── events.ts            # SSE (or chosen transport, US-42e) live-push endpoint
+│   │   └── server.ts            # Fastify instance, plugin registration, boot reconciliation call
+│   ├── config/
+│   │   └── env.ts               # required-environment-variable validation at startup
+│   └── index.ts                 # entry point
+├── test/
+├── tsconfig.json
+├── vitest.config.ts
+└── package.json
 ```
 
-## Domain-Driven Design Principles
+This mirrors the throwaway skeleton proven in `openspec/changes/define-backend-stack/skeleton/` (see its `README.md`), adjusted for real persistence and the full five-stage model instead of the skeleton's single generic stage. Whether the skeleton itself is kept and evolved into `backend/`, or discarded and rebuilt from scratch against this structure, is recorded in that change's `tasks.md` §11.1.
 
-### Entities
+## Architecture
 
-Entities are objects with a distinct identity that persists over time.
+### Why not classic DDD/CRUD layering
 
-**Before:**
-```typescript
-// Previously, candidate data might have been handled as a simple JSON object without methods.
-const candidate = {
-    id: 1,
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com'
-};
-```
+The previous version of this document prescribed a Presentation → Application → Domain → Infrastructure layering built around ORM-backed entities belonging to an unrelated application. That shape fits a CRUD application. It does not fit Vid4You's actual hard problem: a request can be *sent*, the process can *die*, and on restart the code must determine whether the external provider still holds a result, without duplicating work or losing the attempt budget. That is a state-machine-and-scheduler problem, not an entity-repository problem. The architecture below is organized around that instead.
 
-**After:**
-```typescript
-export class Candidate {
-    id?: number;
-    firstName: string;
-    lastName: string;
-    email: string;
-    
-    // Constructor and methods that encapsulate business logic
-    constructor(data: any) {
-        this.id = data.id;
-        this.firstName = data.firstName;
-        this.lastName = data.lastName;
-        this.email = data.email;
-    }
-}
-```
+### Core components
 
-**Explanation**: `Candidate` is an entity because it has a unique identifier (`id`) that distinguishes it from other candidates, even if other properties are identical.
+- **`RetryPolicy`** — a pure function: `(outcome, attemptsInCycle) → Complete | ScheduleNext | Fail`. No I/O, no side effects; fully unit-testable without a running server or database. This mirrors `bounded-retry-policy` (JOS-184)'s Decision 2, which owns the real policy (backoff, `stageInstanceKey` keying by `(sessionId, stage)` or `(sessionId, sceneId, stage)`); this document does not restate that design, only conforms to it.
+- **`orchestrator`** — everything with side effects sits here: launching a stage, applying `RetryPolicy`'s decision, handling a (possibly duplicate) provider result idempotently, and reconciling in-flight work on boot. Proven live in the walking skeleton (`docs/adr/0001-backend-stack.md` § Evidence) against all four PRD behaviours hardest to retrofit (bounded retries, shared concurrency, restart resumption, idempotency).
+- **`concurrency`** — a FIFO semaphore per stage, shared across all sessions (PRD §10.1). A queued request has not been sent: no attempt is consumed and no per-phase clock starts for it.
+- **Provider adapters** — see below.
 
-**Best Practice**: Entities should encapsulate business logic related to their domain concept and maintain consistency of their internal state.
+Stage attempts are recorded **append-only**, written *before* the request is sent (not after the response returns), per `define-persistence` (JOS-181)'s Decision 1 and Decision 2 — write-then-send is what makes restart resumption possible at all; write-after-response leaves no trace of a request that was in flight when the process died. Each attempt record carries its stage, sequence within the 1 + 3 budget, provider, outcome, external request identifier, and queued-versus-executing time (`define-persistence` Decision 1). Idempotency (a repeated success confirmation) is enforced by a **uniqueness constraint in the store**, not an application-level check-then-write (`define-persistence` Decision 3) — a check-then-write has a race window that a store constraint does not.
 
-### Value Objects
+### Provider adapters
 
-Value Objects describe aspects of the domain without conceptual identity. They are defined by their attributes rather than an identifier.
-
-**Before:**
-```typescript
-// Handling education information as a simple object
-const education = {
-    institution: 'University',
-    degree: 'Bachelor',
-    startDate: '2010-01-01',
-    endDate: '2014-01-01'
-};
-```
-
-**After:**
-```typescript
-export class Education {
-    institution: string;
-    title: string;
-    startDate: Date;
-    endDate?: Date;
-    
-    constructor(data: any) {
-        this.institution = data.institution;
-        this.title = data.title;
-        this.startDate = new Date(data.startDate);
-        this.endDate = data.endDate ? new Date(data.endDate) : undefined;
-    }
-}
-```
-
-**Explanation**: `Education` can be considered a Value Object in some contexts, as it describes a candidate's education without needing a unique identifier. However, in the current model, it has been assigned an id, which could contradict the pure definition of a Value Object in DDD.
-
-**Recommendation**: Classes like `Education` and `WorkExperience` currently have unique identifiers, classifying them as entities. In many cases, these could be treated as Value Objects within the context of a `Candidate` aggregate. Consider removing unique identifiers from classes that should be Value Objects, or incorporating them as part of the Candidate document if using a NoSQL database.
-
-### Aggregates
-
-Aggregates are clusters of objects that must be treated as a unit. They have a root entity that enforces invariants and consistency boundaries.
-
-**Before:**
-```typescript
-// Candidate and education data handled separately
-const candidate = { id: 1, name: 'John Doe' };
-const educations = [{ candidateId: 1, institution: 'University' }];
-```
-
-**After:**
-```typescript
-export class Candidate {
-    id?: number;
-    firstName: string;
-    lastName: string;
-    email: string;
-    educations: Education[];
-    
-    constructor(data: any) {
-        this.id = data.id;
-        this.firstName = data.firstName;
-        this.lastName = data.lastName;
-        this.email = data.email;
-        this.educations = data.educations?.map(edu => new Education(edu)) || [];
-    }
-}
-```
-
-**Explanation**: `Candidate` acts as an aggregate root that contains `Education`, `WorkExperience`, `Resume`, and `Application`. `Candidate` is the root of the aggregate, as the other entities only make sense in relation to a candidate.
-
-**Recommendation**: Aggregates should be carefully designed to ensure that all operations within the aggregate boundary maintain consistency. Operations that affect `Education` and `WorkExperience` should be handled through the aggregate root, `Candidate`, to maintain integrity and encapsulation.
-
-### Repositories
-
-Repositories provide interfaces for accessing aggregates and entities, encapsulating data access logic.
-
-**Before:**
-```typescript
-// Direct database access without abstraction
-function getCandidateById(id: number) {
-    return database.query('SELECT * FROM candidates WHERE id = ?', [id]);
-}
-```
-
-**After:**
-```typescript
-export interface ICandidateRepository {
-    findById(id: number): Promise<Candidate | null>;
-    save(candidate: Candidate): Promise<Candidate>;
-    findAll(): Promise<Candidate[]>;
-}
-
-export class CandidateRepository implements ICandidateRepository {
-    async findById(id: number): Promise<Candidate | null> {
-        const data = await prisma.candidate.findUnique({ where: { id } });
-        return data ? new Candidate(data) : null;
-    }
-    
-    async save(candidate: Candidate): Promise<Candidate> {
-        // Implementation with Prisma
-    }
-}
-```
-
-**Explanation**: `CandidateRepository` provides a clear interface for accessing candidate data, encapsulating database access logic.
-
-**Recommendation**: 
-- Develop complete repository interfaces for each entity and aggregate, ensuring all database interactions for those entities pass through the repository
-- Implement repository methods that handle collections of entities, such as lists of Candidates, that can be filtered or modified in bulk
-- Use dependency injection to inject Prisma client into repositories
-
-### Domain Services
-
-Domain Services contain business logic that doesn't naturally belong to an entity or value object.
-
-**Before:**
-```typescript
-// Loose functions to handle business logic
-function calculateAge(candidate: any): number {
-    const today = new Date();
-    const birthDate = new Date(candidate.birthDate);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-    }
-    return age;
-}
-```
-
-**After:**
-```typescript
-export class CandidateService {
-    static calculateAge(candidate: Candidate): number {
-        const today = new Date();
-        const birthDate = new Date(candidate.birthDate);
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-        }
-        return age;
-    }
-}
-```
-
-**Explanation**: `CandidateService` encapsulates business logic related to candidates, such as calculating age, providing a centralized and coherent point for handling these operations.
-
-### Additional Recommendations
-
-**Use of Factories**
-
-Factories are useful in DDD to encapsulate the logic of creating complex objects, ensuring that all created objects comply with domain rules from the moment of creation.
-
-**Recommendation**: Implement factories for the creation of entities and aggregates, especially those that are complex and require specific initial configuration that complies with business rules.
-
-**Improvement in Relationship Modeling**
-
-Relationships between entities and aggregates must be clear and consistent with business rules.
-
-**Recommendation**: Review and possibly redesign relationships between entities to ensure they accurately reflect domain needs and rules. This may include removing unnecessary relationships or adding new relationships that facilitate business operations.
-
-**Domain Events Integration**
-
-Domain events are an important part of DDD and can be used to handle side effects of domain operations in a decoupled manner.
-
-**Recommendation**: Implement a domain event system that allows entities and aggregates to publish events that other system components can handle without being tightly coupled to the entities that generate them.
-
-## SOLID and DRY Principles
-
-### SOLID Principles
-
-SOLID principles are five object-oriented design principles that help create more understandable, flexible, and maintainable systems.
-
-#### Single Responsibility Principle (SRP)
-
-Each class should have a single responsibility or reason to change.
-
-**Before:**
-```typescript
-// A method that handles multiple responsibilities: validation and data storage
-function processCandidate(candidate: any) {
-    if (!candidate.email.includes('@')) {
-        console.error('Invalid email');
-        return;
-    }
-    database.save(candidate);
-    console.log('Candidate saved');
-}
-```
-
-**After:**
-```typescript
-export class Candidate {
-    // The class now only handles logic related to the candidate
-    validateEmail(): void {
-        if (!this.email.includes('@')) {
-            throw new Error('Invalid email');
-        }
-    }
-}
-
-export class CandidateRepository {
-    async save(candidate: Candidate): Promise<Candidate> {
-        candidate.validateEmail();
-        return await prisma.candidate.create({ data: candidate });
-    }
-}
-```
-
-**Explanation**: The `Candidate` class now has separate methods for validation, while the repository handles data persistence, complying with the single responsibility principle.
-
-**Observation**: The `Candidate` class in `backend/src/domain/models/Candidate.ts` handles both business logic and data access logic.
-
-**Recommendation**: Separate data access logic into a repository layer to adhere more closely to SRP.
-
-#### Open/Closed Principle (OCP)
-
-Software entities should be open for extension but closed for modification.
-
-**Before:**
-```typescript
-// Direct modification of the class to add functionality
-class Candidate {
-    saveToDatabase() {
-        // code to save to database
-    }
-    // To add new functionality, we modify the class directly
-    sendEmail() {
-        // code to send an email
-    }
-}
-```
-
-**After:**
-```typescript
-export class Candidate {
-    saveToDatabase() {
-        // code to save to database
-    }
-}
-
-// Extend functionality without modifying the existing class
-class CandidateWithEmail extends Candidate {
-    sendEmail() {
-        // code to send an email
-    }
-}
-```
-
-**Explanation**: The email sending functionality is extended in a subclass, keeping the original class closed for modifications but open for extensions.
-
-**Observation**: The `addCandidate` function in `backend/src/application/services/candidateService.ts` directly instantiates `Candidate`, `Education`, `WorkExperience`, and `Resume` classes.
-
-**Recommendation**: Use factory methods to create instances, allowing for easier extension without modifying existing code.
-
-#### Liskov Substitution Principle (LSP)
-
-Objects of a derived class should be replaceable with objects of the base class without altering the program's functionality.
-
-**Before:**
-```typescript
-// Subclass that cannot completely replace its base class
-class TemporaryCandidate extends Candidate {
-    saveToDatabase() {
-        throw new Error("Temporary candidates can't be saved.");
-    }
-}
-```
-
-**After:**
-```typescript
-class TemporaryCandidate extends Candidate {
-    saveToDatabase() {
-        // Appropriate implementation that allows temporary handling
-        console.log("Handled temporarily");
-        // Alternative: Save to temporary storage
-    }
-}
-```
-
-**Explanation**: `TemporaryCandidate` now provides an appropriate implementation that respects the base class contract, allowing substitution without errors.
-
-**Observation**: Currently, there is no inheritance in use where LSP could be violated. The project uses composition over inheritance, which generally supports LSP.
-
-**Recommendation**: Continue using composition to avoid LSP violations and ensure that any future inheritance structures allow derived classes to substitute their base classes without altering how the program works.
-
-#### Interface Segregation Principle (ISP)
-
-Many specific interfaces are better than a single general interface.
-
-**Before:**
-```typescript
-// A large interface that small clients don't fully use
-interface CandidateOperations {
-    save(): void;
-    validate(): void;
-    sendEmail(): void;
-    generateReport(): void;
-}
-```
-
-**After:**
-```typescript
-interface SaveOperation {
-    save(): void;
-}
-
-interface EmailOperations {
-    sendEmail(): void;
-}
-
-interface ReportOperations {
-    generateReport(): void;
-}
-
-class Candidate implements SaveOperation, EmailOperations {
-    save() {
-        // implementation
-    }
-    
-    sendEmail() {
-        // implementation
-    }
-}
-```
-
-**Explanation**: Interfaces are segregated into smaller operations, allowing classes to implement only the interfaces they need.
-
-**Observation**: The project does not currently use TypeScript interfaces extensively to enforce contracts for classes.
-
-**Recommendation**: Define more granular interfaces for service classes to ensure they only implement the methods they need.
-
-#### Dependency Inversion Principle (DIP)
-
-High-level modules should not depend on low-level modules; both should depend on abstractions.
-
-**Before:**
-```typescript
-// Direct dependency on a concrete implementation
-class Candidate {
-    private database = new PrismaClient();
-    
-    save() {
-        this.database.candidate.create({ data: this });
-    }
-}
-```
-
-**After:**
-```typescript
-interface Database {
-    save(candidate: Candidate): Promise<Candidate>;
-}
-
-class Candidate {
-    private database: Database;
-    
-    constructor(database: Database) {
-        this.database = database;
-    }
-    
-    async save(): Promise<Candidate> {
-        return await this.database.save(this);
-    }
-}
-```
-
-**Explanation**: `Candidate` now depends on an abstraction (Database), not a concrete implementation, which facilitates flexibility and code testing.
-
-**Observation**: Classes like `Candidate` directly depend on the concrete `PrismaClient` for database operations.
-
-**Recommendation**: Use dependency injection to invert the dependency, relying on abstractions rather than concrete implementations. Inject `PrismaClient` through the constructor or a setter method.
-
-### DRY (Don't Repeat Yourself)
-
-The DRY principle focuses on reducing duplication in code. Each piece of knowledge should have a single, unambiguous, and authoritative representation within a system.
-
-**Before:**
-```typescript
-// Repeated code to validate emails in multiple functions
-function saveCandidate(candidate: Candidate) {
-    if (!candidate.email.includes('@')) {
-        throw new Error('Invalid email');
-    }
-    // save logic
-}
-
-function updateCandidate(candidate: Candidate) {
-    if (!candidate.email.includes('@')) {
-        throw new Error('Invalid email');
-    }
-    // update logic
-}
-```
-
-**After:**
-```typescript
-export class Candidate {
-    validateEmail(): void {
-        if (!this.email.includes('@')) {
-            throw new Error('Invalid email');
-        }
-    }
-    
-    async save(): Promise<Candidate> {
-        this.validateEmail();
-        // save logic
-    }
-    
-    async update(): Promise<Candidate> {
-        this.validateEmail();
-        // update logic
-    }
-}
-```
-
-**Explanation**: Email validation is centralized in a single `validateEmail` method, eliminating code duplication in the save and update functions.
-
-**Observation**: The methods for saving entities like `Candidate`, `Education`, `WorkExperience`, and `Resume` contain repetitive logic for handling database operations.
-
-**Recommendation**: Abstract common database operation logic into a reusable function or class.
+One adapter per stage (voice, alignment, image, video, assembly). Per `generate-voice-over` (JOS-136)'s Decision 4, an adapter returns an **already-classified** outcome (success, transient failure, or not-retryable failure) — classification is the adapter's job, not the orchestrator's, since only the adapter knows a given provider's error shapes. Per `bounded-retry-policy`'s Decision 6, every adapter disables its own HTTP client's/SDK's built-in retries; the bounded retry budget (§10.1) is the *only* retry mechanism, or an internal library retry loop would silently multiply it.
 
 ## Coding Standards
 
+Naming, typing, TDD and English-only rules are inherited from `docs/base-standards.md` and are not restated here. This section covers what's specific to this backend.
+
 ### Naming Conventions
 
-- **Variable Naming**: Use camelCase for variables and functions (e.g., `candidateId`, `findCandidateById`)
-- **Class Naming**: Use PascalCase for classes and interfaces (e.g., `Candidate`, `CandidateRepository`)
-- **Constants Naming**: Use UPPER_SNAKE_CASE for constants (e.g., `MAX_CANDIDATES_PER_PAGE`)
-- **Type Naming**: Use PascalCase for types and interfaces (e.g., `CandidateData`, `ICandidateRepository`)
-- **File Naming**: Use camelCase for file names (e.g., `candidateService.ts`, `candidateController.ts`)
-
-**Examples:**
-
-```typescript
-// Good: All in English
-export class CandidateRepository {
-    async findById(candidateId: number): Promise<Candidate | null> {
-        // Find candidate by ID in the database
-        const candidate = await this.prisma.candidate.findUnique({
-            where: { id: candidateId }
-        });
-        return candidate ? new Candidate(candidate) : null;
-    }
-}
-
-// Avoid: Non-English comments or names
-export class RepositorioCandidato {
-    async buscarPorId(idCandidato: number): Promise<Candidato | null> {
-        // Buscar candidato por ID en la base de datos
-        const candidato = await this.prisma.candidate.findUnique({
-            where: { id: idCandidato }
-        });
-        return candidato ? new Candidato(candidato) : null;
-    }
-}
-```
-
-**Error Messages and Logs:**
-
-```typescript
-// Good: English error messages
-throw new NotFoundError('Candidate not found with the provided ID');
-logger.error('Failed to create candidate', { error: error.message });
-
-// Avoid: Non-English messages
-throw new NotFoundError('Candidato no encontrado con el ID proporcionado');
-logger.error('Error al crear candidato', { error: error.message });
-```
-
-### TypeScript Usage
-
-- **Strict Mode**: Always enable strict mode in `tsconfig.json`
-- **Type Definitions**: Use explicit types for function parameters and return values
-- **Interfaces**: Define interfaces for complex data structures
-- **Avoid `any`**: Use `unknown` or specific types instead of `any` when possible
-
-```typescript
-// Good: Explicit types
-async function findCandidateById(id: number): Promise<Candidate | null> {
-    // implementation
-}
-
-// Avoid: Using any
-function processData(data: any): any {
-    // implementation
-}
-```
+- **Files**: camelCase (`orchestrator.ts`, `retryPolicy.ts`)
+- **Types/interfaces/Zod schemas**: PascalCase (`SceneStatus`, `CreateRunBody`)
+- **Stage identifiers**: the PRD's own stage names, not invented synonyms (`voice`, `alignment`, `decomposition`, `image`, `video`, `assembly`)
+- **Constants**: UPPER_SNAKE_CASE, and every hardcoded PRD value (retry budget, concurrency caps, per-phase timeouts) lives in one constants module sourced from `define-provider-configuration` (JOS-165) — never inlined at the call site
 
 ### Error Handling
 
-- **Custom Error Classes**: Create domain-specific error classes
-- **Error Middleware**: Use global error middleware for consistent error responses
-- **Error Messages**: Provide descriptive error messages for debugging
+- Domain errors are typed values returned from adapters and the orchestrator (`ProviderOutcome`, per the skeleton's `types.ts`), not thrown exceptions used for control flow. Exceptions are reserved for genuine bugs (an invariant violated, an unreachable branch).
+- HTTP-layer errors map typed domain outcomes to responses at the route boundary; the mapping lives with the routes, not scattered across the domain layer.
+- Never swallow an error silently: a caught error is either handled (with a recorded reason) or re-thrown.
 
-```typescript
-export class NotFoundError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'NotFoundError';
-    }
+### Validation
+
+- Every route's body, params, and response are Zod schemas, registered through `fastify-type-provider-zod` so validation and the generated OpenAPI document can never drift apart.
+- Schemas live next to the route that uses them, not in a separate, hard-to-find validator module (the shape that made the previous version's `validator.ts` a bottleneck).
+- Validate at the edge (the HTTP boundary); once past it, code works with typed values, not `req.body` shapes.
+
+## API and OpenAPI Conventions
+
+- OpenAPI is **generated** from the Zod route schemas (`@fastify/swagger` + `jsonSchemaTransform`), never hand-written and never allowed to drift from the actual validators — proven in the skeleton (`GET /docs`).
+- Resource-oriented URLs matching the PRD's own vocabulary: `/sessions`, `/sessions/:sessionId`, `/sessions/:sessionId/scenes/:sceneId/{retry,correct}`, `/sessions/:sessionId/{pause,continue}`. The consultation read and the live-update resync are the **same** endpoint (`GET /sessions/:sessionId` — `consult-session`, JOS-135, Decision 1), never two representations that could drift apart.
+- Standard status codes: `200`/`201` for success, `400` for validation failure (Zod's own error shape, not a hand-rolled one), `404` for an unknown identifier (including an unknown session id on the live-update stream itself — see below), `409` for a state-conflict action (e.g. retrying a scene that isn't `failed`, or correcting one that hasn't).
+
+## Live Updates
+
+**Decided:** Server-Sent Events (`docs/adr/0003-live-updates.md`) — confirmed on independently-scored merits against WebSocket and polling, not inherited as a stand-in.
+
+**Stream:** `GET /events?sessionId=<id>` — one stream per open session page, scoped by session identifier. A request naming an unknown session is rejected with `404` **before** upgrading to a stream — an unknown id must never open a live-forever-empty connection that looks identical to a quiet session (a real bug found and fixed while writing this change's mandatory curl transcript).
+
+**Payload — the one contract, referenced from `docs/frontend-standards.md` rather than duplicated there:**
+```ts
+interface SessionEventPayload {
+  type: "session"; sessionId: string; title: string; language: string;
+  state: SessionState;      // PRD §8.1, the eight session states
+  paused: boolean;          // always its own field, never folded into `state`
+  failedPhase?: string;
+  updatedAt: string;
 }
 
-// In controller
-try {
-    const candidate = await candidateService.findById(id);
-    if (!candidate) {
-        throw new NotFoundError('Candidate not found');
-    }
-    res.json(candidate);
-} catch (error) {
-    next(error);
+interface SceneEventPayload {
+  type: "scene"; sessionId: string; sceneId: string; index: number;
+  state: SceneState;        // PRD §8.2, the six chunk states
+  affectedStage?: "image" | "video"; errorCause?: string | null;
+  provider?: string; attempts?: number;
+  result?: { imageUrl?: string; videoUrl?: string };
+  instruction?: string; updatedAt: string;
 }
 ```
+Every message carries **current state, never a delta** — a duplicate delivery is a no-op to apply, and a missed one is superseded by the next. The snapshot read (`GET /sessions/:sessionId`) returns `{ session, scenes: [...] }` in these exact same shapes.
 
-### Validation Patterns
+**Coalescing:** the skeleton broadcasts a full snapshot synchronously on every state change rather than batching pending changes into fewer messages — proven safe under a 200-scene burst (no scene lost or corrupted) precisely *because* every message is a complete, current-state snapshot rather than a delta. This trades message volume for simplicity: literal batching (collapsing several rapid changes for the same entity into one message within a short window) was found unnecessary for correctness at the scale this MVP targets, but a future implementation may still want it purely to reduce bandwidth/render cost at larger scale — that would be a performance optimization on top of this contract, not a correctness requirement of it.
 
-- **Input Validation**: Validate all inputs at the application layer
-- **Use Validator Module**: Centralize validation logic in `src/application/validator.ts`
-- **Validate Before Processing**: Always validate before executing business logic
+**Catch-up rule: resync, not replay.** A reconnecting client refetches the full snapshot; the server keeps no event log for replay. Consequence, stated once rather than left implicit: intermediate transitions occurring entirely within a disconnection window are never individually seen — only the latest state is. A complete transition history, if a story ever needs one, comes from the persisted stage-attempt records (`docs/data-model.md`), not this stream.
 
-```typescript
-import { validateCandidateData } from '../application/validator';
+**A client must resync on every (re)connect, not only render pushed deltas.** An SSE stream has no backlog; a client that only fetches state once on load can go stale forever after a drop, with no visible symptom. This was a real gap found and fixed during `define-backend-stack`'s own E2E testing (`docs/adr/0001-backend-stack.md` § Evidence) — resync belongs in the reconnect handler (`onopen`, which fires on the first connect **and** every automatic browser reconnect), not only at mount.
 
-export async function addCandidate(req: Request, res: Response, next: NextFunction) {
-    try {
-        const validatedData = validateCandidateData(req.body);
-        const candidate = await candidateService.create(validatedData);
-        res.status(201).json(candidate);
-    } catch (error) {
-        next(error);
-    }
-}
-```
+**Heartbeat:** a periodic comment line on an otherwise idle stream keeps it from being mistaken for dead by an intermediary; proven to hold a connection open through a quiet stretch with zero reconnects.
 
-### Logging Standards
-
-- **Use Logger Class**: Use the centralized logger from `src/infrastructure/logger.ts`
-- **Log Levels**: Use appropriate log levels (info, error, warn, debug)
-- **Structured Logging**: Include relevant context in log messages
-
-```typescript
-import { Logger } from '../infrastructure/logger';
-
-const logger = new Logger();
-
-logger.info('Candidate created', { candidateId: candidate.id });
-logger.error('Failed to create candidate', { error: error.message });
-```
-
-## API Design Standards
-
-### REST Endpoints
-
-- **RESTful Naming**: Use RESTful conventions for endpoint naming
-- **HTTP Methods**: Use appropriate HTTP methods (GET, POST, PUT, DELETE, PATCH)
-- **Resource-Based URLs**: URLs should represent resources, not actions
-
-```typescript
-GET    /candidates          // List candidates
-GET    /candidates/:id      // Get candidate by ID
-POST   /candidates          // Create new candidate
-PUT    /candidates/:id      // Update candidate
-DELETE /candidates/:id      // Delete candidate
-```
-
-### Request/Response Patterns
-
-- **JSON Format**: Use JSON for request and response bodies
-- **Consistent Structure**: Maintain consistent response structure across all endpoints
-- **Status Codes**: Use appropriate HTTP status codes
-
-```typescript
-// Success response
-{
-    "success": true,
-    "data": { ... },
-    "message": "Operation completed successfully"
-}
-
-// Error response
-{
-    "success": false,
-    "error": {
-        "message": "Error description",
-        "code": "ERROR_CODE"
-    }
-}
-```
-
-### Error Response Format
-
-- **Consistent Format**: All errors should follow the same response structure
-- **Error Codes**: Use meaningful error codes for different error types
-- **HTTP Status Codes**: Map errors to appropriate HTTP status codes
-
-```typescript
-// 400 Bad Request
-{
-    "success": false,
-    "error": {
-        "message": "Validation failed",
-        "code": "VALIDATION_ERROR",
-        "details": [ ... ]
-    }
-}
-
-// 404 Not Found
-{
-    "success": false,
-    "error": {
-        "message": "Resource not found",
-        "code": "NOT_FOUND"
-    }
-}
-```
-
-### CORS Configuration
-
-- **Enable CORS**: Configure CORS to allow frontend origin
-- **Secure Configuration**: Only allow specific origins in production
-- **Credentials**: Configure credentials handling appropriately
-
-```typescript
-import cors from 'cors';
-
-const corsOptions = {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true
-};
-
-app.use(cors(corsOptions));
-```
-
-## Database Patterns
-
-### Prisma Schema
-
-- **Single Source of Truth**: `prisma/schema.prisma` is the single source of truth for database structure
-- **Relationships**: Define relationships using Prisma relations
-- **Naming Conventions**: Use consistent naming conventions (camelCase for fields, PascalCase for models)
-
-### Migrations
-
-- **Version Control**: All database changes must be version-controlled through migrations
-- **Migration Naming**: Use descriptive names for migrations
-- **Review Migrations**: Review migration files before applying
-
+**Manual verification of a held-open stream** (the mandatory curl step, adapted — a stream doesn't return, so the usual request/response pattern doesn't apply):
 ```bash
-# Create migration
-npx prisma migrate dev --name descriptive_migration_name
-
-# Apply migrations in production
-npx prisma migrate deploy
+# Create the session and start the held-open capture in the SAME script —
+# starting them as two separate commands risks missing the whole burst if
+# the scenes complete faster than the gap between commands.
+SID=$(curl -s -X POST http://127.0.0.1:3100/sessions -H "Content-Type: application/json" -d '{...}' | jq -r .session.sessionId)
+curl -s -N --max-time 30 "http://127.0.0.1:3100/events?sessionId=$SID"
 ```
 
-### Repository Pattern
+## Persistence
 
-- **Repository Interfaces**: Define repository interfaces in the domain layer
-- **Prisma Implementation**: Implement repositories using Prisma in the infrastructure layer
-- **Dependency Injection**: Inject Prisma client into repositories
+**Decided:** embedded SQLite via Node's built-in `node:sqlite` (`docs/adr/0002-persistence.md`) — this confirms the walking skeleton's stand-in as the real engine, on independently-scored merits, not by default. The data model it stores is documented in `docs/data-model.md`.
 
-```typescript
-// Domain layer interface
-export interface ICandidateRepository {
-    findById(id: number): Promise<Candidate | null>;
-    save(candidate: Candidate): Promise<Candidate>;
-}
+What's fixed, because it comes directly from the PRD and is proven against the real store (not assumed):
 
-// Infrastructure layer implementation
-export class CandidateRepository implements ICandidateRepository {
-    constructor(private prisma: PrismaClient) {}
-    
-    async findById(id: number): Promise<Candidate | null> {
-        const data = await this.prisma.candidate.findUnique({ where: { id } });
-        return data ? new Candidate(data) : null;
-    }
-}
-```
+- **Append-only attempts, mutable read model.** `provider_requests` rows are never rewritten — each retry inserts a new row (Decision 1); `scenes.status`/`result` is a derived, idempotently-updatable read model on top of that history.
+- **Write-ahead recording.** A provider request's external id, stage and send time are persisted **before** the request is sent (Decision 2) — the window between send and response is exactly what restart resumption depends on.
+- **Idempotency is a store-level uniqueness constraint, not an application check.** A repeated success confirmation is rejected by a `PRIMARY KEY`/`UNIQUE` constraint on the commit table, never by a prior `if (alreadyDone) return` read — that check-then-act pattern is only safe by accident (e.g. a synchronous single-threaded driver) and is exactly what this project got wrong once and then fixed (`docs/adr/0002-persistence.md` Decision 3). Catch the driver's specific constraint-violation error (not every error) and treat only that as "already applied."
+- **File references are relative, always.** Every artefact path is relative to the owning session's recorded project-folder root, never absolute (Decision 4) — project folders are user-facing and named for humans (PRD §12.2), so they get renamed. Renaming in place means updating the one recorded root column; every existing artefact reference keeps resolving with no further change.
+- **The readiness queue is rebuilt at startup; only the pause marker is persisted** (Decision 5) — everything else is derivable, and a stale persisted queue after a crash is worse than a freshly rebuilt one.
+- **Schema migrations are versioned from the first commit** (Decision 6): a small migration runner takes the target database handle explicitly (not a module-level singleton), so the exact same runner can be pointed at a fixture database in tests — this is what makes "an existing session survives a schema upgrade" a real, repeatable test rather than a claim.
+
+**Test isolation:** tests that touch persisted state run against an **isolated** database path and an isolated project-folder root (`DB_PATH=data/test.sqlite PROJECTS_ROOT=data/test-projects npx vitest run`), never the same paths used for manual/E2E testing or real use. The test-reset helper wipes **both** the database rows and the real project-folder directory — a store that also writes real files needs its filesystem state reset alongside its rows, or a second test run collides with the first's leftovers (a real gap found and fixed while verifying this, `openspec/changes/define-persistence/reports/2026-09-25-step-7-unit-test-and-db-verification.md`).
 
 ## Testing Standards
 
-The project has strict requirements for code quality and maintainability. These are the unit testing standards and best practices that must be applied. 
+Commands (run from `backend/`, or from `openspec/changes/define-backend-stack/skeleton/` while the skeleton is the active harness):
 
-### Test File Structure
-- Use descriptive test file names: `[componentName].test.ts`
-- Place test files alongside the source code they test
-- Use Jest as the testing framework with TypeScript support
-- Maintain 90% coverage threshold for branches, functions, lines, and statements
-
-
-### Test Organization Pattern
-Template:
-```typescript
-describe('[ComponentName] - [methodName]', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  describe('should_[expected_behavior]_when_[condition]', () => {
-    it('should [specific test case]', async () => {
-      // Arrange
-      // Act  
-      // Assert
-    });
-  });
-});
+```bash
+npx tsc --noEmit      # fully-typed check
+npx vitest run        # unit tests
+npm start             # start the server for manual/E2E testing
 ```
 
-Real example:
-```typescript
-describe('CandidateService - findById', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-    });
+### Unit Testing
 
-    it('should return candidate when found', async () => {
-        // Arrange
-        const candidateId = 1;
-        const mockCandidate = new Candidate({ id: 1, firstName: 'John' });
-        (CandidateRepository.findById as jest.Mock).mockResolvedValue(mockCandidate);
+- Vitest, colocated `test/` directory. Prefer testing `RetryPolicy` and similar pure functions directly, with no mocking required — that is the point of keeping them pure (see Architecture).
+- Tests that touch persisted state must run against an **isolated** database path (e.g. `DB_PATH=data/test.sqlite`), never the same file used for manual/E2E testing or real use — mixing them destroys evidence from one to satisfy the other, as documented in `openspec/changes/define-backend-stack/reports/2026-09-25-step-6-unit-test-and-state-verification.md`.
+- Every test that exercises persisted state must reset it in `beforeEach`, not rely on execution order.
+- Coverage target: exercise every branch of `RetryPolicy` and every idempotency guard explicitly (happy path, transient failure, not-retryable failure, duplicate delivery) — these are exactly the branches PRD §10 and §12.1 turn into acceptance criteria; a coverage percentage without covering these specific branches by name is not sufficient.
 
-        // Act
-        const result = await candidateService.findById(candidateId);
+### Manual Endpoint Testing
 
-        // Assert
-        expect(result).toEqual(mockCandidate);
-        expect(CandidateRepository.findById).toHaveBeenCalledWith(candidateId);
-    });
-});
-```
+Per `docs/openspec-tasks-mandatory-steps.md` (generalized here from "database" to "persisted state" — see `docs/adr/0001-backend-stack.md` Decision 1): start the server, exercise each endpoint with `curl`, verify status codes and response bodies, verify persisted state before/after, and restore it. Reports go under the active change's `reports/` folder. When killing/restarting the server as part of a restart-resumption test, identify the live process by the port it holds (`lsof -tiTCP:<port> -sTCP:LISTEN`), not by matching its command line with `pgrep` — the latter was found unreliable in this sandbox (`openspec/changes/define-backend-stack/reports/2026-09-25-step-7-curl-manual-testing.md`, Outcome).
 
+### End-to-End Testing
 
+Playwright MCP is the tool named by `docs/openspec-tasks-mandatory-steps.md`. If it is unavailable in a session, Claude in Chrome (or an equivalent agent-driven real-browser tool) is an acceptable substitute for the same intent — agent-executed, real-browser verification — and the substitution must be stated explicitly in the report, as it was in `openspec/changes/define-backend-stack/reports/2026-09-25-step-8-e2e-live-push.md`.
 
-### Test Case Naming Convention
-- Use descriptive, behavior-driven naming: `should_[expected_behavior]_when_[condition]`
-- Group related test cases under descriptive `describe` blocks
-- Use snake_case for describe blocks and camelCase for individual tests
+## Logging and Diagnostics
 
-### Test Structure (AAA Pattern)
-Always follow the Arrange-Act-Assert pattern:
-```typescript
-it('should update candidate stage successfully when valid data provided', async () => {
-  // Arrange - Set up test data and mocks
-  const candidateId = 1;
-  const applicationId = 1;
-  const newInterviewStep = 2;
-  
-  // Act - Execute the function under test
-  const result = await updateCandidateStage(candidateId, applicationId, newInterviewStep);
-  
-  // Assert - Verify the expected behavior
-  expect(result).toEqual(expectedResult);
-});
-```
+Structured JSON logging (Fastify's built-in Pino logger), one event per line, never string-interpolated messages that bury the data. Every log line about a provider call or a stage attempt carries enough correlation fields to reconstruct the record US-34 must display, without needing to query the store first:
 
-Assertion pattern:
-- Use specific matchers: `toHaveBeenCalledWith()`, `toHaveBeenCalledTimes()`
-- Verify both successful operations and error conditions
-- Check that mocks were called with correct parameters
-- Assert on return values and side effects
+- `sessionId`, `sceneId` (when the stage is per-scene), `stage`
+- `stageInstanceKey` (per `bounded-retry-policy`'s Decision 1: `(sessionId, stage)` or `(sessionId, sceneId, stage)`)
+- `cycle` and `sequenceInCycle` (which automatic-retry cycle, and which of the 1 + 3 attempts within it — `bounded-retry-policy` Decision 7)
+- `trigger` (`automatic` | `manual`)
+- `providerRequestId` (the external request identifier, recorded before the request is sent)
+- `outcome` (`success` | `failed_transient` | `failed_not_retryable`) once known
 
+**Never log a provider credential or secret value**, even at debug level — this is a hard requirement of `backend-foundation`'s "Provider credentials outside source control" (`specs/backend-foundation/spec.md`), not just good practice. A missing required credential at startup must report *which* credential is missing without ever printing its value.
 
+## Security and Configuration
 
-
-
-
-
-
-### Mocking Standards
-
-- Mock all external dependencies (models, services, database clients)
-- Mock repository layers in service tests
-- Mock service layers in controller tests
-- Use `jest.mock()` at the top of test files for module-level mocking
-- Create mock instances with realistic data structures
-- Clear all mocks in `beforeEach()` to ensure test isolation
-
-
-### Test Coverage Requirements
-
-- **Comprehensive test coverage**: Include these test categories for each function:
-1. **Happy Path Tests**: Valid inputs producing expected outputs
-2. **Error Handling Tests**: Invalid inputs, missing data, database errors
-3. **Edge Cases**: Boundary values, null/undefined inputs, empty data
-4. **Validation Tests**: Input validation, business rule enforcement
-5. **Integration Points**: External service calls, database operations
-
-- **Threshold**: 90% for branches, functions, lines, and statements
-- **Coverage Reports**: Generate coverage reports with `npm run test:coverage`
-- **Coverage Files**: Coverage reports in `coverage/` directory adding the date, like YYYYMMDD-backend-coverage.md
-
-
-### Error Testing
-- Test both expected errors and unexpected errors
-- Verify error messages are descriptive and helpful
-- Test error propagation through service layers
-- Ensure proper HTTP status codes in controller tests
-
-### Controller Testing Specifics
-- Mock the service layer completely
-- Test HTTP request/response handling
-- Verify parameter parsing and validation
-- Test error response formatting
-- Use realistic Express Request/Response mocks
-
-### Service Testing Specifics
-- Mock domain models and repositories
-- Test business logic in isolation
-- Verify data transformation and validation
-- Test error handling and edge cases
-- Mock external dependencies (Prisma, validators)
-
-### Database Testing
-- Mock Prisma client and all database operations
-- Test both successful and failed database operations
-- Verify correct database queries and parameters
-- Test transaction handling and rollback scenarios
-
-### Async Testing
-- Always use `async/await` for asynchronous operations
-- Use `Promise.allSettled()` for testing concurrent operations
-- Properly handle promise rejections in tests
-- Test timeout scenarios where applicable
-
-### Test Data Management
-- Use factory functions for creating test data
-- Keep test data consistent and realistic
-- Avoid hardcoded values in multiple places
-- Use meaningful test data that reflects real-world scenarios
-
-### Integration Testing
-
-- **Controller Testing**: Test HTTP request/response handling
-- **Database Testing**: Test repository implementations with database
-- **End-to-End Flow**: Test complete request flows
-
-
-### Code Quality Standards
-
-#### TypeScript Usage
-- Use strict typing for all test parameters and return values
-- Define proper interfaces for mock data
-- Use type assertions sparingly and with proper justification
-- Leverage TypeScript's type system for better test reliability
-
-#### Documentation
-- Write clear, descriptive test names that explain the scenario
-- Add comments for complex test setups
-- Document any special test conditions or edge cases
-- Keep test code as readable as production code
-
-#### Performance Considerations
-- Keep tests fast and focused
-- Avoid unnecessary async operations in tests
-- Use appropriate mock strategies to avoid real I/O
-- Group related tests to minimize setup/teardown overhead
-
-### Integration with Development Workflow
-- Run tests before every commit
-- Ensure all tests pass before merging
-- Use test-driven development when appropriate
-- Update tests when modifying existing functionality
-
-### Common Anti-Patterns to Avoid
-- Don't test implementation details, test behavior
-- Don't create overly complex test setups
-- Don't ignore failing tests or skip error scenarios
-- Don't use real database connections in unit tests
-- Don't create tests that depend on external services
-- Don't write tests that are too tightly coupled to implementation
-
-### Example Test Structure
-
-
-
-## Performance Best Practices
-
-### Database Query Optimization
-
-- **Select Specific Fields**: Only select fields that are needed
-- **Use Indexes**: Ensure proper database indexes for frequently queried fields
-- **Avoid N+1 Queries**: Use Prisma's `include` to fetch related data efficiently
-
-```typescript
-// Good: Fetch related data efficiently
-const candidate = await prisma.candidate.findUnique({
-    where: { id },
-    include: {
-        educations: true,
-        workExperiences: true
-    }
-});
-
-// Avoid: N+1 queries
-const candidate = await prisma.candidate.findUnique({ where: { id } });
-const educations = await prisma.education.findMany({ where: { candidateId: id } });
-```
-
-### Async/Await Patterns
-
-- **Always Use Async/Await**: Use async/await instead of promises chains
-- **Error Handling**: Properly handle errors in async operations
-- **Parallel Operations**: Use `Promise.all()` for parallel operations when appropriate
-
-```typescript
-// Good: Parallel operations
-const [candidates, positions] = await Promise.all([
-    candidateService.findAll(),
-    positionService.findAll()
-]);
-```
-
-### Error Handling Performance
-
-- **Early Returns**: Return early to avoid unnecessary processing
-- **Error Propagation**: Let errors propagate naturally through the call stack
-- **Avoid Over-Wrapping**: Don't wrap errors unnecessarily
-
-## Security Best Practices
-
-### Input Validation
-
-- **Validate All Inputs**: Validate all user inputs before processing
-- **Sanitize Data**: Sanitize data to prevent injection attacks
-- **Type Checking**: Use TypeScript and validation to ensure type safety
-
-### Environment Variables
-
-- **Never Commit Secrets**: Never commit `.env` files or secrets to version control
-- **Use Environment Variables**: Use environment variables for configuration
-- **Validate Environment**: Validate required environment variables at startup
-
-```typescript
-// Validate required environment variables
-const requiredEnvVars = ['DATABASE_URL', 'PORT'];
-requiredEnvVars.forEach(varName => {
-    if (!process.env[varName]) {
-        throw new Error(`Missing required environment variable: ${varName}`);
-    }
-});
-```
-
-### Dependency Injection
-
-- **Inject Prisma Client**: Inject Prisma client via Express middleware
-- **Avoid Global State**: Avoid global state for database connections
-- **Testability**: Use dependency injection to improve testability
-
-```typescript
-// Middleware to inject Prisma client
-app.use((req: Request, res: Response, next: NextFunction) => {
-    req.prisma = prisma;
-    next();
-});
-
-// Use in controllers
-export async function getCandidate(req: Request, res: Response) {
-    const candidate = await req.prisma.candidate.findUnique({
-        where: { id: req.params.id }
-    });
-    res.json(candidate);
-}
-```
+- Provider credentials are read from the local environment or a local secrets file excluded from version control — never hardcoded, never committed (PRD §12.3, §11).
+- Required environment variables are validated at startup, failing fast with a clear message naming the missing variable (never its value).
+- No accounts, sessions, or authentication in the MVP (PRD §12.3) — this is a local, single-user install. Session/data isolation (a run cannot see or overwrite another run's data) is a **functional integrity requirement**, not a security control, per PRD §12.3 — do not conflate the two when reasoning about what "isolation" needs to guarantee.
 
 ## Development Workflow
 
-### Git Workflow
+- Feature branches, descriptive English commit messages, small focused changes — per `docs/base-standards.md`.
+- `npx tsc --noEmit` and `npx vitest run` must both pass before any commit touching `backend/`.
+- Every backend implementation story follows this document rather than choosing its own technology or layering (`backend-foundation` requirement, `specs/backend-foundation/spec.md`).
 
-- **Feature Branches**: Develop features in separate branches using clear descriptive names to allow working in parallel and avoid conflicts or collisions
-- **Descriptive Commits**: Write descriptive commit messages in English
-- **Code Review**: Code review before merging
-- **Small Branches**: Keep branches small and focused
+## Not Yet Decided
 
-### Development Scripts
+Tracked here so this document is never mistaken for settling more than it has:
 
-```bash
-npm run dev          # Development server with hot reload
-npm run build        # Build for production
-npm test             # Run tests
-npm run test:coverage # Run tests with coverage
-npm run prisma:generate  # Generate Prisma client
-npx prisma migrate dev   # Create and apply migration
-npx prisma db seed       # Seed database
-```
-
-### Code Quality
-
-- **ESLint Validation**: Run ESLint before commits
-- **TypeScript Compilation**: Ensure TypeScript compiles without errors
-- **All Tests Passing**: Ensure all tests pass before deployment
-- **Code Review**: Review code for adherence to standards
-
-## Serverless Deployment
-
-### AWS Lambda Configuration
-
-- **Lambda Handler**: Entry point is `src/lambda.ts`
-- **Serverless HTTP**: Use `serverless-http` to wrap Express app
-- **Environment Variables**: Configure environment variables in `serverless.yml`
-
-### Serverless Framework
-
-- **Configuration File**: `serverless.yml` defines Lambda configuration
-- **Build Command**: Use `npm run build:lambda` for Lambda builds
-- **Deployment**: Deploy using Serverless Framework CLI
-
-```typescript
-// lambda.ts
-import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import serverless from 'serverless-http';
-import { app } from './index';
-
-const serverlessHandler = serverless(app);
-
-export const handler = async (
-  event: APIGatewayProxyEvent,
-  context: Context
-): Promise<APIGatewayProxyResult> => {
-  context.callbackWaitsForEmptyEventLoop = false;
-  return await serverlessHandler(event, context) as APIGatewayProxyResult;
-};
-```
-
-This document serves as the foundation for maintaining code quality and consistency across the LTI backend application. All team members should follow these practices to ensure a maintainable, scalable, and testable codebase.
+- ~~Persistence engine and schema~~ — **decided**: embedded SQLite (`docs/adr/0002-persistence.md`). See [Persistence](#persistence).
+- ~~Live-update transport~~ — **decided**: Server-Sent Events (`docs/adr/0003-live-updates.md`). See [Live Updates](#live-updates).
+- **Frontend stack and its interop contract with this backend** — `define-frontend-stack` (US-42b, JOS-180).
+- **Hardcoded values** (retry backoff base/cap, per-phase max execution times, concurrency caps, speed-factor limits) — `define-provider-configuration` (US-33, JOS-165) and `define-media-assembly` (JOS-182) for the assembly-specific ones.
+- **Whether the walking skeleton becomes `backend/`'s seed, or is discarded and rebuilt against this structure from scratch** — `openspec/changes/define-backend-stack/tasks.md` §11.1.

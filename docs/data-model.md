@@ -1,372 +1,134 @@
 # Data Model Documentation
 
-This document describes the data model for the LTI (Learning Tracking Initiative) application, including entity descriptions, field definitions, relationships, and an entity-relationship diagram.
+This document describes Vid4You's data model: sessions, chunks (scenes), stage attempts, and the result-commit records that make a repeated success confirmation harmless. It replaces the previous version, which described an unrelated inherited application's entities and had no bearing on this product.
+
+The store is embedded SQLite via Node's built-in `node:sqlite` — see `docs/adr/0002-persistence.md` for why, and `openspec/changes/define-backend-stack/skeleton/src/db.ts` for the reference implementation this document describes.
+
+**Scope note, stated once here rather than on every field:** the current implementation (`define-backend-stack`'s walking skeleton, extended by `define-persistence`) is deliberately narrow — it models **one** generic provider-backed stage ("image") standing in for the PRD's five stages, and it does not simulate voice generation, timestamp alignment, or script decomposition. Fields the PRD implies for those stages are noted below as **not modelled**, with the reason, rather than invented ahead of the stories that own them.
 
 ## Model Descriptions
 
-### 1. Candidate
-Represents a job candidate who can apply for positions within the system.
+### 1. Session (`runs` table)
+
+Represents one video project. PRD §3, §4.1, §8.1, §9, §12.2.
 
 **Fields:**
-- `id`: Unique identifier for the candidate (Primary Key)
-- `firstName`: Candidate's first name (max 100 characters)
-- `lastName`: Candidate's last name (max 100 characters)
-- `email`: Candidate's unique email address (max 255 characters)
-- `phone`: Candidate's phone number (optional, max 15 characters)
-- `address`: Candidate's address (optional, max 100 characters)
+- `id`: system-generated identifier (Primary Key) — §3
+- `title`: the project's title — §3
+- `language`: script language, selected from the hardcoded supported list; a session cannot exist without one — §4.1
+- `created_at`: creation timestamp; also drives the project-folder name, to the minute — §12.2
+- `state`: **derived**, not stored — one of the eight session states in §8.1, computed from the session's scenes each time it is read (`orchestrator.ts`'s `deriveSessionState`). This skeleton only ever produces `chunks-processing`, `final-video` or `failed`, since voice-over and decomposition phases aren't modelled.
+- `paused`: a marker on top of the current state, never a state itself, per §8.1/§9 (Decision 8, `define-live-updates`)
+- `project_folder`: the real per-project folder name under a configured root, named `<title> <YYYY-MM-DD HH-mm>` with a counter suffix on collision — §12.2 (Decision 4, `define-persistence`)
 
-**Validation Rules:**
-- First name and last name are required, 2-100 characters, letters only
-- Email is required, must be unique, and follow valid email format
-- Phone is optional but must follow Spanish format (6|7|9)XXXXXXXX if provided
-- Address is optional but cannot exceed 100 characters
-- Maximum of 3 education records per candidate
+**Not modelled** (no consumer yet — see the scope note): `script` (§4.2, decomposition isn't simulated), voice-over/alignment provider bindings, MP3 and timestamp references, total narration duration (§11.2) — these belong to stages this skeleton doesn't simulate.
 
-**Relationships:**
-- `educations`: One-to-many relationship with Education model
-- `workExperiences`: One-to-many relationship with WorkExperience model
-- `resumes`: One-to-many relationship with Resume model
-- `applications`: One-to-many relationship with Application model
+**Relationships:** one session has many scenes.
 
-### 2. Education
-Represents educational background information for candidates.
+### 2. Scene / chunk (`scenes` table)
+
+Represents one narrated segment of the video. PRD §3, §6, §7.2, §7.3, §8.2, §10.3.
 
 **Fields:**
-- `id`: Unique identifier for the education record (Primary Key)
-- `institution`: Name of the educational institution (max 100 characters)
-- `title`: Degree or certification title obtained (max 250 characters)
-- `startDate`: Start date of the education period
-- `endDate`: End date of the education period (optional, null if ongoing)
-- `candidateId`: Foreign key referencing the Candidate
+- `id`: identifier, unique within the session and invariable once assigned (Primary Key) — §6
+- `run_id`: the owning session (Foreign Key)
+- `idx`: ascending narrative order, 1..N — §6
+- `instruction`: the visual instruction (the skeleton conflates `PROMPT`/`IMAGE`/`VIDEO` into one field, since it models one combined stage); correctable only while the scene is `failed` — §3, §10.3
+- `status`: one of the six chunk states in §8.2. This skeleton only ever produces `submitted`, `image-generating`, `chunk-complete` or `failed` (never `image-complete`/`video-generating` individually, since there is no second real stage)
+- `attempts`: attempt count within the current 1+3 retry cycle — §10.1
+- `current_request_id`: the in-flight provider request's external id, or null
+- `last_error`: the most recent failure reason, when applicable
+- `result`: the **relative path** to the real artefact file written under the session's project folder — §12.2 (Decision 4)
+- `provider`: the (stubbed) provider name that produced the result — §11.2
+- `provider_mode` / `provider_latency_ms`: skeleton-only fields configuring the stubbed provider's behaviour for that scene; not part of the real product model
 
-**Validation Rules:**
-- Institution is required and cannot exceed 100 characters
-- Title is required and cannot exceed 250 characters
-- Start date is required and must be in valid date format
-- End date is optional but must be valid if provided
-- Maximum of 3 education records per candidate
+**Not modelled:** narration interval start/end, requested clip duration, speed factor and its warning flag (§7.2, §7.3, AC23) — these come from the real media pipeline (`define-media-assembly`, US-15), which this skeleton does not simulate.
 
-**Relationships:**
-- `candidate`: Many-to-one relationship with Candidate model
+**Relationships:** many scenes belong to one session; one scene has many stage attempts (provider requests) and at most one committed result.
 
-### 3. WorkExperience
-Represents work history and professional experience for candidates.
+### 3. Provider request / stage attempt (`provider_requests` table)
 
-**Fields:**
-- `id`: Unique identifier for the work experience record (Primary Key)
-- `company`: Name of the company or organization (max 100 characters)
-- `position`: Job title or position held (max 100 characters)
-- `description`: Description of responsibilities and achievements (optional, max 200 characters)
-- `startDate`: Start date of the work experience
-- `endDate`: End date of the work experience (optional, null if current)
-- `candidateId`: Foreign key referencing the Candidate
-
-**Validation Rules:**
-- Company name is required and cannot exceed 100 characters
-- Position is required and cannot exceed 100 characters
-- Description is optional but cannot exceed 200 characters if provided
-- Start date is required and must be in valid date format
-- End date is optional but must be valid if provided
-
-**Relationships:**
-- `candidate`: Many-to-one relationship with Candidate model
-
-### 4. Resume
-Represents uploaded resume files associated with candidates.
+An append-only record of one attempt to call the (stubbed) provider for a scene. PRD §10.1, §10.3, §11, §11.2.
 
 **Fields:**
-- `id`: Unique identifier for the resume record (Primary Key)
-- `filePath`: File system path to the uploaded resume (max 500 characters)
-- `fileType`: MIME type or file extension of the resume (max 50 characters)
-- `uploadDate`: Date and time when the resume was uploaded
-- `candidateId`: Foreign key referencing the Candidate
+- `id`: the external request identifier — without this, restart resumption (§12.1) is impossible
+- `scene_id`: the scene this attempt belongs to (Foreign Key)
+- `sent_at`: when the request was recorded — written **before** the request is sent (Decision 2), so a crash between send and response still leaves a trace
+- `latency_ms`, `mode`: skeleton-only fields the stub provider uses to compute its outcome deterministically
+- `attempt_number`: sequence within the current 1+3 budget — §10.1
+- `resolved`: whether this specific request's delivery has been processed (guards against redelivering the same webhook event — a different, narrower concern than the scene-level idempotency below)
 
-**Validation Rules:**
-- File path is required and cannot exceed 500 characters
-- File type is required and cannot exceed 50 characters
-- Upload date is automatically set when file is uploaded
-- Supported file types: PDF and DOCX (max 10MB)
+**Never updated in place** once written except to flip `resolved`: each retry inserts a **new** row rather than mutating the previous attempt (Decision 1) — proven in `openspec/changes/define-persistence/reports/2026-09-25-step-8-curl-endpoint-testing.md` §8.6.
 
-**Relationships:**
-- `candidate`: Many-to-one relationship with Candidate model
+### 4. Scene result commit (`scene_results` table)
 
-### 5. Company
-Represents companies that post job positions and employ staff.
+The actual idempotency guarantee. PRD §12.1 ("more than one success confirmation for the same generation must not duplicate a result").
 
 **Fields:**
-- `id`: Unique identifier for the company (Primary Key)
-- `name`: Unique company name
+- `scene_id`: **Primary Key** — this is the whole mechanism. A second attempt to insert a row for a scene that already has one is rejected by the store itself, not by application code that read a flag first (Decision 3, `define-persistence`, the change's central finding — see `docs/adr/0002-persistence.md`).
+- `result`: the committed relative artefact path
+- `committed_at`: when the commit happened
 
-**Relationships:**
-- `employees`: One-to-many relationship with Employee model
-- `positions`: One-to-many relationship with Position model
+### 5. Schema migrations (`schema_migrations` table)
 
-### 6. Employee
-Represents employees within companies who can conduct interviews.
-
-**Fields:**
-- `id`: Unique identifier for the employee (Primary Key)
-- `name`: Employee's full name
-- `email`: Employee's unique email address
-- `role`: Employee's role or job title
-- `isActive`: Boolean indicating if the employee is currently active
-- `companyId`: Foreign key referencing the Company
-
-**Relationships:**
-- `company`: Many-to-one relationship with Company model
-- `interviews`: One-to-many relationship with Interview model
-
-### 7. InterviewType
-Defines different types of interviews that can be conducted.
-
-**Fields:**
-- `id`: Unique identifier for the interview type (Primary Key)
-- `name`: Name of the interview type (e.g., "Technical", "HR", "Behavioral")
-- `description`: Detailed description of the interview type (optional)
-
-**Relationships:**
-- `interviewSteps`: One-to-many relationship with InterviewStep model
-
-### 8. InterviewFlow
-Represents a sequence of interview steps that define the hiring process.
-
-**Fields:**
-- `id`: Unique identifier for the interview flow (Primary Key)
-- `description`: Description of the interview flow process (optional)
-
-**Relationships:**
-- `interviewSteps`: One-to-many relationship with InterviewStep model
-- `positions`: One-to-many relationship with Position model
-
-### 9. InterviewStep
-Represents individual steps within an interview flow.
-
-**Fields:**
-- `id`: Unique identifier for the interview step (Primary Key)
-- `name`: Name of the interview step
-- `orderIndex`: Numeric order of this step within the flow
-- `interviewFlowId`: Foreign key referencing the InterviewFlow
-- `interviewTypeId`: Foreign key referencing the InterviewType
-
-**Relationships:**
-- `interviewFlow`: Many-to-one relationship with InterviewFlow model
-- `interviewType`: Many-to-one relationship with InterviewType model
-- `applications`: One-to-many relationship with Application model
-- `interviews`: One-to-many relationship with Interview model
-
-### 10. Position
-Represents job positions available for application.
-
-**Fields:**
-- `id`: Unique identifier for the position (Primary Key)
-- `companyId`: Foreign key referencing the Company (required)
-- `interviewFlowId`: Foreign key referencing the InterviewFlow (required)
-- `title`: Job title (required, max 100 characters)
-- `description`: Brief description of the position (required)
-- `status`: Current status of the position (default: "Draft", valid values: Open, Contratado, Cerrado, Borrador)
-- `isVisible`: Boolean indicating if the position is publicly visible (default: false)
-- `location`: Job location (required)
-- `jobDescription`: Detailed job description (required)
-- `requirements`: Job requirements and qualifications (optional)
-- `responsibilities`: Job responsibilities (optional)
-- `salaryMin`: Minimum salary range (optional, must be >= 0)
-- `salaryMax`: Maximum salary range (optional, must be >= 0 and >= salaryMin)
-- `employmentType`: Type of employment (e.g., "Full-time", "Part-time", "Contract") (optional)
-- `benefits`: Job benefits description (optional)
-- `companyDescription`: Description of the hiring company (optional)
-- `applicationDeadline`: Deadline for applications (optional, must be a future date)
-- `contactInfo`: Contact information for inquiries (optional)
-
-**Validation Rules:**
-- Title is required and cannot exceed 100 characters
-- Description, location, and jobDescription are required fields
-- Status must be one of: Open, Contratado, Cerrado, Borrador
-- Company and interview flow references must exist in the database
-- Salary values must be non-negative numbers
-- Application deadline must be a future date if provided
-
-**Relationships:**
-- `company`: Many-to-one relationship with Company model
-- `interviewFlow`: Many-to-one relationship with InterviewFlow model
-- `applications`: One-to-many relationship with Application model
-
-### 11. Application
-Represents a candidate's application to a specific position.
-
-**Fields:**
-- `id`: Unique identifier for the application (Primary Key)
-- `applicationDate`: Date when the application was submitted
-- `currentInterviewStep`: Current step in the interview process
-- `notes`: Additional notes about the application (optional)
-- `positionId`: Foreign key referencing the Position
-- `candidateId`: Foreign key referencing the Candidate
-- `interviewStepId`: Foreign key referencing the current InterviewStep
-
-**Relationships:**
-- `position`: Many-to-one relationship with Position model
-- `candidate`: Many-to-one relationship with Candidate model
-- `interviewStep`: Many-to-one relationship with InterviewStep model
-- `interviews`: One-to-many relationship with Interview model
-
-### 12. Interview
-Represents individual interview sessions conducted as part of an application.
-
-**Fields:**
-- `id`: Unique identifier for the interview (Primary Key)
-- `interviewDate`: Date and time of the interview
-- `result`: Interview result or outcome (optional)
-- `score`: Numeric score or rating from the interview (optional)
-- `notes`: Interview notes and feedback (optional)
-- `applicationId`: Foreign key referencing the Application
-- `interviewStepId`: Foreign key referencing the InterviewStep
-- `employeeId`: Foreign key referencing the conducting Employee
-
-**Relationships:**
-- `application`: Many-to-one relationship with Application model
-- `interviewStep`: Many-to-one relationship with InterviewStep model
-- `employee`: Many-to-one relationship with Employee model
+Tracks which versioned migrations have been applied, so an existing session's data survives a schema upgrade (§11.2, Decision 6). Fields: `version` (Primary Key), `applied_at`.
 
 ## Entity Relationship Diagram
 
 ```mermaid
 erDiagram
-    Candidate {
-        Int id PK
-        String firstName
-        String lastName
-        String email UK
-        String phone
-        String address
-    }
-    Education {
-        Int id PK
-        String institution
+    Session {
+        String id PK
         String title
-        DateTime startDate
-        DateTime endDate
-        Int candidateId FK
+        String language
+        String created_at
+        Boolean paused
+        String project_folder
     }
-    WorkExperience {
-        Int id PK
-        String company
-        String position
-        String description
-        DateTime startDate
-        DateTime endDate
-        Int candidateId FK
-    }
-    Resume {
-        Int id PK
-        String filePath
-        String fileType
-        DateTime uploadDate
-        Int candidateId FK
-    }
-    Company {
-        Int id PK
-        String name UK
-    }
-    Employee {
-        Int id PK
-        String name
-        String email UK
-        String role
-        Boolean isActive
-        Int companyId FK
-    }
-    InterviewType {
-        Int id PK
-        String name
-        String description
-    }
-    InterviewFlow {
-        Int id PK
-        String description
-    }
-    InterviewStep {
-        Int id PK
-        String name
-        Int orderIndex
-        Int interviewFlowId FK
-        Int interviewTypeId FK
-    }
-    Position {
-        Int id PK
-        String title
-        String description
+    Scene {
+        String id PK
+        String run_id FK
+        Int idx
+        String instruction
         String status
-        Boolean isVisible
-        String location
-        String jobDescription
-        String requirements
-        String responsibilities
-        Float salaryMin
-        Float salaryMax
-        String employmentType
-        String benefits
-        String companyDescription
-        DateTime applicationDeadline
-        String contactInfo
-        Int companyId FK
-        Int interviewFlowId FK
-    }
-    Application {
-        Int id PK
-        DateTime applicationDate
-        Int currentInterviewStep
-        String notes
-        Int positionId FK
-        Int candidateId FK
-        Int interviewStepId FK
-    }
-    Interview {
-        Int id PK
-        DateTime interviewDate
+        Int attempts
+        String current_request_id
+        String last_error
         String result
-        Int score
-        String notes
-        Int applicationId FK
-        Int interviewStepId FK
-        Int employeeId FK
+        String provider
+    }
+    ProviderRequest {
+        String id PK
+        String scene_id FK
+        String sent_at
+        Int attempt_number
+        Boolean resolved
+    }
+    SceneResult {
+        String scene_id PK "FK to Scene"
+        String result
+        String committed_at
+    }
+    SchemaMigration {
+        Int version PK
+        String applied_at
     }
 
-    Candidate ||--o{ Education : "has"
-    Candidate ||--o{ WorkExperience : "has"
-    Candidate ||--o{ Resume : "has"
-    Candidate ||--o{ Application : "submits"
-    
-    Company ||--o{ Employee : "employs"
-    Company ||--o{ Position : "offers"
-    
-    InterviewType ||--o{ InterviewStep : "defines"
-    InterviewFlow ||--o{ InterviewStep : "includes"
-    InterviewFlow ||--o{ Position : "guides"
-    
-    Position ||--o{ Application : "receives"
-    Application ||--o{ Interview : "includes"
-    
-    InterviewStep ||--o{ Application : "current_step"
-    InterviewStep ||--o{ Interview : "conducted_at"
-    
-    Employee ||--o{ Interview : "conducts"
+    Session ||--o{ Scene : "has (ascending idx)"
+    Scene ||--o{ ProviderRequest : "append-only attempts"
+    Scene ||--o| SceneResult : "at most one commit"
 ```
 
 ## Key Design Principles
 
-1. **Referential Integrity**: All foreign key relationships ensure data consistency across the system.
-
-2. **Flexibility**: The interview flow system allows for customizable hiring processes per position.
-
-3. **Audit Trail**: Application and interview dates provide a complete timeline of the hiring process.
-
-4. **Extensibility**: The modular design allows for easy addition of new features and data points.
-
-5. **Data Normalization**: The model follows database normalization principles to minimize redundancy and ensure data integrity.
+1. **Append-only attempts, mutable read model.** `provider_requests` never rewrites history; `scenes.status`/`result` is a derived, idempotently-updatable read model on top of it (Decision 1).
+2. **The store enforces the guarantees that matter, not application code.** Idempotency (§4 above) and referential integrity (foreign keys, `PRAGMA foreign_keys = ON`) are structural, not conventions a caller has to remember to check first (Decision 3).
+3. **File references are relative, always.** Every artefact path is relative to the owning session's recorded `project_folder`, so renaming that folder in place requires updating exactly one column, not every artefact row (Decision 4).
+4. **No entity models a phase this skeleton doesn't simulate.** Where the PRD implies a field (narration interval, speed factor, voice/alignment provider bindings) with no current writer or reader, it is documented as **not modelled** here rather than added speculatively — a story that needs it adds it as its own delta.
+5. **Schema versioning from the start.** `schema_migrations` exists even though there is currently one real migration, so a long-lived session (sessions never expire, §12.2) can outlive several schema versions without its existing rows being touched (Decision 6).
 
 ## Notes
 
-- All `id` fields serve as primary keys with auto-increment functionality
-- Foreign key relationships maintain referential integrity
-- Optional fields allow for flexible data entry while maintaining required core information
-- The interview system supports multi-step hiring processes with different types of interviews
-- Email fields have unique constraints to prevent duplicate accounts 
+- All identifiers are opaque strings (UUIDs in the current implementation), not auto-incrementing integers, consistent with §3's "system-generated identifier."
+- No entity in this model is a security boundary — per §12.3, session separation is a functional-integrity property (a project must not show or overwrite another project's data), not an access-control mechanism. There are no accounts, roles or permissions in this data model.
+- What's still open: the real persistence engine choice is **not** open — that's `docs/adr/0002-persistence.md`, this document's basis. What remains genuinely open is the full multi-stage model (voice, alignment, video as their own simulated stages) and the real hardcoded parameter values (US-33), both out of scope for the changes that produced this document.

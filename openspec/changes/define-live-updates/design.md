@@ -88,3 +88,103 @@ Nothing is deployed and no application code consumes a stream yet, so there is n
 2. **Does the local install serve HTTP/1.1 or HTTP/2?** It decides whether the per-origin connection cap constrains multiple open tabs (Decision 5). Answer from the documented start command, not from assumption.
 3. **What is an acceptable end-to-end latency for "as soon as it happens"?** No non-functional targets exist (PRD §15 gap 9, US-41). This change records what it observed rather than inventing a threshold to pass.
 4. **Should the stream also carry diagnostics detail, or only a pointer to fetch it?** US-34 owns what diagnostics show; this change defines the minimum — provider and attempt count per stage — and records the question.
+
+## Execution Record (2026-09-25)
+
+### §1 — Inputs collected
+
+- **Backend streaming primitives (1.1):** Fastify (JOS-179) exposes the raw Node HTTP response (`reply.raw`), which is enough for SSE (`text/event-stream`, plain write calls) with zero extra dependencies — already proven live in `define-backend-stack`'s skeleton. WebSocket is *not* native to Fastify; it requires the `@fastify/websocket` plugin, an added dependency not yet used anywhere in the proven stack.
+- **Frontend seam (1.2):** `define-frontend-stack` (JOS-180) has not been implemented — 0 of its tasks are done, and no frontend prototype exists in the repository (confirmed: `docs/frontend-standards.md` is still the pre-rewrite template, no `frontend/` directory exists). Its Decision 3 ("keep the push connection behind one seam") is a documented *architectural* commitment for whenever that change is built, not a concrete artifact to wire into today. Per task 6.2's own fallback, this change extends the skeleton's existing minimal page instead, recording that substitution explicitly (not the frontend prototype, because none exists yet).
+- **Persistence authority (1.3):** `define-persistence` (JOS-181) has not been implemented either (0 tasks done), but its design *is* written and already assumes an authoritative store with a single-request session read (its Decision 1, matching `consult-session`'s (JOS-135) Decision 1: "the consultation read and the resync snapshot are the same endpoint"). Recorded as an **assumption**, per design Open Question 1: the catch-up rule (Decision 3/4) rests on this; if JOS-181 lands otherwise, this decision must be revisited. The skeleton's own disposable SQLite stand-in (JOS-179) is used to prove the mechanism meanwhile, exactly as `define-persistence`'s own Decision 7 already planned.
+- **HTTP/1.1 vs HTTP/2 (1.4):** confirmed by inspection — the skeleton's `Fastify()` call does not pass `{ http2: true }`, so it serves plain HTTP/1.1 over Node's built-in `http` module. **Consequence:** Chrome's per-origin connection ceiling of 6 concurrent connections applies. With one long-lived stream per open session page (Decision 5), a user could open at most 6 session pages (or 6 tabs on the same session) against this backend before the 7th silently queues. Recorded as a real, if narrow, constraint of a local single-user install — not exercised beyond 2 tabs (task 7.7), since the MVP has no product reason to expect more than a handful of concurrently open session tabs.
+- **What remains undecided (1.5):** the real persistence engine (US-42c), the real frontend framework (US-42b), and the hardcoded per-phase/concurrency values (US-33) — none of which this change needs to resolve, per its own Non-Goals.
+
+### §2 — Direction of flow (Decision 1, confirmed)
+
+Every browser→server interaction the PRD implies is an ordinary request answered by an ordinary response: start a project (§4.1, `POST`), pause/continue (§9, `POST`), manual retry (§10.2, `POST`), correct a visual instruction (§10.3, `POST`), download (§12.3, `GET`). None requires the server to receive anything *pushed* from the browser outside a normal request-response cycle — the live-update need is exclusively server→browser. **Conclusion (not an assumption): a one-way transport suffices.** This immediately weakens WebSocket's only structural advantage over SSE for this product, since that advantage (bidirectionality) goes unused.
+
+### §3 — Candidate evaluation
+
+**Must-pass gates** (reaches an open page without reload; recovers from a dropped connection and a backend restart; needs no auth/fan-out layer; addressable per session):
+
+| Candidate | Reaches page, no reload | Recovers from drop + restart | No auth/fan-out needed | Addressable per session | Result |
+|---|---|---|---|---|---|
+| SSE | Pass | Pass — `EventSource` auto-reconnects natively; proven live in JOS-179 (including the reconnect-resync fix) | Pass | Pass (`/events?sessionId=`) | **Admitted** |
+| WebSocket | Pass | Pass, but reconnection is hand-rolled — no browser-native equivalent to `EventSource`'s auto-retry | Pass | Pass | **Admitted** |
+| Polling | Pass | Pass, trivially — each poll is independent, nothing to "reconnect" | Pass | Pass | **Admitted** |
+
+No candidate eliminated at the gate.
+
+**Weighted scoring:**
+
+| Criterion | Weight | SSE | WebSocket | Polling |
+|---|---|---|---|---|
+| Correctness under disconnection | 30% | 9 | 7.5 | 9.5 |
+| Burst behaviour at ~200 scenes | 25% | 8.5 | 8.5 | 5 |
+| Fit with backend/frontend stacks | 20% | 9 | 7 | 8.5 |
+| Local install simplicity | 15% | 9 | 7.5 | 9.5 |
+| Operational visibility | 10% | 9 | 6.5 | 8.5 |
+| **Weighted total** | | **8.88** | **7.55** | **8.08** |
+
+- **Correctness under disconnection:** polling scores highest in isolation (each poll is a fresh, independent read — there is no "connection" to get wrong), SSE close behind on the strength of `EventSource`'s native reconnect plus the resync-on-open fix already proven; WebSocket trails because correct reconnection is entirely hand-rolled, with more edge cases (message ordering across a reconnect, missed close events) to get right.
+- **Burst behaviour (task 3.4, polling scored honestly, not dismissed):** this is where polling loses decisively. Coalescing (Decision 6) is an application-level strategy that applies equally to SSE and WebSocket — a push transport spends work only when something changes. Polling has no equivalent: an interval tight enough to feel like "as soon as it happens" (§8.3) at a burst is expensive run continuously regardless of activity, and an interval cheap enough to run continuously is not "as soon as it happens" during a burst. This is a structural property of pull vs. push, not an implementation detail — no clever coalescing closes this gap for polling.
+- **Fit with stacks:** SSE needs zero new dependencies (plain HTTP response streaming, already proven); polling needs none either (it is the same `GET` read `consult-session` already defines); WebSocket needs `@fastify/websocket`, unused elsewhere in the stack.
+- **Local install simplicity:** polling is trivially simplest (nothing new to run); SSE close behind (plain HTTP); WebSocket needs an extra plugin and, more generally, is the protocol most likely to be mishandled by an intermediary if this were ever exposed beyond localhost.
+- **Operational visibility:** SSE is the most transparent of the three for the mandatory curl-testing step — `text/event-stream` is plain, human-readable text that `curl` can hold open and print directly (task 10.2 relies on exactly this); WebSocket's framed protocol needs a specialised client to test the same way.
+
+**Decision: Server-Sent Events (SSE)**, already the mechanism proven in `define-backend-stack`'s skeleton, is confirmed as the winner on the merits, not by reuse-bias — it wins 4 of 5 criteria and loses none. **Documented fallback: polling** (not WebSocket) — WebSocket's sole structural advantage (bidirectionality) is unused per §2's conclusion, so it is dominated by SSE on every criterion that matters here; polling is the closer, more sensible fallback if SSE is later found to fail a gate (not triggered — see § Evidence below).
+
+### §4 — Contract (event payload shapes)
+
+```ts
+// Session event — and the shape the snapshot read's "session" field takes (Decision 4)
+interface SessionEvent {
+  type: "session";
+  sessionId: string;
+  state: "submitted" | "voice-over-generating" | "voice-over-complete"
+       | "chunk-decomposing" | "chunks-processing"
+       | "final-video-generating" | "final-video" | "failed"; // PRD §8.1, the eight states
+  paused: boolean;               // Decision 8 — always a separate field, never folded into `state`
+  failedPhase?: string;          // present only when state === "failed" (§8.1 state rules)
+  updatedAt: string;             // ISO 8601
+}
+
+// Scene event — and the shape of each entry in the snapshot read's "scenes" array
+interface SceneEvent {
+  type: "scene";
+  sessionId: string;
+  sceneId: string;
+  index: number;                 // ascending narrative order, §6 / consult-session Decision 3
+  state: "submitted" | "image-generating" | "image-complete"
+       | "video-generating" | "chunk-complete" | "failed"; // PRD §8.2, the six chunk states
+  affectedStage?: "image" | "video"; // present only when state === "failed" (§8.2)
+  errorCause?: string;
+  provider?: string;             // §11.2 — which provider produced this attempt
+  attempts?: number;             // §10.1 — attempt count for the affected stage
+  result?: { imageUrl?: string; videoUrl?: string };
+  updatedAt: string;
+}
+```
+
+Both carry **current state, never a delta** (Decision 2, confirmed): a page applies an event by replacing what it holds for that `sessionId`/`sceneId`, so a duplicate delivery is a no-op and a missed one is superseded by the next. `paused` is always its own field (Decision 8), never a value inside `state`.
+
+**Stream address (Decision 5):** `GET /events?sessionId={id}` (skeleton naming; the real implementation should use `GET /api/sessions/{sessionId}/events` to match `consult-session`'s REST shape) — one stream per open session page, multiplexing both event types.
+
+**Snapshot read (Decision 4), the same endpoint `consult-session` (JOS-135) Decision 1 already names as canonical:**
+```ts
+// GET /sessions/{sessionId}  (skeleton: GET /runs/{runId} — see § Evidence for the naming note)
+interface SessionSnapshot {
+  session: Omit<SessionEvent, "type">;
+  scenes: Omit<SceneEvent, "type">[]; // sorted ascending by `index`
+}
+```
+
+**Heartbeat and backoff (Decision 7):** a periodic SSE comment line (`: keep-alive\n\n`) on an otherwise idle stream, interval TBD by measurement (task 7.5's idle experiment); client reconnection backoff bounded and capped, not an unbounded tight loop.
+
+**Coalescing (Decision 6):** pending events for the *same* `sessionId`/`sceneId` collapse to the latest; events for distinct scenes are never merged; no artificial delay is introduced before an entity's first pending event.
+
+**Diagnostics minimum (open question 4):** the scene event's `provider` and `attempts` fields are the floor US-34 can rely on the stream itself carrying; anything beyond that (e.g. per-attempt history) is a separate fetch against the persisted stage-attempt records (`define-persistence`), not the stream.
+
+### §5 — Catch-up rule (confirmed: resync, not replay)
+
+Already decided and reasoned in Decisions 3 and 4 above; confirmed here rather than re-derived. Consequence made explicit per task 5.3: intermediate transitions that occur entirely within a disconnection window (e.g. a scene going `image-generating` → `image-complete` → `video-generating` while the page was offline) are never individually seen by a reconnecting page — it only ever sees the *latest* state, by design. Per task 5.4, a complete transition history — if any future story needs one — comes from `define-persistence`'s append-only stage-attempt records, not from this stream, which is deliberately not a log.
