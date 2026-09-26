@@ -80,6 +80,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     state,
     paused: run.paused,
     failedPhase,
+    createdAt: run.createdAt,
     updatedAt: new Date().toISOString(),
   };
   return {

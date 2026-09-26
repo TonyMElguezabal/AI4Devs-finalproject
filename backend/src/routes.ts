@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { createRun, getRun, getScene } from "./db.ts";
+import { createRun, getRun, getSceneForRun } from "./db.ts";
 import {
   continueSession,
   correctAndRetry,
@@ -69,6 +69,7 @@ const sessionResponseSchema = z.object({
   state: z.string(),
   paused: z.boolean(),
   failedPhase: z.string().optional(),
+  createdAt: z.string(),
   updatedAt: z.string(),
 });
 
@@ -121,12 +122,19 @@ export const routes: FastifyPluginAsync = async (app) => {
     "/sessions/:sessionId",
     {
       schema: {
-        params: sessionParamsSchema,
+        // consult-session (JOS-135) Decision 4 — unknown AND malformed
+        // identifiers must look identical (both "not found"), so this
+        // route deliberately does NOT use the strict `sessionIdSchema`
+        // param validator (which would 400 a malformed id before this
+        // handler ever runs, revealing "well-formed vs not" — exactly the
+        // distinction Decision 4 says the store gains nothing from making).
+        params: z.object({ sessionId: z.string() }),
         response: { 200: snapshotResponseSchema, 404: z.object({ error: z.string() }) },
       },
     },
     async (request, reply) => {
-      const snapshot = toSnapshot(request.params.sessionId);
+      const { sessionId } = request.params;
+      const snapshot = ulidPattern.test(sessionId) ? toSnapshot(sessionId) : undefined;
       if (!snapshot) {
         reply.code(404);
         return { error: "session not found" };
@@ -219,13 +227,19 @@ export const routes: FastifyPluginAsync = async (app) => {
     "/sessions/:sessionId/scenes/:sceneId/download/:kind",
     {
       schema: {
-        params: z.object({ sessionId: z.string().uuid(), sceneId: z.string().uuid(), kind: z.enum(["image", "video"]) }),
+        params: z.object({ sessionId: sessionIdSchema, sceneId: z.string().uuid(), kind: z.enum(["image", "video"]) }),
         response: { 200: z.string(), 409: conflictSchema, 404: conflictSchema },
       },
     },
     async (request, reply) => {
-      const scene = getScene(request.params.sceneId);
-      if (!scene || scene.runId !== request.params.sessionId) {
+      // consult-session (JOS-135) Decision 2 — scoped by (sessionId,
+      // sceneId) at the data-access boundary, not a manual check the
+      // handler has to remember. This inline schema was also a real,
+      // pre-existing bug from start-video-project: it validated `sessionId`
+      // as a UUID, which rejects every real ULID session id with a 400
+      // before the handler even runs — fixed here alongside the scoping.
+      const scene = getSceneForRun(request.params.sessionId, request.params.sceneId);
+      if (!scene) {
         reply.code(404);
         return { ok: false, reason: "unknown scene" };
       }

@@ -10,7 +10,7 @@
 // this is no longer a disposable stand-in, it is the decision.
 import { DatabaseSync } from "node:sqlite";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import type { ProviderOutcomeMode, ProviderRequestRow, Run, Scene, SceneState } from "./types.ts";
 import { STUB_PROVIDER_NAME } from "./types.ts";
 
@@ -149,17 +149,33 @@ export function deriveAndCreateProjectFolder(title: string, createdAt: Date): st
   return candidate;
 }
 
+/**
+ * consult-session (JOS-135) Decision 2 — "make cross-session leakage
+ * structurally impossible rather than guarded by convention." A relative
+ * path containing `..` segments could otherwise resolve outside the
+ * session's own folder (into another session's folder, or anywhere else on
+ * disk); this is checked here, once, rather than trusted at every caller.
+ */
+function assertWithinProjectFolder(projectFolder: string, relativePath: string): string {
+  const folderRoot = resolve(PROJECTS_ROOT, projectFolder);
+  const fullPath = resolve(folderRoot, relativePath);
+  if (fullPath !== folderRoot && !fullPath.startsWith(folderRoot + sep)) {
+    throw new Error(`refused: '${relativePath}' resolves outside its session's project folder`);
+  }
+  return fullPath;
+}
+
 /** Decision 4 — artefacts are written relative to the session's recorded
  * folder. Returns the relative path stored on the scene record. */
 export function writeArtefact(projectFolder: string, relativePath: string, content: string): string {
-  const fullPath = join(PROJECTS_ROOT, projectFolder, relativePath);
+  const fullPath = assertWithinProjectFolder(projectFolder, relativePath);
   mkdirSync(dirname(fullPath), { recursive: true });
   writeFileSync(fullPath, content, "utf8");
   return relativePath;
 }
 
 export function resolveArtefactPath(projectFolder: string, relativePath: string): string {
-  return join(PROJECTS_ROOT, projectFolder, relativePath);
+  return assertWithinProjectFolder(projectFolder, relativePath);
 }
 
 export function createRun(id: string, title: string, script: string, language: string): Run {
@@ -234,6 +250,18 @@ function rowToRun(row: any): Run {
 
 export function getScene(id: string): Scene | undefined {
   const row = db.prepare("SELECT * FROM scenes WHERE id = ?").get(id) as any;
+  return row ? rowToScene(row) : undefined;
+}
+
+/**
+ * consult-session (JOS-135) Decision 2 — the scoped lookup: a scene id from
+ * a different session does not resolve, even though scene ids happen to be
+ * globally unique in this schema. Callers that read a scene *on behalf of*
+ * a specific session (as opposed to internal orchestration code that
+ * already holds a scene by its own id) should prefer this over `getScene`.
+ */
+export function getSceneForRun(runId: string, sceneId: string): Scene | undefined {
+  const row = db.prepare("SELECT * FROM scenes WHERE id = ? AND run_id = ?").get(sceneId, runId) as any;
   return row ? rowToScene(row) : undefined;
 }
 

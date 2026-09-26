@@ -118,6 +118,9 @@ export interface SessionEventPayload {
   state: SessionState;
   paused: boolean; // Decision 8 — always its own field, never folded into `state`
   failedPhase?: string;
+  /** PRD §12.2 — the project-folder name derives from this instant, and
+   * consult-session (JOS-135) task 3.1 requires it in the session read. */
+  createdAt: string;
   updatedAt: string;
 }
 

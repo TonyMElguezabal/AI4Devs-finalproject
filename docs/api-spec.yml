@@ -122,6 +122,8 @@ paths:
                         type: boolean
                       failedPhase:
                         type: string
+                      createdAt:
+                        type: string
                       updatedAt:
                         type: string
                     required:
@@ -132,6 +134,7 @@ paths:
                       - language
                       - state
                       - paused
+                      - createdAt
                       - updatedAt
                     additionalProperties: false
                   scenes:
@@ -192,7 +195,6 @@ paths:
       parameters:
         - schema:
             type: string
-            pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
           in: path
           name: sessionId
           required: true
@@ -225,6 +227,8 @@ paths:
                         type: boolean
                       failedPhase:
                         type: string
+                      createdAt:
+                        type: string
                       updatedAt:
                         type: string
                     required:
@@ -235,6 +239,7 @@ paths:
                       - language
                       - state
                       - paused
+                      - createdAt
                       - updatedAt
                     additionalProperties: false
                   scenes:
@@ -480,7 +485,7 @@ paths:
       parameters:
         - schema:
             type: string
-            format: uuid
+            pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
           in: path
           name: sessionId
           required: true

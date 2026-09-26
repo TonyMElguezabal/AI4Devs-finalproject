@@ -20,18 +20,24 @@ export function SceneList({ sessionId, scenes, onRetry, onCorrect }: Props) {
 
   return (
     <section aria-label="Scenes">
-      <ul className="scene-list">
-        {ordered.map((scene) => (
-          <SceneRow
-            key={scene.sceneId}
-            scene={scene}
-            onRetry={onRetry}
-            onCorrect={onCorrect}
-            imageDownloadUrl={downloadSceneUrl(sessionId, scene.sceneId, "image")}
-            videoDownloadUrl={downloadSceneUrl(sessionId, scene.sceneId, "video")}
-          />
-        ))}
-      </ul>
+      {ordered.length === 0 ? (
+        // consult-session (JOS-135) Decision 6 — an absent section is shown
+        // as "not yet available", never as an error or as silence.
+        <p className="scenes-not-yet-available">Scenes are not yet available.</p>
+      ) : (
+        <ul className="scene-list">
+          {ordered.map((scene) => (
+            <SceneRow
+              key={scene.sceneId}
+              scene={scene}
+              onRetry={onRetry}
+              onCorrect={onCorrect}
+              imageDownloadUrl={downloadSceneUrl(sessionId, scene.sceneId, "image")}
+              videoDownloadUrl={downloadSceneUrl(sessionId, scene.sceneId, "video")}
+            />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
