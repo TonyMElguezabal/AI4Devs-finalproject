@@ -1226,3 +1226,44 @@ export const handler = async (
 ```
 
 This document serves as the foundation for maintaining code quality and consistency across the LTI backend application. All team members should follow these practices to ensure a maintainable, scalable, and testable codebase.
+
+---
+
+## Media Assembly Pipeline (Vid4You — `define-media-assembly`, JOS-182)
+
+**Branch note**: this section was added on `feature/jos-182-define-media-assembly` (branched from `main`), which does not yet contain `define-backend-stack`'s full rewrite of this document (that exists only on `feature/entrega-2-JAME` at the time of writing — everything above this line is still the pre-rewrite inherited template). This section is additive and Vid4You-specific; reconcile it into the rewritten file at merge time rather than losing it.
+
+### Tool and pipeline
+
+**ffmpeg 8.1.2** (confirmed installed at `/opt/homebrew/bin/`, with `libx264`, `aac`, and every filter this pipeline needs), against all six PRD constraints (§7.3, D08) — no fallback needed. Full evaluation, evidence and the central finding behind this pipeline: `docs/adr/0005-media-assembly.md`.
+
+The documented, single-source-of-truth pipeline is a script, not prose duplicated here: `openspec/changes/define-media-assembly/scripts/assemble.sh`. Implementation work (US-16) follows that script rather than composing its own filter chain.
+
+**Stage order** (per clip, then once for the whole session):
+
+1. **Retime** (`setpts`) — video only; the voice-over is never touched (Decision 1).
+2. **Exclude clip audio** (`-map 0:v:0`) — at the input stage, not by muting after decode (Decision 2).
+3. **Normalise** (`scale` + `fps`) — every clip to the target output resolution/frame rate before concatenation (Decision 3).
+4. **State the exact frame count** (`-frames:v`), derived from *cumulative* target position, not from each clip's own duration in isolation (Decision 4 — see below; this is the pipeline's most important detail, not a minor flag choice).
+5. **Concatenate** (`concat` filter) — ascending scene-identifier order, read from the interval data.
+6. **Mux the voice-over** with `-c:a copy` — **never** `-c:a aac` or any re-encode of an already-compliant source; re-encoding was found to shift the voice-over's own duration via AAC encoder-priming delay, which directly violates "the voice-over is never retimed."
+
+### Duration accuracy and cumulative drift — read this before touching the pipeline
+
+Rounding each clip's own duration to the nearest frame independently is a random walk: proven to reach 122ms of cumulative drift (nearly 4 frames) over a 200-scene session — well past the ±1-frame tolerance — even though every individual clip stayed within it. **Never round a clip's duration from its own target alone.** Each clip's frame count must be `round(cumulative target end × fps) − previous clip's own rounded end frame`. This bounds drift to ≤0.5 frame at every join regardless of session length, and is why the per-clip tolerance is ±1 frame, not ±0.5 (two independent half-frame roundings can add). Full evidence: `docs/adr/0005-media-assembly.md` Decision 4.
+
+### Speed-factor recommendation (feeds US-33)
+
+**0.5×-2.0×**, with the two directions degrading asymmetrically (slow-down produces measurable frame duplication starting immediately below 1.0×; speed-up produced none in the tested range) — not a guessed symmetric number. Full sweep data and the stated subjective/fixture limitations: `docs/adr/0005-media-assembly.md` Decision 5.
+
+### Testing
+
+```bash
+./test/assembly.test.sh   # from openspec/changes/define-media-assembly/
+```
+
+Asserts (via `ffprobe`, never by eye): output codec/resolution/frame-rate match D08 exactly; video frame count matches the target total exactly (no gaps); exactly one audio stream, matching the source voice-over's codec/rate/duration exactly; and — as an automated, repeatable proof rather than a one-off manual demonstration — that a freshly generated 60-scene session's final frame count matches its target exactly (the cumulative-drift bound above, checked on every run, not just this spike's own).
+
+### Fixture
+
+`openspec/changes/define-media-assembly/fixture/` (~492KB): 5 synthetic scenes spanning 3 resolutions, 3 frame rates, and a mix of clips with/without their own audio, plus a matching voice-over and narration intervals — the minimum that exercises mismatched joins and audio exclusion (not a full long session; that's generated on demand for the drift test, never committed). Regenerate via `scripts/generate-fixture.sh`; both scripts are deterministic (`ffmpeg lavfi` synthetic sources, no external assets, no network).

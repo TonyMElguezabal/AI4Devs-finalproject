@@ -6,101 +6,101 @@ Runs independently of the other E13 spikes — it needs no framework, no store a
 
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Create feature branch `feature/jos-182-define-media-assembly` from `main`
-- [ ] 0.2 Verify branch creation and current branch status
+- [x] 0.1 Create feature branch `feature/jos-182-define-media-assembly` from `main` — this change is independent of the other E13 spikes and its own artifacts already exist on `main` (unlike the frontend prototype, which only exists on `feature/entrega-2-JAME`), so `main` is the correct base here, per the task as written
+- [x] 0.2 Verify branch creation and current branch status — confirmed via `git branch --show-current`: `feature/jos-182-define-media-assembly`
 
 ## 1. Establish the baseline
 
-- [ ] 1.1 Record the installed ffmpeg and ffprobe versions and paths, and confirm `libx264` and `aac` are present
-- [ ] 1.2 Record the target output format being proven against: 16:9, expected 1920×1080 at 30 fps, H.264 video, AAC audio (D08)
-- [ ] 1.3 Note that the target is US-33's to fix, and record what would change here if it moves
-- [ ] 1.4 State the proposed per-clip duration tolerance (±1 frame, 33.4 ms at 30 fps) as the value experiment 4 will confirm or revise
+- [x] 1.1 Record the installed ffmpeg and ffprobe versions and paths, and confirm `libx264` and `aac` are present — `ffmpeg 8.1.2` / `ffprobe` at `/opt/homebrew/bin/`; `libx264` (H.264) and `aac` encoders confirmed present via `ffmpeg -encoders`; `setpts`, `atempo`, `concat`, `fps`, `scale` filters all confirmed present via `ffmpeg -filters`
+- [x] 1.2 Record the target output format being proven against: 16:9, expected 1920×1080 at 30 fps, H.264 video, AAC audio (D08) — recorded; all experiments below target this
+- [x] 1.3 Note that the target is US-33's to fix, and record what would change here if it moves — noted: if US-33 sets a different resolution/frame rate, only the `scale`/`fps` filter arguments in the pipeline (group 3) change; the filter graph shape, decisions, and speed-factor/tolerance measurements (which are about *retiming*, not the target format) are unaffected
+- [x] 1.4 State the proposed per-clip duration tolerance (±1 frame, 33.4 ms at 30 fps) as the value experiment 4 will confirm or revise — stated; 1 frame at 30fps = 1/30s ≈ 33.33ms (design.md's "33.4 ms" is a rounding of this)
 
 ## 2. Build the sample material
 
-- [ ] 2.1 Generate or obtain clips of differing durations matching plausible provider-admitted durations
-- [ ] 2.2 Include clips differing in resolution and frame rate, to exercise the normalisation in Decision 3
-- [ ] 2.3 Give some clips their own audio track, so audio exclusion is actually tested rather than assumed
-- [ ] 2.4 Produce a voice-over audio file and a set of synthetic narration intervals that partition its full duration
-- [ ] 2.5 Record how the material was produced, so it can be regenerated
+- [x] 2.1 Generate or obtain clips of differing durations matching plausible provider-admitted durations — 5 synthetic clips, source durations 2.0–4.0s, each with a distinct target narration interval so retiming has real work to do (speed factors 0.67×–1.25× across the set)
+- [x] 2.2 Include clips differing in resolution and frame rate, to exercise the normalisation in Decision 3 — 1280×720@24, 1920×1080@30, 960×540@25, 1920×1080@24, 1280×720@30 (all 16:9, per §7.1's stated source shape — variety is in exact size/fps, matching what actually varies between providers, not aspect ratio)
+- [x] 2.3 Give some clips their own audio track, so audio exclusion is actually tested rather than assumed — scenes 1, 3, 5 carry a distinct-frequency sine tone each (verified present via `ffprobe`); scenes 2, 4 are silent
+- [x] 2.4 Produce a voice-over audio file and a set of synthetic narration intervals that partition its full duration — `voice-over.m4a` (14.4s, a frequency-swept tone so retiming would be audibly/spectrally detectable) + `intervals.json`, 5 scenes, ascending, no gaps, summing exactly to the voice-over's duration
+- [x] 2.5 Record how the material was produced, so it can be regenerated — `scripts/generate-fixture.sh`, fully deterministic (ffmpeg `lavfi` synthetic sources, no external assets)
 
 ## 3. Establish the command pipeline
 
-- [ ] 3.1 Retime a clip's video with `setpts` to hit a target interval, leaving audio untouched (Decision 1)
-- [ ] 3.2 Exclude each clip's own audio at the input stage rather than muting it later (Decision 2)
-- [ ] 3.3 Normalise a clip to the target resolution and frame rate with `scale` and `fps` (Decision 3)
-- [ ] 3.4 Concatenate normalised clips in ascending scene order
-- [ ] 3.5 Mux the voice-over as the single audio stream and encode to H.264 / AAC in an MP4
-- [ ] 3.6 Capture the full pipeline as a repeatable script, with every filter and encoder flag explicit
+- [x] 3.1 Retime a clip's video with `setpts` to hit a target interval, leaving audio untouched (Decision 1) — `setpts=<target/source>*PTS`; tested in isolation on scene 1 (3.0s→2.4s) before folding into the full pipeline
+- [x] 3.2 Exclude each clip's own audio at the input stage rather than muting it later (Decision 2) — `-map 0:v:0` selects only the video stream; the audio stream is never read, not merely dropped after decoding
+- [x] 3.3 Normalise a clip to the target resolution and frame rate with `scale` and `fps` (Decision 3) — `scale=W:H,fps=FPS` chained after `setpts`, plus an explicit exact frame count (`-frames:v`) to lock the frame-accurate duration (needed: `setpts` alone left scene 1 at 2.458s instead of 2.4s before `fps` + an explicit frame count were added — see `reports/`). **Revised in 4.5**: the per-clip target frame count is derived from cumulative position (Decision 4), not from this clip's own duration in isolation — see that task for why
+- [x] 3.4 Concatenate normalised clips in ascending scene order — `concat` filter (`[0:v][1:v]...concat=n=N:v=1:a=0`), scene order read from `intervals.json` (sorted by `sceneId`), not filesystem listing order
+- [x] 3.5 Mux the voice-over as the single audio stream and encode to H.264 / AAC in an MP4 — voice-over mapped directly as the output's only audio stream, `-c:v libx264` for video. **Revised in 4.5**: audio uses `-c:a copy`, not `-c:a aac` — re-encoding an already-compliant voice-over violates Decision 1 and was found to shift its duration; see that task
+- [x] 3.6 Capture the full pipeline as a repeatable script, with every filter and encoder flag explicit — `scripts/assemble.sh` (final version, incorporating the 4.5 fixes); verified end-to-end against the fixture: every one of the 5 scenes landed at its exact target duration, final output exactly 14.400000s (video and audio both), 1920×1080@30fps H.264 + single AAC stream (stream-copied) — matching D08 exactly
 
 ## 4. Run the experiments and record evidence
 
-- [ ] 4.1 Factor sweep: assemble the same clip across roughly 0.5× to 2.0×, reporting speed-up and slow-down separately, and identify where artefacts become objectionable
-- [ ] 4.2 Keep every sweep output so the subjective judgement can be reviewed (Decision 6)
-- [ ] 4.3 Recommend a speed-factor limit with its evidence, and state explicitly that the quality call is subjective
-- [ ] 4.4 Duration accuracy: verify with ffprobe that each assembled clip lands within the stated tolerance of its target interval
-- [ ] 4.5 Cumulative drift: assemble a long session and measure the accumulated offset per scene, not only the total duration
-- [ ] 4.6 Audio integrity: verify the voice-over is the only audio, its duration and rate are unchanged, no clip audio survives, and A/V are in sync at the final scene
-- [ ] 4.7 Mixed inputs: verify clips of differing durations, resolutions and frame rates join without artefacts into one compliant file
-- [ ] 4.8 Cost: measure wall-clock and CPU for the long assembly on this machine, and hand the figure to US-22
-- [ ] 4.9 Record every outcome including failures, and note which input properties the sources actually had
-- [ ] 4.10 If ffmpeg fails a PRD constraint, stop and record the failing constraint and the fallback rather than working around it
+- [x] 4.1 Factor sweep: assemble the same clip across roughly 0.5× to 2.0×, reporting speed-up and slow-down separately, and identify where artefacts become objectionable — `scripts/sweep.sh`, run against a clean `testsrc` source already at the 1920×1080@30fps target (no normalisation confound). **Result is sharply asymmetric**: measuring exact byte-identical consecutive-frame duplication on the raw filter output (encoder-noise-free — see finding below), speed-up (factor > 1.0) produced **0% duplicate frames at every tested factor up to 2.0×**; slow-down (factor < 1.0) produced duplication growing monotonically and exactly as `1 − factor` predicts mathematically (0.9×→9.8%, 0.8×→20.0%, 0.7×→29.8%, 0.6×→40.0%, 0.5×→50.0%). Full table: `work/sweep/results.csv`. Sample stills at 0.5×/1.0×/2.0× visually inspected — no encoding corruption/blockiness at either extreme (see task 4.2 note on what stills can't show).
+- [x] 4.2 Keep every sweep output so the subjective judgement can be reviewed (Decision 6) — all 11 factor outputs + per-factor frame grids kept under `work/sweep/` (not committed — scratch, per Decision 7's repo-size concern; regenerable via `scripts/sweep.sh`). **Honest limitation recorded**: judder/duplication is a *temporal* artefact — invisible in a single still frame — so the still-frame inspection could only rule out gross encoding corruption, not confirm or deny perceived stutter. The exact-duplicate-frame measurement (4.1) is the real evidence for the duplication question; a human watching the actual sweep clips in motion is still needed to confirm the perceptual call, per Decision 6.
+- [x] 4.3 Recommend a speed-factor limit with its evidence, and state explicitly that the quality call is subjective — **recommend 0.5×–2.0×**, i.e. the full tested range, asymmetric in *basis* though matching in tested number: slow-down's 0.5× floor is where duplication reaches exactly 50% (every other frame is a repeat) — at the edge of, not beyond, what conventional frame-hold retiming (no optical-flow interpolation) is generally considered acceptable for cutaway-style content; speed-up showed zero mechanical duplication/drop artefact anywhere in the tested range, so 2.0× is a tested-clean ceiling, not a measured breaking point. **Subjective element, stated explicitly**: whether 50% duplication *looks* acceptable, and whether real (non-synthetic) footage degrades similarly under speed-up, are perceptual/content-dependent judgements this synthetic sweep cannot make — see 4.9 for the fixture's specific limitation here.
+- [x] 4.4 Duration accuracy: verify with ffprobe that each assembled clip lands within the stated tolerance of its target interval — confirmed frame-exact (0.000000s measured error) on the 5-scene fixture, whose target intervals happen to fall on clean 1/30s boundaries; the more realistic non-frame-aligned case is covered by 4.5, where per-clip error was measured up to ±16.67ms (exactly half a frame, the theoretical maximum for the frame-snapping approach — see 4.5), comfortably inside the ±1-frame (±33.3ms) tolerance
+- [x] 4.5 Cumulative drift: assemble a long session and measure the accumulated offset per scene, not only the total duration — **a real problem was found and fixed here, not just measured.** First attempt (each clip's own duration rounded to the nearest frame independently) showed cumulative drift growing unbounded with session length: 40 scenes → 26.8ms max, but 200 scenes (the MVP's actual "hundreds of scenes" scale, no cap per §4.1) → **122.5ms max at scene 73** — nearly 4 frames, far past the ±1-frame tolerance, even though every individual clip stayed within it. Root cause: independent per-clip rounding is a random walk (confirmed against the theoretical model: predicted std ≈136ms at N=200, matching the observed 122ms order of magnitude). **Fix**: carry-forward cumulative frame accounting — each clip's frame count is `round(cumulative target end × fps) − previous clip's own rounded end frame`, never derived from that clip's duration alone (now Decision 4 in `design.md`/pipeline `scripts/assemble.sh`). This bounds drift to ≤0.5 frame (≤16.67ms) **at every join, by construction, regardless of session length** — proven not just by the fixed pipeline's live output but by the final file's own frame count exactly matching `round(target_total × fps)` at both 40-scene (3359 frames) and 200-scene (16905 frames) scale. **A second, independent bug was found while chasing the last few ms of residual**: the final mux was re-encoding the voice-over (`-c:a aac`) instead of stream-copying it (`-c:a copy`), which violates Decision 1 ("copied at its native rate") and was independently shifting the audio stream's own duration by ~7-11ms via AAC's encoder-priming delay — fixed. **Methodological finding**: per-clip `ffprobe format=duration` on intermediate container files is not reliable evidence for frame-accurate accumulation (it carries its own container-metadata rounding noise independent of actual frame content) — `nb_frames` on the final concatenated output is the correct signal, and is what the by-construction bound above is actually verified against.
+- [x] 4.6 Audio integrity: verify the voice-over is the only audio, its duration and rate are unchanged, no clip audio survives, and A/V are in sync at the final scene — re-verified against the final (post-4.5-fix) pipeline: exactly 1 audio stream (`ffprobe -select_streams a` count = 1), AAC, 48000Hz matching the source voice-over exactly, duration 14.400000s matching the original `voice-over.m4a` exactly (byte-preserved via `-c:a copy`, not re-encoded — see 4.5) despite scenes 1/3/5 each carrying their own distinct-frequency tone; video duration also 14.400000s, so audio and video end together at the final scene
+- [x] 4.7 Mixed inputs: verify clips of differing durations, resolutions and frame rates join without artefacts into one compliant file — 5 source clips spanning 3 resolutions (1280×720, 1920×1080, 960×540) and 3 frame rates (24, 25, 30) all join into one constant 1920×1080@30fps H.264 stream; frame count exactly 432 (=72+90+120+60+90, the sum of each normalised clip's own frame count) confirms no frame was dropped or duplicated at any join; stills extracted at every join boundary show no corruption (visually inspected)
+- [x] 4.8 Cost: measure wall-clock and CPU for the long assembly on this machine, and hand the figure to US-22 — machine: Apple M1 Max, 10 cores (8P+2E). 40 scenes (~112s of output content): 44.3s wall clock (123.8s user + 11.3s system CPU time, ~304% average utilisation). 200 scenes (~563.5s of output content, the scale the MVP's uncapped script length can actually reach): **166.5s (2m 46s) wall clock** (601.2s user + 69.8s system CPU time, ~403% average utilisation). Cost scales roughly linearly with content duration (~0.30–0.40× realtime on this machine) — assembly is markedly faster than the material it produces, not a bottleneck relative to image/video generation. Handed to US-22: for a long session, budget on the order of 30-45% of the assembled video's own duration as this stage's wall-clock cost on comparable hardware, not a fixed constant independent of session length.
+- [x] 4.9 Record every outcome including failures, and note which input properties the sources actually had — outcomes: all experiments passed after the two fixes in 4.5 (cumulative frame accounting; audio stream-copy). Source properties actually exercised: resolutions 1280×720/1920×1080/960×540, frame rates 24/25/30fps, durations 1.5–4.5s, speed factors 0.55×–1.9× (long-session generator) and 0.5×–2.0× (sweep) — all synthetic (`ffmpeg` `testsrc`/`sine` `lavfi` sources), since no image/video provider is chosen yet (US-33). **Fixture limitation recorded honestly**: `testsrc`'s content is a continuously-driven synthetic pattern with no discrete real-world motion or motion blur — it is well-suited to objectively measuring frame duplication (4.1/4.5) but may understate perceptual speed-up artefacts (strobing/choppy panning) that real footage with genuine discrete motion could show; this is a real, stated limitation of synthetic test material, not a gap papered over.
+- [x] 4.10 If ffmpeg fails a PRD constraint, stop and record the failing constraint and the fallback rather than working around it — not triggered; ffmpeg passed every constraint (task 1.1) and every experiment, after the fixes recorded in 4.5
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Confirm which test suites exist at this point, including any added by the sibling spikes; record the finding rather than assuming it
-- [ ] 5.2 Write automated checks asserting output duration against target intervals, output codecs and resolution, and the absence of clip audio — all verifiable with ffprobe
-- [ ] 5.3 Write a check asserting cumulative drift stays within tolerance across the long session
-- [ ] 5.4 Document the test command that runs them
+- [x] 5.1 Confirm which test suites exist at this point, including any added by the sibling spikes; record the finding rather than assuming it — confirmed via `git ls-tree -r HEAD --name-only | grep test`: **none** exist on this branch (based on `main`, per task 0.1's reasoning — the sibling spikes' skeletons live only on `feature/entrega-2-JAME`, not `main`, and this change is independent of them regardless)
+- [x] 5.2 Write automated checks asserting output duration against target intervals, output codecs and resolution, and the absence of clip audio — all verifiable with ffprobe — `test/assembly.test.sh`: 8 assertions (video codec/resolution/fps/frame-count, audio stream-count/codec/rate/duration)
+- [x] 5.3 Write a check asserting cumulative drift stays within tolerance across the long session — same file, Test 3: generates a fresh 60-scene session and asserts the final video frame count matches `round(target_total × fps)` exactly, automating the proof behind Decision 4 (task 4.5) rather than leaving it a one-off manual demonstration
+- [x] 5.4 Document the test command that runs them — `./test/assembly.test.sh` from the change root (`openspec/changes/define-media-assembly/`); documented in `docs/backend-standards.md` in task 10
 
 ## 6. Run Unit Tests and Verify State (MANDATORY)
 
 No database is involved: this change writes media files, not records. The state to verify is therefore the filesystem, and the step is adapted accordingly rather than skipped — `define-persistence` owns the ruling on whether the database wording in `docs/openspec-tasks-mandatory-steps.md` binds at all.
 
-- [ ] 6.1 Capture the pre-test state of the working and output directories (file list and sizes)
-- [ ] 6.2 Run the targeted assembly checks and capture the pass/fail summary
-- [ ] 6.3 Run the full check set and record totals, failures and runtime
-- [ ] 6.4 Verify the post-test filesystem state matches the baseline, removing scratch outputs the tests produced
-- [ ] 6.5 Create the report `openspec/changes/define-media-assembly/reports/YYYY-MM-DD-step-6-unit-test-and-state-verification.md` with commands executed, results, pre/post comparison and cleanup actions
-- [ ] 6.6 Mark this step complete only after the checks pass and the report file exists
+- [x] 6.1 Capture the pre-test state of the working and output directories (file list and sizes) — captured via `find . -maxdepth 2`
+- [x] 6.2 Run the targeted assembly checks and capture the pass/fail summary — 10/10 passed
+- [x] 6.3 Run the full check set and record totals, failures and runtime — 10/10 passed (this change has one test file, so full = targeted), 86.45s
+- [x] 6.4 Verify the post-test filesystem state matches the baseline, removing scratch outputs the tests produced — confirmed identical listing before/after; all test output lived in a `mktemp` dir auto-removed via `trap`, nothing to manually clean
+- [x] 6.5 Create the report `openspec/changes/define-media-assembly/reports/2026-09-26-step-6-unit-test-and-state-verification.md` with commands executed, results, pre/post comparison and cleanup actions — done
+- [x] 6.6 Mark this step complete only after the checks pass and the report file exists — done
 
 ## 7. Manual Endpoint Testing with curl (NOT APPLICABLE)
 
-- [ ] 7.1 Record that this step does not apply: the change adds no HTTP surface. Assembly runs as a local subprocess, and the endpoints that will eventually trigger it belong to US-16 and to `define-backend-stack`, whose task 7 covers its own surface
+- [x] 7.1 Record that this step does not apply: the change adds no HTTP surface. Assembly runs as a local subprocess, and the endpoints that will eventually trigger it belong to US-16 and to `define-backend-stack`, whose task 7 covers its own surface
 
 ## 8. E2E Testing with Playwright MCP (NOT APPLICABLE)
 
-- [ ] 8.1 Record that this step does not apply: the change touches no UI and adds no user workflow. Frontend work is owned by US-42b (JOS-180), and the assembly progress views belong to US-18 and US-19
+- [x] 8.1 Record that this step does not apply: the change touches no UI and adds no user workflow. Frontend work is owned by US-42b (JOS-180), and the assembly progress views belong to US-18 and US-19
 
 ## 9. Record the decision
 
-- [ ] 9.1 Write the ADR: chosen tool, rejected alternatives with reasons, and the evidence behind each conclusion
-- [ ] 9.2 Record the recommended speed-factor limit, per direction, marked as a recommendation for US-33 rather than a fixed value
-- [ ] 9.3 Record the confirmed duration tolerance and the observed cumulative drift
-- [ ] 9.4 Record the measured assembly cost, and state that US-22's per-phase maximum should derive from it
-- [ ] 9.5 State what remains unproven until D11 closes, and what would have to be re-run once it does
-- [ ] 9.6 Record anything else the timebox left unproven as an explicit risk
+- [x] 9.1 Write the ADR: chosen tool, rejected alternatives with reasons, and the evidence behind each conclusion — `docs/adr/0005-media-assembly.md` (numbered to fit the sibling spikes' sequence 0001-0004, which exist only on `feature/entrega-2-JAME` — see the ADR's own branch note)
+- [x] 9.2 Record the recommended speed-factor limit, per direction, marked as a recommendation for US-33 rather than a fixed value — ADR § Decision 5
+- [x] 9.3 Record the confirmed duration tolerance and the observed cumulative drift — ADR § Decision 4 (the central finding: not just confirming a tolerance, but finding and fixing why the naive approach breaks it)
+- [x] 9.4 Record the measured assembly cost, and state that US-22's per-phase maximum should derive from it — ADR § Cost
+- [x] 9.5 State what remains unproven until D11 closes, and what would have to be re-run once it does — ADR § Risks left unproven: D11 changes interval *values*, which every experiment already treats as an input, so nothing needs re-running for D11 specifically, but the *final* pipeline can't be called fully fixed until it closes (proposal's own stated dependency)
+- [x] 9.6 Record anything else the timebox left unproven as an explicit risk — ADR § Risks left unproven: real footage untested, frame interpolation unevaluated, quality judgement is one agent's provisional read pending human confirmation
 
 ## 10. Update Technical Documentation (MANDATORY)
 
-- [ ] 10.1 Add the assembly pipeline to `docs/backend-standards.md`: filters, encoder settings, container flags, and the order the stages run in
-- [ ] 10.2 Document that the voice-over is never retimed and clip audio is excluded at input, so a later change does not reintroduce either
-- [ ] 10.3 Document the normalisation step and why concatenating un-normalised provider clips is not safe
-- [ ] 10.4 Confirm the result stays consistent with what the sibling spikes wrote to the same file, resolving any contradiction rather than layering over it
+- [x] 10.1 Add the assembly pipeline to `docs/backend-standards.md`: filters, encoder settings, container flags, and the order the stages run in — done, new § Media Assembly Pipeline
+- [x] 10.2 Document that the voice-over is never retimed and clip audio is excluded at input, so a later change does not reintroduce either — done, same section, explicit "never `-c:a aac`" warning with the reason
+- [x] 10.3 Document the normalisation step and why concatenating un-normalised provider clips is not safe — done
+- [x] 10.4 Confirm the result stays consistent with what the sibling spikes wrote to the same file, resolving any contradiction rather than layering over it — **cannot be fully resolved on this branch**: `define-backend-stack`'s rewrite of this same file exists only on `feature/entrega-2-JAME`, which this branch (based on `main`) does not contain. Recorded honestly as a branch-topology limitation in both the ADR and the new doc section, rather than silently layered over or assumed consistent; flagged to the user as a merge-time reconciliation item
 
 ## 11. Commit the fixture
 
-- [ ] 11.1 Reduce the sample material to the minimum that still exercises mismatched joins and audio exclusion (Decision 7)
-- [ ] 11.2 Commit it with the script that produced the verified output, so US-16's tests have real media to run against
-- [ ] 11.3 Record the fixture's total size, so its cost to the repository is visible
-- [ ] 11.4 Document how to regenerate it rather than relying only on the committed binaries
+- [x] 11.1 Reduce the sample material to the minimum that still exercises mismatched joins and audio exclusion (Decision 7) — the 5-scene fixture used throughout this change's own experiments *is* the minimal set (3 resolutions, 3 frame rates, 3 of 5 scenes with their own audio); no separate reduction needed since it was never over-built in the first place
+- [x] 11.2 Commit it with the script that produced the verified output, so US-16's tests have real media to run against — **files are in place at `fixture/` and staged for commit, not yet git-committed**: per this session's git policy (only commit when the user explicitly asks), I have not run `git commit`. Ready whenever the user gives the go-ahead
+- [x] 11.3 Record the fixture's total size, so its cost to the repository is visible — **492KB total** (`voice-over.m4a` 128KB, 5 source clips 56-88KB each, `intervals.json` 4KB)
+- [x] 11.4 Document how to regenerate it rather than relying only on the committed binaries — `scripts/generate-fixture.sh`, deterministic, documented in `docs/backend-standards.md` § Media Assembly Pipeline § Fixture
 
 ## 12. Close out
 
-- [ ] 12.1 Answer design open question 1 (is ±1 frame the right tolerance) from experiment 4.4
-- [ ] 12.2 Answer design open question 2 (do the two directions need different limits) from experiment 4.1
-- [ ] 12.3 Answer design open question 3 (frame interpolation when slowing down) only if the sweep showed slowdown is the binding constraint; otherwise record it as not needed
-- [ ] 12.4 Hand the speed-factor recommendation to US-33 and the cost figure to US-22, confirming both were received
-- [ ] 12.5 Create follow-up items for anything the spike revealed, linked to epic E13 (JOS-177)
-- [ ] 12.6 Record time spent, to calibrate future spikes
-- [ ] 12.7 Obtain review by at least one human, not only AI agents — the quality threshold in particular is a subjective call that needs confirming
+- [x] 12.1 Answer design open question 1 (is ±1 frame the right tolerance) from experiment 4.4 — yes, and precisely why: ADR § Decision 4 (it is the exact cost of the carry-forward technique that bounds cumulative drift)
+- [x] 12.2 Answer design open question 2 (do the two directions need different limits) from experiment 4.1 — the *mechanism* is sharply asymmetric (0% vs. growing duplication); the *recommended number* happens to match in both directions (0.5×-2.0×) pending real-footage validation of the speed-up side — ADR § Decision 5 / Open Questions
+- [x] 12.3 Answer design open question 3 (frame interpolation when slowing down) only if the sweep showed slowdown is the binding constraint; otherwise record it as not needed — condition met (slowdown is binding); answered: not needed within the recommended 0.5×-2.0× range, only relevant if a future change pushes past 0.5× — ADR § Open Questions
+- [x] 12.4 Hand the speed-factor recommendation to US-33 and the cost figure to US-22, confirming both were received — done via Linear comments: speed-factor recommendation posted to **JOS-165** (US-33), cost figure posted to **JOS-185** (US-22b, the split-off per-phase-execution-time story), each pointing back to `docs/adr/0005-media-assembly.md` for full evidence
+- [x] 12.5 Create follow-up items for anything the spike revealed, linked to epic E13 (JOS-177) — no new ticket needed: the two carry-forward items (real-footage speed-factor validation once US-33 picks providers; frame-interpolation-for-slowdown left unevaluated) are recorded directly on **JOS-165** (the comment above) and in the ADR's own Risks section, both already under epic E13 via their parent chain — consistent with how `define-frontend-stack`/`define-persistence` handled their own carry-forwards (a comment on the right existing ticket, not a new one, when one already exists)
+- [x] 12.6 Record time spent, to calibrate future spikes — recorded as an AI-agent session (not a human timesheet): this change, including the two real bugs found and fixed in Decision 4/4b (cumulative drift, audio re-encoding), took roughly 2-2.5 hours of agent time (fixture generation, pipeline build, sweep experiment, 40- and 200-scene drift experiments run twice each across the fix cycle, automated tests, ADR, docs, fixture finalisation). Within the ticket's 2-day timebox with substantial margin.
+- [ ] 12.7 Obtain review by at least one human, not only AI agents — the quality threshold in particular is a subjective call that needs confirming — **pending**, same gate every sibling spike in this project is held to; cannot be completed by the agent
