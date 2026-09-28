@@ -88,9 +88,9 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: this story adds no screen. Check that the session page shows the script read-only with no edit control; if so, record a short check, otherwise record why E2E is not applicable
-- [ ] 10.2 If applicable, start backend and frontend, open a session page and assert there is no control that edits the script or regenerates the narration
-- [ ] 10.3 Save the report as `openspec/changes/lock-script-and-narration/reports/YYYY-MM-DD-step-10-e2e-playwright.md`
+- [x] 10.1 Decide applicability: this story adds no screen. Check that the session page shows the script read-only with no edit control; if so, record a short check, otherwise record why E2E is not applicable
+- [x] 10.2 If applicable, start backend and frontend, open a session page and assert there is no control that edits the script or regenerates the narration — applicable; run with Claude in Chrome (Playwright MCP is not available here): 0 controls on a submitted session, the script in a non-editable `<p>`; with a failed scene, four controls and none holds the script; a correction typed in the UI reached `chunk-complete` live and left the script unchanged
+- [x] 10.3 Save the report as `openspec/changes/lock-script-and-narration/reports/2026-09-27-step-10-e2e-playwright.md`
 
 ## 11. Update Technical Documentation (MANDATORY)
 
