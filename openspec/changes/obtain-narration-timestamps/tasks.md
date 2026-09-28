@@ -23,13 +23,13 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 3. Usability check and alignment adapter (TDD) — Decisions 3 and 6
 
-- [ ] 3.1 Write failing tests that parse the native (`alignment` with parallel arrays) and forced-alignment (`characters` with `text`, `start`, `end`) shapes into the common per-character form, and reject malformed shapes with Zod
-- [ ] 3.2 Write failing tests for `checkTimestamps`: usable when they reproduce the script (exactly for native, apart from whitespace for alignment) with valid times; unusable for an empty list, a text mismatch, a negative or non-finite time, an end before its start, starts going backwards, and an end beyond the duration plus 0.5 s; gaps are allowed
-- [ ] 3.3 Define the typed `AlignmentProvider` port (MP3 bytes and script in, character timestamps or a classified failure out)
-- [ ] 3.4 Write failing adapter tests against a mocked `fetch`: one multipart request with `file` and `text` and the `xi-api-key` header; HTTP-status classification (4xx except 408/429 not retryable; 408, 429, 5xx, network error, 5 s time limit transient); a missing credential sends nothing; the reason never carries the raw body or the key
-- [ ] 3.5 Implement the parsers, the check and the adapter
-- [ ] 3.6 Write an opt-in contract test against the real forced-alignment endpoint (`RUN_PROVIDER_CONTRACT_TESTS=1`), excluded from the default run
-- [ ] 3.7 Run the group 3 tests and confirm they pass
+- [x] 3.1 Write failing tests that parse the native (`alignment` with parallel arrays) and forced-alignment (`characters` with `text`, `start`, `end`) shapes into the common per-character form, and reject malformed shapes with Zod — `backend/test/narration-timestamps-check.test.ts`; native (whole response or the `alignment` object) and forced-alignment shapes, with malformed shapes rejected
+- [x] 3.2 Write failing tests for `checkTimestamps`: usable when they reproduce the script (exactly for native, apart from whitespace for alignment) with valid times; unusable for an empty list, a text mismatch, a negative or non-finite time, an end before its start, starts going backwards, and an end beyond the duration plus 0.5 s; gaps are allowed — plus that the script is compared as stored (no trimming) and that alignment need not start at 0
+- [x] 3.3 Define the typed `AlignmentProvider` port (MP3 bytes and script in, character timestamps or a classified failure out) — `AlignmentProvider` and `AlignmentResult` (`success`, `failed_transient`, `failed_not_retryable`, `invalid_output`) in `backend/src/alignmentProvider.ts`
+- [x] 3.4 Write failing adapter tests against a mocked `fetch`: one multipart request with `file` and `text` and the `xi-api-key` header; HTTP-status classification (4xx except 408/429 not retryable; 408, 429, 5xx, network error, 5 s time limit transient); a missing credential sends nothing; the reason never carries the raw body or the key — `backend/test/alignment-provider.test.ts`; also that the script is sent unaltered and that the MP3 bytes arrive intact
+- [x] 3.5 Implement the parsers, the check and the adapter — `backend/src/narrationTimestamps.ts` (pure) and the ElevenLabs adapter; the adapter passes the MP3 as a plain `ArrayBuffer` copy because `Blob` rejects other buffer types
+- [x] 3.6 Write an opt-in contract test against the real forced-alignment endpoint (`RUN_PROVIDER_CONTRACT_TESTS=1`), excluded from the default run — `backend/test/alignment-provider.contract.test.ts`, skipped by default; it needs an MP3, its script and its duration, and runs once in step 8
+- [x] 3.7 Run the group 3 tests and confirm they pass — 49/49 (both modules were missing before); the contract test is skipped by default; typecheck clean
 
 ## 4. Obtaining timestamps (TDD) — Decisions 1, 4, 5 and 8
 
