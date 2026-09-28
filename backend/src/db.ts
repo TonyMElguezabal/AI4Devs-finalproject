@@ -308,8 +308,7 @@ export function writeArtefactOnce(projectFolder: string, relativePath: string, c
   try {
     linkSync(temporaryPath, fullPath);
   } catch (err: any) {
-    if (err?.code === "EEXIST") throw new ArtefactAlreadyExistsError(relativePath);
-    throw err;
+    throw err?.code === "EEXIST" ? new ArtefactAlreadyExistsError(relativePath) : err;
   } finally {
     rmSync(temporaryPath, { force: true });
   }

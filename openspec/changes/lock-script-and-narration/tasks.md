@@ -61,11 +61,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review `persistence.test.ts` and `voice-over-persistence.test.ts` for any test that updates or deletes a locked column or row, and update it to use the supported path
-- [ ] 7.2 Confirm the migration fixture tests still pass with migration 5 applied
-- [ ] 7.3 Confirm every scenario in `specs/content-lock/spec.md` has at least one functional test, and list the mapping in the step 8 report
-- [ ] 7.4 Confirm module test coverage has not decreased
-- [ ] 7.5 Run `npm run typecheck` with no errors
+- [x] 7.1 Review `persistence.test.ts` and `voice-over-persistence.test.ts` for any test that updates or deletes a locked column or row, and update it to use the supported path — reviewed all tests: none writes a locked column or deletes a voice-over row. The one raw `UPDATE runs` (`session-read.test.ts`) sets `created_at`, which is not locked; app code writes only `project_folder`, `paused`, `voice_provider_id` and `failure`; `resetAll()` is the design's one test-only exception. No test needed changing
+- [x] 7.2 Confirm the migration fixture tests still pass with migration 5 applied — the fixture tests in `persistence.test.ts` and `voice-over-persistence.test.ts` pass with migrations 5 and 6 applied (223/223)
+- [x] 7.3 Confirm every scenario in `specs/content-lock/spec.md` has at least one functional test, and list the mapping in the step 8 report — all 16 scenarios have a test. One is only partly covered: "Regeneration is requested for a completed narration" is tested as the guard's refusal, but its "no request is sent to the voice provider" clause cannot be tested until JOS-136's voice launch exists (handed over in task 12.1). The mapping goes in the step 8 report (task 8.5)
+- [x] 7.4 Confirm module test coverage has not decreased — measured with `@vitest/coverage-v8` installed locally without saving it (`--no-save`; the project has no coverage script), base `b6e6060` vs head, each on a scratch database. Lines 90.32% → 91.38%, branches 81.54% → 82.35%, functions 97.61% → 97.82%; `db.ts` lines 97.33% → 97.63%, branches 86.02% → 87.03%; `routes.ts` 71.37% → 74.19%. Nothing decreased. Recorded in the step 8 report
+- [x] 7.5 Run `npm run typecheck` with no errors — clean
+- [x] 7.6 Cover the paths this story added that no test reaches: the `resetAll()` rollback (a delete that fails after the delete trigger was dropped must restore both the trigger and the rows) and the non-`EEXIST` error path of `writeArtefactOnce`, then re-measure coverage against the base — a new test makes a delete fail after the trigger was dropped and asserts the trigger and rows come back; removing the transaction from `resetAll()` made it fail (checked against a scratch database, then restored). The non-`EEXIST` branch of `writeArtefactOnce` is unreachable by natural failures (its temporary name is longer than the target, so it fails first), so it became a single expression instead of a separate untested branch
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 

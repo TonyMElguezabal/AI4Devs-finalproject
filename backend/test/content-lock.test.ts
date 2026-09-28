@@ -10,6 +10,7 @@ import {
   bindVoiceProvider,
   countVoiceOvers,
   createRun,
+  createScene,
   db,
   getRun,
   getVoiceOver,
@@ -272,6 +273,26 @@ describe("The test-only reset empties voice-overs without lifting the lock (desi
 
     expect(() => db.prepare("DELETE FROM voice_overs WHERE run_id = ?").run(runId)).toThrow(/locked/);
     expect(() => db.prepare("UPDATE voice_overs SET audio_path = 'x' WHERE run_id = ?").run(runId)).toThrow(/locked/);
+  });
+
+  it("is atomic: if a later delete fails, the trigger and the rows come back", () => {
+    const runId = newRunId();
+    insertVoiceOver(voiceOverFor(runId));
+    createScene(randomUUID(), runId, 1, "success", 100);
+    // Make the reset fail AFTER it has dropped the delete trigger and emptied voice_overs.
+    db.exec("CREATE TRIGGER test_block_scene_delete BEFORE DELETE ON scenes BEGIN SELECT RAISE(ABORT, 'boom: blocked for the test'); END;");
+    try {
+      expect(() => resetAll()).toThrow(/boom/);
+
+      expect(triggerNames()).toContain("voice_overs_no_delete");
+      expect(countVoiceOvers(runId)).toBe(1);
+      expect(() => db.prepare("DELETE FROM voice_overs WHERE run_id = ?").run(runId)).toThrow(/locked/);
+    } finally {
+      db.exec("DROP TRIGGER test_block_scene_delete");
+      resetAll();
+    }
+    expect(countVoiceOvers(runId)).toBe(0);
+    expect(triggerNames()).toContain("voice_overs_no_delete");
   });
 
   it("leaves the session content locks in place too", () => {
