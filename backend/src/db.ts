@@ -22,7 +22,7 @@ import type {
   StageAttempt,
   StageAttemptOutcome,
   VoiceOver,
-  VoiceOverFailure,
+  SessionFailure,
   VoiceOverInput,
 } from "./types.ts";
 import { STUB_PROVIDER_NAME } from "./types.ts";
@@ -425,8 +425,48 @@ function rowToRun(row: any): Run {
     language: row.language ?? "",
     projectFolder: row.project_folder ?? "",
     voiceProviderId: row.voice_provider_id ?? null,
-    failure: row.failure ? (JSON.parse(row.failure) as VoiceOverFailure) : null,
+    failure: row.failure ? (JSON.parse(row.failure) as SessionFailure) : null,
   };
+}
+
+/** assign-scene-identifiers (JOS-144) — a chunk as registration writes it. */
+export interface RegisteredSceneInput {
+  id: string;
+  /** The PRD's ID, 1..N. */
+  index: number;
+  prompt: string;
+  imageInstruction: string;
+  videoInstruction: string;
+}
+
+export function countScenesForRun(runId: string): number {
+  return (db.prepare("SELECT COUNT(*) c FROM scenes WHERE run_id = ?").get(runId) as { c: number }).c;
+}
+
+/**
+ * assign-scene-identifiers (JOS-144) Decision 5 — registers every chunk of a
+ * decomposition in ONE transaction, and clears an earlier session failure in
+ * the same transaction: either all chunks exist afterwards, or none do. The
+ * unique (run_id, idx) index refuses a second registration even if two
+ * callers race; the caller maps that to "already registered".
+ */
+export function insertRegisteredScenes(runId: string, scenes: readonly RegisteredSceneInput[]): void {
+  const updatedAt = nowIso();
+  const insert = db.prepare(
+    "INSERT INTO scenes (id, run_id, idx, status, attempts, instruction, prompt, image_instruction, video_instruction, updated_at) VALUES (?, ?, ?, 'submitted', 0, ?, ?, ?, ?, ?)",
+  );
+  db.exec("BEGIN");
+  try {
+    for (const scene of scenes) {
+      // Decision 3 — the skeleton image stage still reads `instruction`.
+      insert.run(scene.id, runId, scene.index, scene.imageInstruction, scene.prompt, scene.imageInstruction, scene.videoInstruction, updatedAt);
+    }
+    db.prepare("UPDATE runs SET failure = NULL WHERE id = ?").run(runId);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
 }
 
 export function getScene(id: string): Scene | undefined {
@@ -474,7 +514,7 @@ export function bindVoiceProvider(runId: string, providerId: string): boolean {
 }
 
 /** Decision 9 — the session's failure, so a failure with no attempt behind it (a missing credential) is still reported. */
-export function setRunFailure(runId: string, failure: VoiceOverFailure): void {
+export function setRunFailure(runId: string, failure: SessionFailure): void {
   db.prepare("UPDATE runs SET failure = ? WHERE id = ?").run(JSON.stringify(failure), runId);
 }
 

@@ -34,15 +34,15 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 4. Validation and registration (TDD) — Decisions 1, 5, 6
 
-- [ ] 4.1 Write failing tests that valid fragments register chunks numbered 1..N in order, each with `PROMPT` equal to its fragment text and the generated `IMAGE` and `VIDEO`, all `submitted`, and that `instruction` equals `IMAGE` (Decision 3)
-- [ ] 4.2 Write failing tests for each invalid decomposition: no fragments, an empty text, a duration below 5 s or above 15 s without a flag, a `script-below-lower-bound` flag on one of several fragments, a reconstruction mismatch, an incomplete instruction set; each leaves no chunks and records a `decomposition` failure whose cause does not blame the script
-- [ ] 4.3 Write failing tests that the two §6.1.1 exceptions register, and that whitespace-only differences still reconstruct
-- [ ] 4.4 Write a failing test that a provider failure records a `decomposition` failure with the retryability from the adapter and leaves no chunks
-- [ ] 4.5 Write a failing test that invalid fragments never reach the instruction generator (validated first)
-- [ ] 4.6 Write a failing test that a session that already has chunks is refused and its chunks are unchanged
-- [ ] 4.7 Write a failing test that an unknown session is refused without writing anything
-- [ ] 4.8 Implement `SessionFailure` (voice-over or decomposition), `registerDecomposition`, the validation, and the single-transaction insert
-- [ ] 4.9 Run the group 4 tests and confirm they pass
+- [x] 4.1 Write failing tests that valid fragments register chunks numbered 1..N in order, each with `PROMPT` equal to its fragment text and the generated `IMAGE` and `VIDEO`, all `submitted`, and that `instruction` equals `IMAGE` (Decision 3) — `backend/test/scene-registration.test.ts`; also one generator call with the session's language, the script unchanged, a chunk 1 per session, and an earlier decomposition failure cleared on success
+- [x] 4.2 Write failing tests for each invalid decomposition: no fragments, an empty text, a duration below 5 s or above 15 s without a flag, a `script-below-lower-bound` flag on one of several fragments, a reconstruction mismatch, an incomplete instruction set; each leaves no chunks and records a `decomposition` failure whose cause does not blame the script — also a non-positive duration and a missing fragment
+- [x] 4.3 Write failing tests that the two §6.1.1 exceptions register, and that whitespace-only differences still reconstruct — plus the exact bounds (5 s and 15 s) and a sentence split at a clause boundary
+- [x] 4.4 Write a failing test that a provider failure records a `decomposition` failure with the retryability from the adapter and leaves no chunks
+- [x] 4.5 Write a failing test that invalid fragments never reach the instruction generator (validated first)
+- [x] 4.6 Write a failing test that a session that already has chunks is refused and its chunks are unchanged — also a session with a scene created some other way, and a lost race (the unique index refuses it and nothing of the losing registration is written)
+- [x] 4.7 Write a failing test that an unknown session is refused without writing anything
+- [x] 4.8 Implement `SessionFailure` (voice-over or decomposition), `registerDecomposition`, the validation, and the single-transaction insert — `backend/src/sceneRegistration.ts`; `SessionFailure` and `DecompositionFailure` in `types.ts`, `createDecompositionFailure` in `sessionStateMachine.ts`, `insertRegisteredScenes` (one transaction, clears the session failure) in `db.ts`
+- [x] 4.9 Run the group 4 tests and confirm they pass — 29/29 (the module was missing before); full suite 288 passed, 1 skipped; typecheck clean
 
 ## 5. Session state and representation (TDD) — Decision 6, AC5
 

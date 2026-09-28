@@ -53,11 +53,23 @@ export interface Run {
   projectFolder: string;
   /** PRD §11.2 — the voice provider bound on the first voice attempt; write-once (generate-voice-over, JOS-136, Decision 3). */
   voiceProviderId: string | null;
-  /** The phase failure the session carries when it is `failed` (generate-voice-over, JOS-136, Decision 9). */
-  failure: VoiceOverFailure | null;
+  /** The phase failure the session carries when it is `failed` (generate-voice-over, JOS-136, Decision 9; assign-scene-identifiers, JOS-144, Decision 6). */
+  failure: SessionFailure | null;
 }
 
 /** Design Decision 9 (generate-voice-over, JOS-136) — what the session carries when the voice-over failed. */
+/** assign-scene-identifiers (JOS-144) Decision 6 — an invalid system-generated decomposition (PRD §6, §6.1), attributed to the system, never to the User's script. */
+export interface DecompositionFailure {
+  phase: "decomposition";
+  /** Written for a person; never blames the script, never contains credentials or raw provider payloads. */
+  cause: string;
+  retryable: boolean;
+  /** ISO-8601 instant. */
+  occurredAt: string;
+}
+
+export type SessionFailure = VoiceOverFailure | DecompositionFailure;
+
 export interface VoiceOverFailure {
   phase: "voice-over";
   /** Written for a person; never contains credentials or the script text. */

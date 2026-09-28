@@ -1,6 +1,6 @@
-import type { SessionState, VoiceOverFailure } from "./types.ts";
+import type { DecompositionFailure, SessionState, VoiceOverFailure } from "./types.ts";
 
-export type { VoiceOverFailure } from "./types.ts";
+export type { DecompositionFailure, VoiceOverFailure } from "./types.ts";
 
 // generate-voice-over (JOS-136) — the session transitions this story owns
 // (PRD §5 step 2, §8.1). The table is deliberately closed: leaving
@@ -47,6 +47,18 @@ export function createVoiceOverFailure(input: { cause: string; retryable: boolea
   if (cause === "") throw new Error("a voice-over failure needs a non-blank cause");
   return {
     phase: "voice-over",
+    cause,
+    retryable: input.retryable,
+    occurredAt: input.occurredAt.toISOString(),
+  };
+}
+
+/** assign-scene-identifiers (JOS-144) Decision 6 — the failure recorded when a system-generated decomposition is refused. */
+export function createDecompositionFailure(input: { cause: string; retryable: boolean; occurredAt: Date }): DecompositionFailure {
+  const cause = input.cause.trim();
+  if (cause === "") throw new Error("a decomposition failure needs a non-blank cause");
+  return {
+    phase: "decomposition",
     cause,
     retryable: input.retryable,
     occurredAt: input.occurredAt.toISOString(),

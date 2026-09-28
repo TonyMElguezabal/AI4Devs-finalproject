@@ -1,0 +1,239 @@
+import { randomUUID } from "node:crypto";
+import { beforeEach, describe, expect, it } from "vitest";
+import { createRun, createScene, getRun, getScenesForRun, resetAll } from "../src/db.ts";
+import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
+import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
+
+// assign-scene-identifiers (JOS-144), group 4 — PRD §5 step 5, §6, §6.1,
+// §4.2: numbering 1..N, the four content fields, and the refusal of an
+// invalid system-generated decomposition as a DECOMPOSITION failure, never a
+// script error, leaving no chunks (design Decisions 1, 5 and 6).
+
+const SCRIPT = "The harbor is quiet at dusk. Fishing boats return with the tide. Gulls circle overhead.";
+const FRAGMENTS: SegmentedFragment[] = [
+  { text: "The harbor is quiet at dusk.", narratedDurationSeconds: 6 },
+  { text: "Fishing boats return with the tide.", narratedDurationSeconds: 9.5 },
+  { text: "Gulls circle overhead.", narratedDurationSeconds: 5 },
+];
+
+beforeEach(() => {
+  resetAll();
+});
+
+function newRunId(script = SCRIPT): string {
+  const runId = randomUUID();
+  createRun(runId, "Registration test", script, "en");
+  return runId;
+}
+
+/** A stub generator: records every call and answers with `answer(texts)`. */
+function stubGenerator(answer?: (texts: readonly string[]) => VisualInstructionResult) {
+  const calls: Array<{ texts: readonly string[]; language: string }> = [];
+  const generator: VisualInstructionGenerator = {
+    async generate(texts, language) {
+      calls.push({ texts, language });
+      return answer
+        ? answer(texts)
+        : { kind: "success", pairs: texts.map((_, i) => ({ image: `image ${i + 1}`, video: `video ${i + 1}` })) };
+    },
+  };
+  return { generator, calls };
+}
+
+describe("A valid decomposition registers chunks 1..N (AC1, AC2, AC5)", () => {
+  it("numbers the chunks 1 to N in fragment order with their prompt, image and video, all submitted", async () => {
+    const runId = newRunId();
+    const { generator } = stubGenerator();
+
+    const result = await registerDecomposition(runId, FRAGMENTS, generator);
+
+    expect(result.ok).toBe(true);
+    const scenes = getScenesForRun(runId);
+    expect(scenes.map((s) => ({ index: s.index, prompt: s.prompt, image: s.imageInstruction, video: s.videoInstruction, status: s.status }))).toEqual([
+      { index: 1, prompt: "The harbor is quiet at dusk.", image: "image 1", video: "video 1", status: "submitted" },
+      { index: 2, prompt: "Fishing boats return with the tide.", image: "image 2", video: "video 2", status: "submitted" },
+      { index: 3, prompt: "Gulls circle overhead.", image: "image 3", video: "video 3", status: "submitted" },
+    ]);
+  });
+
+  it("sets the skeleton's instruction to the IMAGE instruction (Decision 3)", async () => {
+    const runId = newRunId();
+    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator);
+    expect(getScenesForRun(runId).map((s) => s.instruction)).toEqual(["image 1", "image 2", "image 3"]);
+  });
+
+  it("asks the generator once, with every fragment text in order and the session's language", async () => {
+    const runId = newRunId();
+    const { generator, calls } = stubGenerator();
+    await registerDecomposition(runId, FRAGMENTS, generator);
+    expect(calls).toEqual([{ texts: FRAGMENTS.map((f) => f.text), language: "en" }]);
+  });
+
+  it("leaves the stored script unchanged", async () => {
+    const runId = newRunId();
+    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator);
+    expect(getRun(runId)?.script).toBe(SCRIPT);
+  });
+
+  it("gives each session its own chunk 1", async () => {
+    const runA = newRunId();
+    const runB = newRunId("The harbor is quiet at dusk.");
+    await registerDecomposition(runA, FRAGMENTS, stubGenerator().generator);
+    await registerDecomposition(runB, [FRAGMENTS[0]!], stubGenerator().generator);
+
+    expect(getScenesForRun(runA).map((s) => s.index)).toEqual([1, 2, 3]);
+    expect(getScenesForRun(runB).map((s) => s.index)).toEqual([1]);
+    expect(getScenesForRun(runA).every((s) => s.runId === runA)).toBe(true);
+    expect(getScenesForRun(runB).every((s) => s.runId === runB)).toBe(true);
+  });
+
+  it("clears an earlier decomposition failure once a registration succeeds", async () => {
+    const runId = newRunId();
+    await registerDecomposition(runId, [], stubGenerator().generator);
+    expect(getRun(runId)?.failure?.phase).toBe("decomposition");
+
+    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator);
+
+    expect(getRun(runId)?.failure).toBeNull();
+  });
+});
+
+describe("An invalid decomposition is refused as a decomposition failure (AC3)", () => {
+  const invalidCases: Array<[string, SegmentedFragment[], string?]> = [
+    ["no fragments", []],
+    ["an empty fragment", [{ text: "   ", narratedDurationSeconds: 6 }, ...FRAGMENTS]],
+    ["a fragment below the lower bound without a flag", [{ ...FRAGMENTS[0]!, narratedDurationSeconds: 3 }, FRAGMENTS[1]!, FRAGMENTS[2]!]],
+    ["a fragment above the upper bound without a flag", [FRAGMENTS[0]!, { ...FRAGMENTS[1]!, narratedDurationSeconds: 16 }, FRAGMENTS[2]!]],
+    [
+      "a script-below-lower-bound flag on one of several fragments",
+      [{ ...FRAGMENTS[0]!, narratedDurationSeconds: 3, exception: "script-below-lower-bound" }, FRAGMENTS[1]!, FRAGMENTS[2]!],
+    ],
+    ["a non-positive duration", [{ ...FRAGMENTS[0]!, narratedDurationSeconds: 0 }, FRAGMENTS[1]!, FRAGMENTS[2]!]],
+    ["fragments that do not reconstruct the script", [FRAGMENTS[0]!, { ...FRAGMENTS[1]!, text: "Fishing boats leave with the tide." }, FRAGMENTS[2]!]],
+    ["a fragment missing from the script", FRAGMENTS.slice(0, 2)],
+  ];
+
+  it.each(invalidCases)("refuses %s: no chunks, a decomposition failure that does not blame the script", async (_label, fragments) => {
+    const runId = newRunId();
+
+    const result = await registerDecomposition(runId, fragments, stubGenerator().generator);
+
+    expect(result).toMatchObject({ ok: false, reason: "decomposition-failed" });
+    expect(getScenesForRun(runId)).toEqual([]);
+    const failure = getRun(runId)?.failure;
+    expect(failure).toMatchObject({ phase: "decomposition", retryable: true });
+    expect(failure?.cause).toMatch(/system/i);
+    expect(failure?.cause).not.toMatch(/your script (is|was) (invalid|wrong)|script error/i);
+  });
+
+  it("validates the fragments before asking the generator", async () => {
+    const runId = newRunId();
+    const { generator, calls } = stubGenerator();
+    await registerDecomposition(runId, [], generator);
+    expect(calls).toHaveLength(0);
+  });
+
+  it.each<[string, VisualInstructionResult]>([
+    ["too few pairs", { kind: "success", pairs: [{ image: "i", video: "v" }] }],
+    ["an empty instruction", { kind: "success", pairs: FRAGMENTS.map((_, i) => ({ image: i === 1 ? " " : "i", video: "v" })) }],
+    ["invalid output", { kind: "invalid_output", reason: "the reasoning provider's instructions were missing or empty" }],
+  ])("refuses %s from the generator, leaving no chunks", async (_label, answer) => {
+    const runId = newRunId();
+    const result = await registerDecomposition(runId, FRAGMENTS, stubGenerator(() => answer).generator);
+    expect(result).toMatchObject({ ok: false, reason: "decomposition-failed" });
+    expect(getScenesForRun(runId)).toEqual([]);
+    expect(getRun(runId)?.failure).toMatchObject({ phase: "decomposition", retryable: true });
+  });
+
+  it.each<[string, VisualInstructionResult, boolean]>([
+    ["a transient provider failure", { kind: "failed_transient", reason: "the reasoning provider answered HTTP 503" }, true],
+    ["a not-retryable provider failure", { kind: "failed_not_retryable", reason: "the reasoning provider answered HTTP 401" }, false],
+  ])("records %s with its retryability, leaving no chunks", async (_label, answer, retryable) => {
+    const runId = newRunId();
+    await registerDecomposition(runId, FRAGMENTS, stubGenerator(() => answer).generator);
+    expect(getScenesForRun(runId)).toEqual([]);
+    expect(getRun(runId)?.failure).toMatchObject({ phase: "decomposition", retryable });
+    expect(getRun(runId)?.failure?.cause).toMatch(/HTTP/);
+  });
+});
+
+describe("The §6.1.1 exceptions and whitespace (AC3)", () => {
+  it("accepts a single fragment below the lower bound flagged script-below-lower-bound", async () => {
+    const runId = newRunId("A short script.");
+    const result = await registerDecomposition(
+      runId,
+      [{ text: "A short script.", narratedDurationSeconds: 2.1, exception: "script-below-lower-bound" }],
+      stubGenerator().generator,
+    );
+    expect(result.ok).toBe(true);
+    expect(getScenesForRun(runId)).toHaveLength(1);
+  });
+
+  it("accepts a fragment above the upper bound flagged unsplittable-sentence", async () => {
+    const runId = newRunId();
+    const fragments = [FRAGMENTS[0]!, { ...FRAGMENTS[1]!, narratedDurationSeconds: 17, exception: "unsplittable-sentence" as const }, FRAGMENTS[2]!];
+    expect((await registerDecomposition(runId, fragments, stubGenerator().generator)).ok).toBe(true);
+  });
+
+  it("accepts the exact bounds, 5 and 15 seconds", async () => {
+    const runId = newRunId();
+    const fragments = [{ ...FRAGMENTS[0]!, narratedDurationSeconds: 5 }, { ...FRAGMENTS[1]!, narratedDurationSeconds: 15 }, FRAGMENTS[2]!];
+    expect((await registerDecomposition(runId, fragments, stubGenerator().generator)).ok).toBe(true);
+  });
+
+  it("reconstructs a script whose whitespace differs (line breaks, double spaces)", async () => {
+    const runId = newRunId("The harbor is quiet at dusk.\n\nFishing boats  return with the tide.   Gulls circle overhead.");
+    expect((await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator)).ok).toBe(true);
+  });
+
+  it("reconstructs a sentence split at a clause boundary", async () => {
+    const runId = newRunId("Boats return, and gulls circle.");
+    const fragments: SegmentedFragment[] = [
+      { text: "Boats return,", narratedDurationSeconds: 5 },
+      { text: "and gulls circle.", narratedDurationSeconds: 5 },
+    ];
+    expect((await registerDecomposition(runId, fragments, stubGenerator().generator)).ok).toBe(true);
+  });
+});
+
+describe("Registration is refused without a valid target (AC4)", () => {
+  it("refuses a session that already has chunks and leaves them unchanged", async () => {
+    const runId = newRunId();
+    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator);
+    const before = getScenesForRun(runId);
+
+    const { generator, calls } = stubGenerator();
+    const result = await registerDecomposition(runId, FRAGMENTS, generator);
+
+    expect(result).toEqual({ ok: false, reason: "already-registered" });
+    expect(calls).toHaveLength(0);
+    expect(getScenesForRun(runId)).toEqual(before);
+  });
+
+  it("refuses a session that already has a scene created some other way", async () => {
+    const runId = newRunId();
+    createScene(randomUUID(), runId, 1, "success", 100);
+    expect(await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator)).toEqual({ ok: false, reason: "already-registered" });
+  });
+
+  it("loses a race cleanly: if another registration lands first, nothing of this one is written", async () => {
+    const runId = newRunId();
+    const racingSceneId = randomUUID();
+    // The competing registration lands while this one waits for its instructions.
+    const { generator } = stubGenerator((texts) => {
+      createScene(racingSceneId, runId, 1, "success", 100);
+      return { kind: "success", pairs: texts.map(() => ({ image: "i", video: "v" })) };
+    });
+
+    const result = await registerDecomposition(runId, FRAGMENTS, generator);
+
+    expect(result).toEqual({ ok: false, reason: "already-registered" });
+    expect(getScenesForRun(runId).map((s) => s.id)).toEqual([racingSceneId]);
+  });
+
+  it("refuses an unknown session without writing anything", async () => {
+    const { generator, calls } = stubGenerator();
+    expect(await registerDecomposition("no-such-session", FRAGMENTS, generator)).toEqual({ ok: false, reason: "unknown-session" });
+    expect(calls).toHaveLength(0);
+  });
+});
