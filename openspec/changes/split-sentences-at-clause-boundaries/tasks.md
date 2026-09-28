@@ -15,9 +15,9 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 2. Clause boundaries (TDD) — Decisions 1 and 4
 
-- [ ] 2.1 Write failing tests for `findClauseBoundaries(sentence, language)`: after `,` and `;` followed by whitespace; before listed conjunctions (whole words, case-insensitive, never the first word); a comma or semicolon followed by a conjunction counting once; no boundary inside "1,000"; English and Spanish examples from the spec
-- [ ] 2.2 Write failing tests that cutting at the boundaries yields trimmed exact substrings that join back to the sentence apart from whitespace, with accents and `¿`/`¡`
-- [ ] 2.3 Implement the conjunction constants and the function, then run the group 2 tests
+- [x] 2.1 Write failing tests for `findClauseBoundaries(sentence, language)`: after `,` and `;` followed by whitespace; before listed conjunctions (whole words, case-insensitive, never the first word); a comma or semicolon followed by a conjunction counting once; no boundary inside "1,000"; English and Spanish examples from the spec
+- [x] 2.2 Write failing tests that cutting at the boundaries yields trimmed exact substrings that join back to the sentence apart from whitespace, with accents and `¿`/`¡`
+- [x] 2.3 Implement the conjunction constants and the function, then run the group 2 tests
 
 ## 3. Eligibility and units (TDD) — Decisions 2 and 3
 
