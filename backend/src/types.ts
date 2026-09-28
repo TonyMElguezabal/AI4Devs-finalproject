@@ -95,8 +95,22 @@ export interface VoiceOverInput {
 
 export type VoiceOver = VoiceOverInput;
 
-/** The stages that record attempts at session level. Later stories add their own. */
-export type AttemptStage = "voice-over";
+/** The stages that record attempts at session level (`timestamps`: obtain-narration-timestamps, JOS-139). Later stories add their own. */
+export type AttemptStage = "voice-over" | "timestamps";
+
+/** How the narration timestamps were obtained (PRD §11.1). */
+export type TimestampMechanism = "native" | "alignment";
+
+/** The narration timestamps of a session, stored once (obtain-narration-timestamps, JOS-139, Decision 7). `path` is relative to the project folder. */
+export interface NarrationTimestampsInput {
+  runId: string;
+  mechanism: TimestampMechanism;
+  path: string;
+  characterCount: number;
+  obtainedAt: string;
+}
+
+export type NarrationTimestamps = NarrationTimestampsInput;
 
 export const STAGE_ATTEMPT_OUTCOMES = ["in-flight", "success", "transient", "not-retryable"] as const;
 export type StageAttemptOutcome = (typeof STAGE_ATTEMPT_OUTCOMES)[number];

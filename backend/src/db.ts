@@ -23,11 +23,13 @@ import type {
   StageAttemptOutcome,
   VoiceOver,
   SessionFailure,
+  NarrationTimestamps,
+  NarrationTimestampsInput,
   VoiceOverInput,
 } from "./types.ts";
 import { STUB_PROVIDER_NAME } from "./types.ts";
 
-export type { VoiceOverInput } from "./types.ts";
+export type { NarrationTimestampsInput, VoiceOverInput } from "./types.ts";
 
 const DB_PATH = process.env.DB_PATH ?? "data/skeleton.sqlite";
 mkdirSync(dirname(DB_PATH), { recursive: true });
@@ -138,6 +140,20 @@ export const SCENE_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER scenes_no_delete BEFO
     SELECT RAISE(ABORT, 'locked: scenes cannot be deleted once the chunk is established');
   END;`;
 
+// obtain-narration-timestamps (JOS-139) Decision 7 — the obtained timestamps are
+// stored once and never replaced (PRD §10.3: segmentation and every retry use
+// the same ones). `resetAll()` (test-only) lifts the delete trigger inside its
+// transaction and recreates it from this same constant.
+export const NARRATION_TIMESTAMPS_NO_UPDATE_TRIGGER_DDL = `CREATE TRIGGER narration_timestamps_no_update BEFORE UPDATE ON narration_timestamps
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: narration_timestamps cannot be modified once obtained');
+  END;`;
+
+export const NARRATION_TIMESTAMPS_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER narration_timestamps_no_delete BEFORE DELETE ON narration_timestamps
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: narration_timestamps cannot be deleted once obtained');
+  END;`;
+
 // ---- Versioned migrations (Decision 6) — applied on top of the baseline ----
 // Each migration takes the target database explicitly (not a closed-over
 // singleton) so the exact same runner can be pointed at a fixture database
@@ -226,6 +242,24 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       target.exec("CREATE UNIQUE INDEX scenes_run_id_idx_unique ON scenes (run_id, idx)");
       for (const ddl of SCENE_LOCK_TRIGGERS_DDL) target.exec(ddl);
       target.exec(SCENE_NO_DELETE_TRIGGER_DDL);
+    },
+  },
+  {
+    version: 8,
+    description: "add narration_timestamps, stored once and locked (obtain-narration-timestamps, JOS-139)",
+    up: (target) => {
+      // One record per session is the PRIMARY KEY, not a prior read.
+      target.exec(`
+        CREATE TABLE narration_timestamps (
+          run_id TEXT PRIMARY KEY REFERENCES runs(id),
+          mechanism TEXT NOT NULL CHECK (mechanism IN ('native', 'alignment')),
+          path TEXT NOT NULL,
+          character_count INTEGER NOT NULL,
+          obtained_at TEXT NOT NULL
+        );
+      `);
+      target.exec(NARRATION_TIMESTAMPS_NO_UPDATE_TRIGGER_DDL);
+      target.exec(NARRATION_TIMESTAMPS_NO_DELETE_TRIGGER_DDL);
     },
   },
 ];
@@ -571,6 +605,42 @@ export function countVoiceOvers(runId: string): number {
   return row.c as number;
 }
 
+function rowToNarrationTimestamps(row: any): NarrationTimestamps {
+  return {
+    runId: row.run_id,
+    mechanism: row.mechanism,
+    path: row.path,
+    characterCount: row.character_count,
+    obtainedAt: row.obtained_at,
+  };
+}
+
+/**
+ * obtain-narration-timestamps (JOS-139) Decision 7 — stores the session's
+ * timestamps once. Returns `true` only for the call that stores them; a second
+ * one hits the PRIMARY KEY and returns `false`, whatever any earlier read said.
+ */
+export function insertNarrationTimestamps(input: NarrationTimestampsInput): boolean {
+  try {
+    db.prepare(
+      "INSERT INTO narration_timestamps (run_id, mechanism, path, character_count, obtained_at) VALUES (?, ?, ?, ?, ?)",
+    ).run(input.runId, input.mechanism, input.path, input.characterCount, input.obtainedAt);
+    return true;
+  } catch (err: any) {
+    if (err?.code === "ERR_SQLITE_ERROR" && /UNIQUE constraint failed/i.test(String(err.message))) return false;
+    throw err;
+  }
+}
+
+export function getNarrationTimestamps(runId: string): NarrationTimestamps | undefined {
+  const row = db.prepare("SELECT * FROM narration_timestamps WHERE run_id = ?").get(runId) as any;
+  return row ? rowToNarrationTimestamps(row) : undefined;
+}
+
+export function countNarrationTimestamps(runId: string): number {
+  return (db.prepare("SELECT COUNT(*) c FROM narration_timestamps WHERE run_id = ?").get(runId) as { c: number }).c;
+}
+
 function rowToStageAttempt(row: any): StageAttempt {
   return {
     id: row.id,
@@ -812,11 +882,13 @@ export function resetAll(): void {
   try {
     db.exec("DROP TRIGGER voice_overs_no_delete");
     db.exec("DROP TRIGGER scenes_no_delete");
+    db.exec("DROP TRIGGER narration_timestamps_no_delete");
     db.exec(
-      "DELETE FROM stage_attempts; DELETE FROM voice_overs; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
+      "DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
     );
     db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
     db.exec(SCENE_NO_DELETE_TRIGGER_DDL);
+    db.exec(NARRATION_TIMESTAMPS_NO_DELETE_TRIGGER_DDL);
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");

@@ -15,11 +15,11 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 2. Persistence (TDD) — design Decisions 2 and 7
 
-- [ ] 2.1 Write failing tests that `recordStageAttempt` accepts the stage `timestamps` and numbers its attempts separately from `voice-over`
-- [ ] 2.2 Write failing tests for migration 8: `narration_timestamps` keyed on the session, a second row refused, update and delete refused by triggers naming the table, a pre-existing database upgraded, re-running migrations a no-op
-- [ ] 2.3 Write a failing test that `resetAll()` empties `narration_timestamps` and leaves its delete trigger in place
-- [ ] 2.4 Implement the stage type, migration 8, the triggers from named constants, the repository functions and the `resetAll()` change
-- [ ] 2.5 Run the group 2 tests and confirm they pass
+- [x] 2.1 Write failing tests that `recordStageAttempt` accepts the stage `timestamps` and numbers its attempts separately from `voice-over` — `backend/test/narration-timestamps-persistence.test.ts`; the three runtime tests passed from the start because the database takes any stage name, the TypeScript stage type is what failed typecheck
+- [x] 2.2 Write failing tests for migration 8: `narration_timestamps` keyed on the session, a second row refused, update and delete refused by triggers naming the table, a pre-existing database upgraded, re-running migrations a no-op — also the mechanism CHECK, and that the primary key refuses a second row even by raw SQL
+- [x] 2.3 Write a failing test that `resetAll()` empties `narration_timestamps` and leaves its delete trigger in place — also that a record stored after a reset is locked again
+- [x] 2.4 Implement the stage type, migration 8, the triggers from named constants, the repository functions and the `resetAll()` change — `AttemptStage` gains `timestamps`; `NarrationTimestampsInput`; `NARRATION_TIMESTAMPS_*_TRIGGER_DDL` and migration 8; `insertNarrationTimestamps`, `getNarrationTimestamps`, `countNarrationTimestamps`; `resetAll()` lifts and recreates the new delete trigger
+- [x] 2.5 Run the group 2 tests and confirm they pass — 15/15 (12 failed before); typecheck clean; full suite 324 passed, 1 skipped when green, with the known intermittent `orchestrator.test.ts` failure seen once in three runs
 
 ## 3. Usability check and alignment adapter (TDD) — Decisions 3 and 6
 
