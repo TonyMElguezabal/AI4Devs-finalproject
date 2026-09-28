@@ -24,13 +24,13 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 3. Visual instructions port and OpenAI adapter (TDD) — Decision 4
 
-- [ ] 3.1 Define the typed `VisualInstructionGenerator` port: fragment texts in, one `{ image, video }` per fragment out, or a classified failure (transient / not retryable)
-- [ ] 3.2 Write failing adapter tests against a mocked `fetch`: one request to chat completions with model `gpt-6-astra`, `response_format: json_object`, all fragment texts in order, the bearer credential, no retry
-- [ ] 3.3 Write failing tests that the response is validated with Zod: exactly N pairs, each non-empty, otherwise an invalid-output failure
-- [ ] 3.4 Write failing classification tests: 4xx except 408/429 not retryable; 408, 429, 5xx, a network error and the 20 s timeout transient; a missing credential fails without sending a request
-- [ ] 3.5 Implement the adapter, reading `OPENAI_KEY` through `loadCredential`
-- [ ] 3.6 Write an opt-in contract test against the real provider (runs only with `RUN_PROVIDER_CONTRACT_TESTS=1`), excluded from the default run
-- [ ] 3.7 Run the group 3 tests and confirm they pass
+- [x] 3.1 Define the typed `VisualInstructionGenerator` port: fragment texts in, one `{ image, video }` per fragment out, or a classified failure (transient / not retryable) — `VisualInstructionGenerator` in `backend/src/visualInstructions.ts`; results `success`, `failed_transient`, `failed_not_retryable`, `invalid_output`
+- [x] 3.2 Write failing adapter tests against a mocked `fetch`: one request to chat completions with model `gpt-6-astra`, `response_format: json_object`, all fragment texts in order, the bearer credential, no retry — `backend/test/visual-instructions.test.ts`
+- [x] 3.3 Write failing tests that the response is validated with Zod: exactly N pairs, each non-empty, otherwise an invalid-output failure — too few, too many, an empty or missing instruction, no `scenes` key, non-JSON content, no choices; instructions are trimmed
+- [x] 3.4 Write failing classification tests: 4xx except 408/429 not retryable; 408, 429, 5xx, a network error and the 20 s timeout transient; a missing credential fails without sending a request — also that the reason never carries the raw error body or the credential
+- [x] 3.5 Implement the adapter, reading `OPENAI_KEY` through `loadCredential`
+- [x] 3.6 Write an opt-in contract test against the real provider (runs only with `RUN_PROVIDER_CONTRACT_TESTS=1`), excluded from the default run — `backend/test/visual-instructions.contract.test.ts`, skipped in the default run; executed once in step 9
+- [x] 3.7 Run the group 3 tests and confirm they pass — 25/25 (the module was missing before), contract test skipped by default; typecheck clean. The full suite is 259 passed, 1 skipped when green, but `orchestrator.test.ts` (skeleton, JOS-179) fails intermittently with `waitFor timed out`: 7 of 12 runs at one point, 0 of 15 later, 1 of 12 on a scratch database, 0 of 12 on the base commit. It also fails with this group's tests excluded, and no file it exercises was changed by this change. Cause not found; recorded in the step 8 report and raised with the product owner
 
 ## 4. Validation and registration (TDD) — Decisions 1, 5, 6
 
