@@ -64,11 +64,11 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 ## 8. Manual Endpoint Testing (MANDATORY - AGENT MUST EXECUTE)
 
 - [x] 8.1 Start the real server on a scratch database and confirm it responds
-- [ ] 8.2 Create a session with a script of about 700 characters in English, make a real text-to-speech call with timestamps, store it, and run `runDecompositionPhase` with the real alignment provider and a stub instruction generator; `GET /sessions/:id` shows chunks 1..N, each within the bounds, `chunks-processing`; its sentences are mostly under 5 s, as real narration is
-- [ ] 8.3 Repeat with a Spanish script, and with a script that has a sentence over 15 s (the interim `unsplittable-sentence` flag)
-- [ ] 8.4 Verify the admitted durations: generate one reference image (one image-provider call) and request 8 s and 11 s clips from the video provider; measure the returned clips with `ffprobe`; record the result and the spend, and shrink the constant if a value is rejected
-- [ ] 8.5 Clean up through the test-only reset; confirm the scratch store is empty with all triggers and the default store untouched
-- [ ] 8.6 Save `openspec/changes/segment-script-into-chunks/reports/YYYY-MM-DD-step-8-manual-testing.md`
+- [x] 8.2 Create a session with a script of about 700 characters in English, make a real text-to-speech call with timestamps, store it, and run `runDecompositionPhase` with the real alignment provider and a stub instruction generator; `GET /sessions/:id` shows chunks 1..N, each within the bounds, `chunks-processing`; its sentences are mostly under 5 s, as real narration is
+- [x] 8.3 Repeat with a Spanish script, and with a script that has a sentence over 15 s (the interim `unsplittable-sentence` flag)
+- [x] 8.4 Verify the admitted durations: generate one reference image (one image-provider call) and request 8 s and 11 s clips from the video provider; measure the returned clips with `ffprobe`; record the result and the spend, and shrink the constant if a value is rejected
+- [x] 8.5 Clean up through the test-only reset; confirm the scratch store is empty with all triggers and the default store untouched
+- [x] 8.6 Save `openspec/changes/segment-script-into-chunks/reports/YYYY-MM-DD-step-8-manual-testing.md`
 
 ## 9. E2E Testing (MANDATORY if applicable - AGENT MUST EXECUTE)
 
