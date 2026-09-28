@@ -25,6 +25,7 @@ import {
   type ProviderOutcome,
   type Scene,
   type SceneEventPayload,
+  type SessionFailure,
   type SessionEventPayload,
   type SessionSnapshot,
   type SessionState,
@@ -50,15 +51,23 @@ function sceneToPayload(scene: Scene): SceneEventPayload {
     attempts: scene.attempts,
     result: scene.result ? { imageUrl: scene.result } : undefined,
     instruction: scene.instruction,
+    prompt: scene.prompt,
+    imageInstruction: scene.imageInstruction,
+    videoInstruction: scene.videoInstruction,
     updatedAt: scene.updatedAt,
   };
 }
 
-/** Derives the session state from its scenes — PRD §8.1, applied to the
- * subset of states this single-stage skeleton can actually reach (no
- * voice-over or decomposition phases are modelled). */
-export function deriveSessionState(scenes: Scene[]): { state: SessionState; failedPhase?: string } {
-  if (scenes.length === 0) return { state: "submitted" };
+/** Derives the session state from its scenes and its recorded failure — PRD
+ * §8.1, applied to the states this skeleton can reach. A session with no
+ * chunks and a failure (a refused decomposition, assign-scene-identifiers
+ * Decision 6) is `failed` in that phase. JOS-136 (task 5.15) extends this
+ * same function for the voice-over states. */
+export function deriveSessionState(
+  scenes: Scene[],
+  failure: SessionFailure | null = null,
+): { state: SessionState; failedPhase?: string } {
+  if (scenes.length === 0) return failure ? { state: "failed", failedPhase: failure.phase } : { state: "submitted" };
   const anyGenerating = scenes.some((s) => s.status === "submitted" || s.status === "image-generating");
   if (anyGenerating) return { state: "chunks-processing" };
   const anyFailed = scenes.some((s) => s.status === "failed");
@@ -70,7 +79,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const run = getRun(runId);
   if (!run) return undefined;
   const scenes = getScenesForRun(runId);
-  const { state, failedPhase } = deriveSessionState(scenes);
+  const { state, failedPhase } = deriveSessionState(scenes, run.failure);
   const session: SessionEventPayload = {
     type: "session",
     sessionId: run.id,
@@ -89,7 +98,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
   };
 }
 
-function broadcast(runId: string): void {
+export function broadcast(runId: string): void {
   const snapshot = toSnapshot(runId);
   if (snapshot) events.emit("state", snapshot);
 }

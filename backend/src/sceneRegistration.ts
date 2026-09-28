@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS } from "./config/providers.ts";
 import { countScenesForRun, getRun, insertRegisteredScenes, setRunFailure } from "./db.ts";
+import { broadcast } from "./orchestrator.ts";
 import { createDecompositionFailure } from "./sessionStateMachine.ts";
 import type { DecompositionFailure } from "./types.ts";
 import type { VisualInstructionGenerator, VisualInstructionPair } from "./visualInstructions.ts";
@@ -82,6 +83,7 @@ function recordFailure(runId: string, detail: string, retryable: boolean, now: D
     occurredAt: now,
   });
   setRunFailure(runId, failure);
+  broadcast(runId);
   return { ok: false, reason: "decomposition-failed", failure };
 }
 
@@ -128,5 +130,6 @@ export async function registerDecomposition(
     if (/UNIQUE constraint failed/i.test(String(err?.message))) return { ok: false, reason: "already-registered" };
     throw err;
   }
+  broadcast(runId);
   return { ok: true, sceneIds: scenes.map((scene) => scene.id) };
 }

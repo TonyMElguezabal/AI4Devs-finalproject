@@ -208,6 +208,12 @@ export interface SceneEventPayload {
   attempts?: number;
   result?: { imageUrl?: string; videoUrl?: string };
   instruction?: string;
+  /** PRD §3 `PROMPT` (assign-scene-identifiers, JOS-144). */
+  prompt?: string;
+  /** PRD §3 `IMAGE`. */
+  imageInstruction?: string;
+  /** PRD §3 `VIDEO`. */
+  videoInstruction?: string;
   updatedAt: string;
 }
 

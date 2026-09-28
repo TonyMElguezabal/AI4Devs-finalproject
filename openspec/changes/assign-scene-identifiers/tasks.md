@@ -46,10 +46,10 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 5. Session state and representation (TDD) — Decision 6, AC5
 
-- [ ] 5.1 Write failing tests that `deriveSessionState` returns `failed` with failed phase `decomposition` for a session with no chunks and a decomposition failure, and `chunks-processing` right after a successful registration
-- [ ] 5.2 Write a failing test that `GET /sessions/:id` lists the chunks in ascending order with `prompt`, `imageInstruction` and `videoInstruction`, and the failed phase when registration failed
-- [ ] 5.3 Implement both, publishing through the existing snapshot and live-update payloads; validate the response with the route's Zod schema
-- [ ] 5.4 Run the group 5 tests and confirm they pass
+- [x] 5.1 Write failing tests that `deriveSessionState` returns `failed` with failed phase `decomposition` for a session with no chunks and a decomposition failure, and `chunks-processing` right after a successful registration — `backend/test/scene-registration-session.test.ts`
+- [x] 5.2 Write a failing test that `GET /sessions/:id` lists the chunks in ascending order with `prompt`, `imageInstruction` and `videoInstruction`, and the failed phase when registration failed
+- [x] 5.3 Implement both, publishing through the existing snapshot and live-update payloads; validate the response with the route's Zod schema — `deriveSessionState(scenes, failure)` (the failure argument is optional, so existing callers are unchanged), `sceneToPayload` and the scene Zod schema carry `prompt`, `imageInstruction`, `videoInstruction`; `broadcast` is exported and registration publishes after a success and after a failure
+- [x] 5.4 Run the group 5 tests and confirm they pass — 9/9 (5 failed before; 4 describe unchanged behaviour and passed from the start); full suite 297 passed, 1 skipped; typecheck clean
 
 ## 6. API surface (TDD) — AC4
 
