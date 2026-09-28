@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.4  
+**Versión:** 1.3  
 **Alcance:** MVP  
-**Status (v1.4):** §11's providers and hardcoded parameter values are now recorded, defined by `define-provider-configuration` (JOS-165). All product decisions closed except D11 (pending POC). Changes are listed in §16. The previous version is kept in `docs/PRD-v1.3.md`.
+**Status (v1.3):** Functional requirements with all product decisions closed after the backlog clarification session of 2026-09-15, except D11 (pending POC). Changes are listed in §16. The previous version is kept in `docs/PRD-v1.2.md`.
 
 ## 1. Objetivo del producto
 
@@ -83,7 +83,7 @@ Cada etapa conserva la identificación del proveedor utilizado y los intentos re
 
 El usuario introduce un título y un guion no vacíos. No necesita proporcionar identificadores, etiquetas, delimitadores ni instrucciones de imagen o video.
 
-The User also selects the script's language from the hardcoded list of supported languages (§11.3: **English, Spanish**). Only supported languages can be chosen, and a project cannot start without a selected language; no provider is called before that.
+The User also selects the script's language from the hardcoded list of supported languages (§11). Only supported languages can be chosen, and a project cannot start without a selected language; no provider is called before that.
 
 No existe un límite funcional de palabras establecido por el producto. Un guion de aproximadamente 1500 palabras es una referencia habitual, no una restricción ni una duración obligatoria. La duración del video depende de la narración real del guion. The MVP sets no limit on script words, number of scenes, or provider calls per session.
 
@@ -141,7 +141,7 @@ La segmentación se ejecuta después de disponer del voice-over y de sus marcas 
 
 La regla no altera §4.2: los fragmentos unidos en orden siguen reconstruyendo el guion original.
 
-La cota inferior existe porque el proveedor de video impone una duración mínima de clip. Sin ella, un fragmento muy breve obligaría a un factor de aceleración elevado. Its value is hardcoded (§11.3: **5 seconds**) and matches the shortest duration admitted by the video provider, by construction.
+La cota inferior existe porque el proveedor de video impone una duración mínima de clip. Sin ella, un fragmento muy breve obligaría a un factor de aceleración elevado. Its value is hardcoded (§11) and must be consistent with the shortest duration admitted by the video provider.
 
 El incumplimiento de estas reglas por una descomposición generada por el sistema constituye un fallo de descomposición, no un error del guion introducido por el usuario.
 
@@ -164,7 +164,7 @@ Cada clip utiliza la imagen generada y la instrucción `VIDEO`. La duración sol
 - El sistema solicita la duración admitida por el proveedor **más próxima** al intervalo narrado. Se admite que la duración solicitada sea menor que el intervalo, lo que implica ralentizar el clip durante el montaje. "Closest" means the admitted duration requiring the smallest speed change (speed-up or slow-down ratio) to match the interval, not the fewest seconds; an exact tie goes to the longer duration.
 - Cuando el intervalo narrado es inferior a la menor duración admitida, se solicita esa menor duración.
 - El sistema no debe asumir que todos los proveedores admiten las mismas duraciones ni cualquier valor intermedio. The set of admitted durations is hardcoded for the video provider (§11).
-- El máximo habitual previsto es de 15 segundos; un proveedor que admita 20 segundos puede utilizar ese máximo. **Recorded (§11.3): the hardcoded video provider's measured admitted range is 5-15 seconds** — the "usual" 15-second expectation is exactly the measured maximum, not just a placeholder guess.
+- El máximo habitual previsto es de 15 segundos; un proveedor que admita 20 segundos puede utilizar ese máximo.
 
 The §6.1 upper bound ensures that no narrated interval exceeds the video provider's maximum, except for a sentence that cannot be split (§6.1.1). That clip is requested at the maximum admitted duration and slowed down to fit, with a speed-factor warning. No trimming policy is required.
 
@@ -272,15 +272,15 @@ Ninguna recuperación permite cambiar `ID`, `PROMPT`, el orden narrativo o un vo
 
 ## 11. Proveedores y operación
 
-In the MVP, the provider for each stage (reasoning, voice, alignment, image, video) and all generation parameters are hardcoded in the application. Hardcoded parameters: narration voice, quality, and speed; video admitted durations and maximum; segmentation lower bound; acceptable speed-factor limit; per-phase maximum times; output resolution and frame rate; supported script languages; and maximum simultaneous requests per stage. Their concrete values were defined by `define-provider-configuration` (JOS-165) and are recorded in §11.3. Provider credentials are read from the local environment or a local secrets file, never hardcoded. There is one provider per stage.
+In the MVP, the provider for each stage (reasoning, voice, alignment, image, video) and all generation parameters are hardcoded in the application. Hardcoded parameters: narration voice, quality, and speed; video admitted durations and maximum; segmentation lower bound; acceptable speed-factor limit; per-phase maximum times; output resolution and frame rate; supported script languages; and maximum simultaneous requests per stage. Their concrete values are defined by a dedicated spike and recorded in this section. Provider credentials are read from the local environment or a local secrets file, never hardcoded. There is one provider per stage.
 
 | Etapa | Capacidad requerida |
 |---|---|
-| Razonamiento | Dividir el guion con fidelidad conforme a §6.1 y generar instrucciones visuales. La referencia de capacidad establecida para el proyecto es equivalente a Sonnet 4.6 o superior. Verified: OpenAI `gpt-6-astra` (§11.3). |
-| Voz | Producir la narración completa en MP3 con voz, calidad y velocidad preconfiguradas, y entregar marcas de tiempo del audio generado con granularidad suficiente para situar cada fragmento del guion. Verified: ElevenLabs, character-level native timestamps (§11.3). |
-| Alignment | Derive the timestamps by aligning the generated MP3 against the script when the voice provider's native timestamps are not available or are unusable (§11.1). Verified: ElevenLabs Forced Alignment, same account as Voice (§11.3). |
-| Imagen | Generar imágenes desde texto en 16:9 y con resolución mínima de 1920 × 1080. Verified: Fal.ai `fal-ai/flux/dev` (§11.3). |
-| Video | Animate a reference image with a requested duration within its capabilities. Its admitted durations and maximum are hardcoded (§11.3: 5-15 seconds). Verified: RunningHub, MiniMax-H3 "Hailuo-03" (§11.3). |
+| Razonamiento | Dividir el guion con fidelidad conforme a §6.1 y generar instrucciones visuales. La referencia de capacidad establecida para el proyecto es equivalente a Sonnet 4.6 o superior. |
+| Voz | Producir la narración completa en MP3 con voz, calidad y velocidad preconfiguradas, y entregar marcas de tiempo del audio generado con granularidad suficiente para situar cada fragmento del guion. |
+| Alignment | Derive the timestamps by aligning the generated MP3 against the script when the voice provider's native timestamps are not available or are unusable (§11.1). |
+| Imagen | Generar imágenes desde texto en 16:9 y con resolución mínima de 1920 × 1080. |
+| Video | Animate a reference image with a requested duration within its capabilities. Its admitted durations and maximum are hardcoded (§11). |
 
 ### 11.1 Marcas de tiempo y mecanismo de respaldo
 
@@ -302,30 +302,6 @@ La etapa conserva el proveedor utilizado para sus reintentos automáticos y manu
 A stage tied to a provider that is unavailable keeps retrying that same provider until it recovers. Completed results are never regenerated.
 
 A change to the hardcoded admitted durations in a later version of the application does not alter the intervals or chunks already established in existing sessions.
-
-### 11.3 Recorded providers and parameter values (JOS-165)
-
-Defined by `define-provider-configuration` (JOS-165), verified against real calls per Decision 2 of its design (never from documentation alone). Full evidence and provenance: `docs/adr/0005-provider-selection.md` and `openspec/changes/define-provider-configuration/reports/`.
-
-| Stage | Provider | Identifier |
-|---|---|---|
-| Reasoning | OpenAI | `gpt-6-astra` |
-| Voice | ElevenLabs | `eleven_multilingual_v2`, voice "Burt Reynolds™" |
-| Alignment | ElevenLabs | Forced Alignment API — same account as Voice |
-| Image | Fal.ai | `fal-ai/flux/dev` |
-| Video | RunningHub | MiniMax-H3 "Hailuo-03" |
-
-| Parameter | Value | Notes |
-|---|---|---|
-| Video admitted durations | 5-15 seconds | Both ends measured with real calls |
-| Segmentation lower bound (§6.1) | 5 seconds | = video provider's measured minimum |
-| Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264/AAC | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
-| Supported script languages (§4.1, D09) | English, Spanish | Each verified independently across voice, alignment and reasoning |
-| Acceptable speed-factor limit | **Provisional** | Depends on `define-media-assembly` (JOS-182), not yet archived |
-| Per-phase maximum times | Reasoning 20s, Image 25s, Voice 10s, Alignment 5s, Video 240s, Assembly provisional | Set above the observed slow tail of 4-7 real samples per stage; assembly depends on JOS-182 |
-| Maximum simultaneous requests per stage | Reasoning 50, Image 200 (provisional), Voice/Alignment/Video undetermined | No invented numbers where no real rate limit was found |
-
-**Not-retryable failure signal**: tested against all four provider-calling stages with disallowed instructional content — **none produced a distinguishable rejection**. This is an open finding for the product owner (`docs/adr/0005-provider-selection.md`, Decision 5), not yet resolved: §10.1's not-retryable branch currently has nothing to trigger on for this content class on any of these providers.
 
 ## 12. Persistencia, archivos y descargas
 
@@ -412,7 +388,7 @@ La POC debe determinar la regla de asignación de silencios y producir una decis
 - Comparar las dos reglas candidatas sobre guiones con pausas representativas del contenido previsto.
 - Determinar a partir de qué duración un silencio sostenido por un único clip resulta visualmente aceptable, y si ese umbral obliga a una tercera regla.
 - Verificar que la regla elegida preserva la partición de §7.3 y no deja huecos ni solapes.
-- Comprobar que la regla es compatible con las cotas de §6.1 y no eleva el factor de ajuste por encima del límite configurado (hardcoded limit, §11.3 — **still provisional as of v1.4**, pending `define-media-assembly`'s own measurement).
+- Comprobar que la regla es compatible con las cotas de §6.1 y no eleva el factor de ajuste por encima del límite configurado (hardcoded limit in v1.3, §11).
 
 Salida esperada: regla adoptada, umbral asociado si procede, y actualización de §7.3, AC12 y AC19.
 
@@ -434,19 +410,6 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
-
-### From version 1.3 to 1.4
-
-Origin: `define-provider-configuration` (JOS-165), 2026-09-27.
-
-| Change | Origin |
-|---|---|
-| §11's five providers selected and verified against real calls (reasoning: OpenAI `gpt-6-astra`; voice: ElevenLabs; alignment: ElevenLabs, same account as voice; image: Fal.ai; video: RunningHub); new §11.3 records the full parameter set (§11.3). | JOS-165 |
-| Video admitted durations fixed at 5-15 seconds, measured; segmentation lower bound (§6.1) now matches it by construction. | JOS-165 |
-| Final MP4 resolution/frame rate confirmed as a normalization the assembly stage must perform — neither the image nor video provider natively produces 1920×1080@30fps (§11.3). New requirement handed to `define-media-assembly` (JOS-182). | JOS-165 |
-| Supported language list fixed at English and Spanish, each verified across all three chain stages (§4.1, §11.3). | JOS-165, D09 |
-| **Open finding, not yet resolved**: no provider tested produces a distinguishable not-retryable failure signal for disallowed content; §10.1's not-retryable branch has nothing to trigger on for this content class currently (§11.3). | JOS-165 |
-| Speed-factor limit and assembly's per-phase maximum time remain provisional, pending `define-media-assembly` (JOS-182). | JOS-165 |
 
 ### From version 1.2 to 1.3
 

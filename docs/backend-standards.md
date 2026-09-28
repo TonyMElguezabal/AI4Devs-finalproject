@@ -107,7 +107,7 @@ Naming, typing, TDD and English-only rules are inherited from `docs/base-standar
 - **Files**: camelCase (`orchestrator.ts`, `retryPolicy.ts`)
 - **Types/interfaces/Zod schemas**: PascalCase (`SceneStatus`, `CreateRunBody`)
 - **Stage identifiers**: the PRD's own stage names, not invented synonyms (`voice`, `alignment`, `decomposition`, `image`, `video`, `assembly`)
-- **Constants**: UPPER_SNAKE_CASE, and every hardcoded PRD value (retry budget, concurrency caps, per-phase timeouts) lives in one constants module sourced from `define-provider-configuration` (JOS-165) — never inlined at the call site
+- **Constants**: UPPER_SNAKE_CASE, and every hardcoded PRD value (retry budget, concurrency caps, per-phase timeouts) lives in one constants module, **`backend/src/config/providers.ts`**, sourced from `define-provider-configuration` (JOS-165, `docs/adr/0005-provider-selection.md`) — never inlined at the call site. Values are read from it, never redefined; a value still pending another change (e.g. the speed-factor limit, pending `define-media-assembly`) is marked `"undetermined"` there rather than guessed.
 
 ### Error Handling
 
@@ -246,5 +246,5 @@ Tracked here so this document is never mistaken for settling more than it has:
 - ~~Persistence engine and schema~~ — **decided**: embedded SQLite (`docs/adr/0002-persistence.md`). See [Persistence](#persistence).
 - ~~Live-update transport~~ — **decided**: Server-Sent Events (`docs/adr/0003-live-updates.md`). See [Live Updates](#live-updates).
 - **Frontend stack and its interop contract with this backend** — `define-frontend-stack` (US-42b, JOS-180).
-- **Hardcoded values** (retry backoff base/cap, per-phase max execution times, concurrency caps, speed-factor limits) — `define-provider-configuration` (US-33, JOS-165) and `define-media-assembly` (JOS-182) for the assembly-specific ones.
+- ~~Hardcoded values~~ (retry backoff base/cap, per-phase max execution times, concurrency caps, speed-factor limits) — **decided**: `backend/src/config/providers.ts` (`define-provider-configuration`, US-33, JOS-165, `docs/adr/0005-provider-selection.md`). **Still open**: assembly's per-phase max time and the speed-factor limit, both pending `define-media-assembly` (JOS-182); voice/alignment/video's per-stage request caps, no real rate limit found yet for those three.
 - ~~Whether the walking skeleton becomes `backend/`'s seed~~ — **decided**: yes, promoted (`start-video-project`, JOS-134). The full five-stage model (voice, alignment, image, video, assembly as their own real stages, not one generic stand-in) remains future work — each stage's own change (`decompose-script-into-chunks`, `generate-chunk-image`, `generate-chunk-video`, `generate-voice-over`, `assemble-final-video`) implements its slice when it lands.
