@@ -78,8 +78,8 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 9. E2E Testing (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Decide applicability: this story adds no screen; if the session page shows the state, check it displays `chunk-decomposing` and the decomposition failure; otherwise record why not
-- [ ] 9.2 Save `openspec/changes/obtain-narration-timestamps/reports/YYYY-MM-DD-step-9-e2e.md`
+- [x] 9.1 Decide applicability: this story adds no screen; if the session page shows the state, check it displays `chunk-decomposing` and the decomposition failure; otherwise record why not — applicable: the page shows the new session states; the frontend already knew them
+- [x] 9.2 Save `openspec/changes/obtain-narration-timestamps/reports/2026-09-28-step-9-e2e.md` — `voice-over-complete` then `chunk-decomposing` in the progress style, and a failed session with "Failed phase: decomposition" in the failure style. Two findings recorded: the page shows the phase but not the cause (that is JOS-136 group 6), and the live update was not exercised in the browser because the step ran in another process
 
 ## 10. Update Technical Documentation (MANDATORY)
 
