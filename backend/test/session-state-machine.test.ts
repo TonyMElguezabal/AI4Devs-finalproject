@@ -27,6 +27,10 @@ const ALLOWED: ReadonlyArray<readonly [SessionState, SessionState]> = [
   ["submitted", "voice-over-generating"],
   ["voice-over-generating", "voice-over-complete"],
   ["voice-over-generating", "failed"],
+  // obtain-narration-timestamps (JOS-139): the decomposition phase.
+  ["voice-over-complete", "chunk-decomposing"],
+  ["chunk-decomposing", "chunks-processing"],
+  ["chunk-decomposing", "failed"],
 ];
 
 const isAllowed = (from: SessionState, to: SessionState): boolean =>
@@ -44,7 +48,7 @@ describe("Every other transition is refused", () => {
     ALL_SESSION_STATES.filter((to) => !isAllowed(from, to)).map((to) => [from, to] as const),
   );
 
-  it("covers every pair that is not one of the three allowed transitions", () => {
+  it("covers every pair that is not one of the allowed transitions", () => {
     expect(refusedPairs).toHaveLength(ALL_SESSION_STATES.length ** 2 - ALLOWED.length);
   });
 

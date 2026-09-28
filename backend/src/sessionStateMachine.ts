@@ -3,16 +3,17 @@ import type { DecompositionFailure, SessionState, VoiceOverFailure } from "./typ
 export type { DecompositionFailure, VoiceOverFailure } from "./types.ts";
 
 // generate-voice-over (JOS-136) — the session transitions this story owns
-// (PRD §5 step 2, §8.1). The table is deliberately closed: leaving
-// `voice-over-complete` (decomposition) and leaving `failed` (manual retry)
-// belong to later stories, which extend the table when they land, so nothing
-// can skip ahead before then.
+// (PRD §5 step 2, §8.1) and the decomposition phase (JOS-139). The table is
+// deliberately closed: leaving `failed` (manual retry) and the later phases
+// belong to their own stories, which extend the table when they land, so
+// nothing can skip ahead before then.
 
 const ALLOWED_SESSION_TRANSITIONS: Readonly<Record<SessionState, readonly SessionState[]>> = {
   submitted: ["voice-over-generating"],
   "voice-over-generating": ["voice-over-complete", "failed"],
-  "voice-over-complete": [],
-  "chunk-decomposing": [],
+  // obtain-narration-timestamps (JOS-139): the decomposition phase.
+  "voice-over-complete": ["chunk-decomposing"],
+  "chunk-decomposing": ["chunks-processing", "failed"],
   "chunks-processing": [],
   "final-video-generating": [],
   "final-video": [],

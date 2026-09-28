@@ -45,10 +45,10 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 5. Session state (TDD) — Decision 8, AC1
 
-- [ ] 5.1 Write failing tests for `deriveSessionState` with no chunks: failure → `failed`; stored timestamps or a `timestamps` attempt → `chunk-decomposing`; a voice-over only → `voice-over-complete`; nothing → `submitted`; existing callers unchanged
-- [ ] 5.2 Write failing tests that the state machine allows `voice-over-complete -> chunk-decomposing`, `chunk-decomposing -> chunks-processing` and `chunk-decomposing -> failed`, and still refuses every other new pair
-- [ ] 5.3 Write a failing test that `GET /sessions/:id` shows `chunk-decomposing` during the phase and `failed` with failed phase `decomposition` after a failure
-- [ ] 5.4 Implement, then run the group 5 tests and confirm they pass
+- [x] 5.1 Write failing tests for `deriveSessionState` with no chunks: failure → `failed`; stored timestamps or a `timestamps` attempt → `chunk-decomposing`; a voice-over only → `voice-over-complete`; nothing → `submitted`; existing callers unchanged — `backend/test/narration-timestamps-session.test.ts`; `deriveSessionState(scenes, failure, progress)` with `progress = { hasVoiceOver, timestampsStarted }`, both optional so existing callers are unchanged
+- [x] 5.2 Write failing tests that the state machine allows `voice-over-complete -> chunk-decomposing`, `chunk-decomposing -> chunks-processing` and `chunk-decomposing -> failed`, and still refuses every other new pair — `backend/test/session-state-machine.test.ts` now lists six allowed pairs and still asserts every other pair is refused (all 58 of them)
+- [x] 5.3 Write a failing test that `GET /sessions/:id` shows `chunk-decomposing` during the phase and `failed` with failed phase `decomposition` after a failure — also during the phase (the attempt is recorded and the provider called before the first await), after a later attempt succeeds, and in the live updates
+- [x] 5.4 Implement, then run the group 5 tests and confirm they pass — 82/82 in the two files (10 failed before); full suite 416 passed, 2 skipped, twice; typecheck clean. `toSnapshot` reads the voice-over, the timestamps attempts and the stored timestamps, and `runs`' failure; no state column was added
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 

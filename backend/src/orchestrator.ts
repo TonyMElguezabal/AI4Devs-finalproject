@@ -4,10 +4,13 @@ import {
   db,
   getAllInFlightScenes,
   getProviderRequest,
+  getNarrationTimestamps,
   getRun,
   getScene,
   getScenesForRun,
+  getStageAttempts,
   getSubmittedScenesForRun,
+  getVoiceOver,
   markProviderRequestResolved,
   markSceneComplete,
   markSceneFailed,
@@ -58,16 +61,31 @@ function sceneToPayload(scene: Scene): SceneEventPayload {
   };
 }
 
-/** Derives the session state from its scenes and its recorded failure — PRD
- * §8.1, applied to the states this skeleton can reach. A session with no
- * chunks and a failure (a refused decomposition, assign-scene-identifiers
- * Decision 6) is `failed` in that phase. JOS-136 (task 5.15) extends this
- * same function for the voice-over states. */
+/** What the session's records say about the phases before its chunks exist
+ * (obtain-narration-timestamps, JOS-139, Decision 8): state is derived from the
+ * records, never stored. JOS-136 (task 5.15) adds `voice-over-generating`. */
+export interface SessionProgress {
+  hasVoiceOver?: boolean;
+  /** A `timestamps` attempt was recorded, or the timestamps are stored. */
+  timestampsStarted?: boolean;
+}
+
+/** Derives the session state from its scenes, its recorded failure and its
+ * progress — PRD §8.1. A session with no chunks and a failure (a refused
+ * decomposition, assign-scene-identifiers Decision 6) is `failed` in that phase;
+ * without a failure, the timestamps stage means `chunk-decomposing` and a
+ * completed narration `voice-over-complete`. */
 export function deriveSessionState(
   scenes: Scene[],
   failure: SessionFailure | null = null,
+  progress: SessionProgress = {},
 ): { state: SessionState; failedPhase?: string } {
-  if (scenes.length === 0) return failure ? { state: "failed", failedPhase: failure.phase } : { state: "submitted" };
+  if (scenes.length === 0) {
+    if (failure) return { state: "failed", failedPhase: failure.phase };
+    if (progress.timestampsStarted) return { state: "chunk-decomposing" };
+    if (progress.hasVoiceOver) return { state: "voice-over-complete" };
+    return { state: "submitted" };
+  }
   const anyGenerating = scenes.some((s) => s.status === "submitted" || s.status === "image-generating");
   if (anyGenerating) return { state: "chunks-processing" };
   const anyFailed = scenes.some((s) => s.status === "failed");
@@ -79,7 +97,10 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const run = getRun(runId);
   if (!run) return undefined;
   const scenes = getScenesForRun(runId);
-  const { state, failedPhase } = deriveSessionState(scenes, run.failure);
+  const { state, failedPhase } = deriveSessionState(scenes, run.failure, {
+    hasVoiceOver: getVoiceOver(runId) !== undefined,
+    timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
+  });
   const session: SessionEventPayload = {
     type: "session",
     sessionId: run.id,
