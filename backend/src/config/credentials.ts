@@ -22,13 +22,12 @@ let cachedSecretsPath: string | undefined;
 
 function readSecretsFile(secretsPath: string): Record<string, unknown> {
   if (cachedSecretsPath === secretsPath && cachedSecrets) return cachedSecrets;
-  if (!existsSync(secretsPath)) {
-    cachedSecrets = {};
-  } else {
-    cachedSecrets = JSON.parse(readFileSync(secretsPath, "utf8"));
-  }
+  const secrets: Record<string, unknown> = existsSync(secretsPath)
+    ? JSON.parse(readFileSync(secretsPath, "utf8"))
+    : {};
+  cachedSecrets = secrets;
   cachedSecretsPath = secretsPath;
-  return cachedSecrets;
+  return secrets;
 }
 
 export function loadCredential(name: string, options: { secretsPath?: string } = {}): string {

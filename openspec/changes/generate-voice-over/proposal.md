@@ -34,7 +34,7 @@ None. `openspec/specs/` is still empty. `session-creation` from `start-video-pro
 ## Impact
 
 - **Blocked on foundations not yet applied**: `define-backend-stack` (JOS-179) and `define-persistence` (JOS-181) for the framework and store; `define-provider-configuration` (JOS-165) for the voice provider, its parameters, its not-retryable signal and its **input length limit**; `start-video-project` (JOS-134) for the session this story advances. `keep-project-files` (US-30, JOS-162) owns the project folder the MP3 lands in.
-- **Open product risk**: a 1,500-word script is roughly 9,000 characters, and many text-to-speech APIs cap a single request below that. If the chosen provider does, AC02's literal reading makes typical scripts fail. This change keeps the literal reading and gates implementation on the limit US-33 records (see design).
+- **No script-length limit (product decision, 2026-09-27)**: the only bound is the voice account's monthly-renewing character credits, and a User may spend them all on one script. AC02's literal reading is kept: the script is sent whole, and a provider refusal on length, if one ever occurs, is reported as a not-retryable failure with its cause (see design Decision 5).
 - **First real provider call and first paid attempt**: automated tests use the stubbed provider from `define-backend-stack`; the real provider is exercised only by an opt-in contract test.
 - **Data model**: first voice-over and stage-attempt records in `docs/data-model.md`; new session fields for the bound provider and the failure.
 - **API contract**: the session representation in `docs/api-spec.yml` gains `voiceOver` and `failure`. No new command endpoint, and no MP3 download — §12.3 limits downloads to images, clips and the final MP4.

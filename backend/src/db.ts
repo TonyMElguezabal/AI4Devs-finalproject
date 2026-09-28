@@ -8,11 +8,26 @@
 // server DB vs. structured files and confirmed this on the merits
 // (`openspec/changes/define-persistence/design.md` § Execution Record §3) —
 // this is no longer a disposable stand-in, it is the decision.
+import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
-import type { ProviderOutcomeMode, ProviderRequestRow, Run, Scene, SceneState } from "./types.ts";
+import type {
+  AttemptStage,
+  ProviderOutcomeMode,
+  ProviderRequestRow,
+  Run,
+  Scene,
+  SceneState,
+  StageAttempt,
+  StageAttemptOutcome,
+  VoiceOver,
+  VoiceOverFailure,
+  VoiceOverInput,
+} from "./types.ts";
 import { STUB_PROVIDER_NAME } from "./types.ts";
+
+export type { VoiceOverInput } from "./types.ts";
 
 const DB_PATH = process.env.DB_PATH ?? "data/skeleton.sqlite";
 mkdirSync(dirname(DB_PATH), { recursive: true });
@@ -91,6 +106,46 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
     description: "add runs.script (start-video-project, JOS-134, PRD §4.2/D10 write-once field)",
     up: (target) => {
       target.exec("ALTER TABLE runs ADD COLUMN script TEXT NOT NULL DEFAULT ''");
+    },
+  },
+  {
+    version: 4,
+    description: "add the voice-over records (generate-voice-over, JOS-136): runs.voice_provider_id, runs.failure, voice_overs, stage_attempts",
+    up: (target) => {
+      target.exec("ALTER TABLE runs ADD COLUMN voice_provider_id TEXT");
+      target.exec("ALTER TABLE runs ADD COLUMN failure TEXT");
+      // Decision 8 — one voice-over per session is the PRIMARY KEY, not a prior read.
+      target.exec(`
+        CREATE TABLE voice_overs (
+          run_id TEXT PRIMARY KEY REFERENCES runs(id),
+          audio_path TEXT NOT NULL,
+          timestamps_path TEXT,
+          duration_seconds REAL NOT NULL,
+          size_bytes INTEGER NOT NULL,
+          native_timestamps_available INTEGER NOT NULL,
+          provider_request_id TEXT,
+          completed_at TEXT NOT NULL
+        );
+      `);
+      // Decision 2 — written before the request is sent; only its outcome
+      // columns are ever filled in afterwards.
+      target.exec(`
+        CREATE TABLE stage_attempts (
+          id TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL REFERENCES runs(id),
+          stage TEXT NOT NULL,
+          provider_id TEXT NOT NULL,
+          attempt_number INTEGER NOT NULL,
+          queued_at TEXT NOT NULL,
+          sent_at TEXT NOT NULL,
+          outcome TEXT NOT NULL CHECK (outcome IN ('in-flight', 'success', 'transient', 'not-retryable')),
+          finished_at TEXT,
+          external_request_id TEXT,
+          error_code TEXT,
+          error_message TEXT,
+          UNIQUE (run_id, stage, attempt_number)
+        );
+      `);
     },
   },
 ];
@@ -184,7 +239,7 @@ export function createRun(id: string, title: string, script: string, language: s
   db.prepare(
     "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script) VALUES (?, ?, ?, 0, ?, ?, ?)",
   ).run(id, title, createdAt, language, projectFolder, script);
-  return { id, title, script, createdAt, paused: false, language, projectFolder };
+  return { id, title, script, createdAt, paused: false, language, projectFolder, voiceProviderId: null, failure: null };
 }
 
 export function setRunProjectFolder(runId: string, projectFolder: string): void {
@@ -245,6 +300,8 @@ function rowToRun(row: any): Run {
     paused: Boolean(row.paused),
     language: row.language ?? "",
     projectFolder: row.project_folder ?? "",
+    voiceProviderId: row.voice_provider_id ?? null,
+    failure: row.failure ? (JSON.parse(row.failure) as VoiceOverFailure) : null,
   };
 }
 
@@ -277,6 +334,155 @@ export function getRun(id: string): Run | undefined {
 
 export function setRunPaused(runId: string, paused: boolean): void {
   db.prepare("UPDATE runs SET paused = ? WHERE id = ?").run(paused ? 1 : 0, runId);
+}
+
+/**
+ * generate-voice-over (JOS-136) Decision 3 — binds the voice provider on the
+ * first attempt only (PRD §11.2). Returns `true` only for the call that
+ * actually binds; once set, the value is never overwritten, so a later build
+ * with a different hardcoded provider cannot silently switch a session.
+ */
+export function bindVoiceProvider(runId: string, providerId: string): boolean {
+  const result = db
+    .prepare("UPDATE runs SET voice_provider_id = ? WHERE id = ? AND voice_provider_id IS NULL")
+    .run(providerId, runId);
+  return Number(result.changes) > 0;
+}
+
+/** Decision 9 — the session's failure, so a failure with no attempt behind it (a missing credential) is still reported. */
+export function setRunFailure(runId: string, failure: VoiceOverFailure): void {
+  db.prepare("UPDATE runs SET failure = ? WHERE id = ?").run(JSON.stringify(failure), runId);
+}
+
+function rowToVoiceOver(row: any): VoiceOver {
+  return {
+    runId: row.run_id,
+    audioPath: row.audio_path,
+    timestampsPath: row.timestamps_path ?? null,
+    durationSeconds: row.duration_seconds,
+    sizeBytes: row.size_bytes,
+    nativeTimestampsAvailable: Boolean(row.native_timestamps_available),
+    providerRequestId: row.provider_request_id ?? null,
+    completedAt: row.completed_at,
+  };
+}
+
+/**
+ * Decision 8 — the store-level guarantee of one voice-over per session.
+ * Returns `true` only for the call that genuinely stores it; a repeated or
+ * concurrent confirmation hits the `voice_overs` PRIMARY KEY and returns
+ * `false`, whatever any earlier read said.
+ */
+export function insertVoiceOver(input: VoiceOverInput): boolean {
+  try {
+    db.prepare(
+      "INSERT INTO voice_overs (run_id, audio_path, timestamps_path, duration_seconds, size_bytes, native_timestamps_available, provider_request_id, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    ).run(
+      input.runId,
+      input.audioPath,
+      input.timestampsPath,
+      input.durationSeconds,
+      input.sizeBytes,
+      input.nativeTimestampsAvailable ? 1 : 0,
+      input.providerRequestId,
+      input.completedAt,
+    );
+    return true;
+  } catch (err: any) {
+    if (err?.code === "ERR_SQLITE_ERROR" && /UNIQUE constraint failed/i.test(String(err.message))) {
+      return false;
+    }
+    throw err; // any other constraint failure (for example an unknown session) is a real bug
+  }
+}
+
+export function getVoiceOver(runId: string): VoiceOver | undefined {
+  const row = db.prepare("SELECT * FROM voice_overs WHERE run_id = ?").get(runId) as any;
+  return row ? rowToVoiceOver(row) : undefined;
+}
+
+export function countVoiceOvers(runId: string): number {
+  const row = db.prepare("SELECT COUNT(*) c FROM voice_overs WHERE run_id = ?").get(runId) as any;
+  return row.c as number;
+}
+
+function rowToStageAttempt(row: any): StageAttempt {
+  return {
+    id: row.id,
+    runId: row.run_id,
+    stage: row.stage,
+    providerId: row.provider_id,
+    attemptNumber: row.attempt_number,
+    queuedAt: row.queued_at,
+    sentAt: row.sent_at,
+    outcome: row.outcome,
+    finishedAt: row.finished_at ?? null,
+    externalRequestId: row.external_request_id ?? null,
+    errorCode: row.error_code ?? null,
+    errorMessage: row.error_message ?? null,
+  };
+}
+
+/**
+ * Decision 2 — records an attempt as `in-flight` BEFORE the request is sent,
+ * so a crash between send and response still leaves a trace. The sequence is
+ * computed inside the INSERT itself (one statement), not read first, so two
+ * racing attempts cannot both take the same number; the unique key would
+ * reject the second regardless.
+ */
+export function recordStageAttempt(input: {
+  runId: string;
+  stage: AttemptStage;
+  providerId: string;
+  queuedAt: string;
+  sentAt: string;
+}): StageAttempt {
+  const id = randomUUID();
+  db.prepare(
+    `INSERT INTO stage_attempts (id, run_id, stage, provider_id, attempt_number, queued_at, sent_at, outcome)
+     SELECT ?, ?, ?, ?, COALESCE(MAX(attempt_number), 0) + 1, ?, ?, 'in-flight'
+     FROM stage_attempts WHERE run_id = ? AND stage = ?`,
+  ).run(id, input.runId, input.stage, input.providerId, input.queuedAt, input.sentAt, input.runId, input.stage);
+  return rowToStageAttempt(db.prepare("SELECT * FROM stage_attempts WHERE id = ?").get(id));
+}
+
+/**
+ * Fills in an in-flight attempt's outcome. Returns `false` when the attempt
+ * was already completed, so a repeated outcome cannot rewrite history.
+ */
+export function completeStageAttempt(
+  attemptId: string,
+  outcome: {
+    outcome: Exclude<StageAttemptOutcome, "in-flight">;
+    finishedAt: string;
+    externalRequestId?: string;
+    errorCode?: string;
+    errorMessage?: string;
+  },
+): boolean {
+  if ((outcome.outcome as StageAttemptOutcome) === "in-flight") {
+    throw new Error("cannot complete an attempt with the in-flight outcome");
+  }
+  const result = db
+    .prepare(
+      "UPDATE stage_attempts SET outcome = ?, finished_at = ?, external_request_id = ?, error_code = ?, error_message = ? WHERE id = ? AND outcome = 'in-flight'",
+    )
+    .run(
+      outcome.outcome,
+      outcome.finishedAt,
+      outcome.externalRequestId ?? null,
+      outcome.errorCode ?? null,
+      outcome.errorMessage ?? null,
+      attemptId,
+    );
+  return Number(result.changes) > 0;
+}
+
+export function getStageAttempts(runId: string, stage: AttemptStage): StageAttempt[] {
+  const rows = db
+    .prepare("SELECT * FROM stage_attempts WHERE run_id = ? AND stage = ? ORDER BY attempt_number ASC")
+    .all(runId, stage) as any[];
+  return rows.map(rowToStageAttempt);
 }
 
 export function getAllInFlightScenes(): Scene[] {
@@ -417,19 +623,25 @@ export function snapshotCounts(): {
   scenes: number;
   providerRequests: number;
   sceneResults: number;
+  voiceOvers: number;
+  stageAttempts: number;
 } {
   const runs = (db.prepare("SELECT COUNT(*) c FROM runs").get() as any).c as number;
   const scenes = (db.prepare("SELECT COUNT(*) c FROM scenes").get() as any).c as number;
   const providerRequests = (db.prepare("SELECT COUNT(*) c FROM provider_requests").get() as any).c as number;
   const sceneResults = (db.prepare("SELECT COUNT(*) c FROM scene_results").get() as any).c as number;
-  return { runs, scenes, providerRequests, sceneResults };
+  const voiceOvers = (db.prepare("SELECT COUNT(*) c FROM voice_overs").get() as any).c as number;
+  const stageAttempts = (db.prepare("SELECT COUNT(*) c FROM stage_attempts").get() as any).c as number;
+  return { runs, scenes, providerRequests, sceneResults, voiceOvers, stageAttempts };
 }
 
 /** Test-only: wipes every row and every real project folder. Never call this
  * against anything but an isolated `DB_PATH`/`PROJECTS_ROOT` (see the test
  * command in `docs/backend-standards.md`'s persistence section). */
 export function resetAll(): void {
-  db.exec("DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;");
+  db.exec(
+    "DELETE FROM stage_attempts; DELETE FROM voice_overs; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
+  );
   // Tests create real project folders on disk (Decision 4); wipe them too,
   // or a second test run collides with the previous run's leftover folders
   // (found by running the suite twice in a row during this change's own

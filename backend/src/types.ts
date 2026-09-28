@@ -51,6 +51,59 @@ export interface Run {
   language: string;
   /** PRD §12.2 — the real per-project folder name under `PROJECTS_ROOT`, derived from title + creation time to the minute. */
   projectFolder: string;
+  /** PRD §11.2 — the voice provider bound on the first voice attempt; write-once (generate-voice-over, JOS-136, Decision 3). */
+  voiceProviderId: string | null;
+  /** The phase failure the session carries when it is `failed` (generate-voice-over, JOS-136, Decision 9). */
+  failure: VoiceOverFailure | null;
+}
+
+/** Design Decision 9 (generate-voice-over, JOS-136) — what the session carries when the voice-over failed. */
+export interface VoiceOverFailure {
+  phase: "voice-over";
+  /** Written for a person; never contains credentials or the script text. */
+  cause: string;
+  retryable: boolean;
+  /** ISO-8601 instant. */
+  occurredAt: string;
+}
+
+/** The session's single narration (generate-voice-over, JOS-136, Decisions 6 and 8). Paths are relative to the session's project folder (§12.2). */
+export interface VoiceOverInput {
+  runId: string;
+  audioPath: string;
+  /** The provider's native timestamps, stored raw and uninterpreted; null when it returned none. */
+  timestampsPath: string | null;
+  /** Measured from the stored MP3, not the provider's claim (Decision 7). */
+  durationSeconds: number;
+  sizeBytes: number;
+  nativeTimestampsAvailable: boolean;
+  providerRequestId: string | null;
+  completedAt: string;
+}
+
+export type VoiceOver = VoiceOverInput;
+
+/** The stages that record attempts at session level. Later stories add their own. */
+export type AttemptStage = "voice-over";
+
+export const STAGE_ATTEMPT_OUTCOMES = ["in-flight", "success", "transient", "not-retryable"] as const;
+export type StageAttemptOutcome = (typeof STAGE_ATTEMPT_OUTCOMES)[number];
+
+/** One provider call, written before the request is sent (Decision 2) and never rewritten except to record its outcome. */
+export interface StageAttempt {
+  id: string;
+  runId: string;
+  stage: AttemptStage;
+  providerId: string;
+  /** Sequence within the session's stage, from 1. */
+  attemptNumber: number;
+  queuedAt: string;
+  sentAt: string;
+  outcome: StageAttemptOutcome;
+  finishedAt: string | null;
+  externalRequestId: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
 }
 
 export interface Scene {
