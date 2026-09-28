@@ -84,9 +84,9 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 10. E2E Testing (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: the session page lists scenes, so check that registered chunks appear in ascending order and that no control splits, merges, deletes or reorders them
-- [ ] 10.2 Run it against the real backend and frontend on scratch resources, with chunks registered by script
-- [ ] 10.3 Save `openspec/changes/assign-scene-identifiers/reports/YYYY-MM-DD-step-10-e2e.md`
+- [x] 10.1 Decide applicability: the session page lists scenes, so check that registered chunks appear in ascending order and that no control splits, merges, deletes or reorders them — applicable
+- [x] 10.2 Run it against the real backend and frontend on scratch resources, with chunks registered by script — scenes 1-3 in order, `chunks-processing`; the only controls are Pause and the detail toggles. The start form did not submit in this run (no request, no console error; this branch changes no frontend file), so the session was created through the API; recorded as a finding
+- [x] 10.3 Save `openspec/changes/assign-scene-identifiers/reports/2026-09-27-step-10-e2e.md`
 
 ## 11. Update Technical Documentation (MANDATORY)
 
