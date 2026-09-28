@@ -11,7 +11,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 - [ ] 1.1 Confirm the base: `narration_timestamps` and its file format, `registerDecomposition` and `SegmentedFragment` (with the two exceptions), `SEGMENTATION_LOWER_BOUND_SECONDS` 5 and `SEGMENTATION_UPPER_BOUND_SECONDS` 15
 - [ ] 1.2 Remove the sentence-boundary and whole-script-below-lower-bound requirements from `decompose-script-into-chunks` (the three clause-boundary requirements stay for JOS-141), point it here, update its tasks 6.1, 6.3 and 6.6, and validate both changes
-- [ ] 1.3 Record on JOS-140 and JOS-141 that JOS-140 goes first and JOS-141 builds on it (product owner decision, 2026-09-28)
+- [x] 1.3 Record on JOS-140 and JOS-141 that JOS-140 goes first and JOS-141 builds on it (product owner decision, 2026-09-28) — posted, with the proposal's decisions on JOS-140 and where splitting plugs in on JOS-141
 
 ## 2. Admitted durations (TDD) — design Decision 6
 
