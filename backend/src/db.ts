@@ -277,10 +277,16 @@ export function writeArtefact(projectFolder: string, relativePath: string, conte
   return relativePath;
 }
 
+// The field is declared explicitly, not as a constructor parameter property:
+// the server runs as `node src/server.ts` (strip-only mode), which refuses
+// TypeScript syntax that emits code. `erasableSyntaxOnly` enforces this.
 export class ArtefactAlreadyExistsError extends Error {
-  constructor(readonly relativePath: string) {
+  readonly relativePath: string;
+
+  constructor(relativePath: string) {
     super(`refused: '${relativePath}' already exists and is written once`);
     this.name = "ArtefactAlreadyExistsError";
+    this.relativePath = relativePath;
   }
 }
 

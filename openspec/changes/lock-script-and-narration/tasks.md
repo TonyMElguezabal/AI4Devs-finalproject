@@ -40,6 +40,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [x] 4.4 Write a failing test that no temporary file is left behind after a success or a refusal
 - [x] 4.5 Implement `writeArtefactOnce` in `backend/src/db.ts` (temporary file, `fs.linkSync` to the final name, remove the temporary file), accepting binary content
 - [x] 4.6 Run the group 4 tests and confirm they pass — 33/33 in `content-lock.test.ts` (10 failed before the helper), full suite 195/195, `npm run typecheck` clean
+- [x] 4.7 Declare `ArtefactAlreadyExistsError`'s field explicitly (no constructor parameter property) so `node src/server.ts` can load `backend/src/db.ts` in strip-only mode, and add a test that imports the server module in a real `node` subprocess, the one check `tsc` and vitest cannot make. The `erasableSyntaxOnly` flag (JOS-136 task 2.5) now rejects the syntax at typecheck — `backend/test/server-runtime-load.test.ts` failed on the real node process before the fix; typecheck, 206/206 tests and the server load all pass after it
 
 ## 5. Voice launch guard (TDD) — design Decision 4
 
