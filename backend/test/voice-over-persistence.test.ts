@@ -305,6 +305,8 @@ describe("Migration 4 preserves existing sessions (define-persistence Decision 6
       const fixture = new DatabaseSync(join(dir, "pre-voice-over.sqlite"));
       fixture.exec(`
         CREATE TABLE runs (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, paused INTEGER NOT NULL DEFAULT 0);
+        -- the baseline schema always has a scenes table; migration 7 alters it
+        CREATE TABLE scenes (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, idx INTEGER NOT NULL, status TEXT NOT NULL, instruction TEXT NOT NULL DEFAULT '');
       `);
       fixture
         .prepare("INSERT INTO runs (id, title, created_at, paused) VALUES ('old-run', 'Old Session', '2026-01-01T00:00:00.000Z', 0)")

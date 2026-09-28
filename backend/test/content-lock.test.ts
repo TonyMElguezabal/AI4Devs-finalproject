@@ -142,6 +142,8 @@ describe("A session stored before the lock existed (define-persistence Decision 
       const fixture = new DatabaseSync(join(dir, "pre-lock.sqlite"));
       fixture.exec(`
         CREATE TABLE runs (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, paused INTEGER NOT NULL DEFAULT 0);
+        -- the baseline schema always has a scenes table; migration 7 alters it
+        CREATE TABLE scenes (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, idx INTEGER NOT NULL, status TEXT NOT NULL, instruction TEXT NOT NULL DEFAULT '');
       `);
       fixture
         .prepare("INSERT INTO runs (id, title, created_at, paused) VALUES ('old-run', 'Old Session', '2026-01-01T00:00:00.000Z', 0)")
@@ -230,7 +232,7 @@ describe("A completed voice-over record cannot be modified or deleted (AC2)", ()
     const dir = mkdtempSync(join(tmpdir(), "vid4you-lock-migration-6-test-"));
     try {
       const fixture = new DatabaseSync(join(dir, "at-version-5.sqlite"));
-      fixture.exec("CREATE TABLE runs (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, paused INTEGER NOT NULL DEFAULT 0);");
+      fixture.exec("CREATE TABLE runs (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, paused INTEGER NOT NULL DEFAULT 0); CREATE TABLE scenes (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, idx INTEGER NOT NULL, status TEXT NOT NULL, instruction TEXT NOT NULL DEFAULT '');");
       applyMigrationsTo(fixture);
       // Pretend this database stopped at version 5: drop what migration 6 added and forget it ran.
       fixture.exec("DROP TRIGGER voice_overs_no_update; DROP TRIGGER voice_overs_no_delete; DELETE FROM schema_migrations WHERE version = 6;");

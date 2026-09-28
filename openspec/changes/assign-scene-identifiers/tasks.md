@@ -15,12 +15,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 2. Persistence: columns, unique number, locks (TDD) — design Decisions 2, 3, 7
 
-- [ ] 2.1 Write failing tests for migration 7: `prompt`, `image_instruction`, `video_instruction` exist with empty defaults on a pre-existing scene, and re-running migrations is a no-op
-- [ ] 2.2 Write a failing test that a second scene with the same `(run_id, idx)` is refused by the store, and that the same number in two sessions is allowed
-- [ ] 2.3 Write failing tests that a raw update of `scenes.idx`, `scenes.prompt` or `scenes.run_id` and a raw delete of a scene are refused, each naming the field, while `image_instruction`, `video_instruction`, `instruction` and `status` still update
-- [ ] 2.4 Write a failing test that `resetAll()` empties `scenes` and leaves the scene delete trigger in place
-- [ ] 2.5 Implement migration 7 (columns, unique index, triggers from named constants) and the `resetAll()` change
-- [ ] 2.6 Run the group 2 tests and confirm they pass
+- [x] 2.1 Write failing tests for migration 7: `prompt`, `image_instruction`, `video_instruction` exist with empty defaults on a pre-existing scene, and re-running migrations is a no-op — `backend/test/scene-registration-persistence.test.ts`
+- [x] 2.2 Write a failing test that a second scene with the same `(run_id, idx)` is refused by the store, and that the same number in two sessions is allowed
+- [x] 2.3 Write failing tests that a raw update of `scenes.idx`, `scenes.prompt` or `scenes.run_id` and a raw delete of a scene are refused, each naming the field, while `image_instruction`, `video_instruction`, `instruction` and `status` still update
+- [x] 2.4 Write a failing test that `resetAll()` empties `scenes` and leaves the scene delete trigger in place — also that a scene created after a reset is locked again
+- [x] 2.5 Implement migration 7 (columns, unique index, triggers from named constants) and the `resetAll()` change — `SCENE_LOCK_TRIGGERS_DDL`, `SCENE_NO_DELETE_TRIGGER_DDL` and migration 7 in `backend/src/db.ts`; `Scene` gains `prompt`, `imageInstruction`, `videoInstruction`
+- [x] 2.6 Run the group 2 tests and confirm they pass — 11/11 (10 failed before migration 7; the "same number in two sessions" test passed from the start as a guard); full suite 234/234, typecheck clean
 
 ## 3. Visual instructions port and OpenAI adapter (TDD) — Decision 4
 
@@ -58,7 +58,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review existing tests that create or modify scenes for anything migration 7 now refuses, and update them
+- [ ] 7.1 Review existing tests that create or modify scenes for anything migration 7 now refuses, and update them — started in group 2: three migration fixtures (two in `content-lock.test.ts`, one in `voice-over-persistence.test.ts`) built a database with only `runs`, while every real database has `scenes` from the baseline schema; they now create the baseline `scenes` table, so migration 7 can alter it
 - [ ] 7.2 Confirm every scenario in `specs/scene-registration/spec.md` has at least one functional test, and list the mapping in the step 8 report
 - [ ] 7.3 Confirm module test coverage has not decreased
 - [ ] 7.4 Run `npm run typecheck` (with `erasableSyntaxOnly`) and the server runtime-load test

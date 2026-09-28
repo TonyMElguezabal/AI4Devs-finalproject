@@ -120,6 +120,24 @@ export const VOICE_OVER_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER voice_overs_no_d
     SELECT RAISE(ABORT, 'locked: voice_overs cannot be deleted once the narration is complete');
   END;`;
 
+// assign-scene-identifiers (JOS-144) Decision 7 — an established chunk is never
+// split, merged, deleted or reordered (PRD §6): its number, its PROMPT and its
+// session cannot change, and it cannot be deleted. IMAGE and VIDEO stay
+// writable, since §10.3 lets them be corrected after a failed stage.
+const LOCKED_SCENE_COLUMNS = ["idx", "prompt", "run_id"] as const;
+
+export const SCENE_LOCK_TRIGGERS_DDL: readonly string[] = LOCKED_SCENE_COLUMNS.map(
+  (column) => `CREATE TRIGGER scenes_${column}_locked BEFORE UPDATE OF ${column} ON scenes
+    BEGIN
+      SELECT RAISE(ABORT, 'locked: scenes.${column} cannot be modified once the chunk is established');
+    END;`,
+);
+
+export const SCENE_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER scenes_no_delete BEFORE DELETE ON scenes
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: scenes cannot be deleted once the chunk is established');
+  END;`;
+
 // ---- Versioned migrations (Decision 6) — applied on top of the baseline ----
 // Each migration takes the target database explicitly (not a closed-over
 // singleton) so the exact same runner can be pointed at a fixture database
@@ -194,6 +212,20 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
     up: (target) => {
       target.exec(VOICE_OVER_NO_UPDATE_TRIGGER_DDL);
       target.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
+    },
+  },
+  {
+    version: 7,
+    description:
+      "add the chunk content columns, a per-session unique chunk number and the chunk locks (assign-scene-identifiers, JOS-144)",
+    up: (target) => {
+      target.exec("ALTER TABLE scenes ADD COLUMN prompt TEXT NOT NULL DEFAULT ''");
+      target.exec("ALTER TABLE scenes ADD COLUMN image_instruction TEXT NOT NULL DEFAULT ''");
+      target.exec("ALTER TABLE scenes ADD COLUMN video_instruction TEXT NOT NULL DEFAULT ''");
+      // Decision 2 — the PRD's ID is `idx`, unique within its session only.
+      target.exec("CREATE UNIQUE INDEX scenes_run_id_idx_unique ON scenes (run_id, idx)");
+      for (const ddl of SCENE_LOCK_TRIGGERS_DDL) target.exec(ddl);
+      target.exec(SCENE_NO_DELETE_TRIGGER_DDL);
     },
   },
 ];
@@ -353,6 +385,9 @@ export function createScene(
     lastError: null,
     result: null,
     instruction,
+    prompt: "",
+    imageInstruction: "",
+    videoInstruction: "",
     provider: STUB_PROVIDER_NAME,
     providerMode,
     providerLatencyMs,
@@ -370,6 +405,9 @@ function rowToScene(row: any): Scene {
     lastError: row.last_error,
     result: row.result,
     instruction: row.instruction,
+    prompt: row.prompt ?? "",
+    imageInstruction: row.image_instruction ?? "",
+    videoInstruction: row.video_instruction ?? "",
     provider: row.provider,
     providerMode: row.provider_mode,
     providerLatencyMs: row.provider_latency_ms,
@@ -725,16 +763,19 @@ export function snapshotCounts(): {
  * against anything but an isolated `DB_PATH`/`PROJECTS_ROOT` (see the test
  * command in `docs/backend-standards.md`'s persistence section). */
 export function resetAll(): void {
-  // The one place the voice-over delete lock is lifted (design Decision 2):
-  // inside a single transaction, so the trigger is back — or the whole reset
-  // is rolled back — before anything else can observe the database.
+  // The one place the delete locks are lifted (lock-script-and-narration
+  // Decision 2; assign-scene-identifiers Decision 7): inside a single
+  // transaction, so the triggers are back — or the whole reset is rolled
+  // back — before anything else can observe the database.
   db.exec("BEGIN");
   try {
     db.exec("DROP TRIGGER voice_overs_no_delete");
+    db.exec("DROP TRIGGER scenes_no_delete");
     db.exec(
       "DELETE FROM stage_attempts; DELETE FROM voice_overs; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
     );
     db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
+    db.exec(SCENE_NO_DELETE_TRIGGER_DDL);
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");

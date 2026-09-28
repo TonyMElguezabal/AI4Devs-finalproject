@@ -115,8 +115,14 @@ export interface Scene {
   lastError: string | null;
   result: string | null;
   updatedAt: string;
-  /** The visual instruction, correctable only while the affected stage is `failed` (PRD §10.3). */
+  /** The skeleton image stage's input, correctable only while the affected stage is `failed` (PRD §10.3). Registration sets it to `imageInstruction`; JOS-145 retires it (assign-scene-identifiers, JOS-144, Decision 3). */
   instruction: string;
+  /** PRD §3 `PROMPT`: the fragment of the script this scene narrates, unchanged. Locked once registered. */
+  prompt: string;
+  /** PRD §3 `IMAGE`: the instruction to generate the scene's image. */
+  imageInstruction: string;
+  /** PRD §3 `VIDEO`: the instruction to animate the image. */
+  videoInstruction: string;
   provider: string;
   /** Configured at scene creation so automatic retries can reuse the same behaviour. */
   providerMode: ProviderOutcomeMode;
