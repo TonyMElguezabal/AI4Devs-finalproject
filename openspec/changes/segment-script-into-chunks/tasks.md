@@ -21,10 +21,10 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 3. Sentences and their timings (TDD) — Decisions 1, 2 and 3
 
-- [ ] 3.1 Write failing tests for `findSentences(script, language)`: the four terminators, closing quotes and brackets, no terminator at the end, the abbreviation lists for English and Spanish, single capital initials, a period between digits, `¿`/`¡`, whitespace and line breaks between sentences, sentences returned as exact trimmed substrings with their offsets
-- [ ] 3.2 Write failing tests for mapping characters to sentences: native timestamps by index; alignment timestamps walking non-whitespace characters; each sentence's speech span
-- [ ] 3.3 Write failing tests for `chunkDurations`: pause midpoints as boundaries, 0 and the MP3 duration at the ends, durations summing to the MP3 duration, gapless native input giving the speech spans
-- [ ] 3.4 Implement the three, then run the group 3 tests
+- [x] 3.1 Write failing tests for `findSentences(script, language)`: the four terminators, closing quotes and brackets, no terminator at the end, the abbreviation lists for English and Spanish, single capital initials, a period between digits, `¿`/`¡`, whitespace and line breaks between sentences, sentences returned as exact trimmed substrings with their offsets
+- [x] 3.2 Write failing tests for mapping characters to sentences: one walk over non-whitespace characters giving the same spans for native timestamps (with whitespace entries) and alignment timestamps (without); each sentence's speech span; a mismatch refused
+- [x] 3.3 Write failing tests for `chunkDurations`: pause midpoints as boundaries, 0 and the MP3 duration at the ends, durations summing to the MP3 duration, gapless native input giving the speech spans
+- [x] 3.4 Implement the three, then run the group 3 tests
 
 ## 4. Grouping (TDD) — Decisions 4 and 5
 
