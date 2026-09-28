@@ -43,14 +43,14 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 5. Voice launch guard (TDD) — design Decision 4
 
-- [ ] 5.1 Write a failing test that `canLaunchVoiceOver` allows a `submitted` session with no attempt
-- [ ] 5.2 Write a failing test that it allows a session whose voice attempt failed (not retryable, and transient) and which has no voice-over
-- [ ] 5.3 Write a failing test that it allows a session whose attempt returned undecodable audio, so no voice-over was stored
-- [ ] 5.4 Write a failing test that it refuses a session with a voice-over, with reason `narration-complete`
-- [ ] 5.5 Write a failing test that it refuses a session with a voice-over that also carries a later failure
-- [ ] 5.6 Implement `canLaunchVoiceOver` as a typed result (`{ allowed: true } | { allowed: false; reason: "narration-complete" }`), reading the voice-over record
-- [ ] 5.7 If JOS-136's voice launch exists (task 1.3), write a failing test that a refused launch sends no provider request, then route the launch through the guard. Otherwise record this as the hand-over in task 12.1
-- [ ] 5.8 Run the group 5 tests and confirm they pass
+- [x] 5.1 Write a failing test that `canLaunchVoiceOver` allows a `submitted` session with no attempt — `backend/test/voice-launch-guard.test.ts`; also a session whose attempt is still in flight with no narration yet
+- [x] 5.2 Write a failing test that it allows a session whose voice attempt failed (not retryable, and transient) and which has no voice-over
+- [x] 5.3 Write a failing test that it allows a session whose attempt returned undecodable audio, so no voice-over was stored — modelled as a failed attempt with nothing stored (JOS-136 Decision 7); it exercises the same rule as 5.2, since the guard only sees the record
+- [x] 5.4 Write a failing test that it refuses a session with a voice-over, with reason `narration-complete` — also per-session isolation and that deciding changes nothing
+- [x] 5.5 Write a failing test that it refuses a session with a voice-over that also carries a later failure — the later failure is a failed scene (the image phase), since `runs.failure` only models the voice-over phase; also a narration that completed after an earlier failed attempt
+- [x] 5.6 Implement `canLaunchVoiceOver` as a typed result (`{ allowed: true } | { allowed: false; reason: "narration-complete" }`), reading the voice-over record — `backend/src/voiceLaunchGuard.ts`
+- [x] 5.7 If JOS-136's voice launch exists (task 1.3), write a failing test that a refused launch sends no provider request, then route the launch through the guard. Otherwise record this as the hand-over in task 12.1 — not applicable yet: the voice launch does not exist (task 1.3), so the wiring and its "no provider request" test are handed to JOS-136 task 5.12 through task 12.1
+- [x] 5.8 Run the group 5 tests and confirm they pass — 10/10 new tests pass, full suite 205/205, `npm run typecheck` clean
 
 ## 6. API surface (TDD) — design Decision 5
 
