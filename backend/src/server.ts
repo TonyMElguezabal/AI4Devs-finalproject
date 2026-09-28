@@ -8,9 +8,13 @@ import { routes } from "./routes.ts";
 import { reconcileOnBoot } from "./orchestrator.ts";
 import * as concurrency from "./concurrency.ts";
 import { STAGE } from "./types.ts";
+import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
 
 const PORT = Number(process.env.PORT ?? 3100);
-const STAGE_CONCURRENCY_LIMIT = Number(process.env.STAGE_CONCURRENCY_LIMIT ?? 2);
+// define-provider-configuration (JOS-165) task 17.2 — this skeleton's one
+// generic stage (STAGE = "image") maps to the real image stage's derived
+// cap, replacing the walking skeleton's arbitrary placeholder (was 2).
+const STAGE_CONCURRENCY_LIMIT = Number(process.env.STAGE_CONCURRENCY_LIMIT ?? MAX_SIMULTANEOUS_REQUESTS.image);
 
 // start-video-project (JOS-134) Decision 6 — impose no product-side script
 // length limit; where an infrastructure ceiling remains, name the cause

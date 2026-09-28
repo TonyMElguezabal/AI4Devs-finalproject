@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/server.ts";
 import { getRun, resetAll } from "../src/db.ts";
-import { SUPPORTED_LANGUAGE_CODES } from "../src/config/languages.ts";
+import { SUPPORTED_LANGUAGE_CODES } from "../src/config/providers.ts";
 import type { FastifyInstance } from "fastify";
 
 // start-video-project (JOS-134) — session registration. HTTP-level tests via

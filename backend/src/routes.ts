@@ -12,7 +12,7 @@ import {
   toSnapshot,
 } from "./orchestrator.ts";
 import { PROVIDER_OUTCOME_MODES } from "./types.ts";
-import { SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES } from "./config/languages.ts";
+import { SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES } from "./config/providers.ts";
 import { ulid } from "./util/ulid.ts";
 
 /** Provisional — the real value is set by define-live-updates' idle experiment (Decision 7); this keeps the stream alive meanwhile. */
@@ -30,7 +30,7 @@ const createSessionBodySchema = z.object({
   script: nonEmptyAfterTrim("script"),
   // PRD §4.1, D09 — a session cannot start without a language selected from
   // the hardcoded supported list; refused regardless of how the request was
-  // made (Decision 5). See config/languages.ts for the provisional-list note.
+  // made (Decision 5). See config/providers.ts (define-provider-configuration, JOS-165) for the verified list.
   language: z.enum(SUPPORTED_LANGUAGE_CODES),
 });
 
@@ -91,8 +91,8 @@ export const routes: FastifyPluginAsync = async (app) => {
   }));
 
   // start-video-project (JOS-134) Decision 5 — the frontend fetches this
-  // list rather than restating it; see config/languages.ts for the
-  // provisional-pending-US-33 note.
+  // list rather than restating it; see config/providers.ts (JOS-165) for
+  // the verified list and how it was derived.
   typed.get("/languages", { schema: { response: { 200: languageResponseSchema } } }, async () => [
     ...SUPPORTED_LANGUAGES,
   ]);
