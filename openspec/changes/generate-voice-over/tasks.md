@@ -26,6 +26,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [x] 2.2 Write failing tests that every other transition out of these states is refused — all 61 other pairs of the 8 session states, generated from the table
 - [x] 2.3 Write a failing test that a failure carries phase `voice-over`, a cause and its retryability — also asserts `occurredAt` (design Decision 9) and refuses a blank cause
 - [x] 2.4 Implement the transitions and the failure value, then run the group 2 tests and confirm they pass — `backend/src/sessionStateMachine.ts`; 70/70 new tests pass, full suite 140/140, `npm run typecheck` clean
+- [x] 2.5 Use only erasable TypeScript syntax in `backend/src` (no parameter properties or enums), because the server runs as `node src/server.ts` in strip-only mode and would refuse to load such a module. Enable `erasableSyntaxOnly` in `backend/tsconfig.json` so `npm run typecheck` catches it — `InvalidSessionTransitionError` declares its fields explicitly; the flag is on and typecheck is clean
 
 ## 3. Persistence: records and migration (TDD)
 
