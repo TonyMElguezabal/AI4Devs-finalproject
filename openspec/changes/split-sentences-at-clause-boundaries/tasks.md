@@ -45,12 +45,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 6.1 Capture the pre-test state of the default test store
-- [ ] 6.2 Run the targeted tests and capture the summary
-- [ ] 6.3 Run the full suite and record totals, failures and runtime (the known intermittent `orchestrator.test.ts` failure is reported, not hidden)
-- [ ] 6.4 Verify the post-test state matches the baseline; restore it if not
-- [ ] 6.5 Write `openspec/changes/split-sentences-at-clause-boundaries/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
-- [ ] 6.6 Mark this step complete only after the tests pass and the report exists
+- [x] 6.1 Capture the pre-test state of the default test store
+- [x] 6.2 Run the targeted tests and capture the summary
+- [x] 6.3 Run the full suite and record totals, failures and runtime (the known intermittent `orchestrator.test.ts` failure is reported, not hidden)
+- [x] 6.4 Verify the post-test state matches the baseline; restore it if not
+- [x] 6.5 Write `openspec/changes/split-sentences-at-clause-boundaries/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
+- [x] 6.6 Mark this step complete only after the tests pass and the report exists
 
 ## 7. Manual Testing (MANDATORY - AGENT MUST EXECUTE)
 
