@@ -74,13 +74,13 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the real server on a scratch database and confirm it responds
-- [ ] 9.2 Register a decomposition by calling `registerDecomposition` from a script against that database (no route triggers it, by decision); `GET /sessions/:id` shows the chunks 1..N with `prompt`, `imageInstruction` and `videoInstruction`, state `chunks-processing`
-- [ ] 9.3 Register an invalid decomposition for another session; `GET` shows `failed`, failed phase `decomposition`, and no chunks
-- [ ] 9.4 Try `DELETE`/`PUT`/`PATCH` on scene paths and a correction whose body names `idx` or `prompt`; with `sqlite3`, try updating `idx`/`prompt` and deleting a scene; record the refusals
-- [ ] 9.5 Run the opt-in contract test once against the real reasoning provider and record the result and cost
-- [ ] 9.6 Clean up through the test-only reset; confirm the scratch store is empty with all triggers and the default store untouched
-- [ ] 9.7 Save `openspec/changes/assign-scene-identifiers/reports/YYYY-MM-DD-step-9-curl-endpoint-testing.md`
+- [x] 9.1 Start the real server on a scratch database and confirm it responds
+- [x] 9.2 Register a decomposition by calling `registerDecomposition` from a script against that database (no route triggers it, by decision); `GET /sessions/:id` shows the chunks 1..N with `prompt`, `imageInstruction` and `videoInstruction`, state `chunks-processing` — scenes 1-3 in order, each with its prompt and instructions, `chunks-processing`; a second registration is refused
+- [x] 9.3 Register an invalid decomposition for another session; `GET` shows `failed`, failed phase `decomposition`, and no chunks — `failed`, failed phase `decomposition`, 0 scenes; the cause does not blame the script
+- [x] 9.4 Try `DELETE`/`PUT`/`PATCH` on scene paths and a correction whose body names `idx` or `prompt`; with `sqlite3`, try updating `idx`/`prompt` and deleting a scene; record the refusals — all refused; the correction changed only `instruction`, which shows the Decision 3 divergence handed to JOS-145 and JOS-157
+- [x] 9.5 Run the opt-in contract test once against the real reasoning provider and record the result and cost — passed: two non-empty pairs in 10.5 s (above the 6.4-8.5 s JOS-165 observed, within the 20 s limit); cost of one short request not measured
+- [x] 9.6 Clean up through the test-only reset; confirm the scratch store is empty with all triggers and the default store untouched
+- [x] 9.7 Save `openspec/changes/assign-scene-identifiers/reports/2026-09-27-step-9-curl-endpoint-testing.md`
 
 ## 10. E2E Testing (MANDATORY if applicable - AGENT MUST EXECUTE)
 
