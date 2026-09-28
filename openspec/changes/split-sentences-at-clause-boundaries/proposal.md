@@ -10,7 +10,7 @@ This change builds on `segment-script-into-chunks` (JOS-140), per the product ow
 
 ## What Changes
 
-- **AC1 — A sentence over the maximum is split:** at one or more clause boundaries, so that every piece fits the bounds where possible. Among possible splits, JOS-140's search picks the one needing the least speed change.
+- **AC1 — A sentence over the maximum is split:** at one or more clause boundaries, so that every piece fits the bounds where possible. Among possible splits, JOS-140's search picks the one it prefers: fewest fragments ending on a short sentence or short piece, then the least total speed change (JOS-140's "prefer, but allow" rule, product owner decision 2026-09-28, since real narration is mostly short sentences).
 - **AC2 — A short sentence borrows a clause:** when a sentence under 5 s would exceed 15 s grouped with the whole next sentence, the next sentence is split at a clause boundary and its first part is grouped with the short sentence; the rest of that sentence follows the normal rules.
 - **AC3 — No other sentence is split:** internal cuts are allowed only inside sentences that AC1 or AC2 requires to split.
 - **AC4 — No boundary, no split:** a sentence that must split but has no comma, semicolon or conjunction is kept whole (with the short sentence, in the AC2 case) and flagged `unsplittable-sentence`, as JOS-140 already does. After this change that flag means exactly "no clause boundary", not "not split yet".

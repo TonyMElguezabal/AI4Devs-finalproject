@@ -52,12 +52,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 ## 6. Application: segmentation algorithm and edge cases (TDD)
 
 - [ ] 6.1 ~~Ordinary segmentation~~ moved to `segment-script-into-chunks` (JOS-140)
-- [ ] 6.2 Write a failing test for the clause-boundary exception when one sentence alone exceeds the upper bound
+- [ ] 6.2 ~~Clause-boundary exception when one sentence alone exceeds the upper bound~~ moved to `split-sentences-at-clause-boundaries` (JOS-141)
 - [ ] 6.3 ~~Whole script below the lower bound~~ moved to `segment-script-into-chunks` (JOS-140)
-- [ ] 6.4 Write a failing test for the short-sentence-borrows-from-next edge case
-- [ ] 6.5 Write a failing test for the no-clause-boundary edge case: chunk kept whole, speed-factor warning recorded, no failure
-- [ ] 6.6 Implement the clause-boundary cases (6.2, 6.4, 6.5) as clause units in the search of `segment-script-into-chunks` (JOS-140), not as a separate algorithm
-- [ ] 6.7 Run the group 6 tests and confirm they pass
+- [ ] 6.4 ~~Short-sentence-borrows-from-next edge case~~ moved to `split-sentences-at-clause-boundaries` (JOS-141)
+- [ ] 6.5 ~~No-clause-boundary edge case (chunk kept whole, speed-factor warning, no failure)~~ moved to `split-sentences-at-clause-boundaries` (JOS-141); the warning itself is JOS-148's
+- [ ] 6.6 ~~Implement the clause-boundary cases as clause units in the search~~ moved to `split-sentences-at-clause-boundaries` (JOS-141)
+- [ ] 6.7 ~~Run the group 6 tests~~ nothing left to run here; see JOS-141's own verification
 
 ## 7. Application: visual instructions and result invariants (TDD)
 

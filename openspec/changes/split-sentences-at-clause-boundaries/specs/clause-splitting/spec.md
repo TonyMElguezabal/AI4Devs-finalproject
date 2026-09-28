@@ -28,7 +28,7 @@ A clause boundary SHALL lie right after a comma or semicolon followed by whitesp
 
 ### Requirement: A sentence over the maximum is split at clause boundaries
 
-When a sentence's narration alone exceeds the maximum (15 s), the system SHALL split it at one or more clause boundaries, choosing the cuts, together with the rest of the grouping, that need the least total speed change while keeping every piece's chunk within the bounds where possible.
+When a sentence's narration alone exceeds the maximum (15 s), the system SHALL split it at one or more clause boundaries, choosing the cuts, together with the rest of the grouping, in `script-segmentation`'s preference order (fewest fragments ending on a sentence or piece under the lower bound, then the least total speed change) while keeping every piece's chunk within the bounds where possible.
 
 #### Scenario: A long sentence with boundaries
 
@@ -40,7 +40,7 @@ When a sentence's narration alone exceeds the maximum (15 s), the system SHALL s
 
 - **GIVEN** a long sentence with several clause boundaries
 - **WHEN** the script is segmented
-- **THEN** the cuts chosen are those of the grouping with the least total speed change
+- **THEN** the cuts chosen are those of the grouping preferred by `script-segmentation`'s order: fewest fragments ending on a short sentence or piece, then the least total speed change
 
 ### Requirement: A short sentence borrows the next sentence's first clause
 
