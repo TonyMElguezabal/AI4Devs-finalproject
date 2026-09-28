@@ -65,12 +65,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test state of the default test store: row counts, triggers, applied migrations, project folders
-- [ ] 8.2 Run the targeted tests and capture the summary
-- [ ] 8.3 Run the full suite and record totals, failures and runtime
-- [ ] 8.4 Verify the post-test state matches the baseline; restore it if not
-- [ ] 8.5 Write `openspec/changes/assign-scene-identifiers/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
-- [ ] 8.6 Mark this step complete only after the tests pass and the report exists
+- [x] 8.1 Capture the pre-test state of the default test store: row counts, triggers, applied migrations, project folders
+- [x] 8.2 Run the targeted tests and capture the summary — 86 passed, 1 skipped (the opt-in contract test), 1.54 s
+- [x] 8.3 Run the full suite and record totals, failures and runtime — 309 passed, 1 skipped, 5.18 s; the known intermittent orchestrator failure did not occur in this run and is documented in the report
+- [x] 8.4 Verify the post-test state matches the baseline; restore it if not — counts, nine triggers, migrations and the unique index identical; an empty leftover test folder was removed
+- [x] 8.5 Write `openspec/changes/assign-scene-identifiers/reports/2026-09-27-step-8-unit-test-and-db-verification.md`
+- [x] 8.6 Mark this step complete only after the tests pass and the report exists
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
