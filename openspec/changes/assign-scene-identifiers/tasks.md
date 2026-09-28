@@ -58,10 +58,10 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review existing tests that create or modify scenes for anything migration 7 now refuses, and update them — started in group 2: three migration fixtures (two in `content-lock.test.ts`, one in `voice-over-persistence.test.ts`) built a database with only `runs`, while every real database has `scenes` from the baseline schema; they now create the baseline `scenes` table, so migration 7 can alter it
-- [ ] 7.2 Confirm every scenario in `specs/scene-registration/spec.md` has at least one functional test, and list the mapping in the step 8 report
-- [ ] 7.3 Confirm module test coverage has not decreased
-- [ ] 7.4 Run `npm run typecheck` (with `erasableSyntaxOnly`) and the server runtime-load test
+- [x] 7.1 Review existing tests that create or modify scenes for anything migration 7 now refuses, and update them — started in group 2: three migration fixtures (two in `content-lock.test.ts`, one in `voice-over-persistence.test.ts`) built a database with only `runs`, while every real database has `scenes` from the baseline schema; they now create the baseline `scenes` table, so migration 7 can alter it The rest of the review found nothing else: the only other raw scene write in the tests (`session-read.test.ts`) updates `status`, which stays writable
+- [x] 7.2 Confirm every scenario in `specs/scene-registration/spec.md` has at least one functional test, and list the mapping in the step 8 report — all 17 scenarios have a test; the mapping is in the step 8 report
+- [x] 7.3 Confirm module test coverage has not decreased — measured against the base `853d53d`, each on a scratch database: all files lines 91.46% -> 93.04%, branches 82.28% -> 84.90%, functions 97.82% -> 98.09%; `db.ts` lines 97.63% -> 97.85%, branches 87.03% -> 87.93% (after removing three unreachable `?? ""` fallbacks this change had added); `orchestrator.ts` branches 74.62% -> 75.71%; `routes.ts` lines 74.60% -> 76.74%. `routes.ts` branch coverage shows 88.23% -> 85.00% only because V8 counts a handler's branches once it runs: no base test called `/pause`, this change's API test does, so the pause route's unknown-session branch now counts as uncovered. No previously covered branch lost its coverage
+- [x] 7.4 Run `npm run typecheck` (with `erasableSyntaxOnly`) and the server runtime-load test — typecheck exit 0; `server-runtime-load.test.ts` passes (the server loads under real `node`)
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 

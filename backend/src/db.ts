@@ -405,9 +405,10 @@ function rowToScene(row: any): Scene {
     lastError: row.last_error,
     result: row.result,
     instruction: row.instruction,
-    prompt: row.prompt ?? "",
-    imageInstruction: row.image_instruction ?? "",
-    videoInstruction: row.video_instruction ?? "",
+    // NOT NULL DEFAULT '' since migration 7, so no fallback is needed.
+    prompt: row.prompt,
+    imageInstruction: row.image_instruction,
+    videoInstruction: row.video_instruction,
     provider: row.provider,
     providerMode: row.provider_mode,
     providerLatencyMs: row.provider_latency_ms,
