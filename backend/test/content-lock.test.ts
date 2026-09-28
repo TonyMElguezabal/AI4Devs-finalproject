@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  ArtefactAlreadyExistsError,
   applyMigrationsTo,
   bindVoiceProvider,
   countVoiceOvers,
@@ -14,9 +15,11 @@ import {
   getVoiceOver,
   insertVoiceOver,
   resetAll,
+  resolveArtefactPath,
   setRunFailure,
   setRunPaused,
   type VoiceOverInput,
+  writeArtefactOnce,
 } from "../src/db.ts";
 import { createVoiceOverFailure } from "../src/sessionStateMachine.ts";
 
@@ -276,5 +279,93 @@ describe("The test-only reset empties voice-overs without lifting the lock (desi
     expect(triggerNames()).toEqual(
       expect.arrayContaining(["runs_language_locked", "runs_script_locked", "runs_title_locked"]),
     );
+  });
+});
+
+
+// ---- Group 4 — the MP3 file is written once (AC2, design Decision 3) ----
+
+describe("An artefact that must not be replaced is written once", () => {
+  const filesIn = (projectFolder: string, relativeDir = "."): string[] =>
+    readdirSync(resolveArtefactPath(projectFolder, relativeDir)).sort();
+
+  it("writes a new file under the session's project folder and returns its relative path", () => {
+    const { projectFolder } = createRun(randomUUID(), "Once", "A script.", "en");
+
+    const relativePath = writeArtefactOnce(projectFolder, "voice-over.mp3", Buffer.from("first"));
+
+    expect(relativePath).toBe("voice-over.mp3");
+    expect(readFileSync(resolveArtefactPath(projectFolder, relativePath), "utf8")).toBe("first");
+  });
+
+  it("refuses a second write to the same path and leaves the first file's bytes unchanged", () => {
+    const { projectFolder } = createRun(randomUUID(), "Once", "A script.", "en");
+    writeArtefactOnce(projectFolder, "voice-over.mp3", Buffer.from("first"));
+
+    expect(() => writeArtefactOnce(projectFolder, "voice-over.mp3", Buffer.from("second"))).toThrow(
+      ArtefactAlreadyExistsError,
+    );
+
+    expect(readFileSync(resolveArtefactPath(projectFolder, "voice-over.mp3"), "utf8")).toBe("first");
+  });
+
+  it("names the refused path in the error", () => {
+    const { projectFolder } = createRun(randomUUID(), "Once", "A script.", "en");
+    writeArtefactOnce(projectFolder, "voice-over.mp3", "first");
+    expect(() => writeArtefactOnce(projectFolder, "voice-over.mp3", "second")).toThrow(/voice-over\.mp3/);
+  });
+
+  it("two back-to-back writes to the same path: exactly one succeeds", () => {
+    const { projectFolder } = createRun(randomUUID(), "Once", "A script.", "en");
+    const outcomes = ["a", "b"].map((content) => {
+      try {
+        writeArtefactOnce(projectFolder, "voice-over.mp3", content);
+        return "written";
+      } catch {
+        return "refused";
+      }
+    });
+    expect(outcomes.filter((outcome) => outcome === "written")).toHaveLength(1);
+  });
+
+  it("stores binary content byte for byte", () => {
+    const { projectFolder } = createRun(randomUUID(), "Once", "A script.", "en");
+    const bytes = Buffer.from(Array.from({ length: 256 }, (_, value) => value));
+
+    writeArtefactOnce(projectFolder, "voice-over.mp3", bytes);
+
+    expect(readFileSync(resolveArtefactPath(projectFolder, "voice-over.mp3")).equals(bytes)).toBe(true);
+  });
+
+  it("creates the directories of a nested path", () => {
+    const { projectFolder } = createRun(randomUUID(), "Once", "A script.", "en");
+    writeArtefactOnce(projectFolder, "audio/voice-over.mp3", "nested");
+    expect(filesIn(projectFolder, "audio")).toEqual(["voice-over.mp3"]);
+  });
+
+  it("refuses a path outside the session's project folder, as writeArtefact does", () => {
+    const { projectFolder } = createRun(randomUUID(), "Once", "A script.", "en");
+    expect(() => writeArtefactOnce(projectFolder, "../escaped.mp3", "x")).toThrow(/outside/);
+  });
+
+  it("leaves no temporary file behind after a success", () => {
+    const { projectFolder } = createRun(randomUUID(), "Once", "A script.", "en");
+    writeArtefactOnce(projectFolder, "voice-over.mp3", "first");
+    expect(filesIn(projectFolder)).toEqual(["voice-over.mp3"]);
+  });
+
+  it("leaves no temporary file behind after a refusal", () => {
+    const { projectFolder } = createRun(randomUUID(), "Once", "A script.", "en");
+    writeArtefactOnce(projectFolder, "voice-over.mp3", "first");
+    expect(() => writeArtefactOnce(projectFolder, "voice-over.mp3", "second")).toThrow();
+    expect(filesIn(projectFolder)).toEqual(["voice-over.mp3"]);
+  });
+
+  it("does not disturb another session's folder", () => {
+    const first = createRun(randomUUID(), "Same Title", "A script.", "en");
+    const second = createRun(randomUUID(), "Same Title", "A script.", "en");
+    writeArtefactOnce(first.projectFolder, "voice-over.mp3", "first");
+    expect(filesIn(second.projectFolder)).toEqual([]);
+    expect(() => writeArtefactOnce(second.projectFolder, "voice-over.mp3", "second")).not.toThrow();
   });
 });

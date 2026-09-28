@@ -34,12 +34,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 4. Write-once MP3 file (TDD) — design Decision 3
 
-- [ ] 4.1 Write a failing test that `writeArtefactOnce` writes a new file under the session's project folder and returns its relative path
-- [ ] 4.2 Write a failing test that a second `writeArtefactOnce` to the same path is refused and the first file's bytes are unchanged
-- [ ] 4.3 Write a failing test that `writeArtefactOnce` refuses a path outside the session's project folder, as `writeArtefact` does
-- [ ] 4.4 Write a failing test that no temporary file is left behind after a success or a refusal
-- [ ] 4.5 Implement `writeArtefactOnce` in `backend/src/db.ts` (temporary file, `fs.linkSync` to the final name, remove the temporary file), accepting binary content
-- [ ] 4.6 Run the group 4 tests and confirm they pass
+- [x] 4.1 Write a failing test that `writeArtefactOnce` writes a new file under the session's project folder and returns its relative path — `backend/test/content-lock.test.ts`; also binary content byte for byte and nested paths
+- [x] 4.2 Write a failing test that a second `writeArtefactOnce` to the same path is refused and the first file's bytes are unchanged — refusal is a typed `ArtefactAlreadyExistsError` naming the path; two back-to-back writes leave exactly one winner
+- [x] 4.3 Write a failing test that `writeArtefactOnce` refuses a path outside the session's project folder, as `writeArtefact` does — also that another session's folder is undisturbed
+- [x] 4.4 Write a failing test that no temporary file is left behind after a success or a refusal
+- [x] 4.5 Implement `writeArtefactOnce` in `backend/src/db.ts` (temporary file, `fs.linkSync` to the final name, remove the temporary file), accepting binary content
+- [x] 4.6 Run the group 4 tests and confirm they pass — 33/33 in `content-lock.test.ts` (10 failed before the helper), full suite 195/195, `npm run typecheck` clean
 
 ## 5. Voice launch guard (TDD) — design Decision 4
 

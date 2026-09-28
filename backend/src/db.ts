@@ -10,7 +10,7 @@
 // this is no longer a disposable stand-in, it is the decision.
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import type {
   AttemptStage,
@@ -274,6 +274,39 @@ export function writeArtefact(projectFolder: string, relativePath: string, conte
   const fullPath = assertWithinProjectFolder(projectFolder, relativePath);
   mkdirSync(dirname(fullPath), { recursive: true });
   writeFileSync(fullPath, content, "utf8");
+  return relativePath;
+}
+
+export class ArtefactAlreadyExistsError extends Error {
+  constructor(readonly relativePath: string) {
+    super(`refused: '${relativePath}' already exists and is written once`);
+    this.name = "ArtefactAlreadyExistsError";
+  }
+}
+
+/**
+ * lock-script-and-narration (JOS-137) Decision 3 — writes an artefact that
+ * must never be replaced (the voice-over MP3). The content goes to a
+ * temporary name beside the target and is then hard-linked to the final
+ * name: `link` is atomic and fails with EEXIST when the target exists,
+ * whereas `rename` would silently replace it, and an `existsSync` check
+ * before writing would be a read-then-write race. The temporary name is
+ * always removed. Scoped to the session's project folder exactly like
+ * `writeArtefact`. Returns the relative path stored on the record.
+ */
+export function writeArtefactOnce(projectFolder: string, relativePath: string, content: Buffer | string): string {
+  const fullPath = assertWithinProjectFolder(projectFolder, relativePath);
+  mkdirSync(dirname(fullPath), { recursive: true });
+  const temporaryPath = `${fullPath}.${randomUUID()}.tmp`;
+  writeFileSync(temporaryPath, content, { flag: "wx" });
+  try {
+    linkSync(temporaryPath, fullPath);
+  } catch (err: any) {
+    if (err?.code === "EEXIST") throw new ArtefactAlreadyExistsError(relativePath);
+    throw err;
+  } finally {
+    rmSync(temporaryPath, { force: true });
+  }
   return relativePath;
 }
 
