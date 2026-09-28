@@ -1,25 +1,28 @@
 import { closestAdmittedDuration } from "./admittedDurations.ts";
+import { buildUnits } from "./clauseSplitting.ts";
 import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS } from "./config/providers.ts";
 import type { TimestampCharacter } from "./narrationTimestamps.ts";
 import type { FragmentException, SegmentedFragment } from "./sceneRegistration.ts";
 import { findSentences } from "./sentences.ts";
 import { sentenceSpeechSpans, unitBoundaries } from "./sentenceTimings.ts";
 
-// Script segmentation (segment-script-into-chunks, design Decisions 4 and 5):
-// group the script's sentences into fragments of whole consecutive sentences
-// whose narrated duration fits the video provider's limits, choosing, among
-// the valid groupings, the one with the fewest fragments ending on a short
-// sentence and then the least total speed change.
+// Script segmentation (segment-script-into-chunks, design Decisions 4 and 5;
+// split-sentences-at-clause-boundaries, Decision 3): group the script's units
+// — whole sentences, and clause pieces of sentences that must split (JOS-141)
+// — into fragments of whole consecutive units whose narrated duration fits
+// the video provider's limits, choosing, among the valid groupings, the one
+// with the fewest fragments ending on a short unit and then the least total
+// speed change.
 
 export type SegmentationResult = { ok: true; fragments: SegmentedFragment[] } | { ok: false; reason: string };
 
-/** A best grouping of the sentences from some index to the end. */
+/** A best grouping of the units from some index to the end. */
 interface Grouping {
-  /** Fragments that end on a sentence under the lower bound, other than the script's last sentence. */
+  /** Fragments that end on a unit under the lower bound, other than the script's last unit. */
   shortEndCount: number;
   totalSpeedChange: number;
   fragmentCount: number;
-  /** The last sentence of the first fragment; the next grouping starts after it. */
+  /** The last unit of the first fragment; the next grouping starts after it. */
   firstFragmentLast: number;
   next: Grouping | null;
   exceptions: Array<FragmentException | undefined>;
@@ -47,18 +50,27 @@ export function segmentScript(
   const sentences = findSentences(script, language);
   if (sentences.length === 0) return { ok: false, reason: "the script has no sentences" };
 
-  let boundaries: number[];
+  let sentenceBoundaries: number[];
   try {
-    boundaries = unitBoundaries(sentenceSpeechSpans(script, sentences, characters), mp3DurationSeconds);
+    sentenceBoundaries = unitBoundaries(sentenceSpeechSpans(script, sentences, characters), mp3DurationSeconds);
   } catch (error) {
     return { ok: false, reason: `the narration timestamps do not match the script (${(error as Error).message})` };
   }
 
-  const count = sentences.length;
+  // split-sentences-at-clause-boundaries (JOS-141) Decisions 2 and 3: which
+  // sentences must split, from their own narrated duration, and the flat unit
+  // list (whole sentences, and clause pieces of the ones that must) the search
+  // below runs over. A whole sentence's own span is reused as its one unit, so
+  // this never re-checks the character/script match that already passed above.
+  const sentenceDurations = sentences.map((_, index) => sentenceBoundaries[index + 1]! - sentenceBoundaries[index]!);
+  const units = buildUnits(script, sentences, language, sentenceDurations);
+  const boundaries = unitBoundaries(sentenceSpeechSpans(script, units, characters), mp3DurationSeconds);
+
+  const count = units.length;
   const durationOf = (first: number, last: number): number => boundaries[last + 1]! - boundaries[first]!;
   const isShort = (index: number): boolean => durationOf(index, index) < SEGMENTATION_LOWER_BOUND_SECONDS;
 
-  /** Decision 4: whether sentences first..last may be one fragment, and the exception it needs, if any. */
+  /** Decision 4: whether units first..last may be one fragment, and the exception it needs, if any. */
   function classify(first: number, last: number): { allowed: boolean; exception?: FragmentException } {
     const duration = durationOf(first, last);
     if (duration >= SEGMENTATION_LOWER_BOUND_SECONDS && duration <= SEGMENTATION_UPPER_BOUND_SECONDS) {
@@ -72,7 +84,7 @@ export function segmentScript(
     return cannotSplit ? { allowed: true, exception: "unsplittable-sentence" } : { allowed: false };
   }
 
-  // best[i]: the best grouping of sentences i..count-1, or null when none is valid.
+  // best[i]: the best grouping of units i..count-1, or null when none is valid.
   const best: Array<Grouping | null> = new Array(count + 1).fill(null);
   best[count] = { shortEndCount: 0, totalSpeedChange: 0, fragmentCount: 0, firstFragmentLast: count - 1, next: null, exceptions: [] };
 
@@ -84,7 +96,7 @@ export function segmentScript(
       const { allowed, exception } = classify(first, last);
       if (!allowed) continue;
 
-      // PRD §6.1: a short sentence goes with the one that follows; a fragment ending on one is allowed, but counted.
+      // PRD §6.1, extended to pieces by JOS-141: a short unit goes with the one that follows; a fragment ending on one is allowed, but counted.
       const endsOnShortSentence = isShort(last) && last !== count - 1;
       const candidate: Grouping = {
         shortEndCount: rest.shortEndCount + (endsOnShortSentence ? 1 : 0),
@@ -100,7 +112,7 @@ export function segmentScript(
   }
 
   const chosen = best[0] ?? null;
-  if (chosen === null) return { ok: false, reason: "no grouping of the script's sentences satisfies the duration bounds" };
+  if (chosen === null) return { ok: false, reason: "no grouping of the script's units satisfies the duration bounds" };
 
   const fragments: SegmentedFragment[] = [];
   let first = 0;
@@ -108,7 +120,7 @@ export function segmentScript(
   for (const exception of chosen.exceptions) {
     const last: number = grouping!.firstFragmentLast;
     fragments.push({
-      text: script.slice(sentences[first]!.start, sentences[last]!.end),
+      text: script.slice(units[first]!.start, units[last]!.end),
       narratedDurationSeconds: durationOf(first, last),
       ...(exception ? { exception } : {}),
     });

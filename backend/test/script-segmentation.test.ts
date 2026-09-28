@@ -160,7 +160,7 @@ describe("A whole script below the lower bound", () => {
   });
 });
 
-describe("Fragments that cannot fit without a split (interim, until JOS-141)", () => {
+describe("Fragments that cannot fit without a split (no clause boundary, JOS-141)", () => {
   it("keeps a sentence over the maximum alone, flagged unsplittable-sentence", () => {
     const fragments = fragmentsOf(scenes([20]));
     expect(fragments).toHaveLength(1);

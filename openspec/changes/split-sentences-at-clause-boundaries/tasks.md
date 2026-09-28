@@ -27,14 +27,14 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 4. Grouping with splits (TDD) — AC1 to AC5
 
-- [ ] 4.1 Write failing tests for AC1: a 22 s sentence with boundaries becomes pieces whose chunks each last at most 15 s; the least-cost split is chosen among several
-- [ ] 4.2 Write failing tests for AC2: a 3 s sentence joins the first part of the following 14 s sentence; the rest follows the normal rules
-- [ ] 4.3 Write failing tests for AC3: a 9 s sentence with commas in an ordinary script stays whole
-- [ ] 4.4 Write failing tests for AC4: an 18 s sentence without boundaries, and a 3 s sentence before a 14 s one without boundaries, are flagged `unsplittable-sentence`; a split sentence's pieces are not flagged
-- [ ] 4.5 Write failing tests for the short-piece rule: a short last piece joins the unit after it, or before it at the end of the script
-- [ ] 4.6 Write failing tests for AC5 and that every result passes JOS-144's validation for the same script
-- [ ] 4.7 Update JOS-140's tests that asserted the interim flag on sentences that do have boundaries, since they now split
-- [ ] 4.8 Extend `segmentScript` to search over units, then run the group 4 tests and JOS-140's
+- [x] 4.1 Write failing tests for AC1: a 22 s sentence with boundaries becomes pieces whose chunks each last at most 15 s; the least-cost split is chosen among several
+- [x] 4.2 Write failing tests for AC2: a 3 s sentence joins the first part of the following 14 s sentence; the rest follows the normal rules
+- [x] 4.3 Write failing tests for AC3: a 9 s sentence with commas in an ordinary script stays whole
+- [x] 4.4 Write failing tests for AC4: an 18 s sentence without boundaries, and a 3 s sentence before a 14 s one without boundaries, are flagged `unsplittable-sentence`; a split sentence's pieces are not flagged
+- [x] 4.5 Write failing tests for the short-piece rule: a short last piece joins the unit after it, or before it at the end of the script
+- [x] 4.6 Write failing tests for AC5 and that every result passes JOS-144's validation for the same script
+- [x] 4.7 Update JOS-140's tests that asserted the interim flag on sentences that do have boundaries, since they now split
+- [x] 4.8 Extend `segmentScript` to search over units, then run the group 4 tests and JOS-140's
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
