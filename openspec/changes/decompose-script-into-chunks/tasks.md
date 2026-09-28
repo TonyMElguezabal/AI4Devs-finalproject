@@ -61,11 +61,11 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 7. Application: visual instructions and result invariants (TDD)
 
-- [ ] 7.1 Write a failing test that every produced chunk receives a non-empty `IMAGE` and `VIDEO` instruction from the reasoning provider
-- [ ] 7.2 Write a failing test that the joined `PROMPT` fields (ascending `sequence_number`) reconstruct the locked script exactly, aside from whitespace normalization
-- [ ] 7.3 Write a failing test that a reconstruction mismatch fails decomposition as a system defect, not a script error
+- [ ] 7.1 ~~Instructions for every chunk~~ moved to `assign-scene-identifiers` (JOS-144); hand the ordered fragments to its `registerDecomposition` instead
+- [ ] 7.2 ~~Script reconstruction~~ moved to `assign-scene-identifiers` (JOS-144)
+- [ ] 7.3 ~~Reconstruction mismatch as a system defect~~ moved to `assign-scene-identifiers` (JOS-144)
 - [ ] 7.4 Write a failing test that the narration intervals form a contiguous, non-overlapping partition from 0 to the voice-over's total duration
-- [ ] 7.5 Write a failing test that a gap, overlap, or incomplete chunk (missing one of the four content fields) fails decomposition as a system defect
+- [ ] 7.5 Write a failing test that a gap or overlap fails decomposition as a system defect (the incomplete-chunk check moved to `assign-scene-identifiers` (JOS-144))
 - [ ] 7.6 Implement the post-condition checks per design.md Decision 4, run after segmentation and instruction generation, before the `decomposition` stage instance can succeed
 - [ ] 7.7 Write failing tests for the two manual-retry routes: `timestamps` retry with unusable-native-timestamps history goes straight to alignment; `decomposition` retry re-splits the same script and timestamps without touching the voice-over
 - [ ] 7.8 Implement both manual-retry routes, reusing `stage-retry-policy`'s manual-retry mechanism

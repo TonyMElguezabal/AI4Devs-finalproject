@@ -1,6 +1,6 @@
 # Script decomposition
 
-Requirements for turning a session's locked script and completed voice-over into an ordered set of chunks with narration intervals and visual instructions. Retrying failed attempts, the per-stage request cap, pausing a launch, and resuming in-flight requests after a restart are owned by `stage-retry-policy`, `stage-execution-time-limit` and their siblings; this capability covers when the phase starts, how timestamps are obtained, how the script is segmented, what a valid result must satisfy, and how its two recoverable failures are retried.
+Requirements for turning a session's locked script and completed voice-over into an ordered set of chunks with narration intervals and visual instructions. Retrying failed attempts, the per-stage request cap, pausing a launch, and resuming in-flight requests after a restart are owned by `stage-retry-policy`, `stage-execution-time-limit` and their siblings; this capability covers when the phase starts, how timestamps are obtained, how the script is segmented, what a valid result must satisfy, and how its two recoverable failures are retried. Assigning chunk identifiers, generating the `IMAGE` and `VIDEO` instructions, checking the finished structure (four fields, §6.1 bounds, script reconstruction) and registering the chunks moved to `assign-scene-identifiers` (JOS-144); this capability hands it the ordered fragments.
 
 ## ADDED Requirements
 
@@ -100,44 +100,6 @@ When a sentence must be split — because it exceeds the upper bound alone, or b
 - **AND** a speed-factor warning is recorded for that chunk
 - **AND** decomposition does not fail because of it
 
-### Requirement: Each chunk receives a consecutive, session-scoped, immutable identifier
-
-The system SHALL assign each chunk a numeric identifier from 1 to N by order of appearance in the script. The identifier SHALL be unique within the session, but not necessarily unique across sessions, and SHALL NOT change during processing or any later retry.
-
-#### Scenario: Chunks are numbered by appearance order
-
-- **WHEN** a script decomposes into N chunks
-- **THEN** their identifiers are the consecutive integers 1 to N in order of appearance in the script
-
-#### Scenario: A chunk is retried
-
-- **WHEN** a chunk's image or video stage is retried
-- **THEN** its identifier is unchanged
-
-### Requirement: Every chunk receives complete visual instructions
-
-For every chunk, the system SHALL generate an `IMAGE` instruction and a `VIDEO` instruction from that chunk's `PROMPT`, using the reasoning provider. Generating these instructions SHALL NOT be treated as a modification of the script.
-
-#### Scenario: A chunk is produced
-
-- **WHEN** a chunk is produced by decomposition
-- **THEN** it carries a non-empty `IMAGE` instruction and a non-empty `VIDEO` instruction generated from its `PROMPT`
-
-### Requirement: The joined chunk prompts reconstruct the script exactly
-
-The system SHALL verify, before completing decomposition, that the `PROMPT` fields of all chunks, joined in ascending identifier order, are identical to the session's locked script except for normalized whitespace. A mismatch SHALL be treated as a decomposition failure of the system, never as an error in the User's script.
-
-#### Scenario: The reconstruction matches
-
-- **WHEN** decomposition completes for a session
-- **THEN** the chunks' `PROMPT` fields joined in order equal the locked script, aside from whitespace normalization
-
-#### Scenario: The reconstruction does not match
-
-- **WHEN** the joined `PROMPT` fields do not reconstruct the locked script
-- **THEN** decomposition is recorded as failed
-- **AND** the failure is attributed to the system, not to the User's script
-
 ### Requirement: Chunk intervals partition the voice-over without gaps or overlaps
 
 The system SHALL verify, before completing decomposition, that the chunks' narration intervals, taken in ascending identifier order, are contiguous and non-overlapping, starting at second 0 and ending at the voice-over's total duration. A violation SHALL be treated as a decomposition failure of the system.
@@ -151,16 +113,6 @@ The system SHALL verify, before completing decomposition, that the chunks' narra
 
 - **WHEN** the computed chunk intervals leave a gap or overlap
 - **THEN** decomposition is recorded as failed as a system defect
-
-### Requirement: An incomplete chunk structure is a decomposition failure
-
-The system SHALL verify, before completing decomposition, that every chunk carries all four content fields (`ID`, `PROMPT`, `IMAGE`, `VIDEO`). A chunk missing any of them SHALL be treated as a decomposition failure of the system, never as an error in the User's script.
-
-#### Scenario: A chunk is missing a field
-
-- **WHEN** any produced chunk lacks one of its four content fields
-- **THEN** decomposition is recorded as failed
-- **AND** the failure is attributed to the system, not to the User's script
 
 ### Requirement: Timestamps and decomposition are retried as separate stage instances
 
