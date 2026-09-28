@@ -72,14 +72,14 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 9. E2E Testing (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Decide applicability: the session page lists chunks; if it does, check that a session decomposed in step 8 shows its chunks in order; otherwise record why not
-- [ ] 9.2 Save `openspec/changes/segment-script-into-chunks/reports/YYYY-MM-DD-step-9-e2e.md`
+- [x] 9.1 Decide applicability: the session page lists chunks; if it does, check that a session decomposed in step 8 shows its chunks in order; otherwise record why not
+- [x] 9.2 Save `openspec/changes/segment-script-into-chunks/reports/YYYY-MM-DD-step-9-e2e.md`
 
 ## 10. Update Technical Documentation (MANDATORY)
 
-- [ ] 10.1 `docs/backend-standards.md`: the segmentation module (sentence rule, duration rule and why JOS-143 must share it, the grouping search), the admitted-duration constant, and the phase entry point
-- [ ] 10.2 `docs/data-model.md`: how the stored timestamps become fragments, if anything needs recording there
-- [ ] 10.3 `docs/api-spec.yml`: regenerate from `GET /docs/json` and confirm no change
+- [x] 10.1 `docs/backend-standards.md`: the segmentation module (sentence rule, duration rule and why JOS-143 must share it, the grouping search), the admitted-duration constant, and the phase entry point
+- [x] 10.2 `docs/data-model.md`: how the stored timestamps become fragments, if anything needs recording there
+- [x] 10.3 `docs/api-spec.yml`: regenerate from `GET /docs/json` and confirm no change
 
 ## 11. Close out
 
