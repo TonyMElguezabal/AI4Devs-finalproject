@@ -70,12 +70,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test state: row counts from `snapshotCounts()`, the trigger list from `sqlite_master`, and the file list of `backend/data/`
-- [ ] 8.2 Run the targeted tests for this story and capture the pass/fail summary
-- [ ] 8.3 Run the full suite (`npm test` in `backend/`) and record totals, failures and runtime
-- [ ] 8.4 Verify the post-test state matches the baseline, including that all four triggers are present. Restore it if it does not
-- [ ] 8.5 Write the report `openspec/changes/lock-script-and-narration/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
-- [ ] 8.6 Mark this step complete only after the tests pass and the report exists
+- [x] 8.1 Capture the pre-test state: row counts from `snapshotCounts()`, the trigger list from `sqlite_master`, and the file list of `backend/data/`
+- [x] 8.2 Run the targeted tests for this story and capture the pass/fail summary — 61/61 in 4 files, 1.33 s
+- [x] 8.3 Run the full suite (`npm test` in `backend/`) and record totals, failures and runtime — 223/223 in 13 files, 3.83 s, 0 failures; `npm run typecheck` exit 0
+- [x] 8.4 Verify the post-test state matches the baseline, including that all five triggers are present. Restore it if it does not — counts, triggers and migrations identical; only the name of an empty leftover test folder differed, and it was removed with `rmdir`
+- [x] 8.5 Write the report `openspec/changes/lock-script-and-narration/reports/2026-09-27-step-8-unit-test-and-db-verification.md`
+- [x] 8.6 Mark this step complete only after the tests pass and the report exists — both true
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
@@ -94,7 +94,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/data-model.md`: record the four triggers under the store's guarantees, next to the existing primary-key guarantees, and note that `resetAll()` is the only code that lifts one, test-only
+- [ ] 11.1 `docs/data-model.md`: record the five triggers under the store's guarantees, next to the existing primary-key guarantees, and note that `resetAll()` is the only code that lifts one, test-only
 - [ ] 11.2 `docs/api-spec.yml`: confirm no operation modifies the script, title or language or touches the voice-over, and state in the session description that they are immutable
 - [ ] 11.3 `docs/backend-standards.md`: record the rule that immutable fields are locked by store triggers, and that artefacts that must not be replaced are written with `writeArtefactOnce`
 
