@@ -59,12 +59,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 7.1 Capture the pre-test state of the default test store (counts, triggers, migrations, project folders)
-- [ ] 7.2 Run the targeted tests and capture the summary
-- [ ] 7.3 Run the full suite and record totals, failures and runtime (the known intermittent `orchestrator.test.ts` failure is reported, not hidden)
-- [ ] 7.4 Verify the post-test state matches the baseline; restore it if not
-- [ ] 7.5 Write `openspec/changes/obtain-narration-timestamps/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`
-- [ ] 7.6 Mark this step complete only after the tests pass and the report exists
+- [x] 7.1 Capture the pre-test state of the default test store (counts, triggers, migrations, project folders) — the captured state was not clean: it held residue from earlier suite runs (the suite resets at the start of each test, not at the end); recorded in the report
+- [x] 7.2 Run the targeted tests and capture the summary — 179 passed, 1 skipped (the opt-in contract test), 1.66 s
+- [x] 7.3 Run the full suite and record totals, failures and runtime (the known intermittent `orchestrator.test.ts` failure is reported, not hidden) — 418 passed, 2 skipped, 6.43 s, 0 failures in this run; the known intermittent `orchestrator.test.ts` failure appeared once in the earlier runs of this change and is reported, not hidden
+- [x] 7.4 Verify the post-test state matches the baseline; restore it if not — after the run only an empty leftover folder differed; removed with `rmdir`; 0 rows, 11 triggers, migrations 2-8
+- [x] 7.5 Write `openspec/changes/obtain-narration-timestamps/reports/2026-09-28-step-7-unit-test-and-db-verification.md`
+- [x] 7.6 Mark this step complete only after the tests pass and the report exists
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
