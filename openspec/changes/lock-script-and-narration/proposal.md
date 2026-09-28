@@ -34,7 +34,7 @@ None. `session-creation` (from `start-video-project`) and `voice-over-generation
 
 - **Depends on** JOS-134 (done: sessions and the stored script) and JOS-136 (in progress: the `voice_overs` table, migration 4, and the voice launch). This change is stacked on the JOS-136 branch.
 - **Backend:**
-  - one migration adding store triggers that refuse updating `runs.title`, `runs.script` and `runs.language`, and refuse updating or deleting a `voice_overs` row
+  - two migrations adding store triggers that refuse updating `runs.title`, `runs.script` and `runs.language`, and refuse updating or deleting a `voice_overs` row
   - `canLaunchVoiceOver` in the domain layer
   - `generate-voice-over`'s launch goes through the guard
 - **API:** no new route. A test asserts that no route modifies a session's script, title or language, and that no route regenerates the narration.

@@ -105,6 +105,21 @@ function lockedSessionColumnTriggerDdl(column: (typeof LOCKED_SESSION_COLUMNS)[n
 
 export const SESSION_CONTENT_LOCK_TRIGGERS_DDL: readonly string[] = LOCKED_SESSION_COLUMNS.map(lockedSessionColumnTriggerDdl);
 
+// A completed narration is never replaced (AC2, design Decision 2): the
+// record cannot be modified or deleted once written, and the primary key
+// already refuses a second one. Only `resetAll()` (test-only) lifts the
+// delete trigger, inside one transaction, and recreates it from this same
+// constant so the two cannot drift.
+export const VOICE_OVER_NO_UPDATE_TRIGGER_DDL = `CREATE TRIGGER voice_overs_no_update BEFORE UPDATE ON voice_overs
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: voice_overs cannot be modified once the narration is complete');
+  END;`;
+
+export const VOICE_OVER_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER voice_overs_no_delete BEFORE DELETE ON voice_overs
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: voice_overs cannot be deleted once the narration is complete');
+  END;`;
+
 // ---- Versioned migrations (Decision 6) — applied on top of the baseline ----
 // Each migration takes the target database explicitly (not a closed-over
 // singleton) so the exact same runner can be pointed at a fixture database
@@ -171,6 +186,14 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
     description: "lock the session's title, script and language (lock-script-and-narration, JOS-137)",
     up: (target) => {
       for (const ddl of SESSION_CONTENT_LOCK_TRIGGERS_DDL) target.exec(ddl);
+    },
+  },
+  {
+    version: 6,
+    description: "lock a completed voice-over record against update and delete (lock-script-and-narration, JOS-137)",
+    up: (target) => {
+      target.exec(VOICE_OVER_NO_UPDATE_TRIGGER_DDL);
+      target.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
     },
   },
 ];
@@ -664,9 +687,21 @@ export function snapshotCounts(): {
  * against anything but an isolated `DB_PATH`/`PROJECTS_ROOT` (see the test
  * command in `docs/backend-standards.md`'s persistence section). */
 export function resetAll(): void {
-  db.exec(
-    "DELETE FROM stage_attempts; DELETE FROM voice_overs; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
-  );
+  // The one place the voice-over delete lock is lifted (design Decision 2):
+  // inside a single transaction, so the trigger is back — or the whole reset
+  // is rolled back — before anything else can observe the database.
+  db.exec("BEGIN");
+  try {
+    db.exec("DROP TRIGGER voice_overs_no_delete");
+    db.exec(
+      "DELETE FROM stage_attempts; DELETE FROM voice_overs; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
+    );
+    db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
   // Tests create real project folders on disk (Decision 4); wipe them too,
   // or a second test run collides with the previous run's leftover folders
   // (found by running the suite twice in a row during this change's own

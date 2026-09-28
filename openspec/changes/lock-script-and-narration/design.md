@@ -61,7 +61,7 @@ There is no route to add. Tests assert, against the built Fastify app, that no `
 
 ## Migration Plan
 
-- One migration (version 5) creates the five triggers (three on `runs`, two on `voice_overs`). It changes no data, so existing sessions keep their content and simply become protected.
+- Two migrations: version 5 creates the three triggers on `runs`, and version 6 creates the two on `voice_overs`. They are split because a database that already applied version 5 must still receive the voice-over triggers, and an applied migration is never edited. It changes no data, so existing sessions keep their content and simply become protected.
 - Rollback: a migration that drops the triggers. No data changes either way.
 
 ## Open Questions

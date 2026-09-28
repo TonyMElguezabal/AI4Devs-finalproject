@@ -26,11 +26,11 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 3. Voice-over record lock (TDD) — design Decision 2
 
-- [ ] 3.1 Write failing tests that a raw `UPDATE` and a raw `DELETE` of a `voice_overs` row are refused and the row is unchanged
-- [ ] 3.2 Add the `BEFORE UPDATE` and `BEFORE DELETE` triggers on `voice_overs` to migration 5, each DDL in a named constant
-- [ ] 3.3 Write a failing test that `resetAll()` empties `voice_overs` and that the delete trigger exists again afterwards (queried from `sqlite_master`)
-- [ ] 3.4 Update `resetAll()` to drop the delete trigger, delete the rows and recreate the trigger from the same constant, inside one transaction
-- [ ] 3.5 Run the group 3 tests and confirm they pass
+- [x] 3.1 Write failing tests that a raw `UPDATE` and a raw `DELETE` of a `voice_overs` row are refused and the row is unchanged — `backend/test/content-lock.test.ts`; three columns updated, one row and all rows deleted, and a second voice-over still refused
+- [x] 3.2 Add the `BEFORE UPDATE` and `BEFORE DELETE` triggers on `voice_overs` as migration 6 (migration 5 is already applied to existing databases and is not edited), each DDL in a named constant — `VOICE_OVER_NO_UPDATE_TRIGGER_DDL` and `VOICE_OVER_NO_DELETE_TRIGGER_DDL` in `backend/src/db.ts`; a fixture test proves a database stopped at version 5 gets protected by migration 6
+- [x] 3.3 Write a failing test that `resetAll()` empties `voice_overs` and that the delete trigger exists again afterwards (queried from `sqlite_master`) — also that a voice-over stored after a reset is locked again, and that the session triggers survive
+- [x] 3.4 Update `resetAll()` to drop the delete trigger, delete the rows and recreate the trigger from the same constant, inside one transaction — rolls the whole reset back if any step fails
+- [x] 3.5 Run the group 3 tests and confirm they pass — 23/23 in `content-lock.test.ts` (8 failed before migration 6), full suite 185/185, `npm run typecheck` clean
 
 ## 4. Write-once MP3 file (TDD) — design Decision 3
 

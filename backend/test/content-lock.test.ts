@@ -7,12 +7,16 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   applyMigrationsTo,
   bindVoiceProvider,
+  countVoiceOvers,
   createRun,
   db,
   getRun,
+  getVoiceOver,
+  insertVoiceOver,
   resetAll,
   setRunFailure,
   setRunPaused,
+  type VoiceOverInput,
 } from "../src/db.ts";
 import { createVoiceOverFailure } from "../src/sessionStateMachine.ts";
 
@@ -151,5 +155,126 @@ describe("A session stored before the lock existed (define-persistence Decision 
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+
+// ---- Group 3 — a completed narration is never replaced (AC2, design Decision 2) ----
+
+function voiceOverFor(runId: string): VoiceOverInput {
+  return {
+    runId,
+    audioPath: "voice-over.mp3",
+    timestampsPath: null,
+    durationSeconds: 12.5,
+    sizeBytes: 200_000,
+    nativeTimestampsAvailable: false,
+    providerRequestId: "req-1",
+    completedAt: "2026-09-28T10:00:00.000Z",
+  };
+}
+
+function triggerNames(target: DatabaseSync = db): string[] {
+  return (
+    target.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' ORDER BY name").all() as Array<{ name: string }>
+  ).map((row) => row.name);
+}
+
+describe("A completed voice-over record cannot be modified or deleted (AC2)", () => {
+  it.each([
+    ["audio_path", "UPDATE voice_overs SET audio_path = 'replaced.mp3' WHERE run_id = ?"],
+    ["duration_seconds", "UPDATE voice_overs SET duration_seconds = 99 WHERE run_id = ?"],
+    ["native_timestamps_available", "UPDATE voice_overs SET native_timestamps_available = 1 WHERE run_id = ?"],
+  ])("refuses a modification of %s and leaves the record unchanged", (_column, statement) => {
+    const runId = newRunId();
+    insertVoiceOver(voiceOverFor(runId));
+
+    expect(() => db.prepare(statement).run(runId)).toThrow(/locked/);
+
+    expect(getVoiceOver(runId)).toEqual(voiceOverFor(runId));
+  });
+
+  it("refuses a deletion and the record still exists", () => {
+    const runId = newRunId();
+    insertVoiceOver(voiceOverFor(runId));
+
+    expect(() => db.prepare("DELETE FROM voice_overs WHERE run_id = ?").run(runId)).toThrow(/locked/);
+
+    expect(countVoiceOvers(runId)).toBe(1);
+    expect(getVoiceOver(runId)).toEqual(voiceOverFor(runId));
+  });
+
+  it("refuses a deletion of every row at once", () => {
+    const runA = newRunId();
+    const runB = newRunId();
+    insertVoiceOver(voiceOverFor(runA));
+    insertVoiceOver(voiceOverFor(runB));
+
+    expect(() => db.exec("DELETE FROM voice_overs")).toThrow(/locked/);
+
+    expect(countVoiceOvers(runA) + countVoiceOvers(runB)).toBe(2);
+  });
+
+  it("still refuses a second voice-over for the same session", () => {
+    const runId = newRunId();
+    insertVoiceOver(voiceOverFor(runId));
+    expect(insertVoiceOver({ ...voiceOverFor(runId), audioPath: "second.mp3" })).toBe(false);
+    expect(getVoiceOver(runId)?.audioPath).toBe("voice-over.mp3");
+  });
+
+  it("protects a database that already applied migration 5, through migration 6", () => {
+    const dir = mkdtempSync(join(tmpdir(), "vid4you-lock-migration-6-test-"));
+    try {
+      const fixture = new DatabaseSync(join(dir, "at-version-5.sqlite"));
+      fixture.exec("CREATE TABLE runs (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, paused INTEGER NOT NULL DEFAULT 0);");
+      applyMigrationsTo(fixture);
+      // Pretend this database stopped at version 5: drop what migration 6 added and forget it ran.
+      fixture.exec("DROP TRIGGER voice_overs_no_update; DROP TRIGGER voice_overs_no_delete; DELETE FROM schema_migrations WHERE version = 6;");
+      fixture.prepare("INSERT INTO runs (id, title, created_at, paused, script) VALUES ('r', 't', 'now', 0, 's')").run();
+      fixture
+        .prepare(
+          "INSERT INTO voice_overs (run_id, audio_path, duration_seconds, size_bytes, native_timestamps_available, completed_at) VALUES ('r', 'a.mp3', 1, 1, 0, 'now')",
+        )
+        .run();
+
+      expect(applyMigrationsTo(fixture)).toEqual([6]);
+
+      expect(() => fixture.prepare("UPDATE voice_overs SET audio_path = 'x' WHERE run_id = 'r'").run()).toThrow(/locked/);
+      expect(() => fixture.prepare("DELETE FROM voice_overs WHERE run_id = 'r'").run()).toThrow(/locked/);
+      expect(triggerNames(fixture)).toEqual(
+        expect.arrayContaining(["voice_overs_no_delete", "voice_overs_no_update"]),
+      );
+      fixture.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("The test-only reset empties voice-overs without lifting the lock (design Decision 2)", () => {
+  it("removes the voice-over rows and leaves both voice-over triggers in place", () => {
+    const runId = newRunId();
+    insertVoiceOver(voiceOverFor(runId));
+
+    resetAll();
+
+    expect(db.prepare("SELECT COUNT(*) c FROM voice_overs").get()).toEqual({ c: 0 });
+    expect(triggerNames()).toEqual(expect.arrayContaining(["voice_overs_no_delete", "voice_overs_no_update"]));
+  });
+
+  it("locks a voice-over stored after a reset, exactly as before", () => {
+    resetAll();
+    const runId = newRunId();
+    insertVoiceOver(voiceOverFor(runId));
+
+    expect(() => db.prepare("DELETE FROM voice_overs WHERE run_id = ?").run(runId)).toThrow(/locked/);
+    expect(() => db.prepare("UPDATE voice_overs SET audio_path = 'x' WHERE run_id = ?").run(runId)).toThrow(/locked/);
+  });
+
+  it("leaves the session content locks in place too", () => {
+    resetAll();
+    expect(triggerNames()).toEqual(
+      expect.arrayContaining(["runs_language_locked", "runs_script_locked", "runs_title_locked"]),
+    );
   });
 });
