@@ -53,8 +53,8 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 6. API surface (TDD) — AC4
 
-- [ ] 6.1 Write failing tests that no route deletes, reorders, splits or merges scenes, and that the correction route leaves `idx`, `prompt` and `run_id` unchanged even if the body names them
-- [ ] 6.2 Make any change the tests require (none expected), then run the group 6 tests
+- [x] 6.1 Write failing tests that no route deletes, reorders, splits or merges scenes, and that the correction route leaves `idx`, `prompt` and `run_id` unchanged even if the body names them — `backend/test/scene-api-surface.test.ts`: no route path names split/merge/reorder/move/order/position/renumber; DELETE/PUT/PATCH on a scene and on the scene collection, and POST .../split, /merge, /reorder, /move answer 404 and change nothing; a correction body naming `index`, `idx`, `prompt` and `runId` changes only the instruction. They passed on first run (they prove an absence); a temporary DELETE scene route and a reorder route made 3 of them fail, then were reverted
+- [x] 6.2 Make any change the tests require (none expected), then run the group 6 tests — no production change needed; 12/12
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
