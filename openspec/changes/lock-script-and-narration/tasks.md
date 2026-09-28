@@ -55,9 +55,9 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 6. API surface (TDD) — design Decision 5
 
-- [ ] 6.1 Write a failing test that the built app has no `PUT`, `PATCH` or `DELETE` route on `/sessions/:sessionId` or on anything that exposes the voice-over
-- [ ] 6.2 Write a failing test that a `POST /sessions/:sessionId/scenes/:sceneId/correct` body carrying a `script` field leaves the session's script unchanged
-- [ ] 6.3 Make any change the tests require (none is expected), then run the group 6 tests and confirm they pass
+- [x] 6.1 Write a failing test that the built app has no `PUT`, `PATCH` or `DELETE` route on `/sessions/:sessionId` or on anything that exposes the voice-over — `backend/test/session-api-surface.test.ts`: the route table has no PUT/PATCH/DELETE and nothing named voice/narration/audio/mp3, probed candidate paths answer 404, and positive controls prove the listing sees the real routes. It passed on first run (it proves an absence); a temporary `PATCH /sessions/:sessionId` made 2 tests fail, then was reverted
+- [x] 6.2 Write a failing test that a `POST /sessions/:sessionId/scenes/:sceneId/correct` body carrying a `script` field leaves the session's script unchanged — also `title` and `language`, a body of only locked fields (400), and a refused correction on a non-failed scene (409); the session is paused in these tests so no provider timer outlives them
+- [x] 6.3 Make any change the tests require (none is expected), then run the group 6 tests and confirm they pass — no production change needed; 16/16 new tests pass, full suite 222/222, `npm run typecheck` clean
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
