@@ -42,13 +42,13 @@ The provider identifier comes from the constants module the first time; every la
 *Alternatives:* reading the constant on every attempt (rejected: §11.2 attaches the binding to the session, and a later build with a different hardcoded provider would silently switch a failed session's provider — the switch the MVP excludes).
 
 **Decision 4 — Put the provider behind a port, with the classification inside the adapter.**
-A `VoiceProvider` port offers `synthesize(text, language, voice, quality, speed)` returning the audio, any native timestamps and the provider's request identifier, and failing with an error already classified as `transient` or `not-retryable`. The real adapter implements the signal US-33 records; the stub from `define-backend-stack` implements the same port for tests.
+A `VoiceProvider` port offers `synthesize(text, language, voice, quality, speed)` returning the audio, any native timestamps and the provider's request identifier, and failing with an error already classified as `transient` or `not-retryable`. The real adapter classifies by HTTP status only, because US-33 found no distinguishable content-rejection signal for the voice provider (`NOT_RETRYABLE_FAILURE_SIGNAL_CONFIRMED = false`, ADR 0005 Decision 5): **not retryable** for 4xx except 408 and 429 (bad credential, invalid voice, rejected input); **transient** for 408, 429, 5xx, network errors and timeouts. The product owner confirmed on 2026-09-28 that this is all that can be done until the provider returns a clear error; when it does, the classification changes in this one adapter method. The stub from `define-backend-stack` implements the same port for tests.
 *Alternatives:* classifying errors in the application layer (rejected: US-33 Decision 5 notes the not-retryable signal may live in a response body field that only the adapter understands, and the application would acquire provider-specific knowledge); treating every failure as transient (rejected: §10.1 — a content-filter rejection would consume the retry budget with no chance of success).
 
 **Decision 5 — Send the whole script in one request; do not split to fit a provider limit.**
 The request carries the stored script unaltered. A provider refusal on length is a not-retryable failure with its cause reported.
 *Alternatives:* splitting at sentence boundaries into several requests and concatenating the audio into one MP3 (not adopted here: it does not trim content, but it multiplies attempts per narration, complicates the provider binding and the retry budget, and requires merging timestamps across joins — a product decision the ticket raises as open question 1, not one this design can take quietly); truncating (rejected: §4.1 forbids it outright).
-This decision is only safe if the chosen provider accepts a realistic script. Task 1 gates implementation on the limit US-33 records.
+The product owner decided (2026-09-28) that the MVP sets **no limit on script length**: the only practical bound is the voice account's character credits, which renew monthly, and a User may spend all of them on one script. No length check, cap or split is added; a provider refusal on length, if one ever occurs, is still reported as a not-retryable failure with its cause.
 
 **Decision 6 — Store the MP3 and raw timestamps as files in the project folder, with a 1:1 voice-over record.**
 The audio is streamed to a temporary file in the session's project folder and renamed into place once complete; raw timestamps are written the same way. A voice-over record, unique on the session, holds the relative paths, duration, size, native-timestamp availability, provider request identifier and completion time.
@@ -76,13 +76,13 @@ The launch is internal. The session read (US-02) gains `voiceOver` and `failure`
 
 ## Risks / Trade-offs
 
-- **The provider's input limit is below a typical script** → Decision 5 then fails most real projects with a correct but useless error. Task 1 blocks implementation until US-33 records the limit; if it is below a realistic script, the split-and-join option is escalated as a product decision before any code is written.
+- **The provider's per-request input limit is below a long script** → Decision 5 then fails that project with the provider's cause and nothing else. Accepted by the product owner (2026-09-28): no length limit is imposed and no split-and-join is built; credits are the only bound. Because no limit is recorded for the voice provider, the real behaviour on a very long script is only observed if it happens, and the not-retryable classification (Decision 4) is what reports it.
 - **A paid generation completes but is lost** → Decision 2 writes the attempt before sending, and Decision 6 renames the file into place only once complete, so a crash leaves either an `in-flight` record for US-28 or a finished file — never a half-written MP3 treated as final.
 - **Native timestamps turn out unusable** → Kept raw (Decision 6), so US-06 can switch to alignment without asking the voice provider again, as §10.3 requires.
-- **The not-retryable signal is misread** → A content rejection classified as transient burns the retry budget once US-22 lands. The classification lives in one adapter method with a test per signal US-33 records.
+- **The not-retryable signal is misread** → With HTTP-status-only classification, a content rejection that the provider reports as HTTP 200 is not detected at all, and a rejection reported with a retryable status burns the retry budget once US-22 lands. The classification lives in one adapter method with a test per status class, so it can change without touching the phase.
 - **Provider audio does not match the recorded duration** → Decision 7 records the measured duration, which is what segmentation and assembly consume.
 - **Logs leak the script or a key** → Logs carry script length and a hash, never the text; credentials are never logged. A test asserts neither appears.
-- **The project folder does not exist yet** → US-30 owns it. If it has not landed, this story does not re-implement §12.2 naming; task 1 records the blocker instead.
+- **US-30 has not landed** → The folder from JOS-134 (`db.ts`) is reused as is (decided 2026-09-28). If US-30 later changes the naming rule, the MP3 path is stored relative to the recorded `project_folder`, so only that one column moves.
 - **Real-provider behaviour differs from the stub** → An opt-in contract test calls the real provider once for success and once for a known rejection, outside the default test run because it costs money and needs a key.
 
 ## Migration Plan
@@ -91,7 +91,7 @@ Nothing is deployed and no session has progressed past `submitted`. The change a
 
 ## Open Questions
 
-1. **Does the chosen voice provider accept a realistic script in one request?** Blocking. If not, choose between failing with the cause (current design) and splitting at sentence boundaries into one joined MP3 — a product decision.
-2. **Does US-30 land first?** Recommended: yes, so the §12.2 folder rule exists in one place.
+1. ~~Does the chosen voice provider accept a realistic script in one request?~~ **Resolved 2026-09-28 by the product owner:** no script-length limit; the account's monthly-renewing credits are the only bound. No split-and-join, no cap. Not blocking.
+2. ~~Does US-30 land first?~~ **Resolved 2026-09-28 by the product owner:** no; this story uses the project folder `backend/src/db.ts` already creates (JOS-134) and does not touch its naming rule. US-30 can still extend it later.
 3. **Is failing the session on a transient error acceptable until US-22 lands?** Decision 10 assumes yes.
-4. **What does the not-retryable signal look like for the chosen provider?** Supplied by US-33; the adapter's classification tests are written from it.
+4. ~~What does the not-retryable signal look like for the chosen provider?~~ **Resolved 2026-09-28 by the product owner:** none is known, so the adapter classifies by HTTP status only (Decision 4) until ElevenLabs returns a clear error. A content rejection that comes back as HTTP 200 audio cannot be detected and stays an open finding in ADR 0005.

@@ -1,31 +1,31 @@
 # Tasks — Generate the full voice-over
 
-The first story that calls a real provider. Group 1 is a hard gate: the foundations this story stands on must have landed, and the voice provider's input limit must be known, before any code is written.
+The first story that calls a real provider. Group 1 is a hard gate: the foundations this story stands on must have landed before any code is written. The voice provider's input limit is not a gate: the product owner decided there is none (task 1.5).
 
 Tests come first throughout: each behaviour gets a failing test before the code that satisfies it, and every requirement scenario has at least one functional test. Automated tests use the stubbed provider only.
 
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Create feature branch `feature/jos-136-generate-voice-over` from `main`
-- [ ] 0.2 Verify branch creation and current branch status
+- [x] 0.1 Create feature branch `feature/jos-136-generate-voice-over` from `feature/entrega-2-JAME` (the MVP integration branch; MVP changes do not target `main`)
+- [x] 0.2 Verify branch creation and current branch status
 
-## 1. Gate: Confirm the foundations and the provider limit
+## 1. Gate: Confirm the foundations
 
-- [ ] 1.1 Confirm `start-video-project` (JOS-134) has landed and sessions are registered in `submitted`
-- [ ] 1.2 Confirm `define-backend-stack` (JOS-179) has landed; take the framework, layering, validation approach and the stubbed provider from `docs/backend-standards.md`
-- [ ] 1.3 Confirm `define-persistence` (JOS-181) has landed; take the store, the attempt-record shape and the migration approach from `docs/data-model.md`
-- [ ] 1.4 Confirm `define-provider-configuration` (JOS-165) has landed; locate the voice provider id, voice, quality and speed in the constants module, and its recorded not-retryable signal
-- [ ] 1.5 Read the voice provider's recorded input limit and compare it with a realistic script (≥ 1500 words); if it is lower, stop and escalate design open question 1 as a product decision
-- [ ] 1.6 Confirm US-30 (JOS-162) provides the session's project folder; if not, stop and record the blocker rather than re-implementing the §12.2 naming rule
-- [ ] 1.7 Confirm the media tooling from `define-media-assembly` (JOS-182) can probe an MP3's duration (Decision 7)
-- [ ] 1.8 If any of the above is missing, stop and record the blocker rather than building against a guess
+- [x] 1.1 Confirm `start-video-project` (JOS-134) has landed and sessions are registered in `submitted` — confirmed: `POST /sessions` registers a session with zero scenes, state derives to `submitted` (`backend/src/routes.ts`, `orchestrator.ts`)
+- [x] 1.2 Confirm `define-backend-stack` (JOS-179) has landed (confirmed: `docs/backend-standards.md`, `backend/`, Fastify + Zod, baseline `npm test` 70/70 passing); take the framework, layering, validation approach and the stubbed provider from `docs/backend-standards.md`
+- [x] 1.3 Confirm `define-persistence` (JOS-181) has landed (confirmed: SQLite `db.ts`, append-only `provider_requests`, `scene_results` PK guarantee, versioned migrations, relative-path artefacts); take the store, the attempt-record shape and the migration approach from `docs/data-model.md`
+- [x] 1.4 Confirm `define-provider-configuration` (JOS-165) has landed; locate the voice provider id, voice, quality and speed in the constants module, and its recorded not-retryable signal — confirmed: `VOICE_PROVIDER` in `backend/src/config/providers.ts` (ElevenLabs, `eleven_multilingual_v2`, voice `4YYIPFl9wE5c4L2eu2Gb`, `mp3_44100_128`, default speed). No content-rejection signal is recorded for voice; product owner decided on 2026-09-28 to classify by HTTP status only (design Decision 4)
+- [x] 1.5 Voice input limit: resolved by the product owner on 2026-09-28 — no script-length limit (credits are the only bound, and they renew monthly); no cap and no split-and-join. Recorded in design.md Decision 5 and open question 1
+- [x] 1.6 Confirm US-30 (JOS-162) provides the session's project folder; if not, stop and record the blocker rather than re-implementing the §12.2 naming rule — JOS-162 is still Backlog; product owner decided on 2026-09-28 to use the folder that `backend/src/db.ts` already creates (`deriveAndCreateProjectFolder`, `writeArtefact`, `resolveArtefactPath`, added by JOS-134). This story reuses those functions and does not change the naming rule
+- [x] 1.7 Confirm the media tooling from `define-media-assembly` (JOS-182) can probe an MP3's duration (Decision 7) — confirmed: ffmpeg is the recorded media tool (`docs/backend-standards.md`, ADR 0001 C10); `ffprobe` ships with it and is installed at `/opt/homebrew/bin/ffprobe`. Its use for MP3 duration is not yet written down; task 11.3 records it
+- [x] 1.8 If any of the above is missing, stop and record the blocker rather than building against a guess — nothing is missing; the gate is passed
 
 ## 2. Domain: session state machine (TDD)
 
-- [ ] 2.1 Write failing tests for the allowed transitions `submitted → voice-over-generating`, `voice-over-generating → voice-over-complete` and `voice-over-generating → failed`
-- [ ] 2.2 Write failing tests that every other transition out of these states is refused
-- [ ] 2.3 Write a failing test that a failure carries phase `voice-over`, a cause and its retryability
-- [ ] 2.4 Implement the transitions and the failure value, then run the group 2 tests and confirm they pass
+- [x] 2.1 Write failing tests for the allowed transitions `submitted → voice-over-generating`, `voice-over-generating → voice-over-complete` and `voice-over-generating → failed` — `backend/test/session-state-machine.test.ts`
+- [x] 2.2 Write failing tests that every other transition out of these states is refused — all 61 other pairs of the 8 session states, generated from the table
+- [x] 2.3 Write a failing test that a failure carries phase `voice-over`, a cause and its retryability — also asserts `occurredAt` (design Decision 9) and refuses a blank cause
+- [x] 2.4 Implement the transitions and the failure value, then run the group 2 tests and confirm they pass — `backend/src/sessionStateMachine.ts`; 70/70 new tests pass, full suite 140/140, `npm run typecheck` clean
 
 ## 3. Persistence: records and migration (TDD)
 
@@ -39,7 +39,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 - [ ] 4.1 Define the `VoiceProvider` port: `synthesize` with text, language, voice, quality and speed, returning audio, optional native timestamps and the provider request id, and failing with a classified error (Decision 4)
 - [ ] 4.2 Extend the stubbed provider from `define-backend-stack` to implement the port, with scenarios for success with and without timestamps, transient failure, not-retryable failure, undecodable audio and duplicate confirmation
-- [ ] 4.3 Write failing classification tests for the real adapter, one per signal recorded by US-33, including the length-limit rejection
+- [ ] 4.3 Write failing classification tests for the real adapter, one per HTTP status class (design Decision 4): 4xx except 408/429 → not retryable; 408, 429, 5xx, network error and timeout → transient. No content-rejection or length-limit signal is recorded, so a length refusal is tested only as a generic 4xx not-retryable response with its cause reported (no cap or split is built)
 - [ ] 4.4 Implement the real adapter, reading the credential from the local environment or the local secrets file only
 - [ ] 4.5 Write an opt-in contract test against the real provider (one success, one known rejection), excluded from the default test run and documented as costing money
 
@@ -78,6 +78,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [ ] 7.2 Confirm every scenario in `specs/voice-over-generation/spec.md` has at least one functional test
 - [ ] 7.3 Confirm module test coverage has not decreased
 - [ ] 7.4 Document the test command, and the separate command for the opt-in contract test
+- [x] 7.5 Make `npm run typecheck` pass: the `Record<string, unknown> | undefined` return-type error in `backend/src/config/credentials.ts` (from JOS-165) is fixed with no behaviour change, covered by the existing `credentials.test.ts`
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
