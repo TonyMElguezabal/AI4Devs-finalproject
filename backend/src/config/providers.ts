@@ -92,6 +92,21 @@ export const VIDEO_ADMITTED_DURATION_SECONDS = { min: 5, max: 15 } as const;
  * duplicate literal, so the two cannot drift apart (§6.1's own consistency
  * requirement).
  */
+/**
+ * The clip durations segmentation and clip requests treat as admitted: every
+ * whole second from `min` to `max` (segment-script-into-chunks, JOS-140,
+ * Decision 6; product owner decision 2026-09-28). PROVENANCE: 5 s and 15 s
+ * were verified with real calls in JOS-165 (report: step 3); the whole seconds
+ * in between come from the provider's documentation and are verified by
+ * JOS-140's manual test (8 s and 11 s). If a value is rejected, this list
+ * shrinks and the grouping's optimisation follows. Derived from the range
+ * above so the two cannot drift apart; JOS-147 reuses it.
+ */
+export const VIDEO_ADMITTED_DURATIONS_SECONDS: readonly number[] = Array.from(
+  { length: VIDEO_ADMITTED_DURATION_SECONDS.max - VIDEO_ADMITTED_DURATION_SECONDS.min + 1 },
+  (_, offset) => VIDEO_ADMITTED_DURATION_SECONDS.min + offset,
+);
+
 export const SEGMENTATION_LOWER_BOUND_SECONDS = VIDEO_ADMITTED_DURATION_SECONDS.min;
 export const SEGMENTATION_UPPER_BOUND_SECONDS = VIDEO_ADMITTED_DURATION_SECONDS.max;
 

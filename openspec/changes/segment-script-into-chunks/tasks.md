@@ -15,9 +15,9 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 2. Admitted durations (TDD) — design Decision 6
 
-- [ ] 2.1 Write failing tests that `VIDEO_ADMITTED_DURATIONS_SECONDS` is the whole seconds 5 to 15, derived from the existing min and max
-- [ ] 2.2 Write failing tests for `closestAdmittedDuration(narrated)`: §7.2's ratio (a slow-down is `admitted / narrated`, a speed-up `narrated / admitted`), a tie going to the longer duration, below 5 s giving 5 s, above 15 s giving 15 s
-- [ ] 2.3 Implement both, then run the group 2 tests
+- [x] 2.1 Write failing tests that `VIDEO_ADMITTED_DURATIONS_SECONDS` is the whole seconds 5 to 15, derived from the existing min and max — `backend/test/admitted-durations.test.ts`
+- [x] 2.2 Write failing tests for `closestAdmittedDuration(narrated)`: §7.2's ratio (a slow-down is `admitted / narrated`, a speed-up `narrated / admitted`), a tie going to the longer duration, below 5 s giving 5 s, above 15 s giving 15 s — `closestAdmittedDuration` returns `{ admitted, speedRatio }`, the ratio always at least 1; also that it compares by ratio and not by seconds (7.5 s goes to 8 s), and refuses a non-positive or non-finite narration
+- [x] 2.3 Implement both, then run the group 2 tests — `VIDEO_ADMITTED_DURATIONS_SECONDS` in `config/providers.ts` (with its provenance) and `backend/src/admittedDurations.ts` (pure); 15/15 (the module was missing before); three mutations (tie to the shorter, seconds instead of ratio, dropped range ends) made 1, 6 and 1 tests fail and were reverted; typecheck clean
 
 ## 3. Sentences and their timings (TDD) — Decisions 1, 2 and 3
 
