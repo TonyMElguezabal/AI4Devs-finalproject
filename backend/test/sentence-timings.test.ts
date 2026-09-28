@@ -78,6 +78,10 @@ describe("Mapping characters to sentences (Decision 2)", () => {
     expect(spans[1]!.end).toBeCloseTo([...script].length * 0.1, 10);
   });
 
+  it("refuses a sentence that has no spoken characters", () => {
+    expect(() => sentenceSpeechSpans("Hi there.", [{ text: " ", start: 2, end: 3 }, { text: "Hi there.", start: 0, end: 9 }], native("Hi there."))).toThrow(/no spoken/i);
+  });
+
   it("refuses timestamps whose characters do not match the script", () => {
     const sentences = findSentences(SCRIPT, "en");
     expect(() => sentenceSpeechSpans(SCRIPT, sentences, native("Something else entirely."))).toThrow(/match/i);

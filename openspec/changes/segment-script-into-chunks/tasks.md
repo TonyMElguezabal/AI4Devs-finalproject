@@ -47,10 +47,10 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 6.1 Review existing tests that build fragments by hand (JOS-144) for anything the segmentation module now owns, and keep them independent of it
-- [ ] 6.2 Confirm every scenario in `specs/script-segmentation/spec.md` has at least one functional test; list the mapping in the step 7 report
-- [ ] 6.3 Confirm module test coverage has not decreased, measured against the base on scratch databases
-- [ ] 6.4 Run `npm run typecheck` and the server runtime-load test
+- [x] 6.1 Review existing tests that build fragments by hand (JOS-144) for anything the segmentation module now owns, and keep them independent of it
+- [x] 6.2 Confirm every scenario in `specs/script-segmentation/spec.md` has at least one functional test; list the mapping in the step 7 report
+- [x] 6.3 Confirm module test coverage has not decreased, measured against the base on scratch databases
+- [x] 6.4 Run `npm run typecheck` and the server runtime-load test
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 

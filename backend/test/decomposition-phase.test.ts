@@ -169,6 +169,19 @@ describe("A script with no valid grouping (Decision 5)", () => {
   });
 });
 
+describe("A stored timestamps file of an unexpected shape", () => {
+  it("records a not-retryable failure, like an unreadable one", async () => {
+    const { runId, projectFolder } = await newSessionWithStoredTimestamps();
+    writeFileSync(resolveArtefactPath(projectFolder, "narration-timestamps.json"), JSON.stringify({ mechanism: "unknown", characters: "none" }));
+    const { generator, calls } = stubGenerator();
+
+    const result = await segmentStoredTimestamps(runId, generator);
+
+    expect(result).toMatchObject({ ok: false, reason: "decomposition-failed", failure: { phase: "decomposition", retryable: false } });
+    expect(calls).toHaveLength(0);
+  });
+});
+
 describe("Refusals", () => {
   it("refuses a session without stored timestamps, recording nothing", async () => {
     const { runId } = newNarratedSession();

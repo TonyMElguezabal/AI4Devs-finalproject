@@ -44,6 +44,10 @@ describe("Where a sentence ends", () => {
     expect(texts("First.\n\nSecond.\nThird.")).toEqual(["First.", "Second.", "Third."]);
   });
 
+  it("ends a sentence at a period that stands alone after a space", () => {
+    expect(texts("Wait . Then go.")).toEqual(["Wait .", "Then go."]);
+  });
+
   it("returns nothing for an empty or blank script", () => {
     expect(findSentences("", "en")).toEqual([]);
     expect(findSentences("  \n ", "en")).toEqual([]);
