@@ -39,11 +39,11 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 5. Phase (TDD) — Decisions 5 and 7
 
-- [ ] 5.1 Write failing tests for `segmentStoredTimestamps(runId, instructionGenerator)`: it reads the stored timestamps, segments, and registers the chunks through `registerDecomposition`; the session becomes `chunks-processing`
-- [ ] 5.2 Write failing tests that no valid grouping records a not-retryable `decomposition` failure with a cause naming the system, registers nothing, and never calls the instruction generator
-- [ ] 5.3 Write failing tests that it refuses a session without stored timestamps, and one that already has chunks
-- [ ] 5.4 Write failing tests for `runDecompositionPhase`: it obtains the timestamps first when they are missing, skips that when they are stored, and stops (no segmentation, no chunks) when obtaining them fails
-- [ ] 5.5 Implement both, then run the group 5 tests
+- [x] 5.1 Write failing tests for `segmentStoredTimestamps(runId, instructionGenerator)`: it reads the stored timestamps, segments, and registers the chunks through `registerDecomposition`; the session becomes `chunks-processing`
+- [x] 5.2 Write failing tests that no valid grouping records a not-retryable `decomposition` failure with a cause naming the system, registers nothing, and never calls the instruction generator
+- [x] 5.3 Write failing tests that it refuses a session without stored timestamps, and one that already has chunks
+- [x] 5.4 Write failing tests for `runDecompositionPhase`: it obtains the timestamps first when they are missing, skips that when they are stored, and stops (no segmentation, no chunks) when obtaining them fails
+- [x] 5.5 Implement both, then run the group 5 tests
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
