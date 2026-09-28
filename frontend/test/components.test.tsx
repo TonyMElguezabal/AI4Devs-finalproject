@@ -6,6 +6,7 @@ import { SceneRow } from "../src/components/SceneRow";
 import { SessionHeader } from "../src/components/SessionHeader";
 import { FinalVideoDownload } from "../src/components/FinalVideoDownload";
 import { StartProjectForm } from "../src/components/StartProjectForm";
+import { SessionPage } from "../src/components/SessionPage";
 import type { SceneEventPayload, SceneState, SessionEventPayload, SessionState } from "../src/types";
 import { sceneStatusClass, sessionStatusClass } from "../src/styles/status";
 
@@ -259,5 +260,59 @@ describe("StartProjectForm", () => {
     expect(submit).not.toBeDisabled();
     await user.click(submit);
     expect(onStart).toHaveBeenCalledWith({ title: "My Trip", script: "A wide shot of a harbor at dusk.", language: "en" });
+  });
+});
+
+// consult-session (JOS-135) task 4 — the session page.
+describe("SessionPage", () => {
+  const noop = () => {};
+  const baseProps = {
+    sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+    connected: true,
+    notFound: false,
+    onStartNew: noop,
+    onPause: noop,
+    onContinue: noop,
+    onRetry: noop,
+    onCorrect: noop,
+  };
+
+  it("shows title, script, state and available results for a session (4.1)", () => {
+    const snapshot = {
+      session: makeSession({ title: "My Trip", script: "A wide shot of a harbor.", state: "final-video" }),
+      scenes: [],
+    };
+    render(<SessionPage {...baseProps} snapshot={snapshot} />);
+    expect(screen.getByText("My Trip")).toBeInTheDocument();
+    expect(screen.getByText("A wide shot of a harbor.")).toBeInTheDocument();
+    expect(screen.getByText(/final-video/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Download final video" })).toBeInTheDocument();
+  });
+
+  it('shows "not yet available" for a session with no scenes, not an error (4.2)', () => {
+    const snapshot = { session: makeSession({ state: "submitted" }), scenes: [] };
+    render(<SessionPage {...baseProps} snapshot={snapshot} />);
+    expect(screen.getByText("Scenes are not yet available.")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("renders scenes in the order received (4.3)", () => {
+    const snapshot = {
+      session: makeSession({ state: "chunks-processing" }),
+      scenes: [makeScene({ sceneId: "a", index: 1 }), makeScene({ sceneId: "b", index: 2 })],
+    };
+    render(<SessionPage {...baseProps} snapshot={snapshot} />);
+    const rows = screen.getAllByRole("listitem");
+    expect(rows.map((r) => r.getAttribute("aria-label"))).toEqual(["Scene 1", "Scene 2"]);
+  });
+
+  it("shows the not-found state with a way to start a new project (4.4)", async () => {
+    const user = userEvent.setup();
+    const onStartNew = vi.fn();
+    render(<SessionPage {...baseProps} snapshot={undefined} notFound={true} onStartNew={onStartNew} />);
+    expect(screen.getByText(/no session was found/i)).toBeInTheDocument();
+    const startNew = screen.getByRole("button", { name: "Start a new project" });
+    await user.click(startNew);
+    expect(onStartNew).toHaveBeenCalled();
   });
 });

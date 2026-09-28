@@ -81,13 +81,18 @@ Every screen traces to a PRD section; none was invented beyond what the PRD impl
 
 **Recorded gap, not invented:** no project-list screen exists anywhere in the PRD or backlog (§12.3 describes reaching a session only by identifier) — see [Not Yet Decided](#not-yet-decided).
 
+### The session page's address (`consult-session`, JOS-135, Decision 5)
+
+The session view is reached at `?sessionId=<id>` — a query-string parameter, not a client-side route. This is a deliberate reuse of the existing address scheme (already bookmarkable, already "contains the identifier" per §12.3), not an oversight: a router is introduced only once a second real route exists, which this isn't (one conceptual page, reached by identifier). `SessionPage` is the presentational component for this address; it renders three states from its props alone — a populated session, the "not yet available" empty-scenes case (Decision 6), and the not-found case (an unknown *or* malformed identifier look identical here too, matching the backend's Decision 4) with a "Start a new project" action that clears the query param back to the start form.
+
 ## Architecture: The Live-Update Seam
 
-Every view consumes live session state through exactly one hook, `useLiveSession(sessionId)` — never directly through `EventSource` or a raw `fetch`. This is deliberate: the live-update mechanism (`docs/adr/0003-live-updates.md`) can be swapped, extended, or reimplemented without touching a single view component, because every view's contract is `{ snapshot, connected, error }`, not "however this particular transport happens to work."
+Every view consumes live session state through exactly one hook, `useLiveSession(sessionId)` — never directly through `EventSource` or a raw `fetch`. This is deliberate: the live-update mechanism (`docs/adr/0003-live-updates.md`) can be swapped, extended, or reimplemented without touching a single view component, because every view's contract is `{ snapshot, connected, notFound, error }`, not "however this particular transport happens to work."
 
-The hook owns two responsibilities that must never leak into views:
+The hook owns three responsibilities that must never leak into views:
 1. **Opening and maintaining the stream** (currently `EventSource` against `GET /events?sessionId=`).
 2. **The catch-up rule**: resyncing the full snapshot (`GET /sessions/:sessionId`) on every `onopen` — which fires on the *first* connection **and** every automatic browser reconnect after a drop. A client that resyncs only once, at mount, can go stale forever after a dropped connection with no visible symptom — a real bug found and fixed during this stack's own development (`docs/adr/0001-backend-stack.md` § Evidence; `docs/adr/0003-live-updates.md` § "Real bugs found and fixed").
+3. **Detecting a permanently unknown session** (`consult-session`, JOS-135, task 4.4): the backend rejects an unknown session's `/events` request with `404` *before* upgrading, so the stream never opens and the usual `onopen`-triggered fetch never runs — a naive implementation would show "connecting…" forever. The hook instead distinguishes a permanent failure (`EventSource.readyState === CLOSED`, which a non-2xx response produces with no browser auto-retry) from an ordinary drop after a prior successful connection (which the browser retries automatically), and sets `notFound` only for the former. This required no second `fetchSnapshot` call and no change to the existing resync-call-counting behaviour.
 
 Every message and snapshot carries **current state, never a delta** (`docs/adr/0003-live-updates.md` Decision 2) — a component applies one by replacing what it holds for that entity, never by merging a partial update into previous state. This is what makes a duplicate or out-of-order delivery harmless to render.
 

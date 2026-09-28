@@ -1,18 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { StartProjectForm, type StartProjectValues, type SupportedLanguage } from "./components/StartProjectForm";
-import { SessionHeader } from "./components/SessionHeader";
-import { SceneList } from "./components/SceneList";
-import { FinalVideoDownload } from "./components/FinalVideoDownload";
+import { SessionPage } from "./components/SessionPage";
 import { useLiveSession } from "./api/useLiveSession";
-import {
-  correctScene,
-  createSession,
-  continueSession,
-  downloadFinalVideoUrl,
-  fetchLanguages,
-  pauseSession,
-  retryScene,
-} from "./api/client";
+import { correctScene, createSession, continueSession, fetchLanguages, pauseSession, retryScene } from "./api/client";
 
 /**
  * No project-list screen exists in the PRD or backlog (design.md § Open
@@ -29,7 +19,7 @@ export default function App() {
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | undefined>(undefined);
   const [languages, setLanguages] = useState<SupportedLanguage[]>([]);
-  const { snapshot, connected, error } = useLiveSession(sessionId);
+  const { snapshot, connected, notFound } = useLiveSession(sessionId);
 
   // start-video-project (JOS-134) Decision 5 — fetched from the backend,
   // never a second hardcoded copy.
@@ -57,6 +47,15 @@ export default function App() {
     }
   }, []);
 
+  // consult-session (JOS-135) task 4.4 — the not-found page's "way to start
+  // a new project": clears the address back to the start form.
+  const handleStartNew = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("sessionId");
+    window.history.pushState({}, "", url);
+    setSessionId(undefined);
+  }, []);
+
   if (!sessionId) {
     return (
       <main className="app-shell">
@@ -70,26 +69,17 @@ export default function App() {
   return (
     <main className="app-shell">
       <h1 className="app-title">Vid4You (prototype)</h1>
-      <p className="session-meta">
-        Session: <code>{sessionId}</code> — {connected ? "connected" : "connecting…"}
-      </p>
-      {error && <p role="alert">{error}</p>}
-      {snapshot && (
-        <>
-          <SessionHeader
-            session={snapshot.session}
-            onPause={() => pauseSession(sessionId)}
-            onContinue={() => continueSession(sessionId)}
-          />
-          <SceneList
-            sessionId={sessionId}
-            scenes={snapshot.scenes}
-            onRetry={(sceneId) => retryScene(sessionId, sceneId)}
-            onCorrect={(sceneId, instruction) => correctScene(sessionId, sceneId, instruction)}
-          />
-          <FinalVideoDownload state={snapshot.session.state} url={downloadFinalVideoUrl(sessionId)} />
-        </>
-      )}
+      <SessionPage
+        sessionId={sessionId}
+        snapshot={snapshot}
+        connected={connected}
+        notFound={notFound}
+        onStartNew={handleStartNew}
+        onPause={() => pauseSession(sessionId)}
+        onContinue={() => continueSession(sessionId)}
+        onRetry={(sceneId) => retryScene(sessionId, sceneId)}
+        onCorrect={(sceneId, instruction) => correctScene(sessionId, sceneId, instruction)}
+      />
     </main>
   );
 }

@@ -9,20 +9,35 @@ import type { SessionSnapshot } from "../src/types";
 // real network connection.
 class FakeEventSource {
   static instances: FakeEventSource[] = [];
+  // Mirrors real EventSource's readyState constants, needed so the hook's
+  // `source.readyState === EventSource.CLOSED` check (consult-session,
+  // JOS-135, task 4.4) is exercisable under this fake.
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSED = 2;
+
   onopen: (() => void) | null = null;
   onerror: (() => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
   closed = false;
+  readyState = FakeEventSource.CONNECTING;
 
   constructor(public url: string) {
     FakeEventSource.instances.push(this);
   }
 
   emitOpen() {
+    this.readyState = FakeEventSource.OPEN;
     this.onopen?.();
   }
   emitMessage(snapshot: SessionSnapshot) {
     this.onmessage?.({ data: JSON.stringify(snapshot) });
+  }
+  /** Simulates the backend's /events route rejecting an unknown session
+   * with 404 before upgrading — a permanent failure, never a retry. */
+  emitPermanentError() {
+    this.readyState = FakeEventSource.CLOSED;
+    this.onerror?.();
   }
   close() {
     this.closed = true;
@@ -133,5 +148,33 @@ describe("reconnection resync (Decision 3/4)", () => {
 
     act(() => source.emitOpen()); // simulated automatic reconnect after a drop
     await waitFor(() => expect(client.fetchSnapshot).toHaveBeenCalledTimes(2));
+  });
+});
+
+// consult-session (JOS-135) task 4.4 — the "not found" state, distinguished
+// from every other case: never called before, never opened, and the
+// permanent-failure shape a 404 produces.
+describe("an unknown session identifier (Decision 4)", () => {
+  it("reports notFound when the stream fails permanently without ever opening", async () => {
+    const { result } = renderHook(() => useLiveSession("does-not-exist"));
+    const source = FakeEventSource.instances[0]!;
+    expect(result.current.notFound).toBe(false);
+
+    act(() => source.emitPermanentError());
+    await waitFor(() => expect(result.current.notFound).toBe(true));
+    expect(result.current.snapshot).toBeUndefined();
+  });
+
+  it("does not report notFound for an ordinary drop after a previous successful connection", async () => {
+    const { result } = renderHook(() => useLiveSession("s1"));
+    const source = FakeEventSource.instances[0]!;
+    act(() => source.emitOpen());
+    await waitFor(() => expect(result.current.snapshot).toBeDefined());
+
+    // A later transient error — the browser would normally retry this one,
+    // not the permanent-failure case above.
+    source.readyState = FakeEventSource.CONNECTING;
+    act(() => source.onerror?.());
+    expect(result.current.notFound).toBe(false);
   });
 });

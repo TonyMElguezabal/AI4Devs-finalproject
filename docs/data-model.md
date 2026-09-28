@@ -47,6 +47,8 @@ Represents one narrated segment of the video. PRD §3, §6, §7.2, §7.3, §8.2,
 
 **Relationships:** many scenes belong to one session; one scene has many stage attempts (provider requests) and at most one committed result.
 
+**Keying at the read boundary** (`consult-session`, JOS-135, Decision 2): a scene is looked up by the pair `(session id, scene id)`, never by scene id alone — `id` is only unique *within* its owning session, so a repository method that took just the scene id could return a different session's scene of the same id. `getSceneForRun(runId, sceneId)` enforces this at the data-access layer, not by a caller-side check after the fact. The same story's file-reference resolution refuses any path that resolves outside the requesting session's own `project_folder` (Decision 2, reusing `define-persistence` Decision 4's folder-scoping), so a scene result cannot be read through a different session's address either.
+
 ### 3. Provider request / stage attempt (`provider_requests` table)
 
 An append-only record of one attempt to call the (stubbed) provider for a scene. PRD §10.1, §10.3, §11, §11.2.
