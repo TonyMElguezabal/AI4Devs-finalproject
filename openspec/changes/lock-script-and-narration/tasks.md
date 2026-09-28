@@ -101,7 +101,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 ## 12. Close out
 
 - [x] 12.1 Update `generate-voice-over`'s task 5.12 (and its Decision 6 file write) to use `canLaunchVoiceOver` and `writeArtefactOnce`, if the voice launch was not built yet (task 1.3) — done on `feature/jos-136-generate-voice-over` (commit `25fa435`): design Decision 6, task 5.12 (the launch asks the guard and a refusal must send no provider request) and task 5.14 (file writes use `writeArtefactOnce`). The JOS-136 tasks record that group 5 needs this branch's code merged first, since JOS-137 is stacked on JOS-136 and the helpers live here. `writeArtefactOnce` takes the whole content in memory (about 58 MB for an hour of narration), noted there
-- [ ] 12.2 Comment on JOS-154 (US-22) and JOS-155 (US-23) that every voice relaunch must call `canLaunchVoiceOver`
+- [x] 12.2 Comment on JOS-154 (US-22) and JOS-155 (US-23) that every voice relaunch must call `canLaunchVoiceOver` — posted on 2026-09-27 on JOS-154 and JOS-155 (the guard hand-off), and, at the product owner's request, progress, decisions and hand-offs were also posted on JOS-136, JOS-137, JOS-145, JOS-144, JOS-165 and JOS-134
 - [ ] 12.3 Open the PR against `feature/entrega-2-JAME` (after JOS-136) with a description linking to JOS-137 and this change
 - [ ] 12.4 Get a review from at least one human, not only AI agents
 - [ ] 12.5 Archive the OpenSpec change after merge
