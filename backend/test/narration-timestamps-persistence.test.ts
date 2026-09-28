@@ -103,6 +103,10 @@ describe("Obtained timestamps are stored once (Decision 7)", () => {
     expect(getNarrationTimestamps(runB)?.mechanism).toBe("alignment");
   });
 
+  it("refuses a record for a session that does not exist, as an error and not as a duplicate", () => {
+    expect(() => insertNarrationTimestamps(timestampsFor("no-such-session"))).toThrow(/FOREIGN KEY/);
+  });
+
   it("has no record until one is stored", () => {
     const runId = newRunId();
     expect(getNarrationTimestamps(runId)).toBeUndefined();

@@ -52,10 +52,10 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 6.1 Update tests that assumed a session with a voice-over derives to `submitted`, and the state-machine tests for the three new allowed transitions
-- [ ] 6.2 Confirm every scenario in `specs/narration-timestamps/spec.md` has at least one functional test; list the mapping in the step 7 report
-- [ ] 6.3 Confirm module test coverage has not decreased, measured against the base on scratch databases
-- [ ] 6.4 Run `npm run typecheck` and the server runtime-load test
+- [x] 6.1 Update tests that assumed a session with a voice-over derives to `submitted`, and the state-machine tests for the three new allowed transitions — the state-machine test was updated (task 5.2); no other test assumed a session with a voice-over derives to `submitted`, and every migration fixture already has the baseline `scenes` table
+- [x] 6.2 Confirm every scenario in `specs/narration-timestamps/spec.md` has at least one functional test; list the mapping in the step 7 report — all 12 scenarios have a test; the mapping goes in the step 7 report
+- [x] 6.3 Confirm module test coverage has not decreased, measured against the base on scratch databases — measured against the base `cd9f2ef` (the JOS-144 tip), each on a scratch database: all files lines 93.18% -> 94.17%, branches 85.14% -> 87.47%, functions 98.09% -> 98.42%; `db.ts` lines 97.85% -> 98.02%, branches 87.82% -> 89.60%; `orchestrator.ts` branches 77.14% -> 78.20%, but its lines read 93.80% -> 93.15% (see below). New modules: `narrationTimestamps.ts` and `alignmentProvider.ts` 100% lines, `narrationTimestampsPhase.ts` 100% after adding two tests. The first head run had `db.ts` lines at 97.66% (an uncovered rethrow in `insertNarrationTimestamps`, now tested) and the phase module with one uncovered branch (a leftover file that parses but does not fit the script, now tested). The `orchestrator.ts` line dip is two lines (the skeleton's "provider result not ready" return in `handleProviderResult`) that the base run hit once and this run hit zero times; it depends on timing, none of this change's code is on that path, and it is the same path the intermittent `orchestrator.test.ts` failure lives near
+- [x] 6.4 Run `npm run typecheck` and the server runtime-load test — typecheck exit 0; `server-runtime-load.test.ts` passes
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 

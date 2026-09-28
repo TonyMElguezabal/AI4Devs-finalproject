@@ -359,6 +359,23 @@ describe("Recovering from a crash between writing the file and the record", () =
   });
 });
 
+describe("A leftover file that parses but does not fit the script", () => {
+  it("is reported as a decomposition failure, not adopted", async () => {
+    const { runId, projectFolder } = newNarratedSession("none");
+    writeArtefactOnce(
+      projectFolder,
+      "narration-timestamps.json",
+      JSON.stringify({ mechanism: "alignment", characters: alignedFor("Something else entirely.") }),
+    );
+
+    const result = await obtainNarrationTimestamps(runId, stubAlignment().provider);
+
+    expect(result).toMatchObject({ ok: false, reason: "decomposition-failed" });
+    expect(getNarrationTimestamps(runId)).toBeUndefined();
+    expect(getRun(runId)?.failure?.cause).toMatch(/not usable/);
+  });
+});
+
 describe("clearRunFailure", () => {
   it("removes a stored failure and is a no-op without one", () => {
     const runId = randomUUID();
