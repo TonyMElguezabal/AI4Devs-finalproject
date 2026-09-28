@@ -9,7 +9,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 1. Gate and umbrella carve-out
 
-- [ ] 1.1 Record on JOS-138 that its question is answered by JOS-165 reports step 4 and step 5a (product owner decision, 2026-09-28), so the spike can be closed
+- [x] 1.1 Record on JOS-138 that its question is answered by JOS-165 reports step 4 and step 5a (product owner decision, 2026-09-28), so the spike can be closed — posted on JOS-138 (with the limitation that both mechanisms were verified on one short English script) and the proposal's decisions on JOS-139
 - [ ] 1.2 Confirm the base: `voice_overs` (with `audio_path`, `timestamps_path`, `duration_seconds`) and `stage_attempts` exist; `ALIGNMENT_PROVIDER` endpoint `/v1/forced-alignment`, `PER_PHASE_MAX_TIME_SECONDS.alignment` 5, credential `ELEVENLABS_KEY` present (name only); `DecompositionFailure` and `deriveSessionState(scenes, failure)` from JOS-144
 - [ ] 1.3 Remove the timestamps requirements from `decompose-script-into-chunks` (phase start, native vs alignment, failure attribution, and the automatic part of the retry rule; the manual-retry requirement stays for JOS-156), point it here, and validate both changes
 
