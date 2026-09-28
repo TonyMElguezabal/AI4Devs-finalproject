@@ -1,125 +1,137 @@
 # Chunk image generation
 
-Requirements for turning a chunk's `IMAGE` instruction into a stored image. The per-stage retry budget, the shared concurrency cap, pause handling, and the per-stage execution time limit are owned by `stage-retry-policy` and `stage-execution-time-limit`; this capability covers when generation launches, what the provider must produce, how the result is persisted, the one correction path a failed image stage allows, and how one chunk's failure leaves the rest of the session unaffected.
+Requirements for turning a chunk's `IMAGE` instruction into a stored image (JOS-145, US-12). This capability does not cover the retry budget, the per-phase time limit, the concurrency cap, the pause hold, correcting a failed instruction, individual downloads, or showing diagnostics. Those belong to their own capabilities and tickets. This capability covers when generation launches, what output is accepted, how the result is persisted, how chunks progress independently, and how the provider is bound to a chunk's image stage.
 
 ## ADDED Requirements
 
-### Requirement: Image generation launches automatically once a chunk has its instruction
+### Requirement: Image generation launches automatically for a submitted chunk
 
-The system SHALL launch image generation for a chunk as soon as it exists with a non-empty `IMAGE` instruction, without further action from the User, through the shared phase-launch gate. The chunk SHALL be in state `image-generating` before the request is sent to the image provider.
+The system SHALL launch image generation for a chunk in state `submitted` that has a non-empty `IMAGE` instruction, without further action from the User, through the shared phase-launch gate. The chunk SHALL be in state `image-generating` before the request is sent to the image provider. The request SHALL carry the chunk's `IMAGE` instruction as its text.
 
-#### Scenario: A chunk has just been produced by decomposition
+#### Scenario: A submitted chunk starts image generation
 
-- **WHEN** a chunk is produced with a non-empty `IMAGE` instruction
-- **THEN** image generation is launched without further User action
-- **AND** the chunk state is `image-generating` before the provider request is sent
+- **GIVEN** a chunk in state `submitted` with a non-empty `IMAGE` instruction
+- **WHEN** its image generation starts
+- **THEN** the chunk state is `image-generating`
+- **AND** the provider request carries that chunk's `IMAGE` instruction
 
-### Requirement: The provider must meet the image capability
+#### Scenario: The state change comes before the provider request
 
-The image request SHALL carry the chunk's `IMAGE` instruction as text. The system SHALL treat a returned image as valid only if it is horizontal 16:9 with a resolution of at least 1920×1080.
+- **GIVEN** a chunk in state `submitted`
+- **WHEN** the image provider receives the request
+- **THEN** the chunk was already recorded as `image-generating`
 
-#### Scenario: A valid image is returned
+#### Scenario: The session is paused
 
-- **WHEN** the image provider returns a 16:9 image at or above 1920×1080 for a chunk's `IMAGE` instruction
-- **THEN** it is accepted as that chunk's image
+- **GIVEN** a paused session with a chunk in state `submitted`
+- **WHEN** image generation would launch
+- **THEN** no provider request is sent and the chunk remains `submitted` until the session continues
 
-### Requirement: A temporary link is resolved to a local file before the stage succeeds
+### Requirement: Only a horizontal 16:9 image of at least 1920×1080 is accepted
 
-When the image provider returns the result only as a temporary link, the system SHALL download and store the image in the session's project folder before the stage instance is marked successful, and before the link can be expected to expire. The stage instance SHALL NOT be marked `image-complete` while only a link, and no local file, exists.
+The system SHALL accept a generated image only if, measured from the stored file, its width is at least 1920 pixels, its height is at least 1080 pixels, and its aspect ratio differs from 16:9 by at most 1%. An image that fails this check SHALL be recorded as a failed attempt and SHALL NOT complete the stage.
 
-#### Scenario: The provider returns a temporary link
+#### Scenario: The recorded provider size is accepted
 
-- **WHEN** the image provider's response is a temporary link
-- **THEN** the image is downloaded and stored in the project folder before the stage is marked successful
+- **GIVEN** the provider returns a 1920×1088 image
+- **WHEN** the image is checked
+- **THEN** it is accepted, since its aspect ratio is 0.74% from 16:9
 
-#### Scenario: The download fails after a successful provider response
+#### Scenario: An under-size image is rejected
 
-- **WHEN** the provider responds successfully but the temporary link cannot be downloaded
+- **GIVEN** the provider returns a 1024×576 image
+- **WHEN** the image is checked
+- **THEN** the attempt is recorded as failed
+- **AND** the chunk does not reach `image-complete`
+
+#### Scenario: A portrait image is rejected
+
+- **GIVEN** the provider returns a 1080×1920 image
+- **WHEN** the image is checked
 - **THEN** the attempt is recorded as failed
 - **AND** the chunk does not reach `image-complete`
 
 ### Requirement: A successful generation completes the image stage
 
-When a valid image has been persisted locally, the system SHALL record its path on the chunk and set the chunk's image stage to `image-complete`.
+When an accepted image has been stored in the session's project folder, the system SHALL record its path relative to that folder on the chunk and set the chunk state to `image-complete`. A repeated success confirmation for the same chunk SHALL NOT create a second result.
 
 #### Scenario: Generation succeeds
 
-- **WHEN** a valid image is generated and persisted for a chunk
-- **THEN** the chunk's image result path is recorded
-- **AND** the chunk's image stage is `image-complete`
+- **GIVEN** a chunk in state `image-generating`
+- **WHEN** an accepted image is stored for it
+- **THEN** the chunk's result is the image's path relative to the session's project folder
+- **AND** the chunk state is `image-complete`
 
-### Requirement: Video generation cannot be requested before the image is complete
+#### Scenario: The success is confirmed twice
 
-The system SHALL NOT allow a video-generation request for a chunk whose image stage has not reached `image-complete`.
+- **GIVEN** a chunk that has reached `image-complete`
+- **WHEN** the same success is delivered again
+- **THEN** the chunk keeps exactly one result, and its state is unchanged
 
-#### Scenario: Video is requested before the image exists
+### Requirement: A temporary link is stored locally before the stage succeeds
 
-- **WHEN** a video-generation request is attempted for a chunk not yet in `image-complete`
-- **THEN** the request is refused
+When the image provider returns the result only as a temporary link, the system SHALL download and store the image in the session's project folder before the chunk is set to `image-complete`. The recorded result SHALL never be the provider's link.
 
-### Requirement: An exhausted image stage can be corrected
+#### Scenario: The provider returns a temporary link
 
-When a chunk's image stage is `failed`, the system SHALL allow the User to either retry with the same `IMAGE` instruction or replace `IMAGE` with a new instruction and retry. The chunk's `ID`, `PROMPT`, and its position in the scene order SHALL remain unchanged by this or any other operation.
+- **GIVEN** the provider's successful response is a temporary link
+- **WHEN** the chunk reaches `image-complete`
+- **THEN** the image file exists in the session's project folder
+- **AND** the chunk's result refers to that file, not to the link
 
-#### Scenario: A retry with the same instruction is requested
+#### Scenario: The download fails after a successful provider response
 
-- **WHEN** the User retries a failed image stage without changing `IMAGE`
-- **THEN** a new attempt is made with the same instruction
+- **GIVEN** the provider responds successfully with a temporary link
+- **WHEN** the link cannot be downloaded
+- **THEN** the attempt is recorded as failed
+- **AND** the chunk does not reach `image-complete`
 
-#### Scenario: The instruction is corrected
+### Requirement: Each chunk's image stage progresses independently
 
-- **WHEN** the User replaces `IMAGE` on a chunk whose image stage is `failed`
-- **THEN** the new instruction is stored
-- **AND** a new attempt is made with it
+A chunk SHALL advance from `image-generating` as soon as its own image outcome is known, without waiting for any other chunk of the same session. One chunk's image failure SHALL NOT change the state or processing of any other chunk.
 
-#### Scenario: The correction form is unavailable outside failure
+#### Scenario: One scene finishes while another is still generating
 
-- **WHEN** a chunk's image stage is not `failed`
-- **THEN** no operation offers a way to change its `IMAGE` instruction
+- **GIVEN** two chunks of the same session in state `image-generating`
+- **WHEN** the first chunk's image is accepted while the second is still generating
+- **THEN** the first chunk is `image-complete`
+- **AND** the second chunk is still `image-generating`
 
-#### Scenario: A correction attempts to change a locked field
+#### Scenario: One scene fails while another is still generating
 
-- **WHEN** a request to correct a chunk's `IMAGE` also attempts to change its `ID`, `PROMPT`, or position in the scene order
-- **THEN** only `IMAGE` is affected
-- **AND** `ID`, `PROMPT`, and the scene order are unchanged
+- **GIVEN** two chunks of the same session in state `image-generating`
+- **WHEN** the first chunk's image stage reaches `failed`
+- **THEN** the second chunk keeps processing and can still reach `image-complete`
 
-### Requirement: One chunk's image failure does not affect other chunks
+### Requirement: The provider is bound to the chunk's image stage
 
-When a chunk's image stage reaches `failed`, other chunks of the same session SHALL continue processing toward their own `chunk-complete` or `failed` outcome, unaffected by that chunk's failure.
+On the first attempt of a chunk's image stage, the system SHALL record the image provider used as that chunk's image-stage provider. Every later automatic or manual retry of that stage SHALL be sent to the recorded provider, regardless of the provider currently configured. If the recorded provider is unavailable in the running build, the attempt SHALL fail without switching to another provider.
 
-#### Scenario: One chunk fails while others are in progress
+#### Scenario: The first attempt binds the provider
 
-- **WHEN** one chunk's image stage reaches `failed`
-- **THEN** the other chunks of the session continue processing independently
+- **GIVEN** a chunk whose image stage has no provider recorded
+- **WHEN** its first image attempt is sent to a provider
+- **THEN** that provider is recorded for the chunk's image stage
 
-### Requirement: A successful image can be downloaded individually during processing
+#### Scenario: A retry uses the bound provider
 
-The system SHALL offer a completed chunk's image for individual download while other chunks of the same session are still processing or have failed.
+- **GIVEN** a chunk whose image stage is bound to provider A
+- **AND** the currently configured image provider is B
+- **WHEN** the stage is retried
+- **THEN** the attempt is sent to provider A
 
-#### Scenario: Other scenes are still processing
+#### Scenario: The bound provider is unavailable in the running build
 
-- **WHEN** a chunk reaches `image-complete` while other chunks of the session are still generating or have failed
-- **THEN** that chunk's image is available for individual download
-
-### Requirement: The image stage's diagnostics are recorded without exposing credentials
-
-The system SHALL record the provider used, the attempts made, the status, and — when failed — the cause and its retryability for a chunk's image stage, visible in that chunk's details. The recorded cause SHALL NOT include credentials or raw provider payloads.
-
-#### Scenario: A chunk's image details are consulted
-
-- **WHEN** a chunk's details are read
-- **THEN** its image stage shows the provider used, the attempts made, and its current status
-
-#### Scenario: A provider error contains sensitive detail
-
-- **WHEN** an image provider error includes credentials or a raw payload
-- **THEN** none of it appears in the cause shown to the User
+- **GIVEN** a chunk whose image stage is bound to a provider the running build has no adapter for
+- **WHEN** the stage is retried
+- **THEN** the attempt fails and no other provider is called
 
 ### Requirement: Image generation is scoped to its own session
 
-The system SHALL NOT generate, expose, or persist an image against a chunk belonging to a different session than the one the request identifies.
+The system SHALL store and attribute an image result only to the chunk of the session that owns it, and only inside that session's project folder.
 
 #### Scenario: Two sessions each have a chunk with the same identifier
 
-- **WHEN** an image-generation result is being recorded for a chunk
-- **THEN** it is attributed only to the chunk's own session, even if another session has a chunk with the same identifier
+- **GIVEN** two sessions that each contain a chunk with the same identifier
+- **WHEN** one of them receives an image result
+- **THEN** only that session's chunk is updated, and the file is stored in that session's project folder

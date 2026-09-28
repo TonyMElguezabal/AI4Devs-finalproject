@@ -1,109 +1,111 @@
-# Tasks — Generate a chunk's image
+# Tasks — Generate the image of each scene (JOS-145)
 
-Tests come first throughout: each behaviour gets a failing test before the code that satisfies it, and every requirement scenario in `specs/chunk-image-generation/spec.md` has at least one functional test. Automated tests use the stubbed provider only.
+Tests come first throughout: each behaviour gets a failing test before the code that makes it pass, and every scenario in `specs/chunk-image-generation/spec.md` has at least one functional test. Automated tests use the stub image adapter only. Real Fal.ai calls happen only in step 9, capped at one.
 
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Create feature branch `feature/generate-chunk-image` from `main`
-- [ ] 0.2 Verify branch creation and current branch status
+- [x] 0.1 Create branch `feature/jos-145-generate-chunk-image` from `feature/entrega-2-JAME` (the MVP integration branch; MVP changes do not target `main`) — cut from `853d53d`, with the restored proposal artifacts
+- [x] 0.2 Verify the branch was created and is the current branch
 
-## 1. Gate: Confirm the foundations this phase stands on
+## 1. Gate: Confirm the foundations this story depends on
 
-- [ ] 1.1 Confirm `decompose-script-into-chunks` has landed; chunks exist with a non-empty `IMAGE` instruction
-- [ ] 1.2 Confirm `define-backend-stack`, `define-persistence` have landed; take framework, store and stubbed-provider convention from `docs/backend-standards.md` / `docs/data-model.md`
-- [ ] 1.3 Confirm `define-provider-configuration` has landed; locate the image provider id and its not-retryable signal
-- [ ] 1.4 Confirm `bounded-retry-policy` and `stage-execution-time-limit` have landed, and locate the phase-launch gate `generate-voice-over` established, to extend rather than reimplement
-- [ ] 1.5 If any of the above is missing, stop and record the blocker rather than building against a guess
+- [ ] 1.1 Confirm JOS-144 (US-11) has landed and chunks carry a distinct, non-empty `IMAGE` instruction, not the skeleton's conflated `instruction` field — **checked 2026-09-27: NOT met.** `Scene.instruction` is still one field (`backend/src/types.ts`, the `scenes.instruction` column) and no OpenSpec change exists yet for JOS-144
+- [x] 1.2 Confirm the Fal.ai values from JOS-165 in `backend/src/config/providers.ts`: model `fal-ai/flux/dev`, request size 1920×1088, phase limit 25 s, concurrency 200 — confirmed: `IMAGE_PROVIDER` (`Fal.ai`, `fal-ai/flux/dev`), `IMAGE_GENERATION_SIZE` `{ width: 1920, height: 1088 }`, phase limit `image: 25`, concurrency `image: 200` (provisional)
+- [x] 1.3 Locate the retry (JOS-184/JOS-154), time-limit (JOS-185) and concurrency (`concurrency.ts`, JOS-167) mechanisms to call. Record which are already in the codebase and which are still the skeleton versions — found: the concurrency gate (`backend/src/concurrency.ts`, used by `launchScene`) and the retry budget (`RETRY_BUDGET` in `orchestrator.ts`) exist only as the skeleton's versions; `bounded-retry-policy` (0/74) and `stage-execution-time-limit` (0/56) have not started, so this story calls the skeleton versions and does not re-implement the real ones
+- [x] 1.4 If 1.1 is not met, stop and record the blocker on JOS-145 rather than building against the conflated field — 1.1 is not met, so implementation stops here: the blocker is recorded on JOS-145 and on JOS-144 (Linear). Groups 2 onward wait for JOS-144
 
-## 2. Persistence: chunk image fields and stage instance (TDD)
+## 2. Output check (TDD) — AC2, design Decision 1
 
-- [ ] 2.1 Write a failing test for `Chunk.image_result_path` (nullable until success)
-- [ ] 2.2 Write a failing test for a `StageExecution` row keyed `(session, chunk, stage=image)`, independent of any other chunk's or stage's budget
-- [ ] 2.3 Add the migration, implement the repository changes
+- [ ] 2.1 Write failing unit tests for `isAcceptedImageSize(width, height)`: 1920×1088 accepted, 1920×1080 accepted, 2560×1440 accepted, 1024×576 rejected, 1080×1920 rejected, 1920×1200 (16:10) rejected
+- [ ] 2.2 Write failing tests that read dimensions from a stored PNG and a stored JPEG file header, not from provider metadata
+- [ ] 2.3 Implement the check and the header reader, fully typed
 - [ ] 2.4 Run the group 2 tests and confirm they pass
 
-## 3. Provider port and adapter (TDD)
+## 3. Provider port and adapters (TDD)
 
-- [ ] 3.1 Define the `ImageProvider` port: generate from a text instruction, returning either image bytes or a temporary link, and failing with a classified error
-- [ ] 3.2 Extend the stubbed provider from `define-backend-stack` with scenarios: success (bytes), success (temporary link), transient failure, not-retryable failure, sub-1920×1080 result
-- [ ] 3.3 Write failing classification tests for the real adapter, one per not-retryable signal recorded by `define-provider-configuration`
-- [ ] 3.4 Implement the real adapter, reading the credential from the local environment or the local secrets file only
+- [ ] 3.1 Define the typed `ImageProvider` port: `generate(instruction)` returns either image bytes or a temporary URL, or a classified failure (transient / not retryable)
+- [ ] 3.2 Extend the stub adapter with these modes: success (bytes), success (temporary link), download failure, under-size image, portrait image, transient failure, not-retryable failure
+- [ ] 3.3 Write failing tests for the Fal.ai adapter against a mocked HTTP layer: request body carries the instruction and `{width: 1920, height: 1088}`, the HTTP client's automatic retries are disabled, and failure classification follows JOS-165 (content rejections are transient, per ADR 0005 Decision 5)
+- [ ] 3.4 Implement the Fal.ai adapter, reading the credential only from the local environment or the local secrets file (`config/credentials.ts`)
+- [ ] 3.5 Validate the provider response shape with Zod before use
+- [ ] 3.6 Run the group 3 tests and confirm they pass
 
-## 4. Application: image generation phase (TDD)
+## 4. Launch and completion (TDD) — AC1, AC2, §12.2
 
-- [ ] 4.1 Write a failing test that a chunk with an `IMAGE` instruction launches generation with no User action, chunk `image-generating` before the request is sent
-- [ ] 4.2 Write a failing test that a returned image below 1920×1080 or not 16:9 is rejected and recorded as a failed attempt
-- [ ] 4.3 Write a failing test that a temporary-link result is downloaded and stored in the project folder before the stage is marked `image-complete`
-- [ ] 4.4 Write a failing test that a download failure after a successful provider response is recorded as a failed attempt, chunk not reaching `image-complete`
-- [ ] 4.5 Write a failing test that success records `image_result_path` and sets `image-complete`
-- [ ] 4.6 Write a failing test that a video-generation request is refused for a chunk not in `image-complete`
-- [ ] 4.7 Write a failing test that one chunk's image failure does not change any other chunk's processing
-- [ ] 4.8 Implement the phase, wired to `stage-retry-policy`, `stage-execution-time-limit` and the shared phase-launch gate
-- [ ] 4.9 Publish each state change to the live-update mechanism, matching `consult-session`'s expected shape
-- [ ] 4.10 Run the group 4 tests and confirm they pass
+- [ ] 4.1 Write a failing test: a `submitted` chunk with an `IMAGE` instruction launches without User action, and is `image-generating` before the adapter is called
+- [ ] 4.2 Write a failing test: the adapter receives the chunk's `IMAGE` instruction
+- [ ] 4.3 Write a failing test: a paused session sends no request and the chunk stays `submitted`
+- [ ] 4.4 Write a failing test: an accepted image is stored under the session's `project_folder`, `result` holds the relative path, and the state is `image-complete`, never `chunk-complete`
+- [ ] 4.5 Write a failing test: a temporary-link result is downloaded to a local file before `image-complete`, and `result` is never the link
+- [ ] 4.6 Write a failing test: a download failure is recorded as a failed attempt and the chunk does not reach `image-complete`
+- [ ] 4.7 Write a failing test: an under-size or portrait image is recorded as a failed attempt and the chunk does not reach `image-complete`
+- [ ] 4.8 Write a failing test: a duplicate success delivery leaves exactly one `scene_results` row and the state unchanged
+- [ ] 4.9 Write a failing test: a session whose chunks are all `image-complete` derives to `chunks-processing`, not `final-video` (design Decision 4)
+- [ ] 4.10 Implement the image stage in `orchestrator.ts`, replacing the `image-generating → chunk-complete` shortcut and wiring in the adapter, the output check and the file write
+- [ ] 4.11 Publish each state change on the live-update channel using the existing `SceneEventPayload` shape
+- [ ] 4.12 Run the group 4 tests and confirm they pass
 
-## 5. Application: visual correction (TDD)
+## 5. Independent progression (TDD) — AC3, design Decision 5
 
-- [ ] 5.1 Write a failing test that a failed image stage accepts a retry with the same `IMAGE` instruction
-- [ ] 5.2 Write a failing test that a failed image stage accepts a replacement `IMAGE` instruction and retries with it
-- [ ] 5.3 Write a failing test that no operation offers `IMAGE` correction when the stage is not `failed`
-- [ ] 5.4 Write a failing test that a correction request cannot alter `ID`, `PROMPT`, or scene order even if it attempts to
-- [ ] 5.5 Implement the correction action as a variant of `stage-retry-policy`'s manual retry (design.md Decision 3)
-- [ ] 5.6 Run the group 5 tests and confirm they pass
+- [ ] 5.1 Write a failing test: two chunks `image-generating`, the first succeeds, the first is `image-complete` while the second is still `image-generating`
+- [ ] 5.2 Write a failing test: the first chunk's stage reaches `failed`, and the second chunk still reaches `image-complete`
+- [ ] 5.3 Write a failing test: two sessions with a chunk of the same identifier, and a result updates only its own session's chunk and folder
+- [ ] 5.4 Fix any cross-chunk barrier the tests expose
+- [ ] 5.5 Run the group 5 tests and confirm they pass
 
-## 6. API: session representation exposes image results
+## 6. Provider binding (TDD) — AC4, design Decision 3
 
-- [ ] 6.1 Write a failing test that a chunk's representation includes its image stage status, provider, attempts, and (if failed) cause and retryability
-- [ ] 6.2 Write a failing test that a completed chunk's image is downloadable individually while other chunks are processing or failed
-- [ ] 6.3 Write a failing test that a provider error's raw payload/credentials never reach the exposed cause
-- [ ] 6.4 Add the fields and the download route to the session/chunk read consumed by `consult-session`
-- [ ] 6.5 Write a failing test that an image result is never returned for a chunk of a different session than requested
+- [ ] 6.1 Write a failing test: the first attempt writes the image provider identifier to `scenes.provider` before the request is sent
+- [ ] 6.2 Write a failing test: a later attempt does not overwrite an already-bound `scenes.provider`
+- [ ] 6.3 Write a failing test: with the stage bound to provider A and the configuration changed to B, a retry is sent to A
+- [ ] 6.4 Write a failing test: a stage bound to a provider with no adapter in the running build fails its attempt as not retryable, and no other adapter is called
+- [ ] 6.5 Implement adapter resolution from the bound identifier through a typed registry
 - [ ] 6.6 Run the group 6 tests and confirm they pass
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review `decompose-script-into-chunks` tests for any assumption that nothing launches after decomposition, and update for the automatic image launch
-- [ ] 7.2 Confirm every scenario in `specs/chunk-image-generation/spec.md` has at least one functional test
-- [ ] 7.3 Confirm module test coverage has not decreased
-- [ ] 7.4 Document the test command
+- [ ] 7.1 Update `orchestrator.test.ts`, `persistence.test.ts` and `session-*.test.ts` assertions that expect `chunk-complete` or `final-video` from the skeleton's single stage
+- [ ] 7.2 Update tests that rely on `STUB_PROVIDER_NAME` as the recorded provider, so they use the bound image provider identifier
+- [ ] 7.3 Confirm every scenario in `specs/chunk-image-generation/spec.md` has at least one functional test, and list the mapping in the step 8 report
+- [ ] 7.4 Confirm module test coverage has not decreased (`npm test -- --coverage` from `backend/`)
+- [ ] 7.5 Run `npm run typecheck` with no errors
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test state of the store and the project folders on disk
-- [ ] 8.2 Run the targeted tests for this module and capture the pass/fail summary
-- [ ] 8.3 Run the full suite and record totals, failures and runtime
-- [ ] 8.4 Verify the post-test state matches the baseline, restoring the store and removing any test images left behind
-- [ ] 8.5 Create the report `openspec/changes/generate-chunk-image/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
-- [ ] 8.6 Mark this step complete only after the tests pass and the report file exists
+- [ ] 8.1 Capture the pre-test state: row counts of `runs`, `scenes`, `provider_requests`, `scene_results`, and the file list of `backend/data/`
+- [ ] 8.2 Run the targeted tests for the image stage and capture the pass/fail summary
+- [ ] 8.3 Run the full suite (`npm test` in `backend/`) and record totals, failures and runtime. The default test store (`backend/data/skeleton.sqlite`) is shared by every branch and keeps the migrations and triggers of newer ones, so run against a scratch database (`DB_PATH` and `PROJECTS_ROOT` pointed at a temporary folder) if it fails on something unrelated
+- [ ] 8.4 Verify the post-test state matches the baseline. Restore the store and remove leftover test images if it does not
+- [ ] 8.5 Write the report `openspec/changes/generate-chunk-image/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
+- [ ] 8.6 Mark this step complete only after the tests pass and the report exists
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the backend wired to the stubbed image provider and confirm it is reachable
-- [ ] 9.2 POST a valid project through decomposition; GET the session and verify chunks progress to `image-complete` with a downloadable image
-- [ ] 9.3 With the stub set to reject as not retryable, verify the affected chunk reaches `failed` while sibling chunks keep processing
-- [ ] 9.4 Correct the failed chunk's `IMAGE` and retry; verify a new attempt is made and `ID`/`PROMPT`/order are unchanged
-- [ ] 9.5 Verify on disk that a temporary-link result was persisted as a local file before being reported complete
-- [ ] 9.6 Delete the sessions and files created above and confirm the store and disk match the pre-test state
-- [ ] 9.7 Save the transcript as `openspec/changes/generate-chunk-image/reports/YYYY-MM-DD-step-9-curl-endpoint-testing.md`
+- [ ] 9.1 Start the backend with the stub image adapter and confirm it responds
+- [ ] 9.2 POST a session through decomposition, then GET it repeatedly: chunks go `submitted → image-generating → image-complete`, each `result` points to a file that exists on disk, and each `provider` is set
+- [ ] 9.3 With per-chunk stub latencies that differ, verify one chunk shows `image-complete` while another still shows `image-generating`
+- [ ] 9.4 With the stub returning a temporary link, verify on disk that the file exists and `result` is not a URL
+- [ ] 9.5 With the stub returning a portrait image, verify the attempt is recorded as failed and the chunk does not reach `image-complete`
+- [ ] 9.6 Run one real Fal.ai generation (credential from the local secrets file). Verify the stored file is 1920×1088 and passes the check, and record the cost
+- [ ] 9.7 Delete the sessions and files created above and confirm the store and disk match the pre-test state
+- [ ] 9.8 Save the transcript as `openspec/changes/generate-chunk-image/reports/YYYY-MM-DD-step-9-curl-endpoint-testing.md`
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: if the session page can render chunk images and the correction form, run the steps below; otherwise record why not
-- [ ] 10.2 Ensure backend (with the stubbed provider) and frontend are running
-- [ ] 10.3 Start a project and assert the session page shows chunk images appearing as they complete, without reloading
-- [ ] 10.4 Force one chunk to fail, correct its `IMAGE` through the UI, and assert it recovers
-- [ ] 10.5 Restore the environment and save the report as `openspec/changes/generate-chunk-image/reports/YYYY-MM-DD-step-10-e2e-playwright.md`
+- [ ] 10.1 Decide applicability: the session page renders per-scene status from the snapshot and live events, so check that `image-complete` shows up without reloading
+- [ ] 10.2 Start the backend (stub adapter) and the frontend
+- [ ] 10.3 Start a project and assert each scene's status changes to the image-complete label as it finishes, independently of the others, with no page reload
+- [ ] 10.4 Restore the environment and save `openspec/changes/generate-chunk-image/reports/YYYY-MM-DD-step-10-e2e-playwright.md`
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 Add `Chunk.image_result_path` and the `image` stage instance to `docs/data-model.md`
-- [ ] 11.2 Add the image fields, correction endpoint and download route to `docs/api-spec.yml`
-- [ ] 11.3 Record the provider port/adapter convention for image generation in `docs/backend-standards.md`, if not already documented there
+- [ ] 11.1 `docs/data-model.md`: `scenes.provider` as the image-stage binding written on the first attempt, `result` as the relative image path, and `image-complete` now produced
+- [ ] 11.2 `docs/api-spec.yml`: the scene `status` enum includes `image-complete`, and `provider`/`result` semantics are described. The file is generated, never hand-edited: put any new descriptions in the Zod schemas in `backend/src/routes.ts` and regenerate it from `GET /docs/json` of a running server (the `info` block now comes from `backend/src/server.ts`), then review the diff for drift and check it matches
+- [ ] 11.3 `docs/backend-standards.md`: record the provider port / adapter / bound-provider registry convention, if it is not already there
 
 ## 12. Close out
 
-- [ ] 12.1 Confirm with `decompose-script-into-chunks` that chunk fields (`ID`, `PROMPT`, order) remain untouched by this story's correction path
-- [ ] 12.2 Record for `generate-chunk-video` exactly how `image-complete` is exposed, so it can gate on it directly
-- [ ] 12.3 Open the PR with a description linking to this change
-- [ ] 12.4 Obtain review by at least one human, not only AI agents
-- [ ] 12.5 Archive the OpenSpec change after merge
+- [ ] 12.1 Comment on JOS-146 (US-13) describing how `image-complete` and `result` are exposed, so it can gate on them directly
+- [ ] 12.2 Open the PR with a description linking to JOS-145 and this change
+- [ ] 12.3 Get a review from at least one human, not only AI agents
+- [ ] 12.4 Archive the OpenSpec change after merge

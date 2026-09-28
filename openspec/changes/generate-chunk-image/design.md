@@ -1,48 +1,72 @@
-# Design — Generate a chunk's image
+# Design — Generate the image of each scene (JOS-145)
 
 ## Context
 
-Every chunk from `decompose-script-into-chunks` carries an `IMAGE` instruction and starts in `submitted`. This story is the first per-chunk provider call, and the first place the PRD lets a single scene fail and recover independently of the rest of the session (§10.2) — unlike the session-level stages (voice, timestamps, decomposition, assembly), where one failure affects the whole session's progress. It is also where the PRD's single visual-correction exception lives (§10.3, AC09): the only field a User can ever edit on an otherwise-locked chunk is `IMAGE`, and only while the image stage is `failed`.
+The backend skeleton already has a per-scene pipeline. `orchestrator.ts`'s `launchScene` takes a slot from `concurrency.ts`, respects the session pause, records an append-only `provider_requests` row, and sends the request to a deterministic stub (`provider.ts`). On success the scene jumps straight to `chunk-complete`. The `scenes` table already has `status`, `attempts`, `result` (a relative path under the session's `project_folder`) and `provider`. `scene_results` makes a repeated success confirmation harmless.
 
-`generate-voice-over` already established the pattern this story follows at chunk scope: a provider port, a stubbed adapter for tests, a phase-launch gate shared with the retry and concurrency mechanisms, and a `StageExecution`-shaped diagnostic record. This design's job is mostly to confirm that pattern transfers to a chunk-scoped, independently-failing stage instance without inventing a second mechanism for the same concerns.
+JOS-145 turns this generic stand-in into the real **image** stage:
+
+- it calls the provider recorded in PRD §11.3 (Fal.ai `fal-ai/flux/dev`, request size 1920×1088);
+- it checks the output against §7.1;
+- it ends in `image-complete` rather than `chunk-complete`;
+- it binds the provider to the chunk's image stage (§11.2).
+
+Retries, the time limit and concurrency belong to sibling tickets (JOS-184/154, JOS-185, JOS-167). This story calls their mechanisms and does not redefine them.
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Specify the image stage instance's lifecycle (`submitted → image-generating → image-complete | failed`) and its precondition on `generate-chunk-video`.
-- Specify the temporary-link persistence rule precisely enough to test: the record is never a link, always a locally stored file, by the time the stage reports success.
-- Specify the one correction path (§10.3) as a state-derived capability, not a stored flag — the form exists because the stage is `failed`, not because of a separate "editable" bit.
-- Confirm that per-chunk failure isolation requires no new mechanism beyond what `stage-retry-policy` already scopes per stage instance.
+- A `submitted → image-generating → image-complete | failed` lifecycle per chunk, launched automatically (AC1, AC2).
+- An output check that the recorded provider can actually pass (AC2).
+- Chunks that progress independently of each other, on success as well as on failure (AC3).
+- A stored provider binding that later retries honour (AC4).
+- Image results that never depend on an expiring link (§12.2).
 
 **Non-Goals:**
-- Video generation, assembly, or the phase-launch gate's own concurrency/pause mechanics — each already specified or owned elsewhere.
-- Choosing the image provider — `define-provider-configuration`'s decision.
-- Any UI layout for the correction form — `define-frontend-stack`'s concern once it lands.
+- The correction path (JOS-157), individual downloads (JOS-163), showing diagnostics (JOS-166), the clip precondition (JOS-146).
+- Changing the recorded provider or its request size (a JOS-165 decision).
+- Any frontend change. The session page already renders per-scene status from the snapshot, and `image-complete` is already a member of the `SceneState` union.
 
 ## Decisions
 
-**Decision 1 — The image stage instance is keyed by (session, chunk, stage), exactly as `stage-retry-policy` already defines for per-scene stages.**
-No new keying scheme is introduced; this story is the first to actually populate that key with `stage = image`.
-*Alternative rejected:* a chunk-level "current stage" pointer instead of per-stage instances. It would make the video stage's own independent retry budget (owned by `generate-chunk-video`) harder to keep separate from the image stage's, reintroducing exactly the coupling `stage-retry-policy`'s design already avoided for session-level stages.
+**Decision 1 — The output check uses dimensions with a ±1% aspect tolerance, measured from the stored file.**
+The image is accepted when `width ≥ 1920`, `height ≥ 1080`, and `|w/h − 16/9| / (16/9) ≤ 0.01`. The dimensions are read from the downloaded file's own header (PNG/JPEG), not from the provider's response metadata, so the check validates what is actually stored.
+- 1920×1088 → 0.74% off → accepted.
+- A portrait or under-size image → rejected. A rejection counts as a failed attempt, retryable like a transient error, since a new generation may succeed.
+*Alternatives rejected:*
+- An exact 16:9 check would reject every image the recorded 1920×1088 setting produces.
+- Requesting 2560×1440 would change a verified JOS-165 value and cost more.
+- Cropping to 1920×1080 adds an image-processing step that assembly already does when it normalises to 1920×1080 (PRD §11.3).
 
-**Decision 2 — The provider's temporary link is resolved to a local file inside the same operation that marks the stage successful, never after.**
-If the download fails, the stage instance is not marked `image-complete` — a failed download is a failed attempt, subject to the same retry budget as a failed generation call.
-*Alternative rejected:* marking the stage complete on the provider's response and downloading asynchronously afterward. It creates a window where `image-complete` is true but no image exists locally, which `generate-chunk-video`'s precondition check (§7.1, AC05) would then have to re-verify rather than trust.
+**Decision 2 — A temporary link is resolved to a local file in the same step that marks success.**
+The adapter returns either the image bytes or a temporary URL. The orchestrator writes the file under `project_folder`, runs the Decision 1 check on it, and only then commits `scene_results` and moves the chunk to `image-complete`. A failed download or write counts as a failed attempt.
+*Alternative rejected:* marking the stage complete first and downloading afterwards. That leaves a window where `image-complete` is true but no file exists, and JOS-146 would then have to re-verify the file instead of trusting the state.
 
-**Decision 3 — The `IMAGE` correction endpoint is a variant of the stage's manual retry, not a separate edit operation.**
-Correcting `IMAGE` and retrying with the same instruction differ only in whether the stored instruction changes before the retry fires; both go through `stage-retry-policy`'s manual-retry mechanism (new cycle, budget reset) unmodified.
-*Alternative rejected:* a generic `PATCH chunk` endpoint gated by a server-side check of which fields are mutable. §10.3's rule ("only while the image stage is `failed`, only `IMAGE`") is narrow enough that a dedicated action expresses it directly; a generic field-level mutability check invites the exact drift `define-frontend-stack`'s Decision 4 already rejected for the frontend side of this same rule.
+**Decision 3 — The provider binding is the scene's `provider` column, written once on the first attempt.**
+Before the first request of a chunk's image stage is sent, `scenes.provider` is set to the current image provider's identifier (for example `fal-ai/flux/dev`), and only if it is still null. Every later attempt resolves its adapter from the stored value, not from the current hardcoded configuration. If the stored identifier has no adapter in the running build, the attempt fails with a not-retryable cause and no silent switch happens (§11.2: there is no provider change in the MVP).
+*Alternative rejected:* storing the provider only on each `provider_requests` row. That records what happened but does not bind anything: a retry would still read the current configuration.
+
+**Decision 4 — `image-complete` is the last state a chunk reaches until JOS-146 lands.**
+The skeleton's `image-generating → chunk-complete` shortcut is removed. The derived session state treats `image-complete` as "still processing": the session never derives to `final-video` from image-complete chunks. JOS-146 will add `image-complete → video-generating`.
+*Alternative rejected:* keeping the shortcut until JOS-146 exists. That would break AC2, which requires `image-complete`.
+
+**Decision 5 — Independent progression comes from the existing per-scene scheduling, and is proven by a test rather than new code.**
+Each scene already has its own request, its own delivery callback and its own state transition. No session-wide barrier exists between image results. This story adds tests showing a finished scene advances while a sibling is still `image-generating` (AC3). It also adds a check that the new code introduces no such barrier.
 
 ## Risks / Trade-offs
 
-- **A large image blocks the request thread during download** → Left to the stack decision (streaming vs. buffering); this design only requires that the stage isn't marked complete until the file is durably stored, not how the download is implemented.
-- **A chunk stuck failing here silently stalls only itself, not the session** → This is the intended behaviour (§10.2), not a defect, but it means the session-level progress view must surface which specific chunks are failed rather than a single session-wide failure — `consult-session`'s existing per-scene rendering already covers this.
-- **Coupling with the stack spikes** → Same acceptance as every sibling story.
+- **JOS-144 has not landed yet**, so the skeleton's `instruction` field conflates `PROMPT`/`IMAGE`/`VIDEO`. → The task gate stops if a distinct `IMAGE` instruction is not available, rather than building against the conflated field.
+- **The concurrency cap of 200 is provisional** (PRD §11.3). → It is used as recorded. JOS-167 owns refining it.
+- **No distinguishable not-retryable signal was found for Fal.ai** (ADR 0005, Decision 5). → Content rejections are classified as transient until JOS-165's open finding is resolved. The adapter's classification sits in one place so it can be changed without touching the orchestrator.
+- **Real provider calls cost money.** → Automated tests use the stub adapter only. At most one real call is made during manual verification, and it is recorded in the report.
+- **`deriveSessionState` is shared with JOS-136.** `generate-voice-over` task 5.15 also extends `deriveSessionState` (voice-over states derived from records, its Decision 12), and this story changes how `image-complete` chunks count. Whichever lands second merges the other's precedence rules and re-runs both suites; neither adds a stored state column.
 
 ## Migration Plan
 
-Nothing is deployed and no per-chunk provider code exists yet. This change adds the `chunk-image-generation` capability and, once implemented, the first `Chunk.image_result_path` values and `image`-named `StageExecution` rows. Rollback before implementation is deleting the change directory.
+- No schema migration is needed: `scenes.provider` and `scenes.result` already exist.
+- Existing skeleton rows in `chunk-complete` stay as they are. Sessions never expire, and no data is rewritten.
+- Rollback: revert the code. The data stays readable because no columns change.
 
 ## Open Questions
 
-1. **Does the image provider return a native content type/size the record should keep alongside the path?** Left to `define-provider-configuration`'s adapter work; this design does not add fields beyond `image_result_path` without evidence they are needed.
+None blocking. The aspect tolerance was confirmed by the product owner on 2026-09-27.
