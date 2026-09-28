@@ -19,13 +19,18 @@ const ALLOWED_SESSION_TRANSITIONS: Readonly<Record<SessionState, readonly Sessio
   failed: [],
 };
 
+// Fields are declared explicitly, not as constructor parameter properties:
+// the server runs as `node src/server.ts` (strip-only mode), which refuses
+// TypeScript syntax that emits code. `erasableSyntaxOnly` enforces this.
 export class InvalidSessionTransitionError extends Error {
-  constructor(
-    readonly from: SessionState,
-    readonly to: SessionState,
-  ) {
+  readonly from: SessionState;
+  readonly to: SessionState;
+
+  constructor(from: SessionState, to: SessionState) {
     super(`invalid session transition: ${from} -> ${to}`);
     this.name = "InvalidSessionTransitionError";
+    this.from = from;
+    this.to = to;
   }
 }
 
