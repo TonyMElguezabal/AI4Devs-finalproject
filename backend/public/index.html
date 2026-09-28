@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Skeleton — live push demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; width: 100%; max-width: 700px; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; font-size: 0.9rem; }
+    .submitted { color: #888; }
+    .image-generating { color: #b8860b; }
+    .chunk-complete { color: #2e7d32; font-weight: 600; }
+    .failed { color: #c62828; font-weight: 600; }
+    #status { margin-bottom: 1rem; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <!-- This is the backend-only smoke-test page from define-backend-stack (JOS-179).
+       The real UI is the React prototype from define-frontend-stack (JOS-180). -->
+  <h1>Session scenes (live)</h1>
+  <p>Set <code>?sessionId=&lt;id&gt;</code> in the URL. Updates arrive over Server-Sent Events, no reload.</p>
+  <div id="status">connecting…</div>
+  <p id="session"></p>
+  <table>
+    <thead>
+      <tr><th>#</th><th>id</th><th>state</th><th>attempts</th><th>result / error</th><th>updated</th></tr>
+    </thead>
+    <tbody id="scenes"></tbody>
+  </table>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const sessionId = params.get("sessionId");
+    const statusEl = document.getElementById("status");
+    const sessionEl = document.getElementById("session");
+    const tbody = document.getElementById("scenes");
+
+    function render(snapshot) {
+      sessionEl.textContent = `session state: ${snapshot.session.state}${snapshot.session.paused ? " (paused)" : ""}`;
+      tbody.innerHTML = snapshot.scenes
+        .sort((a, b) => a.index - b.index)
+        .map(
+          (s) => `<tr>
+            <td>${s.index}</td>
+            <td>${s.sceneId.slice(0, 8)}</td>
+            <td class="${s.state}">${s.state}</td>
+            <td>${s.attempts}</td>
+            <td>${(s.result && s.result.imageUrl) ?? s.errorCause ?? ""}</td>
+            <td>${s.updatedAt}</td>
+          </tr>`,
+        )
+        .join("");
+    }
+
+    if (!sessionId) {
+      statusEl.textContent = "no sessionId in query string";
+    } else {
+      function syncState() {
+        fetch(`/sessions/${sessionId}`)
+          .then((r) => r.json())
+          .then(render);
+      }
+
+      const source = new EventSource(`/events?sessionId=${encodeURIComponent(sessionId)}`);
+      // onopen fires on the *first* connect and on every automatic browser
+      // reconnect after a drop. Re-syncing here (not just once at page load)
+      // is what proves C8's "reaches correct current state" after a drop:
+      // an SSE stream has no backlog, so a broadcast that happened while
+      // disconnected would otherwise never reach this client.
+      source.onopen = () => {
+        statusEl.textContent = `connected (SSE) — sessionId ${sessionId}`;
+        syncState();
+      };
+      source.onerror = () => (statusEl.textContent = "connection lost, browser will retry…");
+      source.onmessage = (event) => {
+        const payload = JSON.parse(event.data);
+        statusEl.textContent = `connected (SSE) — sessionId ${sessionId} — last update ${new Date().toLocaleTimeString()}`;
+        render(payload);
+      };
+    }
+  </script>
+</body>
+</html>

@@ -77,7 +77,7 @@ backend/
 └── package.json
 ```
 
-This mirrors the throwaway skeleton proven in `openspec/changes/define-backend-stack/skeleton/` (see its `README.md`), adjusted for real persistence and the full five-stage model instead of the skeleton's single generic stage. Whether the skeleton itself is kept and evolved into `backend/`, or discarded and rebuilt from scratch against this structure, is recorded in that change's `tasks.md` §11.1.
+**`backend/` now exists** — promoted from the throwaway skeleton (`start-video-project`, JOS-134, extending `docs/adr/0001-backend-stack.md` § Consequences' "kept as the project seed" decision), not a hypothetical target structure. It still models the PRD's five stages as one generic stage; the full five-stage model is future work, not yet done (see below).
 
 ## Architecture
 
@@ -229,6 +229,7 @@ Structured JSON logging (Fastify's built-in Pino logger), one event per line, ne
 - Provider credentials are read from the local environment or a local secrets file excluded from version control — never hardcoded, never committed (PRD §12.3, §11).
 - Required environment variables are validated at startup, failing fast with a clear message naming the missing variable (never its value).
 - No accounts, sessions, or authentication in the MVP (PRD §12.3) — this is a local, single-user install. Session/data isolation (a run cannot see or overwrite another run's data) is a **functional integrity requirement**, not a security control, per PRD §12.3 — do not conflate the two when reasoning about what "isolation" needs to guarantee.
+- **Request body size ceiling**: PRD §4.1 imposes no product-side script length limit, but Fastify's own `bodyLimit` is the real, finite ceiling underneath that (`start-video-project`, JOS-134, Decision 6) — set to 50MB (`BODY_LIMIT_BYTES` env var, `server.ts`), far beyond any realistic script while still a named ceiling rather than "no limit at all." A request exceeding it gets Fastify's own `413`, structurally distinct from the `400`s this app's own Zod validation returns — never leave the framework default (1MB) in place, which would look identical to a product limit that does not exist.
 
 ## Development Workflow
 
@@ -244,4 +245,4 @@ Tracked here so this document is never mistaken for settling more than it has:
 - ~~Live-update transport~~ — **decided**: Server-Sent Events (`docs/adr/0003-live-updates.md`). See [Live Updates](#live-updates).
 - **Frontend stack and its interop contract with this backend** — `define-frontend-stack` (US-42b, JOS-180).
 - **Hardcoded values** (retry backoff base/cap, per-phase max execution times, concurrency caps, speed-factor limits) — `define-provider-configuration` (US-33, JOS-165) and `define-media-assembly` (JOS-182) for the assembly-specific ones.
-- **Whether the walking skeleton becomes `backend/`'s seed, or is discarded and rebuilt against this structure from scratch** — `openspec/changes/define-backend-stack/tasks.md` §11.1.
+- ~~Whether the walking skeleton becomes `backend/`'s seed~~ — **decided**: yes, promoted (`start-video-project`, JOS-134). The full five-stage model (voice, alignment, image, video, assembly as their own real stages, not one generic stand-in) remains future work — each stage's own change (`decompose-script-into-chunks`, `generate-chunk-image`, `generate-chunk-video`, `generate-voice-over`, `assemble-final-video`) implements its slice when it lands.

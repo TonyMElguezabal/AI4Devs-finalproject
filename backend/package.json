@@ -1,0 +1,25 @@
+{
+  "name": "vid4you-backend",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Vid4You backend — promoted from the define-backend-stack (JOS-179) walking skeleton, extended by start-video-project (JOS-134).",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.2",
+    "@fastify/swagger": "^9.4.2",
+    "@fastify/swagger-ui": "^5.2.2",
+    "fastify": "^5.2.1",
+    "fastify-type-provider-zod": "^4.0.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.4"
+  }
+}

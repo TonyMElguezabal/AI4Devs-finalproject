@@ -1,0 +1,322 @@
+import type { FastifyPluginAsync } from "fastify";
+import { z } from "zod";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { createRun, getRun, getScene } from "./db.ts";
+import {
+  continueSession,
+  correctAndRetry,
+  events,
+  handleProviderResult,
+  manualRetry,
+  pauseSession,
+  toSnapshot,
+} from "./orchestrator.ts";
+import { PROVIDER_OUTCOME_MODES } from "./types.ts";
+import { SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES } from "./config/languages.ts";
+import { ulid } from "./util/ulid.ts";
+
+/** Provisional — the real value is set by define-live-updates' idle experiment (Decision 7); this keeps the stream alive meanwhile. */
+const HEARTBEAT_MS = 15_000;
+
+const providerModeSchema = z.enum(PROVIDER_OUTCOME_MODES);
+
+// start-video-project (JOS-134) Decision 1 — emptiness is judged on a
+// trimmed view; the raw value is what gets stored (never the trimmed one).
+const nonEmptyAfterTrim = (label: string) =>
+  z.string().refine((v) => v.trim().length > 0, { message: `${label} must not be empty` });
+
+const createSessionBodySchema = z.object({
+  title: nonEmptyAfterTrim("title"),
+  script: nonEmptyAfterTrim("script"),
+  // PRD §4.1, D09 — a session cannot start without a language selected from
+  // the hardcoded supported list; refused regardless of how the request was
+  // made (Decision 5). See config/languages.ts for the provisional-list note.
+  language: z.enum(SUPPORTED_LANGUAGE_CODES),
+});
+
+// start-video-project (JOS-134) Decision 3 — session identifiers are ULIDs
+// (opaque, creation-ordered), not UUIDs; scene and provider-request ids are
+// unaffected (§12.3's "reached by identifier" guarantee is about sessions).
+const ulidPattern = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
+const sessionIdSchema = z.string().regex(ulidPattern, "invalid session identifier");
+
+const sessionParamsSchema = z.object({ sessionId: sessionIdSchema });
+const sceneParamsSchema = z.object({ sessionId: sessionIdSchema, sceneId: z.string().uuid() });
+const providerCallbackParamsSchema = z.object({ requestId: z.string().uuid() });
+const correctBodySchema = z.object({ instruction: z.string().min(1) });
+
+const sceneResponseSchema = z.object({
+  type: z.literal("scene"),
+  sessionId: z.string(),
+  sceneId: z.string(),
+  index: z.number(),
+  state: z.string(),
+  affectedStage: z.enum(["image", "video"]).optional(),
+  errorCause: z.string().nullable().optional(),
+  provider: z.string().optional(),
+  attempts: z.number().optional(),
+  result: z.object({ imageUrl: z.string().optional(), videoUrl: z.string().optional() }).optional(),
+  instruction: z.string().optional(),
+  updatedAt: z.string(),
+});
+
+const sessionResponseSchema = z.object({
+  type: z.literal("session"),
+  sessionId: z.string(),
+  title: z.string(),
+  script: z.string(),
+  language: z.string(),
+  state: z.string(),
+  paused: z.boolean(),
+  failedPhase: z.string().optional(),
+  updatedAt: z.string(),
+});
+
+const languageResponseSchema = z.array(z.object({ code: z.string(), label: z.string() }));
+
+const snapshotResponseSchema = z.object({
+  session: sessionResponseSchema,
+  scenes: z.array(sceneResponseSchema),
+});
+
+const okSchema = z.object({ ok: z.boolean() });
+const conflictSchema = z.object({ ok: z.boolean(), reason: z.string() });
+
+export const routes: FastifyPluginAsync = async (app) => {
+  const typed = app.withTypeProvider<ZodTypeProvider>();
+
+  typed.get("/health", { schema: { response: { 200: z.object({ ok: z.boolean() }) } } }, async () => ({
+    ok: true,
+  }));
+
+  // start-video-project (JOS-134) Decision 5 — the frontend fetches this
+  // list rather than restating it; see config/languages.ts for the
+  // provisional-pending-US-33 note.
+  typed.get("/languages", { schema: { response: { 200: languageResponseSchema } } }, async () => [
+    ...SUPPORTED_LANGUAGES,
+  ]);
+
+  // PRD §5 step 1, §8.1 — registers a session in `submitted` with zero
+  // scenes: decomposition (US-07..US-09) hasn't run yet, so there is nothing
+  // to launch and no provider is called here (Decision 8). The consultation
+  // read and the resync snapshot are the same endpoint (consult-session,
+  // JOS-135, Decision 1; define-live-updates, JOS-183, Decision 4).
+  typed.post(
+    "/sessions",
+    {
+      schema: {
+        body: createSessionBodySchema,
+        response: { 201: snapshotResponseSchema },
+      },
+    },
+    async (request, reply) => {
+      const sessionId = ulid();
+      createRun(sessionId, request.body.title, request.body.script, request.body.language);
+      reply.code(201);
+      return toSnapshot(sessionId);
+    },
+  );
+
+  typed.get(
+    "/sessions/:sessionId",
+    {
+      schema: {
+        params: sessionParamsSchema,
+        response: { 200: snapshotResponseSchema, 404: z.object({ error: z.string() }) },
+      },
+    },
+    async (request, reply) => {
+      const snapshot = toSnapshot(request.params.sessionId);
+      if (!snapshot) {
+        reply.code(404);
+        return { error: "session not found" };
+      }
+      return snapshot;
+    },
+  );
+
+  typed.post(
+    "/sessions/:sessionId/pause",
+    {
+      schema: {
+        params: sessionParamsSchema,
+        response: { 200: okSchema, 404: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const result = pauseSession(request.params.sessionId);
+      if (!result.ok) {
+        reply.code(404);
+        return { ok: false, reason: result.reason ?? "unknown session" };
+      }
+      return { ok: true };
+    },
+  );
+
+  typed.post(
+    "/sessions/:sessionId/continue",
+    {
+      schema: {
+        params: sessionParamsSchema,
+        response: { 200: okSchema, 404: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const result = continueSession(request.params.sessionId);
+      if (!result.ok) {
+        reply.code(404);
+        return { ok: false, reason: result.reason ?? "unknown session" };
+      }
+      return { ok: true };
+    },
+  );
+
+  typed.post(
+    "/sessions/:sessionId/scenes/:sceneId/retry",
+    {
+      schema: {
+        params: sceneParamsSchema,
+        response: { 200: okSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const result = manualRetry(request.params.sceneId);
+      if (!result.ok) {
+        reply.code(409);
+        return { ok: false, reason: result.reason ?? "cannot retry" };
+      }
+      return { ok: true };
+    },
+  );
+
+  // PRD §10.3 — the one visual-correction exception: offered only on a
+  // failed stage, and only for the affected instruction.
+  typed.post(
+    "/sessions/:sessionId/scenes/:sceneId/correct",
+    {
+      schema: {
+        params: sceneParamsSchema,
+        body: correctBodySchema,
+        response: { 200: okSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const result = correctAndRetry(request.params.sceneId, request.body.instruction);
+      if (!result.ok) {
+        reply.code(409);
+        return { ok: false, reason: result.reason ?? "cannot correct" };
+      }
+      return { ok: true };
+    },
+  );
+
+  // PRD §12.3 — per-scene downloads while other scenes still process.
+  // Simplification: this skeleton models one combined stage, so "image" and
+  // "video" availability are not distinguished; both are available together
+  // once the scene reaches `chunk-complete`. A real two-stage backend would
+  // gate these independently.
+  typed.get(
+    "/sessions/:sessionId/scenes/:sceneId/download/:kind",
+    {
+      schema: {
+        params: z.object({ sessionId: z.string().uuid(), sceneId: z.string().uuid(), kind: z.enum(["image", "video"]) }),
+        response: { 200: z.string(), 409: conflictSchema, 404: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const scene = getScene(request.params.sceneId);
+      if (!scene || scene.runId !== request.params.sessionId) {
+        reply.code(404);
+        return { ok: false, reason: "unknown scene" };
+      }
+      if (scene.status !== "chunk-complete") {
+        reply.code(409);
+        return { ok: false, reason: `scene ${request.params.kind} is not available in status '${scene.status}'` };
+      }
+      reply.type("text/plain");
+      return `stub ${request.params.kind} content for scene ${scene.index} (${scene.result})`;
+    },
+  );
+
+  // PRD §12.3 — the final MP4 is only available at `final-video`.
+  typed.get(
+    "/sessions/:sessionId/download/final-video",
+    {
+      schema: {
+        params: sessionParamsSchema,
+        response: { 200: z.string(), 409: conflictSchema, 404: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const snapshot = toSnapshot(request.params.sessionId);
+      if (!snapshot) {
+        reply.code(404);
+        return { ok: false, reason: "unknown session" };
+      }
+      if (snapshot.session.state !== "final-video") {
+        reply.code(409);
+        return { ok: false, reason: `final video is not available in state '${snapshot.session.state}'` };
+      }
+      reply.type("text/plain");
+      return `stub final MP4 content for session ${request.params.sessionId}`;
+    },
+  );
+
+  // Simulates a provider webhook delivering a result. Also used directly (by
+  // curl or the automated test) to send a *duplicate* delivery, proving C7.
+  typed.post(
+    "/internal/provider-callback/:requestId",
+    {
+      schema: {
+        params: providerCallbackParamsSchema,
+        response: { 200: z.object({ applied: z.boolean(), note: z.string() }) },
+      },
+    },
+    async (request) => {
+      return handleProviderResult(request.params.requestId);
+    },
+  );
+
+  // Live push (SSE) — proves C8. Emits the full session snapshot whenever it
+  // changes, without the client reloading, plus a periodic heartbeat so an
+  // idle connection is distinguishable from a dead one (Decision 7).
+  app.get("/events", async (request, reply) => {
+    const sessionId = (request.query as { sessionId?: string }).sessionId;
+
+    // define-live-updates (JOS-183) task 10.7 — a request for an unknown
+    // session is rejected, not silently opened as an empty stream that would
+    // never emit anything (found while writing the mandatory curl transcript).
+    if (!sessionId || !getRun(sessionId)) {
+      reply.code(404).send({ error: "session not found" });
+      return;
+    }
+
+    reply.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      // Writing to `reply.raw` bypasses Fastify's reply pipeline entirely,
+      // so the @fastify/cors plugin's onSend hook never runs for this route
+      // — found by the frontend prototype's browser actually refusing the
+      // response with no CORS header. Set it explicitly here instead.
+      "Access-Control-Allow-Origin": request.headers.origin ?? "*",
+    });
+    reply.raw.write(": connected\n\n");
+
+    const onState = (payload: { session: { sessionId: string } }) => {
+      if (sessionId && payload.session.sessionId !== sessionId) return;
+      reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
+    };
+    events.on("state", onState);
+
+    const heartbeat = setInterval(() => {
+      reply.raw.write(": heartbeat\n\n");
+    }, HEARTBEAT_MS);
+    heartbeat.unref();
+
+    request.raw.on("close", () => {
+      events.off("state", onState);
+      clearInterval(heartbeat);
+    });
+  });
+};
