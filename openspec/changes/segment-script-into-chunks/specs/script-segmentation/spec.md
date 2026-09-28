@@ -45,11 +45,11 @@ Each fragment's narrated duration SHALL be at least the lower bound (5 s) and at
 
 ### Requirement: A short sentence is grouped with its neighbour
 
-A sentence whose narration is below the lower bound SHALL be grouped with the following sentence; if it is the script's last sentence it SHALL be grouped with the previous one; if the script has no other sentence it SHALL be a fragment on its own.
+A sentence whose narration is below the lower bound SHALL be grouped with the following sentence; if it is the script's last sentence it SHALL be grouped with the previous one; if the script has no other sentence it SHALL be a fragment on its own. Real narration is mostly sentences below the lower bound, so where a script does not allow every short sentence to be grouped with the one that follows it, a fragment SHALL be allowed to end on a short sentence (other than the script's last), and the system SHALL choose the grouping with the fewest fragments that do so. A script SHALL NOT be refused only because most of its sentences are short.
 
 #### Scenario: A short sentence in the middle
 
-- **GIVEN** a short sentence followed by another sentence
+- **GIVEN** a short sentence followed by another sentence, and a grouping of the script in which no fragment ends on a short sentence
 - **WHEN** the script is segmented
 - **THEN** the short sentence is in the same fragment as the sentence that follows it
 
@@ -58,6 +58,13 @@ A sentence whose narration is below the lower bound SHALL be grouped with the fo
 - **GIVEN** a script whose last sentence is short
 - **WHEN** it is segmented
 - **THEN** the last sentence is in the same fragment as the one before it
+
+#### Scenario: A script of mostly short sentences
+
+- **GIVEN** a script whose sentences are narrated in 2.9, 5.0, 7.2, 4.0, 4.9, 3.1, 3.4, 2.9, 4.7, 3.2, 4.6, 5.2 and 4.1 seconds (measured on a real English narration; most are below 5 s, so no grouping avoids every fragment ending on a short sentence)
+- **WHEN** it is segmented
+- **THEN** it is not refused, and every fragment lasts between 5 s and 15 s
+- **AND** the grouping has the fewest fragments ending on a short sentence, which here is 2, against 3 for the grouping with the smallest speed change alone
 
 #### Scenario: A whole script shorter than the lower bound
 
@@ -83,7 +90,7 @@ Until sentences can be split at clause boundaries, a sentence whose narration al
 
 ### Requirement: The grouping needing the least speed change is chosen
 
-Among the groupings that satisfy these requirements, the system SHALL choose the one whose fragments need the smallest total speed change to reach an admitted clip duration, each fragment's speed change being §7.2's ratio to its closest admitted duration (a tie going to the longer duration) and the total being the sum of the ratios' logarithms. Ties SHALL go to fewer fragments, then to the grouping whose first cut comes later. The admitted durations SHALL be the whole seconds from 5 to 15.
+Among the groupings that satisfy these requirements, the system SHALL choose first the one with the fewest fragments ending on a short sentence and then, among those, the one whose fragments need the smallest total speed change to reach an admitted clip duration, each fragment's speed change being §7.2's ratio to its closest admitted duration (a tie going to the longer duration) and the total being the sum of the ratios' logarithms. Ties SHALL go to fewer fragments, then to the grouping whose first cut comes later. The admitted durations SHALL be the whole seconds from 5 to 15.
 
 #### Scenario: Two valid groupings differ in speed change
 

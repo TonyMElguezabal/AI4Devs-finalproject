@@ -29,13 +29,13 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 ## 4. Grouping (TDD) — Decisions 4 and 5
 
 - [x] 4.1 Write failing tests that ordinary scripts give fragments of whole consecutive sentences, each within 5-15 s
-- [x] 4.2 Write failing tests for short sentences: grouped with the following one; the last one grouped with the previous one; a one-sentence script alone
+- [ ] 4.2 Write failing tests for short sentences: grouped with the following one when a grouping allows it; the last one grouped with the previous one; a one-sentence script alone; a script of mostly short sentences (the measured English and Spanish durations) is grouped, not refused, with the fewest fragments ending on a short sentence
 - [x] 4.3 Write failing tests for the whole script under 5 s (one fragment, `script-below-lower-bound`)
 - [x] 4.4 Write failing tests for the interim `unsplittable-sentence` cases: a sentence over 15 s alone, and a short sentence plus a next one over 15 s together
-- [x] 4.5 Write failing tests for the optimization: a case where the valid groupings differ in total speed change and the smaller one is chosen; tie-breaking to fewer fragments, then to the later first cut; determinism
+- [ ] 4.5 Write failing tests for the optimization: fewest fragments ending on a short sentence first; then a case where the valid groupings differ in total speed change and the smaller one is chosen; tie-breaking to fewer fragments, then to the later first cut; determinism
 - [x] 4.6 Write failing tests that a script with no valid grouping returns an error, not fragments
 - [x] 4.7 Write failing tests that fragments reproduce the script apart from whitespace, in English and in Spanish with `¿`, `¡` and accents, and that every fragment passes JOS-144's validation for the same script and durations
-- [x] 4.8 Implement `segmentScript(script, language, characters, mp3Duration)`, then run the group 4 tests
+- [ ] 4.8 Implement `segmentScript(script, language, characters, mp3Duration)`, then run the group 4 tests
 
 ## 5. Phase (TDD) — Decisions 5 and 7
 
@@ -48,23 +48,23 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
 - [x] 6.1 Review existing tests that build fragments by hand (JOS-144) for anything the segmentation module now owns, and keep them independent of it
-- [x] 6.2 Confirm every scenario in `specs/script-segmentation/spec.md` has at least one functional test; list the mapping in the step 7 report
-- [x] 6.3 Confirm module test coverage has not decreased, measured against the base on scratch databases
+- [ ] 6.2 Confirm every scenario in `specs/script-segmentation/spec.md` has at least one functional test; list the mapping in the step 7 report
+- [ ] 6.3 Confirm module test coverage has not decreased, measured against the base on scratch databases
 - [x] 6.4 Run `npm run typecheck` and the server runtime-load test
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
 - [x] 7.1 Capture the pre-test state of the default test store
-- [x] 7.2 Run the targeted tests and capture the summary
-- [x] 7.3 Run the full suite and record totals, failures and runtime (the known intermittent `orchestrator.test.ts` failure is reported, not hidden)
-- [x] 7.4 Verify the post-test state matches the baseline; restore it if not
-- [x] 7.5 Write `openspec/changes/segment-script-into-chunks/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`
-- [x] 7.6 Mark this step complete only after the tests pass and the report exists
+- [ ] 7.2 Run the targeted tests and capture the summary
+- [ ] 7.3 Run the full suite and record totals, failures and runtime (the known intermittent `orchestrator.test.ts` failure is reported, not hidden)
+- [ ] 7.4 Verify the post-test state matches the baseline; restore it if not
+- [ ] 7.5 Write `openspec/changes/segment-script-into-chunks/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`
+- [ ] 7.6 Mark this step complete only after the tests pass and the report exists
 
 ## 8. Manual Endpoint Testing (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Start the real server on a scratch database and confirm it responds
-- [ ] 8.2 Create a session with a script of about 700 characters in English, make a real text-to-speech call with timestamps, store it, and run `runDecompositionPhase` with the real alignment provider and a stub instruction generator; `GET /sessions/:id` shows chunks 1..N, each within the bounds, `chunks-processing`
+- [x] 8.1 Start the real server on a scratch database and confirm it responds
+- [ ] 8.2 Create a session with a script of about 700 characters in English, make a real text-to-speech call with timestamps, store it, and run `runDecompositionPhase` with the real alignment provider and a stub instruction generator; `GET /sessions/:id` shows chunks 1..N, each within the bounds, `chunks-processing`; its sentences are mostly under 5 s, as real narration is
 - [ ] 8.3 Repeat with a Spanish script, and with a script that has a sentence over 15 s (the interim `unsplittable-sentence` flag)
 - [ ] 8.4 Verify the admitted durations: generate one reference image (one image-provider call) and request 8 s and 11 s clips from the video provider; measure the returned clips with `ffprobe`; record the result and the spend, and shrink the constant if a value is rejected
 - [ ] 8.5 Clean up through the test-only reset; confirm the scratch store is empty with all triggers and the default store untouched
