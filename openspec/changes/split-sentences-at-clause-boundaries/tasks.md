@@ -11,7 +11,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 - [x] 1.1 Confirm JOS-140 is implemented on the base branch: `findSentences`, `chunkDurations`, `segmentScript` and its interim `unsplittable-sentence` rule. If not, stop and implement JOS-140 first
 - [x] 1.2 Remove the three clause-boundary requirements from `decompose-script-into-chunks`, point it here, update its tasks 6.2, 6.4 and 6.5, and validate both changes
-- [ ] 1.3 Record on JOS-141 the conjunction lists chosen (design Decision 1) so they can be reviewed
+- [x] 1.3 Record on JOS-141 the conjunction lists chosen (design Decision 1) so they can be reviewed
 
 ## 2. Clause boundaries (TDD) — Decisions 1 and 4
 
