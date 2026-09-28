@@ -98,6 +98,6 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 - [x] 12.1 Comment on JOS-140 how to call `registerDecomposition`, and on JOS-145 and JOS-157 that `instruction` and `image_instruction` coexist until JOS-145 switches the image stage — posted on JOS-140 (how to call `registerDecomposition`, the carve-out), JOS-145 (unblocked once merged; move the image stage to `image_instruction`) and JOS-157 (the correction writes only `instruction`)
 - [x] 12.2 Update Linear with progress, decisions and agreements on the tickets touched — also posted on JOS-144 (progress, decisions, verification, findings), JOS-156 (what a decomposition retry finds) and JOS-136 (`SessionFailure` and `deriveSessionState` coordination)
-- [ ] 12.3 Open the PR against `feature/entrega-2-JAME` linking to JOS-144
+- [x] 12.3 Open the PR against `feature/entrega-2-JAME` linking to JOS-144 — #10 (https://github.com/TonyMElguezabal/AI4Devs-finalproject/pull/10), mergeable, 30 files
 - [ ] 12.4 Get a review from at least one human
 - [ ] 12.5 Archive the OpenSpec change after merge
