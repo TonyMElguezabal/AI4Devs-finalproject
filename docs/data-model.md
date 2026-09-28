@@ -14,9 +14,9 @@ Represents one video project. PRD §3, §4.1, §8.1, §9, §12.2.
 
 **Fields:**
 - `id`: system-generated identifier (Primary Key) — §3. **ULID**, not a random UUID (`start-video-project`, JOS-134, Decision 3): opaque (not derived from the title) *and* creation-ordered (sorts lexicographically by creation time), which a UUIDv4 is not.
-- `title`: the project's title — §3
-- `script`: the script exactly as submitted, **write-once from registration onward** — §4.2/D10 (`start-video-project`, JOS-134, Decisions 1 and 2). Emptiness is judged on a trimmed view at the validation boundary; the stored value is never trimmed. No operation updates this column after creation.
-- `language`: script language, selected from the hardcoded supported list; a session cannot exist without one — §4.1. Also write-once, same as `script`.
+- `title`: the project's title — §3. **Write-once**, like `script`; enforced by a store trigger (see *Store-enforced locks* below).
+- `script`: the script exactly as submitted, **write-once from registration onward** — §4.2/D10 (`start-video-project`, JOS-134, Decisions 1 and 2). Emptiness is judged on a trimmed view at the validation boundary; the stored value is never trimmed. No operation updates this column after creation, and since `lock-script-and-narration` (JOS-137) the **store itself refuses** any update of it, in every state (see *Store-enforced locks* below).
+- `language`: script language, selected from the hardcoded supported list; a session cannot exist without one — §4.1. Also write-once, same as `script`, and enforced the same way.
 - `created_at`: creation timestamp; also drives the project-folder name, to the minute — §12.2
 - `state`: **derived**, not stored — one of the eight session states in §8.1, computed from the session's scenes each time it is read (`orchestrator.ts`'s `deriveSessionState`). A session with zero scenes (the state immediately after `start-video-project` registers it, before decomposition creates any) derives to `submitted`. This skeleton only ever produces `submitted`, `chunks-processing`, `final-video` or `failed`, since voice-over and decomposition phases aren't modelled.
 - `paused`: a marker on top of the current state, never a state itself, per §8.1/§9 (Decision 8, `define-live-updates`)
@@ -74,7 +74,25 @@ The actual idempotency guarantee. PRD §12.1 ("more than one success confirmatio
 
 ### 5. Schema migrations (`schema_migrations` table)
 
-Tracks which versioned migrations have been applied, so an existing session's data survives a schema upgrade (§11.2, Decision 6). Fields: `version` (Primary Key), `applied_at`.
+Tracks which versioned migrations have been applied, so an existing session's data survives a schema upgrade (§11.2, Decision 6). Fields: `version` (Primary Key), `applied_at`. Migration 5 adds the three session-content triggers and migration 6 the two voice-over triggers (`lock-script-and-narration`, JOS-137); they are separate because a database that had already applied 5 must still receive the voice-over triggers, and an applied migration is never edited.
+
+## Store-enforced locks
+
+What must never change is refused by the store itself (`lock-script-and-narration`, JOS-137; PRD §4.2, D10), so the rule holds for every caller, present or future, and not only for the repository functions in `backend/src/db.ts`. Each trigger aborts the statement with a message that names what was touched.
+
+| Trigger | Table | Fires on | Refusal message |
+|---|---|---|---|
+| `runs_title_locked` | `runs` | `UPDATE OF title` | `locked: runs.title cannot be modified after registration` |
+| `runs_script_locked` | `runs` | `UPDATE OF script` | `locked: runs.script cannot be modified after registration` |
+| `runs_language_locked` | `runs` | `UPDATE OF language` | `locked: runs.language cannot be modified after registration` |
+| `voice_overs_no_update` | `voice_overs` | any `UPDATE` | `locked: voice_overs cannot be modified once the narration is complete` |
+| `voice_overs_no_delete` | `voice_overs` | any `DELETE` | `locked: voice_overs cannot be deleted once the narration is complete` |
+
+- `UPDATE OF <column>` fires whenever the column appears in a `SET` list, **even for an identical value**: nothing legitimate writes these columns after the `INSERT`, so any write is a bug worth failing loudly. Updating the other `runs` columns (`paused`, `project_folder`, `voice_provider_id`, `failure`) is unaffected.
+- There is no trigger on `INSERT`: a second voice-over for a session is already refused by `voice_overs`' primary key (`run_id`).
+- The `voice_overs` table is created by migration 4 of `generate-voice-over` (JOS-136) and is documented with that change; this section only records how it is protected.
+- **The one exception** is `resetAll()` in `backend/src/db.ts`, which exists only for tests and empties the store. Inside a single transaction it drops `voice_overs_no_delete`, deletes every row and recreates the trigger from the same definition constant the migration uses; if any step fails the whole reset rolls back and the trigger is left in place.
+- The MP3 file has the matching guarantee: it is written with `writeArtefactOnce`, which fails if the target exists and never replaces it (see `docs/backend-standards.md`, Persistence).
 
 ## Entity Relationship Diagram
 
@@ -130,6 +148,7 @@ erDiagram
 3. **File references are relative, always.** Every artefact path is relative to the owning session's recorded `project_folder`, so renaming that folder in place requires updating exactly one column, not every artefact row (Decision 4).
 4. **No entity models a phase this skeleton doesn't simulate.** Where the PRD implies a field (narration interval, speed factor, voice/alignment provider bindings) with no current writer or reader, it is documented as **not modelled** here rather than added speculatively — a story that needs it adds it as its own delta.
 5. **Schema versioning from the start.** `schema_migrations` exists even though there is currently one real migration, so a long-lived session (sessions never expire, §12.2) can outlive several schema versions without its existing rows being touched (Decision 6).
+6. **What must never change is locked by the store, not by convention.** The script, title and language, and a completed voice-over record, are protected by triggers (see *Store-enforced locks*), so a new caller that forgets the rule fails loudly instead of corrupting a session.
 
 ## Notes
 

@@ -25,10 +25,9 @@ openapi: 3.0.3
 info:
   title: Vid4You API
   version: 0.0.0
-  description: >-
-    Local, single-user API for turning a script into a narrated MP4 (Vid4You). Generated from the
-    Fastify + Zod route schemas in backend/src/routes.ts (docs/backend-standards.md, API and OpenAPI
-    Conventions) - never hand-written, to avoid drifting from the real validators.
+  description: Local, single-user API for turning a script into a narrated MP4 (Vid4You). Generated
+    from the Fastify + Zod route schemas in backend/src/routes.ts (docs/backend-standards.md, API
+    and OpenAPI Conventions) - never hand-written, to avoid drifting from the real validators.
 components:
   schemas: {}
 paths:
@@ -78,16 +77,17 @@ paths:
               properties:
                 title:
                   type: string
+                  description: Immutable once the session is registered (PRD §4.2).
                 script:
                   type: string
+                  description: Stored exactly as submitted and immutable from registration onward, in every state (PRD
+                    §4.2, D10). No operation modifies it.
                 language:
                   type: string
                   enum:
                     - en
                     - es
-                    - fr
-                    - de
-                    - pt
+                  description: Immutable once the session is registered (PRD §4.1, §4.2).
               required:
                 - title
                 - script
@@ -112,10 +112,14 @@ paths:
                         type: string
                       title:
                         type: string
+                        description: Immutable once the session is registered (PRD §4.2).
                       script:
                         type: string
+                        description: The script exactly as submitted; immutable from registration onward, in every state
+                          (PRD §4.2, D10). No operation modifies it.
                       language:
                         type: string
+                        description: Immutable once the session is registered (PRD §4.1, §4.2).
                       state:
                         type: string
                       paused:
@@ -217,10 +221,14 @@ paths:
                         type: string
                       title:
                         type: string
+                        description: Immutable once the session is registered (PRD §4.2).
                       script:
                         type: string
+                        description: The script exactly as submitted; immutable from registration onward, in every state
+                          (PRD §4.2, D10). No operation modifies it.
                       language:
                         type: string
+                        description: Immutable once the session is registered (PRD §4.1, §4.2).
                       state:
                         type: string
                       paused:

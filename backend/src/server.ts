@@ -41,7 +41,14 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(cors, { origin: true });
 
   await app.register(swagger, {
-    openapi: { info: { title: "Vid4You backend", version: "0.0.0" } },
+    openapi: {
+      info: {
+        title: "Vid4You API",
+        version: "0.0.0",
+        description:
+          "Local, single-user API for turning a script into a narrated MP4 (Vid4You). Generated from the Fastify + Zod route schemas in backend/src/routes.ts (docs/backend-standards.md, API and OpenAPI Conventions) - never hand-written, to avoid drifting from the real validators.",
+      },
+    },
     transform: jsonSchemaTransform,
   });
   await app.register(swaggerUi, { routePrefix: "/docs" });

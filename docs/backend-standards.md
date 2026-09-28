@@ -18,6 +18,7 @@ alwaysApply: true
 - [Coding Standards](#coding-standards)
   - [Naming Conventions](#naming-conventions)
   - [Error Handling](#error-handling)
+  - [Runtime constraint: erasable TypeScript only](#runtime-constraint-erasable-typescript-only)
   - [Validation](#validation)
 - [API and OpenAPI Conventions](#api-and-openapi-conventions)
 - [Live Updates](#live-updates)
@@ -115,6 +116,11 @@ Naming, typing, TDD and English-only rules are inherited from `docs/base-standar
 - HTTP-layer errors map typed domain outcomes to responses at the route boundary; the mapping lives with the routes, not scattered across the domain layer.
 - Never swallow an error silently: a caught error is either handled (with a recorded reason) or re-thrown.
 
+### Runtime constraint: erasable TypeScript only
+
+- The server runs as `node src/server.ts`, so Node strips the types and does not compile the file. Node refuses TypeScript syntax that emits code: **constructor parameter properties** (`constructor(readonly x: T)`), **enums** and **namespaces**. Declare class fields explicitly and assign them in the constructor; use union types or `as const` objects instead of enums.
+- Vitest and `tsc` both accept the forbidden syntax, so two guards exist: `erasableSyntaxOnly` in `backend/tsconfig.json` (`npm run typecheck` rejects it) and `backend/test/server-runtime-load.test.ts`, which imports the server in a real `node` process. Found in `lock-script-and-narration` (JOS-137) and `generate-voice-over` (JOS-136), where such a class would have passed every test and crashed `npm start`.
+
 ### Validation
 
 - Every route's body, params, and response are Zod schemas, registered through `fastify-type-provider-zod` so validation and the generated OpenAPI document can never drift apart.
@@ -185,6 +191,10 @@ What's fixed, because it comes directly from the PRD and is proven against the r
 - **Every data-access method is scoped by session identifier, not by convention.** (`consult-session`, JOS-135, Decision 2.) A scene's `id` is only unique *within* its session, so a lookup that took just the scene id could silently return a different session's scene of the same id. Repository methods take the session identifier as a required argument (`getSceneForRun(runId, sceneId)`, not `getScene(sceneId)`), and a resolved file path is checked against the requesting session's own recorded project folder before use — a resolved path outside it is refused, not merely trusted (`assertWithinProjectFolder`). This is a functional-integrity guarantee (one project must never show or overwrite another's data, PRD §12.3), not an access-control layer — there are no accounts or permissions in this model.
 - **The readiness queue is rebuilt at startup; only the pause marker is persisted** (Decision 5) — everything else is derivable, and a stale persisted queue after a crash is worse than a freshly rebuilt one.
 - **Schema migrations are versioned from the first commit** (Decision 6): a small migration runner takes the target database handle explicitly (not a module-level singleton), so the exact same runner can be pointed at a fixture database in tests — this is what makes "an existing session survives a schema upgrade" a real, repeatable test rather than a claim.
+
+- **What must never change is locked by store triggers, not by convention.** (`lock-script-and-narration`, JOS-137.) A session's `title`, `script` and `language` cannot be updated in any state, and a completed `voice_overs` record can be neither updated nor deleted; each is a `BEFORE UPDATE`/`BEFORE DELETE` trigger that aborts with a message naming what was touched, so a future caller that forgets the rule fails loudly. A new immutable field gets its own trigger in a **new migration** (an applied migration is never edited), with its definition kept in a named constant next to the others in `db.ts`. The full list is in `docs/data-model.md`, *Store-enforced locks*. The only code allowed to lift one is the test-only `resetAll()`, inside one transaction that recreates the trigger from the same constant.
+- **An artefact that must never be replaced is written with `writeArtefactOnce`.** (`lock-script-and-narration`, JOS-137, Decision 3.) It writes to a temporary file beside the target and hard-links it to the final name; the link is atomic and fails when the target exists (`ArtefactAlreadyExistsError`), where `rename` would silently replace it and an `existsSync` check would be a read-then-write race. It keeps the same project-folder scoping as `writeArtefact`. Use it for the voice-over MP3; artefacts that a retry may legitimately overwrite keep using `writeArtefact`.
+- **Voice generation asks `canLaunchVoiceOver` before it launches.** (`lock-script-and-narration`, JOS-137, Decision 4; `backend/src/voiceLaunchGuard.ts`.) Every caller (the first launch and the automatic and manual retries) uses it. It decides from whether the session has a voice-over record, not from the derived session state, so a session that failed before producing valid audio can be retried while one that already has a narration cannot be regenerated.
 
 **Test isolation:** tests that touch persisted state run against an **isolated** database path and an isolated project-folder root (`DB_PATH=data/test.sqlite PROJECTS_ROOT=data/test-projects npx vitest run`), never the same paths used for manual/E2E testing or real use. The test-reset helper wipes **both** the database rows and the real project-folder directory — a store that also writes real files needs its filesystem state reset alongside its rows, or a second test run collides with the first's leftovers (a real gap found and fixed while verifying this, `openspec/changes/define-persistence/reports/2026-09-25-step-7-unit-test-and-db-verification.md`).
 
