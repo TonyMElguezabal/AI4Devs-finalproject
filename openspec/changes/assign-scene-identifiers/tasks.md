@@ -90,9 +90,9 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/data-model.md`: `prompt`, `image_instruction`, `video_instruction`, `ID` = `idx` with its unique index, the chunk-lock triggers, and the decomposition failure on `runs.failure`
-- [ ] 11.2 `docs/api-spec.yml`: add descriptions in the Zod schemas and regenerate from `GET /docs/json`
-- [ ] 11.3 `docs/backend-standards.md`: the reasoning adapter and the registration entry point, if not already covered
+- [x] 11.1 `docs/data-model.md`: `prompt`, `image_instruction`, `video_instruction`, `ID` = `idx` with its unique index, the chunk-lock triggers, and the decomposition failure on `runs.failure` — the scene fields (`idx` as the PRD's ID with its unique index, `prompt`, `image_instruction`, `video_instruction`, the `instruction` divergence), `runs.failure` with both phases, the four scene triggers in *Store-enforced locks*, the `resetAll()` exception and migration 7
+- [x] 11.2 `docs/api-spec.yml`: add descriptions in the Zod schemas and regenerate from `GET /docs/json` — regenerated from `GET /docs/json`; the only change is `prompt`, `imageInstruction` and `videoInstruction` on the scene in both responses, with descriptions from the Zod schema; it matches a fresh generation and has no PUT, PATCH or DELETE operation
+- [x] 11.3 `docs/backend-standards.md`: the reasoning adapter and the registration entry point, if not already covered — added the reasoning adapter (one request, Zod validation, HTTP-status classification, opt-in contract test) and the `registerDecomposition` entry point to the provider adapters section
 
 ## 12. Close out
 
