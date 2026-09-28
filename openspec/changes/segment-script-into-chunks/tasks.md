@@ -48,18 +48,18 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
 - [x] 6.1 Review existing tests that build fragments by hand (JOS-144) for anything the segmentation module now owns, and keep them independent of it
-- [ ] 6.2 Confirm every scenario in `specs/script-segmentation/spec.md` has at least one functional test; list the mapping in the step 7 report
-- [ ] 6.3 Confirm module test coverage has not decreased, measured against the base on scratch databases
+- [x] 6.2 Confirm every scenario in `specs/script-segmentation/spec.md` has at least one functional test; list the mapping in the step 7 report
+- [x] 6.3 Confirm module test coverage has not decreased, measured against the base on scratch databases
 - [x] 6.4 Run `npm run typecheck` and the server runtime-load test
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
 - [x] 7.1 Capture the pre-test state of the default test store
-- [ ] 7.2 Run the targeted tests and capture the summary
-- [ ] 7.3 Run the full suite and record totals, failures and runtime (the known intermittent `orchestrator.test.ts` failure is reported, not hidden)
-- [ ] 7.4 Verify the post-test state matches the baseline; restore it if not
-- [ ] 7.5 Write `openspec/changes/segment-script-into-chunks/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`
-- [ ] 7.6 Mark this step complete only after the tests pass and the report exists
+- [x] 7.2 Run the targeted tests and capture the summary
+- [x] 7.3 Run the full suite and record totals, failures and runtime (the known intermittent `orchestrator.test.ts` failure is reported, not hidden)
+- [x] 7.4 Verify the post-test state matches the baseline; restore it if not
+- [x] 7.5 Write `openspec/changes/segment-script-into-chunks/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`
+- [x] 7.6 Mark this step complete only after the tests pass and the report exists
 
 ## 8. Manual Endpoint Testing (MANDATORY - AGENT MUST EXECUTE)
 
