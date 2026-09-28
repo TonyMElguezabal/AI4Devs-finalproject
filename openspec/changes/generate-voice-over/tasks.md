@@ -14,9 +14,9 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [x] 1.1 Confirm `start-video-project` (JOS-134) has landed and sessions are registered in `submitted` — confirmed: `POST /sessions` registers a session with zero scenes, state derives to `submitted` (`backend/src/routes.ts`, `orchestrator.ts`)
 - [x] 1.2 Confirm `define-backend-stack` (JOS-179) has landed (confirmed: `docs/backend-standards.md`, `backend/`, Fastify + Zod, baseline `npm test` 70/70 passing); take the framework, layering, validation approach and the stubbed provider from `docs/backend-standards.md`
 - [x] 1.3 Confirm `define-persistence` (JOS-181) has landed (confirmed: SQLite `db.ts`, append-only `provider_requests`, `scene_results` PK guarantee, versioned migrations, relative-path artefacts); take the store, the attempt-record shape and the migration approach from `docs/data-model.md`
-- [x] 1.4 Confirm `define-provider-configuration` (JOS-165) has landed; locate the voice provider id, voice, quality and speed in the constants module, and its recorded not-retryable signal — confirmed: `VOICE_PROVIDER` in `backend/src/config/providers.ts` (ElevenLabs, `eleven_multilingual_v2`, voice `4YYIPFl9wE5c4L2eu2Gb`, `mp3_44100_128`, default speed). No content-rejection signal is recorded for voice; product owner decided on 2026-09-28 to classify by HTTP status only (design Decision 4)
-- [x] 1.5 Voice input limit: resolved by the product owner on 2026-09-28 — no script-length limit (credits are the only bound, and they renew monthly); no cap and no split-and-join. Recorded in design.md Decision 5 and open question 1
-- [x] 1.6 Confirm US-30 (JOS-162) provides the session's project folder; if not, stop and record the blocker rather than re-implementing the §12.2 naming rule — JOS-162 is still Backlog; product owner decided on 2026-09-28 to use the folder that `backend/src/db.ts` already creates (`deriveAndCreateProjectFolder`, `writeArtefact`, `resolveArtefactPath`, added by JOS-134). This story reuses those functions and does not change the naming rule
+- [x] 1.4 Confirm `define-provider-configuration` (JOS-165) has landed; locate the voice provider id, voice, quality and speed in the constants module, and its recorded not-retryable signal — confirmed: `VOICE_PROVIDER` in `backend/src/config/providers.ts` (ElevenLabs, `eleven_multilingual_v2`, voice `4YYIPFl9wE5c4L2eu2Gb`, `mp3_44100_128`, default speed). No content-rejection signal is recorded for voice; product owner decided on 2026-09-27 to classify by HTTP status only (design Decision 4)
+- [x] 1.5 Voice input limit: resolved by the product owner on 2026-09-27 — no script-length limit (credits are the only bound, and they renew monthly); no cap and no split-and-join. Recorded in design.md Decision 5 and open question 1
+- [x] 1.6 Confirm US-30 (JOS-162) provides the session's project folder; if not, stop and record the blocker rather than re-implementing the §12.2 naming rule — JOS-162 is still Backlog; product owner decided on 2026-09-27 to use the folder that `backend/src/db.ts` already creates (`deriveAndCreateProjectFolder`, `writeArtefact`, `resolveArtefactPath`, added by JOS-134). This story reuses those functions and does not change the naming rule
 - [x] 1.7 Confirm the media tooling from `define-media-assembly` (JOS-182) can probe an MP3's duration (Decision 7) — confirmed: ffmpeg is the recorded media tool (`docs/backend-standards.md`, ADR 0001 C10); `ffprobe` ships with it and is installed at `/opt/homebrew/bin/ffprobe`. Its use for MP3 duration is not yet written down; task 11.3 records it
 - [x] 1.8 If any of the above is missing, stop and record the blocker rather than building against a guess — nothing is missing; the gate is passed
 
@@ -60,11 +60,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [ ] 5.12 Write a failing test that requesting generation for a session in `voice-over-complete` sends nothing and leaves the MP3 unchanged
 - [ ] 5.13 Implement the phase-launch gate, admitting every launch in this story, as the single entry point for US-20, US-37 and US-22 (Decision 1)
 - [ ] 5.14 Implement the phase: state change, provider binding and attempt record persisted together before sending; streaming to a temporary file, then renaming into place; audio probing; recording the outcome
-- [ ] 5.15 Hook registration so a committed `submitted` session is handed to the gate
-- [ ] 5.16 Publish each state change to the live-update mechanism from `define-live-updates` (JOS-183)
-- [ ] 5.17 Log every transition and attempt with session id, stage, provider, attempt sequence, external request id, outcome and latency; log script length and hash, never the text or a credential
-- [ ] 5.18 Write a test asserting neither the script text nor a credential appears in the logs
-- [ ] 5.19 Run the group 5 tests and confirm they pass
+- [ ] 5.15 Extend `deriveSessionState` in `backend/src/orchestrator.ts` to derive `voice-over-generating`, `voice-over-complete` and `failed` from the attempt, voice-over and failure records, with a test for each state and for the precedence between them (Decision 12); no state column is added
+- [ ] 5.16 Hook registration so a committed `submitted` session is handed to the gate
+- [ ] 5.17 Publish each state change to the live-update mechanism from `define-live-updates` (JOS-183)
+- [ ] 5.18 Log every transition and attempt with session id, stage, provider, attempt sequence, external request id, outcome and latency; log script length and hash, never the text or a credential
+- [ ] 5.19 Write a test asserting neither the script text nor a credential appears in the logs
+- [ ] 5.20 Run the group 5 tests and confirm they pass
 
 ## 6. API: session representation (TDD)
 
