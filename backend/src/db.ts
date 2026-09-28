@@ -548,6 +548,11 @@ export function bindVoiceProvider(runId: string, providerId: string): boolean {
   return Number(result.changes) > 0;
 }
 
+/** Clears the session's failure once the phase that failed has succeeded (a retry that worked). A no-op when there is none. */
+export function clearRunFailure(runId: string): void {
+  db.prepare("UPDATE runs SET failure = NULL WHERE id = ?").run(runId);
+}
+
 /** Decision 9 — the session's failure, so a failure with no attempt behind it (a missing credential) is still reported. */
 export function setRunFailure(runId: string, failure: SessionFailure): void {
   db.prepare("UPDATE runs SET failure = ? WHERE id = ?").run(JSON.stringify(failure), runId);

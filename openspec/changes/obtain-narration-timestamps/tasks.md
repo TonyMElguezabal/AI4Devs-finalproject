@@ -33,15 +33,15 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 4. Obtaining timestamps (TDD) — Decisions 1, 4, 5 and 8
 
-- [ ] 4.1 Write failing tests that usable native timestamps are stored with mechanism `native`, the file is written once in the project folder, and the alignment provider is not called
-- [ ] 4.2 Write failing tests that missing native timestamps call the alignment provider with the stored MP3 bytes and the locked script, and store mechanism `alignment`
-- [ ] 4.3 Write failing tests that unusable native timestamps call the alignment provider in the same attempt, and the attempt records `native-unusable`
-- [ ] 4.4 Write failing tests that when alignment fails or returns unusable timestamps, nothing is stored, the attempt is failed, the session gets a `decomposition` failure with the right retryability, and the voice-over row is unchanged
-- [ ] 4.5 Write a failing test that after a `native-unusable` finding, the next attempt calls the alignment provider directly without reading the native timestamps
-- [ ] 4.6 Write failing tests that a session without a voice-over, an unknown session and a session with stored timestamps are refused without recording anything
-- [ ] 4.7 Write a failing test that the attempt is recorded in-flight before the alignment provider is called
-- [ ] 4.8 Implement `obtainNarrationTimestamps` and publish the session state after success and failure
-- [ ] 4.9 Run the group 4 tests and confirm they pass
+- [x] 4.1 Write failing tests that usable native timestamps are stored with mechanism `native`, the file is written once in the project folder, and the alignment provider is not called — `backend/test/obtain-narration-timestamps.test.ts`; also one `elevenlabs-native` attempt completed as a success and the voice-over untouched
+- [x] 4.2 Write failing tests that missing native timestamps call the alignment provider with the stored MP3 bytes and the locked script, and store mechanism `alignment` — also whitespace-only differences and an alignment that starts late or has gaps
+- [x] 4.3 Write failing tests that unusable native timestamps call the alignment provider in the same attempt, and the attempt records `native-unusable` — five unusable shapes (text mismatch, negative time, an end beyond the narration, not JSON, an unexpected shape); the attempt records `native-unusable`
+- [x] 4.4 Write failing tests that when alignment fails or returns unusable timestamps, nothing is stored, the attempt is failed, the session gets a `decomposition` failure with the right retryability, and the voice-over row is unchanged — five failure shapes plus a missing MP3; also that no voice failure is recorded, and that a later success clears the failure
+- [x] 4.5 Write a failing test that after a `native-unusable` finding, the next attempt calls the alignment provider directly without reading the native timestamps — the native file is replaced by a usable one before the second attempt, which still goes straight to alignment; also every later attempt
+- [x] 4.6 Write failing tests that a session without a voice-over, an unknown session and a session with stored timestamps are refused without recording anything — also that each session's timestamps stay apart
+- [x] 4.7 Write a failing test that the attempt is recorded in-flight before the alignment provider is called
+- [x] 4.8 Implement `obtainNarrationTimestamps` and publish the session state after success and failure — `backend/src/narrationTimestampsPhase.ts` plus `clearRunFailure` in `db.ts`. Added beyond the tasks: adoption of a valid stored file that has no record (a crash between the file and its record would otherwise leave a file that can never be written again), with a test. The voice provider is not a dependency, so it cannot be called
+- [x] 4.9 Run the group 4 tests and confirm they pass — 31/31; four mutations (ignoring the earlier finding, not recording it, skipping the native check, recording a voice failure) each made 2 to 9 tests fail and were reverted; typecheck clean
 
 ## 5. Session state (TDD) — Decision 8, AC1
 
