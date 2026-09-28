@@ -38,10 +38,10 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Review JOS-140's and JOS-144's tests for assumptions this change breaks, beyond task 4.7
-- [ ] 5.2 Confirm every scenario in `specs/clause-splitting/spec.md` has at least one functional test; list the mapping in the step 6 report
-- [ ] 5.3 Confirm module test coverage has not decreased, measured against the base on scratch databases
-- [ ] 5.4 Run `npm run typecheck` and the server runtime-load test
+- [x] 5.1 Review JOS-140's and JOS-144's tests for assumptions this change breaks, beyond task 4.7
+- [x] 5.2 Confirm every scenario in `specs/clause-splitting/spec.md` has at least one functional test; list the mapping in the step 6 report
+- [x] 5.3 Confirm module test coverage has not decreased, measured against the base on scratch databases
+- [x] 5.4 Run `npm run typecheck` and the server runtime-load test
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
