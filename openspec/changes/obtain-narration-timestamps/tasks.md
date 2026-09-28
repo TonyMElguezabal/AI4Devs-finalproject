@@ -83,9 +83,9 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 10. Update Technical Documentation (MANDATORY)
 
-- [ ] 10.1 `docs/data-model.md`: `narration_timestamps`, its triggers, the `timestamps` stage, the derived states
-- [ ] 10.2 `docs/api-spec.yml`: regenerate from `GET /docs/json` and review the diff
-- [ ] 10.3 `docs/backend-standards.md`: the alignment adapter and the usability rule, if not already covered
+- [x] 10.1 `docs/data-model.md`: `narration_timestamps`, its triggers, the `timestamps` stage, the derived states — new section 6 for `narration_timestamps` (fields, the file format, that the timestamps are not a partition, the `timestamps` stage and how an attempt names its mechanism), the two triggers in *Store-enforced locks*, the `resetAll()` exception, migration 8, and the derived states on `runs.state` (also removing a sentence that said decomposition was not modelled)
+- [x] 10.2 `docs/api-spec.yml`: regenerate from `GET /docs/json` and review the diff — regenerated from `GET /docs/json`: no difference. The session `state` is a free string in the schema and no route or payload changed, so the file already matches
+- [x] 10.3 `docs/backend-standards.md`: the alignment adapter and the usability rule, if not already covered — the alignment adapter, `obtainNarrationTimestamps`, the usability rule and the opt-in contract test's variables, next to the reasoning adapter
 
 ## 11. Close out
 
