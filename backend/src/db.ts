@@ -87,6 +87,24 @@ db.exec(`
   );
 `);
 
+// ---- Content locks (lock-script-and-narration, JOS-137, PRD §4.2 / D10) ----
+// The rule lives in the store, so it applies to every caller, present or
+// future — not only to the repository functions below. One trigger per
+// column so each refusal names the field that was touched (SQLite cannot
+// build a message dynamically). `UPDATE OF <column>` fires whenever that
+// column appears in a SET list, even for an identical value: nothing
+// legitimate writes these columns after the INSERT.
+const LOCKED_SESSION_COLUMNS = ["title", "script", "language"] as const;
+
+function lockedSessionColumnTriggerDdl(column: (typeof LOCKED_SESSION_COLUMNS)[number]): string {
+  return `CREATE TRIGGER runs_${column}_locked BEFORE UPDATE OF ${column} ON runs
+    BEGIN
+      SELECT RAISE(ABORT, 'locked: runs.${column} cannot be modified after registration');
+    END;`;
+}
+
+export const SESSION_CONTENT_LOCK_TRIGGERS_DDL: readonly string[] = LOCKED_SESSION_COLUMNS.map(lockedSessionColumnTriggerDdl);
+
 // ---- Versioned migrations (Decision 6) — applied on top of the baseline ----
 // Each migration takes the target database explicitly (not a closed-over
 // singleton) so the exact same runner can be pointed at a fixture database
@@ -146,6 +164,13 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
           UNIQUE (run_id, stage, attempt_number)
         );
       `);
+    },
+  },
+  {
+    version: 5,
+    description: "lock the session's title, script and language (lock-script-and-narration, JOS-137)",
+    up: (target) => {
+      for (const ddl of SESSION_CONTENT_LOCK_TRIGGERS_DDL) target.exec(ddl);
     },
   },
 ];
