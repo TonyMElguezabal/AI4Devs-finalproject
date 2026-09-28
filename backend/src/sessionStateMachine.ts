@@ -1,4 +1,6 @@
-import type { SessionState } from "./types.ts";
+import type { SessionState, VoiceOverFailure } from "./types.ts";
+
+export type { VoiceOverFailure } from "./types.ts";
 
 // generate-voice-over (JOS-136) — the session transitions this story owns
 // (PRD §5 step 2, §8.1). The table is deliberately closed: leaving
@@ -33,16 +35,6 @@ export function canTransitionSession(from: SessionState, to: SessionState): bool
 
 export function assertSessionTransition(from: SessionState, to: SessionState): void {
   if (!canTransitionSession(from, to)) throw new InvalidSessionTransitionError(from, to);
-}
-
-/** Design Decision 9 — what the session carries when the voice-over failed. */
-export interface VoiceOverFailure {
-  phase: "voice-over";
-  /** Written for a person; never contains credentials or the script text. */
-  cause: string;
-  retryable: boolean;
-  /** ISO-8601 instant. */
-  occurredAt: string;
 }
 
 export function createVoiceOverFailure(input: { cause: string; retryable: boolean; occurredAt: Date }): VoiceOverFailure {

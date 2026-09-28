@@ -29,11 +29,11 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 3. Persistence: records and migration (TDD)
 
-- [ ] 3.1 Write a failing test that a second voice-over for the same session is rejected by the store, including two concurrent inserts (Decision 8)
-- [ ] 3.2 Write a failing test that the session's bound voice provider, once set, is not overwritten (Decision 3)
-- [ ] 3.3 Add the migration: session `voiceProviderId` and `failure`; the voice-over record unique on session; the append-only stage-attempt record
-- [ ] 3.4 Implement the repositories for the voice-over and attempt records
-- [ ] 3.5 Run the group 3 tests and confirm they pass
+- [x] 3.1 Write a failing test that a second voice-over for the same session is rejected by the store, including two concurrent inserts (Decision 8) — `backend/test/voice-over-persistence.test.ts`; also proves it with a raw INSERT that bypasses the repository
+- [x] 3.2 Write a failing test that the session's bound voice provider, once set, is not overwritten (Decision 3)
+- [x] 3.3 Add the migration: session `voiceProviderId` and `failure`; the voice-over record unique on session; the append-only stage-attempt record — migration 4 in `backend/src/db.ts` (`runs.voice_provider_id`, `runs.failure`, `voice_overs` keyed on `run_id`, `stage_attempts` unique on `(run_id, stage, attempt_number)` with a CHECK on `outcome`); tested against a pre-existing session
+- [x] 3.4 Implement the repositories for the voice-over and attempt records — `bindVoiceProvider`, `setRunFailure`, `insertVoiceOver`, `getVoiceOver`, `countVoiceOvers`, `recordStageAttempt`, `completeStageAttempt`, `getStageAttempts` in `backend/src/db.ts`; `snapshotCounts` and `resetAll` cover the new tables
+- [x] 3.5 Run the group 3 tests and confirm they pass — 22/22 new tests pass, full suite 162/162, `npm run typecheck` clean
 
 ## 4. Provider port and adapters (TDD)
 
