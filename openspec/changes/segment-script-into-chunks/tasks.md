@@ -29,13 +29,13 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 ## 4. Grouping (TDD) — Decisions 4 and 5
 
 - [x] 4.1 Write failing tests that ordinary scripts give fragments of whole consecutive sentences, each within 5-15 s
-- [ ] 4.2 Write failing tests for short sentences: grouped with the following one when a grouping allows it; the last one grouped with the previous one; a one-sentence script alone; a script of mostly short sentences (the measured English and Spanish durations) is grouped, not refused, with the fewest fragments ending on a short sentence
+- [x] 4.2 Write failing tests for short sentences: grouped with the following one when a grouping allows it; the last one grouped with the previous one; a one-sentence script alone; a script of mostly short sentences (the measured English and Spanish durations) is grouped, not refused, with the fewest fragments ending on a short sentence
 - [x] 4.3 Write failing tests for the whole script under 5 s (one fragment, `script-below-lower-bound`)
 - [x] 4.4 Write failing tests for the interim `unsplittable-sentence` cases: a sentence over 15 s alone, and a short sentence plus a next one over 15 s together
-- [ ] 4.5 Write failing tests for the optimization: fewest fragments ending on a short sentence first; then a case where the valid groupings differ in total speed change and the smaller one is chosen; tie-breaking to fewer fragments, then to the later first cut; determinism
+- [x] 4.5 Write failing tests for the optimization: fewest fragments ending on a short sentence first; then a case where the valid groupings differ in total speed change and the smaller one is chosen; tie-breaking to fewer fragments, then to the later first cut; determinism
 - [x] 4.6 Write failing tests that a script with no valid grouping returns an error, not fragments
 - [x] 4.7 Write failing tests that fragments reproduce the script apart from whitespace, in English and in Spanish with `¿`, `¡` and accents, and that every fragment passes JOS-144's validation for the same script and durations
-- [ ] 4.8 Implement `segmentScript(script, language, characters, mp3Duration)`, then run the group 4 tests
+- [x] 4.8 Implement `segmentScript(script, language, characters, mp3Duration)`, then run the group 4 tests
 
 ## 5. Phase (TDD) — Decisions 5 and 7
 

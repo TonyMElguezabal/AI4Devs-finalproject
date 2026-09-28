@@ -8,12 +8,15 @@ import { sentenceSpeechSpans, unitBoundaries } from "./sentenceTimings.ts";
 // Script segmentation (segment-script-into-chunks, design Decisions 4 and 5):
 // group the script's sentences into fragments of whole consecutive sentences
 // whose narrated duration fits the video provider's limits, choosing, among
-// the valid groupings, the one needing the least total speed change.
+// the valid groupings, the one with the fewest fragments ending on a short
+// sentence and then the least total speed change.
 
 export type SegmentationResult = { ok: true; fragments: SegmentedFragment[] } | { ok: false; reason: string };
 
 /** A best grouping of the sentences from some index to the end. */
 interface Grouping {
+  /** Fragments that end on a sentence under the lower bound, other than the script's last sentence. */
+  shortEndCount: number;
   totalSpeedChange: number;
   fragmentCount: number;
   /** The last sentence of the first fragment; the next grouping starts after it. */
@@ -27,6 +30,7 @@ const TOTAL_TOLERANCE = 1e-9;
 
 function isBetter(candidate: Grouping, current: Grouping | null): boolean {
   if (current === null) return true;
+  if (candidate.shortEndCount !== current.shortEndCount) return candidate.shortEndCount < current.shortEndCount;
   if (Math.abs(candidate.totalSpeedChange - current.totalSpeedChange) > TOTAL_TOLERANCE) {
     return candidate.totalSpeedChange < current.totalSpeedChange;
   }
@@ -58,8 +62,7 @@ export function segmentScript(
   function classify(first: number, last: number): { allowed: boolean; exception?: FragmentException } {
     const duration = durationOf(first, last);
     if (duration >= SEGMENTATION_LOWER_BOUND_SECONDS && duration <= SEGMENTATION_UPPER_BOUND_SECONDS) {
-      // A short sentence goes with the one that follows, unless it is the script's last.
-      return { allowed: !(isShort(last) && last !== count - 1) };
+      return { allowed: true };
     }
     if (duration < SEGMENTATION_LOWER_BOUND_SECONDS) {
       const wholeScript = first === 0 && last === count - 1;
@@ -71,7 +74,7 @@ export function segmentScript(
 
   // best[i]: the best grouping of sentences i..count-1, or null when none is valid.
   const best: Array<Grouping | null> = new Array(count + 1).fill(null);
-  best[count] = { totalSpeedChange: 0, fragmentCount: 0, firstFragmentLast: count - 1, next: null, exceptions: [] };
+  best[count] = { shortEndCount: 0, totalSpeedChange: 0, fragmentCount: 0, firstFragmentLast: count - 1, next: null, exceptions: [] };
 
   for (let first = count - 1; first >= 0; first--) {
     for (let last = first; last < count; last++) {
@@ -81,7 +84,10 @@ export function segmentScript(
       const { allowed, exception } = classify(first, last);
       if (!allowed) continue;
 
+      // PRD §6.1: a short sentence goes with the one that follows; a fragment ending on one is allowed, but counted.
+      const endsOnShortSentence = isShort(last) && last !== count - 1;
       const candidate: Grouping = {
+        shortEndCount: rest.shortEndCount + (endsOnShortSentence ? 1 : 0),
         totalSpeedChange:
           Math.log(closestAdmittedDuration(durationOf(first, last)).speedRatio) + rest.totalSpeedChange,
         fragmentCount: rest.fragmentCount + 1,

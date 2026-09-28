@@ -12,7 +12,8 @@ import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
 
 // segment-script-into-chunks (JOS-140), group 4 — design Decisions 4 and 5:
 // fragments of whole consecutive sentences within 5-15 s, short sentences
-// grouped with a neighbour, the two flagged exceptions, the grouping needing
+// grouped with a neighbour (a fragment may end on a short sentence only when
+// no grouping avoids it), the two flagged exceptions, the grouping needing
 // the least total speed change (an exhaustive search checked here against an
 // independent brute-force oracle), and "no valid grouping" as an error.
 
@@ -107,6 +108,35 @@ describe("Short sentences (AC03)", () => {
     expect(sentenceNumbersPerFragment(fragmentsOf(scenes([2, 2, 2, 8])))).toEqual([[1, 2, 3, 4]]);
   });
 
+  it("allows a fragment to end on a short sentence when every grouping must, instead of refusing the script", () => {
+    // 4 + 4 + 4: no grouping avoids ending on a short sentence except the whole script, which is 12 s.
+    expect(sentenceNumbersPerFragment(fragmentsOf(scenes([4, 4, 4])))).toEqual([[1, 2, 3]]);
+    // 4 + 4 | 4 + 4: 8 s and 8 s; the first fragment ends on a short sentence and there is no way around it.
+    expect(sentenceNumbersPerFragment(fragmentsOf(scenes([4, 4, 4, 4, 4, 4])))).toEqual([[1, 2, 3], [4, 5, 6]]);
+  });
+
+  it("does not refuse a script only because most of its sentences are short (measured English narration)", () => {
+    // Sentence shares of a real 13-sentence English narration (JOS-140 manual test, 2026-09-28).
+    const fragments = fragmentsOf(scenes([2.9, 5.0, 7.2, 4.0, 4.9, 3.1, 3.4, 2.9, 4.7, 3.2, 4.6, 5.2, 4.1]));
+    expect(sentenceNumbersPerFragment(fragments)).toEqual([[1, 2], [3], [4, 5, 6], [7, 8, 9, 10], [11, 12, 13]]);
+    for (const fragment of fragments) {
+      expect(fragment.narratedDurationSeconds).toBeGreaterThanOrEqual(LOWER);
+      expect(fragment.narratedDurationSeconds).toBeLessThanOrEqual(UPPER);
+    }
+  });
+
+  it("does not refuse a script only because most of its sentences are short (measured Spanish narration)", () => {
+    const fragments = fragmentsOf(scenes([3.9, 3.7, 3.7, 4.4, 4.3, 3.6, 4.1, 5.3, 4.0, 5.7, 3.8, 5.7]));
+    expect(sentenceNumbersPerFragment(fragments)).toEqual([[1, 2, 3], [4, 5], [6, 7, 8], [9, 10], [11, 12]]);
+  });
+
+  it("prefers fewer fragments ending on a short sentence even when another grouping needs less speed change", () => {
+    // The English narration above: "S1-S2 | S3-S4 | S5-S6 | S7-S10 | S11-S13" needs less speed change (0.052 against 0.062)
+    // but has three fragments ending on a short sentence instead of two.
+    const fragments = fragmentsOf(scenes([2.9, 5.0, 7.2, 4.0, 4.9, 3.1, 3.4, 2.9, 4.7, 3.2, 4.6, 5.2, 4.1]));
+    expect(sentenceNumbersPerFragment(fragments)).not.toEqual([[1, 2], [3, 4], [5, 6], [7, 8, 9, 10], [11, 12, 13]]);
+  });
+
   it("keeps a one-sentence script alone", () => {
     const fragments = fragmentsOf(scenes([7]));
     expect(sentenceNumbersPerFragment(fragments)).toEqual([[1]]);
@@ -197,7 +227,7 @@ describe("The grouping needing the least speed change is chosen (AC04)", () => {
   describe("against an exhaustive reference search", () => {
     type Group = readonly [first: number, last: number];
 
-    /** The rules of design Decision 4 and the best grouping, by trying every set of cuts. */
+    /** The rules of design Decision 4 (as amended) and the best grouping, by trying every set of cuts. */
     function bestGroupingByBruteForce(boundaries: readonly number[]): Group[] | null {
       const count = boundaries.length - 1;
       const duration = (first: number, last: number) => boundaries[last + 1]! - boundaries[first]!;
@@ -205,11 +235,14 @@ describe("The grouping needing the least speed change is chosen (AC04)", () => {
 
       const isAllowed = (first: number, last: number): boolean => {
         const length = duration(first, last);
-        if (length >= LOWER && length <= UPPER) return !(isShort(last) && last !== count - 1);
+        if (length >= LOWER && length <= UPPER) return true;
         if (length < LOWER) return first === 0 && last === count - 1;
         return first === last || (last === first + 1 && isShort(first));
       };
       const cost = (first: number, last: number) => Math.log(closestAdmittedDuration(duration(first, last)).speedRatio);
+
+      const endsOnShortSentence = (first: number, last: number) => isShort(last) && last !== count - 1 && first <= last;
+      const shortEnds = (groups: Group[]) => groups.filter(([f, l]) => endsOnShortSentence(f, l)).length;
 
       let best: { groups: Group[]; total: number } | null = null;
       for (let cutMask = 0; cutMask < 1 << (count - 1); cutMask++) {
@@ -224,12 +257,13 @@ describe("The grouping needing the least speed change is chosen (AC04)", () => {
         }
         if (!groups.every(([f, l]) => isAllowed(f, l))) continue;
         const total = groups.reduce((sum, [f, l]) => sum + cost(f, l), 0);
-        if (best === null || isBetter(groups, total, best.groups, best.total)) best = { groups, total };
+        if (best === null || isBetter(groups, total, best.groups, best.total, shortEnds)) best = { groups, total };
       }
       return best?.groups ?? null;
     }
 
-    function isBetter(a: Group[], costA: number, b: Group[], costB: number): boolean {
+    function isBetter(a: Group[], costA: number, b: Group[], costB: number, shortEnds: (groups: Group[]) => number): boolean {
+      if (shortEnds(a) !== shortEnds(b)) return shortEnds(a) < shortEnds(b);
       if (Math.abs(costA - costB) > 1e-9) return costA < costB;
       if (a.length !== b.length) return a.length < b.length;
       for (let index = 0; index < a.length; index++) {
