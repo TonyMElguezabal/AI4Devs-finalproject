@@ -79,12 +79,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the backend and confirm it responds
-- [ ] 9.2 POST a session, then try `PUT` and `PATCH` on `/sessions/:id` with a new script. Verify both return 404 and a GET returns the original script
-- [ ] 9.3 POST to `/sessions/:id/scenes/:sceneId/correct` with a `script` field in the body. Verify the session's script is unchanged
-- [ ] 9.4 With `sqlite3` against the running database, try `UPDATE runs SET script = …` and `DELETE FROM voice_overs` on a test row, and record the trigger refusals
-- [ ] 9.5 Remove the sessions created above through the test-only reset path and confirm the store and disk match the pre-test state
-- [ ] 9.6 Save the transcript as `openspec/changes/lock-script-and-narration/reports/YYYY-MM-DD-step-9-curl-endpoint-testing.md`
+- [x] 9.1 Start the backend and confirm it responds — real `node src/server.ts` on a scratch database, port 3199; `/health` returned `{"ok":true}`
+- [x] 9.2 POST a session, then try `PUT` and `PATCH` on `/sessions/:id` with a new script. Verify both return 404 and a GET returns the original script — PUT, PATCH and DELETE all returned 404; the script was unchanged
+- [x] 9.3 POST to `/sessions/:id/scenes/:sceneId/correct` with a `script` field in the body. Verify the session's script is unchanged — 200, only the instruction changed; a body with only `script` returned 400 for the missing `instruction`, not for the lock
+- [x] 9.4 With `sqlite3` against the running database, try `UPDATE runs SET script = …` and `DELETE FROM voice_overs` on a test row, and record the trigger refusals — script, title, language, voice-over update and delete all refused with the trigger messages; a second voice-over refused by the primary key; `paused` still changed
+- [x] 9.5 Remove the sessions created above through the test-only reset path and confirm the store and disk match the pre-test state — `resetAll()` emptied the scratch store, all five triggers present, no project folders; the default store was never touched
+- [x] 9.6 Save the transcript as `openspec/changes/lock-script-and-narration/reports/2026-09-27-step-9-curl-endpoint-testing.md`
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
