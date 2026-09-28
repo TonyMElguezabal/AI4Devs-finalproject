@@ -10,7 +10,7 @@
 // this is no longer a disposable stand-in, it is the decision.
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import type {
   AttemptStage,
@@ -87,6 +87,39 @@ db.exec(`
   );
 `);
 
+// ---- Content locks (lock-script-and-narration, JOS-137, PRD §4.2 / D10) ----
+// The rule lives in the store, so it applies to every caller, present or
+// future — not only to the repository functions below. One trigger per
+// column so each refusal names the field that was touched (SQLite cannot
+// build a message dynamically). `UPDATE OF <column>` fires whenever that
+// column appears in a SET list, even for an identical value: nothing
+// legitimate writes these columns after the INSERT.
+const LOCKED_SESSION_COLUMNS = ["title", "script", "language"] as const;
+
+function lockedSessionColumnTriggerDdl(column: (typeof LOCKED_SESSION_COLUMNS)[number]): string {
+  return `CREATE TRIGGER runs_${column}_locked BEFORE UPDATE OF ${column} ON runs
+    BEGIN
+      SELECT RAISE(ABORT, 'locked: runs.${column} cannot be modified after registration');
+    END;`;
+}
+
+export const SESSION_CONTENT_LOCK_TRIGGERS_DDL: readonly string[] = LOCKED_SESSION_COLUMNS.map(lockedSessionColumnTriggerDdl);
+
+// A completed narration is never replaced (AC2, design Decision 2): the
+// record cannot be modified or deleted once written, and the primary key
+// already refuses a second one. Only `resetAll()` (test-only) lifts the
+// delete trigger, inside one transaction, and recreates it from this same
+// constant so the two cannot drift.
+export const VOICE_OVER_NO_UPDATE_TRIGGER_DDL = `CREATE TRIGGER voice_overs_no_update BEFORE UPDATE ON voice_overs
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: voice_overs cannot be modified once the narration is complete');
+  END;`;
+
+export const VOICE_OVER_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER voice_overs_no_delete BEFORE DELETE ON voice_overs
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: voice_overs cannot be deleted once the narration is complete');
+  END;`;
+
 // ---- Versioned migrations (Decision 6) — applied on top of the baseline ----
 // Each migration takes the target database explicitly (not a closed-over
 // singleton) so the exact same runner can be pointed at a fixture database
@@ -146,6 +179,21 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
           UNIQUE (run_id, stage, attempt_number)
         );
       `);
+    },
+  },
+  {
+    version: 5,
+    description: "lock the session's title, script and language (lock-script-and-narration, JOS-137)",
+    up: (target) => {
+      for (const ddl of SESSION_CONTENT_LOCK_TRIGGERS_DDL) target.exec(ddl);
+    },
+  },
+  {
+    version: 6,
+    description: "lock a completed voice-over record against update and delete (lock-script-and-narration, JOS-137)",
+    up: (target) => {
+      target.exec(VOICE_OVER_NO_UPDATE_TRIGGER_DDL);
+      target.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
     },
   },
 ];
@@ -226,6 +274,44 @@ export function writeArtefact(projectFolder: string, relativePath: string, conte
   const fullPath = assertWithinProjectFolder(projectFolder, relativePath);
   mkdirSync(dirname(fullPath), { recursive: true });
   writeFileSync(fullPath, content, "utf8");
+  return relativePath;
+}
+
+// The field is declared explicitly, not as a constructor parameter property:
+// the server runs as `node src/server.ts` (strip-only mode), which refuses
+// TypeScript syntax that emits code. `erasableSyntaxOnly` enforces this.
+export class ArtefactAlreadyExistsError extends Error {
+  readonly relativePath: string;
+
+  constructor(relativePath: string) {
+    super(`refused: '${relativePath}' already exists and is written once`);
+    this.name = "ArtefactAlreadyExistsError";
+    this.relativePath = relativePath;
+  }
+}
+
+/**
+ * lock-script-and-narration (JOS-137) Decision 3 — writes an artefact that
+ * must never be replaced (the voice-over MP3). The content goes to a
+ * temporary name beside the target and is then hard-linked to the final
+ * name: `link` is atomic and fails with EEXIST when the target exists,
+ * whereas `rename` would silently replace it, and an `existsSync` check
+ * before writing would be a read-then-write race. The temporary name is
+ * always removed. Scoped to the session's project folder exactly like
+ * `writeArtefact`. Returns the relative path stored on the record.
+ */
+export function writeArtefactOnce(projectFolder: string, relativePath: string, content: Buffer | string): string {
+  const fullPath = assertWithinProjectFolder(projectFolder, relativePath);
+  mkdirSync(dirname(fullPath), { recursive: true });
+  const temporaryPath = `${fullPath}.${randomUUID()}.tmp`;
+  writeFileSync(temporaryPath, content, { flag: "wx" });
+  try {
+    linkSync(temporaryPath, fullPath);
+  } catch (err: any) {
+    throw err?.code === "EEXIST" ? new ArtefactAlreadyExistsError(relativePath) : err;
+  } finally {
+    rmSync(temporaryPath, { force: true });
+  }
   return relativePath;
 }
 
@@ -639,9 +725,21 @@ export function snapshotCounts(): {
  * against anything but an isolated `DB_PATH`/`PROJECTS_ROOT` (see the test
  * command in `docs/backend-standards.md`'s persistence section). */
 export function resetAll(): void {
-  db.exec(
-    "DELETE FROM stage_attempts; DELETE FROM voice_overs; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
-  );
+  // The one place the voice-over delete lock is lifted (design Decision 2):
+  // inside a single transaction, so the trigger is back — or the whole reset
+  // is rolled back — before anything else can observe the database.
+  db.exec("BEGIN");
+  try {
+    db.exec("DROP TRIGGER voice_overs_no_delete");
+    db.exec(
+      "DELETE FROM stage_attempts; DELETE FROM voice_overs; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
+    );
+    db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
   // Tests create real project folders on disk (Decision 4); wipe them too,
   // or a second test run collides with the previous run's leftover folders
   // (found by running the suite twice in a row during this change's own

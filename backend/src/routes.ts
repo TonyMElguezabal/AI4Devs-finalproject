@@ -25,13 +25,18 @@ const providerModeSchema = z.enum(PROVIDER_OUTCOME_MODES);
 const nonEmptyAfterTrim = (label: string) =>
   z.string().refine((v) => v.trim().length > 0, { message: `${label} must not be empty` });
 
+// lock-script-and-narration (JOS-137) — the title, script and language are
+// immutable from registration onward, enforced by the store (see db.ts) and
+// stated in the generated API contract through these descriptions.
 const createSessionBodySchema = z.object({
-  title: nonEmptyAfterTrim("title"),
-  script: nonEmptyAfterTrim("script"),
+  title: nonEmptyAfterTrim("title").describe("Immutable once the session is registered (PRD §4.2)."),
+  script: nonEmptyAfterTrim("script").describe(
+    "Stored exactly as submitted and immutable from registration onward, in every state (PRD §4.2, D10). No operation modifies it.",
+  ),
   // PRD §4.1, D09 — a session cannot start without a language selected from
   // the hardcoded supported list; refused regardless of how the request was
   // made (Decision 5). See config/providers.ts (define-provider-configuration, JOS-165) for the verified list.
-  language: z.enum(SUPPORTED_LANGUAGE_CODES),
+  language: z.enum(SUPPORTED_LANGUAGE_CODES).describe("Immutable once the session is registered (PRD §4.1, §4.2)."),
 });
 
 // start-video-project (JOS-134) Decision 3 — session identifiers are ULIDs
@@ -63,9 +68,11 @@ const sceneResponseSchema = z.object({
 const sessionResponseSchema = z.object({
   type: z.literal("session"),
   sessionId: z.string(),
-  title: z.string(),
-  script: z.string(),
-  language: z.string(),
+  title: z.string().describe("Immutable once the session is registered (PRD §4.2)."),
+  script: z.string().describe(
+    "The script exactly as submitted; immutable from registration onward, in every state (PRD §4.2, D10). No operation modifies it.",
+  ),
+  language: z.string().describe("Immutable once the session is registered (PRD §4.1, §4.2)."),
   state: z.string(),
   paused: z.boolean(),
   failedPhase: z.string().optional(),
