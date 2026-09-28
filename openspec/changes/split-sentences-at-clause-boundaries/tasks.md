@@ -21,9 +21,9 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 3. Eligibility and units (TDD) — Decisions 2 and 3
 
-- [ ] 3.1 Write failing tests for the classification: over 15 s → free must-split; the sentence after a short one whose sum exceeds 15 s → first-clause borrowed; both at once; everything else whole; a must-split sentence without boundaries stays whole
-- [ ] 3.2 Write failing tests that clause pieces get their timings from the stored characters, and that `chunkDurations` places a piece boundary at the midpoint of the pause between pieces
-- [ ] 3.3 Implement the classification and the unit list, then run the group 3 tests
+- [x] 3.1 Write failing tests for the classification: over 15 s → free must-split; the sentence after a short one whose sum exceeds 15 s → first-clause borrowed; both at once; everything else whole; a must-split sentence without boundaries stays whole
+- [x] 3.2 Write failing tests that clause pieces get their timings from the stored characters, and that `chunkDurations` places a piece boundary at the midpoint of the pause between pieces
+- [x] 3.3 Implement the classification and the unit list, then run the group 3 tests
 
 ## 4. Grouping with splits (TDD) — AC1 to AC5
 

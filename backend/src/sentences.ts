@@ -36,17 +36,28 @@ function followsAbbreviation(script: string, periodIndex: number, abbreviations:
   return abbreviations.has(token.toLowerCase()) || /^\p{Lu}$/u.test(token);
 }
 
+/**
+ * Trims `script.slice(rawStart, rawEnd)` down to an exact substring span: the
+ * offsets move inward past any leading/trailing whitespace, so `text` is
+ * always `script.slice(start, end)`. Shared with clause-piece splitting
+ * (`clauseSplitting.ts`), which trims sub-sentence ranges the same way.
+ */
+export function trimSpan(script: string, rawStart: number, rawEnd: number): Sentence | null {
+  const raw = script.slice(rawStart, rawEnd);
+  const text = raw.trim();
+  if (text === "") return null;
+  const start = rawStart + (raw.length - raw.trimStart().length);
+  return { text, start, end: start + text.length };
+}
+
 export function findSentences(script: string, language: string): Sentence[] {
   const abbreviations = abbreviationsFor(language);
   const sentences: Sentence[] = [];
   let sentenceStart = 0;
 
   const pushSentence = (rawStart: number, rawEnd: number): void => {
-    const raw = script.slice(rawStart, rawEnd);
-    const text = raw.trim();
-    if (text === "") return;
-    const start = rawStart + (raw.length - raw.trimStart().length);
-    sentences.push({ text, start, end: start + text.length });
+    const span = trimSpan(script, rawStart, rawEnd);
+    if (span) sentences.push(span);
   };
 
   let index = 0;

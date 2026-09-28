@@ -58,6 +58,14 @@ describe("Where a clause boundary lies (Decision 1)", () => {
     expect(findClauseBoundaries("The harbor was calm.", "en")).toEqual([]);
   });
 
+  it("does not match a Spanish conjunction that is only the start of an accented word", () => {
+    // "ni" is a conjunction; "niña" starts with it, but "ñ" is not a letter under JS's plain \b,
+    // which would wrongly treat "ni|ña" as a word boundary.
+    expect(findClauseBoundaries("El barco volvió y la niña se quedó en casa.", "es")).toEqual([
+      "El barco volvió y la niña se quedó en casa.".indexOf(" y ") + 1,
+    ]);
+  });
+
   it("returns boundaries in ascending order for several conjunctions", () => {
     const sentence = "The tide rose but the wind fell and the sky cleared.";
     const boundaries = findClauseBoundaries(sentence, "en");
