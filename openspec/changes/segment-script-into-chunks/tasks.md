@@ -54,12 +54,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 7.1 Capture the pre-test state of the default test store
-- [ ] 7.2 Run the targeted tests and capture the summary
-- [ ] 7.3 Run the full suite and record totals, failures and runtime (the known intermittent `orchestrator.test.ts` failure is reported, not hidden)
-- [ ] 7.4 Verify the post-test state matches the baseline; restore it if not
-- [ ] 7.5 Write `openspec/changes/segment-script-into-chunks/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`
-- [ ] 7.6 Mark this step complete only after the tests pass and the report exists
+- [x] 7.1 Capture the pre-test state of the default test store
+- [x] 7.2 Run the targeted tests and capture the summary
+- [x] 7.3 Run the full suite and record totals, failures and runtime (the known intermittent `orchestrator.test.ts` failure is reported, not hidden)
+- [x] 7.4 Verify the post-test state matches the baseline; restore it if not
+- [x] 7.5 Write `openspec/changes/segment-script-into-chunks/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`
+- [x] 7.6 Mark this step complete only after the tests pass and the report exists
 
 ## 8. Manual Endpoint Testing (MANDATORY - AGENT MUST EXECUTE)
 
