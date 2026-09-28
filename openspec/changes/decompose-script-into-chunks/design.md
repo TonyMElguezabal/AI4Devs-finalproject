@@ -25,6 +25,7 @@ Two invariants make this phase's correctness checkable independently of the segm
 ## Decisions
 
 **Decision 1 — Treat "timestamps" and "decomposition" as two stage instances sharing one session state.**
+*Carved out 2026-09-28:* obtaining the timestamps (the `timestamps` stage, the two mechanisms and their failure attribution) now lives in `obtain-narration-timestamps` (JOS-139) (its Decisions 2, 4, 5 and 8); this change keeps the `decomposition` stage and consumes the stored timestamps.
 `docs/PRD.md` §5 explicitly groups steps 3 and 4 under one state, `chunk-decomposing`, and one retry policy narrative — but §10.3 lists "Obtención de marcas de tiempo" and "Descomposición" as two separately retryable rows, and `bounded-retry-policy` already keys a stage instance by "session and stage" for session-level stages. Modeling them as two `StageExecution` rows (`stage_name = timestamps`, `stage_name = decomposition`) lets each retry independently — a timestamps failure does not consume the decomposition budget and vice versa — while both still gate the same session state.
 *Alternative rejected:* one combined stage instance for the whole phase. It would force the "switch to alignment without recalling the voice provider" rule into  a partial-retry special case instead of a plain instance boundary, and would make §10.3's two separate retry rows structurally impossible to express.
 

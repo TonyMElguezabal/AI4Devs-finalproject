@@ -1,49 +1,8 @@
 # Script decomposition
 
-Requirements for turning a session's locked script and completed voice-over into an ordered set of chunks with narration intervals and visual instructions. Retrying failed attempts, the per-stage request cap, pausing a launch, and resuming in-flight requests after a restart are owned by `stage-retry-policy`, `stage-execution-time-limit` and their siblings; this capability covers when the phase starts, how timestamps are obtained, how the script is segmented, what a valid result must satisfy, and how its two recoverable failures are retried. Assigning chunk identifiers, generating the `IMAGE` and `VIDEO` instructions, checking the finished structure (four fields, §6.1 bounds, script reconstruction) and registering the chunks moved to `assign-scene-identifiers` (JOS-144); this capability hands it the ordered fragments.
+Requirements for turning a session's locked script and completed voice-over into an ordered set of chunks with narration intervals and visual instructions. Retrying failed attempts, the per-stage request cap, pausing a launch, and resuming in-flight requests after a restart are owned by `stage-retry-policy`, `stage-execution-time-limit` and their siblings; this capability covers when the phase starts, how timestamps are obtained, how the script is segmented, what a valid result must satisfy, and how its two recoverable failures are retried. Assigning chunk identifiers, generating the `IMAGE` and `VIDEO` instructions, checking the finished structure (four fields, §6.1 bounds, script reconstruction) and registering the chunks moved to `assign-scene-identifiers` (JOS-144); this capability hands it the ordered fragments. Starting the decomposition phase and obtaining the narration timestamps (native or forced alignment) moved to `obtain-narration-timestamps` (JOS-139); this capability receives the stored timestamps.
 
 ## ADDED Requirements
-
-### Requirement: Decomposition starts automatically from a completed voice-over
-
-The system SHALL launch decomposition for a session in `voice-over-complete` without any further action from the User. The session SHALL be in state `chunk-decomposing` before any provider is called for this phase.
-
-#### Scenario: A voice-over has just completed
-
-- **WHEN** a session reaches `voice-over-complete`
-- **THEN** decomposition is launched without further User action
-- **AND** the session state is `chunk-decomposing` before any provider request is sent
-
-### Requirement: Native timestamps are used when usable, alignment otherwise
-
-The system SHALL use the voice-over's native timestamps to derive chunk intervals when they are available and usable. When native timestamps are not available, or are available but not usable, the system SHALL invoke the alignment provider with the generated MP3 and the locked script to obtain them. Neither case SHALL call the voice provider again.
-
-#### Scenario: Native timestamps are usable
-
-- **WHEN** a session's voice-over has native timestamps available and usable
-- **THEN** decomposition derives chunk intervals from them
-- **AND** the alignment provider is not called
-
-#### Scenario: No native timestamps were returned
-
-- **WHEN** a session's voice-over has no native timestamps
-- **THEN** the alignment provider is called with the MP3 and the script
-
-#### Scenario: Native timestamps exist but are unusable
-
-- **WHEN** a session's voice-over has native timestamps that are too coarse to place a sentence boundary
-- **THEN** the alignment provider is called with the MP3 and the script
-- **AND** the voice provider is not called again
-
-### Requirement: Failure to obtain timestamps by either mechanism is a decomposition failure
-
-When neither native timestamps nor forced alignment produce usable timestamps, the system SHALL classify the failure as a decomposition failure, not a voice failure, and SHALL hand it to the `timestamps` stage instance's retry policy.
-
-#### Scenario: Alignment cannot produce timestamps
-
-- **WHEN** the alignment provider fails to return usable timestamps
-- **THEN** the failure is recorded against the `timestamps` stage instance
-- **AND** it is not recorded as a voice-over failure
 
 ### Requirement: Chunks are cut on sentence boundaries within provider-admitted durations
 
