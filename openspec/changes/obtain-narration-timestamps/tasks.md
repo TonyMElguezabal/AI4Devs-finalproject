@@ -68,13 +68,13 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Start the real server on a scratch database and confirm it responds
-- [ ] 8.2 Create a session, store a voice-over from a real ElevenLabs `/with-timestamps` call (one request, a short script), then call `obtainNarrationTimestamps` from a script; `GET /sessions/:id` shows `chunk-decomposing`, and the stored file has mechanism `native`
-- [ ] 8.3 For a second session with the same MP3 and no native timestamps, obtain them through the real forced-alignment endpoint (one request); record the mechanism and the latency against the 5 s limit
-- [ ] 8.4 For a third session, make alignment fail (a stub provider); `GET` shows `failed`, failed phase `decomposition`, and the voice-over is unchanged
-- [ ] 8.5 With `sqlite3`, try updating and deleting a `narration_timestamps` row; record the refusals
-- [ ] 8.6 Clean up through the test-only reset; confirm the scratch store is empty with all triggers and the default store untouched
-- [ ] 8.7 Save `openspec/changes/obtain-narration-timestamps/reports/YYYY-MM-DD-step-8-curl-endpoint-testing.md`
+- [x] 8.1 Start the real server on a scratch database and confirm it responds
+- [x] 8.2 Create a session, store a voice-over from a real ElevenLabs `/with-timestamps` call (one request, a short script), then call `obtainNarrationTimestamps` from a script; `GET /sessions/:id` shows `chunk-decomposing`, and the stored file has mechanism `native` — real text-to-speech (102 and 733 characters); the native characters reproduced both scripts exactly; native path: `chunk-decomposing`, one attempt, no alignment call
+- [x] 8.3 For a second session with the same MP3 and no native timestamps, obtain them through the real forced-alignment endpoint (one request); record the mechanism and the latency against the 5 s limit — real alignment: 826 ms for a 7.34 s clip and **484 ms for a 56.98 s clip** (limit 5 s); also native-unusable then alignment in the same attempt (363 ms). Native timestamps are gapless; forced alignment starts at 0.1 s and has gaps up to 1.08 s, which JOS-143 and JOS-142 must close
+- [x] 8.4 For a third session, make alignment fail (a stub provider); `GET` shows `failed`, failed phase `decomposition`, and the voice-over is unchanged — `failed`, phase `decomposition`, voice-over identical, no record; a second attempt with the real provider succeeded and cleared the failure
+- [x] 8.5 With `sqlite3`, try updating and deleting a `narration_timestamps` row; record the refusals — update, delete, a second record and an invalid mechanism all refused
+- [x] 8.6 Clean up through the test-only reset; confirm the scratch store is empty with all triggers and the default store untouched — the scratch store is empty with all 11 triggers; the default store was untouched
+- [x] 8.7 Save `openspec/changes/obtain-narration-timestamps/reports/2026-09-28-step-8-curl-endpoint-testing.md`
 
 ## 9. E2E Testing (MANDATORY if applicable - AGENT MUST EXECUTE)
 
