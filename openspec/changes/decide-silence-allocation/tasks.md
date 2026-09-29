@@ -80,8 +80,8 @@ This is a spike. The POC runs first (groups 2-5), and only after the product own
 
 ## 11. E2E Testing (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 11.1 Decide applicability: no screen changes. If the rule changes, check that a session decomposed in step 10 lists its chunks in order; otherwise record why not
-- [ ] 11.2 Save `reports/YYYY-MM-DD-step-11-e2e.md`
+- [x] 11.1 Decide applicability: no screen changes. If the rule changes, check that a session decomposed in step 10 lists its chunks in order; otherwise record why not
+- [x] 11.2 Save `reports/YYYY-MM-DD-step-11-e2e.md`
 
 ## 12. Update Technical Documentation (MANDATORY)
 
