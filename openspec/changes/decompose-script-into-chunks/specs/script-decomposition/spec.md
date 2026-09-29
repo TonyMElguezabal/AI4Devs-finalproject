@@ -1,63 +1,8 @@
 # Script decomposition
 
-Requirements for turning a session's locked script and completed voice-over into an ordered set of chunks with narration intervals and visual instructions. Retrying failed attempts, the per-stage request cap, pausing a launch, and resuming in-flight requests after a restart are owned by `stage-retry-policy`, `stage-execution-time-limit` and their siblings; this capability covers when the phase starts, how timestamps are obtained, how the script is segmented, what a valid result must satisfy, and how its two recoverable failures are retried. Assigning chunk identifiers, generating the `IMAGE` and `VIDEO` instructions, checking the finished structure (four fields, §6.1 bounds, script reconstruction) and registering the chunks moved to `assign-scene-identifiers` (JOS-144); this capability hands it the ordered fragments. Starting the decomposition phase and obtaining the narration timestamps (native or forced alignment) moved to `obtain-narration-timestamps` (JOS-139); this capability receives the stored timestamps.
+Requirements for turning a session's locked script and completed voice-over into an ordered set of chunks with narration intervals and visual instructions. Retrying failed attempts, the per-stage request cap, pausing a launch, and resuming in-flight requests after a restart are owned by `stage-retry-policy`, `stage-execution-time-limit` and their siblings; this capability covers when the phase starts, how timestamps are obtained, how the script is segmented, what a valid result must satisfy, and how its two recoverable failures are retried. Assigning chunk identifiers, generating the `IMAGE` and `VIDEO` instructions, checking the finished structure (four fields, §6.1 bounds, script reconstruction) and registering the chunks moved to `assign-scene-identifiers` (JOS-144); this capability hands it the ordered fragments. Starting the decomposition phase and obtaining the narration timestamps (native or forced alignment) moved to `obtain-narration-timestamps` (JOS-139); this capability receives the stored timestamps. Cutting the script into fragments of whole sentences within the duration bounds, including a script shorter than the lower bound, moved to `segment-script-into-chunks` (JOS-140); the clause-boundary requirements moved to `split-sentences-at-clause-boundaries` (JOS-141).
 
 ## ADDED Requirements
-
-### Requirement: Chunks are cut on sentence boundaries within provider-admitted durations
-
-The system SHALL group one or more complete consecutive sentences into each chunk, cutting only at sentence boundaries. A chunk's narrated duration SHALL NOT exceed the active video provider's maximum admitted duration and SHALL NOT fall below the hardcoded lower bound, except as provided by the edge cases below. Among groupings that satisfy both bounds, the system SHALL prefer the one whose narrated duration is closest to a duration the video provider admits.
-
-#### Scenario: A script segments into ordinary chunks
-
-- **WHEN** a script's sentences can be grouped so every chunk's narrated duration is between the lower bound and the video provider's maximum
-- **THEN** each chunk is formed from one or more complete consecutive sentences
-- **AND** no chunk boundary falls inside a sentence
-
-#### Scenario: A grouping is chosen closest to an admitted duration
-
-- **WHEN** more than one valid grouping of consecutive sentences satisfies both bounds for a candidate chunk
-- **THEN** the grouping whose narrated duration is closest to a duration the video provider admits is chosen
-
-### Requirement: A sentence exceeding the upper bound is split at a clause boundary
-
-When a single sentence's narrated duration by itself exceeds the video provider's maximum admitted duration, the system SHALL split it at a clause boundary (comma, semicolon, or conjunction). This SHALL be the only division permitted inside a sentence.
-
-#### Scenario: One sentence alone exceeds the maximum
-
-- **WHEN** a single sentence's narrated duration exceeds the video provider's maximum admitted duration
-- **THEN** it is split at a clause boundary into two chunks
-- **AND** no sentence is split at any point other than a clause boundary
-
-### Requirement: A script shorter than the lower bound becomes one chunk
-
-When the entire script's narrated duration is below the hardcoded lower bound, the system SHALL produce a single chunk covering the whole script.
-
-#### Scenario: The whole script is very short
-
-- **WHEN** a script's total narrated duration is below the hardcoded lower bound
-- **THEN** exactly one chunk is produced for the entire script
-
-### Requirement: A short sentence borrows a clause-bounded prefix from the next sentence
-
-When a sentence's narrated duration is below the lower bound and grouping it with the following sentence would exceed the upper bound, the system SHALL split the following sentence at a clause boundary and group the short sentence with that split's first part.
-
-#### Scenario: A short sentence cannot be grouped whole with the next
-
-- **WHEN** a sentence below the lower bound would exceed the upper bound if grouped with the whole following sentence
-- **THEN** the following sentence is split at a clause boundary
-- **AND** the short sentence is grouped with the first part of that split
-
-### Requirement: A sentence with no clause boundary is kept whole despite exceeding the upper bound
-
-When a sentence must be split — because it exceeds the upper bound alone, or because it is the following sentence in the short-sentence case above — but contains no comma, semicolon, or conjunction to split at, the system SHALL keep it whole in a single chunk even though that chunk exceeds the upper bound, and SHALL record a speed-factor warning for it. This SHALL NOT be treated as a failure.
-
-#### Scenario: An oversized sentence has no clause boundary
-
-- **WHEN** a sentence that must be split has no comma, semicolon, or conjunction
-- **THEN** it is kept whole in one chunk exceeding the upper bound
-- **AND** a speed-factor warning is recorded for that chunk
-- **AND** decomposition does not fail because of it
 
 ### Requirement: Chunk intervals partition the voice-over without gaps or overlaps
 

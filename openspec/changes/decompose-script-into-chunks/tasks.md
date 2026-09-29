@@ -51,13 +51,13 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 6. Application: segmentation algorithm and edge cases (TDD)
 
-- [ ] 6.1 Write failing tests for ordinary segmentation: sentence-boundary cuts only, each chunk's narrated duration within the admitted bounds, and the closest-admitted-duration preference among valid groupings
-- [ ] 6.2 Write a failing test for the clause-boundary exception when one sentence alone exceeds the upper bound
-- [ ] 6.3 Write a failing test for the whole-script-below-lower-bound edge case (single chunk)
-- [ ] 6.4 Write a failing test for the short-sentence-borrows-from-next edge case
-- [ ] 6.5 Write a failing test for the no-clause-boundary edge case: chunk kept whole, speed-factor warning recorded, no failure
-- [ ] 6.6 Implement the segmentation algorithm per design.md Decision 2 and Decision 3 (one grouping loop with guard clauses, operating on narrated-second spans)
-- [ ] 6.7 Run the group 6 tests and confirm they pass
+- [ ] 6.1 ~~Ordinary segmentation~~ moved to `segment-script-into-chunks` (JOS-140)
+- [ ] 6.2 ~~Clause-boundary exception when one sentence alone exceeds the upper bound~~ moved to `split-sentences-at-clause-boundaries` (JOS-141)
+- [ ] 6.3 ~~Whole script below the lower bound~~ moved to `segment-script-into-chunks` (JOS-140)
+- [ ] 6.4 ~~Short-sentence-borrows-from-next edge case~~ moved to `split-sentences-at-clause-boundaries` (JOS-141)
+- [ ] 6.5 ~~No-clause-boundary edge case (chunk kept whole, speed-factor warning, no failure)~~ moved to `split-sentences-at-clause-boundaries` (JOS-141); the warning itself is JOS-148's
+- [ ] 6.6 ~~Implement the clause-boundary cases as clause units in the search~~ moved to `split-sentences-at-clause-boundaries` (JOS-141)
+- [ ] 6.7 ~~Run the group 6 tests~~ nothing left to run here; see JOS-141's own verification
 
 ## 7. Application: visual instructions and result invariants (TDD)
 
