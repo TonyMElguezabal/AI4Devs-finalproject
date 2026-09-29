@@ -54,11 +54,11 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 7. Manual Testing (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the real server on a scratch database and confirm it responds
-- [ ] 7.2 Narrate (one real text-to-speech call with timestamps) a script with a sentence over 15 s that has clause boundaries, a short sentence before a long one, and a long sentence without boundaries; run the decomposition phase with a stub instruction generator; `GET /sessions/:id` shows the chunks; record each fragment's text, duration and flag
-- [ ] 7.3 Repeat with a Spanish script
-- [ ] 7.4 Clean up through the test-only reset; confirm the scratch store is empty with all triggers and the default store untouched
-- [ ] 7.5 Save `openspec/changes/split-sentences-at-clause-boundaries/reports/YYYY-MM-DD-step-7-manual-testing.md`
+- [x] 7.1 Start the real server on a scratch database and confirm it responds
+- [x] 7.2 Narrate (one real text-to-speech call with timestamps) a script with a sentence over 15 s that has clause boundaries, a short sentence before a long one, and a long sentence without boundaries; run the decomposition phase with a stub instruction generator; `GET /sessions/:id` shows the chunks; record each fragment's text, duration and flag
+- [x] 7.3 Repeat with a Spanish script
+- [x] 7.4 Clean up through the test-only reset; confirm the scratch store is empty with all triggers and the default store untouched
+- [x] 7.5 Save `openspec/changes/split-sentences-at-clause-boundaries/reports/YYYY-MM-DD-step-7-manual-testing.md`
 
 ## 8. E2E Testing (MANDATORY if applicable - AGENT MUST EXECUTE)
 
