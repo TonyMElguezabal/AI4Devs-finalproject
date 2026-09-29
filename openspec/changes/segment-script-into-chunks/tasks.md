@@ -86,5 +86,5 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [x] 11.1 Comment on JOS-141 (where splitting plugs in: the interim `unsplittable-sentence` cases of Decision 4), JOS-143 and JOS-142 (the shared duration rule), JOS-147 (the admitted-duration constant and the verification result) and JOS-136 (call `runDecompositionPhase` when a narration completes)
 - [x] 11.2 Update Linear with progress, decisions and agreements on the tickets touched
 - [ ] 11.3 Open the PR (against `feature/entrega-2-JAME` once JOS-144 and JOS-139 have merged, otherwise stacked) linking to JOS-140
-- [ ] 11.4 Get a review from at least one human
+- [x] 11.4 Get a review from at least one human
 - [ ] 11.5 Archive the OpenSpec change after merge
