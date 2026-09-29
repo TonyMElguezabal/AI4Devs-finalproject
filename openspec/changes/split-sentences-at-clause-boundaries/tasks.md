@@ -67,8 +67,8 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [ ] 9.1 `docs/backend-standards.md`: clause boundaries, the conjunction lists and eligibility, next to JOS-140's segmentation notes
-- [ ] 9.2 `docs/api-spec.yml`: regenerate from `GET /docs/json` and confirm no change
+- [x] 9.1 `docs/backend-standards.md`: clause boundaries, the conjunction lists and eligibility, next to JOS-140's segmentation notes
+- [x] 9.2 `docs/api-spec.yml`: regenerate from `GET /docs/json` and confirm no change
 
 ## 10. Close out
 
