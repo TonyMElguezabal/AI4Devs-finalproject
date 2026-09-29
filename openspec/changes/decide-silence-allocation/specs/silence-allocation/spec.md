@@ -8,11 +8,13 @@ Requirements for deciding and applying which scene each silence of the voice-ove
 
 The project SHALL record in `docs/PRD.md` §7.3 and D11 exactly one rule that assigns every silence of the voice-over to a scene: the silence before the first spoken character, each pause between two adjacent units, and the silence after the last spoken character. The rule SHALL be stated precisely enough that two implementations derive the same boundaries from the same timestamps and MP3 duration.
 
+**Adopted rule (D11, product owner decision 2026-09-29): the previous scene absorbs the silence that follows it.** For units 1..n with speech spans `[sᵢ, eᵢ]` and MP3 duration `D`, the boundary between unit `i` and unit `i+1` is `bᵢ = sᵢ₊₁` (the next unit's speech start); `b₀ = 0`; `bₙ = D`. The cut to the next scene falls exactly when its narration starts. This replaces the interim rule shipped in JOS-140 (the silence split between the two adjacent scenes, `bᵢ = (eᵢ + sᵢ₊₁) / 2`), chosen by the product owner from the rendered comparison as reading better at natural pauses.
+
 #### Scenario: A pause between two scenes
 
 - **GIVEN** two consecutive scenes separated by a pause in the narration
 - **WHEN** the boundary between them is computed
-- **THEN** its position follows from the recorded rule and the two scenes' speech spans alone
+- **THEN** it equals the start of the following scene's speech, per the adopted rule
 
 #### Scenario: Silence at the start of the narration
 
@@ -78,11 +80,13 @@ The comparison SHALL report, for each candidate rule and each surveyed narration
 
 The decision SHALL state the longest silence that a single clip sustains acceptably under the adopted rule, taken from rendered videos with increasing pause lengths that the product owner has judged. When a pause measured in real narration exceeds that threshold, a rule for such pauses SHALL be defined and approved by the product owner before D11 closes. When none does, the threshold SHALL be recorded as the reason no further rule is needed.
 
+**Adopted threshold (product owner verdict, 2026-09-29): a single clip sustains up to 2 s of silence comfortably; 3 s starts dragging.** The pause survey's longest measured real pause was 1.26 s (forced-alignment shape), comfortably under 2 s — no surveyed pause exceeds the threshold, so no third rule is defined; D11 closes with the one adopted rule. A user-facing manual override for a scene that feels like it drags despite this was raised alongside the verdict and filed separately (JOS-190), out of this change's scope.
+
 #### Scenario: Every real pause is below the threshold
 
-- **GIVEN** a threshold judged acceptable and a pause survey whose longest pause is below it
+- **GIVEN** the 2 s threshold and the pause survey's longest pause, 1.26 s
 - **WHEN** the decision is recorded
-- **THEN** the adopted rule applies to every pause, and the threshold and the longest measured pause are recorded together
+- **THEN** the adopted rule applies to every pause, and the 2 s threshold and the 1.26 s longest measured pause are recorded together
 
 #### Scenario: A real pause exceeds the threshold
 
@@ -94,6 +98,8 @@ The decision SHALL state the longest silence that a single clip sustains accepta
 ### Requirement: The rule is chosen from compared, human-judged evidence
 
 Both candidate rules SHALL be compared on the same narrations and, for the rendered comparison, on the same clips. The narrations SHALL be in English and Spanish, with native and forced-alignment timestamps. The product owner SHALL judge the rendered videos. The record SHALL state the evidence, the product owner's verdict, the agent's prior recommendation and the rule rejected.
+
+**Recorded verdict (product owner, 2026-09-29):** "Rule A reads better at natural pauses" — matching the agent's recommendation (written before the renders were shared: rule A, because the image and the words it illustrates begin together, rather than the image arriving mid-silence before its narration starts). The rejected rule is rule B, the silence split between the two adjacent scenes (JOS-140's interim rule).
 
 #### Scenario: The rendered comparison is judged
 

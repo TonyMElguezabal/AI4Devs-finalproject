@@ -45,9 +45,9 @@ This is a spike. The POC runs first (groups 2-5), and only after the product own
 
 ## 6. Record the decision in the artifacts (before any code)
 
-- [ ] 6.1 Update `specs/silence-allocation/spec.md` with the adopted rule's formula, the threshold and, if any, the third rule, as requirements with scenarios
-- [ ] 6.2 Update design Decision 7 with the path actually taken, and add tasks to group 7 if the verdict needs more than planned
-- [ ] 6.3 Validate the change with `openspec validate --strict`
+- [x] 6.1 Update `specs/silence-allocation/spec.md` with the adopted rule's formula, the threshold and, if any, the third rule, as requirements with scenarios
+- [x] 6.2 Update design Decision 7 with the path actually taken, and add tasks to group 7 if the verdict needs more than planned
+- [x] 6.3 Validate the change with `openspec validate --strict`
 
 ## 7. Code follows the decision (TDD, design Decision 7)
 
