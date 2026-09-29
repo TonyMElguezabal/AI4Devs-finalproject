@@ -85,10 +85,10 @@ This is a spike. The POC runs first (groups 2-5), and only after the product own
 
 ## 12. Update Technical Documentation (MANDATORY)
 
-- [ ] 12.1 `docs/PRD.md` → v1.5, with v1.4 kept as `docs/PRD-v1.4.md`: §7.3, AC12, AC19, D11 closed, §14.1 done, §16 changelog, §11.3's speed-factor row pointing to JOS-182's recommendation
-- [ ] 12.2 ADR with the next free number (JOS-182's `0005-media-assembly.md` collides with `0005-provider-selection.md`): candidates, evidence, verdict, the rule rejected
-- [ ] 12.3 `docs/backend-standards.md`: replace "one interim duration rule" with the adopted rule, and state that JOS-143 must reuse `unitBoundaries`
-- [ ] 12.4 `docs/api-spec.yml`: regenerate from `GET /docs/json` and confirm no change
+- [x] 12.1 `docs/PRD.md` → v1.5, with v1.4 kept as `docs/PRD-v1.4.md`: §7.3, AC12, AC19, D11 closed, §14.1 done, §16 changelog, §11.3's speed-factor row pointing to JOS-182's recommendation
+- [x] 12.2 ADR with the next free number (JOS-182's `0005-media-assembly.md` collides with `0005-provider-selection.md`): candidates, evidence, verdict, the rule rejected
+- [x] 12.3 `docs/backend-standards.md`: replace "one interim duration rule" with the adopted rule, and state that JOS-143 must reuse `unitBoundaries`
+- [x] 12.4 `docs/api-spec.yml`: regenerate from `GET /docs/json` and confirm no change
 
 ## 13. Close out
 
