@@ -92,8 +92,8 @@ This is a spike. The POC runs first (groups 2-5), and only after the product own
 
 ## 13. Close out
 
-- [ ] 13.1 Comment on JOS-143 (the rule to implement; reuse `unitBoundaries`), JOS-149 and JOS-182 (the final pipeline parameters D11 left open are settled), JOS-148 (any speed-factor effect) and JOS-140/JOS-141 (the interim rule is resolved)
-- [ ] 13.2 Update JOS-142 with the findings, the trade-offs, the decision, the next steps and the time spent (the spike's Definition of Done)
+- [x] 13.1 Comment on JOS-143 (the rule to implement; reuse `unitBoundaries`), JOS-149 and JOS-182 (the final pipeline parameters D11 left open are settled), JOS-148 (any speed-factor effect) and JOS-140/JOS-141 (the interim rule is resolved)
+- [x] 13.2 Update JOS-142 with the findings, the trade-offs, the decision, the next steps and the time spent (the spike's Definition of Done)
 - [ ] 13.3 Open the PR against `feature/entrega-2-JAME`, linking to JOS-142
 - [ ] 13.4 Get a review from at least one human
 - [ ] 13.5 Archive the OpenSpec change after merge
