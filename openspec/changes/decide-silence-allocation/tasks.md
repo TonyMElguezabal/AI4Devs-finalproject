@@ -22,10 +22,10 @@ This is a spike. The POC runs first (groups 2-5), and only after the product own
 
 ## 3. Numeric comparison (design Decisions 1, 3.2 and 6)
 
-- [ ] 3.1 Write `scripts/compare.ts`, with the two boundary formulas as a parameter over the real `findSentences`, `buildUnits`, `sentenceSpeechSpans` and grouping code, without editing product code
-- [ ] 3.2 Check the harness first: with rule B it must reproduce `segmentScript`'s own fragments exactly on every survey narration
-- [ ] 3.3 Run both rules on the 4 narrations × 2 shapes. Report fragments, durations, admitted durations, speed factors in both directions, fragments outside the bounds, narrations with no valid grouping, the partition check, and where the rules' groupings differ
-- [ ] 3.4 Save `reports/YYYY-MM-DD-step-3-numeric-comparison.md`
+- [x] 3.1 Write `scripts/compare.ts`, with the two boundary formulas as a parameter over the real `findSentences`, `buildUnits`, `sentenceSpeechSpans` and grouping code, without editing product code
+- [x] 3.2 Check the harness first: with rule B it must reproduce `segmentScript`'s own fragments exactly on every survey narration
+- [x] 3.3 Run both rules on the 4 narrations × 2 shapes. Report fragments, durations, admitted durations, speed factors in both directions, fragments outside the bounds, narrations with no valid grouping, the partition check, and where the rules' groupings differ
+- [x] 3.4 Save `reports/YYYY-MM-DD-step-3-numeric-comparison.md`
 
 ## 4. Rendered comparison and threshold sweep (design Decisions 3.3 and 3.4)
 
