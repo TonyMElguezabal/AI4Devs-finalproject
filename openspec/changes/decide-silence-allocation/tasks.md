@@ -73,10 +73,10 @@ This is a spike. The POC runs first (groups 2-5), and only after the product own
 
 ## 10. Manual Testing (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Start the real server on a scratch database and confirm it responds
-- [ ] 10.2 Narrate one survey script for real, run `runDecompositionPhase` with a stub instruction generator, and check that `GET /sessions/:id` shows the chunks in `chunks-processing`, the fragment durations sum exactly to the MP3, and the boundaries match the adopted rule
-- [ ] 10.3 Clean up through the test-only reset; confirm the scratch store is empty with all triggers, and the default store untouched
-- [ ] 10.4 Save `reports/YYYY-MM-DD-step-10-manual-testing.md`
+- [x] 10.1 Start the real server on a scratch database and confirm it responds
+- [x] 10.2 Narrate one survey script for real, run `runDecompositionPhase` with a stub instruction generator, and check that `GET /sessions/:id` shows the chunks in `chunks-processing`, the fragment durations sum exactly to the MP3, and the boundaries match the adopted rule
+- [x] 10.3 Clean up through the test-only reset; confirm the scratch store is empty with all triggers, and the default store untouched
+- [x] 10.4 Save `reports/YYYY-MM-DD-step-10-manual-testing.md`
 
 ## 11. E2E Testing (MANDATORY if applicable - AGENT MUST EXECUTE)
 
