@@ -64,12 +64,12 @@ This is a spike. The POC runs first (groups 2-5), and only after the product own
 
 ## 9. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 9.1 Capture the pre-test state of the default test store
-- [ ] 9.2 Run the targeted tests and capture the summary
-- [ ] 9.3 Run the full suite and record totals, failures and runtime (the known intermittent `orchestrator.test.ts` failure is reported, not hidden)
-- [ ] 9.4 Verify the post-test state matches the baseline; restore it if not
-- [ ] 9.5 Write `openspec/changes/decide-silence-allocation/reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`
-- [ ] 9.6 Mark this step complete only after the tests pass and the report exists
+- [x] 9.1 Capture the pre-test state of the default test store
+- [x] 9.2 Run the targeted tests and capture the summary
+- [x] 9.3 Run the full suite and record totals, failures and runtime (the known intermittent `orchestrator.test.ts` failure is reported, not hidden)
+- [x] 9.4 Verify the post-test state matches the baseline; restore it if not
+- [x] 9.5 Write `openspec/changes/decide-silence-allocation/reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`
+- [x] 9.6 Mark this step complete only after the tests pass and the report exists
 
 ## 10. Manual Testing (MANDATORY - AGENT MUST EXECUTE)
 
