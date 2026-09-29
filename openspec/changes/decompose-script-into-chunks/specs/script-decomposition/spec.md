@@ -1,23 +1,8 @@
 # Script decomposition
 
-Requirements for turning a session's locked script and completed voice-over into an ordered set of chunks with narration intervals and visual instructions. Retrying failed attempts, the per-stage request cap, pausing a launch, and resuming in-flight requests after a restart are owned by `stage-retry-policy`, `stage-execution-time-limit` and their siblings; this capability covers when the phase starts, how timestamps are obtained, how the script is segmented, what a valid result must satisfy, and how its two recoverable failures are retried. Assigning chunk identifiers, generating the `IMAGE` and `VIDEO` instructions, checking the finished structure (four fields, §6.1 bounds, script reconstruction) and registering the chunks moved to `assign-scene-identifiers` (JOS-144); this capability hands it the ordered fragments. Starting the decomposition phase and obtaining the narration timestamps (native or forced alignment) moved to `obtain-narration-timestamps` (JOS-139); this capability receives the stored timestamps.
+Requirements for turning a session's locked script and completed voice-over into an ordered set of chunks with narration intervals and visual instructions. Retrying failed attempts, the per-stage request cap, pausing a launch, and resuming in-flight requests after a restart are owned by `stage-retry-policy`, `stage-execution-time-limit` and their siblings; this capability covers when the phase starts, how timestamps are obtained, how the script is segmented, what a valid result must satisfy, and how its two recoverable failures are retried. Assigning chunk identifiers, generating the `IMAGE` and `VIDEO` instructions, checking the finished structure (four fields, §6.1 bounds, script reconstruction) and registering the chunks moved to `assign-scene-identifiers` (JOS-144); this capability hands it the ordered fragments. Starting the decomposition phase and obtaining the narration timestamps (native or forced alignment) moved to `obtain-narration-timestamps` (JOS-139); this capability receives the stored timestamps. Cutting the script into fragments of whole sentences within the duration bounds, including a script shorter than the lower bound, moved to `segment-script-into-chunks` (JOS-140); the clause-boundary requirements below stay here for JOS-141.
 
 ## ADDED Requirements
-
-### Requirement: Chunks are cut on sentence boundaries within provider-admitted durations
-
-The system SHALL group one or more complete consecutive sentences into each chunk, cutting only at sentence boundaries. A chunk's narrated duration SHALL NOT exceed the active video provider's maximum admitted duration and SHALL NOT fall below the hardcoded lower bound, except as provided by the edge cases below. Among groupings that satisfy both bounds, the system SHALL prefer the one whose narrated duration is closest to a duration the video provider admits.
-
-#### Scenario: A script segments into ordinary chunks
-
-- **WHEN** a script's sentences can be grouped so every chunk's narrated duration is between the lower bound and the video provider's maximum
-- **THEN** each chunk is formed from one or more complete consecutive sentences
-- **AND** no chunk boundary falls inside a sentence
-
-#### Scenario: A grouping is chosen closest to an admitted duration
-
-- **WHEN** more than one valid grouping of consecutive sentences satisfies both bounds for a candidate chunk
-- **THEN** the grouping whose narrated duration is closest to a duration the video provider admits is chosen
 
 ### Requirement: A sentence exceeding the upper bound is split at a clause boundary
 
@@ -28,15 +13,6 @@ When a single sentence's narrated duration by itself exceeds the video provider'
 - **WHEN** a single sentence's narrated duration exceeds the video provider's maximum admitted duration
 - **THEN** it is split at a clause boundary into two chunks
 - **AND** no sentence is split at any point other than a clause boundary
-
-### Requirement: A script shorter than the lower bound becomes one chunk
-
-When the entire script's narrated duration is below the hardcoded lower bound, the system SHALL produce a single chunk covering the whole script.
-
-#### Scenario: The whole script is very short
-
-- **WHEN** a script's total narrated duration is below the hardcoded lower bound
-- **THEN** exactly one chunk is produced for the entire script
 
 ### Requirement: A short sentence borrows a clause-bounded prefix from the next sentence
 

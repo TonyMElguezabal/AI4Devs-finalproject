@@ -34,7 +34,7 @@ import type { DecompositionFailure, Run, TimestampMechanism, VoiceOver } from ".
 // the running app calls it yet: JOS-136's voice phase calls it once a narration
 // completes.
 
-const STORED_FILE = "narration-timestamps.json";
+export const STORED_FILE = "narration-timestamps.json";
 const NATIVE_PROVIDER = "elevenlabs-native";
 const ALIGNMENT_PROVIDER = "elevenlabs-forced-alignment";
 /** Recorded on an attempt's `error_code` once native timestamps were judged unusable (Decision 5). */
@@ -45,7 +45,7 @@ export type ObtainResult =
   | { ok: false; reason: "unknown-session" | "no-voice-over" | "already-obtained" }
   | { ok: false; reason: "decomposition-failed"; failure: DecompositionFailure };
 
-const storedFileSchema = z.object({
+export const storedFileSchema = z.object({
   mechanism: z.enum(["native", "alignment"]),
   characters: z.array(z.object({ text: z.string(), start: z.number(), end: z.number() })),
 });
