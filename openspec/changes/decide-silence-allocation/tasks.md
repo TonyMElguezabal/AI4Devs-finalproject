@@ -9,10 +9,10 @@ This is a spike. The POC runs first (groups 2-5), and only after the product own
 
 ## 1. Gate
 
-- [ ] 1.1 Confirm on the base branch: `unitBoundaries`, `sentenceSpeechSpans`, `buildUnits` and `segmentScript` exist, and `unitBoundaries` still implements rule B (midpoint)
-- [ ] 1.2 Record the commit of `origin/feature/jos-182-define-media-assembly` that `assemble.sh` and the 0.5×-2.0× recommendation are read from; copy `assemble.sh` into `work/` and run it once on JOS-182's own fixture to confirm it works on this machine
-- [ ] 1.3 Check `decompose-script-into-chunks` (umbrella) for silence-allocation wording, and point it to this change where it overlaps
-- [ ] 1.4 Add `work/` to a `.gitignore` in this change folder
+- [x] 1.1 Confirm on the base branch: `unitBoundaries`, `sentenceSpeechSpans`, `buildUnits` and `segmentScript` exist, and `unitBoundaries` still implements rule B (midpoint)
+- [x] 1.2 Record the commit of `origin/feature/jos-182-define-media-assembly` that `assemble.sh` and the 0.5×-2.0× recommendation are read from; copy `assemble.sh` into `work/` and run it once on JOS-182's own fixture to confirm it works on this machine
+- [x] 1.3 Check `decompose-script-into-chunks` (umbrella) for silence-allocation wording, and point it to this change where it overlaps
+- [x] 1.4 Add `work/` to a `.gitignore` in this change folder
 
 ## 2. Pause survey (design Decision 3.1)
 

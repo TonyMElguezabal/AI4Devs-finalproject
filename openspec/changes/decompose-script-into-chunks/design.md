@@ -18,7 +18,7 @@ Two invariants make this phase's correctness checkable independently of the segm
 
 **Non-Goals:**
 - Choosing the alignment provider or measuring native-timestamp granularity — `define-provider-configuration` (JOS-165) owns that verification.
-- Deciding how the narration silence between chunks is allocated (D11); this phase's partition requirement is written to hold under whichever rule D11 adopts, without anticipating it.
+- Deciding how the narration silence between chunks is allocated (D11, `decide-silence-allocation`, JOS-142); this phase's partition requirement is written to hold under whichever rule D11 adopts, without anticipating it.
 - Image generation, video generation or assembly — each is its own change and consumes this phase's chunks as input, not as something this change specifies.
 - Any concrete endpoint, route or storage engine — deferred to `define-backend-stack`, `define-frontend-stack` and `define-persistence`.
 
@@ -61,5 +61,5 @@ Nothing is deployed and no chunk-producing code exists yet, so there is no migra
 ## Open Questions
 
 1. **Does the chosen voice provider's native timestamp granularity make alignment the fallback or the standing mechanism?** Answered by `define-provider-configuration`'s Decision 3, not by this change.
-2. **How does D11's eventual silence-allocation rule interact with the partition invariant?** Recorded as a risk above; this change's invariant is written to survive either candidate rule, but re-verification is expected.
+2. **How does D11's eventual silence-allocation rule interact with the partition invariant?** Recorded as a risk above; this change's invariant is written to survive either candidate rule, but re-verification is expected. Settled by `decide-silence-allocation` (JOS-142).
 3. **What are the exact hardcoded values for the lower bound and the video provider's admitted durations?** Owned by `define-provider-configuration`; this change consumes them as named constants, not as numbers it fixes itself.
