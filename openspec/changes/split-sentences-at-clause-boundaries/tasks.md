@@ -72,8 +72,8 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 10. Close out
 
-- [ ] 10.1 Comment on JOS-148 (`unsplittable-sentence` now means "no clause boundary"; the warning for those fragments is theirs) and JOS-140 (the interim rule is replaced)
-- [ ] 10.2 Update Linear with progress, decisions and agreements on the tickets touched
+- [x] 10.1 Comment on JOS-148 (`unsplittable-sentence` now means "no clause boundary"; the warning for those fragments is theirs) and JOS-140 (the interim rule is replaced)
+- [x] 10.2 Update Linear with progress, decisions and agreements on the tickets touched
 - [ ] 10.3 Open the PR (stacked on JOS-140's until it merges) linking to JOS-141
 - [ ] 10.4 Get a review from at least one human
 - [ ] 10.5 Archive the OpenSpec change after merge
