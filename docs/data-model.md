@@ -18,7 +18,7 @@ Represents one video project. PRD §3, §4.1, §8.1, §9, §12.2.
 - `script`: the script exactly as submitted, **write-once from registration onward** — §4.2/D10 (`start-video-project`, JOS-134, Decisions 1 and 2). Emptiness is judged on a trimmed view at the validation boundary; the stored value is never trimmed. No operation updates this column after creation, and since `lock-script-and-narration` (JOS-137) the **store itself refuses** any update of it, in every state (see *Store-enforced locks* below).
 - `language`: script language, selected from the hardcoded supported list; a session cannot exist without one — §4.1. Also write-once, same as `script`, and enforced the same way.
 - `created_at`: creation timestamp; also drives the project-folder name, to the minute — §12.2
-- `state`: **derived**, not stored — one of the eight session states in §8.1, computed from the session's scenes each time it is read (`orchestrator.ts`'s `deriveSessionState`). A session with zero scenes (the state immediately after `start-video-project` registers it, before decomposition creates any) derives to `submitted`. This skeleton only ever produces `submitted`, `chunks-processing`, `final-video` or `failed`, since voice-over and decomposition phases aren't modelled.
+- `state`: **derived**, not stored — one of the eight session states in §8.1, computed from the session's scenes each time it is read (`orchestrator.ts`'s `deriveSessionState`). A session with zero scenes (the state immediately after `start-video-project` registers it, before decomposition creates any) derives to `submitted`. The states `voice-over-generating`, `final-video-generating` and the assembly phase are not produced yet. With no chunks yet (`obtain-narration-timestamps`, JOS-139), the state also reads the session's records: a stored `failure` derives to `failed` in that failure's phase; a `timestamps` stage attempt or stored timestamps derive to `chunk-decomposing`; a voice-over alone derives to `voice-over-complete`. No state column exists; JOS-136 adds `voice-over-generating` the same way.
 - `paused`: a marker on top of the current state, never a state itself, per §8.1/§9 (Decision 8, `define-live-updates`)
 - `failure`: the phase failure the session carries when it is `failed`, as JSON: `{ phase, cause, retryable, occurredAt }` with `phase` either `voice-over` (`generate-voice-over`, JOS-136, which added the column in migration 4) or `decomposition` (JOS-144: a refused system-generated decomposition, whose cause never blames the User's script). A session with no chunks and a failure derives to `failed` in that phase. A successful chunk registration clears it.
 - `project_folder`: the real per-project folder name under a configured root, named `<title> <YYYY-MM-DD HH-mm>` with a counter suffix on collision — §12.2 (Decision 4, `define-persistence`)
@@ -78,7 +78,24 @@ The actual idempotency guarantee. PRD §12.1 ("more than one success confirmatio
 
 ### 5. Schema migrations (`schema_migrations` table)
 
-Tracks which versioned migrations have been applied, so an existing session's data survives a schema upgrade (§11.2, Decision 6). Fields: `version` (Primary Key), `applied_at`. Migration 5 adds the three session-content triggers and migration 6 the two voice-over triggers (`lock-script-and-narration`, JOS-137); migration 7 adds `prompt`, `image_instruction` and `video_instruction` to `scenes`, the unique chunk-number index and the four chunk triggers (`assign-scene-identifiers`, JOS-144); they are separate because a database that had already applied 5 must still receive the voice-over triggers, and an applied migration is never edited.
+Tracks which versioned migrations have been applied, so an existing session's data survives a schema upgrade (§11.2, Decision 6). Fields: `version` (Primary Key), `applied_at`. Migration 5 adds the three session-content triggers and migration 6 the two voice-over triggers (`lock-script-and-narration`, JOS-137); migration 7 adds `prompt`, `image_instruction` and `video_instruction` to `scenes`, the unique chunk-number index and the four chunk triggers (`assign-scene-identifiers`, JOS-144); migrations 5 and 6 are separate because a database that had already applied 5 must still receive the voice-over triggers, and an applied migration is never edited. Migration 8 adds `narration_timestamps` and its two triggers (`obtain-narration-timestamps`, JOS-139).
+
+### 6. Narration timestamps (`narration_timestamps` table)
+
+Where each character of the script sits in the narration, obtained once per session at the start of the decomposition phase. PRD §5 step 3, §10.3, §11.1 (`obtain-narration-timestamps`, JOS-139).
+
+**Fields:**
+- `run_id`: the owning session (Primary Key, Foreign Key) — one record per session, enforced by the key
+- `mechanism`: `native` (the voice provider's own timestamps) or `alignment` (the alignment stage's forced alignment of the MP3 against the script) — checked by the store
+- `path`: the **relative path** of the file holding the timestamps, always `narration-timestamps.json` in the session's project folder — §12.2
+- `character_count`: the number of characters stored
+- `obtained_at`: when they were stored
+
+The file holds `{ mechanism, characters: [{ text, start, end }] }`, one entry per character, in one format whatever the mechanism. It and the record are written once and never changed (see *Store-enforced locks*), so segmentation and every decomposition retry use the same timestamps (§10.3). **They are not a partition of the audio:** native timestamps are gapless, but forced alignment starts about 0.1 s in and leaves gaps between characters (up to about 1 s on a 57 s narration); closing them is the job of the interval story (JOS-143, D11).
+
+**The `timestamps` stage** records its attempts in `stage_attempts` (`stage = 'timestamps'`, numbered apart from the voice-over's). An attempt's provider is the first mechanism tried (`elevenlabs-native` or `elevenlabs-forced-alignment`); when native timestamps were judged unusable, its `error_code` is `native-unusable` and every later attempt goes straight to alignment (§10.3).
+
+**Relationships:** one session has at most one narration-timestamps record, and only after its voice-over exists.
 
 ## Store-enforced locks
 
@@ -91,6 +108,8 @@ What must never change is refused by the store itself (`lock-script-and-narratio
 | `runs_language_locked` | `runs` | `UPDATE OF language` | `locked: runs.language cannot be modified after registration` |
 | `voice_overs_no_update` | `voice_overs` | any `UPDATE` | `locked: voice_overs cannot be modified once the narration is complete` |
 | `voice_overs_no_delete` | `voice_overs` | any `DELETE` | `locked: voice_overs cannot be deleted once the narration is complete` |
+| `narration_timestamps_no_update` | `narration_timestamps` | any `UPDATE` | `locked: narration_timestamps cannot be modified once obtained` |
+| `narration_timestamps_no_delete` | `narration_timestamps` | any `DELETE` | `locked: narration_timestamps cannot be deleted once obtained` |
 | `scenes_idx_locked` | `scenes` | `UPDATE OF idx` | `locked: scenes.idx cannot be modified once the chunk is established` |
 | `scenes_prompt_locked` | `scenes` | `UPDATE OF prompt` | `locked: scenes.prompt cannot be modified once the chunk is established` |
 | `scenes_run_id_locked` | `scenes` | `UPDATE OF run_id` | `locked: scenes.run_id cannot be modified once the chunk is established` |
@@ -100,7 +119,7 @@ What must never change is refused by the store itself (`lock-script-and-narratio
 - The four `scenes` triggers come from `assign-scene-identifiers` (JOS-144, migration 7): an established chunk is never split, merged, deleted or reordered (PRD §6). `image_instruction`, `video_instruction`, `instruction` and `status` stay writable, since §10.3 lets the visual instructions be corrected and the stages move the status. A duplicate chunk number is refused by the unique index `scenes_run_id_idx_unique`.
 - There is no trigger on `INSERT`: a second voice-over for a session is already refused by `voice_overs`' primary key (`run_id`).
 - The `voice_overs` table is created by migration 4 of `generate-voice-over` (JOS-136) and is documented with that change; this section only records how it is protected.
-- **The one exception** is `resetAll()` in `backend/src/db.ts`, which exists only for tests and empties the store. Inside a single transaction it drops `voice_overs_no_delete` and `scenes_no_delete`, deletes every row and recreates both triggers from the same definition constants the migrations use; if any step fails the whole reset rolls back and the triggers are left in place.
+- **The one exception** is `resetAll()` in `backend/src/db.ts`, which exists only for tests and empties the store. Inside a single transaction it drops `voice_overs_no_delete`, `scenes_no_delete` and `narration_timestamps_no_delete`, deletes every row and recreates the three triggers from the same definition constants the migrations use; if any step fails the whole reset rolls back and the triggers are left in place.
 - The MP3 file has the matching guarantee: it is written with `writeArtefactOnce`, which fails if the target exists and never replaces it (see `docs/backend-standards.md`, Persistence).
 
 ## Entity Relationship Diagram

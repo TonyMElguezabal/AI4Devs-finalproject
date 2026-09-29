@@ -8,8 +8,7 @@ What this phase produces is also where the product's strictest content guarantee
 
 ## What Changes
 
-- Launch decomposition automatically when a session reaches `voice-over-complete`, moving it to `chunk-decomposing` before any provider is called (§5 steps 3–4, §8.1).
-- Obtain narration timestamps by the two-mechanism rule of §11.1: use the voice-over's native timestamps when usable; otherwise call the alignment provider with the MP3 and the script. Inability to obtain timestamps by either mechanism is a decomposition failure, never a voice failure.
+- Start from the timestamps stored by `obtain-narration-timestamps` (JOS-139), which launches the phase, obtains the timestamps by the two-mechanism rule of §11.1 and records a timestamps failure as a decomposition failure. Those rules were carved out of this change on 2026-09-28.
 - Apply the sentence-boundary segmentation rule of §6.1: group one or more complete consecutive sentences per chunk, bounded above by the active video provider's maximum admitted duration and below by the hardcoded lower bound, with the clause-boundary exception for a sentence that alone exceeds the upper bound, and a preference for the admitted duration closest to each grouping's narrated length.
 - Handle the three §6.1.1 edge cases explicitly: a whole script shorter than the lower bound; a short sentence whose grouping with the next would exceed the upper bound; a sentence that must split but has no clause boundary.
 - Verify, before the phase can complete, that the narration intervals form a contiguous, non-overlapping partition of the voice-over from second 0 to its full duration; a violation is a decomposition failure of the system (§7.3, AC19).

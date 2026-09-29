@@ -42,11 +42,11 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 5. Application: timestamps sub-phase (TDD)
 
-- [ ] 5.1 Write a failing test that reaching `voice-over-complete` launches the `timestamps` stage instance without further User action
-- [ ] 5.2 Write a failing test that usable native timestamps are used directly, without calling the alignment provider
-- [ ] 5.3 Write a failing test that missing or unusable native timestamps trigger a call to the alignment provider with the MP3 and the script, and never call the voice provider again
-- [ ] 5.4 Write a failing test that a `timestamps` failure (either mechanism) is classified as a decomposition failure, not a voice failure
-- [ ] 5.5 Implement the timestamps sub-phase, wired to `stage-retry-policy` and `stage-execution-time-limit` as its own stage instance
+- [ ] 5.1 ~~Launching the `timestamps` stage~~ moved to `obtain-narration-timestamps` (JOS-139)
+- [ ] 5.2 ~~Usable native timestamps~~ moved to `obtain-narration-timestamps` (JOS-139)
+- [ ] 5.3 ~~Alignment when native timestamps are missing or unusable~~ moved to `obtain-narration-timestamps` (JOS-139)
+- [ ] 5.4 ~~A timestamps failure is a decomposition failure~~ moved to `obtain-narration-timestamps` (JOS-139)
+- [ ] 5.5 ~~Implement the timestamps sub-phase~~ moved to `obtain-narration-timestamps` (JOS-139); read the timestamps it stores instead
 - [ ] 5.6 Run the group 5 tests and confirm they pass
 
 ## 6. Application: segmentation algorithm and edge cases (TDD)
