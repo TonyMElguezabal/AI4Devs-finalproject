@@ -40,8 +40,8 @@ This is a spike. The POC runs first (groups 2-5), and only after the product own
 
 - [x] 5.1 Write the agent's recommendation into the step 4 report before sharing anything
 - [x] 5.2 Send the renders and a one-page sheet (which file is which rule and pause) to the product owner, and ask the three questions of Decision 4
-- [ ] 5.3 Record the verdict verbatim: the preferred rule, the threshold, anything else
-- [ ] 5.4 If a surveyed pause exceeds the threshold, propose a rule for longer pauses and get it approved before continuing (Decision 5)
+- [x] 5.3 Record the verdict verbatim: the preferred rule, the threshold, anything else
+- [x] 5.4 If a surveyed pause exceeds the threshold, propose a rule for longer pauses and get it approved before continuing (Decision 5)
 
 ## 6. Record the decision in the artifacts (before any code)
 

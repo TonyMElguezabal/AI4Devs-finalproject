@@ -91,3 +91,17 @@ Questions asked (design Decision 4):
 1. Which rule reads better at natural pauses (the two base-comparison files)?
 2. From which swept pause length does a single clip holding the silence stop being acceptable, under the preferred rule (the 10 sweep files)?
 3. Is anything else wrong?
+
+## Task 5.3 — the verdict, verbatim (product owner, 2026-09-29)
+
+> Rule A reads better at natural pauses
+
+> 2 seconds feels fine, 3 seconds starts dragging, but maybe we should add a manual dial, like if the user feels that is dragging already at 2 seconds he can reduce it or increase the length and regenerate the asset.
+
+**Decision: rule A**, matching the agent's recommendation (task 5.1). **Threshold: comfortable up to 2 s; 3 s starts dragging** — the acceptable range this change records is silence held by a single clip up to 2 s.
+
+**Something else, raised:** a manual dial letting the user shorten or lengthen a scene that feels like it's dragging and regenerate its clip. This is a user-facing capability, not part of the automatic D11 rule; scoped by product-owner decision (2026-09-29, "New backlog item") as its own ticket, filed as **JOS-190**, not designed or built as part of this change. It does not block D11's closure (task 5.4 below).
+
+## Task 5.4 — checking the threshold against the survey
+
+Design Decision 5: a third rule is only proposed if a real surveyed pause exceeds the accepted threshold. Step 2's pause survey (4 real narrations, native and forced-alignment, 48 pauses) measured **0.04-1.26 s**, with the single longest pause at 1.26 s (forced-alignment shape). **1.26 s is comfortably under the 2 s threshold** — no surveyed pause exceeds it, so per Decision 5's first scenario ("every real pause is below the threshold"), **no third rule is needed**. D11 closes with rule A alone.
