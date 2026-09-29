@@ -58,9 +58,9 @@ This is a spike. The POC runs first (groups 2-5), and only after the product own
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 8.1 Review JOS-139/140/141 tests for assumptions about the boundary rule beyond task 7.2
-- [ ] 8.2 Confirm every scenario in `specs/silence-allocation/spec.md` is covered by a test or by a POC report, and list the mapping in the step 9 report
-- [ ] 8.3 Confirm module test coverage has not decreased, measured against the base on scratch databases
+- [x] 8.1 Review JOS-139/140/141 tests for assumptions about the boundary rule beyond task 7.2
+- [x] 8.2 Confirm every scenario in `specs/silence-allocation/spec.md` is covered by a test or by a POC report, and list the mapping in the step 9 report
+- [x] 8.3 Confirm module test coverage has not decreased, measured against the base on scratch databases
 
 ## 9. Run Unit Tests and Verify Database State (MANDATORY)
 

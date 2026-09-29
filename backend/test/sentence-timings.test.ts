@@ -129,6 +129,18 @@ describe("Unit boundaries and chunk durations (Decision 3; JOS-142, D11)", () =>
     expect(durations[1]).toBeCloseTo(0.8, 10);
   });
 
+  it("still partitions the MP3 exactly when the timestamps are forced-alignment shaped (start after 0, end before the audio's end, gaps between units)", () => {
+    const script = SCRIPT;
+    const mp3Duration = script.length * 0.1 + 0.5; // longer than the last character's end, like a real alignment file
+    const spans = sentenceSpeechSpans(script, findSentences(script, "en"), aligned(script));
+    const boundaries = unitBoundaries(spans, mp3Duration);
+    expect(boundaries[0]).toBe(0);
+    expect(boundaries.at(-1)).toBe(mp3Duration);
+    expect(boundaries[1]).toBeCloseTo(spans[1]!.start, 10); // the following unit absorbs none of it; the previous one gets all of it
+    const durations = chunkDurations(spans, mp3Duration);
+    expect(durations.reduce((a, b) => a + b, 0)).toBeCloseTo(mp3Duration, 10);
+  });
+
   it("handles a single unit: it covers the whole narration", () => {
     expect(chunkDurations([{ start: 0.4, end: 4.0 }], 4.6)).toEqual([4.6]);
   });
