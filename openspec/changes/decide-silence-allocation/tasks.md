@@ -29,12 +29,12 @@ This is a spike. The POC runs first (groups 2-5), and only after the product own
 
 ## 4. Rendered comparison and threshold sweep (design Decisions 3.3 and 3.4)
 
-- [ ] 4.1 Pick the English survey narration with the longest natural pause, and the fragment boundary to sweep (both adjacent intervals under 8 s, so rule A's 4 s case stays under 15 s)
-- [ ] 4.2 Generate its fragments' IMAGE/VIDEO instructions (one real reasoning call), one Fal.ai image per fragment and one RunningHub clip per fragment at its admitted duration, the two sweep-adjacent clips at 15 s. Stop and report if RunningHub spend would pass $8
-- [ ] 4.3 Render the base comparison with `assemble.sh`: the same clips with rule A's intervals and with rule B's
-- [ ] 4.4 Build MP3 copies with the swept pause at 1, 1.5, 2, 3 and 4 s, shifting later timestamps; render each under both rules, with the two sweep clips cut so they play at 1.0×
-- [ ] 4.5 Check every render: duration equals the MP3's, the audio is the voice-over only, the scene changes fall at the expected boundaries (±1 frame)
-- [ ] 4.6 Save `reports/YYYY-MM-DD-step-4-renders.md` (files, spend, measured checks)
+- [x] 4.1 Pick the English survey narration with the longest natural pause, and the fragment boundary to sweep (both adjacent intervals under 8 s, so rule A's 4 s case stays under 15 s) — `english-exclamation-paragraph`, native shape, longest pause 1.115 s (boundary between sentence 1 "Waves crashed…night." and sentence 2 "Ropes were checked…fall.", = fragment0/fragment1's real rule-B boundary). Rule B's actual fragment0 (sentence0+1, 11.448 s) fails the <8 s margin (+4 s = 15.448 s, over the clip max), so the sweep uses the two individual sentences flanking that boundary instead — sentence1 alone (6.966 s) and sentence2 (=fragment1, 7.882 s), both under 8 s — while the base comparison (4.3) still uses the real rule-B fragment grouping
+- [x] 4.2 Generate its fragments' IMAGE/VIDEO instructions (one real reasoning call), one Fal.ai image per fragment and one RunningHub clip per fragment at its admitted duration, the two sweep-adjacent clips at 15 s. Stop and report if RunningHub spend would pass $8
+- [x] 4.3 Render the base comparison with `assemble.sh`: the same clips with rule A's intervals and with rule B's
+- [x] 4.4 Build MP3 copies with the swept pause at 1, 1.5, 2, 3 and 4 s, shifting later timestamps; render each under both rules, with the two sweep clips cut so they play at 1.0×
+- [x] 4.5 Check every render: duration equals the MP3's, the audio is the voice-over only, the scene changes fall at the expected boundaries (±1 frame)
+- [x] 4.6 Save `reports/YYYY-MM-DD-step-4-renders.md` (files, spend, measured checks)
 
 ## 5. Product owner verdict (design Decisions 4 and 5)
 
