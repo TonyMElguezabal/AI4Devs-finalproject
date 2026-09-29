@@ -16,9 +16,9 @@ This is a spike. The POC runs first (groups 2-5), and only after the product own
 
 ## 2. Pause survey (design Decision 3.1)
 
-- [ ] 2.1 Write the four survey scripts (two English, two Spanish, 600-900 characters). Between them they contain `.`, `?`, `!`, commas, one paragraph break, one ellipsis and one dash
-- [ ] 2.2 Write `scripts/survey.ts`: one real text-to-speech call with timestamps per script, forced alignment on the same MP3, then every inner unit boundary's pause and its cause, in both shapes, saved to `work/`
-- [ ] 2.3 Run it; record the pause distribution per cause and the longest pause in `reports/YYYY-MM-DD-step-2-pause-survey.md`
+- [x] 2.1 Write the four survey scripts (two English, two Spanish, 600-900 characters). Between them they contain `.`, `?`, `!`, commas, one paragraph break, one ellipsis and one dash
+- [x] 2.2 Write `scripts/survey.ts`: one real text-to-speech call with timestamps per script, forced alignment on the same MP3, then every inner unit boundary's pause and its cause, in both shapes, saved to `work/`
+- [x] 2.3 Run it; record the pause distribution per cause and the longest pause in `reports/YYYY-MM-DD-step-2-pause-survey.md`
 
 ## 3. Numeric comparison (design Decisions 1, 3.2 and 6)
 
