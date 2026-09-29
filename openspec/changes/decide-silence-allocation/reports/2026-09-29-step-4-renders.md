@@ -72,3 +72,22 @@ $5.852 (RunningHub), 5 Fal.ai images, 1 reasoning call, all within the ~$6 estim
 
 - `work/base-comparison-rule-A.mp4`, `work/base-comparison-rule-B.mp4` — the same real narration and clips, only the cut position differs.
 - `work/sweep-{1,1.5,2,3,4}s-rule-{A,B}.mp4` — 10 isolated two-scene renders at increasing pause length, each rule.
+
+## Task 5.1 — Agent's recommendation, written before sharing anything
+
+**I have not watched these renders** — I have no visual/audio perception of the produced files; everything above is measured (ffprobe, cumulative arithmetic), not judged. The recommendation below is reasoned from the *mechanism*, offered so it can be compared with your verdict, not a substitute for watching them.
+
+**Recommendation: rule A (the previous scene absorbs the silence).**
+
+Reasoning: under rule B (today's interim rule), the next scene's image appears while its narration hasn't started yet — up to half the pause length before the words that describe it are heard. Under rule A, the cut happens exactly when the next sentence's speech starts, so the image and the words it illustrates always begin together. For a narrated-slideshow format (not a documentary with a deliberate J-cut), "the picture changes when the new sentence begins" is the tighter, more conventional association, and the risk under rule B grows with the pause length — at the sweep's 4 s step, rule B's cut happens up to 2 s before the matching narration starts, which seems more likely to read as premature.
+
+Caveat: this is a structural argument, not a viewing. The threshold question in particular (how long a single clip can hold silence before it feels dead) is not something I can estimate from durations alone — I have no basis for a number there, and none is offered.
+
+## Task 5.2 — sent to the product owner
+
+Files sent: `base-comparison-rule-A.mp4`, `base-comparison-rule-B.mp4`, and the 10 sweep files. Sheet: this report's task 4.3/4.4 tables (which file is which rule, and which pause length).
+
+Questions asked (design Decision 4):
+1. Which rule reads better at natural pauses (the two base-comparison files)?
+2. From which swept pause length does a single clip holding the silence stop being acceptable, under the preferred rule (the 10 sweep files)?
+3. Is anything else wrong?
