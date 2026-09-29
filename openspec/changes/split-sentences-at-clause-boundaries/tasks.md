@@ -62,8 +62,8 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 8. E2E Testing (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Decide applicability: no screen changes; if the session page lists chunks, check a session from step 7 shows the split fragments in order; otherwise record why not
-- [ ] 8.2 Save `openspec/changes/split-sentences-at-clause-boundaries/reports/YYYY-MM-DD-step-8-e2e.md`
+- [x] 8.1 Decide applicability: no screen changes; if the session page lists chunks, check a session from step 7 shows the split fragments in order; otherwise record why not
+- [x] 8.2 Save `openspec/changes/split-sentences-at-clause-boundaries/reports/YYYY-MM-DD-step-8-e2e.md`
 
 ## 9. Update Technical Documentation (MANDATORY)
 
