@@ -5,9 +5,12 @@ import type { TimestampCharacter } from "../src/narrationTimestamps.ts";
 
 // segment-script-into-chunks (JOS-140), group 3 — design Decisions 2 and 3:
 // characters are mapped to sentences by position (ignoring whitespace, which
-// forced alignment may drop), and a chunk's narrated duration uses one interim
-// partition rule: the boundary between two units is the midpoint of the pause
-// between them, the first boundary is 0 and the last the MP3's duration.
+// forced alignment may drop). decide-silence-allocation (JOS-142, D11,
+// product owner decision 2026-09-29): the adopted silence-allocation rule —
+// the boundary between two units is the start of the following unit's speech,
+// so the previous scene absorbs the silence that follows it — the first
+// boundary is 0 and the last the MP3's duration. Replaces JOS-140's interim
+// midpoint rule (rejected by the product owner's rendered comparison).
 
 /** One timestamp per character of `text`, `step` seconds each, from `offset`; whitespace characters included. */
 function native(text: string, step = 0.1, offset = 0): TimestampCharacter[] {
@@ -88,11 +91,11 @@ describe("Mapping characters to sentences (Decision 2)", () => {
   });
 });
 
-describe("Unit boundaries and chunk durations (Decision 3)", () => {
-  it("places the boundary between two units at the midpoint of the pause between them", () => {
+describe("Unit boundaries and chunk durations (Decision 3; JOS-142, D11)", () => {
+  it("places the boundary between two units at the following unit's speech start", () => {
     const boundaries = unitBoundaries([{ start: 0.5, end: 3.0 }, { start: 4.0, end: 8.0 }, { start: 8.5, end: 9.5 }], 10);
-    expect(boundaries[1]).toBeCloseTo(3.5, 10);
-    expect(boundaries[2]).toBeCloseTo(8.25, 10);
+    expect(boundaries[1]).toBeCloseTo(4.0, 10);
+    expect(boundaries[2]).toBeCloseTo(8.5, 10);
   });
 
   it("starts at 0 and ends at the MP3's duration", () => {
@@ -100,6 +103,12 @@ describe("Unit boundaries and chunk durations (Decision 3)", () => {
     expect(boundaries[0]).toBe(0);
     expect(boundaries.at(-1)).toBe(10);
     expect(boundaries).toHaveLength(3);
+  });
+
+  it("gives the same boundary as the rejected split-pause rule when two units have no pause between them", () => {
+    // With no gap, "the following unit's start" and "the midpoint of the pause" are the same instant.
+    const boundaries = unitBoundaries([{ start: 0, end: 5 }, { start: 5, end: 9 }], 9);
+    expect(boundaries[1]).toBe(5);
   });
 
   it("gives per-unit durations that add up to the MP3's duration", () => {
@@ -114,10 +123,10 @@ describe("Unit boundaries and chunk durations (Decision 3)", () => {
     const script = SCRIPT;
     const spans = sentenceSpeechSpans(script, findSentences(script, "en"), native(script));
     const durations = chunkDurations(spans, script.length * 0.1);
-    // Units touch, so each boundary is where one ends and the next starts; the space between sentences is one character (0.1 s), split evenly.
+    // The one-character space between sentences goes entirely to the first sentence, whose boundary is the second sentence's own start (1.0 s).
     expect(durations.reduce((a, b) => a + b, 0)).toBeCloseTo(script.length * 0.1, 10);
-    expect(durations[0]).toBeCloseTo(0.95, 10);
-    expect(durations[1]).toBeCloseTo(0.85, 10);
+    expect(durations[0]).toBeCloseTo(1.0, 10);
+    expect(durations[1]).toBeCloseTo(0.8, 10);
   });
 
   it("handles a single unit: it covers the whole narration", () => {

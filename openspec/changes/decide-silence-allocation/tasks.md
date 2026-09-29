@@ -51,10 +51,10 @@ This is a spike. The POC runs first (groups 2-5), and only after the product own
 
 ## 7. Code follows the decision (TDD, design Decision 7)
 
-- [ ] 7.1 If rule A (or a third rule): write failing tests in `sentence-timings.test.ts` for the adopted boundaries, the edges at 0 and the MP3 duration, the partition, and zero-pause units
-- [ ] 7.2 If rule A (or a third rule): change `unitBoundaries`, then run the timings, segmentation, clause-splitting and decomposition tests; review each test that moves, and do not bulk-update
-- [ ] 7.3 If rule B: remove "interim" from the comments in `sentenceTimings.ts` and `segmentation.ts`, and add one test that pins the adopted rule by name
-- [ ] 7.4 Run `npm run typecheck` and the server runtime-load test
+- [x] 7.1 If rule A (or a third rule): write failing tests in `sentence-timings.test.ts` for the adopted boundaries, the edges at 0 and the MP3 duration, the partition, and zero-pause units
+- [x] 7.2 If rule A (or a third rule): change `unitBoundaries`, then run the timings, segmentation, clause-splitting and decomposition tests; review each test that moves, and do not bulk-update
+- [x] 7.3 ~~If rule B: remove "interim" from the comments...~~ not applicable — rule A was adopted, covered by 7.1/7.2 instead
+- [x] 7.4 Run `npm run typecheck` and the server runtime-load test
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
