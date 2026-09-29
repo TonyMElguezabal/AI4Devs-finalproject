@@ -91,6 +91,6 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 - [x] 11.1 Comment on JOS-136 (call `obtainNarrationTimestamps` when a narration completes; the raw native-timestamps format assumed; `deriveSessionState` now has `voice-over-complete`), JOS-140 (read the stored timestamps), JOS-156 (the retry rule) and JOS-165 (the 5 s alignment limit observed on a longer clip) — posted on JOS-136 (call the step; store the whole raw response; `deriveSessionState` and the state machine), JOS-140 (where and in what format to read the timestamps; they are not a partition), JOS-156 (the retry rule) and JOS-165 (the 5 s alignment limit measured on a 57 s clip; text-to-speech took 10.8 s for a 733-character script, above the 10 s voice limit), plus JOS-143 and JOS-142 (the gap data for intervals and D11)
 - [x] 11.2 Update Linear with progress, decisions and agreements on the tickets touched — progress, decisions and verification posted on JOS-139 (one figure corrected in place: 109 new tests, not 120); the spike answer on JOS-138 earlier
-- [ ] 11.3 Open the PR (against `feature/entrega-2-JAME` once PR #10 has merged, otherwise stacked on it) linking to JOS-139
+- [x] 11.3 Open the PR (against `feature/entrega-2-JAME` once PR #10 has merged, otherwise stacked on it) linking to JOS-139
 - [ ] 11.4 Get a review from at least one human
 - [ ] 11.5 Archive the OpenSpec change after merge
