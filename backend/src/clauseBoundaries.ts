@@ -28,8 +28,11 @@ export function findClauseBoundaries(sentence: string, language: string): number
   const punctuation = /[,;](?=\s)/gu;
   for (const match of sentence.matchAll(punctuation)) boundaries.add(match.index + 1);
 
+  // The end check is a Unicode-aware word boundary, not `\b`: JS's `\b` treats
+  // an accented letter (e.g. "ñ") as a non-word character, so "ni" would
+  // falsely match the start of "niña".
   const conjunctions = conjunctionsFor(language);
-  const pattern = new RegExp(`(?<=\\s)(${conjunctions.join("|")})\\b`, "giu");
+  const pattern = new RegExp(`(?<=\\s)(${conjunctions.join("|")})(?![\\p{L}\\p{N}])`, "giu");
   for (const match of sentence.matchAll(pattern)) {
     if (!directlyAfterPunctuation(sentence, match.index)) boundaries.add(match.index);
   }
