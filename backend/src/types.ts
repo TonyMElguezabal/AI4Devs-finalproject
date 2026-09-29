@@ -53,11 +53,23 @@ export interface Run {
   projectFolder: string;
   /** PRD §11.2 — the voice provider bound on the first voice attempt; write-once (generate-voice-over, JOS-136, Decision 3). */
   voiceProviderId: string | null;
-  /** The phase failure the session carries when it is `failed` (generate-voice-over, JOS-136, Decision 9). */
-  failure: VoiceOverFailure | null;
+  /** The phase failure the session carries when it is `failed` (generate-voice-over, JOS-136, Decision 9; assign-scene-identifiers, JOS-144, Decision 6). */
+  failure: SessionFailure | null;
 }
 
 /** Design Decision 9 (generate-voice-over, JOS-136) — what the session carries when the voice-over failed. */
+/** assign-scene-identifiers (JOS-144) Decision 6 — an invalid system-generated decomposition (PRD §6, §6.1), attributed to the system, never to the User's script. */
+export interface DecompositionFailure {
+  phase: "decomposition";
+  /** Written for a person; never blames the script, never contains credentials or raw provider payloads. */
+  cause: string;
+  retryable: boolean;
+  /** ISO-8601 instant. */
+  occurredAt: string;
+}
+
+export type SessionFailure = VoiceOverFailure | DecompositionFailure;
+
 export interface VoiceOverFailure {
   phase: "voice-over";
   /** Written for a person; never contains credentials or the script text. */
@@ -83,8 +95,22 @@ export interface VoiceOverInput {
 
 export type VoiceOver = VoiceOverInput;
 
-/** The stages that record attempts at session level. Later stories add their own. */
-export type AttemptStage = "voice-over";
+/** The stages that record attempts at session level (`timestamps`: obtain-narration-timestamps, JOS-139). Later stories add their own. */
+export type AttemptStage = "voice-over" | "timestamps";
+
+/** How the narration timestamps were obtained (PRD §11.1). */
+export type TimestampMechanism = "native" | "alignment";
+
+/** The narration timestamps of a session, stored once (obtain-narration-timestamps, JOS-139, Decision 7). `path` is relative to the project folder. */
+export interface NarrationTimestampsInput {
+  runId: string;
+  mechanism: TimestampMechanism;
+  path: string;
+  characterCount: number;
+  obtainedAt: string;
+}
+
+export type NarrationTimestamps = NarrationTimestampsInput;
 
 export const STAGE_ATTEMPT_OUTCOMES = ["in-flight", "success", "transient", "not-retryable"] as const;
 export type StageAttemptOutcome = (typeof STAGE_ATTEMPT_OUTCOMES)[number];
@@ -115,8 +141,14 @@ export interface Scene {
   lastError: string | null;
   result: string | null;
   updatedAt: string;
-  /** The visual instruction, correctable only while the affected stage is `failed` (PRD §10.3). */
+  /** The skeleton image stage's input, correctable only while the affected stage is `failed` (PRD §10.3). Registration sets it to `imageInstruction`; JOS-145 retires it (assign-scene-identifiers, JOS-144, Decision 3). */
   instruction: string;
+  /** PRD §3 `PROMPT`: the fragment of the script this scene narrates, unchanged. Locked once registered. */
+  prompt: string;
+  /** PRD §3 `IMAGE`: the instruction to generate the scene's image. */
+  imageInstruction: string;
+  /** PRD §3 `VIDEO`: the instruction to animate the image. */
+  videoInstruction: string;
   provider: string;
   /** Configured at scene creation so automatic retries can reuse the same behaviour. */
   providerMode: ProviderOutcomeMode;
@@ -190,6 +222,12 @@ export interface SceneEventPayload {
   attempts?: number;
   result?: { imageUrl?: string; videoUrl?: string };
   instruction?: string;
+  /** PRD §3 `PROMPT` (assign-scene-identifiers, JOS-144). */
+  prompt?: string;
+  /** PRD §3 `IMAGE`. */
+  imageInstruction?: string;
+  /** PRD §3 `VIDEO`. */
+  videoInstruction?: string;
   updatedAt: string;
 }
 

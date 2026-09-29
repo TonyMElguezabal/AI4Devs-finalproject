@@ -180,6 +180,16 @@ paths:
                           additionalProperties: false
                         instruction:
                           type: string
+                        prompt:
+                          type: string
+                          description: 'PRD §3 PROMPT: the fragment of the script this chunk narrates. Immutable once the
+                            chunk is established (PRD §6).'
+                        imageInstruction:
+                          type: string
+                          description: "PRD §3 IMAGE: the instruction to generate the chunk's image."
+                        videoInstruction:
+                          type: string
+                          description: "PRD §3 VIDEO: the instruction to animate the chunk's image."
                         updatedAt:
                           type: string
                       required:
@@ -289,6 +299,16 @@ paths:
                           additionalProperties: false
                         instruction:
                           type: string
+                        prompt:
+                          type: string
+                          description: 'PRD §3 PROMPT: the fragment of the script this chunk narrates. Immutable once the
+                            chunk is established (PRD §6).'
+                        imageInstruction:
+                          type: string
+                          description: "PRD §3 IMAGE: the instruction to generate the chunk's image."
+                        videoInstruction:
+                          type: string
+                          description: "PRD §3 VIDEO: the instruction to animate the chunk's image."
                         updatedAt:
                           type: string
                       required:

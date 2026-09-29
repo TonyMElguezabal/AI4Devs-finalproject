@@ -22,12 +22,14 @@ import type {
   StageAttempt,
   StageAttemptOutcome,
   VoiceOver,
-  VoiceOverFailure,
+  SessionFailure,
+  NarrationTimestamps,
+  NarrationTimestampsInput,
   VoiceOverInput,
 } from "./types.ts";
 import { STUB_PROVIDER_NAME } from "./types.ts";
 
-export type { VoiceOverInput } from "./types.ts";
+export type { NarrationTimestampsInput, VoiceOverInput } from "./types.ts";
 
 const DB_PATH = process.env.DB_PATH ?? "data/skeleton.sqlite";
 mkdirSync(dirname(DB_PATH), { recursive: true });
@@ -120,6 +122,38 @@ export const VOICE_OVER_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER voice_overs_no_d
     SELECT RAISE(ABORT, 'locked: voice_overs cannot be deleted once the narration is complete');
   END;`;
 
+// assign-scene-identifiers (JOS-144) Decision 7 — an established chunk is never
+// split, merged, deleted or reordered (PRD §6): its number, its PROMPT and its
+// session cannot change, and it cannot be deleted. IMAGE and VIDEO stay
+// writable, since §10.3 lets them be corrected after a failed stage.
+const LOCKED_SCENE_COLUMNS = ["idx", "prompt", "run_id"] as const;
+
+export const SCENE_LOCK_TRIGGERS_DDL: readonly string[] = LOCKED_SCENE_COLUMNS.map(
+  (column) => `CREATE TRIGGER scenes_${column}_locked BEFORE UPDATE OF ${column} ON scenes
+    BEGIN
+      SELECT RAISE(ABORT, 'locked: scenes.${column} cannot be modified once the chunk is established');
+    END;`,
+);
+
+export const SCENE_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER scenes_no_delete BEFORE DELETE ON scenes
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: scenes cannot be deleted once the chunk is established');
+  END;`;
+
+// obtain-narration-timestamps (JOS-139) Decision 7 — the obtained timestamps are
+// stored once and never replaced (PRD §10.3: segmentation and every retry use
+// the same ones). `resetAll()` (test-only) lifts the delete trigger inside its
+// transaction and recreates it from this same constant.
+export const NARRATION_TIMESTAMPS_NO_UPDATE_TRIGGER_DDL = `CREATE TRIGGER narration_timestamps_no_update BEFORE UPDATE ON narration_timestamps
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: narration_timestamps cannot be modified once obtained');
+  END;`;
+
+export const NARRATION_TIMESTAMPS_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER narration_timestamps_no_delete BEFORE DELETE ON narration_timestamps
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: narration_timestamps cannot be deleted once obtained');
+  END;`;
+
 // ---- Versioned migrations (Decision 6) — applied on top of the baseline ----
 // Each migration takes the target database explicitly (not a closed-over
 // singleton) so the exact same runner can be pointed at a fixture database
@@ -194,6 +228,38 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
     up: (target) => {
       target.exec(VOICE_OVER_NO_UPDATE_TRIGGER_DDL);
       target.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
+    },
+  },
+  {
+    version: 7,
+    description:
+      "add the chunk content columns, a per-session unique chunk number and the chunk locks (assign-scene-identifiers, JOS-144)",
+    up: (target) => {
+      target.exec("ALTER TABLE scenes ADD COLUMN prompt TEXT NOT NULL DEFAULT ''");
+      target.exec("ALTER TABLE scenes ADD COLUMN image_instruction TEXT NOT NULL DEFAULT ''");
+      target.exec("ALTER TABLE scenes ADD COLUMN video_instruction TEXT NOT NULL DEFAULT ''");
+      // Decision 2 — the PRD's ID is `idx`, unique within its session only.
+      target.exec("CREATE UNIQUE INDEX scenes_run_id_idx_unique ON scenes (run_id, idx)");
+      for (const ddl of SCENE_LOCK_TRIGGERS_DDL) target.exec(ddl);
+      target.exec(SCENE_NO_DELETE_TRIGGER_DDL);
+    },
+  },
+  {
+    version: 8,
+    description: "add narration_timestamps, stored once and locked (obtain-narration-timestamps, JOS-139)",
+    up: (target) => {
+      // One record per session is the PRIMARY KEY, not a prior read.
+      target.exec(`
+        CREATE TABLE narration_timestamps (
+          run_id TEXT PRIMARY KEY REFERENCES runs(id),
+          mechanism TEXT NOT NULL CHECK (mechanism IN ('native', 'alignment')),
+          path TEXT NOT NULL,
+          character_count INTEGER NOT NULL,
+          obtained_at TEXT NOT NULL
+        );
+      `);
+      target.exec(NARRATION_TIMESTAMPS_NO_UPDATE_TRIGGER_DDL);
+      target.exec(NARRATION_TIMESTAMPS_NO_DELETE_TRIGGER_DDL);
     },
   },
 ];
@@ -353,6 +419,9 @@ export function createScene(
     lastError: null,
     result: null,
     instruction,
+    prompt: "",
+    imageInstruction: "",
+    videoInstruction: "",
     provider: STUB_PROVIDER_NAME,
     providerMode,
     providerLatencyMs,
@@ -370,6 +439,10 @@ function rowToScene(row: any): Scene {
     lastError: row.last_error,
     result: row.result,
     instruction: row.instruction,
+    // NOT NULL DEFAULT '' since migration 7, so no fallback is needed.
+    prompt: row.prompt,
+    imageInstruction: row.image_instruction,
+    videoInstruction: row.video_instruction,
     provider: row.provider,
     providerMode: row.provider_mode,
     providerLatencyMs: row.provider_latency_ms,
@@ -387,8 +460,48 @@ function rowToRun(row: any): Run {
     language: row.language ?? "",
     projectFolder: row.project_folder ?? "",
     voiceProviderId: row.voice_provider_id ?? null,
-    failure: row.failure ? (JSON.parse(row.failure) as VoiceOverFailure) : null,
+    failure: row.failure ? (JSON.parse(row.failure) as SessionFailure) : null,
   };
+}
+
+/** assign-scene-identifiers (JOS-144) — a chunk as registration writes it. */
+export interface RegisteredSceneInput {
+  id: string;
+  /** The PRD's ID, 1..N. */
+  index: number;
+  prompt: string;
+  imageInstruction: string;
+  videoInstruction: string;
+}
+
+export function countScenesForRun(runId: string): number {
+  return (db.prepare("SELECT COUNT(*) c FROM scenes WHERE run_id = ?").get(runId) as { c: number }).c;
+}
+
+/**
+ * assign-scene-identifiers (JOS-144) Decision 5 — registers every chunk of a
+ * decomposition in ONE transaction, and clears an earlier session failure in
+ * the same transaction: either all chunks exist afterwards, or none do. The
+ * unique (run_id, idx) index refuses a second registration even if two
+ * callers race; the caller maps that to "already registered".
+ */
+export function insertRegisteredScenes(runId: string, scenes: readonly RegisteredSceneInput[]): void {
+  const updatedAt = nowIso();
+  const insert = db.prepare(
+    "INSERT INTO scenes (id, run_id, idx, status, attempts, instruction, prompt, image_instruction, video_instruction, updated_at) VALUES (?, ?, ?, 'submitted', 0, ?, ?, ?, ?, ?)",
+  );
+  db.exec("BEGIN");
+  try {
+    for (const scene of scenes) {
+      // Decision 3 — the skeleton image stage still reads `instruction`.
+      insert.run(scene.id, runId, scene.index, scene.imageInstruction, scene.prompt, scene.imageInstruction, scene.videoInstruction, updatedAt);
+    }
+    db.prepare("UPDATE runs SET failure = NULL WHERE id = ?").run(runId);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
 }
 
 export function getScene(id: string): Scene | undefined {
@@ -435,8 +548,13 @@ export function bindVoiceProvider(runId: string, providerId: string): boolean {
   return Number(result.changes) > 0;
 }
 
+/** Clears the session's failure once the phase that failed has succeeded (a retry that worked). A no-op when there is none. */
+export function clearRunFailure(runId: string): void {
+  db.prepare("UPDATE runs SET failure = NULL WHERE id = ?").run(runId);
+}
+
 /** Decision 9 — the session's failure, so a failure with no attempt behind it (a missing credential) is still reported. */
-export function setRunFailure(runId: string, failure: VoiceOverFailure): void {
+export function setRunFailure(runId: string, failure: SessionFailure): void {
   db.prepare("UPDATE runs SET failure = ? WHERE id = ?").run(JSON.stringify(failure), runId);
 }
 
@@ -490,6 +608,42 @@ export function getVoiceOver(runId: string): VoiceOver | undefined {
 export function countVoiceOvers(runId: string): number {
   const row = db.prepare("SELECT COUNT(*) c FROM voice_overs WHERE run_id = ?").get(runId) as any;
   return row.c as number;
+}
+
+function rowToNarrationTimestamps(row: any): NarrationTimestamps {
+  return {
+    runId: row.run_id,
+    mechanism: row.mechanism,
+    path: row.path,
+    characterCount: row.character_count,
+    obtainedAt: row.obtained_at,
+  };
+}
+
+/**
+ * obtain-narration-timestamps (JOS-139) Decision 7 — stores the session's
+ * timestamps once. Returns `true` only for the call that stores them; a second
+ * one hits the PRIMARY KEY and returns `false`, whatever any earlier read said.
+ */
+export function insertNarrationTimestamps(input: NarrationTimestampsInput): boolean {
+  try {
+    db.prepare(
+      "INSERT INTO narration_timestamps (run_id, mechanism, path, character_count, obtained_at) VALUES (?, ?, ?, ?, ?)",
+    ).run(input.runId, input.mechanism, input.path, input.characterCount, input.obtainedAt);
+    return true;
+  } catch (err: any) {
+    if (err?.code === "ERR_SQLITE_ERROR" && /UNIQUE constraint failed/i.test(String(err.message))) return false;
+    throw err;
+  }
+}
+
+export function getNarrationTimestamps(runId: string): NarrationTimestamps | undefined {
+  const row = db.prepare("SELECT * FROM narration_timestamps WHERE run_id = ?").get(runId) as any;
+  return row ? rowToNarrationTimestamps(row) : undefined;
+}
+
+export function countNarrationTimestamps(runId: string): number {
+  return (db.prepare("SELECT COUNT(*) c FROM narration_timestamps WHERE run_id = ?").get(runId) as { c: number }).c;
 }
 
 function rowToStageAttempt(row: any): StageAttempt {
@@ -725,16 +879,21 @@ export function snapshotCounts(): {
  * against anything but an isolated `DB_PATH`/`PROJECTS_ROOT` (see the test
  * command in `docs/backend-standards.md`'s persistence section). */
 export function resetAll(): void {
-  // The one place the voice-over delete lock is lifted (design Decision 2):
-  // inside a single transaction, so the trigger is back — or the whole reset
-  // is rolled back — before anything else can observe the database.
+  // The one place the delete locks are lifted (lock-script-and-narration
+  // Decision 2; assign-scene-identifiers Decision 7): inside a single
+  // transaction, so the triggers are back — or the whole reset is rolled
+  // back — before anything else can observe the database.
   db.exec("BEGIN");
   try {
     db.exec("DROP TRIGGER voice_overs_no_delete");
+    db.exec("DROP TRIGGER scenes_no_delete");
+    db.exec("DROP TRIGGER narration_timestamps_no_delete");
     db.exec(
-      "DELETE FROM stage_attempts; DELETE FROM voice_overs; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
+      "DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
     );
     db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
+    db.exec(SCENE_NO_DELETE_TRIGGER_DDL);
+    db.exec(NARRATION_TIMESTAMPS_NO_DELETE_TRIGGER_DDL);
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");

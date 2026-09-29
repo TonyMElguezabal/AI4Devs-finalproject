@@ -25,6 +25,7 @@ Two invariants make this phase's correctness checkable independently of the segm
 ## Decisions
 
 **Decision 1 — Treat "timestamps" and "decomposition" as two stage instances sharing one session state.**
+*Carved out 2026-09-28:* obtaining the timestamps (the `timestamps` stage, the two mechanisms and their failure attribution) now lives in `obtain-narration-timestamps` (JOS-139) (its Decisions 2, 4, 5 and 8); this change keeps the `decomposition` stage and consumes the stored timestamps.
 `docs/PRD.md` §5 explicitly groups steps 3 and 4 under one state, `chunk-decomposing`, and one retry policy narrative — but §10.3 lists "Obtención de marcas de tiempo" and "Descomposición" as two separately retryable rows, and `bounded-retry-policy` already keys a stage instance by "session and stage" for session-level stages. Modeling them as two `StageExecution` rows (`stage_name = timestamps`, `stage_name = decomposition`) lets each retry independently — a timestamps failure does not consume the decomposition budget and vice versa — while both still gate the same session state.
 *Alternative rejected:* one combined stage instance for the whole phase. It would force the "switch to alignment without recalling the voice provider" rule into  a partial-retry special case instead of a plain instance boundary, and would make §10.3's two separate retry rows structurally impossible to express.
 
@@ -37,10 +38,11 @@ The loop greedily extends a candidate grouping while it stays under the upper bo
 *Alternative rejected:* three independent special-case functions run before the main loop. §6.1.1 frames these as what the same optimization does at its boundaries, not as exceptions to it, and separate functions would let them drift out of sync with the main rule's admitted-duration preference.
 
 **Decision 4 — Verify the two invariants (script reconstruction, interval partition) as a post-condition check independent of the segmentation implementation.**
+*Carved out 2026-09-27:* the script-reconstruction half of this check now lives in `assign-scene-identifiers` (JOS-144) (its Decision 5); only the interval partition stays here.
 After chunks are produced, a dedicated check concatenates `PROMPT` fields (normalizing only whitespace) against the stored script, and a second check walks the intervals in `sequence_number` order asserting `start[i+1] == start[i] + duration[i]` with `start[0] == 0` and the last interval's end equal to the voice-over's total duration. Either check failing marks the stage instance `failed` as a decomposition defect, distinct from a provider failure.
 *Alternative rejected:* trusting the segmentation algorithm to guarantee both invariants by construction. §6, §6.1 and §6.1.1 are intricate enough (three edge cases, one exception clause) that a construction bug is plausible, and AC03/AC19 are stated as properties of the *result*, not of the algorithm — they should be checked as such.
 
-**Decision 5 — The reasoning provider generates `IMAGE`/`VIDEO` per chunk in the same pass that finalizes chunk boundaries, not as a separate stage instance.**
+~~Decision 5 — The reasoning provider generates `IMAGE`/`VIDEO` per chunk in the same pass that finalizes chunk boundaries, not as a separate stage instance.~~ **Superseded 2026-09-27 by `assign-scene-identifiers` (JOS-144):** the instructions are generated after segmentation, in one reasoning call over the ordered fragments (its Decision 4). The reasoning behind a single phase still holds: both are part of the `decomposition` phase and share its state and retry policy.
 §11's capability table gives reasoning one responsibility: "dividir el guion... y generar instrucciones visuales" — one call, two outputs. Splitting it into two stage instances would need a rule for what happens when boundaries succeed but instruction generation fails, which the PRD never describes as a distinct failure mode.
 *Alternative rejected:* a separate `visual-instructions` stage instance. It invents a state the PRD's five-capability table and §10.3's six-row failure table do not have room for.
 

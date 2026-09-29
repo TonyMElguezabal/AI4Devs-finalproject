@@ -62,6 +62,12 @@ const sceneResponseSchema = z.object({
   attempts: z.number().optional(),
   result: z.object({ imageUrl: z.string().optional(), videoUrl: z.string().optional() }).optional(),
   instruction: z.string().optional(),
+  prompt: z
+    .string()
+    .optional()
+    .describe("PRD §3 PROMPT: the fragment of the script this chunk narrates. Immutable once the chunk is established (PRD §6)."),
+  imageInstruction: z.string().optional().describe("PRD §3 IMAGE: the instruction to generate the chunk's image."),
+  videoInstruction: z.string().optional().describe("PRD §3 VIDEO: the instruction to animate the chunk's image."),
   updatedAt: z.string(),
 });
 
