@@ -63,12 +63,12 @@ Every code change starts with a failing test (TDD). Backend only; no screen chan
 
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Start the real server on a scratch database and confirm `GET /health` responds
-- [ ] 10.2 Create a session, narrate it for real (or reuse a narration recorded by JOS-142's step 10 if the quota is short), run `runDecompositionPhase` with a stub instruction generator, then `curl GET /sessions/:id` and check that every scene has `narrationInterval`, that the intervals are contiguous from 0 to the MP3's duration, and that inner boundaries match the timestamps' next-unit speech starts
-- [ ] 10.3 Try to change an interval: every scene-writing route with an extra `narrationInterval` in the body, and a direct `UPDATE` on the scratch database; confirm the interval is unchanged and the trigger message appears
-- [ ] 10.4 `curl GET /docs/json` and confirm `narrationInterval` is documented on responses only
-- [ ] 10.5 Clean up through the test-only reset; confirm the scratch store is empty with all triggers, and the default store untouched
-- [ ] 10.6 Save `reports/YYYY-MM-DD-step-10-manual-endpoint-testing.md` with every command and response
+- [x] 10.1 Start the real server on a scratch database and confirm `GET /health` responds
+- [x] 10.2 Create a session, narrate it for real (or reuse a narration recorded by JOS-142's step 10 if the quota is short), run `runDecompositionPhase` with a stub instruction generator, then `curl GET /sessions/:id` and check that every scene has `narrationInterval`, that the intervals are contiguous from 0 to the MP3's duration, and that inner boundaries match the timestamps' next-unit speech starts
+- [x] 10.3 Try to change an interval: every scene-writing route with an extra `narrationInterval` in the body, and a direct `UPDATE` on the scratch database; confirm the interval is unchanged and the trigger message appears
+- [x] 10.4 `curl GET /docs/json` and confirm `narrationInterval` is documented on responses only
+- [x] 10.5 Clean up through the test-only reset; confirm the scratch store is empty with all triggers, and the default store untouched
+- [x] 10.6 Save `reports/YYYY-MM-DD-step-10-manual-endpoint-testing.md` with every command and response
 
 ## 11. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
