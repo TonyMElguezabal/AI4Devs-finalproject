@@ -107,7 +107,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 12. Close out
 
-- [ ] 12.1 Comment on JOS-146 (US-13) describing how `image-complete` and `result` are exposed, so it can gate on them directly
+- [x] 12.1 Comment on JOS-146 (US-13) describing how `image-complete` and `result` are exposed, so it can gate on them directly — also commented on JOS-157 (US-25) with the manual-retry gap task 9.5 surfaced, since it is exactly that ticket's AC4
 - [ ] 12.2 Open the PR with a description linking to JOS-145 and this change
 - [ ] 12.3 Get a review from at least one human, not only AI agents
 - [ ] 12.4 Archive the OpenSpec change after merge
