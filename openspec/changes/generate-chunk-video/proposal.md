@@ -1,37 +1,54 @@
-# Generate a chunk's video clip
+# Generate the clip of each scene
+
+Linear-Issue: JOS-146 (US-13)
 
 ## Why
 
-`generate-chunk-image` leaves every chunk with a stored image and nothing that animates it. Without this story a chunk can reach `image-complete` and go no further: it never reaches `chunk-complete`, so assembly (which requires every chunk complete, §7.3) never becomes possible. This is also where two of the PRD's most specific numeric rules become real: the "closest admitted duration by smallest speed change, ties to the longer" selection rule (§7.2, AC06), and the speed-factor recording and warning that AC23 requires every scene to expose.
+Once the image stage (JOS-145, US-12) leaves a chunk in `image-complete` with a stored image, nothing animates it. Without this story no chunk can reach `chunk-complete`, which is the scene's final state (§8.2), so assembly (JOS-149) can never start. §7.1 also sets a hard precondition: a clip is never requested without an available image.
+
+The backend skeleton models a single generic stage named `image`. JOS-145 turns it into the real image stage ending in `image-complete`. This story adds the second, real stage: it sends the stored image and the `VIDEO` instruction to the recorded video provider (RunningHub, MiniMax Hailuo-H3 image-to-video, PRD §11.3), stores the returned clip, and ends in `chunk-complete`.
 
 ## What Changes
 
-- Launch video generation for each chunk once it reaches `image-complete`, through the same shared phase-launch gate as `generate-chunk-image` and `generate-voice-over`.
-- Select the requested duration from the video provider's hardcoded discrete set: the admitted duration requiring the smallest speed change (acceleration or deceleration ratio) to match the chunk's narrated duration — not the smallest difference in seconds — with an exact tie going to the longer duration; when the narrated interval is below the smallest admitted duration, request that smallest duration (§7.2, AC06).
-- Send the chunk's already-generated image, its `VIDEO` instruction, and the selected duration to the hardcoded video provider.
-- Compute and persist the resulting `requested_duration_seconds` and `speed_factor` on the chunk, and set `speed_factor_warning` when the factor exceeds the hardcoded acceptable limit — a diagnosable warning, not a failure (§7.2, AC23). These fields already exist on `Chunk` per `readme.md` §3; this story is what fills them.
-- Persist the result in the session's project folder, resolving a temporary link to a local file before the stage can succeed (§12.2, D05).
-- Transition the chunk `image-complete → video-generating → chunk-complete` — the scene's final state — or `failed` when the stage's retry budget is exhausted, preserving the already-successful image (no image regeneration on a video retry, §10.3).
-- Offer the video-correction path §10.3/AC09 grants: on a failed video stage, retry with the same `VIDEO` instruction or replace only `VIDEO` and retry, preserving `IMAGE`, `ID`, `PROMPT`, and scene order.
-- Let other chunks continue independently of one chunk's video failure (§10.2, AC10), and offer a completed clip for individual download while other chunks are still processing or failed (§12.3, AC16).
-- Record the stage's provider, attempts, status and cause in a `StageExecution` row (`owner_type = chunk`, `stage_name = video`).
+- **AC1 — No clip without an image:** the video stage starts only from `image-complete`, and only when the chunk's stored image file can be read. A chunk in any other state, or whose image file is missing, sends no request. A missing image file is recorded as a not-retryable video-stage failure, because §11.2 forbids regenerating a completed image.
+- **AC2 — Launch and request:** a chunk that reaches `image-complete` starts clip generation without User action, through the same phase-launch gate as the image stage (concurrency slot plus the session pause). The chunk is `video-generating` before the provider request is sent. The request carries the chunk's stored image, its `VIDEO` instruction, and the requested duration chosen by JOS-147 (US-14).
+- **AC3 — Completion:** a clip returned by the provider is downloaded into the session's project folder before the stage succeeds (§12.2: no expiring links). A clip that cannot be downloaded or is not an MP4 file counts as a failed attempt. A stored clip moves the chunk to `chunk-complete`.
+- **AC4 — Provider binding:** the first attempt of a chunk's video stage binds the video provider to that chunk and stage (§11.2). Every later automatic retry of the video stage uses the bound provider, even if the hardcoded provider changes in a later build.
+- **Failures are attributed to the video stage:** a chunk that fails while generating its clip reports `affectedStage: "video"` (§8.2: a failure keeps the stage it affected). Its image stays as it is. Automatic retries of a transient failure repeat the video stage, never the image stage.
+- **Manual retry and correction after a clip failure are refused** until JOS-158 (US-26) implements them. Today's manual retry restarts a chunk from `submitted`, which would regenerate a completed image. Refusing it keeps §11.2 intact until JOS-158 lands.
+- **Restart safety:** a clip still generating when the application stops is resumed by polling the provider on boot, with the rules the skeleton already applies to the image stage (§12.1).
+
+## Out of Scope (owned by other tickets)
+
+- Choosing the requested duration (closest admitted duration, the tie rule, the maximum): **JOS-147 (US-14)**. This story sends the duration it is given.
+- Recording and showing the requested duration and the speed-adjustment factor, and the factor warning: **JOS-148 (US-15)**.
+- Manual retry and `VIDEO` correction after a clip failure: **JOS-158 (US-26)**.
+- Downloading an individual clip during processing (§12.3): **JOS-163 (US-31)**.
+- Showing provider and attempts per stage in the UI: **JOS-166 (US-34)**.
+- The real retry budget, per-phase time limit and per-stage concurrency cap: **JOS-184 / JOS-154**, **JOS-185**, **JOS-167**. This story calls the skeleton versions of those mechanisms and does not re-implement them.
+- Assembly and deriving `final-video` only when a final MP4 exists: **JOS-149 (US-16)** and **JOS-150 (US-17)**.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `chunk-video-generation`: turning a chunk's completed image and `VIDEO` instruction into a stored clip — the duration-selection rule, the speed-factor bookkeeping it produces, how the result is persisted, the one correction path a failed video stage allows, and how a chunk's failure leaves its siblings unaffected.
+- `chunk-video-generation`: turning a chunk's stored image and `VIDEO` instruction into a stored clip. Covers the image precondition, when generation launches, what the request carries, how the result is persisted, how failures are attributed to the video stage, how the provider is bound to the chunk's video stage, and how an interrupted clip resumes.
 
 ### Modified Capabilities
 
-None. `openspec/specs/` is still empty; `chunk-image-generation`, `stage-retry-policy` and `stage-execution-time-limit` are consumed, not modified.
+None. The archived foundations are consumed as they are, and `chunk-image-generation` (JOS-145) is not archived yet. The skeleton's single stage is implementation, not a spec requirement.
 
 ## Impact
 
-- **Blocked on the same three stack spikes as every sibling story**: `define-backend-stack`, `define-frontend-stack`, `define-persistence`.
-- **Depends on `generate-chunk-image`** for the `image-complete` precondition and the stored image this story sends to the video provider.
-- **Depends on `define-provider-configuration`** for the video provider's identity, its hardcoded discrete admitted-durations set and maximum, and the hardcoded acceptable speed-factor limit.
-- **Reuses, without modification, `bounded-retry-policy` and `stage-execution-time-limit`** for the `video` stage instance, and the shared phase-launch gate.
-- **Data model**: fills `Chunk.video_result_path`, `requested_duration_seconds`, `speed_factor`, `speed_factor_warning` (already present per `readme.md` §3), and introduces one `StageExecution` row per chunk (`stage_name = video`).
-- **Downstream**: unblocks final assembly, which requires every chunk in `chunk-complete` (§7.3).
-- **The duration-selection function (closest-by-speed-change, tie to longer) is the one piece of pure, provider-independent logic this story owns** — worth isolating and testing on its own, since AC06's "closest" definition is easy to misimplement as "fewest seconds of difference."
+- **Depends on:**
+  - JOS-145 (US-12) for `image-complete`, the stored image and the provider-binding pattern;
+  - JOS-147 (US-14) for the requested duration;
+  - through JOS-147, JOS-143 (US-10) for the narration interval;
+  - JOS-165 (US-33, done) for the provider endpoint, the `2K` generation setting and the 240 s phase limit.
+
+  Implementation starts only after the gate confirms these have landed.
+- **Backend:** a `VideoProvider` port with a RunningHub adapter (upload the image, submit, poll, download) and a stub adapter for tests. The orchestrator gets the `image-complete → video-generating → chunk-complete | failed` transitions, a per-stage attempt count, and restart reconciliation for `video-generating`.
+- **Data model:** a migration adds the video stage's provider binding and clip path to `scenes`, a `stage` column to `provider_requests`, and a per-stage commit record for the clip. `docs/data-model.md` is updated to match.
+- **API:** no new route and no new request field. `affectedStage` becomes correct for clip failures, and the retry and correction routes answer `409` for a clip failure. `docs/api-spec.yml` is regenerated.
+- **Cost:** each real clip costs about $0.60 (5 s at `2K`) and takes about 2.5 minutes. Automated tests use the stub adapter only.
+- **Downstream:** unblocks JOS-149 (assembly), JOS-148 (factor recording), JOS-158 (clip retry and correction) and JOS-163 (clip download).

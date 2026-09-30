@@ -1,116 +1,104 @@
-# Tasks — Generate a chunk's video clip
+# Tasks — Generate the clip of each scene (JOS-146)
 
-Tests come first throughout: each behaviour gets a failing test before the code that satisfies it, and every requirement scenario in `specs/chunk-video-generation/spec.md` has at least one functional test. Automated tests use the stubbed provider only.
+Every code change starts with a failing test (TDD), and every scenario in `specs/chunk-video-generation/spec.md` has at least one functional test. Automated tests use the stub video adapter only. Real RunningHub calls happen only in step 10, capped at one.
 
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Create feature branch `feature/generate-chunk-video` from `main`
-- [ ] 0.2 Verify branch creation and current branch status
+- [x] 0.1 Create branch `feature/jos-146-generate-chunk-video` from `feature/entrega-2-JAME` (the MVP integration branch; MVP changes do not target `main`), with no upstream set
+- [x] 0.2 Verify the branch was created and is the current branch
 
-## 1. Gate: Confirm the foundations this phase stands on
+## 1. Gate: Confirm the foundations this story depends on
 
-- [ ] 1.1 Confirm `generate-chunk-image` has landed; chunks reach `image-complete` with a stored image
-- [ ] 1.2 Confirm `define-backend-stack`, `define-persistence` have landed
-- [ ] 1.3 Confirm `define-provider-configuration` has landed; locate the video provider id, its hardcoded discrete admitted-durations set and maximum, its not-retryable signal, and the hardcoded acceptable speed-factor limit (provisional if `define-media-assembly` has not yet measured it — record the dependency, do not block on it)
-- [ ] 1.4 Confirm `bounded-retry-policy`, `stage-execution-time-limit`, and the shared phase-launch gate are available to extend
-- [ ] 1.5 If any of the above is missing, stop and record the blocker rather than building against a guess
+- [ ] 1.1 Confirm JOS-145 (US-12) has landed on the base branch: chunks reach `image-complete`, `scenes.result` holds the stored image's relative path, `scenes.provider` is the image-stage binding, and the shortcut to `chunk-complete` is gone. Rebase onto it if it merged after this branch was cut
+- [ ] 1.2 Confirm JOS-147 (US-14) has landed and name its duration function and signature; confirm JOS-143's narration interval is on the base branch (JOS-147 needs it)
+- [ ] 1.3 Confirm the RunningHub values from JOS-165 in `backend/src/config/providers.ts`: endpoint `/openapi/v2/minimax/hailuo-h3/image-to-video`, `VIDEO_GENERATION_SETTING.resolution` `2K`, phase limit `video: 240`, concurrency `video: "undetermined"`; and that the `RUNNINGHUB_API_KEY` credential loads through `config/credentials.ts`
+- [ ] 1.4 Confirm the next free migration number on `feature/entrega-2-JAME` and every open feature branch (9 is taken by JOS-143); record it in design.md Decision 5
+- [ ] 1.5 Check whether JOS-158, JOS-148 or JOS-163 have started and whether their changes touch the same code; record any overlap in design.md
+- [ ] 1.6 If 1.1 or 1.2 is not met, stop, and record the blocker on JOS-146 in Linear rather than building against a stand-in
 
-## 2. Domain: duration selection function (TDD, pure logic)
+## 2. Storage for the video stage (design Decision 5)
 
-- [ ] 2.1 Write a failing test for the worked example in design.md Decision 1 (6s narrated, {5, 10}s admitted → 5s selected, not 10s)
-- [ ] 2.2 Write a failing test for the exact-tie case, expecting the longer duration
-- [ ] 2.3 Write a failing test for the below-minimum case, expecting the smallest admitted duration with no special-case branch (design.md Decision 2)
-- [ ] 2.4 Write a failing test that the computed speed factor is always ≥ 1 (design.md Decision 3)
-- [ ] 2.5 Implement the pure duration-selection function, run the group 2 tests and confirm they pass
+- [ ] 2.1 Failing tests in `scene-registration-persistence.test.ts` / `persistence.test.ts`: the migration applies on a database at the previous version and on a fresh one; existing scenes read back with null `videoProvider` and `videoResult`; existing `provider_requests` rows read back as `stage = 'image'`; a second `scene_video_results` commit for the same scene is refused
+- [ ] 2.2 Add the migration: `scenes.video_provider`, `scenes.video_result`, `provider_requests.stage` (NOT NULL DEFAULT `'image'`) and the `scene_video_results` table; extend `Scene`, `rowToScene`, `insertProviderRequest` and add `commitSceneVideoResult`; make the test-only reset empty the new table
+- [ ] 2.3 Make the 2.1 tests pass
 
-## 3. Persistence: chunk video fields and stage instance (TDD)
+## 3. Provider port and adapters (design Decision 3)
 
-- [ ] 3.1 Write failing tests for `Chunk.video_result_path`, `requested_duration_seconds`, `speed_factor`, `speed_factor_warning` (fields already modeled in `readme.md` §3; this change is the first to populate them)
-- [ ] 3.2 Write a failing test for a `StageExecution` row keyed `(session, chunk, stage=video)`, independent of the chunk's image-stage budget
-- [ ] 3.3 Add the migration if needed, implement the repository changes
-- [ ] 3.4 Run the group 3 tests and confirm they pass
+- [ ] 3.1 Define the typed `VideoProvider` port: `submit({ imageBytes, instruction, durationSeconds })` and `poll(requestId)` with the outcomes of Decision 3
+- [ ] 3.2 Build the stub adapter with these modes: success (bytes), success (temporary link), download failure, not an MP4, transient failure, not-retryable failure, pending past the phase limit, request lost after restart
+- [ ] 3.3 Failing tests for the RunningHub adapter against a mocked HTTP layer: the upload sends the image bytes; the submit body carries `prompt` (the `VIDEO` instruction), `duration`, `resolution: "2K"` and the uploaded `firstFrameUrl`; the `taskId` becomes the request id; the poll maps `QUEUED`/`RUNNING`, `SUCCESS` (with `results[0].url`) and `FAILED`; 4xx except 408/429 is not retryable, everything else transient; an unexpected response shape is transient
+- [ ] 3.4 Implement the RunningHub adapter, reading the credential only through `config/credentials.ts` and validating every response with Zod; the HTTP client's automatic retries are disabled
+- [ ] 3.5 Make the group 3 tests pass
 
-## 4. Provider port and adapter (TDD)
+## 4. Precondition and launch (design Decisions 1, 2 and 4; spec: no clip without an image, launch)
 
-- [ ] 4.1 Define the `VideoProvider` port: animate an image with an instruction at a requested duration, returning clip bytes or a temporary link, failing with a classified error
-- [ ] 4.2 Extend the stubbed provider with scenarios: success (bytes), success (temporary link), transient failure, not-retryable failure
-- [ ] 4.3 Write failing classification tests for the real adapter, one per not-retryable signal recorded by `define-provider-configuration`
-- [ ] 4.4 Implement the real adapter, reading the credential from the local environment or the local secrets file only
+- [ ] 4.1 Failing tests: a chunk in `submitted`, `image-generating`, `failed` (image stage) or `chunk-complete` sends no clip request; a chunk in `image-complete` whose image file is missing fails its video stage, not retryable, with no request; a chunk with no narration interval fails its video stage, not retryable, with no request
+- [ ] 4.2 Failing tests: committing an image result launches the clip; the chunk is `video-generating` before the adapter is called; the adapter receives the stored image's bytes, the `VIDEO` instruction exactly as registered, and JOS-147's duration; a duplicate image delivery launches nothing a second time
+- [ ] 4.3 Failing tests: a paused session holds an `image-complete` chunk with no request, and continuing launches it; a chunk's clip starts while a sibling is still `video-generating`; the `video` concurrency key is used, never the `image` one, with the provisional limit of 3
+- [ ] 4.4 Implement `launchVideoStage`, the launch after the image commit, the `continueSession` launch of held `image-complete` chunks, and the provisional video concurrency constant
+- [ ] 4.5 Make the group 4 tests pass
 
-## 5. Application: video generation phase (TDD)
+## 5. Completion (design Decision 8; spec: a stored clip completes the chunk)
 
-- [ ] 5.1 Write a failing test that reaching `image-complete` launches video generation with no User action, chunk `video-generating` before the request is sent
-- [ ] 5.2 Write a failing test that the request carries the generated image, the `VIDEO` instruction, and the duration selected by the group 2 function
-- [ ] 5.3 Write a failing test that a temporary-link result is downloaded and stored before the stage is marked `chunk-complete`
-- [ ] 5.4 Write a failing test that success records `video_result_path`, `requested_duration_seconds`, `speed_factor`, and sets `chunk-complete`
-- [ ] 5.5 Write a failing test that a speed factor above the hardcoded limit records `speed_factor_warning = true` without failing the stage
-- [ ] 5.6 Write a failing test that a video retry reuses the existing image and requests no new one
-- [ ] 5.7 Write a failing test that one chunk's video failure does not change any other chunk's processing
-- [ ] 5.8 Implement the phase, wired to `stage-retry-policy`, `stage-execution-time-limit` and the shared phase-launch gate
-- [ ] 5.9 Publish each state change to the live-update mechanism, matching `consult-session`'s expected shape
-- [ ] 5.10 Run the group 5 tests and confirm they pass
+- [ ] 5.1 Failing tests: a success stores `scene-<idx>.mp4` in the project folder, records its relative path in `video_result`, commits `scene_video_results`, and the chunk is `chunk-complete` with `result` (the image path) unchanged; a temporary link is downloaded before `chunk-complete` and the URL is never stored; a failed download and a file that is not an MP4 each count as one failed attempt with no clip recorded; a duplicate success delivery stores nothing twice
+- [ ] 5.2 Implement the completion path, with the `ftyp` check
+- [ ] 5.3 Make the group 5 tests pass
 
-## 6. Application: visual correction (TDD)
+## 6. Failures, retries and binding (design Decisions 5, 6 and 7; spec: failures belong to the video stage, binding)
 
-- [ ] 6.1 Write a failing test that a failed video stage accepts a retry with the same `VIDEO` instruction, reusing the existing image
-- [ ] 6.2 Write a failing test that a failed video stage accepts a replacement `VIDEO` instruction and retries with it
-- [ ] 6.3 Write a failing test that no operation offers `VIDEO` correction when the stage is not `failed`
-- [ ] 6.4 Write a failing test that a correction request cannot alter `ID`, `PROMPT`, `IMAGE`, or scene order
-- [ ] 6.5 Implement the correction action, reusing `generate-chunk-image`'s correction-as-manual-retry pattern
-- [ ] 6.6 Run the group 6 tests and confirm they pass
+- [ ] 6.1 Failing tests: the first clip attempt is attempt 1 of the video stage whatever the image stage used; a transient clip failure retries the video stage only (no image request); an exhausted budget leaves the chunk `failed` with `affectedStage: "video"` and the image path unchanged; a not-retryable clip failure skips automatic retries; an image-stage failure still reports `affectedStage: "image"`
+- [ ] 6.2 Failing tests: the first attempt records `video_provider` and leaves `provider` unchanged; a retry after the configured provider changes is sent to the bound one; a bound provider with no adapter fails not-retryable with no request; each attempt's `provider_requests` row carries `stage = 'video'`
+- [ ] 6.3 Failing tests: `POST .../retry` and `POST .../correct` on a video-stage failure answer 409 with "retrying a failed clip is not available yet" and change nothing (state, attempts, instructions, paths); on an image-stage failure they behave as before
+- [ ] 6.4 Implement the per-stage attempt reset, the derived `affectedStage`, the binding, and the refusal in `manualRetry` and `correctAndRetry`
+- [ ] 6.5 Make the group 6 tests pass
 
-## 7. API: session representation exposes video results
+## 7. Restart and phase limit (design Decisions 3 and 9; spec: an interrupted clip resumes)
 
-- [ ] 7.1 Write a failing test that a chunk's representation includes its video stage status, requested duration, speed factor, and speed-factor warning
-- [ ] 7.2 Write a failing test that a completed chunk's clip is downloadable individually while other chunks are processing or failed
-- [ ] 7.3 Write a failing test that a video result is never returned for a chunk of a different session than requested
-- [ ] 7.4 Add the fields and the download route to the session/chunk read consumed by `consult-session`
-- [ ] 7.5 Run the group 7 tests and confirm they pass
+- [ ] 7.1 Failing tests: on boot, a `video-generating` chunk whose request succeeded is completed; a lost request counts as one failed video attempt and follows the retry rule; a pending request keeps being polled from its persisted `sent_at`; an attempt unfinished at 240 s counts as a failed transient attempt
+- [ ] 7.2 Implement reconciliation and polling for the video stage through the bound adapter
+- [ ] 7.3 Make the group 7 tests pass
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 8.1 Review `generate-chunk-image` tests for any assumption that nothing launches after `image-complete`, and update for the automatic video launch
-- [ ] 8.2 Confirm every scenario in `specs/chunk-video-generation/spec.md` has at least one functional test
-- [ ] 8.3 Confirm module test coverage has not decreased
-- [ ] 8.4 Document the test command
+- [ ] 8.1 Review tests that expect a scene to go straight from the stage to `chunk-complete`, or that assert `affectedStage: "image"` for every failure, and update each to the two-stage flow, keeping its intent; no bulk rewrite
+- [ ] 8.2 Review tests that count migrations, tables or `provider_requests` columns (`persistence.test.ts`, `content-lock.test.ts`) and update them for the new migration
+- [ ] 8.3 Review the manual-retry and correction tests: image-stage behaviour must be unchanged
 
 ## 9. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 9.1 Capture the pre-test state of the store and the project folders on disk
-- [ ] 9.2 Run the targeted tests for this module and capture the pass/fail summary
-- [ ] 9.3 Run the full suite and record totals, failures and runtime
-- [ ] 9.4 Verify the post-test state matches the baseline, restoring the store and removing any test clips left behind
-- [ ] 9.5 Create the report `openspec/changes/generate-chunk-video/reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`
-- [ ] 9.6 Mark this step complete only after the tests pass and the report file exists
+- [ ] 9.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list
+- [ ] 9.2 Run the targeted tests (adapter, launch, completion, failures, reconciliation, persistence)
+- [ ] 9.3 Run `npm run typecheck` and the full `npm test`
+- [ ] 9.4 Verify the post-test state matches the baseline; restore it if not
+- [ ] 9.5 Write `openspec/changes/generate-chunk-video/reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`
+- [ ] 9.6 Mark this step complete only after the tests pass and the report exists
 
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Start the backend wired to the stubbed video provider and confirm it is reachable
-- [ ] 10.2 POST a valid project through image generation; GET the session and verify chunks reach `chunk-complete` with a downloadable clip and recorded `requested_duration_seconds`/`speed_factor`
-- [ ] 10.3 Configure a narrated duration that exercises the Decision 1 worked example and verify the selected duration matches the smallest-speed-change rule, not the numerically closest one
-- [ ] 10.4 With the stub set to reject as not retryable, verify the affected chunk reaches `failed` while its image is preserved and siblings keep processing
-- [ ] 10.5 Correct the failed chunk's `VIDEO` and retry; verify the existing image is reused and `ID`/`PROMPT`/`IMAGE`/order are unchanged
-- [ ] 10.6 Delete the sessions and files created above and confirm the store and disk match the pre-test state
-- [ ] 10.7 Save the transcript as `openspec/changes/generate-chunk-video/reports/YYYY-MM-DD-step-10-curl-endpoint-testing.md`
+- [ ] 10.1 Start the real server on a scratch database and scratch projects folder, and confirm `GET /health` responds
+- [ ] 10.2 With the stub adapter: create a session, bring one chunk to `image-complete`, and follow it with `curl GET /sessions/:id` through `video-generating` to `chunk-complete`; confirm the clip file is in the project folder and `result` still points to the image
+- [ ] 10.3 With the stub adapter: force a clip failure until the budget is exhausted; confirm `affectedStage: "video"`, then `POST .../retry` and `POST .../correct` answer 409 and change nothing
+- [ ] 10.4 One real RunningHub call (about $0.60): a chunk with a real stored image goes to `chunk-complete`; record the cost, the time, and the stored file's size and `ftyp` check. Skip and record why if the credential or quota is missing
+- [ ] 10.5 `curl GET /docs/json` and confirm no request schema gained a field
+- [ ] 10.6 Clean up through the test-only reset; confirm the scratch store is empty with all triggers, and the default store untouched
+- [ ] 10.7 Save `reports/YYYY-MM-DD-step-10-manual-endpoint-testing.md` with every command and response
 
 ## 11. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 11.1 Decide applicability: if the session page can render clips, durations, and the correction form, run the steps below; otherwise record why not
-- [ ] 11.2 Ensure backend (with the stubbed provider) and frontend are running
-- [ ] 11.3 Start a project and assert the session page shows chunks reaching `chunk-complete` with their speed factor shown, without reloading
-- [ ] 11.4 Force one chunk's video to fail, correct its `VIDEO` through the UI, and assert it recovers without regenerating the image
-- [ ] 11.5 Restore the environment and save the report as `openspec/changes/generate-chunk-video/reports/YYYY-MM-DD-step-11-e2e-playwright.md`
+- [ ] 11.1 Decide applicability: no screen changes. Check that a chunk shown in the UI moves through `video-generating` to `chunk-complete`, and that a clip failure shows the video stage, or record why not
+- [ ] 11.2 Save `reports/YYYY-MM-DD-step-11-e2e.md`
 
 ## 12. Update Technical Documentation (MANDATORY)
 
-- [ ] 12.1 Add `Chunk.video_result_path`, `requested_duration_seconds`, `speed_factor`, `speed_factor_warning` and the `video` stage instance to `docs/data-model.md`
-- [ ] 12.2 Add the video fields, correction endpoint and download route to `docs/api-spec.yml`
-- [ ] 12.3 Record the duration-selection function and its worked example in `docs/backend-standards.md`, if not already documented there
+- [ ] 12.1 `docs/data-model.md`: the two `scenes` columns, `provider_requests.stage`, `scene_video_results`, the migration, the per-stage `attempts`, and the derived `affectedStage`
+- [ ] 12.2 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only changes are descriptions (states, `affectedStage`, the 409 reasons)
+- [ ] 12.3 `docs/backend-standards.md`: the `VideoProvider` port and its submit-and-poll shape, the per-stage concurrency key and provisional cap, per-stage attempts, and the clip-retry refusal until JOS-158
+- [ ] 12.4 `docs/PRD.md`: check §7.1, §7.2, §8.2 and §11.2 need no wording change; record in the change log only if something changes
 
 ## 13. Close out
 
-- [ ] 13.1 Confirm with `generate-chunk-image` that `IMAGE` and its result remain untouched by this story's correction path
-- [ ] 13.2 Record for the assembly story exactly how `chunk-complete` and the per-chunk result paths are exposed, so it can consume them directly
-- [ ] 13.3 Open the PR with a description linking to this change
-- [ ] 13.4 Obtain review by at least one human, not only AI agents
+- [ ] 13.1 Comment on JOS-158, JOS-148, JOS-149 and JOS-163: where the clip, its binding and its per-stage attempts live, and that manual clip retry is refused until JOS-158
+- [ ] 13.2 Comment on JOS-150: a session with every chunk `chunk-complete` still derives to `final-video` with no final MP4 (design Risks)
+- [ ] 13.3 Open the PR against `feature/entrega-2-JAME`, linking to JOS-146
+- [ ] 13.4 Get a review from at least one human
 - [ ] 13.5 Archive the OpenSpec change after merge
