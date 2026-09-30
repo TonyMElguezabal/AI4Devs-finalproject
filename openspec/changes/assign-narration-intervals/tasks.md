@@ -84,7 +84,7 @@ Every code change starts with a failing test (TDD). Backend only; no screen chan
 
 ## 13. Close out
 
-- [ ] 13.1 Comment on JOS-149 and JOS-148: where the stored intervals live and how to read them
+- [x] 13.1 Comment on JOS-149 and JOS-148: where the stored intervals live and how to read them
 - [ ] 13.2 Rebase onto `feature/entrega-2-JAME` once JOS-142's PR merges
 - [ ] 13.3 Open the PR against `feature/entrega-2-JAME`, linking to JOS-143
 - [ ] 13.4 Get a review from at least one human
