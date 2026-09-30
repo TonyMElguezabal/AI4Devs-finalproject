@@ -63,7 +63,7 @@ The RunningHub adapter uploads the image, submits the task with `resolution: "2K
 - `provider_requests.stage TEXT NOT NULL DEFAULT 'image'`: which stage each attempt belongs to. Existing rows are image attempts.
 - `scenes.attempts` counts the **current** stage's attempts: it is reset to 0 when the video stage starts, so the image stage's attempts never spend the clip's retry budget (§10.1: the budget belongs to each stage). The per-stage history stays in `provider_requests`.
 
-The migration number is the next free one when this is implemented: 9 is taken by JOS-143's unmerged branch, and the gate re-checks.
+The migration number is **10** (task 1.4, checked 2026-09-30): `feature/entrega-2-JAME` tops out at 8, and 9 is taken by JOS-143's unmerged branch. Re-check before implementing, since JOS-143 or another branch may land first.
 - *Alternative rejected:* changing `scene_results`' primary key to `(scene_id, stage)`. SQLite would need a table rebuild of a table that already holds data, for no gain over an additive table.
 - *Alternative rejected:* resolving the attempt's stage from the scene's status alone. After a failure the status is `failed`, and the attempts' history would lose which stage each attempt belonged to.
 
