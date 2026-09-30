@@ -77,10 +77,10 @@ Every code change starts with a failing test (TDD). Backend only; no screen chan
 
 ## 12. Update Technical Documentation (MANDATORY)
 
-- [ ] 12.1 `docs/data-model.md`: the two `scenes` columns, migration 9 and the two triggers in the lock table
-- [ ] 12.2 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is `narrationInterval` on scene responses
-- [ ] 12.3 `docs/backend-standards.md`: intervals come from `unitBoundaries` via the fragment; registration checks the partition exactly; interval columns are locked
-- [ ] 12.4 `docs/PRD.md`: check §5 step 4, §7.3 and AC19 need no wording change; record in §16 only if something changes
+- [x] 12.1 `docs/data-model.md`: the two `scenes` columns, migration 9 and the two triggers in the lock table
+- [x] 12.2 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is `narrationInterval` on scene responses
+- [x] 12.3 `docs/backend-standards.md`: intervals come from `unitBoundaries` via the fragment; registration checks the partition exactly; interval columns are locked
+- [x] 12.4 `docs/PRD.md`: check §5 step 4, §7.3 and AC19 need no wording change; record in §16 only if something changes
 
 ## 13. Close out
 

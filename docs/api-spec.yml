@@ -190,6 +190,21 @@ paths:
                         videoInstruction:
                           type: string
                           description: "PRD §3 VIDEO: the instruction to animate the chunk's image."
+                        narrationInterval:
+                          type: object
+                          properties:
+                            startSeconds:
+                              type: number
+                            endSeconds:
+                              type: number
+                          required:
+                            - startSeconds
+                            - endSeconds
+                          additionalProperties: false
+                          description: "PRD §3 and §7.3: the part of the voice-over this chunk narrates, in seconds. The
+                            intervals of a session's chunks are contiguous and cover the voice-over
+                            from 0 to its full duration. Read-only and immutable once the chunk is
+                            established; absent for a scene created without a decomposition."
                         updatedAt:
                           type: string
                       required:
@@ -309,6 +324,21 @@ paths:
                         videoInstruction:
                           type: string
                           description: "PRD §3 VIDEO: the instruction to animate the chunk's image."
+                        narrationInterval:
+                          type: object
+                          properties:
+                            startSeconds:
+                              type: number
+                            endSeconds:
+                              type: number
+                          required:
+                            - startSeconds
+                            - endSeconds
+                          additionalProperties: false
+                          description: "PRD §3 and §7.3: the part of the voice-over this chunk narrates, in seconds. The
+                            intervals of a session's chunks are contiguous and cover the voice-over
+                            from 0 to its full duration. Read-only and immutable once the chunk is
+                            established; absent for a scene created without a decomposition."
                         updatedAt:
                           type: string
                       required:
