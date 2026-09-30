@@ -41,9 +41,10 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [ ] 4.7 Write a failing test: an under-size or portrait image is recorded as a failed attempt and the chunk does not reach `image-complete`
 - [ ] 4.8 Write a failing test: a duplicate success delivery leaves exactly one `scene_results` row and the state unchanged
 - [ ] 4.9 Write a failing test: a session whose chunks are all `image-complete` derives to `chunks-processing`, not `final-video` (design Decision 4)
-- [ ] 4.10 Implement the image stage in `orchestrator.ts`, replacing the `image-generating → chunk-complete` shortcut and wiring in the adapter, the output check and the file write
-- [ ] 4.11 Publish each state change on the live-update channel using the existing `SceneEventPayload` shape
-- [ ] 4.12 Run the group 4 tests and confirm they pass
+- [ ] 4.10 Write a failing test (design Decision 6): a scene left `image-generating` on boot is reconciled as one failed transient attempt ("interrupted by restart"), with the retry rule applied, never left polling
+- [ ] 4.11 Implement `launchImageStage` (design Decision 6: a synchronous `await` of the adapter, no `provider.send`/poll), replacing the `image-generating → chunk-complete` shortcut and wiring in the adapter, the output check and the file write; update `reconcileOnBoot` for `image-generating` scenes
+- [ ] 4.12 Publish each state change on the live-update channel using the existing `SceneEventPayload` shape
+- [ ] 4.13 Run the group 4 tests and confirm they pass
 
 ## 5. Independent progression (TDD) — AC3, design Decision 5
 
