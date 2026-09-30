@@ -85,7 +85,7 @@ describe("idempotent success confirmation (PRD §12.1, C7)", () => {
     const { sceneId } = newRunWithScene("success", 15);
     launchScene(sceneId);
 
-    await waitFor(() => getScene(sceneId)?.status === "chunk-complete");
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
     expect(nextStageLaunchCount(sceneId)).toBe(1);
 
     const requestId = getLatestProviderRequestForScene(sceneId)!.id;
@@ -117,7 +117,7 @@ describe("restart-safe resumption (PRD §12.1, C6)", () => {
     expect(summary.stillPending).toBe(1);
 
     // The provider still holds the result; reconciliation re-armed delivery.
-    await waitFor(() => getScene(sceneId)?.status === "chunk-complete", 2000);
+    await waitFor(() => getScene(sceneId)?.status === "image-complete", 2000);
   });
 
   it("records exactly one failed attempt when the provider can no longer recover the request", () => {
@@ -185,7 +185,7 @@ describe("session pause and continue (PRD §9)", () => {
 
     const result = continueSession(runId);
     expect(result.ok).toBe(true);
-    await waitFor(() => getScene(sceneId)?.status === "chunk-complete");
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
   });
 
   it("does not affect a request already sent before the pause", async () => {
@@ -195,7 +195,7 @@ describe("session pause and continue (PRD §9)", () => {
 
     pauseSession(runId); // pause after the request is already in flight
 
-    await waitFor(() => getScene(sceneId)?.status === "chunk-complete");
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
   });
 });
 
@@ -204,7 +204,7 @@ describe("visual correction on a failed stage (PRD §10.3)", () => {
   it("is rejected on a scene that has not failed", async () => {
     const { sceneId } = newRunWithScene("success", 5);
     launchScene(sceneId);
-    await waitFor(() => getScene(sceneId)?.status === "chunk-complete");
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
 
     const result = correctAndRetry(sceneId, "a new instruction");
     expect(result.ok).toBe(false);

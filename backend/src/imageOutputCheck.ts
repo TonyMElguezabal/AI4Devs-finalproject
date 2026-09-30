@@ -64,3 +64,10 @@ export function readImageDimensions(bytes: Buffer): { width: number; height: num
 export function readImageDimensionsFromFile(filePath: string): { width: number; height: number } | null {
   return readImageDimensions(readFileSync(filePath));
 }
+
+/** A filename extension for a stored image, sniffed from its own bytes (same signatures as `readImageDimensions`). */
+export function sniffImageExtension(bytes: Buffer): "png" | "jpg" | null {
+  if (bytes.length >= 8 && bytes.subarray(0, 8).equals(PNG_SIGNATURE)) return "png";
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8) return "jpg";
+  return null;
+}

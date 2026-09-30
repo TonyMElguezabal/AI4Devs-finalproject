@@ -12,6 +12,7 @@ import {
   writeArtefactOnce,
 } from "../src/db.ts";
 import { runDecompositionPhase, segmentStoredTimestamps } from "../src/decompositionPhase.ts";
+import { createStubImageProvider, resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
 import { obtainNarrationTimestamps } from "../src/narrationTimestampsPhase.ts";
 import { deriveSessionState } from "../src/orchestrator.ts";
 import { registerDecomposition } from "../src/sceneRegistration.ts";
@@ -32,7 +33,22 @@ const UNGROUPABLE_SCRIPT = `${"W".repeat(55)}. Go home.`;
 
 beforeEach(() => {
   resetAll();
+  resetImageProviderRegistry();
 });
+
+/** `launchImageStageForRun` is fire-and-forget (design Decision 7), so a
+ * caller's own return does not mean every launch has settled yet. */
+function waitFor(predicate: () => boolean, timeoutMs = 2000, intervalMs = 5): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const tick = () => {
+      if (predicate()) return resolve();
+      if (Date.now() - start > timeoutMs) return reject(new Error("waitFor timed out"));
+      setTimeout(tick, intervalMs);
+    };
+    tick();
+  });
+}
 
 function nativeFor(text: string) {
   const characters = [...text];
@@ -99,6 +115,16 @@ async function newSessionWithStoredTimestamps(script = SCRIPT) {
   return session;
 }
 
+function buildAcceptedPng(): Buffer {
+  const buf = Buffer.alloc(29);
+  buf.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+  buf.writeUInt32BE(13, 8);
+  buf.write("IHDR", 12, "ascii");
+  buf.writeUInt32BE(1920, 16);
+  buf.writeUInt32BE(1088, 20);
+  return buf;
+}
+
 describe("Segmenting the stored timestamps", () => {
   it("registers the fragments as chunks, in order, with each sentence's own text", async () => {
     const { runId } = await newSessionWithStoredTimestamps();
@@ -118,6 +144,20 @@ describe("Segmenting the stored timestamps", () => {
     const { runId } = await newSessionWithStoredTimestamps();
     await segmentStoredTimestamps(runId, stubGenerator().generator);
     expect(stateOf(runId)).toEqual({ state: "chunks-processing" });
+  });
+
+  it("launches image generation for every newly-registered chunk automatically (generate-chunk-image, JOS-145, AC1)", async () => {
+    const { runId } = await newSessionWithStoredTimestamps();
+    setImageProviderRegistry({
+      defaultIdentifier: "test-decomposition-adapter",
+      adapters: { "test-decomposition-adapter": createStubImageProvider("success-bytes", { bytes: buildAcceptedPng() }) },
+    });
+
+    const result = await segmentStoredTimestamps(runId, stubGenerator().generator);
+
+    expect(result.ok).toBe(true);
+    await waitFor(() => getScenesForRun(runId).every((scene) => scene.status === "image-complete"));
+    expect(getScenesForRun(runId).map((scene) => scene.provider)).toEqual(["test-decomposition-adapter", "test-decomposition-adapter"]);
   });
 
   it("uses the stored timestamps and the narration's measured duration", async () => {

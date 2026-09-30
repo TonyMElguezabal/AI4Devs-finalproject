@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import type { AlignmentProvider } from "./alignmentProvider.ts";
 import { countScenesForRun, getNarrationTimestamps, getRun, getVoiceOver, resolveArtefactPath, setRunFailure } from "./db.ts";
 import { obtainNarrationTimestamps, storedFileSchema } from "./narrationTimestampsPhase.ts";
-import { broadcast } from "./orchestrator.ts";
+import { broadcast, launchImageStageForRun } from "./orchestrator.ts";
 import { registerDecomposition, type RegistrationResult } from "./sceneRegistration.ts";
 import { segmentScript } from "./segmentation.ts";
 import { createDecompositionFailure } from "./sessionStateMachine.ts";
@@ -67,7 +67,13 @@ export async function segmentStoredTimestamps(
   const segmentation = segmentScript(run.script, run.language, characters, voiceOver.durationSeconds);
   if (!segmentation.ok) return recordSegmentationFailure(runId, segmentation.reason, now());
 
-  return registerDecomposition(runId, segmentation.fragments, instructionGenerator, now);
+  const result = await registerDecomposition(runId, segmentation.fragments, instructionGenerator, now);
+  // generate-chunk-image (JOS-145), AC1 — launches every newly-registered
+  // chunk's image generation automatically, with no further User action.
+  // Not awaited: the caller observes progress through `broadcast`/SSE, the
+  // same as every other launch (design Decision 7).
+  if (result.ok) launchImageStageForRun(runId);
+  return result;
 }
 
 export async function runDecompositionPhase(

@@ -114,3 +114,65 @@ export function createStubImageProvider(
     },
   };
 }
+
+// design Decision 7 — a small module-level registry, mirroring `provider.ts`'s
+// and `concurrency.ts`'s own test-configuration shape: `launchScene`'s image
+// stage is reached from many scattered entry points (routes, automatic
+// retry, boot reconciliation), so the adapter is resolved here rather than
+// threaded as a parameter through every one of them. `defaultIdentifier` is
+// what an unbound scene binds to (design Decision 3); `adapters` is every
+// identifier this build can resolve to a concrete adapter — a bound
+// identifier absent from it is AC4's "no adapter in the running build" case.
+export interface ImageProviderRegistry {
+  defaultIdentifier: string;
+  adapters: Record<string, ImageProvider>;
+}
+
+function defaultRegistry(): ImageProviderRegistry {
+  return { defaultIdentifier: IMAGE_PROVIDER.model, adapters: { [IMAGE_PROVIDER.model]: createFalAiImageProvider() } };
+}
+
+let registry: ImageProviderRegistry = defaultRegistry();
+
+export function getImageProviderRegistry(): ImageProviderRegistry {
+  return registry;
+}
+
+/** Test-only: swap the registry for a stub-backed one. */
+export function setImageProviderRegistry(next: ImageProviderRegistry): void {
+  registry = next;
+}
+
+/** Test-only: restore the real Fal.ai adapter as the sole entry. */
+export function resetImageProviderRegistry(): void {
+  registry = defaultRegistry();
+}
+
+// §12.2 — a temporary link (`GeneratedImage` with `source: "temporary-url"`)
+// is resolved to bytes before the image stage can succeed. Kept swappable,
+// like the registry above, so tests never make a real network call.
+let downloadFetch: typeof fetch = fetch;
+
+export function setDownloadFetch(fetchFn: typeof fetch): void {
+  downloadFetch = fetchFn;
+}
+
+export function resetDownloadFetch(): void {
+  downloadFetch = fetch;
+}
+
+export type DownloadResult = { ok: true; bytes: Buffer; contentType: string } | { ok: false; reason: string };
+
+export async function downloadGeneratedImage(url: string): Promise<DownloadResult> {
+  let response: Response;
+  try {
+    response = await downloadFetch(url);
+  } catch {
+    return { ok: false, reason: "the generated image could not be downloaded" };
+  }
+  if (!response.ok) {
+    return { ok: false, reason: `downloading the generated image answered HTTP ${response.status}` };
+  }
+  const contentType = response.headers.get("content-type") ?? "application/octet-stream";
+  return { ok: true, bytes: Buffer.from(await response.arrayBuffer()), contentType };
+}

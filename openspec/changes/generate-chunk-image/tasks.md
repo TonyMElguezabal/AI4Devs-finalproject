@@ -32,20 +32,20 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 4. Launch and completion (TDD) — AC1, AC2, §12.2
 
-- [ ] 4.0 Write a failing test: `segmentStoredTimestamps`'s successful registration launches image generation for every newly-registered chunk, with no further action (AC1) — `getSubmittedScenes()` (`db.ts`) is currently dead code, and nothing today calls `launchScene` after registration
-- [ ] 4.1 Write a failing test: a `submitted` chunk with an `IMAGE` instruction launches without User action, and is `image-generating` before the adapter is called
-- [ ] 4.2 Write a failing test: the adapter receives the chunk's `IMAGE` instruction
-- [ ] 4.3 Write a failing test: a paused session sends no request and the chunk stays `submitted`
-- [ ] 4.4 Write a failing test: an accepted image is stored under the session's `project_folder`, `result` holds the relative path, and the state is `image-complete`, never `chunk-complete`
-- [ ] 4.5 Write a failing test: a temporary-link result is downloaded to a local file before `image-complete`, and `result` is never the link
-- [ ] 4.6 Write a failing test: a download failure is recorded as a failed attempt and the chunk does not reach `image-complete`
-- [ ] 4.7 Write a failing test: an under-size or portrait image is recorded as a failed attempt and the chunk does not reach `image-complete`
-- [ ] 4.8 Write a failing test: a duplicate success delivery leaves exactly one `scene_results` row and the state unchanged
-- [ ] 4.9 Write a failing test: a session whose chunks are all `image-complete` derives to `chunks-processing`, not `final-video` (design Decision 4)
-- [ ] 4.10 Write a failing test (design Decision 6): a scene left `image-generating` on boot is reconciled as one failed transient attempt ("interrupted by restart"), with the retry rule applied, never left polling
-- [ ] 4.11 Implement `launchImageStage` (design Decision 6: a synchronous `await` of the adapter resolved from the Decision 7 registry, no `provider.send`/poll), replacing the `image-generating → chunk-complete` shortcut and wiring in the adapter, the output check and the file write; update `reconcileOnBoot` for `image-generating` scenes; wire `segmentStoredTimestamps` (`decompositionPhase.ts`) to launch every newly-registered chunk on a successful registration (task 4.0)
-- [ ] 4.12 Publish each state change on the live-update channel using the existing `SceneEventPayload` shape
-- [ ] 4.13 Run the group 4 tests and confirm they pass
+- [x] 4.0 Write a failing test: `segmentStoredTimestamps`'s successful registration launches image generation for every newly-registered chunk, with no further action (AC1) — `getSubmittedScenes()` (`db.ts`) is currently dead code, and nothing today calls `launchScene` after registration — `test/decomposition-phase.test.ts`
+- [x] 4.1 Write a failing test: a `submitted` chunk with an `IMAGE` instruction launches without User action, and is `image-generating` before the adapter is called — `test/image-stage.test.ts`
+- [x] 4.2 Write a failing test: the adapter receives the chunk's `IMAGE` instruction
+- [x] 4.3 Write a failing test: a paused session sends no request and the chunk stays `submitted`
+- [x] 4.4 Write a failing test: an accepted image is stored under the session's `project_folder`, `result` holds the relative path, and the state is `image-complete`, never `chunk-complete`
+- [x] 4.5 Write a failing test: a temporary-link result is downloaded to a local file before `image-complete`, and `result` is never the link
+- [x] 4.6 Write a failing test: a download failure is recorded as a failed attempt and the chunk does not reach `image-complete`
+- [x] 4.7 Write a failing test: an under-size or portrait image is recorded as a failed attempt and the chunk does not reach `image-complete`
+- [x] 4.8 Write a failing test: a duplicate success delivery leaves exactly one `scene_results` row and the state unchanged
+- [x] 4.9 Write a failing test: a session whose chunks are all `image-complete` derives to `chunks-processing`, not `final-video` (design Decision 4)
+- [x] 4.10 Write a failing test (design Decision 6): a scene left `image-generating` on boot is reconciled as one failed transient attempt ("interrupted by restart"), with the retry rule applied, never left polling
+- [x] 4.11 Implement `launchImageStage` (design Decision 6: a synchronous `await` of the adapter resolved from the Decision 7 registry, no `provider.send`/poll), replacing the `image-generating → chunk-complete` shortcut and wiring in the adapter, the output check and the file write; update `reconcileOnBoot` for `image-generating` scenes; wire `segmentStoredTimestamps` (`decompositionPhase.ts`) to launch every newly-registered chunk on a successful registration (task 4.0) — also required renaming `markSceneComplete` to `markImageComplete` (its production caller, `applyOutcome`'s generic-stub success path, now shares the same `image-complete` terminus, per Decision 4), adding `bindSceneImageProvider`, and updating `continueSession` to route a real held chunk (non-empty `imageInstruction`) through `launchImageStage` instead of `launchScene`
+- [x] 4.12 Publish each state change on the live-update channel using the existing `SceneEventPayload` shape — every branch of `runImageAttempt` calls `broadcast`
+- [x] 4.13 Run the group 4 tests and confirm they pass — `test/image-stage.test.ts` 16/16, `test/decomposition-phase.test.ts` 22/22 (1 new), full suite 615 passed / 2 skipped, `npm run typecheck` clean
 
 ## 5. Independent progression (TDD) — AC3, design Decision 5
 
