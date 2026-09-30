@@ -23,12 +23,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 3. Provider port and adapters (TDD)
 
-- [ ] 3.1 Define the typed `ImageProvider` port: `generate(instruction)` returns either image bytes or a temporary URL, or a classified failure (transient / not retryable)
-- [ ] 3.2 Extend the stub adapter with these modes: success (bytes), success (temporary link), download failure, under-size image, portrait image, transient failure, not-retryable failure
-- [ ] 3.3 Write failing tests for the Fal.ai adapter against a mocked HTTP layer: request body carries the instruction and `{width: 1920, height: 1088}`, the HTTP client's automatic retries are disabled, and failure classification follows JOS-165 (content rejections are transient, per ADR 0005 Decision 5)
-- [ ] 3.4 Implement the Fal.ai adapter, reading the credential only from the local environment or the local secrets file (`config/credentials.ts`)
-- [ ] 3.5 Validate the provider response shape with Zod before use
-- [ ] 3.6 Run the group 3 tests and confirm they pass
+- [x] 3.1 Define the typed `ImageProvider` port: `generate(instruction)` returns either image bytes or a temporary URL, or a classified failure (transient / not retryable) — `backend/src/imageProvider.ts`: `GeneratedImage`, `ImageGenerationResult`, `ImageProvider`
+- [x] 3.2 Extend the stub adapter with these modes: success (bytes), success (temporary link), download failure, under-size image, portrait image, transient failure, not-retryable failure — `createStubImageProvider` with 4 modes (`success-bytes`, `success-temporary-url`, `transient-failure`, `not-retryable-failure`); "under-size image", "portrait image" and "download failure" are exercised by configuring what bytes/URL a success mode returns and how the orchestrator's own download step behaves (groups 4-6), not by separate adapter modes
+- [x] 3.3 Write failing tests for the Fal.ai adapter against a mocked HTTP layer: request body carries the instruction and `{width: 1920, height: 1088}`, the HTTP client's automatic retries are disabled, and failure classification follows JOS-165 (content rejections are transient, per ADR 0005 Decision 5) — `backend/test/image-provider.test.ts`, 19 tests
+- [x] 3.4 Implement the Fal.ai adapter, reading the credential only from the local environment or the local secrets file (`config/credentials.ts`) — `createFalAiImageProvider`, credential name `FAL_API_KEY`, `Authorization: Key <key>`
+- [x] 3.5 Validate the provider response shape with Zod before use — `falResponseSchema`
+- [x] 3.6 Run the group 3 tests and confirm they pass — 19/19 passed, `npm run typecheck` clean
 
 ## 4. Launch and completion (TDD) — AC1, AC2, §12.2
 
