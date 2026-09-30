@@ -74,12 +74,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test state: row counts of `runs`, `scenes`, `provider_requests`, `scene_results`, and the file list of `backend/data/`
-- [ ] 8.2 Run the targeted tests for the image stage and capture the pass/fail summary
-- [ ] 8.3 Run the full suite (`npm test` in `backend/`) and record totals, failures and runtime. The default test store (`backend/data/skeleton.sqlite`) is shared by every branch and keeps the migrations and triggers of newer ones, so run against a scratch database (`DB_PATH` and `PROJECTS_ROOT` pointed at a temporary folder) if it fails on something unrelated
-- [ ] 8.4 Verify the post-test state matches the baseline. Restore the store and remove leftover test images if it does not
-- [ ] 8.5 Write the report `openspec/changes/generate-chunk-image/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
-- [ ] 8.6 Mark this step complete only after the tests pass and the report exists
+- [x] 8.1 Capture the pre-test state: row counts of `runs`, `scenes`, `provider_requests`, `scene_results`, and the file list of `backend/data/` — all 0 rows, 13 triggers, migrations 2-9; one stray empty directory from an earlier session found and removed
+- [x] 8.2 Run the targeted tests for the image stage and capture the pass/fail summary — 113/113 passed (7 files)
+- [x] 8.3 Run the full suite (`npm test` in `backend/`) and record totals, failures and runtime. The default test store (`backend/data/skeleton.sqlite`) is shared by every branch and keeps the migrations and triggers of newer ones, so run against a scratch database (`DB_PATH` and `PROJECTS_ROOT` pointed at a temporary folder) if it fails on something unrelated — 629 passed, 0 failed, 2 skipped, ~9.4s; no unrelated failure, default store sufficed
+- [x] 8.4 Verify the post-test state matches the baseline. Restore the store and remove leftover test images if it does not — row counts/triggers/migrations matched exactly; one leftover empty directory from an unrelated pre-existing test (`session-consultation.test.ts`) removed to restore the exact baseline
+- [x] 8.5 Write the report `openspec/changes/generate-chunk-image/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
+- [x] 8.6 Mark this step complete only after the tests pass and the report exists
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
