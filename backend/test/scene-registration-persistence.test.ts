@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
-import { applyMigrationsTo, createRun, createScene, db, getScene, resetAll } from "../src/db.ts";
+import { applyMigrationsTo, createRun, createScene, db, getScene, getScenesForRun, insertRegisteredScenes, resetAll } from "../src/db.ts";
 
 // assign-scene-identifiers (JOS-144), group 2 — design Decisions 2, 3 and 7:
 // separate PROMPT/IMAGE/VIDEO columns, the PRD's ID (`idx`) unique within a
@@ -128,5 +128,128 @@ describe("The test-only reset keeps the chunk locks (Decision 7)", () => {
     resetAll();
     const sceneId = newScene(newRunId());
     expect(() => db.prepare("DELETE FROM scenes WHERE id = ?").run(sceneId)).toThrow(/locked/);
+  });
+});
+
+// assign-narration-intervals (JOS-143), group 4 — design Decisions 3 and 4:
+// the interval is stored with the chunk in the registration transaction, and
+// the store refuses any change to it (PRD §3 "No permitida", AC4).
+describe("The narration interval is stored with the chunk (JOS-143, Decision 4)", () => {
+  function registerTwoChunks(runId: string): string[] {
+    const ids = [randomUUID(), randomUUID()];
+    insertRegisteredScenes(runId, [
+      { id: ids[0]!, index: 1, prompt: "One.", imageInstruction: "image 1", videoInstruction: "video 1", narrationInterval: { startSeconds: 0, endSeconds: 7.4 } },
+      { id: ids[1]!, index: 2, prompt: "Two.", imageInstruction: "image 2", videoInstruction: "video 2", narrationInterval: { startSeconds: 7.4, endSeconds: 15 } },
+    ]);
+    return ids;
+  }
+
+  it("reads each registered chunk back with the interval registration gave it", () => {
+    const runId = newRunId();
+    registerTwoChunks(runId);
+
+    expect(getScenesForRun(runId).map((scene) => scene.narrationInterval)).toEqual([
+      { startSeconds: 0, endSeconds: 7.4 },
+      { startSeconds: 7.4, endSeconds: 15 },
+    ]);
+  });
+
+  it("gives a scene created without a decomposition no interval", () => {
+    const sceneId = newScene(newRunId());
+    expect(getScene(sceneId)?.narrationInterval).toBeNull();
+  });
+});
+
+describe("Migration 9 adds the interval columns and their locks (JOS-143, Decision 3)", () => {
+  const intervalColumns = ["narration_start_seconds", "narration_end_seconds"];
+
+  /** The oldest schema the migrations start from: a runs and a scenes table. */
+  function createBaselineSchema(target: DatabaseSync): void {
+    target.exec(`
+      CREATE TABLE runs (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, paused INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE scenes (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, idx INTEGER NOT NULL, status TEXT NOT NULL, instruction TEXT NOT NULL DEFAULT '');
+    `);
+  }
+
+  function columnNames(target: DatabaseSync): string[] {
+    return (target.prepare("PRAGMA table_info(scenes)").all() as Array<{ name: string }>).map((row) => row.name);
+  }
+
+  it("applies on a database at version 8 and is idempotent", () => {
+    const dir = mkdtempSync(join(tmpdir(), "vid4you-migration-9-test-"));
+    try {
+      const fixture = new DatabaseSync(join(dir, "at-8.sqlite"));
+      createBaselineSchema(fixture);
+      applyMigrationsTo(fixture);
+      // Pretend this database stopped at version 8: remove what migration 9 added and forget it ran.
+      fixture.exec("DROP TRIGGER scenes_narration_start_seconds_locked; DROP TRIGGER scenes_narration_end_seconds_locked;");
+      for (const column of intervalColumns) fixture.exec(`ALTER TABLE scenes DROP COLUMN ${column}`);
+      fixture.exec("DELETE FROM schema_migrations WHERE version = 9");
+      expect(columnNames(fixture)).not.toContain("narration_start_seconds");
+
+      expect(applyMigrationsTo(fixture)).toEqual([9]);
+
+      expect(columnNames(fixture)).toEqual(expect.arrayContaining(intervalColumns));
+      expect(triggerNames(fixture)).toEqual(
+        expect.arrayContaining(["scenes_narration_end_seconds_locked", "scenes_narration_start_seconds_locked"]),
+      );
+      expect(applyMigrationsTo(fixture)).toEqual([]);
+      fixture.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves the interval of a scene that pre-dates it empty", () => {
+    const dir = mkdtempSync(join(tmpdir(), "vid4you-migration-9-old-test-"));
+    try {
+      const fixture = new DatabaseSync(join(dir, "pre-7.sqlite"));
+      createBaselineSchema(fixture);
+      fixture.prepare("INSERT INTO runs (id, title, created_at) VALUES ('r', 'Old', 'then')").run();
+      fixture.prepare("INSERT INTO scenes (id, run_id, idx, status) VALUES ('s', 'r', 1, 'submitted')").run();
+
+      applyMigrationsTo(fixture);
+
+      expect(fixture.prepare("SELECT narration_start_seconds a, narration_end_seconds b FROM scenes").get()).toEqual({ a: null, b: null });
+      fixture.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("A registered chunk's interval is locked by the store (JOS-143, AC4)", () => {
+  function registeredSceneId(): string {
+    const runId = newRunId();
+    const sceneId = randomUUID();
+    insertRegisteredScenes(runId, [
+      { id: sceneId, index: 1, prompt: "One.", imageInstruction: "image", videoInstruction: "video", narrationInterval: { startSeconds: 0, endSeconds: 6 } },
+    ]);
+    return sceneId;
+  }
+
+  it.each([
+    ["narration_start_seconds", "UPDATE scenes SET narration_start_seconds = 1 WHERE id = ?"],
+    ["narration_end_seconds", "UPDATE scenes SET narration_end_seconds = 9 WHERE id = ?"],
+  ])("refuses a change of %s, naming the field, and leaves the interval unchanged", (column, statement) => {
+    const sceneId = registeredSceneId();
+
+    expect(() => db.prepare(statement).run(sceneId)).toThrow(
+      new RegExp(`locked: scenes\\.${column} cannot be modified once the chunk is established`),
+    );
+
+    expect(getScene(sceneId)?.narrationInterval).toEqual({ startSeconds: 0, endSeconds: 6 });
+  });
+
+  it("refuses a change even when it sets the value it already has", () => {
+    const sceneId = registeredSceneId();
+    expect(() => db.prepare("UPDATE scenes SET narration_start_seconds = 0 WHERE id = ?").run(sceneId)).toThrow(/locked/);
+  });
+
+  it("keeps the locks after the test-only reset", () => {
+    resetAll();
+    expect(triggerNames()).toEqual(
+      expect.arrayContaining(["scenes_narration_end_seconds_locked", "scenes_narration_start_seconds_locked"]),
+    );
   });
 });

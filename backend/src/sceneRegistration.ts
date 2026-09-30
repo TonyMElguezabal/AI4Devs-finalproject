@@ -3,7 +3,7 @@ import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS } fr
 import { countScenesForRun, getRun, insertRegisteredScenes, setRunFailure } from "./db.ts";
 import { broadcast } from "./orchestrator.ts";
 import { createDecompositionFailure } from "./sessionStateMachine.ts";
-import type { DecompositionFailure } from "./types.ts";
+import type { DecompositionFailure, NarrationInterval } from "./types.ts";
 import type { VisualInstructionGenerator, VisualInstructionPair } from "./visualInstructions.ts";
 
 // assign-scene-identifiers (JOS-144) — PRD §5 step 5: number the ordered
@@ -17,12 +17,6 @@ import type { VisualInstructionGenerator, VisualInstructionPair } from "./visual
 
 /** The two §6.1.1 exceptions segmentation may flag on a fragment outside the bounds. */
 export type FragmentException = "script-below-lower-bound" | "unsplittable-sentence";
-
-/** PRD §3 narration interval: where a chunk sits in the voice-over, in seconds. */
-export interface NarrationInterval {
-  startSeconds: number;
-  endSeconds: number;
-}
 
 /** The narrated duration of an interval; the one place it is derived, so a duration can never disagree with its interval. */
 export function intervalDurationSeconds(interval: NarrationInterval): number {
@@ -166,6 +160,7 @@ export async function registerDecomposition(
     prompt: fragment.text,
     imageInstruction: instructions.pairs[position]!.image.trim(),
     videoInstruction: instructions.pairs[position]!.video.trim(),
+    narrationInterval: fragment.narrationInterval,
   }));
   try {
     insertRegisteredScenes(runId, scenes);

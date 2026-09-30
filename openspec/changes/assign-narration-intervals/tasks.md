@@ -27,9 +27,9 @@ Every code change starts with a failing test (TDD). Backend only; no screen chan
 
 ## 4. Storage and locks (design Decisions 3 and 4; spec: stored, immutable)
 
-- [ ] 4.1 Failing tests in `scene-registration-persistence.test.ts` and `content-lock.test.ts`: registered chunks read back with their intervals; an `UPDATE` of `narration_start_seconds` or `narration_end_seconds` is refused with the `locked:` message; migration 9 applies on a database already at version 8 and on a fresh one; skeleton scenes have a null interval
-- [ ] 4.2 Add migration 9 (two nullable `REAL` columns, two triggers from a new constant, not `LOCKED_SCENE_COLUMNS`); extend `RegisteredSceneInput`, `insertRegisteredScenes`, `Scene` and `rowToScene`; make the test-only reset aware of the new triggers if it drops and recreates the chunk locks
-- [ ] 4.3 Make the 4.1 tests pass
+- [x] 4.1 Failing tests in `scene-registration-persistence.test.ts` and `content-lock.test.ts`: registered chunks read back with their intervals; an `UPDATE` of `narration_start_seconds` or `narration_end_seconds` is refused with the `locked:` message; migration 9 applies on a database already at version 8 and on a fresh one; skeleton scenes have a null interval
+- [x] 4.2 Add migration 9 (two nullable `REAL` columns, two triggers from a new constant, not `LOCKED_SCENE_COLUMNS`); extend `RegisteredSceneInput`, `insertRegisteredScenes`, `Scene` and `rowToScene`; make the test-only reset aware of the new triggers if it drops and recreates the chunk locks
+- [x] 4.3 Make the 4.1 tests pass
 
 ## 5. Immutability through processing and retries (design Decision 6; spec: immutable)
 
