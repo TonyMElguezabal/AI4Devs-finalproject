@@ -22,7 +22,7 @@ Each fragment's narration interval SHALL be taken from the boundaries `unitBound
 
 ### Requirement: The intervals partition the voice-over
 
-The intervals of a session's chunks, in chunk order, SHALL be contiguous and non-overlapping (each starts exactly where the previous one ends), SHALL each have a positive length, and SHALL cover the voice-over from 0 s to the MP3's measured duration (AC19, AC1-AC3 of JOS-143). Registration SHALL check this before generating visual instructions or writing any chunk. A violation SHALL be recorded as a retryable decomposition failure whose cause says the system's decomposition was invalid and the User's script is unchanged, and no chunk SHALL be registered.
+The intervals of a session's chunks, in chunk order, SHALL be contiguous and non-overlapping (each starts exactly where the previous one ends), SHALL each have a positive length, and SHALL cover the voice-over from 0 s to the MP3's measured duration (AC19, AC1-AC3 of JOS-143). Registration SHALL check this against the voice-over duration its caller passes (the same value segmentation measured with) before generating visual instructions or writing any chunk. A violation SHALL be recorded as a retryable decomposition failure whose cause says the system's decomposition was invalid and the User's script is unchanged, and no chunk SHALL be registered.
 
 #### Scenario: Valid partition is registered
 
@@ -54,10 +54,10 @@ The intervals of a session's chunks, in chunk order, SHALL be contiguous and non
 - **WHEN** the decomposition is registered
 - **THEN** no chunk is registered and the session records a retryable decomposition failure
 
-#### Scenario: Missing voice-over duration
+#### Scenario: Invalid voice-over duration
 
-- **GIVEN** a session with no completed voice-over
-- **WHEN** a decomposition is registered for it
+- **GIVEN** a decomposition registered with a voice-over duration of 0, a negative number or NaN
+- **WHEN** registration checks the partition
 - **THEN** no chunk is registered and the session records a decomposition failure, since the partition cannot be checked
 
 ### Requirement: The interval is stored with the chunk
