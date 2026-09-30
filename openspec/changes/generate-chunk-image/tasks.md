@@ -101,9 +101,9 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/data-model.md`: `scenes.provider` as the image-stage binding written on the first attempt, `result` as the relative image path, and `image-complete` now produced
-- [ ] 11.2 `docs/api-spec.yml`: the scene `status` enum includes `image-complete`, and `provider`/`result` semantics are described. The file is generated, never hand-edited: put any new descriptions in the Zod schemas in `backend/src/routes.ts` and regenerate it from `GET /docs/json` of a running server (the `info` block now comes from `backend/src/server.ts`), then review the diff for drift and check it matches
-- [ ] 11.3 `docs/backend-standards.md`: record the provider port / adapter / bound-provider registry convention, if it is not already there
+- [x] 11.1 `docs/data-model.md`: `scenes.provider` as the image-stage binding written on the first attempt, `result` as the relative image path, and `image-complete` now produced — also updated `instruction` (not read by the real stage), `status`, `attempts` (per-stage), `current_request_id` (boot reconciliation) and the `provider_mode`/`provider_latency_ms` note
+- [x] 11.2 `docs/api-spec.yml`: the scene `status` enum includes `image-complete`, and `provider`/`result` semantics are described. The file is generated, never hand-edited: put any new descriptions in the Zod schemas in `backend/src/routes.ts` and regenerate it from `GET /docs/json` of a running server (the `info` block now comes from `backend/src/server.ts`), then review the diff for drift and check it matches — regenerated and diffed byte-identical to the committed file: `state` is a plain `z.string()`, not an enum, so no request/response schema changed for this story
+- [x] 11.3 `docs/backend-standards.md`: record the provider port / adapter / bound-provider registry convention, if it is not already there — added a paragraph alongside the reasoning/alignment adapters covering the `ImageProvider` port, the module-level registry (design Decision 7) and why it differs from the phase-parameter pattern, the atomic binding, and why boot reconciliation treats a real in-flight scene differently from the skeleton's generic stub. Also checked `docs/PRD.md`: §8.2 already defines `image-complete`, §10.2/§10.3 already match this story's behaviour — no wording change needed
 
 ## 12. Close out
 
