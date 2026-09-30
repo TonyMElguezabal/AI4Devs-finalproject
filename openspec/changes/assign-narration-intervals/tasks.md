@@ -72,8 +72,8 @@ Every code change starts with a failing test (TDD). Backend only; no screen chan
 
 ## 11. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 11.1 Decide applicability: no screen changes. Check that a session decomposed in step 10 still lists its chunks in order in the UI (the payload gained a field), or record why not
-- [ ] 11.2 Save `reports/YYYY-MM-DD-step-11-e2e.md`
+- [x] 11.1 Decide applicability: no screen changes. Check that a session decomposed in step 10 still lists its chunks in order in the UI (the payload gained a field), or record why not
+- [x] 11.2 Save `reports/YYYY-MM-DD-step-11-e2e.md`
 
 ## 12. Update Technical Documentation (MANDATORY)
 
