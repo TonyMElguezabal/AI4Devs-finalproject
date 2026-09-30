@@ -9,9 +9,9 @@ Every code change starts with a failing test (TDD). Backend only; no screen chan
 
 ## 1. Gate
 
-- [ ] 1.1 Confirm on this branch: `unitBoundaries` implements rule A (next unit's speech start), and `segmentScript`, `registerDecomposition` and `insertRegisteredScenes` have the shapes design.md's Context describes
-- [ ] 1.2 Confirm migration 9 is still free on `feature/entrega-2-JAME` and every open feature branch; renumber design.md and these tasks if not
-- [ ] 1.3 Check `decompose-script-into-chunks` (umbrella) for interval wording, and point it to this change where it overlaps
+- [x] 1.1 Confirm on this branch: `unitBoundaries` implements rule A (next unit's speech start), and `segmentScript`, `registerDecomposition` and `insertRegisteredScenes` have the shapes design.md's Context describes
+- [x] 1.2 Confirm migration 9 is still free on `feature/entrega-2-JAME` and every open feature branch; renumber design.md and these tasks if not
+- [x] 1.3 Check `decompose-script-into-chunks` (umbrella) for interval wording, and point it to this change where it overlaps
 
 ## 2. Segmentation hands over the interval (design Decision 1; spec: shared boundary rule)
 
