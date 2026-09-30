@@ -16,10 +16,10 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 2. Output check (TDD) — AC2, design Decision 1
 
-- [ ] 2.1 Write failing unit tests for `isAcceptedImageSize(width, height)`: 1920×1088 accepted, 1920×1080 accepted, 2560×1440 accepted, 1024×576 rejected, 1080×1920 rejected, 1920×1200 (16:10) rejected
-- [ ] 2.2 Write failing tests that read dimensions from a stored PNG and a stored JPEG file header, not from provider metadata
-- [ ] 2.3 Implement the check and the header reader, fully typed
-- [ ] 2.4 Run the group 2 tests and confirm they pass
+- [x] 2.1 Write failing unit tests for `isAcceptedImageSize(width, height)`: 1920×1088 accepted, 1920×1080 accepted, 2560×1440 accepted, 1024×576 rejected, 1080×1920 rejected, 1920×1200 (16:10) rejected
+- [x] 2.2 Write failing tests that read dimensions from a stored PNG and a stored JPEG file header, not from provider metadata
+- [x] 2.3 Implement the check and the header reader, fully typed — `backend/src/imageOutputCheck.ts`: `isAcceptedImageSize`, `readImageDimensions` (PNG IHDR / JPEG SOF0-SOF15 walk), `readImageDimensionsFromFile`
+- [x] 2.4 Run the group 2 tests and confirm they pass — 10/10 passed, `npm run typecheck` clean
 
 ## 3. Provider port and adapters (TDD)
 
