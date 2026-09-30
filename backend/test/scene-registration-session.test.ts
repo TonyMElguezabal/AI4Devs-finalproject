@@ -15,8 +15,8 @@ import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
 
 const SCRIPT = "The harbor is quiet at dusk. Fishing boats return with the tide.";
 const FRAGMENTS: SegmentedFragment[] = [
-  { text: "The harbor is quiet at dusk.", narratedDurationSeconds: 6 },
-  { text: "Fishing boats return with the tide.", narratedDurationSeconds: 9 },
+  { text: "The harbor is quiet at dusk.", narrationInterval: { startSeconds: 0, endSeconds: 6 } },
+  { text: "Fishing boats return with the tide.", narrationInterval: { startSeconds: 6, endSeconds: 15 } },
 ];
 
 const generator: VisualInstructionGenerator = {

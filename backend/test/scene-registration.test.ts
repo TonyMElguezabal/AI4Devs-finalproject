@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createRun, createScene, getRun, getScenesForRun, resetAll } from "../src/db.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
+import { contiguousFragments, type FragmentSpec } from "./fragmentFixtures.ts";
 
 // assign-scene-identifiers (JOS-144), group 4 — PRD §5 step 5, §6, §6.1,
 // §4.2: numbering 1..N, the four content fields, and the refusal of an
@@ -10,11 +11,17 @@ import type { VisualInstructionGenerator, VisualInstructionResult } from "../src
 // script error, leaving no chunks (design Decisions 1, 5 and 6).
 
 const SCRIPT = "The harbor is quiet at dusk. Fishing boats return with the tide. Gulls circle overhead.";
-const FRAGMENTS: SegmentedFragment[] = [
-  { text: "The harbor is quiet at dusk.", narratedDurationSeconds: 6 },
-  { text: "Fishing boats return with the tide.", narratedDurationSeconds: 9.5 },
-  { text: "Gulls circle overhead.", narratedDurationSeconds: 5 },
+const SPECS: FragmentSpec[] = [
+  { text: "The harbor is quiet at dusk.", seconds: 6 },
+  { text: "Fishing boats return with the tide.", seconds: 9.5 },
+  { text: "Gulls circle overhead.", seconds: 5 },
 ];
+const FRAGMENTS: SegmentedFragment[] = contiguousFragments(SPECS);
+
+/** The base specs with the spec at `index` overridden. */
+function specsWith(index: number, override: Partial<FragmentSpec>): FragmentSpec[] {
+  return SPECS.map((spec, position) => (position === index ? { ...spec, ...override } : spec));
+}
 
 beforeEach(() => {
   resetAll();
@@ -101,14 +108,14 @@ describe("A valid decomposition registers chunks 1..N (AC1, AC2, AC5)", () => {
 describe("An invalid decomposition is refused as a decomposition failure (AC3)", () => {
   const invalidCases: Array<[string, SegmentedFragment[], string?]> = [
     ["no fragments", []],
-    ["an empty fragment", [{ text: "   ", narratedDurationSeconds: 6 }, ...FRAGMENTS]],
-    ["a fragment below the lower bound without a flag", [{ ...FRAGMENTS[0]!, narratedDurationSeconds: 3 }, FRAGMENTS[1]!, FRAGMENTS[2]!]],
-    ["a fragment above the upper bound without a flag", [FRAGMENTS[0]!, { ...FRAGMENTS[1]!, narratedDurationSeconds: 16 }, FRAGMENTS[2]!]],
+    ["an empty fragment", contiguousFragments([{ text: "   ", seconds: 6 }, ...SPECS])],
+    ["a fragment below the lower bound without a flag", contiguousFragments(specsWith(0, { seconds: 3 }))],
+    ["a fragment above the upper bound without a flag", contiguousFragments(specsWith(1, { seconds: 16 }))],
     [
       "a script-below-lower-bound flag on one of several fragments",
-      [{ ...FRAGMENTS[0]!, narratedDurationSeconds: 3, exception: "script-below-lower-bound" }, FRAGMENTS[1]!, FRAGMENTS[2]!],
+      contiguousFragments(specsWith(0, { seconds: 3, exception: "script-below-lower-bound" })),
     ],
-    ["a non-positive duration", [{ ...FRAGMENTS[0]!, narratedDurationSeconds: 0 }, FRAGMENTS[1]!, FRAGMENTS[2]!]],
+    ["a non-positive duration", contiguousFragments(specsWith(0, { seconds: 0 }))],
     ["fragments that do not reconstruct the script", [FRAGMENTS[0]!, { ...FRAGMENTS[1]!, text: "Fishing boats leave with the tide." }, FRAGMENTS[2]!]],
     ["a fragment missing from the script", FRAGMENTS.slice(0, 2)],
   ];
@@ -162,7 +169,7 @@ describe("The §6.1.1 exceptions and whitespace (AC3)", () => {
     const runId = newRunId("A short script.");
     const result = await registerDecomposition(
       runId,
-      [{ text: "A short script.", narratedDurationSeconds: 2.1, exception: "script-below-lower-bound" }],
+      contiguousFragments([{ text: "A short script.", seconds: 2.1, exception: "script-below-lower-bound" }]),
       stubGenerator().generator,
     );
     expect(result.ok).toBe(true);
@@ -171,13 +178,13 @@ describe("The §6.1.1 exceptions and whitespace (AC3)", () => {
 
   it("accepts a fragment above the upper bound flagged unsplittable-sentence", async () => {
     const runId = newRunId();
-    const fragments = [FRAGMENTS[0]!, { ...FRAGMENTS[1]!, narratedDurationSeconds: 17, exception: "unsplittable-sentence" as const }, FRAGMENTS[2]!];
+    const fragments = contiguousFragments(specsWith(1, { seconds: 17, exception: "unsplittable-sentence" }));
     expect((await registerDecomposition(runId, fragments, stubGenerator().generator)).ok).toBe(true);
   });
 
   it("accepts the exact bounds, 5 and 15 seconds", async () => {
     const runId = newRunId();
-    const fragments = [{ ...FRAGMENTS[0]!, narratedDurationSeconds: 5 }, { ...FRAGMENTS[1]!, narratedDurationSeconds: 15 }, FRAGMENTS[2]!];
+    const fragments = contiguousFragments([{ ...SPECS[0]!, seconds: 5 }, { ...SPECS[1]!, seconds: 15 }, SPECS[2]!]);
     expect((await registerDecomposition(runId, fragments, stubGenerator().generator)).ok).toBe(true);
   });
 
@@ -188,10 +195,10 @@ describe("The §6.1.1 exceptions and whitespace (AC3)", () => {
 
   it("reconstructs a sentence split at a clause boundary", async () => {
     const runId = newRunId("Boats return, and gulls circle.");
-    const fragments: SegmentedFragment[] = [
-      { text: "Boats return,", narratedDurationSeconds: 5 },
-      { text: "and gulls circle.", narratedDurationSeconds: 5 },
-    ];
+    const fragments = contiguousFragments([
+      { text: "Boats return,", seconds: 5 },
+      { text: "and gulls circle.", seconds: 5 },
+    ]);
     expect((await registerDecomposition(runId, fragments, stubGenerator().generator)).ok).toBe(true);
   });
 });

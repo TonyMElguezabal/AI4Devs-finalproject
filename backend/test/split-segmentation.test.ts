@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { resetAll, createRun } from "../src/db.ts";
 import type { TimestampCharacter } from "../src/narrationTimestamps.ts";
-import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
+import { intervalDurationSeconds, registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import { segmentScript } from "../src/segmentation.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
 
@@ -45,7 +45,7 @@ function fragmentsOf(narration: ReturnType<typeof narrate>): SegmentedFragment[]
 }
 
 const texts = (fragments: readonly SegmentedFragment[]) => fragments.map((f) => f.text);
-const durations = (fragments: readonly SegmentedFragment[]) => fragments.map((f) => f.narratedDurationSeconds);
+const durations = (fragments: readonly SegmentedFragment[]) => fragments.map((f) => intervalDurationSeconds(f.narrationInterval));
 const exceptions = (fragments: readonly SegmentedFragment[]) => fragments.map((f) => f.exception);
 
 describe("A sentence over the maximum is split (AC1)", () => {
@@ -101,7 +101,7 @@ describe("A sentence without clause boundaries is kept whole (AC4)", () => {
     const fragments = fragmentsOf(narration);
     expect(fragments).toHaveLength(1);
     expect(fragments[0]!.exception).toBe("unsplittable-sentence");
-    expect(fragments[0]!.narratedDurationSeconds).toBeCloseTo(18, 9);
+    expect(intervalDurationSeconds(fragments[0]!.narrationInterval)).toBeCloseTo(18, 9);
   });
 
   it("flags a 3 s sentence before a 14 s sentence with no boundary", () => {
@@ -109,7 +109,7 @@ describe("A sentence without clause boundaries is kept whole (AC4)", () => {
     const fragments = fragmentsOf(narration);
     expect(fragments).toHaveLength(1);
     expect(fragments[0]!.exception).toBe("unsplittable-sentence");
-    expect(fragments[0]!.narratedDurationSeconds).toBeCloseTo(17, 9);
+    expect(intervalDurationSeconds(fragments[0]!.narrationInterval)).toBeCloseTo(17, 9);
   });
 
   it("does not flag any piece of a sentence that was actually split", () => {

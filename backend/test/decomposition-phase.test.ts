@@ -208,7 +208,7 @@ describe("Refusals", () => {
     const { runId } = await newSessionWithStoredTimestamps(UNGROUPABLE_SCRIPT);
     await registerDecomposition(
       runId,
-      [{ text: UNGROUPABLE_SCRIPT, narratedDurationSeconds: 15, exception: "unsplittable-sentence" }],
+      [{ text: UNGROUPABLE_SCRIPT, narrationInterval: { startSeconds: 0, endSeconds: 15 }, exception: "unsplittable-sentence" }],
       stubGenerator().generator,
     );
     expect(getScenesForRun(runId)).toHaveLength(1);
@@ -227,8 +227,8 @@ describe("Refusals", () => {
     await registerDecomposition(
       runId,
       [
-        { text: "The harbor is quiet at dusk.", narratedDurationSeconds: 7 },
-        { text: "Fishing boats return with the tide.", narratedDurationSeconds: 9 },
+        { text: "The harbor is quiet at dusk.", narrationInterval: { startSeconds: 0, endSeconds: 7 } },
+        { text: "Fishing boats return with the tide.", narrationInterval: { startSeconds: 7, endSeconds: 16 } },
       ],
       stubGenerator().generator,
     );

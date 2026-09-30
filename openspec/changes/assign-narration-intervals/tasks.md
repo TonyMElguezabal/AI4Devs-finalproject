@@ -15,9 +15,9 @@ Every code change starts with a failing test (TDD). Backend only; no screen chan
 
 ## 2. Segmentation hands over the interval (design Decision 1; spec: shared boundary rule)
 
-- [ ] 2.1 Failing tests in `script-segmentation.test.ts`: each fragment's `narrationInterval` equals `[boundaries[first], boundaries[last + 1]]`; consecutive fragments share their boundary exactly; the first starts at 0 and the last ends at the MP3 duration; a pause between two fragments goes to the earlier one (rule A); leading and trailing silence are covered
-- [ ] 2.2 Add `narrationInterval` to `SegmentedFragment`, remove `narratedDurationSeconds`, add the exported helper `intervalDurationSeconds`, and fill the interval in `segmentScript`
-- [ ] 2.3 Make the 2.1 tests pass; `npm run typecheck` shows every other caller that must follow the new shape
+- [x] 2.1 Failing tests in `script-segmentation.test.ts`: each fragment's `narrationInterval` equals `[boundaries[first], boundaries[last + 1]]`; consecutive fragments share their boundary exactly; the first starts at 0 and the last ends at the MP3 duration; a pause between two fragments goes to the earlier one (rule A); leading and trailing silence are covered
+- [x] 2.2 Add `narrationInterval` to `SegmentedFragment`, remove `narratedDurationSeconds`, add the exported helper `intervalDurationSeconds`, and fill the interval in `segmentScript`
+- [x] 2.3 Make the 2.1 tests pass; `npm run typecheck` shows every other caller that must follow the new shape
 
 ## 3. Registration checks the partition (design Decision 2; spec: partition)
 

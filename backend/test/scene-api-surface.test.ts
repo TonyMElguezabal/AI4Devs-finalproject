@@ -38,8 +38,8 @@ async function sessionWithChunks(): Promise<{ sessionId: string; sceneIds: strin
   const result = await registerDecomposition(
     sessionId,
     [
-      { text: "The harbor is quiet at dusk.", narratedDurationSeconds: 6 },
-      { text: "Fishing boats return with the tide.", narratedDurationSeconds: 9 },
+      { text: "The harbor is quiet at dusk.", narrationInterval: { startSeconds: 0, endSeconds: 6 } },
+      { text: "Fishing boats return with the tide.", narrationInterval: { startSeconds: 6, endSeconds: 15 } },
     ],
     generator,
   );

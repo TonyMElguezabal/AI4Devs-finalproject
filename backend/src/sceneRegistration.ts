@@ -18,11 +18,23 @@ import type { VisualInstructionGenerator, VisualInstructionPair } from "./visual
 /** The two §6.1.1 exceptions segmentation may flag on a fragment outside the bounds. */
 export type FragmentException = "script-below-lower-bound" | "unsplittable-sentence";
 
+/** PRD §3 narration interval: where a chunk sits in the voice-over, in seconds. */
+export interface NarrationInterval {
+  startSeconds: number;
+  endSeconds: number;
+}
+
+/** The narrated duration of an interval; the one place it is derived, so a duration can never disagree with its interval. */
+export function intervalDurationSeconds(interval: NarrationInterval): number {
+  return interval.endSeconds - interval.startSeconds;
+}
+
 /** What segmentation hands over for each fragment, in script order. */
 export interface SegmentedFragment {
   /** The exact text of the script this fragment narrates; it becomes the chunk's PROMPT. */
   text: string;
-  narratedDurationSeconds: number;
+  /** From the D11 boundaries `unitBoundaries` gives segmentation (assign-narration-intervals, JOS-143, Decision 1). */
+  narrationInterval: NarrationInterval;
   exception?: FragmentException;
 }
 
@@ -47,7 +59,7 @@ function findFragmentProblem(script: string, fragments: readonly SegmentedFragme
     const number = position + 1;
     if (fragment.text.trim() === "") return `scene ${number} has no text`;
 
-    const duration = fragment.narratedDurationSeconds;
+    const duration = intervalDurationSeconds(fragment.narrationInterval);
     if (!Number.isFinite(duration) || duration <= 0) return `scene ${number} has no valid narrated duration`;
 
     // §6.1 bounds, with the two §6.1.1 exceptions.
