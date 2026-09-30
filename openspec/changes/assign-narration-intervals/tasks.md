@@ -54,12 +54,12 @@ Every code change starts with a failing test (TDD). Backend only; no screen chan
 
 ## 9. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 9.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list
-- [ ] 9.2 Run the targeted tests (segmentation, registration, persistence, content lock, API surface, decomposition phase)
-- [ ] 9.3 Run `npm run typecheck` and the full `npm test`
-- [ ] 9.4 Verify the post-test state matches the baseline; restore it if not
-- [ ] 9.5 Write `openspec/changes/assign-narration-intervals/reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`
-- [ ] 9.6 Mark this step complete only after the tests pass and the report exists
+- [x] 9.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list
+- [x] 9.2 Run the targeted tests (segmentation, registration, persistence, content lock, API surface, decomposition phase)
+- [x] 9.3 Run `npm run typecheck` and the full `npm test`
+- [x] 9.4 Verify the post-test state matches the baseline; restore it if not
+- [x] 9.5 Write `openspec/changes/assign-narration-intervals/reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`
+- [x] 9.6 Mark this step complete only after the tests pass and the report exists
 
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
