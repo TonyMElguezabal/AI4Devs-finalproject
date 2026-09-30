@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAcceptedImageSize, readImageDimensions } from "../src/imageOutputCheck.ts";
+import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "../src/imageOutputCheck.ts";
 
 // generate-chunk-image (JOS-145), group 2 — design Decision 1 and PRD §7.1:
 // an image is accepted only if it is at least 1920x1080 and its aspect ratio
@@ -79,5 +79,27 @@ describe("readImageDimensions (measured from the stored file, not provider metad
 
   it("returns null for a file that is neither a PNG nor a JPEG", () => {
     expect(readImageDimensions(Buffer.from("not an image"))).toBeNull();
+  });
+
+  it("returns null for a truncated JPEG whose markers run out before an SOF segment or EOI", () => {
+    const app0 = Buffer.alloc(2 + 2 + 14);
+    app0.set([0xff, 0xe0], 0);
+    app0.writeUInt16BE(16, 2);
+    const truncated = Buffer.concat([Buffer.from([0xff, 0xd8]), app0]); // no SOF, no EOI after APP0
+    expect(readImageDimensions(truncated)).toBeNull();
+  });
+});
+
+describe("sniffImageExtension", () => {
+  it("recognises a PNG", () => {
+    expect(sniffImageExtension(buildTestPng(1920, 1088))).toBe("png");
+  });
+
+  it("recognises a JPEG", () => {
+    expect(sniffImageExtension(buildTestJpeg(1920, 1088))).toBe("jpg");
+  });
+
+  it("returns null for neither", () => {
+    expect(sniffImageExtension(Buffer.from("not an image"))).toBeNull();
   });
 });

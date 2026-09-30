@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { createFalAiImageProvider, createStubImageProvider } from "../src/imageProvider.ts";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  createFalAiImageProvider,
+  createStubImageProvider,
+  downloadGeneratedImage,
+  resetDownloadFetch,
+  setDownloadFetch,
+} from "../src/imageProvider.ts";
 
 // generate-chunk-image (JOS-145), group 3 — the Fal.ai adapter: one
 // synchronous HTTP request per attempt, the recorded request size
@@ -26,8 +32,8 @@ const successResponse = () =>
     headers: { "Content-Type": "application/json" },
   });
 
-function providerWith(fetchFn: typeof fetch, loadKey: () => string = () => "test-key") {
-  return createFalAiImageProvider({ fetchFn, loadKey });
+function providerWith(fetchFn: typeof fetch, loadKey: () => string = () => "test-key", timeoutMs = 50) {
+  return createFalAiImageProvider({ fetchFn, loadKey, timeoutMs });
 }
 
 describe("The request", () => {
@@ -128,6 +134,11 @@ describe("The stub adapter (group 3, task 3.2)", () => {
     expect(result).toEqual({ kind: "success", image: { source: "temporary-url", url: "https://example.test/x.jpg" } });
   });
 
+  it("success-temporary-url falls back to a default URL when none is configured", async () => {
+    const result = await createStubImageProvider("success-temporary-url").generate(INSTRUCTION);
+    expect(result).toEqual({ kind: "success", image: { source: "temporary-url", url: "https://fal.media/files/stub.jpg" } });
+  });
+
   it("transient-failure and not-retryable-failure return their classified outcome", async () => {
     expect((await createStubImageProvider("transient-failure").generate(INSTRUCTION)).kind).toBe("failed_transient");
     expect((await createStubImageProvider("not-retryable-failure").generate(INSTRUCTION)).kind).toBe("failed_not_retryable");
@@ -138,5 +149,41 @@ describe("The stub adapter (group 3, task 3.2)", () => {
     await stub.generate("first");
     await stub.generate("second");
     expect(stub.calls).toEqual(["first", "second"]);
+  });
+});
+
+// §12.2 — resolving a temporary-link result to bytes before the image stage
+// can succeed (design Decision 6). Exercised end-to-end in
+// `test/image-stage.test.ts`; these are the direct unit tests.
+describe("downloadGeneratedImage (§12.2)", () => {
+  afterEach(() => {
+    resetDownloadFetch();
+  });
+
+  it("downloads the bytes and content type on success", async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    setDownloadFetch((async () => new Response(bytes, { status: 200, headers: { "content-type": "image/jpeg" } })) as typeof fetch);
+
+    const result = await downloadGeneratedImage("https://fal.media/files/example.jpg");
+
+    expect(result).toEqual({ ok: true, bytes: Buffer.from(bytes), contentType: "image/jpeg" });
+  });
+
+  it("fails when the response is not ok", async () => {
+    setDownloadFetch((async () => new Response("", { status: 404 })) as typeof fetch);
+
+    const result = await downloadGeneratedImage("https://fal.media/files/missing.jpg");
+
+    expect(result).toEqual({ ok: false, reason: "downloading the generated image answered HTTP 404" });
+  });
+
+  it("fails when the download itself throws (a network error, not an HTTP error)", async () => {
+    setDownloadFetch((async () => {
+      throw new Error("network unreachable");
+    }) as typeof fetch);
+
+    const result = await downloadGeneratedImage("https://fal.media/files/example.jpg");
+
+    expect(result).toEqual({ ok: false, reason: "the generated image could not be downloaded" });
   });
 });

@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-
 // generate-chunk-image (JOS-145), design Decision 1 — PRD §7.1: an image is
 // accepted only if it is at least 1920x1080 and horizontal, with an aspect
 // ratio within +/-1% of 16:9. The recorded provider setting is 1920x1088
@@ -59,10 +57,6 @@ export function readImageDimensions(bytes: Buffer): { width: number; height: num
     return readJpegDimensions(bytes);
   }
   return null;
-}
-
-export function readImageDimensionsFromFile(filePath: string): { width: number; height: number } | null {
-  return readImageDimensions(readFileSync(filePath));
 }
 
 /** A filename extension for a stored image, sniffed from its own bytes (same signatures as `readImageDimensions`). */

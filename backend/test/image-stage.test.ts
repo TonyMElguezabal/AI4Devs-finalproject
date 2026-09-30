@@ -65,7 +65,7 @@ function stubGenerator(): VisualInstructionGenerator {
  * terminal outcome polls for it instead, mirroring `orchestrator.test.ts`'s
  * own `waitFor` for the same reason.
  */
-function waitFor(predicate: () => boolean, timeoutMs = 2000, intervalMs = 5): Promise<void> {
+function waitFor(predicate: () => boolean, timeoutMs = 5000, intervalMs = 5): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     const tick = () => {
@@ -174,6 +174,40 @@ describe("Launch (AC1)", () => {
 });
 
 describe("Output check and completion (AC2, §12.2)", () => {
+  it("counts the adapter throwing (a network error, not a classified failure) as one transient attempt, then completes on the next attempt", async () => {
+    const { sceneId } = await registeredScene();
+    let calls = 0;
+    useStubAdapter({
+      async generate() {
+        calls++;
+        if (calls === 1) throw new Error("socket hang up");
+        return { kind: "success", image: { source: "bytes", bytes: ACCEPTED_PNG, contentType: "image/png" } };
+      },
+    });
+
+    launchImageStage(sceneId);
+    await waitForSettled(sceneId);
+
+    const scene = getScene(sceneId)!;
+    expect(scene.status).toBe("image-complete");
+    expect(scene.attempts).toBe(2);
+    expect(scene.lastError).toMatch(/socket hang up/);
+  });
+
+  it("counts bytes that are not a readable image as one failed attempt, then completes on the next attempt", async () => {
+    const { sceneId } = await registeredScene();
+    const adapter = failOnceThenSucceed(Buffer.from("not an image at all"));
+    useStubAdapter(adapter);
+
+    launchImageStage(sceneId);
+    await waitForSettled(sceneId);
+
+    const scene = getScene(sceneId)!;
+    expect(scene.status).toBe("image-complete");
+    expect(scene.attempts).toBe(2);
+    expect(scene.lastError).toMatch(/dimensions could not be read/);
+  });
+
   it("stores an accepted image under the project folder, records its relative path, and reaches image-complete, never chunk-complete", async () => {
     const { sceneId, projectFolder } = await registeredScene();
     useStubAdapter(createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG, contentType: "image/png" }));

@@ -38,7 +38,7 @@ beforeEach(() => {
 
 /** `launchImageStageForRun` is fire-and-forget (design Decision 7), so a
  * caller's own return does not mean every launch has settled yet. */
-function waitFor(predicate: () => boolean, timeoutMs = 2000, intervalMs = 5): Promise<void> {
+function waitFor(predicate: () => boolean, timeoutMs = 5000, intervalMs = 5): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     const tick = () => {

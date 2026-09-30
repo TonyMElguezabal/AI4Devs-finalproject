@@ -66,11 +66,11 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Update `orchestrator.test.ts`, `persistence.test.ts` and `session-*.test.ts` assertions that expect `chunk-complete` or `final-video` from the skeleton's single stage
-- [ ] 7.2 Update tests that rely on `STUB_PROVIDER_NAME` as the recorded provider, so they use the bound image provider identifier
-- [ ] 7.3 Confirm every scenario in `specs/chunk-image-generation/spec.md` has at least one functional test, and list the mapping in the step 8 report
-- [ ] 7.4 Confirm module test coverage has not decreased (`npm test -- --coverage` from `backend/`)
-- [ ] 7.5 Run `npm run typecheck` with no errors
+- [x] 7.1 Update `orchestrator.test.ts`, `persistence.test.ts` and `session-*.test.ts` assertions that expect `chunk-complete` or `final-video` from the skeleton's single stage — the 5 `chunk-complete` waitFor assertions in `orchestrator.test.ts` updated to `image-complete` (already done alongside group 4). `persistence.test.ts` and `session-read.test.ts`'s `chunk-complete` occurrences are unrelated raw-SQL fixtures (migration-safety and ordering tests using an arbitrary status string, never asserting the skeleton's shortcut), confirmed by review and by the full suite passing with no other change needed. `session-state-machine.test.ts`'s occurrences are just its state-enum list. Also closed a real, separate gap while reviewing: `deriveSessionState`'s `final-video` branch had no test at all (reachable only once a chunk is truly `chunk-complete`, which no code path produces before JOS-146) — added one to `scene-registration-session.test.ts`
+- [x] 7.2 Update tests that rely on `STUB_PROVIDER_NAME` as the recorded provider, so they use the bound image provider identifier — nothing found: no existing test asserted `scene.provider` at all before this story
+- [x] 7.3 Confirm every scenario in `specs/chunk-image-generation/spec.md` has at least one functional test, and list the mapping in the step 8 report — all 16 scenarios confirmed covered; mapping recorded in the step 8 report
+- [x] 7.4 Confirm module test coverage has not decreased (`npm test -- --coverage` from `backend/`) — compared base (`2af1398`, `feature/entrega-2-JAME`'s tip) against head in a temporary worktree, `@vitest/coverage-v8@3.2.7` installed locally without saving, each on its own scratch database. No file regressed on any metric; totals improved (lines 95.16%→95.5%, branches 91.06%→91.41%). Found and fixed two real bugs along the way: two tests hardcoded a `data/projects/...` path instead of `resolveArtefactPath` (passed by accident against the default store, failed under the scratch one), and closed several genuine gaps this revealed (a truncated-JPEG case, `sniffImageExtension` had no direct test, the adapter throwing, unreadable image bytes, and `downloadGeneratedImage`'s direct unit tests). Full detail in the step 8 report
+- [x] 7.5 Run `npm run typecheck` with no errors — clean
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
