@@ -21,9 +21,9 @@ Every code change starts with a failing test (TDD). Backend only; no screen chan
 
 ## 3. Registration checks the partition (design Decision 2; spec: partition)
 
-- [ ] 3.1 Failing tests in `scene-registration.test.ts`: a valid partition registers; a gap, an overlap, a first start other than 0, a last end other than the voice-over's duration and an empty interval each record a retryable decomposition failure naming the scene, with no chunk written and no instruction call made; a voice-over duration of 0, negative or NaN records a non-retryable failure
-- [ ] 3.2 Implement `findPartitionProblem(fragments, voiceOverDurationSeconds)` with exact comparisons; give `registerDecomposition` the `voiceOverDurationSeconds` parameter (design Decision 2), call the check after `findFragmentProblem` and before the instruction call, and pass `voiceOver.durationSeconds` from `segmentStoredTimestamps`; the §6.1 bounds check already uses `intervalDurationSeconds` (task 2.2)
-- [ ] 3.3 Make the 3.1 tests pass
+- [x] 3.1 Failing tests in `scene-registration.test.ts`: a valid partition registers; a gap, an overlap, a first start other than 0, a last end other than the voice-over's duration and an empty interval each record a retryable decomposition failure naming the scene, with no chunk written and no instruction call made; a voice-over duration of 0, negative or NaN records a non-retryable failure
+- [x] 3.2 Implement `findPartitionProblem(fragments, voiceOverDurationSeconds)` with exact comparisons; give `registerDecomposition` the `voiceOverDurationSeconds` parameter (design Decision 2), call the check after `findFragmentProblem` and before the instruction call, and pass `voiceOver.durationSeconds` from `segmentStoredTimestamps`; the §6.1 bounds check already uses `intervalDurationSeconds` (task 2.2)
+- [x] 3.3 Make the 3.1 tests pass
 
 ## 4. Storage and locks (design Decisions 3 and 4; spec: stored, immutable)
 

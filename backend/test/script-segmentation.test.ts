@@ -192,7 +192,7 @@ describe("Fragments that cannot fit without a split (no clause boundary, JOS-141
         return { kind: "success", pairs: texts.map((_, i) => ({ image: `image ${i + 1}`, video: `video ${i + 1}` })) };
       },
     };
-    const result = await registerDecomposition(runId, fragmentsOf(narration), generator);
+    const result = await registerDecomposition(runId, fragmentsOf(narration), generator, narration.mp3Duration);
     expect(result.ok).toBe(true);
   });
 });
@@ -390,7 +390,7 @@ describe("The fragments reproduce the script (AC03)", () => {
           return { kind: "success", pairs: texts.map((_, i) => ({ image: `image ${i + 1}`, video: `video ${i + 1}` })) };
         },
       };
-      const result = await registerDecomposition(runId, fragmentsOf(narration), generator);
+      const result = await registerDecomposition(runId, fragmentsOf(narration), generator, narration.mp3Duration);
       expect(result.ok).toBe(true);
     });
   });

@@ -42,6 +42,7 @@ async function sessionWithChunks(): Promise<{ sessionId: string; sceneIds: strin
       { text: "Fishing boats return with the tide.", narrationInterval: { startSeconds: 6, endSeconds: 15 } },
     ],
     generator,
+    15,
   );
   if (!result.ok) throw new Error("registration failed in the test setup");
   return { sessionId, sceneIds: result.sceneIds };

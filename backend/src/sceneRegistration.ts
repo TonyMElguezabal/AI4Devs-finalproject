@@ -81,6 +81,30 @@ function findFragmentProblem(script: string, fragments: readonly SegmentedFragme
   return null;
 }
 
+/**
+ * assign-narration-intervals (JOS-143), Decision 2 — the intervals, in order, must be
+ * contiguous and cover the voice-over from 0 to its duration. Exact comparisons: every
+ * boundary comes from one `unitBoundaries` array, so a correct segmentation is bit-identical.
+ */
+function findPartitionProblem(fragments: readonly SegmentedFragment[], voiceOverDurationSeconds: number): string | null {
+  let previousEnd = 0;
+  for (const [position, fragment] of fragments.entries()) {
+    const number = position + 1;
+    const { startSeconds, endSeconds } = fragment.narrationInterval;
+    if (startSeconds !== previousEnd) {
+      return position === 0
+        ? `scene 1 starts at ${startSeconds} s instead of 0 s`
+        : `scene ${number} starts at ${startSeconds} s but scene ${number - 1} ends at ${previousEnd} s`;
+    }
+    if (!(endSeconds > startSeconds)) return `scene ${number} has an empty narration interval`;
+    previousEnd = endSeconds;
+  }
+  if (previousEnd !== voiceOverDurationSeconds) {
+    return `scene ${fragments.length} ends at ${previousEnd} s but the voice-over lasts ${voiceOverDurationSeconds} s`;
+  }
+  return null;
+}
+
 function findInstructionProblem(pairs: readonly VisualInstructionPair[], expected: number): string | null {
   if (pairs.length !== expected) return `it produced ${pairs.length} visual instruction pairs for ${expected} scenes`;
   const incomplete = pairs.findIndex((pair) => pair.image.trim() === "" || pair.video.trim() === "");
@@ -103,6 +127,7 @@ export async function registerDecomposition(
   runId: string,
   fragments: readonly SegmentedFragment[],
   generator: VisualInstructionGenerator,
+  voiceOverDurationSeconds: number,
   now: () => Date = () => new Date(),
 ): Promise<RegistrationResult> {
   const run = getRun(runId);
@@ -113,6 +138,13 @@ export async function registerDecomposition(
   const fragmentProblem = findFragmentProblem(run.script, fragments);
   // A validation failure is retryable: a new decomposition can come out valid.
   if (fragmentProblem) return recordFailure(runId, fragmentProblem, true, now());
+
+  // Without a usable duration the partition cannot be checked, and retrying the same input cannot change that.
+  if (!Number.isFinite(voiceOverDurationSeconds) || voiceOverDurationSeconds <= 0) {
+    return recordFailure(runId, `the voice-over duration (${voiceOverDurationSeconds}) is not usable`, false, now());
+  }
+  const partitionProblem = findPartitionProblem(fragments, voiceOverDurationSeconds);
+  if (partitionProblem) return recordFailure(runId, partitionProblem, true, now());
 
   const instructions = await generator.generate(
     fragments.map((fragment) => fragment.text),

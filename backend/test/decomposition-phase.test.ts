@@ -210,6 +210,7 @@ describe("Refusals", () => {
       runId,
       [{ text: UNGROUPABLE_SCRIPT, narrationInterval: { startSeconds: 0, endSeconds: 15 }, exception: "unsplittable-sentence" }],
       stubGenerator().generator,
+      15,
     );
     expect(getScenesForRun(runId)).toHaveLength(1);
 
@@ -231,6 +232,7 @@ describe("Refusals", () => {
         { text: "Fishing boats return with the tide.", narrationInterval: { startSeconds: 7, endSeconds: 16 } },
       ],
       stubGenerator().generator,
+      16,
     );
     expect(await segmentStoredTimestamps(runId, stubGenerator().generator)).toEqual({ ok: false, reason: "already-registered" });
   });
