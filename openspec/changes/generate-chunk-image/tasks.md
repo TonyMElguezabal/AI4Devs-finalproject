@@ -32,6 +32,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 4. Launch and completion (TDD) — AC1, AC2, §12.2
 
+- [ ] 4.0 Write a failing test: `segmentStoredTimestamps`'s successful registration launches image generation for every newly-registered chunk, with no further action (AC1) — `getSubmittedScenes()` (`db.ts`) is currently dead code, and nothing today calls `launchScene` after registration
 - [ ] 4.1 Write a failing test: a `submitted` chunk with an `IMAGE` instruction launches without User action, and is `image-generating` before the adapter is called
 - [ ] 4.2 Write a failing test: the adapter receives the chunk's `IMAGE` instruction
 - [ ] 4.3 Write a failing test: a paused session sends no request and the chunk stays `submitted`
@@ -42,7 +43,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [ ] 4.8 Write a failing test: a duplicate success delivery leaves exactly one `scene_results` row and the state unchanged
 - [ ] 4.9 Write a failing test: a session whose chunks are all `image-complete` derives to `chunks-processing`, not `final-video` (design Decision 4)
 - [ ] 4.10 Write a failing test (design Decision 6): a scene left `image-generating` on boot is reconciled as one failed transient attempt ("interrupted by restart"), with the retry rule applied, never left polling
-- [ ] 4.11 Implement `launchImageStage` (design Decision 6: a synchronous `await` of the adapter, no `provider.send`/poll), replacing the `image-generating → chunk-complete` shortcut and wiring in the adapter, the output check and the file write; update `reconcileOnBoot` for `image-generating` scenes
+- [ ] 4.11 Implement `launchImageStage` (design Decision 6: a synchronous `await` of the adapter resolved from the Decision 7 registry, no `provider.send`/poll), replacing the `image-generating → chunk-complete` shortcut and wiring in the adapter, the output check and the file write; update `reconcileOnBoot` for `image-generating` scenes; wire `segmentStoredTimestamps` (`decompositionPhase.ts`) to launch every newly-registered chunk on a successful registration (task 4.0)
 - [ ] 4.12 Publish each state change on the live-update channel using the existing `SceneEventPayload` shape
 - [ ] 4.13 Run the group 4 tests and confirm they pass
 
