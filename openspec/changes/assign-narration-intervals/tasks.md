@@ -44,13 +44,13 @@ Every code change starts with a failing test (TDD). Backend only; no screen chan
 
 ## 7. Wire-through check (spec: shared boundary rule, partition)
 
-- [ ] 7.1 Test in `decomposition-phase.test.ts`: `segmentStoredTimestamps` on stored timestamps with leading, inner and trailing silence registers chunks whose stored intervals partition `[0, voiceOver.durationSeconds]` and whose inner boundaries are the next unit's speech start
+- [x] 7.1 Test in `decomposition-phase.test.ts`: `segmentStoredTimestamps` on stored timestamps with leading, inner and trailing silence registers chunks whose stored intervals partition `[0, voiceOver.durationSeconds]` and whose inner boundaries are the next unit's speech start
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 8.1 Review every test that builds a `SegmentedFragment` by hand (JOS-144's registration tests, JOS-140/141's segmentation tests): convert each `narratedDurationSeconds` to an interval of the same length, contiguous from 0, and pass the last interval's end as the voice-over duration, keeping the test's intent; no bulk rewrite
-- [ ] 8.2 Review tests that count migrations, triggers or schema columns (`persistence.test.ts`, `content-lock.test.ts`) and update them for migration 9
-- [ ] 8.3 Confirm no test depended on scene payloads lacking `narrationInterval`
+- [x] 8.1 Review every test that builds a `SegmentedFragment` by hand (JOS-144's registration tests, JOS-140/141's segmentation tests): convert each `narratedDurationSeconds` to an interval of the same length, contiguous from 0, and pass the last interval's end as the voice-over duration, keeping the test's intent; no bulk rewrite
+- [x] 8.2 Review tests that count migrations, triggers or schema columns (`persistence.test.ts`, `content-lock.test.ts`) and update them for migration 9
+- [x] 8.3 Confirm no test depended on scene payloads lacking `narrationInterval`
 
 ## 9. Run Unit Tests and Verify Database State (MANDATORY)
 

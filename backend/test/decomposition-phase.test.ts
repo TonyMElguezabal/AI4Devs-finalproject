@@ -238,6 +238,36 @@ describe("Refusals", () => {
   });
 });
 
+// assign-narration-intervals (JOS-143), group 7 — the intervals the pipeline
+// stores are the D11 boundaries of the stored timestamps and partition the
+// voice-over exactly, silence at the start, inside and at the end included.
+describe("The stored intervals follow the timestamps (JOS-143)", () => {
+  const LEADING_SILENCE = 0.3;
+  const CHARACTER_SECONDS = 0.2;
+  const PAUSE_SECONDS = 1.5;
+  const SECOND_SENTENCE_FIRST_CHARACTER = 29; // "The harbor is quiet at dusk." is 28 characters, then a space.
+  const startOf = (position: number): number =>
+    LEADING_SILENCE + position * CHARACTER_SECONDS + (position >= SECOND_SENTENCE_FIRST_CHARACTER ? PAUSE_SECONDS : 0);
+
+  it("registers chunks whose intervals partition [0, voice-over duration], cutting at the next sentence's first word", async () => {
+    const { runId } = newNarratedSession(SCRIPT, false);
+    const alignment = stubAlignment((script) => ({
+      kind: "success",
+      characters: [...script].map((text, i) => ({ text, start: startOf(i), end: startOf(i) + CHARACTER_SECONDS })),
+    }));
+    expect((await obtainNarrationTimestamps(runId, alignment.provider)).ok).toBe(true);
+    const voiceOverDuration = SCRIPT.length * STEP;
+
+    const result = await segmentStoredTimestamps(runId, stubGenerator().generator);
+
+    expect(result.ok).toBe(true);
+    expect(getScenesForRun(runId).map((scene) => scene.narrationInterval)).toEqual([
+      { startSeconds: 0, endSeconds: startOf(SECOND_SENTENCE_FIRST_CHARACTER) },
+      { startSeconds: startOf(SECOND_SENTENCE_FIRST_CHARACTER), endSeconds: voiceOverDuration },
+    ]);
+  });
+});
+
 describe("The decomposition phase (Decision 7)", () => {
   it("obtains the timestamps first when they are missing, then registers the chunks", async () => {
     const { runId } = newNarratedSession(SCRIPT, false);
