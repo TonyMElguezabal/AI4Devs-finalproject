@@ -49,20 +49,20 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 5. Independent progression (TDD) — AC3, design Decision 5
 
-- [ ] 5.1 Write a failing test: two chunks `image-generating`, the first succeeds, the first is `image-complete` while the second is still `image-generating`
-- [ ] 5.2 Write a failing test: the first chunk's stage reaches `failed`, and the second chunk still reaches `image-complete`
-- [ ] 5.3 Write a failing test: two sessions with a chunk of the same identifier, and a result updates only its own session's chunk and folder
-- [ ] 5.4 Fix any cross-chunk barrier the tests expose
-- [ ] 5.5 Run the group 5 tests and confirm they pass
+- [x] 5.1 Write a failing test: two chunks `image-generating`, the first succeeds, the first is `image-complete` while the second is still `image-generating` — `test/image-stage.test.ts`, a held (manually-resolved) second adapter call proves this deterministically
+- [x] 5.2 Write a failing test: the first chunk's stage reaches `failed`, and the second chunk still reaches `image-complete`
+- [x] 5.3 Write a failing test: two sessions with a chunk of the same identifier, and a result updates only its own session's chunk and folder
+- [x] 5.4 Fix any cross-chunk barrier the tests expose — none found: each scene's own request, completion and file write are already independent by construction (no shared mutable state beyond the per-stage concurrency counter)
+- [x] 5.5 Run the group 5 tests and confirm they pass — 19/19 in `image-stage.test.ts`
 
 ## 6. Provider binding (TDD) — AC4, design Decision 3
 
-- [ ] 6.1 Write a failing test: the first attempt writes the image provider identifier to `scenes.provider` before the request is sent
-- [ ] 6.2 Write a failing test: a later attempt does not overwrite an already-bound `scenes.provider`
-- [ ] 6.3 Write a failing test: with the stage bound to provider A and the configuration changed to B, a retry is sent to A
-- [ ] 6.4 Write a failing test: a stage bound to a provider with no adapter in the running build fails its attempt as not retryable, and no other adapter is called
-- [ ] 6.5 Implement adapter resolution from the bound identifier through a typed registry
-- [ ] 6.6 Run the group 6 tests and confirm they pass
+- [x] 6.1 Write a failing test: the first attempt writes the image provider identifier to `scenes.provider` before the request is sent — already covered in group 4's implementation (binding happens synchronously, before the adapter is ever called); test in the "Provider binding (AC4)" block of `test/image-stage.test.ts`
+- [x] 6.2 Write a failing test: a later attempt does not overwrite an already-bound `scenes.provider`
+- [x] 6.3 Write a failing test: with the stage bound to provider A and the configuration changed to B, a retry is sent to A — combined with 6.2 in one test (a chunk already bound and held for retry, with the registry's current default moved elsewhere)
+- [x] 6.4 Write a failing test: a stage bound to a provider with no adapter in the running build fails its attempt as not retryable, and no other adapter is called
+- [x] 6.5 Implement adapter resolution from the bound identifier through a typed registry — `ImageProviderRegistry` (`imageProvider.ts`, design Decision 7), built alongside group 4's `launchImageStage`
+- [x] 6.6 Run the group 6 tests and confirm they pass — same 19/19 run as group 5 (both groups' tests live in `test/image-stage.test.ts`, written together with group 4 since the binding is inseparable from the launch)
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 

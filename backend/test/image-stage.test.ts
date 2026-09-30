@@ -19,6 +19,7 @@ import {
   resetImageProviderRegistry,
   setDownloadFetch,
   setImageProviderRegistry,
+  type ImageGenerationResult,
   type ImageProvider,
 } from "../src/imageProvider.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
@@ -325,6 +326,85 @@ describe("Provider binding (AC4)", () => {
     expect(scene.status).toBe("failed");
     expect(scene.provider).toBe("an-old-retired-provider");
     expect(scene.lastError).toMatch(/an-old-retired-provider/);
+  });
+});
+
+describe("Independent progression (AC3, design Decision 5)", () => {
+  async function twoRegisteredScenes(): Promise<{ runId: string; sceneIds: [string, string] }> {
+    const runId = randomUUID();
+    createRun(runId, "Independent progression test", "The lighthouse stands alone. The keeper lit the lamp.", "en");
+    const fragments: SegmentedFragment[] = [
+      { text: "The lighthouse stands alone.", narratedDurationSeconds: 6 },
+      { text: "The keeper lit the lamp.", narratedDurationSeconds: 6 },
+    ];
+    const result = await registerDecomposition(runId, fragments, stubGenerator());
+    if (!result.ok) throw new Error("fixture registration failed");
+    return { runId, sceneIds: [result.sceneIds[0]!, result.sceneIds[1]!] };
+  }
+
+  it("a finished scene reaches image-complete while a sibling is still generating", async () => {
+    const { sceneIds } = await twoRegisteredScenes();
+    const [firstId, secondId] = sceneIds;
+    let secondResolve!: (outcome: ImageGenerationResult) => void;
+    let calls = 0;
+    useStubAdapter({
+      async generate() {
+        calls++;
+        if (calls === 1) return { kind: "success", image: { source: "bytes", bytes: ACCEPTED_PNG, contentType: "image/png" } };
+        return new Promise((resolve) => {
+          secondResolve = resolve;
+        });
+      },
+    });
+
+    launchImageStage(firstId);
+    launchImageStage(secondId);
+    await waitForSettled(firstId);
+
+    expect(getScene(firstId)?.status).toBe("image-complete");
+    expect(getScene(secondId)?.status).toBe("image-generating"); // still held, unaffected by the first
+
+    secondResolve({ kind: "success", image: { source: "bytes", bytes: ACCEPTED_PNG, contentType: "image/png" } });
+    await waitForSettled(secondId);
+    expect(getScene(secondId)?.status).toBe("image-complete");
+  });
+
+  it("one scene's failure does not affect a sibling's progression", async () => {
+    const { sceneIds } = await twoRegisteredScenes();
+    const [firstId, secondId] = sceneIds;
+    let calls = 0;
+    useStubAdapter({
+      async generate() {
+        calls++;
+        return calls === 1
+          ? { kind: "failed_not_retryable", reason: "stub: content-filter rejection" }
+          : { kind: "success", image: { source: "bytes", bytes: ACCEPTED_PNG, contentType: "image/png" } };
+      },
+    });
+
+    launchImageStage(firstId);
+    launchImageStage(secondId);
+    await waitForSettled(firstId);
+    await waitForSettled(secondId);
+
+    expect(getScene(firstId)?.status).toBe("failed");
+    expect(getScene(secondId)?.status).toBe("image-complete");
+  });
+
+  it("a result is scoped to its own session's chunk and project folder, even when two sessions share a chunk identifier", async () => {
+    const sceneA = await registeredScene("Scene A's own narration.");
+    const sceneB = await registeredScene("Scene B's own narration.");
+    expect(getScene(sceneA.sceneId)!.index).toBe(1);
+    expect(getScene(sceneB.sceneId)!.index).toBe(1); // same identifier, different session
+    useStubAdapter(createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG }));
+
+    launchImageStage(sceneA.sceneId);
+    await waitForSettled(sceneA.sceneId);
+
+    expect(getScene(sceneA.sceneId)?.status).toBe("image-complete");
+    expect(getScene(sceneB.sceneId)?.status).toBe("submitted"); // untouched by A's result
+    const fullPathA = `data/projects/${sceneA.projectFolder}/${getScene(sceneA.sceneId)!.result}`;
+    expect(existsSync(fullPathA)).toBe(true);
   });
 });
 
