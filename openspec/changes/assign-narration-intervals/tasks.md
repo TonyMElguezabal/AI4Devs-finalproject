@@ -38,9 +38,9 @@ Every code change starts with a failing test (TDD). Backend only; no screen chan
 
 ## 6. Exposure (design Decision 5; spec: readable)
 
-- [ ] 6.1 Failing tests in `scene-api-surface.test.ts` / `session-read.test.ts`: the session read and scene events carry `narrationInterval` for registered chunks and omit it for skeleton scenes; the generated OpenAPI (`GET /docs/json`) documents it on the scene response only, never on a request body
-- [ ] 6.2 Add `narrationInterval` to `SceneEventPayload`, `sceneToPayload` and the Zod scene schema in `routes.ts`, with a `.describe()` citing PRD §3 and §7.3 and stating it is immutable
-- [ ] 6.3 Make the 6.1 tests pass
+- [x] 6.1 Failing tests in `scene-api-surface.test.ts` / `session-read.test.ts`: the session read and scene events carry `narrationInterval` for registered chunks and omit it for skeleton scenes; the generated OpenAPI (`GET /docs/json`) documents it on the scene response only, never on a request body
+- [x] 6.2 Add `narrationInterval` to `SceneEventPayload`, `sceneToPayload` and the Zod scene schema in `routes.ts`, with a `.describe()` citing PRD §3 and §7.3 and stating it is immutable
+- [x] 6.3 Make the 6.1 tests pass
 
 ## 7. Wire-through check (spec: shared boundary rule, partition)
 

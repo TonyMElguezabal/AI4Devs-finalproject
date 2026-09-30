@@ -68,6 +68,12 @@ const sceneResponseSchema = z.object({
     .describe("PRD §3 PROMPT: the fragment of the script this chunk narrates. Immutable once the chunk is established (PRD §6)."),
   imageInstruction: z.string().optional().describe("PRD §3 IMAGE: the instruction to generate the chunk's image."),
   videoInstruction: z.string().optional().describe("PRD §3 VIDEO: the instruction to animate the chunk's image."),
+  narrationInterval: z
+    .object({ startSeconds: z.number(), endSeconds: z.number() })
+    .optional()
+    .describe(
+      "PRD §3 and §7.3: the part of the voice-over this chunk narrates, in seconds. The intervals of a session's chunks are contiguous and cover the voice-over from 0 to its full duration. Read-only and immutable once the chunk is established; absent for a scene created without a decomposition.",
+    ),
   updatedAt: z.string(),
 });
 

@@ -236,6 +236,8 @@ export interface SceneEventPayload {
   imageInstruction?: string;
   /** PRD §3 `VIDEO`. */
   videoInstruction?: string;
+  /** PRD §3 narration interval; absent for a scene created without a decomposition. Immutable (assign-narration-intervals, JOS-143). */
+  narrationInterval?: NarrationInterval;
   updatedAt: string;
 }
 

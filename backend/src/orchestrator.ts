@@ -57,6 +57,7 @@ function sceneToPayload(scene: Scene): SceneEventPayload {
     prompt: scene.prompt,
     imageInstruction: scene.imageInstruction,
     videoInstruction: scene.videoInstruction,
+    narrationInterval: scene.narrationInterval ?? undefined,
     updatedAt: scene.updatedAt,
   };
 }
