@@ -33,8 +33,8 @@ Every code change starts with a failing test (TDD). Backend only; no screen chan
 
 ## 5. Immutability through processing and retries (design Decision 6; spec: immutable)
 
-- [ ] 5.1 Tests: an image-stage failure, an automatic retry, a manual retry and a correction of the image instruction each leave the interval as registered; a second registration is refused and leaves stored intervals unchanged
-- [ ] 5.2 Make them pass without touching the retry code (they should, by construction); if one fails, stop and update design.md before changing code
+- [x] 5.1 Tests: an image-stage failure, an automatic retry, a manual retry and a correction of the image instruction each leave the interval as registered; a second registration is refused and leaves stored intervals unchanged
+- [x] 5.2 Make them pass without touching the retry code (they should, by construction); if one fails, stop and update design.md before changing code
 
 ## 6. Exposure (design Decision 5; spec: readable)
 
