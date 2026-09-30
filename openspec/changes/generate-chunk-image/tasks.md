@@ -83,14 +83,14 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the backend with the stub image adapter and confirm it responds
-- [ ] 9.2 POST a session through decomposition, then GET it repeatedly: chunks go `submitted → image-generating → image-complete`, each `result` points to a file that exists on disk, and each `provider` is set
-- [ ] 9.3 With per-chunk stub latencies that differ, verify one chunk shows `image-complete` while another still shows `image-generating`
-- [ ] 9.4 With the stub returning a temporary link, verify on disk that the file exists and `result` is not a URL
-- [ ] 9.5 With the stub returning a portrait image, verify the attempt is recorded as failed and the chunk does not reach `image-complete`
-- [ ] 9.6 Run one real Fal.ai generation (credential from the local secrets file). Verify the stored file is 1920×1088 and passes the check, and record the cost
-- [ ] 9.7 Delete the sessions and files created above and confirm the store and disk match the pre-test state
-- [ ] 9.8 Save the transcript as `openspec/changes/generate-chunk-image/reports/YYYY-MM-DD-step-9-curl-endpoint-testing.md`
+- [x] 9.1 Start the backend with the stub image adapter and confirm it responds — `GET /health` 200 `{"ok":true}`
+- [x] 9.2 POST a session through decomposition, then GET it repeatedly: chunks go `submitted → image-generating → image-complete`, each `result` points to a file that exists on disk, and each `provider` is set — confirmed on a real two-chunk session
+- [x] 9.3 With per-chunk stub latencies that differ, verify one chunk shows `image-complete` while another still shows `image-generating` — confirmed: scene 1 complete, scene 2 still generating on the first poll
+- [x] 9.4 With the stub returning a temporary link, verify on disk that the file exists and `result` is not a URL — confirmed
+- [x] 9.5 With the stub returning a portrait image, verify the attempt is recorded as failed and the chunk does not reach `image-complete` — confirmed (failed after exhausting the retry budget); also confirmed, and flagged to JOS-157, that manual retry of a real image failure still uses the generic fake path, not `launchImageStage` — a known, already-documented, out-of-scope gap
+- [x] 9.6 Run one real Fal.ai generation (credential from the local secrets file). Verify the stored file is 1920×1088 and passes the check, and record the cost — a real lighthouse-at-dusk JPEG, 1920x1088, ~9s, cost not itemized per-call by Fal.ai (matches JOS-165's own finding)
+- [x] 9.7 Delete the sessions and files created above and confirm the store and disk match the pre-test state — `resetAll()` emptied the scratch store; default store confirmed untouched
+- [x] 9.8 Save the transcript as `openspec/changes/generate-chunk-image/reports/YYYY-MM-DD-step-9-curl-endpoint-testing.md`
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
