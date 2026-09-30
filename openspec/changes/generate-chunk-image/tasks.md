@@ -94,10 +94,10 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: the session page renders per-scene status from the snapshot and live events, so check that `image-complete` shows up without reloading
-- [ ] 10.2 Start the backend (stub adapter) and the frontend
-- [ ] 10.3 Start a project and assert each scene's status changes to the image-complete label as it finishes, independently of the others, with no page reload
-- [ ] 10.4 Restore the environment and save `openspec/changes/generate-chunk-image/reports/YYYY-MM-DD-step-10-e2e-playwright.md`
+- [x] 10.1 Decide applicability: the session page renders per-scene status from the snapshot and live events, so check that `image-complete` shows up without reloading — applicable, no new screen
+- [x] 10.2 Start the backend (stub adapter) and the frontend
+- [x] 10.3 Start a project and assert each scene's status changes to the image-complete label as it finishes, independently of the others, with no page reload — confirmed: one scene complete while two siblings were still generating, then all three transitioned live with zero navigation in between
+- [x] 10.4 Restore the environment and save `openspec/changes/generate-chunk-image/reports/YYYY-MM-DD-step-10-e2e-playwright.md`
 
 ## 11. Update Technical Documentation (MANDATORY)
 
