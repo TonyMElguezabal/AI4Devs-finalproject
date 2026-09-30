@@ -11,6 +11,7 @@ import {
   getScene,
   getScenesForRun,
   resetAll,
+  resolveArtefactPath,
 } from "../src/db.ts";
 import { continueSession, deriveSessionState, launchImageStage, pauseSession, reconcileOnBoot } from "../src/orchestrator.ts";
 import {
@@ -183,8 +184,7 @@ describe("Output check and completion (AC2, §12.2)", () => {
     const scene = getScene(sceneId)!;
     expect(scene.status).toBe("image-complete");
     expect(scene.result).toMatch(/^scene-1-attempt-1\.png$/);
-    const fullPath = `data/projects/${projectFolder}/${scene.result}`;
-    expect(existsSync(fullPath)).toBe(true);
+    expect(existsSync(resolveArtefactPath(projectFolder, scene.result!))).toBe(true);
   });
 
   it("downloads a temporary-link result to a local file before completing, and never stores the link itself", async () => {
@@ -403,7 +403,7 @@ describe("Independent progression (AC3, design Decision 5)", () => {
 
     expect(getScene(sceneA.sceneId)?.status).toBe("image-complete");
     expect(getScene(sceneB.sceneId)?.status).toBe("submitted"); // untouched by A's result
-    const fullPathA = `data/projects/${sceneA.projectFolder}/${getScene(sceneA.sceneId)!.result}`;
+    const fullPathA = resolveArtefactPath(sceneA.projectFolder, getScene(sceneA.sceneId)!.result!);
     expect(existsSync(fullPathA)).toBe(true);
   });
 });
