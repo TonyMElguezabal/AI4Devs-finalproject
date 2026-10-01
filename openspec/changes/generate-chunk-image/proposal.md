@@ -1,37 +1,44 @@
-# Generate a chunk's image
+# Generate the image of each scene
+
+Linear-Issue: JOS-145 (US-12)
 
 ## Why
 
-`decompose-script-into-chunks` leaves every chunk with an `IMAGE` instruction and nothing that acts on it. Without this story a session can be fully decomposed and stay there forever: §7.1 requires an image before a clip can even be requested (§7.1, AC05), so nothing downstream — video generation, assembly, `chunk-complete` — can begin. This is also the first story where a single scene, not the whole session, can fail and recover independently of its siblings (§10.2, AC10), and where the PRD's one visual-correction exception (§10.3, AC09) becomes concrete.
+Once decomposition (JOS-144, US-11) leaves every chunk with an `IMAGE` instruction, nothing yet acts on it. §7.1 requires an image before a clip can be requested, so without this story no downstream work (clip generation, assembly, `chunk-complete`) can start. This is also the first stage that runs per scene rather than per session, so each scene must move forward on its own (§10.2).
+
+The current backend skeleton (`define-backend-stack`, `define-persistence`) already models one stubbed provider-backed stage named `image`, which stands in for every PRD stage and jumps straight from `image-generating` to `chunk-complete`. This story turns that stand-in into the real image stage: it calls the recorded provider (Fal.ai `fal-ai/flux/dev`, PRD §11.3), checks the output, and ends in `image-complete`.
 
 ## What Changes
 
-- Launch image generation for each chunk once it exists with a non-empty `IMAGE` instruction, through the shared phase-launch gate that already applies the per-stage concurrency cap and pause hold (§9, §10.1) — this story does not reimplement that gate, it is another caller of it.
-- Send the chunk's `IMAGE` instruction to the hardcoded image provider, which must meet the §11/§7.1 capability: a 16:9 image at a minimum resolution of 1920×1080.
-- Persist the result in the session's project folder; when the provider returns only a temporary link, download and store it before the link expires (§12.2, D05) — no reference to an expiring link is ever kept as the record.
-- Transition the chunk `submitted → image-generating → image-complete`, or `failed` when the stage's retry budget (reused from `stage-retry-policy`) is exhausted.
-- Refuse to launch video generation for a chunk that has not reached `image-complete` (§7.1, AC05) — enforced here as a precondition, implemented by `generate-chunk-video`.
-- Offer the one visual-correction path §10.3/AC09 grants: on a failed image stage, retry with the same `IMAGE` instruction or replace only `IMAGE` and retry. `ID`, `PROMPT`, and scene order remain permanently non-editable.
-- Let other chunks' processing continue independently of one chunk's image failure (§10.2, AC10); assembly (out of scope here) is what eventually waits on every chunk.
-- Offer the successful image for individual download while other chunks are still processing or have failed (§12.3, AC16).
-- Record the stage's provider, attempts, status and cause in a `StageExecution` row (`owner_type = chunk`, `stage_name = image`), reusing the entity already defined in `readme.md` §3 — no new diagnostic entity.
+- **AC1 — Launch:** a chunk in `submitted` with a non-empty `IMAGE` instruction starts image generation without any User action, through the existing phase-launch gate (`concurrency.ts` plus the pause hold). The chunk is `image-generating` before the provider request is sent.
+- **AC2 — Output check and completion:** a returned image is accepted only if width ≥ 1920, height ≥ 1080, and its aspect ratio is within ±1% of 16:9. The tolerance is needed because the recorded provider setting is 1920×1088 (1.765:1, 0.74% off 16:9). The provider rounds to multiples of 16, so exact 1920×1080 cannot be produced (PRD §11.3). An accepted image is stored in the session's project folder, its relative path is recorded on the chunk, and the chunk becomes `image-complete`.
+- **AC3 — Independent progression:** a chunk whose image finishes moves to `image-complete` right away, even if other chunks of the same session are still `image-generating`. A failure in one chunk does not stop the others either.
+- **AC4 — Provider binding:** the first attempt of a chunk's image stage binds the image provider to that chunk and stage (§11.2). The binding is stored, and every later automatic or manual retry of that stage uses the bound provider, even if the hardcoded provider changes in a later build.
+- **§12.2 — No expiring links:** when the provider returns only a temporary URL, the image is downloaded into the project folder before the stage is marked successful. A failed download counts as a failed attempt.
+- Replace the skeleton's shortcut `image-generating → chunk-complete` with `image-generating → image-complete`. Until clip generation (JOS-146, US-13) lands, `image-complete` is the last state a chunk can reach.
+
+## Out of Scope (owned by other tickets)
+
+- Retrying or correcting a failed `IMAGE` instruction (§10.3): **JOS-157 (US-25)**.
+- Downloading an individual scene result during processing (§12.3): **JOS-163 (US-31)**.
+- Showing provider and attempts per stage in the UI: **JOS-166 (US-34)**. This story only persists the binding.
+- Refusing a clip request before `image-complete` (§7.1): **JOS-146 (US-13)**, which gates on the state this story produces.
+- The retry budget, per-phase time limit and per-stage concurrency cap: **JOS-184 / JOS-154**, **JOS-185**, **JOS-167**. This story is another caller of those mechanisms and does not re-implement them.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `chunk-image-generation`: turning a chunk's `IMAGE` instruction into a stored image — when it launches, what capability the provider must meet, how the result is persisted, the one correction path a failed image stage allows, and how a chunk's own failure leaves its siblings unaffected.
+- `chunk-image-generation`: turning a chunk's `IMAGE` instruction into a stored image that is checked against the output constraints. Covers when generation launches, what output is accepted, how the result is persisted, how each chunk progresses independently, and how the provider is bound to the chunk's image stage.
 
 ### Modified Capabilities
 
-None. `openspec/specs/` is still empty; `script-decomposition`, `stage-retry-policy` and `stage-execution-time-limit` are consumed, not modified.
+None. The archived foundations (`backend-foundation`, `persistence-foundation`, `live-updates-foundation`) are consumed as they are. The skeleton's single stubbed stage is implementation, not a spec requirement.
 
 ## Impact
 
-- **Blocked on the same three stack spikes as every sibling story**: `define-backend-stack`, `define-frontend-stack`, `define-persistence`, all in progress.
-- **Depends on `decompose-script-into-chunks`** for the chunks and their `IMAGE` instructions this story acts on.
-- **Depends on `define-provider-configuration`** for the image provider's identity and its not-retryable failure signal.
-- **Reuses, without modification, `bounded-retry-policy` (`stage-retry-policy`) and `stage-execution-time-limit`** for the `image` stage instance, and the phase-launch gate `generate-voice-over` establishes for concurrency and pause.
-- **Data model**: introduces `Chunk.image_result_path` and one `StageExecution` row per chunk (`stage_name = image`), per `readme.md` §3. `docs/data-model.md` remains an unrelated inherited domain and is not treated as a source here; it is one of the files this change's documentation task updates once the real stack lands.
-- **Downstream**: unblocks `generate-chunk-video` (needs `image-complete`) and, transitively, final assembly.
-- **First story where an individual scene can fail without the session failing** (§10.2) — the session-level `failed` state remains `bounded-retry-policy`'s and `stage-retry-policy`'s concern; this story only declares the `image` stage instance they act on.
+- **Depends on** JOS-144 (US-11) for chunks with `IMAGE` instructions, and on JOS-165 (US-33, done) for the provider identity, the 1920×1088 request size, the 25 s phase limit and the provisional concurrency cap of 200.
+- **Backend:** a real `ImageProvider` port with a Fal.ai adapter and a stub adapter for tests. The orchestrator gets the new `image-complete` terminal step. The scene's derived-session-state logic is updated so `image-complete` counts as "still processing" and not as "final".
+- **Data model:** the scene's existing `provider` column becomes the stored binding and is written on the first attempt. The `result` column holds the relative image path. No new table is added. `docs/data-model.md` is updated to match.
+- **API:** the scene representation already exposes `status`, `provider` and `result`. `docs/api-spec.yml` is updated for the `image-complete` state and the result semantics.
+- **Downstream:** unblocks JOS-146 (US-13), which gates clip generation on `image-complete`.
