@@ -1,6 +1,6 @@
 # Chunk video generation
 
-Requirements for turning a chunk's stored image and `VIDEO` instruction into a stored clip (JOS-146, US-13; PRD §5 step 7, §7.1, §7.2, §8.2, §11.2, §12.1, §12.2, AC05). The requested duration is chosen by JOS-147. Recording the speed factor belongs to JOS-148, manual retry and correction after a clip failure to JOS-158, and the real retry budget, time limit and concurrency cap to JOS-184/154, JOS-185 and JOS-167.
+Requirements for turning a chunk's stored image and `VIDEO` instruction into a stored clip (JOS-146, US-13; PRD §5 step 7, §7.1, §7.2, §8.2, §11.2, §12.1, §12.2, AC05). The requested duration is chosen and stored with the chunk by JOS-147. Recording the speed factor belongs to JOS-148, manual retry and correction after a clip failure to JOS-158, and the real retry budget, time limit and concurrency cap to JOS-184/154, JOS-185 and JOS-167.
 
 ## ADDED Requirements
 
@@ -28,7 +28,7 @@ The video stage SHALL start only for a chunk in `image-complete` whose stored im
 
 ### Requirement: Clip generation launches from `image-complete` and uses the image and the `VIDEO` instruction
 
-A chunk that reaches `image-complete` SHALL start clip generation without User action, through the phase-launch gate the image stage uses: a concurrency slot of the `video` stage and the session pause. The chunk SHALL be `video-generating` before the provider request is sent. The request SHALL carry the chunk's stored image, its `VIDEO` instruction exactly as registered, and the requested duration chosen by JOS-147. Each chunk SHALL progress on its own: a chunk's clip does not wait for any other chunk's image or clip.
+A chunk that reaches `image-complete` SHALL start clip generation without User action, through the phase-launch gate the image stage uses: a concurrency slot of the `video` stage and the session pause. The chunk SHALL be `video-generating` before the provider request is sent. The request SHALL carry the chunk's stored image, its `VIDEO` instruction exactly as registered, and the requested duration JOS-147 stored with the chunk. Each chunk SHALL progress on its own: a chunk's clip does not wait for any other chunk's image or clip.
 
 #### Scenario: Launch after the image completes
 
@@ -40,7 +40,7 @@ A chunk that reaches `image-complete` SHALL start clip generation without User a
 
 - **GIVEN** a chunk in `image-complete` with the `VIDEO` instruction "Slow push-in on the lighthouse as waves break"
 - **WHEN** its clip is requested
-- **THEN** the provider receives that chunk's stored image, exactly that instruction, and the duration JOS-147 selected for the chunk
+- **THEN** the provider receives that chunk's stored image, exactly that instruction, and the requested duration stored with the chunk
 
 #### Scenario: A paused session holds the clip
 

@@ -11,7 +11,7 @@ The backend skeleton models a single generic stage named `image`. JOS-145 turns 
 ## What Changes
 
 - **AC1 — No clip without an image:** the video stage starts only from `image-complete`, and only when the chunk's stored image file can be read. A chunk in any other state, or whose image file is missing, sends no request. A missing image file is recorded as a not-retryable video-stage failure, because §11.2 forbids regenerating a completed image.
-- **AC2 — Launch and request:** a chunk that reaches `image-complete` starts clip generation without User action, through the same phase-launch gate as the image stage (concurrency slot plus the session pause). The chunk is `video-generating` before the provider request is sent. The request carries the chunk's stored image, its `VIDEO` instruction, and the requested duration chosen by JOS-147 (US-14).
+- **AC2 — Launch and request:** a chunk that reaches `image-complete` starts clip generation without User action, through the same phase-launch gate as the image stage (concurrency slot plus the session pause). The chunk is `video-generating` before the provider request is sent. The request carries the chunk's stored image, its `VIDEO` instruction, and the requested duration JOS-147 (US-14) stored with the chunk.
 - **AC3 — Completion:** a clip returned by the provider is downloaded into the session's project folder before the stage succeeds (§12.2: no expiring links). A clip that cannot be downloaded or is not an MP4 file counts as a failed attempt. A stored clip moves the chunk to `chunk-complete`.
 - **AC4 — Provider binding:** the first attempt of a chunk's video stage binds the video provider to that chunk and stage (§11.2). Every later automatic retry of the video stage uses the bound provider, even if the hardcoded provider changes in a later build.
 - **Failures are attributed to the video stage:** a chunk that fails while generating its clip reports `affectedStage: "video"` (§8.2: a failure keeps the stage it affected). Its image stays as it is. Automatic retries of a transient failure repeat the video stage, never the image stage.
@@ -20,7 +20,7 @@ The backend skeleton models a single generic stage named `image`. JOS-145 turns 
 
 ## Out of Scope (owned by other tickets)
 
-- Choosing the requested duration (closest admitted duration, the tie rule, the maximum): **JOS-147 (US-14)**. This story sends the duration it is given.
+- Choosing the requested duration (closest admitted duration, the tie rule, the maximum): **JOS-147 (US-14)**. This story reads the stored duration and sends it unchanged.
 - Recording and showing the requested duration and the speed-adjustment factor, and the factor warning: **JOS-148 (US-15)**.
 - Manual retry and `VIDEO` correction after a clip failure: **JOS-158 (US-26)**.
 - Downloading an individual clip during processing (§12.3): **JOS-163 (US-31)**.

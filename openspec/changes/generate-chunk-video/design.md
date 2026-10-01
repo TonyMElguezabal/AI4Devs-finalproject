@@ -8,7 +8,7 @@ What exists on `feature/entrega-2-JAME` (the base of this branch), and what this
 - **Failures always say `image`.** `sceneToPayload` sets `affectedStage: "image"` for every failed scene. `manualRetry` and `correctAndRetry` send a failed scene back to `submitted`, and `correctAndRetry` overwrites `instruction`, the image stage's input.
 - **Restart safety** comes from `reconcileOnBoot`: every in-flight scene's current request is polled, and a resolved, lost or still-pending request is applied, counted or re-armed.
 - **JOS-145 (US-12)**, designed but not implemented, turns the skeleton stage into the real image stage (Fal.ai). It ends in `image-complete`, stores the image path in `scenes.result`, binds the image provider in `scenes.provider` on the first attempt, and removes the shortcut to `chunk-complete`. JOS-145's own Decision 4 says JOS-146 adds `image-complete → video-generating`.
-- **JOS-147 (US-14)**, not started, chooses the requested duration. It builds on `closestAdmittedDuration` (`admittedDurations.ts`, JOS-140), which already implements §7.2's "smallest speed change, tie to the longer". It also depends on JOS-143's narration interval.
+- **JOS-147 (US-14)**, proposed as `request-admitted-clip-duration` (branch `feature/jos-147-request-admitted-clip-duration`, stacked on JOS-142 and JOS-143, not yet implemented), chooses each chunk's requested duration at registration and stores it on the chunk as `scenes.requested_duration_seconds`, with `scenes.duration_warning` for the over-maximum case. It builds on `closestAdmittedDuration` (`admittedDurations.ts`, JOS-140).
 - **The video provider** (JOS-165, ADR 0005) is RunningHub's `/openapi/v2/minimax/hailuo-h3/image-to-video` at the `2K` setting. A call is asynchronous:
   1. upload the image (`POST /openapi/v2/media/upload/binary`) to get a URL;
   2. submit `prompt`, `resolution`, `duration` and `firstFrameUrl` to get a `taskId`;
@@ -52,8 +52,9 @@ The RunningHub adapter uploads the image, submits the task with `resolution: "2K
 - *Classification:* HTTP 4xx except 408 and 429 is not retryable; other HTTP failures, network errors and a task that ends in `FAILED` are transient. JOS-165 found no distinguishable not-retryable signal for content (`NOT_RETRYABLE_FAILURE_SIGNAL_CONFIRMED = false`), so task failures are treated as transient, as JOS-145 does for Fal.ai. The classification lives in the adapter alone.
 - *Alternative rejected:* forcing the video stage into the skeleton's `send(..., onDeliver)` shape. That shape assumes the provider pushes its result, but RunningHub only answers when polled.
 
-**Decision 4 — The requested duration comes from JOS-147 through one function.**
-`launchVideoStage` asks JOS-147's selection function for the chunk's requested duration and passes it to `submit`, unchanged. This story neither chooses nor records it (JOS-148 records it). A chunk with no narration interval (the pre-decomposition skeleton path) cannot be given a duration. It fails its video stage with a not-retryable cause and sends no request.
+**Decision 4 — The requested duration is read from the chunk, as JOS-147 stored it.**
+`launchVideoStage` reads the chunk's stored `requestedDurationSeconds` (written once at registration by JOS-147, behind a lock trigger) and passes it to `submit`, unchanged. This story neither chooses nor records it. A chunk with no stored requested duration (the pre-decomposition skeleton path) fails its video stage with a not-retryable cause and sends no request.
+- *Alternative rejected:* calling JOS-147's selection function at launch time. JOS-147's AC5 fixes the duration at registration so a later build cannot change it; recomputing it here would break that guarantee.
 - *Alternative rejected:* calling `closestAdmittedDuration` directly here. It would duplicate JOS-147's rules (the maximum, the unsplittable-sentence case) in a second place.
 
 **Decision 5 — The video stage gets its own columns, its own commit record and per-stage attempts, in one additive migration.**
@@ -63,7 +64,7 @@ The RunningHub adapter uploads the image, submits the task with `resolution: "2K
 - `provider_requests.stage TEXT NOT NULL DEFAULT 'image'`: which stage each attempt belongs to. Existing rows are image attempts.
 - `scenes.attempts` counts the **current** stage's attempts: it is reset to 0 when the video stage starts, so the image stage's attempts never spend the clip's retry budget (§10.1: the budget belongs to each stage). The per-stage history stays in `provider_requests`.
 
-The migration number is **10** (task 1.4, checked 2026-09-30): `feature/entrega-2-JAME` tops out at 8, and 9 is taken by JOS-143's unmerged branch. Re-check before implementing, since JOS-143 or another branch may land first.
+The migration number is **11** (task 1.4, re-checked 2026-10-01): `feature/entrega-2-JAME` tops out at 8 (JOS-145 added none), 9 is taken by JOS-143's unmerged branch, and 10 is planned by JOS-147's proposal (`request-admitted-clip-duration`, not yet in code). Re-check before implementing, since those branches may land in another order.
 - *Alternative rejected:* changing `scene_results`' primary key to `(scene_id, stage)`. SQLite would need a table rebuild of a table that already holds data, for no gain over an additive table.
 - *Alternative rejected:* resolving the attempt's stage from the scene's status alone. After a failure the status is `failed`, and the attempts' history would lose which stage each attempt belonged to.
 
@@ -90,7 +91,7 @@ A failed download or write, or a file that is not an MP4, counts as a failed tra
 
 ## Risks / Trade-offs
 
-- **JOS-145 and JOS-147 have not landed.** → The task gate stops implementation until the image stage, its binding and the duration function exist on the base branch. This design names what it needs from them, so a changed shape shows up at the gate, not halfway through.
+- **JOS-147 has not landed** (JOS-145 merged 2026-10-01, PR #14). → The task gate stops implementation until the stored requested duration exists on the base branch. This design names what it needs from it, so a changed shape shows up at the gate, not halfway through.
 - **The shared `orchestrator.ts` changes under three stories at once** (JOS-145, JOS-146, JOS-136's `deriveSessionState` work). → Implement on top of JOS-145 once it merges. Whichever lands later merges the others' rules and re-runs all suites.
 - **Real calls are slow and cost money** (about $0.60 and 2.5 minutes per clip). → Automated tests use the stub adapter only. Manual verification makes at most one real call, recorded in the report.
 - **A session whose chunks are all `chunk-complete` derives to `final-video` today**, although no final MP4 exists yet. This is existing skeleton behaviour, which this story makes reachable with real clips. → It is recorded as a hand-off to JOS-150 and JOS-149, which own the final-video state, not changed here.
