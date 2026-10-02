@@ -649,8 +649,11 @@ export function getRun(id: string): Run | undefined {
   return row ? rowToRun(row) : undefined;
 }
 
-export function setRunPaused(runId: string, paused: boolean): void {
-  db.prepare("UPDATE runs SET paused = ? WHERE id = ?").run(paused ? 1 : 0, runId);
+export function setRunPaused(runId: string, paused: boolean): boolean {
+  const result = db
+    .prepare("UPDATE runs SET paused = ? WHERE id = ? AND paused != ?")
+    .run(paused ? 1 : 0, runId, paused ? 1 : 0) as { changes: number };
+  return result.changes > 0;
 }
 
 /**

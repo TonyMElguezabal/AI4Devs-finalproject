@@ -26,7 +26,7 @@ import {
   writeArtefactOnce,
 } from "./db.ts";
 import * as concurrency from "./concurrency.ts";
-import { admitLaunch, registerStageLauncher, type StageLauncher } from "./launchGate.ts";
+import { admitLaunch, launchHeldWork, registerStageLauncher, type StageLauncher } from "./launchGate.ts";
 import * as provider from "./provider.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
 import { downloadGeneratedImage, getImageProviderRegistry, type ImageGenerationResult } from "./imageProvider.ts";
@@ -234,7 +234,9 @@ export const imageStageLauncher: StageLauncher = {
     return { count: scenes.length, sceneIds: scenes.map((s) => s.id) };
   },
   launch: (sessionId: string) => {
-    launchImageStageForRun(sessionId);
+    for (const scene of getSubmittedScenesForRun(sessionId)) {
+      launchSceneStage(scene.id);
+    }
   },
 };
 
@@ -352,21 +354,19 @@ async function runImageAttempt(sceneId: string): Promise<void> {
 export function pauseSession(runId: string): { ok: boolean; reason?: string } {
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown session" };
-  setRunPaused(runId, true);
-  broadcast(runId);
+  const changed = setRunPaused(runId, true);
+  if (changed) broadcast(runId);
   return { ok: true };
 }
 
 /** Continuing removes the marker and leaves state unchanged, then launches
- * everything that was held. */
+ * everything that was held. Only sweeps when the pause marker was actually set. */
 export function continueSession(runId: string): { ok: boolean; reason?: string } {
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown session" };
-  setRunPaused(runId, false);
+  const changed = setRunPaused(runId, false);
   broadcast(runId);
-  for (const scene of getSubmittedScenesForRun(runId)) {
-    launchSceneStage(scene.id);
-  }
+  if (changed) launchHeldWork(runId);
   return { ok: true };
 }
 

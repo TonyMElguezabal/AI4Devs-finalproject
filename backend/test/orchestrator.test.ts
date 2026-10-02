@@ -7,6 +7,7 @@ import {
   continueSession,
   correctAndRetry,
   handleProviderResult,
+  imageStageLauncher,
   launchScene,
   manualRetry,
   nextStageLaunchCount,
@@ -14,6 +15,13 @@ import {
   reconcileOnBoot,
   setPostAdmitHook,
 } from "../src/orchestrator.ts";
+import {
+  NOT_YET_LAUNCHABLE,
+  registerStageLauncher,
+  resetRegistry,
+  type HeldWorkResult,
+  type PipelineStage,
+} from "../src/launchGate.ts";
 import { STAGE } from "../src/types.ts";
 
 function waitFor(predicate: () => boolean, timeoutMs = 3000, intervalMs = 5): Promise<void> {
@@ -41,6 +49,9 @@ beforeEach(() => {
   concurrency.resetAll();
   concurrency.setLimit(STAGE, 10); // generous, unrelated to the concurrency-cap experiment
   setPostAdmitHook(undefined); // clear any hook left by a previous test
+  // Restore the registry to its default state (imageStageLauncher registered, others in NOT_YET_LAUNCHABLE)
+  resetRegistry();
+  registerStageLauncher(imageStageLauncher);
 });
 
 // Experiment 4.3 — retry budget.
@@ -264,5 +275,76 @@ describe("visual correction on a failed stage (PRD §10.3)", () => {
     const result = correctAndRetry(sceneId, "a corrected instruction");
     expect(result.ok).toBe(true);
     expect(getScene(sceneId)!.instruction).toBe("a corrected instruction");
+  });
+});
+
+// JOS-152 task 4.3 — continueSession launches held work from registered launchers
+describe("continueSession launches held work from registered launchers (JOS-152, task 4.3)", () => {
+  function makeTestLauncher(stage: PipelineStage, held: () => HeldWorkResult) {
+    let launched = false;
+    const launcher = {
+      stage,
+      heldWork: (_sessionId: string) => held(),
+      launch: (_sessionId: string) => { launched = true; },
+    };
+    return { launcher, wasLaunched: () => launched };
+  }
+
+  it("continueSession calls launch for a decomposition launcher with held work", () => {
+    const { runId } = newRunWithScene("success", 5);
+    pauseSession(runId);
+
+    const { launcher, wasLaunched } = makeTestLauncher("decomposition", () => ({ count: 1, sceneIds: [] }));
+    NOT_YET_LAUNCHABLE.delete("decomposition");
+    registerStageLauncher(launcher);
+
+    continueSession(runId);
+
+    expect(wasLaunched()).toBe(true);
+  });
+
+  it("continueSession calls launch for all registered launchers with held work in pipeline order", () => {
+    const { runId } = newRunWithScene("success", 5);
+    pauseSession(runId);
+
+    const launched: PipelineStage[] = [];
+    const decompLauncher = { stage: "decomposition" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), launch: () => { launched.push("decomposition"); } };
+    const videoLauncher = { stage: "video" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), launch: () => { launched.push("video"); } };
+
+    NOT_YET_LAUNCHABLE.delete("decomposition");
+    NOT_YET_LAUNCHABLE.delete("video");
+    registerStageLauncher(decompLauncher);
+    registerStageLauncher(videoLauncher);
+
+    continueSession(runId);
+
+    expect(launched).toEqual(["decomposition", "video"]);
+  });
+
+  it("continueSession does not call launch for launchers with no held work", () => {
+    const { runId } = newRunWithScene("success", 5);
+    pauseSession(runId);
+
+    const { launcher, wasLaunched } = makeTestLauncher("decomposition", () => ({ count: 0, sceneIds: [] }));
+    NOT_YET_LAUNCHABLE.delete("decomposition");
+    registerStageLauncher(launcher);
+
+    continueSession(runId);
+
+    expect(wasLaunched()).toBe(false);
+  });
+
+  it("session state before and after the pause is unchanged (design Decision 6)", () => {
+    const { runId } = newRunWithScene("success", 5);
+    const stateBeforePause = getRun(runId);
+
+    pauseSession(runId);
+    continueSession(runId);
+
+    const stateAfter = getRun(runId);
+    // Only the paused marker changes; title, script, failure, etc. are untouched
+    expect(stateAfter!.title).toBe(stateBeforePause!.title);
+    expect(stateAfter!.failure).toBe(stateBeforePause!.failure);
+    expect(stateAfter!.paused).toBe(false);
   });
 });

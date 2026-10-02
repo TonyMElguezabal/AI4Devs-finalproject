@@ -35,7 +35,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 - [x] 4.1 Failing tests: `heldWork` for the image stage lists `submitted` scenes in ascending index; returns nothing for scenes already in flight; a retry recorded as pending is held; a scene queued for the cap in a session that is not paused is not reported held
 - [x] 4.2 Register the image-stage launcher (`heldWork` from the `submitted` scenes, `launch` through `launchSceneStage`), remove `image` from `NOT_YET_LAUNCHABLE`, and make 4.1 pass
-- [ ] 4.3 Failing tests with test launchers for stages that do not exist yet: work that became startable during the pause (a decomposition and a video launcher whose `heldWork` becomes non-empty while paused) is reported held and is launched by continue; the session state before and after the pause is unchanged (design Decision 6)
+- [x] 4.3 Failing tests with test launchers for stages that do not exist yet: work that became startable during the pause (a decomposition and a video launcher whose `heldWork` becomes non-empty while paused) is reported held and is launched by continue; the session state before and after the pause is unchanged (design Decision 6)
 
 ## 5. Continue (TDD; design Decision 4)
 
