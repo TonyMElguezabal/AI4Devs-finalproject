@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/server.ts";
 import { createRun, createScene, db, resetAll, commitSceneResult } from "../src/db.ts";
+import { pauseSession, continueSession } from "../src/orchestrator.ts";
 import type { FastifyInstance } from "fastify";
 
 // consult-session (JOS-135) — the session read, GET /sessions/{sessionId}.
@@ -164,10 +165,54 @@ describe("One read serves consultation and resynchronisation (3.9, Decision 1)",
     const body = res.json();
     expect(body.session.type).toBe("session");
     expect(Object.keys(body.session).sort()).toEqual(
-      ["type", "sessionId", "title", "script", "language", "state", "paused", "createdAt", "updatedAt"].sort(),
+      ["type", "sessionId", "title", "script", "language", "state", "paused", "held", "createdAt", "updatedAt"].sort(),
     );
     expect(body.scenes[0].type).toBe("scene");
     expect(body.scenes[0]).toHaveProperty("sceneId");
     expect(body.scenes[0]).toHaveProperty("state");
+  });
+});
+
+// JOS-152 task 7.1 — held fields on session and scene payloads
+describe("held field on session and scene payloads (JOS-152, task 7.1)", () => {
+  it("a non-paused session reports an empty held array and no held scene", async () => {
+    const sessionId = await startSession({ title: "Open session", script: "Not paused." });
+    createScene(randomUUID(), sessionId, 1, "success", 100, "instruction");
+    const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}` });
+    const body = res.json();
+    expect(body.session.held).toEqual([]);
+    expect(body.scenes.every((s: { held?: boolean }) => !s.held)).toBe(true);
+  });
+
+  it("a paused session with a submitted scene reports held and scene held flag", async () => {
+    const sessionId = await startSession({ title: "Held session", script: "Paused." });
+    createScene(randomUUID(), sessionId, 1, "success", 100, "instruction");
+    pauseSession(sessionId);
+    const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}` });
+    const body = res.json();
+    expect(body.session.paused).toBe(true);
+    expect(body.session.held).toEqual([{ stage: "image", count: 1 }]);
+    expect(body.scenes[0].held).toBe(true);
+  });
+
+  it("a paused session with no submitted scenes reports empty held", async () => {
+    const sessionId = await startSession({ title: "Paused but empty", script: "Empty." });
+    pauseSession(sessionId);
+    const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}` });
+    const body = res.json();
+    expect(body.session.paused).toBe(true);
+    expect(body.session.held).toEqual([]);
+  });
+
+  it("after continue the held array is empty and scene held flag is gone", async () => {
+    const sessionId = await startSession({ title: "Continue session", script: "Resume." });
+    createScene(randomUUID(), sessionId, 1, "success", 100, "instruction");
+    pauseSession(sessionId);
+    continueSession(sessionId);
+    const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}` });
+    const body = res.json();
+    expect(body.session.paused).toBe(false);
+    expect(body.session.held).toEqual([]);
+    expect(body.scenes.every((s: { held?: boolean }) => !s.held)).toBe(true);
   });
 });

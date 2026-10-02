@@ -26,7 +26,7 @@ import {
   writeArtefactOnce,
 } from "./db.ts";
 import * as concurrency from "./concurrency.ts";
-import { admitLaunch, launchHeldWork, registerStageLauncher, type StageLauncher } from "./launchGate.ts";
+import { admitLaunch, launchHeldWork, registerStageLauncher, sessionHeldWork, type StageLauncher } from "./launchGate.ts";
 import * as provider from "./provider.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
 import { downloadGeneratedImage, getImageProviderRegistry, type ImageGenerationResult } from "./imageProvider.ts";
@@ -126,6 +126,8 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     hasVoiceOver: getVoiceOver(runId) !== undefined,
     timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
   });
+  const heldWork = sessionHeldWork(runId);
+  const heldSceneIds = heldWork.sceneIds;
   const session: SessionEventPayload = {
     type: "session",
     sessionId: run.id,
@@ -134,13 +136,14 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     language: run.language,
     state,
     paused: run.paused,
+    held: heldWork.stages.map((s) => ({ stage: s.stage, count: s.count })),
     failedPhase,
     createdAt: run.createdAt,
     updatedAt: new Date().toISOString(),
   };
   return {
     session,
-    scenes: scenes.map(sceneToPayload),
+    scenes: scenes.map((s) => ({ ...sceneToPayload(s), held: heldSceneIds.has(s.id) || undefined })),
   };
 }
 

@@ -52,10 +52,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 7. Representation and API (TDD; design Decisions 7, 8)
 
-- [ ] 7.1 Failing tests in `session-read.test.ts` and `session-api-surface.test.ts`: a paused session reports `held` stages with unit counts and scene `held` flags (scene 1 in flight not held, scenes 2 and 3 held); a decomposition awaiting continuation reports one unit while the state is `voice-over-complete`; a session that is not paused reports an empty `held` and no held scene; the held list equals what continue then launches
-- [ ] 7.2 Add `held` to the session and scene payload types and Zod response schemas (response only), computed in `toSnapshot` from the registry and only while paused; the paused marker stays its own field
-- [ ] 7.3 Failing tests for the endpoints: pause twice and continue twice answer `200 { ok: true }`; an unknown session answers 404; pause and continue are accepted in `failed` and `final-video`; a retry in a paused `failed` session is held
-- [ ] 7.4 Make 7.1 to 7.3 pass; confirm the live event carries the same fields as the read (`define-live-updates`), so an open page sees them without reloading
+- [x] 7.1 Failing tests in `session-read.test.ts` and `session-api-surface.test.ts`: a paused session reports `held` stages with unit counts and scene `held` flags (scene 1 in flight not held, scenes 2 and 3 held); a decomposition awaiting continuation reports one unit while the state is `voice-over-complete`; a session that is not paused reports an empty `held` and no held scene; the held list equals what continue then launches
+- [x] 7.2 Add `held` to the session and scene payload types and Zod response schemas (response only), computed in `toSnapshot` from the registry and only while paused; the paused marker stays its own field
+- [x] 7.3 Failing tests for the endpoints: pause twice and continue twice answer `200 { ok: true }`; an unknown session answers 404; pause and continue are accepted in `failed` and `final-video`; a retry in a paused `failed` session is held
+- [x] 7.4 Make 7.1 to 7.3 pass; confirm the live event carries the same fields as the read (`define-live-updates`), so an open page sees them without reloading
 
 ## 8. Frontend
 

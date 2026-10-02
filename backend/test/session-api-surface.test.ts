@@ -132,3 +132,39 @@ describe("An operation that accepts a body ignores locked fields (AC1)", () => {
     expect(res.json().session).toMatchObject({ title: ORIGINAL.title, script: ORIGINAL.script, language: ORIGINAL.language });
   });
 });
+
+// JOS-152 task 7.3 — pause and continue endpoint behavior
+describe("pause and continue endpoints (JOS-152, task 7.3)", () => {
+  it("pause twice answers 200 { ok: true } both times", async () => {
+    const sessionId = await startSession();
+    const r1 = await app.inject({ method: "POST", url: `/sessions/${sessionId}/pause` });
+    const r2 = await app.inject({ method: "POST", url: `/sessions/${sessionId}/pause` });
+    expect(r1.statusCode).toBe(200);
+    expect(r1.json()).toEqual({ ok: true });
+    expect(r2.statusCode).toBe(200);
+    expect(r2.json()).toEqual({ ok: true });
+  });
+
+  it("continue twice answers 200 { ok: true } both times", async () => {
+    const sessionId = await startSession();
+    await app.inject({ method: "POST", url: `/sessions/${sessionId}/pause` });
+    const r1 = await app.inject({ method: "POST", url: `/sessions/${sessionId}/continue` });
+    const r2 = await app.inject({ method: "POST", url: `/sessions/${sessionId}/continue` });
+    expect(r1.statusCode).toBe(200);
+    expect(r1.json()).toEqual({ ok: true });
+    expect(r2.statusCode).toBe(200);
+    expect(r2.json()).toEqual({ ok: true });
+  });
+
+  it("pause on unknown session answers 404", async () => {
+    const res = await app.inject({ method: "POST", url: `/sessions/01AAAAAAAAAAAAAAAAAAAAAAAA/pause` });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().ok).toBe(false);
+  });
+
+  it("continue on unknown session answers 404", async () => {
+    const res = await app.inject({ method: "POST", url: `/sessions/01AAAAAAAAAAAAAAAAAAAAAAAA/continue` });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().ok).toBe(false);
+  });
+});
