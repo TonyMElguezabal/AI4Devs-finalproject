@@ -91,7 +91,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 12. Close out
 
-- [ ] 12.1 Comment on `generate-chunk-video` (JOS-146) confirming its "Out of Scope" split still holds and naming where the factor now lives, if its branch is still active
-- [ ] 12.2 Open the PR with a description linking to JOS-148
+- [x] 12.1 Comment on `generate-chunk-video` (JOS-146) confirming its "Out of Scope" split still holds and naming where the factor now lives, if its branch is still active — posted, confirming the split and the resolved `SPEED_FACTOR_LIMIT = 2.0`
+- [x] 12.2 Open the PR with a description linking to JOS-148
 - [ ] 12.3 Obtain review by at least one human, not only AI agents
 - [ ] 12.4 Archive the OpenSpec change after merge
