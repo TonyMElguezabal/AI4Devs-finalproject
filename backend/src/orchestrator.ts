@@ -67,6 +67,8 @@ function sceneToPayload(scene: Scene): SceneEventPayload {
     narrationInterval: scene.narrationInterval ?? undefined,
     requestedDurationSeconds: scene.requestedDurationSeconds ?? undefined,
     durationWarning: scene.durationWarning ?? undefined,
+    speedFactor: scene.speedFactor ?? undefined,
+    speedFactorWarning: scene.speedFactorWarning ?? undefined,
     updatedAt: scene.updatedAt,
   };
 }

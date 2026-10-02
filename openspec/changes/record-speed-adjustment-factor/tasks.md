@@ -36,9 +36,9 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 5. Backend exposure (spec: readable)
 
-- [ ] 5.1 Write failing tests in `scene-api-surface.test.ts`: the session read and scene events carry `speedFactor` for registered chunks and `speedFactorWarning` only when set; skeleton scenes omit both; the generated OpenAPI documents both on the scene response only, never on a request body
-- [ ] 5.2 Add both fields to `SceneEventPayload` (`types.ts`), `sceneToPayload` (`orchestrator.ts`) and the Zod scene schema (`routes.ts`), with `.describe()` citing PRD §7.2/AC23 and stating they are immutable, following `requestedDurationSeconds`'s existing pattern exactly
-- [ ] 5.3 Make the 5.1 tests pass
+- [x] 5.1 Write failing tests in `scene-api-surface.test.ts`: the session read and scene events carry `speedFactor` for registered chunks and `speedFactorWarning` only when set; skeleton scenes omit both; the generated OpenAPI documents both on the scene response only, never on a request body — 5 new tests mirroring JOS-147's own block exactly; 3 confirmed failing first (2 passed trivially since the fields were absent on both sides, matching "omitted"/"unchanged", same as JOS-147's own precedent)
+- [x] 5.2 Add both fields to `SceneEventPayload` (`types.ts`), `sceneToPayload` (`orchestrator.ts`) and the Zod scene schema (`routes.ts`), with `.describe()` citing PRD §7.2/AC23 and stating they are immutable, following `requestedDurationSeconds`'s existing pattern exactly
+- [x] 5.3 Make the 5.1 tests pass — 27/27; full suite 709 passed, 2 pre-existing skips; typecheck clean
 
 ## 6. Frontend: type and scene-details display
 
