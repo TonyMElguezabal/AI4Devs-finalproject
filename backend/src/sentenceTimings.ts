@@ -1,11 +1,17 @@
 // Turns character timestamps into sentence speech spans and per-unit narrated
-// durations (segment-script-into-chunks, design Decisions 2 and 3).
+// durations (segment-script-into-chunks, design Decisions 2 and 3;
+// decide-silence-allocation, JOS-142, D11).
 //
 // Decision 2: characters are matched to the script by position, ignoring
 // whitespace — forced alignment may not return entries for it.
-// Decision 3 (interim until the partition rule is decided): the boundary
-// between two adjacent units is the midpoint of the pause between them; the
-// first boundary is 0 and the last is the MP3's duration.
+// D11 (product owner decision, 2026-09-29): the boundary between two adjacent
+// units is the start of the following unit's speech, so the previous scene
+// absorbs the silence that follows it; the first boundary is 0 and the last
+// is the MP3's duration. Chosen over splitting the silence between the two
+// scenes (JOS-140's interim rule) because the product owner judged, from a
+// rendered comparison of real narration, that the image and the words it
+// illustrates should begin together — a cut mid-silence let the next scene's
+// image appear before its narration started.
 
 import type { Sentence } from "./sentences.ts";
 import type { TimestampCharacter } from "./narrationTimestamps.ts";
@@ -52,7 +58,7 @@ export function sentenceSpeechSpans(
   });
 }
 
-/** n + 1 boundaries for n units: 0, the pause midpoints, and the MP3's duration. */
+/** n + 1 boundaries for n units: 0, each unit's own start (the previous unit absorbs the silence before it), and the MP3's duration. */
 export function unitBoundaries(spans: readonly SpeechSpan[], mp3DurationSeconds: number): number[] {
   if (!Number.isFinite(mp3DurationSeconds) || mp3DurationSeconds <= 0) {
     throw new RangeError(`The MP3 duration must be positive and finite, got ${mp3DurationSeconds}`);
@@ -60,7 +66,7 @@ export function unitBoundaries(spans: readonly SpeechSpan[], mp3DurationSeconds:
   if (spans.length === 0) return [];
   const boundaries = [0];
   for (let index = 1; index < spans.length; index++) {
-    boundaries.push((spans[index - 1]!.end + spans[index]!.start) / 2);
+    boundaries.push(spans[index]!.start);
   }
   boundaries.push(mp3DurationSeconds);
   return boundaries;
