@@ -1,7 +1,9 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { createRun, getRun, getSceneForRun } from "./db.ts";
+import { createReadStream, existsSync, statSync } from "node:fs";
+import { extname } from "node:path";
+import { createRun, getRun, getSceneForRun, resolveArtefactPath } from "./db.ts";
 import {
   continueSession,
   correctAndRetry,
@@ -44,6 +46,12 @@ const createSessionBodySchema = z.object({
 // unaffected (§12.3's "reached by identifier" guarantee is about sessions).
 const ulidPattern = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
 const sessionIdSchema = z.string().regex(ulidPattern, "invalid session identifier");
+
+const IMAGE_CONTENT_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+};
 
 const sessionParamsSchema = z.object({ sessionId: sessionIdSchema });
 const sceneParamsSchema = z.object({ sessionId: sessionIdSchema, sceneId: z.string().uuid() });
@@ -298,6 +306,42 @@ export const routes: FastifyPluginAsync = async (app) => {
       }
       reply.type("text/plain");
       return `stub ${request.params.kind} content for scene ${scene.index} (${scene.result})`;
+    },
+  );
+
+  // show-scene-results-and-actions (JOS-151), design Decisions 1-2 — views a
+  // scene's stored image inline. Read-only; downloads (attachment semantics)
+  // stay with the route above. Scoped by (session, scene), then confined to
+  // the session's project folder by the same guard the writes use.
+  typed.get(
+    "/sessions/:sessionId/scenes/:sceneId/image",
+    {
+      schema: {
+        params: z.object({ sessionId: sessionIdSchema, sceneId: z.string().uuid() }),
+        response: { 200: z.any().describe("The image bytes (image/png or image/jpeg)"), 404: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const notFound = (reason: string) => {
+        reply.code(404);
+        return { ok: false, reason };
+      };
+      const scene = getSceneForRun(request.params.sessionId, request.params.sceneId);
+      if (!scene) return notFound("unknown scene");
+      if (!scene.result) return notFound("scene has no stored image");
+      const contentType = IMAGE_CONTENT_TYPES[extname(scene.result).toLowerCase()];
+      if (!contentType) return notFound("scene has no stored image");
+      const run = getRun(request.params.sessionId);
+      if (!run) return notFound("unknown scene");
+      let fullPath: string;
+      try {
+        fullPath = resolveArtefactPath(run.projectFolder, scene.result);
+      } catch {
+        return notFound("scene has no stored image");
+      }
+      if (!existsSync(fullPath) || !statSync(fullPath).isFile()) return notFound("scene has no stored image");
+      reply.type(contentType);
+      return reply.send(createReadStream(fullPath));
     },
   );
 

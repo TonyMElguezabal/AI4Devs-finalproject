@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { SceneEventPayload } from "../types";
 import { sceneStatusClass } from "../styles/status";
+import { sceneActions } from "../sceneActions";
+import { resolveResultUrl } from "../api/client";
 
 interface Props {
   scene: SceneEventPayload;
@@ -17,15 +19,19 @@ interface Props {
  * requested duration and speed factor (record-speed-adjustment-factor,
  * JOS-148) are rendered below, read-only, when the backend sends them.
  *
- * PRD §10.3, Decision 4 — the correction form exists ONLY when
- * `scene.state === "failed"`; it is never rendered-and-disabled otherwise,
- * and its presence is derived from state, never from a stored flag.
+ * PRD §10.3, Decision 4 — the correction form exists ONLY for a failed image
+ * stage (`sceneActions`); it is never rendered-and-disabled otherwise, and
+ * its presence is derived from state, never from a stored flag.
+ *
+ * show-scene-results-and-actions (JOS-151) — the details also show the
+ * stored image and clip, and a failed scene's affected stage.
  */
 export function SceneRow({ scene, onRetry, onCorrect, imageDownloadUrl, videoDownloadUrl }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [draftInstruction, setDraftInstruction] = useState(scene.instruction ?? "");
 
   const isFailed = scene.state === "failed";
+  const actions = sceneActions(scene);
   const isComplete = scene.state === "chunk-complete";
 
   return (
@@ -47,6 +53,12 @@ export function SceneRow({ scene, onRetry, onCorrect, imageDownloadUrl, videoDow
             <dd>{scene.provider}</dd>
             <dt>Attempts</dt>
             <dd>{scene.attempts}</dd>
+            {isFailed && scene.affectedStage && (
+              <>
+                <dt>Affected stage</dt>
+                <dd>{scene.affectedStage}</dd>
+              </>
+            )}
             {scene.requestedDurationSeconds !== undefined && (
               <>
                 <dt>Requested duration</dt>
@@ -67,28 +79,35 @@ export function SceneRow({ scene, onRetry, onCorrect, imageDownloadUrl, videoDow
             )}
           </dl>
 
-          {isFailed && (
-            <>
-              <button type="button" onClick={() => onRetry(scene.sceneId)}>
-                Retry scene {scene.index}
-              </button>
-              <form
-                aria-label={`Correct scene ${scene.index} image instruction`}
-                className="correction-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  onCorrect(scene.sceneId, draftInstruction);
-                }}
-              >
-                <label htmlFor={`correction-${scene.sceneId}`}>Corrected image instruction for scene {scene.index}</label>
-                <textarea
-                  id={`correction-${scene.sceneId}`}
-                  value={draftInstruction}
-                  onChange={(e) => setDraftInstruction(e.target.value)}
-                />
-                <button type="submit">Save correction and retry</button>
-              </form>
-            </>
+          {scene.result?.imageUrl && (
+            <img className="scene-image" src={resolveResultUrl(scene.result.imageUrl)} alt={`Scene ${scene.index} image`} />
+          )}
+          {scene.result?.videoUrl && (
+            <video className="scene-clip" controls src={resolveResultUrl(scene.result.videoUrl)} aria-label={`Scene ${scene.index} clip`} />
+          )}
+
+          {actions.retry && (
+            <button type="button" onClick={() => onRetry(scene.sceneId)}>
+              Retry scene {scene.index}
+            </button>
+          )}
+          {actions.correctImage && (
+            <form
+              aria-label={`Correct scene ${scene.index} image instruction`}
+              className="correction-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                onCorrect(scene.sceneId, draftInstruction);
+              }}
+            >
+              <label htmlFor={`correction-${scene.sceneId}`}>Corrected image instruction for scene {scene.index}</label>
+              <textarea
+                id={`correction-${scene.sceneId}`}
+                value={draftInstruction}
+                onChange={(e) => setDraftInstruction(e.target.value)}
+              />
+              <button type="submit">Save correction and retry</button>
+            </form>
           )}
 
           {isComplete && (

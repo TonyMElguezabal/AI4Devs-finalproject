@@ -60,7 +60,9 @@ function sceneToPayload(scene: Scene): SceneEventPayload {
     errorCause: scene.status === "failed" ? scene.lastError : undefined,
     provider: scene.provider,
     attempts: scene.attempts,
-    result: scene.result ? { imageUrl: scene.result } : undefined,
+    // show-scene-results-and-actions (JOS-151), Decision 3 — the route path,
+    // relative to the API base; the stored file path stays internal.
+    result: scene.result ? { imageUrl: `/sessions/${scene.runId}/scenes/${scene.id}/image` } : undefined,
     instruction: scene.instruction,
     prompt: scene.prompt,
     imageInstruction: scene.imageInstruction,
