@@ -68,6 +68,24 @@ const sceneResponseSchema = z.object({
     .describe("PRD §3 PROMPT: the fragment of the script this chunk narrates. Immutable once the chunk is established (PRD §6)."),
   imageInstruction: z.string().optional().describe("PRD §3 IMAGE: the instruction to generate the chunk's image."),
   videoInstruction: z.string().optional().describe("PRD §3 VIDEO: the instruction to animate the chunk's image."),
+  narrationInterval: z
+    .object({ startSeconds: z.number(), endSeconds: z.number() })
+    .optional()
+    .describe(
+      "PRD §3 and §7.3: the part of the voice-over this chunk narrates, in seconds. The intervals of a session's chunks are contiguous and cover the voice-over from 0 to its full duration. Read-only and immutable once the chunk is established; absent for a scene created without a decomposition.",
+    ),
+  requestedDurationSeconds: z
+    .number()
+    .optional()
+    .describe(
+      "PRD §7.2: the video provider's admitted clip duration requested for this chunk, chosen as the one needing the smallest speed change to match its narrated interval. Read-only and immutable once the chunk is established; absent for a scene created without a decomposition.",
+    ),
+  durationWarning: z
+    .enum(["exceeds-maximum"])
+    .optional()
+    .describe(
+      "PRD §6.1.1: set when the chunk's narrated interval is longer than the provider's largest admitted duration (an unsplittable sentence), so the requested duration had to be capped at that maximum. Not a failure. Read-only and immutable once the chunk is established.",
+    ),
   updatedAt: z.string(),
 });
 

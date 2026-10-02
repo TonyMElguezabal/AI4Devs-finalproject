@@ -107,8 +107,8 @@ async function registeredScene(script = "The lighthouse stands alone against the
 }> {
   const runId = randomUUID();
   const run = createRun(runId, "Image stage test", script, "en");
-  const fragments: SegmentedFragment[] = [{ text: script, narratedDurationSeconds: 6 }];
-  const result = await registerDecomposition(runId, fragments, stubGenerator());
+  const fragments: SegmentedFragment[] = [{ text: script, narrationInterval: { startSeconds: 0, endSeconds: 6 } }];
+  const result = await registerDecomposition(runId, fragments, stubGenerator(), 6);
   if (!result.ok) throw new Error("fixture registration failed");
   return { runId, sceneId: result.sceneIds[0]!, projectFolder: run.projectFolder };
 }
@@ -368,10 +368,10 @@ describe("Independent progression (AC3, design Decision 5)", () => {
     const runId = randomUUID();
     createRun(runId, "Independent progression test", "The lighthouse stands alone. The keeper lit the lamp.", "en");
     const fragments: SegmentedFragment[] = [
-      { text: "The lighthouse stands alone.", narratedDurationSeconds: 6 },
-      { text: "The keeper lit the lamp.", narratedDurationSeconds: 6 },
+      { text: "The lighthouse stands alone.", narrationInterval: { startSeconds: 0, endSeconds: 6 } },
+      { text: "The keeper lit the lamp.", narrationInterval: { startSeconds: 6, endSeconds: 12 } },
     ];
-    const result = await registerDecomposition(runId, fragments, stubGenerator());
+    const result = await registerDecomposition(runId, fragments, stubGenerator(), 12);
     if (!result.ok) throw new Error("fixture registration failed");
     return { runId, sceneIds: [result.sceneIds[0]!, result.sceneIds[1]!] };
   }

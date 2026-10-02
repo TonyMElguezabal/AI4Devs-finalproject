@@ -121,7 +121,7 @@ export function segmentScript(
     const last: number = grouping!.firstFragmentLast;
     fragments.push({
       text: script.slice(units[first]!.start, units[last]!.end),
-      narratedDurationSeconds: durationOf(first, last),
+      narrationInterval: { startSeconds: boundaries[first]!, endSeconds: boundaries[last + 1]! },
       ...(exception ? { exception } : {}),
     });
     first = last + 1;

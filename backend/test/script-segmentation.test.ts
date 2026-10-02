@@ -4,7 +4,7 @@ import { VIDEO_ADMITTED_DURATION_SECONDS } from "../src/config/providers.ts";
 import { closestAdmittedDuration } from "../src/admittedDurations.ts";
 import { createRun, resetAll } from "../src/db.ts";
 import type { TimestampCharacter } from "../src/narrationTimestamps.ts";
-import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
+import { intervalDurationSeconds, registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import { findSentences } from "../src/sentences.ts";
 import { segmentScript } from "../src/segmentation.ts";
 import { sentenceSpeechSpans, unitBoundaries } from "../src/sentenceTimings.ts";
@@ -75,8 +75,8 @@ describe("Ordinary scripts (AC03)", () => {
     const numbers = sentenceNumbersPerFragment(fragments);
     expect(numbers.flat()).toEqual([1, 2, 3, 4, 5, 6, 7]);
     for (const fragment of fragments) {
-      expect(fragment.narratedDurationSeconds).toBeGreaterThanOrEqual(LOWER);
-      expect(fragment.narratedDurationSeconds).toBeLessThanOrEqual(UPPER);
+      expect(intervalDurationSeconds(fragment.narrationInterval)).toBeGreaterThanOrEqual(LOWER);
+      expect(intervalDurationSeconds(fragment.narrationInterval)).toBeLessThanOrEqual(UPPER);
       expect(fragment.exception).toBeUndefined();
     }
   });
@@ -90,7 +90,7 @@ describe("Ordinary scripts (AC03)", () => {
 
   it("gives narrated durations that add up to the MP3's duration", () => {
     const narration = scenes([6.3, 7.1, 8.4, 9.2, 5.9]);
-    const total = fragmentsOf(narration).reduce((sum, fragment) => sum + fragment.narratedDurationSeconds, 0);
+    const total = fragmentsOf(narration).reduce((sum, fragment) => sum + intervalDurationSeconds(fragment.narrationInterval), 0);
     expect(total).toBeCloseTo(narration.mp3Duration, 9);
   });
 });
@@ -120,8 +120,8 @@ describe("Short sentences (AC03)", () => {
     const fragments = fragmentsOf(scenes([2.9, 5.0, 7.2, 4.0, 4.9, 3.1, 3.4, 2.9, 4.7, 3.2, 4.6, 5.2, 4.1]));
     expect(sentenceNumbersPerFragment(fragments)).toEqual([[1, 2], [3], [4, 5, 6], [7, 8, 9, 10], [11, 12, 13]]);
     for (const fragment of fragments) {
-      expect(fragment.narratedDurationSeconds).toBeGreaterThanOrEqual(LOWER);
-      expect(fragment.narratedDurationSeconds).toBeLessThanOrEqual(UPPER);
+      expect(intervalDurationSeconds(fragment.narrationInterval)).toBeGreaterThanOrEqual(LOWER);
+      expect(intervalDurationSeconds(fragment.narrationInterval)).toBeLessThanOrEqual(UPPER);
     }
   });
 
@@ -149,7 +149,7 @@ describe("A whole script below the lower bound", () => {
     const fragments = fragmentsOf(scenes([1.5, 2]));
     expect(fragments).toHaveLength(1);
     expect(fragments[0]!.exception).toBe("script-below-lower-bound");
-    expect(fragments[0]!.narratedDurationSeconds).toBeCloseTo(3.5, 9);
+    expect(intervalDurationSeconds(fragments[0]!.narrationInterval)).toBeCloseTo(3.5, 9);
     expect(sentenceNumbersPerFragment(fragments)).toEqual([[1, 2]]);
   });
 
@@ -165,7 +165,7 @@ describe("Fragments that cannot fit without a split (no clause boundary, JOS-141
     const fragments = fragmentsOf(scenes([20]));
     expect(fragments).toHaveLength(1);
     expect(fragments[0]!.exception).toBe("unsplittable-sentence");
-    expect(fragments[0]!.narratedDurationSeconds).toBeCloseTo(20, 9);
+    expect(intervalDurationSeconds(fragments[0]!.narrationInterval)).toBeCloseTo(20, 9);
   });
 
   it("flags only the fragment that needs it", () => {
@@ -178,7 +178,7 @@ describe("Fragments that cannot fit without a split (no clause boundary, JOS-141
     const fragments = fragmentsOf(scenes([3, 14]));
     expect(fragments).toHaveLength(1);
     expect(fragments[0]!.exception).toBe("unsplittable-sentence");
-    expect(fragments[0]!.narratedDurationSeconds).toBeCloseTo(17, 9);
+    expect(intervalDurationSeconds(fragments[0]!.narrationInterval)).toBeCloseTo(17, 9);
     expect(sentenceNumbersPerFragment(fragments)).toEqual([[1, 2]]);
   });
 
@@ -192,7 +192,7 @@ describe("Fragments that cannot fit without a split (no clause boundary, JOS-141
         return { kind: "success", pairs: texts.map((_, i) => ({ image: `image ${i + 1}`, video: `video ${i + 1}` })) };
       },
     };
-    const result = await registerDecomposition(runId, fragmentsOf(narration), generator);
+    const result = await registerDecomposition(runId, fragmentsOf(narration), generator, narration.mp3Duration);
     expect(result.ok).toBe(true);
   });
 });
@@ -202,7 +202,7 @@ describe("The grouping needing the least speed change is chosen (AC04)", () => {
     // Both "5.5 + 5.5 | 6.2 + 6.3" and "5.5 | 5.5 + 6.2 | 6.3" are valid; the first totals 0.039, the second 0.161.
     const fragments = fragmentsOf(scenes([5.5, 5.5, 6.2, 6.3]));
     expect(sentenceNumbersPerFragment(fragments)).toEqual([[1, 2], [3, 4]]);
-    expect(fragments.map((fragment) => fragment.narratedDurationSeconds)).toEqual([expect.closeTo(11, 9), expect.closeTo(12.5, 9)]);
+    expect(fragments.map((fragment) => intervalDurationSeconds(fragment.narrationInterval))).toEqual([expect.closeTo(11, 9), expect.closeTo(12.5, 9)]);
   });
 
   it("prefers fewer fragments when the speed change is the same", () => {
@@ -390,8 +390,107 @@ describe("The fragments reproduce the script (AC03)", () => {
           return { kind: "success", pairs: texts.map((_, i) => ({ image: `image ${i + 1}`, video: `video ${i + 1}` })) };
         },
       };
-      const result = await registerDecomposition(runId, fragmentsOf(narration), generator);
+      const result = await registerDecomposition(runId, fragmentsOf(narration), generator, narration.mp3Duration);
       expect(result.ok).toBe(true);
     });
+  });
+});
+
+// assign-narration-intervals (JOS-143), group 2 — design Decision 1: a
+// fragment carries the interval `unitBoundaries` gives it (D11 rule A: the
+// previous fragment absorbs the silence that follows it), and its narrated
+// duration is that interval's length.
+
+/**
+ * Sentences narrated with silences: `silences[i]` precedes sentence i (so
+ * `silences[0]` is the leading silence), `trailingSilence` follows the last
+ * one, and each sentence's characters share its speech time evenly.
+ */
+function narrateWithSilences(
+  sentenceTexts: readonly string[],
+  speechSeconds: readonly number[],
+  silences: readonly number[],
+  trailingSilence: number,
+) {
+  const characters: TimestampCharacter[] = [];
+  const speechStarts: number[] = [];
+  let clock = 0;
+  sentenceTexts.forEach((text, index) => {
+    clock += silences[index]!;
+    speechStarts.push(clock);
+    const units = [...text];
+    const step = speechSeconds[index]! / units.length;
+    units.forEach((character, position) => {
+      characters.push({ text: character, start: clock + position * step, end: clock + (position + 1) * step });
+    });
+    clock += speechSeconds[index]!;
+    if (index < sentenceTexts.length - 1) characters.push({ text: " ", start: clock, end: clock + silences[index + 1]! });
+  });
+  clock += trailingSilence;
+  return { script: sentenceTexts.join(" "), language: "en", characters, mp3Duration: clock, sentenceTexts: [...sentenceTexts], speechStarts };
+}
+
+// Three sentences of 9 s of speech: no two fit under the 15 s upper bound, so
+// the only valid grouping is one sentence per fragment.
+const SILENT_NARRATION = narrateWithSilences(
+  ["Scene 1 is here.", "Scene 2 is here.", "Scene 3 is here."],
+  [9, 9, 9],
+  [0.1, 0.8, 1.1],
+  0.35,
+);
+
+describe("Fragment narration intervals (JOS-143)", () => {
+  const fragments = fragmentsOf(SILENT_NARRATION);
+
+  it("gives each fragment the interval between its own boundaries: the pause goes to the earlier fragment", () => {
+    expect(fragments.map((fragment) => fragment.narrationInterval)).toEqual([
+      { startSeconds: 0, endSeconds: expect.closeTo(9.9, 9) },
+      { startSeconds: expect.closeTo(9.9, 9), endSeconds: expect.closeTo(20.0, 9) },
+      { startSeconds: expect.closeTo(20.0, 9), endSeconds: SILENT_NARRATION.mp3Duration },
+    ]);
+  });
+
+  it("ends a fragment exactly where the next fragment's narration starts, not mid-pause", () => {
+    expect(fragments[0]!.narrationInterval.endSeconds).toBeCloseTo(SILENT_NARRATION.speechStarts[1]!, 9);
+    expect(fragments[1]!.narrationInterval.endSeconds).toBeCloseTo(SILENT_NARRATION.speechStarts[2]!, 9);
+  });
+
+  it("makes consecutive intervals share their boundary exactly", () => {
+    for (let index = 1; index < fragments.length; index++) {
+      expect(fragments[index]!.narrationInterval.startSeconds).toBe(fragments[index - 1]!.narrationInterval.endSeconds);
+    }
+  });
+
+  it("covers the leading and the trailing silence: from 0 s to the MP3's duration", () => {
+    expect(fragments[0]!.narrationInterval.startSeconds).toBe(0);
+    expect(fragments.at(-1)!.narrationInterval.endSeconds).toBe(SILENT_NARRATION.mp3Duration);
+  });
+
+  it("derives the narrated duration from the interval", () => {
+    expect(fragments.map((fragment) => intervalDurationSeconds(fragment.narrationInterval))).toEqual([
+      expect.closeTo(9.9, 9),
+      expect.closeTo(10.1, 9),
+      expect.closeTo(9.35, 9),
+    ]);
+  });
+
+  it("takes every interval endpoint from unitBoundaries when a fragment holds several sentences", () => {
+    const narration = narrateWithSilences(
+      ["Scene 1 is here.", "Scene 2 is here.", "Scene 3 is here.", "Scene 4 is here.", "Scene 5 is here."],
+      [4, 4, 4, 4, 4],
+      [0.2, 0.6, 0.9, 0.5, 1.0],
+      0.4,
+    );
+    const sentences = findSentences(narration.script, "en");
+    const boundaries = unitBoundaries(sentenceSpeechSpans(narration.script, sentences, narration.characters), narration.mp3Duration);
+
+    const grouped = fragmentsOf(narration);
+    expect(grouped.some((fragment) => fragment.text.split("Scene").length > 2)).toBe(true);
+    for (const fragment of grouped) {
+      expect(boundaries).toContain(fragment.narrationInterval.startSeconds);
+      expect(boundaries).toContain(fragment.narrationInterval.endSeconds);
+    }
+    expect(grouped[0]!.narrationInterval.startSeconds).toBe(0);
+    expect(grouped.at(-1)!.narrationInterval.endSeconds).toBe(narration.mp3Duration);
   });
 });

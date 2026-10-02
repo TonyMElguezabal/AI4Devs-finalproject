@@ -64,9 +64,9 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [ ] 7.1 ~~Instructions for every chunk~~ moved to `assign-scene-identifiers` (JOS-144); hand the ordered fragments to its `registerDecomposition` instead
 - [ ] 7.2 ~~Script reconstruction~~ moved to `assign-scene-identifiers` (JOS-144)
 - [ ] 7.3 ~~Reconstruction mismatch as a system defect~~ moved to `assign-scene-identifiers` (JOS-144)
-- [ ] 7.4 Write a failing test that the narration intervals form a contiguous, non-overlapping partition from 0 to the voice-over's total duration
-- [ ] 7.5 Write a failing test that a gap or overlap fails decomposition as a system defect (the incomplete-chunk check moved to `assign-scene-identifiers` (JOS-144))
-- [ ] 7.6 Implement the post-condition checks per design.md Decision 4, run after segmentation and instruction generation, before the `decomposition` stage instance can succeed
+- [ ] 7.4 ~~Interval partition test~~ moved to `assign-narration-intervals` (JOS-143)
+- [ ] 7.5 ~~Gap or overlap as a system defect~~ moved to `assign-narration-intervals` (JOS-143); the incomplete-chunk check moved to `assign-scene-identifiers` (JOS-144)
+- [ ] 7.6 ~~Post-condition checks~~ both halves moved to `assign-scene-identifiers` (JOS-144) and `assign-narration-intervals` (JOS-143)
 - [ ] 7.7 Write failing tests for the two manual-retry routes: `timestamps` retry with unusable-native-timestamps history goes straight to alignment; `decomposition` retry re-splits the same script and timestamps without touching the voice-over
 - [ ] 7.8 Implement both manual-retry routes, reusing `stage-retry-policy`'s manual-retry mechanism
 - [ ] 7.9 Publish each state change to the live-update mechanism, matching the shape `consult-session`'s resynchronisation read expects

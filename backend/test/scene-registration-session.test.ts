@@ -15,8 +15,8 @@ import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
 
 const SCRIPT = "The harbor is quiet at dusk. Fishing boats return with the tide.";
 const FRAGMENTS: SegmentedFragment[] = [
-  { text: "The harbor is quiet at dusk.", narratedDurationSeconds: 6 },
-  { text: "Fishing boats return with the tide.", narratedDurationSeconds: 9 },
+  { text: "The harbor is quiet at dusk.", narrationInterval: { startSeconds: 0, endSeconds: 6 } },
+  { text: "Fishing boats return with the tide.", narrationInterval: { startSeconds: 6, endSeconds: 15 } },
 ];
 
 const generator: VisualInstructionGenerator = {
@@ -50,13 +50,13 @@ function newRunId(): string {
 describe("The derived session state (Decision 6, AC5)", () => {
   it("is chunks-processing right after a successful registration", async () => {
     const runId = newRunId();
-    await registerDecomposition(runId, FRAGMENTS, generator);
+    await registerDecomposition(runId, FRAGMENTS, generator, 15);
     expect(deriveSessionState(getScenesForRun(runId), getRun(runId)?.failure)).toEqual({ state: "chunks-processing" });
   });
 
   it("is failed with failed phase decomposition when a registration was refused", async () => {
     const runId = newRunId();
-    await registerDecomposition(runId, [], generator);
+    await registerDecomposition(runId, [], generator, 15);
     expect(deriveSessionState(getScenesForRun(runId), getRun(runId)?.failure)).toEqual({
       state: "failed",
       failedPhase: "decomposition",
@@ -78,7 +78,7 @@ describe("The derived session state (Decision 6, AC5)", () => {
     // status is forced directly to exercise deriveSessionState's own truth
     // table completely.
     const runId = newRunId();
-    await registerDecomposition(runId, FRAGMENTS, generator);
+    await registerDecomposition(runId, FRAGMENTS, generator, 15);
     for (const scene of getScenesForRun(runId)) {
       db.prepare("UPDATE scenes SET status = 'chunk-complete' WHERE id = ?").run(scene.id);
     }
@@ -90,7 +90,7 @@ describe("The session read (GET /sessions/:id)", () => {
   it("lists the chunks in ascending order with their prompt, image and video instructions", async () => {
     const res = await app.inject({ method: "POST", url: "/sessions", payload: { title: "Read test", script: SCRIPT, language: "en" } });
     const sessionId = res.json().session.sessionId as string;
-    await registerDecomposition(sessionId, FRAGMENTS, generator);
+    await registerDecomposition(sessionId, FRAGMENTS, generator, 15);
 
     const body = (await app.inject({ method: "GET", url: `/sessions/${sessionId}` })).json();
 
@@ -112,7 +112,7 @@ describe("The session read (GET /sessions/:id)", () => {
   it("shows failed with failed phase decomposition and no scenes after a refused registration", async () => {
     const res = await app.inject({ method: "POST", url: "/sessions", payload: { title: "Read test", script: SCRIPT, language: "en" } });
     const sessionId = res.json().session.sessionId as string;
-    await registerDecomposition(sessionId, [], generator);
+    await registerDecomposition(sessionId, [], generator, 15);
 
     const body = (await app.inject({ method: "GET", url: `/sessions/${sessionId}` })).json();
 
@@ -124,7 +124,7 @@ describe("The session read (GET /sessions/:id)", () => {
 describe("Live updates (define-live-updates)", () => {
   it("publishes the session's state after a successful registration", async () => {
     const runId = newRunId();
-    await registerDecomposition(runId, FRAGMENTS, generator);
+    await registerDecomposition(runId, FRAGMENTS, generator, 15);
     const last = received.filter((s) => s.session.sessionId === runId).at(-1);
     expect(last?.session.state).toBe("chunks-processing");
     expect(last?.scenes.map((s) => s.prompt)).toEqual(FRAGMENTS.map((f) => f.text));
@@ -132,13 +132,13 @@ describe("Live updates (define-live-updates)", () => {
 
   it("publishes the failure after a refused registration", async () => {
     const runId = newRunId();
-    await registerDecomposition(runId, [], generator);
+    await registerDecomposition(runId, [], generator, 15);
     const last = received.filter((s) => s.session.sessionId === runId).at(-1);
     expect(last?.session).toMatchObject({ state: "failed", failedPhase: "decomposition" });
   });
 
   it("publishes nothing for an unknown session", async () => {
-    await registerDecomposition("no-such-session", FRAGMENTS, generator);
+    await registerDecomposition("no-such-session", FRAGMENTS, generator, 15);
     expect(received).toEqual([]);
   });
 });
