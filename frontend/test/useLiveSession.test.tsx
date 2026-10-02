@@ -54,6 +54,7 @@ function snapshot(overrides: Partial<SessionSnapshot["session"]> = {}, scenes: S
       language: "en",
       state: "chunks-processing",
       paused: false,
+      held: [],
       updatedAt: "2026-09-25T00:00:00.000Z",
       ...overrides,
     },
@@ -176,5 +177,23 @@ describe("an unknown session identifier (Decision 4)", () => {
     source.readyState = FakeEventSource.CONNECTING;
     act(() => source.onerror?.());
     expect(result.current.notFound).toBe(false);
+  });
+});
+
+// JOS-152 task 8.3 — a held change in a live event re-renders without reload
+describe("held field live update (JOS-152, task 8.3)", () => {
+  it("a held change in a live event re-renders without reload", async () => {
+    const { result } = renderHook(() => useLiveSession("s1"));
+    const source = FakeEventSource.instances[0]!;
+    act(() => source.emitOpen());
+    await waitFor(() => expect(result.current.snapshot).toBeDefined());
+
+    act(() => source.emitMessage(snapshot({ held: [{ stage: "image", count: 2 }], paused: true })));
+    expect(result.current.snapshot!.session.held).toEqual([{ stage: "image", count: 2 }]);
+    expect(result.current.snapshot!.session.paused).toBe(true);
+
+    act(() => source.emitMessage(snapshot({ held: [], paused: false })));
+    expect(result.current.snapshot!.session.held).toEqual([]);
+    expect(result.current.snapshot!.session.paused).toBe(false);
   });
 });

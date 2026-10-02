@@ -33,6 +33,7 @@ export function SceneRow({ scene, onRetry, onCorrect, imageDownloadUrl, videoDow
       <span className="scene-summary">
         #{scene.index} — {scene.state}
       </span>
+      {scene.held && <span className="scene-held"> — waiting for continue</span>}
       {isFailed && <span role="alert"> {scene.errorCause}</span>}
       <button type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
         {expanded ? `Hide scene ${scene.index} details` : `View scene ${scene.index} details`}

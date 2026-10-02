@@ -19,6 +19,11 @@ export function SessionHeader({ session, onPause, onContinue }: Props) {
       <p className={`session-state-line${session.paused ? " paused" : ""}`}>
         Session state: <strong>{session.state}</strong>
         {session.paused && <span> — paused</span>}
+        {session.paused && session.held.length > 0 && (
+          <span className="held-stages">
+            {" "}({session.held.map((h) => `${h.count} ${h.stage}`).join(", ")} held)
+          </span>
+        )}
       </p>
       {session.state === "failed" && session.failedPhase && <p role="alert">Failed phase: {session.failedPhase}</p>}
       {isRunning &&

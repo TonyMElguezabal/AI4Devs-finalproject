@@ -32,6 +32,7 @@ export interface SessionEventPayload {
   language: string;
   state: SessionState;
   paused: boolean;
+  held: Array<{ stage: string; count: number }>;
   failedPhase?: string;
   updatedAt: string;
 }
@@ -56,6 +57,7 @@ export interface SceneEventPayload {
   speedFactor?: number;
   /** Set only when the factor exceeds the hardcoded acceptable limit. Independent of durationWarning. */
   speedFactorWarning?: "exceeds-limit";
+  held?: boolean;
   updatedAt: string;
 }
 

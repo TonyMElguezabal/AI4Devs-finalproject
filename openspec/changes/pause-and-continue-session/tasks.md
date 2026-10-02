@@ -59,9 +59,9 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 8. Frontend
 
-- [ ] 8.1 Failing component tests in `components.test.tsx`: the header shows "paused" plus the held stages and counts, distinct from a generating line; a held scene row says it is waiting for continue, and a generating scene in the same session does not; nothing shows held when not paused
-- [ ] 8.2 Update `types.ts`, `SessionHeader.tsx` and `SceneRow.tsx` (text, not colour alone, per `visual-design`); keep the pause and continue buttons; make 8.1 pass
-- [ ] 8.3 Failing test then change in `useLiveSession.test.tsx`: a `held` change in a live event re-renders without reload
+- [x] 8.1 Failing component tests in `components.test.tsx`: the header shows "paused" plus the held stages and counts, distinct from a generating line; a held scene row says it is waiting for continue, and a generating scene in the same session does not; nothing shows held when not paused
+- [x] 8.2 Update `types.ts`, `SessionHeader.tsx` and `SceneRow.tsx` (text, not colour alone, per `visual-design`); keep the pause and continue buttons; make 8.1 pass
+- [x] 8.3 Failing test then change in `useLiveSession.test.tsx`: a `held` change in a live event re-renders without reload
 
 ## 9. Review and Update Existing Unit Tests (MANDATORY)
 
