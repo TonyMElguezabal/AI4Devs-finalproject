@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { intervalDurationSeconds, requestedClipDuration } from "./admittedDurations.ts";
-import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS } from "./config/providers.ts";
+import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS, SPEED_FACTOR_LIMIT } from "./config/providers.ts";
 import { countScenesForRun, getRun, insertRegisteredScenes, setRunFailure } from "./db.ts";
 import { broadcast } from "./orchestrator.ts";
 import { createDecompositionFailure } from "./sessionStateMachine.ts";
-import type { DecompositionFailure, NarrationInterval } from "./types.ts";
+import type { DecompositionFailure, NarrationInterval, SpeedFactorWarning } from "./types.ts";
 import type { VisualInstructionGenerator, VisualInstructionPair } from "./visualInstructions.ts";
 
 // assign-scene-identifiers (JOS-144) — PRD §5 step 5: number the ordered
@@ -160,7 +160,14 @@ export async function registerDecomposition(
     // once here, after the partition check, and stored with the chunk in the
     // same transaction as its interval. Cannot fail: the interval is already
     // checked finite and positive by findFragmentProblem above.
-    const { seconds: requestedDurationSeconds, warning: durationWarning } = requestedClipDuration(fragment.narrationInterval);
+    // record-speed-adjustment-factor (JOS-148), design Decision 1 — `factor`
+    // is `requestedClipDuration`'s own `speedRatio`, passed through rather
+    // than recomputed; the warning is independent of `durationWarning`
+    // (a chunk may carry either, both, or neither).
+    const { seconds: requestedDurationSeconds, warning: durationWarning, factor: speedFactor } = requestedClipDuration(
+      fragment.narrationInterval,
+    );
+    const speedFactorWarning: SpeedFactorWarning | null = speedFactor > SPEED_FACTOR_LIMIT ? "exceeds-limit" : null;
     return {
       id: randomUUID(),
       index: position + 1,
@@ -170,6 +177,8 @@ export async function registerDecomposition(
       narrationInterval: fragment.narrationInterval,
       requestedDurationSeconds,
       durationWarning,
+      speedFactor,
+      speedFactorWarning,
     };
   });
   try {

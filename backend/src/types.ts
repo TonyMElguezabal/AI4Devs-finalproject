@@ -141,6 +141,9 @@ export interface NarrationInterval {
 /** request-admitted-clip-duration (JOS-147) — the one duration-warning value ever recorded; §6.1.1's unsplittable-sentence case. */
 export type DurationWarning = "exceeds-maximum";
 
+/** record-speed-adjustment-factor (JOS-148) — the one speed-factor-warning value ever recorded; the factor exceeds `SPEED_FACTOR_LIMIT` (§7.2). */
+export type SpeedFactorWarning = "exceeds-limit";
+
 export interface Scene {
   id: string;
   runId: string;
@@ -164,6 +167,10 @@ export interface Scene {
   requestedDurationSeconds: number | null;
   /** Set only when the interval was narrated longer than the largest admitted duration (§6.1.1). Locked once registered. */
   durationWarning: DurationWarning | null;
+  /** The speed-adjustment factor the requested duration implies (PRD §7.2); null for a scene created without a decomposition. Locked once registered (record-speed-adjustment-factor, JOS-148). */
+  speedFactor: number | null;
+  /** Set only when the factor exceeds the hardcoded `SPEED_FACTOR_LIMIT`. Locked once registered. */
+  speedFactorWarning: SpeedFactorWarning | null;
   provider: string;
   /** Configured at scene creation so automatic retries can reuse the same behaviour. */
   providerMode: ProviderOutcomeMode;
@@ -249,6 +256,10 @@ export interface SceneEventPayload {
   requestedDurationSeconds?: number;
   /** Set only when the interval was narrated longer than the largest admitted duration (§6.1.1). Immutable. */
   durationWarning?: DurationWarning;
+  /** The speed-adjustment factor the requested duration implies (PRD §7.2); absent for a scene created without a decomposition. Immutable (record-speed-adjustment-factor, JOS-148). */
+  speedFactor?: number;
+  /** Set only when the factor exceeds the hardcoded `SPEED_FACTOR_LIMIT`. Immutable. */
+  speedFactorWarning?: SpeedFactorWarning;
   updatedAt: string;
 }
 

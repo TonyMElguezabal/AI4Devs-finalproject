@@ -21,6 +21,7 @@ import type {
   Run,
   Scene,
   SceneState,
+  SpeedFactorWarning,
   StageAttempt,
   StageAttemptOutcome,
   VoiceOver,
@@ -173,6 +174,22 @@ export const SCENE_DURATION_REQUEST_LOCK_TRIGGERS_DDL: readonly string[] = LOCKE
     END;`,
 );
 
+// record-speed-adjustment-factor (JOS-148) Decision 2 — the speed-adjustment
+// factor and its limit warning are decided once at registration (from the
+// requested duration and interval above) and never change afterwards, for
+// the same reason the requested duration itself is locked: a later build
+// with a different `SPEED_FACTOR_LIMIT` must not reinterpret an already-
+// established chunk. A constant of its own for the same reason the
+// requested-duration columns are not folded into the interval's.
+const LOCKED_SCENE_SPEED_FACTOR_COLUMNS = ["speed_factor", "speed_factor_warning"] as const;
+
+export const SCENE_SPEED_FACTOR_LOCK_TRIGGERS_DDL: readonly string[] = LOCKED_SCENE_SPEED_FACTOR_COLUMNS.map(
+  (column) => `CREATE TRIGGER scenes_${column}_locked BEFORE UPDATE OF ${column} ON scenes
+    BEGIN
+      SELECT RAISE(ABORT, 'locked: scenes.${column} cannot be modified once the chunk is established');
+    END;`,
+);
+
 // obtain-narration-timestamps (JOS-139) Decision 7 — the obtained timestamps are
 // stored once and never replaced (PRD §10.3: segmentation and every retry use
 // the same ones). `resetAll()` (test-only) lifts the delete trigger inside its
@@ -314,6 +331,17 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       target.exec("ALTER TABLE scenes ADD COLUMN requested_duration_seconds INTEGER");
       target.exec("ALTER TABLE scenes ADD COLUMN duration_warning TEXT");
       for (const ddl of SCENE_DURATION_REQUEST_LOCK_TRIGGERS_DDL) target.exec(ddl);
+    },
+  },
+  {
+    version: 11,
+    description: "add the speed-adjustment factor and its limit warning, and lock them (record-speed-adjustment-factor, JOS-148)",
+    up: (target) => {
+      // REAL: the factor is a ratio, not a whole number.
+      // Nullable: a scene created by the pre-decomposition skeleton path has no requested duration, hence no factor.
+      target.exec("ALTER TABLE scenes ADD COLUMN speed_factor REAL");
+      target.exec("ALTER TABLE scenes ADD COLUMN speed_factor_warning TEXT");
+      for (const ddl of SCENE_SPEED_FACTOR_LOCK_TRIGGERS_DDL) target.exec(ddl);
     },
   },
 ];
@@ -479,6 +507,8 @@ export function createScene(
     narrationInterval: null,
     requestedDurationSeconds: null,
     durationWarning: null,
+    speedFactor: null,
+    speedFactorWarning: null,
     provider: STUB_PROVIDER_NAME,
     providerMode,
     providerLatencyMs,
@@ -506,6 +536,8 @@ function rowToScene(row: any): Scene {
         : { startSeconds: row.narration_start_seconds, endSeconds: row.narration_end_seconds },
     requestedDurationSeconds: row.requested_duration_seconds,
     durationWarning: row.duration_warning,
+    speedFactor: row.speed_factor,
+    speedFactorWarning: row.speed_factor_warning,
     provider: row.provider,
     providerMode: row.provider_mode,
     providerLatencyMs: row.provider_latency_ms,
@@ -540,6 +572,9 @@ export interface RegisteredSceneInput {
   /** request-admitted-clip-duration (JOS-147): written once here, locked afterwards. */
   requestedDurationSeconds: number;
   durationWarning: DurationWarning | null;
+  /** record-speed-adjustment-factor (JOS-148): written once here, locked afterwards. */
+  speedFactor: number;
+  speedFactorWarning: SpeedFactorWarning | null;
 }
 
 export function countScenesForRun(runId: string): number {
@@ -556,7 +591,7 @@ export function countScenesForRun(runId: string): number {
 export function insertRegisteredScenes(runId: string, scenes: readonly RegisteredSceneInput[]): void {
   const updatedAt = nowIso();
   const insert = db.prepare(
-    "INSERT INTO scenes (id, run_id, idx, status, attempts, instruction, prompt, image_instruction, video_instruction, narration_start_seconds, narration_end_seconds, requested_duration_seconds, duration_warning, updated_at) VALUES (?, ?, ?, 'submitted', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO scenes (id, run_id, idx, status, attempts, instruction, prompt, image_instruction, video_instruction, narration_start_seconds, narration_end_seconds, requested_duration_seconds, duration_warning, speed_factor, speed_factor_warning, updated_at) VALUES (?, ?, ?, 'submitted', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   );
   db.exec("BEGIN");
   try {
@@ -574,6 +609,8 @@ export function insertRegisteredScenes(runId: string, scenes: readonly Registere
         scene.narrationInterval.endSeconds,
         scene.requestedDurationSeconds,
         scene.durationWarning,
+        scene.speedFactor,
+        scene.speedFactorWarning,
         updatedAt,
       );
     }
