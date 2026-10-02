@@ -31,6 +31,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 - [x] 4.3 Failing tests: a failed `image` scene shows its error, "image" as the affected stage, the retry button and the correction form; a failed `video` scene shows its error and "video" and no retry button or correction form
 - [x] 4.4 Update the two existing fixtures that set `imageUrl` to a raw file path to the new URL shape
 - [x] 4.5 Implement `sceneActions`, the URL resolution in `api/client.ts`, and the `SceneRow.tsx` rendering; make 4.1-4.3 pass
+- [x] 4.6 Style the scene's image and clip so they fit the details panel (`max-width: 100%`, bounded height, aspect ratio kept) instead of stretching to its full width; found in step 9 (9.3)
 
 ## 5. AC1 and AC2 evidence
 
@@ -63,11 +64,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 9. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Decide applicability: the scene-details panel changes, so it applies
-- [ ] 9.2 Run backend (scratch store) and frontend; prepare a session with one scene holding a real stored image, one `failed` with `affectedStage: "image"`, and one `failed` with `affectedStage: "video"` (set directly)
-- [ ] 9.3 Expand each scene: the image renders; the image failure shows the stage, retry and the correction form; the clip failure shows the stage and no actions
-- [ ] 9.4 Change a scene's state on the backend and confirm its row updates without a reload
-- [ ] 9.5 Restore the environment and save `openspec/changes/show-scene-results-and-actions/reports/YYYY-MM-DD-step-9-e2e.md`
+- [x] 9.1 Decide applicability: the scene-details panel changes, so it applies
+- [x] 9.2 Run backend (scratch store) and frontend; prepare a session with one scene holding a real stored image, one `failed` with `affectedStage: "image"`, and one `failed` with `affectedStage: "video"` (set directly)
+- [x] 9.3 Expand each scene: the image renders; the image failure shows the stage, retry and the correction form; the clip failure shows the stage and no actions
+- [x] 9.4 Change a scene's state on the backend and confirm its row updates without a reload
+- [x] 9.5 Restore the environment and save `openspec/changes/show-scene-results-and-actions/reports/YYYY-MM-DD-step-9-e2e.md`
 
 ## 10. Update Technical Documentation (MANDATORY)
 
