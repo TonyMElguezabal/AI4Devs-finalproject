@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { intervalDurationSeconds, requestedClipDuration } from "./admittedDurations.ts";
 import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS } from "./config/providers.ts";
 import { countScenesForRun, getRun, insertRegisteredScenes, setRunFailure } from "./db.ts";
 import { broadcast } from "./orchestrator.ts";
@@ -18,10 +19,10 @@ import type { VisualInstructionGenerator, VisualInstructionPair } from "./visual
 /** The two §6.1.1 exceptions segmentation may flag on a fragment outside the bounds. */
 export type FragmentException = "script-below-lower-bound" | "unsplittable-sentence";
 
-/** The narrated duration of an interval; the one place it is derived, so a duration can never disagree with its interval. */
-export function intervalDurationSeconds(interval: NarrationInterval): number {
-  return interval.endSeconds - interval.startSeconds;
-}
+// `intervalDurationSeconds` now lives in admittedDurations.ts (request-admitted-clip-duration,
+// JOS-147): requestedClipDuration needs it, and this module needs requestedClipDuration, so
+// defining it here would create a cycle. Re-exported so existing callers are unaffected.
+export { intervalDurationSeconds };
 
 /** What segmentation hands over for each fragment, in script order. */
 export interface SegmentedFragment {
@@ -154,14 +155,23 @@ export async function registerDecomposition(
   const instructionProblem = findInstructionProblem(instructions.pairs, fragments.length);
   if (instructionProblem) return recordFailure(runId, instructionProblem, true, now());
 
-  const scenes = fragments.map((fragment, position) => ({
-    id: randomUUID(),
-    index: position + 1,
-    prompt: fragment.text,
-    imageInstruction: instructions.pairs[position]!.image.trim(),
-    videoInstruction: instructions.pairs[position]!.video.trim(),
-    narrationInterval: fragment.narrationInterval,
-  }));
+  const scenes = fragments.map((fragment, position) => {
+    // request-admitted-clip-duration (JOS-147), design Decision 2 — computed
+    // once here, after the partition check, and stored with the chunk in the
+    // same transaction as its interval. Cannot fail: the interval is already
+    // checked finite and positive by findFragmentProblem above.
+    const { seconds: requestedDurationSeconds, warning: durationWarning } = requestedClipDuration(fragment.narrationInterval);
+    return {
+      id: randomUUID(),
+      index: position + 1,
+      prompt: fragment.text,
+      imageInstruction: instructions.pairs[position]!.image.trim(),
+      videoInstruction: instructions.pairs[position]!.video.trim(),
+      narrationInterval: fragment.narrationInterval,
+      requestedDurationSeconds,
+      durationWarning,
+    };
+  });
   try {
     insertRegisteredScenes(runId, scenes);
   } catch (err: any) {

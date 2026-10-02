@@ -58,6 +58,8 @@ function sceneToPayload(scene: Scene): SceneEventPayload {
     imageInstruction: scene.imageInstruction,
     videoInstruction: scene.videoInstruction,
     narrationInterval: scene.narrationInterval ?? undefined,
+    requestedDurationSeconds: scene.requestedDurationSeconds ?? undefined,
+    durationWarning: scene.durationWarning ?? undefined,
     updatedAt: scene.updatedAt,
   };
 }

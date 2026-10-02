@@ -138,6 +138,9 @@ export interface NarrationInterval {
   endSeconds: number;
 }
 
+/** request-admitted-clip-duration (JOS-147) — the one duration-warning value ever recorded; §6.1.1's unsplittable-sentence case. */
+export type DurationWarning = "exceeds-maximum";
+
 export interface Scene {
   id: string;
   runId: string;
@@ -157,6 +160,10 @@ export interface Scene {
   videoInstruction: string;
   /** PRD §3 narration interval, in seconds; null for a scene created without a decomposition. Locked once registered (assign-narration-intervals, JOS-143). */
   narrationInterval: NarrationInterval | null;
+  /** The admitted clip duration requested for this chunk (PRD §7.2); null for a scene created without a decomposition. Locked once registered (request-admitted-clip-duration, JOS-147). */
+  requestedDurationSeconds: number | null;
+  /** Set only when the interval was narrated longer than the largest admitted duration (§6.1.1). Locked once registered. */
+  durationWarning: DurationWarning | null;
   provider: string;
   /** Configured at scene creation so automatic retries can reuse the same behaviour. */
   providerMode: ProviderOutcomeMode;
@@ -238,6 +245,10 @@ export interface SceneEventPayload {
   videoInstruction?: string;
   /** PRD §3 narration interval; absent for a scene created without a decomposition. Immutable (assign-narration-intervals, JOS-143). */
   narrationInterval?: NarrationInterval;
+  /** The admitted clip duration requested for this chunk (PRD §7.2); absent for a scene created without a decomposition. Immutable (request-admitted-clip-duration, JOS-147). */
+  requestedDurationSeconds?: number;
+  /** Set only when the interval was narrated longer than the largest admitted duration (§6.1.1). Immutable. */
+  durationWarning?: DurationWarning;
   updatedAt: string;
 }
 

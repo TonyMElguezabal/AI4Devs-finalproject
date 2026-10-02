@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
+import { requestedClipDuration } from "../src/admittedDurations.ts";
 import { createRun, createScene, getRun, getScenesForRun, resetAll } from "../src/db.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
@@ -103,6 +104,54 @@ describe("A valid decomposition registers chunks 1..N (AC1, AC2, AC5)", () => {
     await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator, DURATION);
 
     expect(getRun(runId)?.failure).toBeNull();
+  });
+});
+
+// request-admitted-clip-duration (JOS-147), group 3 — design Decision 2: the
+// requested duration and its over-maximum warning are computed from each
+// fragment's interval and stored with the chunk, in the same registration.
+describe("Each chunk's requested duration is chosen from its interval (JOS-147)", () => {
+  it("stores the admitted duration by smallest speed change and no warning for an ordinary chunk", async () => {
+    const runId = newRunId();
+    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator, DURATION);
+
+    // SPECS: 6 s -> 6 s; 9.5 s -> 10 s (ratio 10/9.5=1.0526 beats 9.5/9=1.0556); 5 s -> 5 s.
+    expect(getScenesForRun(runId).map((s) => ({ requestedDurationSeconds: s.requestedDurationSeconds, durationWarning: s.durationWarning }))).toEqual([
+      { requestedDurationSeconds: 6, durationWarning: null },
+      { requestedDurationSeconds: 10, durationWarning: null },
+      { requestedDurationSeconds: 5, durationWarning: null },
+    ]);
+  });
+
+  it("stores the maximum with exceeds-maximum for an unsplittable chunk, without failing the chunk or the session", async () => {
+    const runId = newRunId();
+    const fragments = contiguousFragments(specsWith(1, { seconds: 17.4, exception: "unsplittable-sentence" }));
+    const result = await registerDecomposition(runId, fragments, stubGenerator().generator, voiceOverDurationOf(fragments));
+
+    expect(result.ok).toBe(true);
+    const scenes = getScenesForRun(runId);
+    expect(scenes[1]).toMatchObject({ status: "submitted", requestedDurationSeconds: 15, durationWarning: "exceeds-maximum" });
+    expect(getRun(runId)?.failure).toBeNull();
+  });
+
+  it("stays unchanged under a later, different admitted-durations set, and refuses a second registration (AC5)", async () => {
+    const runId = newRunId();
+    const fragments = contiguousFragments(specsWith(1, { seconds: 17.4, exception: "unsplittable-sentence" }));
+    const interval = fragments[1]!.narrationInterval;
+    await registerDecomposition(runId, fragments, stubGenerator().generator, voiceOverDurationOf(fragments));
+    const storedBefore = getScenesForRun(runId).map((s) => ({ requestedDurationSeconds: s.requestedDurationSeconds, durationWarning: s.durationWarning }));
+    expect(storedBefore[1]).toEqual({ requestedDurationSeconds: 15, durationWarning: "exceeds-maximum" });
+
+    // A later build with a wider admitted set (5..20) would now choose 17 s for the same interval.
+    const wide = Array.from({ length: 16 }, (_, i) => 5 + i);
+    expect(requestedClipDuration(interval, wide)).toEqual({ seconds: 17, warning: null });
+
+    // The already-registered chunk is untouched by that: a second registration is refused outright.
+    const second = await registerDecomposition(runId, fragments, stubGenerator().generator, voiceOverDurationOf(fragments));
+    expect(second).toEqual({ ok: false, reason: "already-registered" });
+    expect(getScenesForRun(runId).map((s) => ({ requestedDurationSeconds: s.requestedDurationSeconds, durationWarning: s.durationWarning }))).toEqual(
+      storedBefore,
+    );
   });
 });
 
