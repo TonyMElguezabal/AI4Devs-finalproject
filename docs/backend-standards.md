@@ -1,6 +1,6 @@
 ---
-description: Backend development standards, best practices, and conventions for the LTI Node.js/TypeScript/Express application including Domain-Driven Design, SOLID principles, architecture patterns, API design, and testing practices
-globs: ["backend/src/**/*.ts", "backend/prisma/**/*.{prisma,ts}", "backend/jest.config.js", "backend/tsconfig.json", "backend/serverless.yml", "backend/package.json"]
+description: Backend development standards, best practices, and conventions for the Vid4You Node.js/TypeScript/Fastify application, covering stack, orchestration architecture, validation, API/OpenAPI conventions, testing and diagnostics
+globs: ["backend/src/**/*.ts", "backend/test/**/*.ts", "backend/tsconfig.json", "backend/package.json", "backend/vitest.config.ts"]
 alwaysApply: true
 ---
 
@@ -10,1260 +10,290 @@ alwaysApply: true
 
 - [Overview](#overview)
 - [Technology Stack](#technology-stack)
-  - [Core Technologies](#core-technologies)
-  - [Database & ORM](#database--orm)
-  - [Testing Framework](#testing-framework)
-  - [Development Tools](#development-tools)
-- [Architecture Overview](#architecture-overview)
-  - [Domain-Driven Design (DDD)](#domain-driven-design-ddd)
-  - [Layered Architecture](#layered-architecture)
-  - [Project Structure](#project-structure)
-- [Domain-Driven Design Principles](#domain-driven-design-principles)
-  - [Entities](#entities)
-  - [Value Objects](#value-objects)
-  - [Aggregates](#aggregates)
-  - [Repositories](#repositories)
-  - [Domain Services](#domain-services)
-  - [Additional Recommendations](#additional-recommendations)
-- [SOLID and DRY Principles](#solid-and-dry-principles)
-  - [Single Responsibility Principle (SRP)](#single-responsibility-principle-srp)
-  - [Open/Closed Principle (OCP)](#openclosed-principle-ocp)
-  - [Liskov Substitution Principle (LSP)](#liskov-substitution-principle-lsp)
-  - [Interface Segregation Principle (ISP)](#interface-segregation-principle-isp)
-  - [Dependency Inversion Principle (DIP)](#dependency-inversion-principle-dip)
-  - [DRY (Don't Repeat Yourself)](#dry-dont-repeat-yourself)
+- [Project Structure](#project-structure)
+- [Architecture](#architecture)
+  - [Why not classic DDD/CRUD layering](#why-not-classic-dddcrud-layering)
+  - [Core components](#core-components)
+  - [Provider adapters](#provider-adapters)
 - [Coding Standards](#coding-standards)
-  - [Language and Naming Conventions](#language-and-naming-conventions)
-  - [TypeScript Usage](#typescript-usage)
+  - [Naming Conventions](#naming-conventions)
   - [Error Handling](#error-handling)
-  - [Validation Patterns](#validation-patterns)
-  - [Logging Standards](#logging-standards)
-- [API Design Standards](#api-design-standards)
-  - [REST Endpoints](#rest-endpoints)
-  - [Request/Response Patterns](#requestresponse-patterns)
-  - [Error Response Format](#error-response-format)
-  - [CORS Configuration](#cors-configuration)
-- [Database Patterns](#database-patterns)
-  - [Prisma Schema](#prisma-schema)
-  - [Migrations](#migrations)
-  - [Repository Pattern](#repository-pattern)
+  - [Runtime constraint: erasable TypeScript only](#runtime-constraint-erasable-typescript-only)
+  - [Validation](#validation)
+- [API and OpenAPI Conventions](#api-and-openapi-conventions)
+- [Live Updates](#live-updates)
+- [Persistence](#persistence)
 - [Testing Standards](#testing-standards)
   - [Unit Testing](#unit-testing)
-  - [Integration Testing](#integration-testing)
-  - [Test Coverage Requirements](#test-coverage-requirements)
-  - [Mocking Standards](#mocking-standards)
-- [Performance Best Practices](#performance-best-practices)
-  - [Database Query Optimization](#database-query-optimization)
-  - [Async/Await Patterns](#asyncawait-patterns)
-  - [Error Handling Performance](#error-handling-performance)
-- [Security Best Practices](#security-best-practices)
-  - [Input Validation](#input-validation)
-  - [Environment Variables](#environment-variables)
-  - [Dependency Injection](#dependency-injection)
+  - [Manual Endpoint Testing](#manual-endpoint-testing)
+  - [End-to-End Testing](#end-to-end-testing)
+- [Logging and Diagnostics](#logging-and-diagnostics)
+- [Security and Configuration](#security-and-configuration)
 - [Development Workflow](#development-workflow)
-  - [Git Workflow](#git-workflow)
-  - [Development Scripts](#development-scripts)
-  - [Code Quality](#code-quality)
-- [Serverless Deployment](#serverless-deployment)
-  - [AWS Lambda Configuration](#aws-lambda-configuration)
-  - [Serverless Framework](#serverless-framework)
+- [Media Assembly Pipeline](#media-assembly-pipeline)
+- [Not Yet Decided](#not-yet-decided)
 
 ---
 
 ## Overview
 
-This document outlines the best practices, conventions, and standards used in the LTI backend application. The backend follows Domain-Driven Design (DDD) principles and implements a layered architecture to ensure code consistency, maintainability, and scalability.
+This document describes the backend standards for Vid4You: a local, single-user application that turns a script into a narrated MP4 through five provider-backed stages (voice, timestamps/decomposition, per-scene image, per-scene video, final assembly — `docs/PRD.md` §5). The backend's central problem is **long-running, resumable, per-scene orchestration** under a bounded retry budget and a concurrency cap shared across sessions — not CRUD. Standards here are chosen to serve that problem, not a generic REST-over-a-database template.
+
+This document replaces the previous version, which described an unrelated inherited template application and its stack. That content had no bearing on Vid4You and has been fully removed.
+
+The stack decision, its rejected alternatives, and the live evidence behind it are recorded in `docs/adr/0001-backend-stack.md`. Read it before this document for the "why"; this document is the "how."
 
 ## Technology Stack
 
-### Core Technologies
-- **Node.js**: Runtime environment
-- **TypeScript**: Type-safe development with strict mode
-- **Express.js**: Web application framework
-- **Prisma**: Modern ORM for database access
+- **Node.js** — runtime. Modern versions run TypeScript source directly (type-stripped) without a separate build step for development; a `tsc` compile step is used for the type-check gate and for producing what actually ships.
+- **TypeScript**, `strict: true` — per `docs/base-standards.md`'s project-wide "all code must be fully typed."
+- **Fastify** — HTTP framework. Chosen over AdonisJS/NestJS as the lighter-ceremony option for a backend that is primarily a background orchestrator with an HTTP surface, not a CRUD API (ADR 0001).
+- **Zod**, via `fastify-type-provider-zod` — request/response validation, with types inferred from the same schemas (no separate DTO duplication).
+- **`@fastify/swagger`** + **`@fastify/swagger-ui`** — OpenAPI generated from the Zod schemas, served at `/docs`.
+- **Vitest** — unit testing.
+- **Fastify's built-in logger (Pino)** — structured JSON logging.
+- **ffmpeg**, invoked as a subprocess — media assembly, per `define-media-assembly` (JOS-182); the pipeline itself is documented there, not duplicated here.
+- Persistence engine: embedded SQLite via `node:sqlite` — see [Persistence](#persistence) below.
 
-### Database & ORM
-- **PostgreSQL**: Relational database (Docker container)
-- **Prisma Client**: Type-safe database client
-- **Prisma Migrate**: Database migration tool
-
-### Testing Framework
-- **Jest**: Testing framework with TypeScript support
-- **Coverage Threshold**: 90% for branches, functions, lines, and statements
-- **Test Location**: `__tests__` directories and `.test.ts` files
-
-### Development Tools
-- **ESLint**: Code linting
-- **TypeScript Compiler**: Type checking and compilation
-- **Serverless Framework**: AWS Lambda deployment support
-
-## Architecture Overview
-
-### Domain-Driven Design (DDD)
-
-Domain-Driven Design is a methodology that focuses on modeling software according to business logic and domain knowledge. By centering development on a deep understanding of the domain, DDD facilitates the creation of complex systems.
-
-**Benefits:**
-- **Improved Communication**: Promotes a common language between developers and domain experts, improving communication and reducing interpretation errors.
-- **Clear Domain Models**: Helps build models that accurately reflect business rules and processes.
-- **High Maintainability**: By dividing the system into subdomains, it facilitates maintenance and software evolution.
-
-### Layered Architecture
-
-The backend follows a layered DDD architecture:
-
-**Presentation Layer** (`src/presentation/`)
-- Controllers handle HTTP requests/responses
-- Routes define API endpoints
-- Controllers use services from Application layer
-
-**Application Layer** (`src/application/`)
-- Services contain business logic and orchestration
-- Validator handles input validation
-- Services use repositories from Domain layer
-
-**Domain Layer** (`src/domain/`)
-- Models define core business entities (Candidate, Position, Application, Interview, etc.)
-- Repository interfaces define data access contracts
-- Pure business logic without external dependencies
-
-**Infrastructure Layer** (implicit)
-- Prisma ORM handles database operations
-- Repository implementations (via Prisma) satisfy domain interfaces
-
-### Project Structure
+## Project Structure
 
 ```
 backend/
 ├── src/
 │   ├── domain/
-│   │   ├── models/          # Domain entities
-│   │   └── repositories/    # Repository interfaces
-│   ├── application/
-│   │   ├── services/        # Business logic services
-│   │   └── validator.ts     # Input validation
-│   ├── presentation/
-│   │   └── controllers/     # HTTP request handlers
-│   ├── infrastructure/
-│   │   ├── logger.ts        # Logging utilities
-│   │   └── prismaClient.ts  # Prisma client setup
-│   ├── routes/              # Express route definitions
-│   ├── middleware/          # Express middleware
-│   ├── index.ts             # Application entry point
-│   └── lambda.ts            # AWS Lambda handler
-├── prisma/
-│   ├── schema.prisma        # Database schema
-│   └── migrations/          # Database migrations
-├── test-utils/
-│   ├── builders/            # Test data builders
-│   └── mocks/               # Mock helpers
-├── jest.config.js           # Jest configuration
-├── tsconfig.json            # TypeScript configuration
-├── serverless.yml           # Serverless Framework config
-└── package.json             # Dependencies and scripts
+│   │   ├── orchestrator.ts     # stage state machine: launch, retry, idempotent result handling, boot reconciliation
+│   │   ├── concurrency.ts      # per-stage FIFO semaphore, shared across sessions
+│   │   ├── retryPolicy.ts      # pure function: outcome + attempt count → Complete | ScheduleNext | Fail
+│   │   └── providers/          # one adapter per stage (voice, alignment, image, video, assembly)
+│   ├── persistence/             # store-backed repositories (embedded SQLite via `node:sqlite`)
+│   ├── http/
+│   │   ├── routes/              # one file per resource, Fastify + Zod schemas colocated
+│   │   ├── events.ts            # SSE (or chosen transport, US-42e) live-push endpoint
+│   │   └── server.ts            # Fastify instance, plugin registration, boot reconciliation call
+│   ├── config/
+│   │   └── env.ts               # required-environment-variable validation at startup
+│   └── index.ts                 # entry point
+├── test/
+├── tsconfig.json
+├── vitest.config.ts
+└── package.json
 ```
 
-## Domain-Driven Design Principles
-
-### Entities
-
-Entities are objects with a distinct identity that persists over time.
-
-**Before:**
-```typescript
-// Previously, candidate data might have been handled as a simple JSON object without methods.
-const candidate = {
-    id: 1,
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com'
-};
-```
-
-**After:**
-```typescript
-export class Candidate {
-    id?: number;
-    firstName: string;
-    lastName: string;
-    email: string;
-    
-    // Constructor and methods that encapsulate business logic
-    constructor(data: any) {
-        this.id = data.id;
-        this.firstName = data.firstName;
-        this.lastName = data.lastName;
-        this.email = data.email;
-    }
-}
-```
-
-**Explanation**: `Candidate` is an entity because it has a unique identifier (`id`) that distinguishes it from other candidates, even if other properties are identical.
-
-**Best Practice**: Entities should encapsulate business logic related to their domain concept and maintain consistency of their internal state.
-
-### Value Objects
-
-Value Objects describe aspects of the domain without conceptual identity. They are defined by their attributes rather than an identifier.
-
-**Before:**
-```typescript
-// Handling education information as a simple object
-const education = {
-    institution: 'University',
-    degree: 'Bachelor',
-    startDate: '2010-01-01',
-    endDate: '2014-01-01'
-};
-```
-
-**After:**
-```typescript
-export class Education {
-    institution: string;
-    title: string;
-    startDate: Date;
-    endDate?: Date;
-    
-    constructor(data: any) {
-        this.institution = data.institution;
-        this.title = data.title;
-        this.startDate = new Date(data.startDate);
-        this.endDate = data.endDate ? new Date(data.endDate) : undefined;
-    }
-}
-```
-
-**Explanation**: `Education` can be considered a Value Object in some contexts, as it describes a candidate's education without needing a unique identifier. However, in the current model, it has been assigned an id, which could contradict the pure definition of a Value Object in DDD.
-
-**Recommendation**: Classes like `Education` and `WorkExperience` currently have unique identifiers, classifying them as entities. In many cases, these could be treated as Value Objects within the context of a `Candidate` aggregate. Consider removing unique identifiers from classes that should be Value Objects, or incorporating them as part of the Candidate document if using a NoSQL database.
-
-### Aggregates
-
-Aggregates are clusters of objects that must be treated as a unit. They have a root entity that enforces invariants and consistency boundaries.
-
-**Before:**
-```typescript
-// Candidate and education data handled separately
-const candidate = { id: 1, name: 'John Doe' };
-const educations = [{ candidateId: 1, institution: 'University' }];
-```
-
-**After:**
-```typescript
-export class Candidate {
-    id?: number;
-    firstName: string;
-    lastName: string;
-    email: string;
-    educations: Education[];
-    
-    constructor(data: any) {
-        this.id = data.id;
-        this.firstName = data.firstName;
-        this.lastName = data.lastName;
-        this.email = data.email;
-        this.educations = data.educations?.map(edu => new Education(edu)) || [];
-    }
-}
-```
-
-**Explanation**: `Candidate` acts as an aggregate root that contains `Education`, `WorkExperience`, `Resume`, and `Application`. `Candidate` is the root of the aggregate, as the other entities only make sense in relation to a candidate.
-
-**Recommendation**: Aggregates should be carefully designed to ensure that all operations within the aggregate boundary maintain consistency. Operations that affect `Education` and `WorkExperience` should be handled through the aggregate root, `Candidate`, to maintain integrity and encapsulation.
-
-### Repositories
-
-Repositories provide interfaces for accessing aggregates and entities, encapsulating data access logic.
+**`backend/` now exists** — promoted from the throwaway skeleton (`start-video-project`, JOS-134, extending `docs/adr/0001-backend-stack.md` § Consequences' "kept as the project seed" decision), not a hypothetical target structure. It still models the PRD's five stages as one generic stage; the full five-stage model is future work, not yet done (see below).
 
-**Before:**
-```typescript
-// Direct database access without abstraction
-function getCandidateById(id: number) {
-    return database.query('SELECT * FROM candidates WHERE id = ?', [id]);
-}
-```
+## Architecture
 
-**After:**
-```typescript
-export interface ICandidateRepository {
-    findById(id: number): Promise<Candidate | null>;
-    save(candidate: Candidate): Promise<Candidate>;
-    findAll(): Promise<Candidate[]>;
-}
-
-export class CandidateRepository implements ICandidateRepository {
-    async findById(id: number): Promise<Candidate | null> {
-        const data = await prisma.candidate.findUnique({ where: { id } });
-        return data ? new Candidate(data) : null;
-    }
-    
-    async save(candidate: Candidate): Promise<Candidate> {
-        // Implementation with Prisma
-    }
-}
-```
-
-**Explanation**: `CandidateRepository` provides a clear interface for accessing candidate data, encapsulating database access logic.
-
-**Recommendation**: 
-- Develop complete repository interfaces for each entity and aggregate, ensuring all database interactions for those entities pass through the repository
-- Implement repository methods that handle collections of entities, such as lists of Candidates, that can be filtered or modified in bulk
-- Use dependency injection to inject Prisma client into repositories
-
-### Domain Services
-
-Domain Services contain business logic that doesn't naturally belong to an entity or value object.
-
-**Before:**
-```typescript
-// Loose functions to handle business logic
-function calculateAge(candidate: any): number {
-    const today = new Date();
-    const birthDate = new Date(candidate.birthDate);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-    }
-    return age;
-}
-```
-
-**After:**
-```typescript
-export class CandidateService {
-    static calculateAge(candidate: Candidate): number {
-        const today = new Date();
-        const birthDate = new Date(candidate.birthDate);
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-        }
-        return age;
-    }
-}
-```
-
-**Explanation**: `CandidateService` encapsulates business logic related to candidates, such as calculating age, providing a centralized and coherent point for handling these operations.
-
-### Additional Recommendations
-
-**Use of Factories**
-
-Factories are useful in DDD to encapsulate the logic of creating complex objects, ensuring that all created objects comply with domain rules from the moment of creation.
-
-**Recommendation**: Implement factories for the creation of entities and aggregates, especially those that are complex and require specific initial configuration that complies with business rules.
-
-**Improvement in Relationship Modeling**
-
-Relationships between entities and aggregates must be clear and consistent with business rules.
-
-**Recommendation**: Review and possibly redesign relationships between entities to ensure they accurately reflect domain needs and rules. This may include removing unnecessary relationships or adding new relationships that facilitate business operations.
-
-**Domain Events Integration**
-
-Domain events are an important part of DDD and can be used to handle side effects of domain operations in a decoupled manner.
-
-**Recommendation**: Implement a domain event system that allows entities and aggregates to publish events that other system components can handle without being tightly coupled to the entities that generate them.
-
-## SOLID and DRY Principles
-
-### SOLID Principles
-
-SOLID principles are five object-oriented design principles that help create more understandable, flexible, and maintainable systems.
-
-#### Single Responsibility Principle (SRP)
-
-Each class should have a single responsibility or reason to change.
-
-**Before:**
-```typescript
-// A method that handles multiple responsibilities: validation and data storage
-function processCandidate(candidate: any) {
-    if (!candidate.email.includes('@')) {
-        console.error('Invalid email');
-        return;
-    }
-    database.save(candidate);
-    console.log('Candidate saved');
-}
-```
-
-**After:**
-```typescript
-export class Candidate {
-    // The class now only handles logic related to the candidate
-    validateEmail(): void {
-        if (!this.email.includes('@')) {
-            throw new Error('Invalid email');
-        }
-    }
-}
-
-export class CandidateRepository {
-    async save(candidate: Candidate): Promise<Candidate> {
-        candidate.validateEmail();
-        return await prisma.candidate.create({ data: candidate });
-    }
-}
-```
-
-**Explanation**: The `Candidate` class now has separate methods for validation, while the repository handles data persistence, complying with the single responsibility principle.
-
-**Observation**: The `Candidate` class in `backend/src/domain/models/Candidate.ts` handles both business logic and data access logic.
-
-**Recommendation**: Separate data access logic into a repository layer to adhere more closely to SRP.
-
-#### Open/Closed Principle (OCP)
-
-Software entities should be open for extension but closed for modification.
-
-**Before:**
-```typescript
-// Direct modification of the class to add functionality
-class Candidate {
-    saveToDatabase() {
-        // code to save to database
-    }
-    // To add new functionality, we modify the class directly
-    sendEmail() {
-        // code to send an email
-    }
-}
-```
-
-**After:**
-```typescript
-export class Candidate {
-    saveToDatabase() {
-        // code to save to database
-    }
-}
-
-// Extend functionality without modifying the existing class
-class CandidateWithEmail extends Candidate {
-    sendEmail() {
-        // code to send an email
-    }
-}
-```
-
-**Explanation**: The email sending functionality is extended in a subclass, keeping the original class closed for modifications but open for extensions.
-
-**Observation**: The `addCandidate` function in `backend/src/application/services/candidateService.ts` directly instantiates `Candidate`, `Education`, `WorkExperience`, and `Resume` classes.
-
-**Recommendation**: Use factory methods to create instances, allowing for easier extension without modifying existing code.
-
-#### Liskov Substitution Principle (LSP)
-
-Objects of a derived class should be replaceable with objects of the base class without altering the program's functionality.
-
-**Before:**
-```typescript
-// Subclass that cannot completely replace its base class
-class TemporaryCandidate extends Candidate {
-    saveToDatabase() {
-        throw new Error("Temporary candidates can't be saved.");
-    }
-}
-```
-
-**After:**
-```typescript
-class TemporaryCandidate extends Candidate {
-    saveToDatabase() {
-        // Appropriate implementation that allows temporary handling
-        console.log("Handled temporarily");
-        // Alternative: Save to temporary storage
-    }
-}
-```
-
-**Explanation**: `TemporaryCandidate` now provides an appropriate implementation that respects the base class contract, allowing substitution without errors.
-
-**Observation**: Currently, there is no inheritance in use where LSP could be violated. The project uses composition over inheritance, which generally supports LSP.
-
-**Recommendation**: Continue using composition to avoid LSP violations and ensure that any future inheritance structures allow derived classes to substitute their base classes without altering how the program works.
-
-#### Interface Segregation Principle (ISP)
-
-Many specific interfaces are better than a single general interface.
-
-**Before:**
-```typescript
-// A large interface that small clients don't fully use
-interface CandidateOperations {
-    save(): void;
-    validate(): void;
-    sendEmail(): void;
-    generateReport(): void;
-}
-```
-
-**After:**
-```typescript
-interface SaveOperation {
-    save(): void;
-}
-
-interface EmailOperations {
-    sendEmail(): void;
-}
-
-interface ReportOperations {
-    generateReport(): void;
-}
-
-class Candidate implements SaveOperation, EmailOperations {
-    save() {
-        // implementation
-    }
-    
-    sendEmail() {
-        // implementation
-    }
-}
-```
-
-**Explanation**: Interfaces are segregated into smaller operations, allowing classes to implement only the interfaces they need.
-
-**Observation**: The project does not currently use TypeScript interfaces extensively to enforce contracts for classes.
-
-**Recommendation**: Define more granular interfaces for service classes to ensure they only implement the methods they need.
-
-#### Dependency Inversion Principle (DIP)
-
-High-level modules should not depend on low-level modules; both should depend on abstractions.
-
-**Before:**
-```typescript
-// Direct dependency on a concrete implementation
-class Candidate {
-    private database = new PrismaClient();
-    
-    save() {
-        this.database.candidate.create({ data: this });
-    }
-}
-```
-
-**After:**
-```typescript
-interface Database {
-    save(candidate: Candidate): Promise<Candidate>;
-}
-
-class Candidate {
-    private database: Database;
-    
-    constructor(database: Database) {
-        this.database = database;
-    }
-    
-    async save(): Promise<Candidate> {
-        return await this.database.save(this);
-    }
-}
-```
-
-**Explanation**: `Candidate` now depends on an abstraction (Database), not a concrete implementation, which facilitates flexibility and code testing.
-
-**Observation**: Classes like `Candidate` directly depend on the concrete `PrismaClient` for database operations.
-
-**Recommendation**: Use dependency injection to invert the dependency, relying on abstractions rather than concrete implementations. Inject `PrismaClient` through the constructor or a setter method.
-
-### DRY (Don't Repeat Yourself)
-
-The DRY principle focuses on reducing duplication in code. Each piece of knowledge should have a single, unambiguous, and authoritative representation within a system.
-
-**Before:**
-```typescript
-// Repeated code to validate emails in multiple functions
-function saveCandidate(candidate: Candidate) {
-    if (!candidate.email.includes('@')) {
-        throw new Error('Invalid email');
-    }
-    // save logic
-}
-
-function updateCandidate(candidate: Candidate) {
-    if (!candidate.email.includes('@')) {
-        throw new Error('Invalid email');
-    }
-    // update logic
-}
-```
-
-**After:**
-```typescript
-export class Candidate {
-    validateEmail(): void {
-        if (!this.email.includes('@')) {
-            throw new Error('Invalid email');
-        }
-    }
-    
-    async save(): Promise<Candidate> {
-        this.validateEmail();
-        // save logic
-    }
-    
-    async update(): Promise<Candidate> {
-        this.validateEmail();
-        // update logic
-    }
-}
-```
-
-**Explanation**: Email validation is centralized in a single `validateEmail` method, eliminating code duplication in the save and update functions.
-
-**Observation**: The methods for saving entities like `Candidate`, `Education`, `WorkExperience`, and `Resume` contain repetitive logic for handling database operations.
-
-**Recommendation**: Abstract common database operation logic into a reusable function or class.
+### Why not classic DDD/CRUD layering
+
+The previous version of this document prescribed a Presentation → Application → Domain → Infrastructure layering built around ORM-backed entities belonging to an unrelated application. That shape fits a CRUD application. It does not fit Vid4You's actual hard problem: a request can be *sent*, the process can *die*, and on restart the code must determine whether the external provider still holds a result, without duplicating work or losing the attempt budget. That is a state-machine-and-scheduler problem, not an entity-repository problem. The architecture below is organized around that instead.
+
+### Core components
+
+- **`RetryPolicy`** — a pure function: `(outcome, attemptsInCycle) → Complete | ScheduleNext | Fail`. No I/O, no side effects; fully unit-testable without a running server or database. This mirrors `bounded-retry-policy` (JOS-184)'s Decision 2, which owns the real policy (backoff, `stageInstanceKey` keying by `(sessionId, stage)` or `(sessionId, sceneId, stage)`); this document does not restate that design, only conforms to it.
+- **`orchestrator`** — everything with side effects sits here: launching a stage, applying `RetryPolicy`'s decision, handling a (possibly duplicate) provider result idempotently, and reconciling in-flight work on boot. Proven live in the walking skeleton (`docs/adr/0001-backend-stack.md` § Evidence) against all four PRD behaviours hardest to retrofit (bounded retries, shared concurrency, restart resumption, idempotency).
+- **`concurrency`** — a FIFO semaphore per stage, shared across all sessions (PRD §10.1). A queued request has not been sent: no attempt is consumed and no per-phase clock starts for it.
+- **Provider adapters** — see below.
+
+Stage attempts are recorded **append-only**, written *before* the request is sent (not after the response returns), per `define-persistence` (JOS-181)'s Decision 1 and Decision 2 — write-then-send is what makes restart resumption possible at all; write-after-response leaves no trace of a request that was in flight when the process died. Each attempt record carries its stage, sequence within the 1 + 3 budget, provider, outcome, external request identifier, and queued-versus-executing time (`define-persistence` Decision 1). Idempotency (a repeated success confirmation) is enforced by a **uniqueness constraint in the store**, not an application-level check-then-write (`define-persistence` Decision 3) — a check-then-write has a race window that a store constraint does not.
+
+### Provider adapters
+
+One adapter per stage (voice, alignment, image, video, assembly). Per `generate-voice-over` (JOS-136)'s Decision 4, an adapter returns an **already-classified** outcome (success, transient failure, or not-retryable failure) — classification is the adapter's job, not the orchestrator's, since only the adapter knows a given provider's error shapes. Per `bounded-retry-policy`'s Decision 6, every adapter disables its own HTTP client's/SDK's built-in retries; the bounded retry budget (§10.1) is the *only* retry mechanism, or an internal library retry loop would silently multiply it.
+
+**The reasoning adapter** (`backend/src/visualInstructions.ts`, `assign-scene-identifiers`, JOS-144) follows the same rule: `VisualInstructionGenerator` is the port and the OpenAI adapter sends **one** chat-completions request for all fragments (`response_format: json_object`, the shape verified in JOS-165), validates the answer with Zod (exactly one non-empty `image` and `video` per fragment), and classifies failures by HTTP status the way the product owner set for voice (not retryable: 4xx except 408 and 429; transient: 408, 429, 5xx, network errors and the phase time limit). It uses `fetch` directly, with no SDK and no retry loop, reads `OPENAI_KEY` through `loadCredential`, and never puts the provider's raw body or the key in a reason. Real calls run only in the opt-in contract test (`RUN_PROVIDER_CONTRACT_TESTS=1`).
+
+**The alignment adapter and the timestamps step** (`backend/src/alignmentProvider.ts`, `narrationTimestampsPhase.ts`, `obtain-narration-timestamps`, JOS-139) follow the same rules. `AlignmentProvider` is the port; the ElevenLabs Forced Alignment adapter sends one multipart request (the stored MP3 as `file`, the locked script as `text`, unaltered), with the 5 s phase limit, no retry and the HTTP-status classification. `obtainNarrationTimestamps(runId, alignmentProvider)` takes only the alignment port, so the voice provider cannot be called again and the MP3 cannot be regenerated. **Usable** timestamps (`narrationTimestamps.ts`, pure) are those with at least one character, characters that reproduce the script (exactly for native, apart from whitespace for alignment), finite non-negative ordered times, and a last end within the narration's duration plus half a second; gaps are allowed. Native first, alignment in the same attempt when native are missing or unusable, and straight to alignment on every later attempt once native were judged unusable. Nothing in the running app calls it yet: the voice phase (JOS-136) calls it once a narration completes.
+
+**Registering chunks** goes through one entry point, `registerDecomposition(runId, fragments, generator, voiceOverDurationSeconds)` (`backend/src/sceneRegistration.ts`). It validates the fragments first (non-empty, the 5-15 s bounds with the two §6.1.1 exceptions, script reconstruction), then checks that the fragments' narration intervals partition the voice-over (`assign-narration-intervals`, JOS-143; see below), then asks the generator, then inserts every chunk in one transaction; an invalid result records a `decomposition` failure and writes no chunk. Nothing in the running app calls it yet: the segmentation story (JOS-140) wires it in.
+
+**Narration intervals** (`assign-narration-intervals`, JOS-143) are never computed a second time. `segmentScript` takes each fragment's interval from the one `unitBoundaries` array that also measured it, `[boundaries[first], boundaries[last + 1]]`, and hands it over as `SegmentedFragment.narrationInterval`; the fragment's narrated duration is derived from it with `intervalDurationSeconds`, so a duration and an interval cannot disagree. Registration receives the voice-over's duration as an explicit parameter (the same value segmentation measured with) and checks the partition with **exact `!==` comparisons, no tolerance**: the first interval starts at 0, each starts where the previous ends, none is empty, the last ends at the voice-over's duration. A tolerance would only hide a second boundary rule creeping in. A violation is a retryable `decomposition` failure naming the scene and writes no chunk; a duration that is not finite and positive is a not-retryable one. The intervals are written in the registration transaction into `scenes.narration_start_seconds` / `narration_end_seconds` and locked by triggers (migration 9); they are exposed read-only as `narrationInterval` and no request schema accepts one. Anything that needs to place a chunk on the narration (assembly, speed-factor warnings) reads these columns instead of re-deriving them.
+
+**The requested clip duration** (`request-admitted-clip-duration`, JOS-147) is decided once at registration, from the chunk's own stored interval, and never recomputed — the same pattern as the narration interval above. `requestedClipDuration(interval, admitted?)` (`admittedDurations.ts`) wraps `closestAdmittedDuration` (JOS-140): it measures the interval with `intervalDurationSeconds` (moved into this module from `sceneRegistration.ts` so the two can depend on each other in only one direction — `admittedDurations.ts` has no dependency on `sceneRegistration.ts`), picks the admitted duration needing the smallest speed change (never the fewest seconds, an exact tie going to the longer duration — the same §7.2 measure segmentation's grouping search already uses), and sets the warning `exceeds-maximum` only when the interval is narrated longer than the largest admitted duration (an unsplittable sentence, §6.1.1) — not a failure. `closestAdmittedDuration`'s admitted-durations list is now an optional second argument (default `VIDEO_ADMITTED_DURATIONS_SECONDS`), added without changing its existing callers, so a later build's admitted set can never reach back and change an already-registered chunk's request: `registerDecomposition` computes both values once per fragment, after the partition check, and `insertRegisteredScenes` writes `requested_duration_seconds` / `duration_warning` in the same transaction as the interval, locked by their own triggers (migration 10). They are exposed read-only as `requestedDurationSeconds` / `durationWarning`; no request schema accepts either.
+
+**The speed-adjustment factor** (`record-speed-adjustment-factor`, JOS-148) is the ratio `closestAdmittedDuration` already computes while picking the requested duration above — `RequestedClipDuration.factor`, `closestAdmittedDuration`'s own `speedRatio` passed through unchanged, never recomputed from `requestedDurationSeconds`/the interval after the fact (that would be the same formula run twice on values already in hand, the kind of repeated pattern this project's standards flag). `registerDecomposition` compares it against `SPEED_FACTOR_LIMIT` (`config/providers.ts`, `2.0` — the unsigned mapping of `define-media-assembly`'s 0.5×-2.0× signed-rate recommendation, ADR 0005 Decision 5) right after `requestedClipDuration` returns, and `insertRegisteredScenes` writes `speed_factor` / `speed_factor_warning` in the same transaction and the same migration-10-style lock triggers (migration 11). `speed_factor_warning` (`exceeds-limit`) is independent of `duration_warning` (`exceeds-maximum`) — a chunk may carry either, both, or neither. Exposed read-only as `speedFactor` / `speedFactorWarning` on the session/scene read and, on the frontend, in `SceneRow.tsx`'s scene-details panel; no request schema accepts either.
+
+**Segmenting the script** (`segment-script-into-chunks`, JOS-140) turns the stored timestamps into fragments, in four small pure modules and one phase entry point. `sentences.ts`: a sentence ends at `.`, `!`, `?` or `…` (a run of them, plus closing quotes or brackets) followed by whitespace or the end, except after a listed abbreviation (English or Spanish lists; other languages use the English one) or a single capital letter; sentences are exact substrings with offsets. `sentenceTimings.ts`: characters are matched to the script by walking the non-whitespace characters of both (native timestamps list whitespace, alignment does not); a sentence's speech span runs from its first to its last spoken character; **one duration rule, D11's decided answer**, partitions the narration (`decide-silence-allocation`, JOS-142, product owner decision 2026-09-29): the boundary between two units is the *following* unit's own speech start — the previous unit absorbs the silence after it, so a scene change always falls exactly when the next sentence's narration begins, never mid-silence — the first boundary is 0 and the last is the MP3's duration. Chosen over splitting the silence between the two scenes (the rule this replaces) from a rendered comparison of real narration the product owner judged. A clip sustains up to 2 s of silence acceptably (3 s starts dragging); no third rule was needed since no real measured pause reached it. This is the one function the interval story (JOS-143) must reuse rather than re-deriving; full evidence and the rejected alternative are in `docs/adr/0006-silence-allocation.md`. `segmentation.ts`: `segmentScript(script, language, characters, mp3Duration)` runs an exhaustive dynamic programme over sentences; a fragment is allowed at 5-15 s (a sentence over 15 s alone, or a short sentence plus the next one over 15 s, are kept whole and flagged `unsplittable-sentence` only when neither has a clause boundary to split at (JOS-141, below); a whole script under 5 s is one fragment flagged `script-below-lower-bound`); the chosen grouping has the fewest fragments ending on a short sentence, then the smallest total speed change (the sum of `ln` of §7.2's ratio to the closest admitted duration, a tie going to the longer), then fewer fragments, then the later first cut. Forbidding a fragment from ending on a short sentence outright left real narration (mostly 3-5 s sentences) with no valid grouping, hence "prefer, but allow". No valid grouping returns an error, never fragments. `admittedDurations.ts` and `VIDEO_ADMITTED_DURATIONS_SECONDS` (`config/providers.ts`, whole seconds 5-15, verified at 5, 8, 11 and 15) define "closest"; the provider returns clips slightly off the requested length (5 s gave 5.17, 11 s gave 11.54), so use a clip's measured duration. `decompositionPhase.ts`: `segmentStoredTimestamps(runId, instructionGenerator)` reads the stored timestamps, segments, and registers through `registerDecomposition`; no valid grouping, or unreadable stored timestamps, records a not-retryable `decomposition` failure worded as the system's; `runDecompositionPhase(runId, { alignmentProvider, instructionGenerator })` obtains the timestamps first when missing and stops at the first failing step. Nothing in the running app calls it yet: the voice phase (JOS-136) calls it once a narration completes.
+
+**Splitting a sentence at a clause boundary** (`split-sentences-at-clause-boundaries`, JOS-141) replaces `segmentScript`'s interim "always whole" rule with a real split wherever one is possible, in two small pure modules that run before the search. `clauseBoundaries.ts`: `findClauseBoundaries(sentence, language)` finds a boundary right after a comma or semicolon followed by whitespace, or right before a listed conjunction (English or Spanish, a fixed constant per language) preceded by whitespace and never the sentence's first word; a comma or semicolon directly followed by a conjunction counts once, after the punctuation. `cutAtClauseBoundaries` cuts at those offsets into trimmed exact substrings. A real bug this surfaced: JS's plain `\b` treats an accented letter as a non-word character, so the Spanish conjunction "ni" falsely matched the first two letters of "niña"; fixed with a Unicode-aware end-of-word check (`(?![\p{L}\p{N}])`) instead of `\b` — worth remembering for any future per-language word-matching regex. `clauseSplitting.ts`: `classifyMustSplit(durations)` marks, from sentence durations alone, which sentences must split — **free** (its own narration exceeds 15 s) or **borrowed** (it follows a short sentence and their sum exceeds 15 s; a sentence can be both, in which case the free rule's full boundary list applies). `buildUnits` then turns sentences into the flat unit list `segmentScript` searches over: a sentence that is neither stays exactly one unit however many commas it has (AC3); a free sentence is cut at every clause boundary; a borrowed-only sentence is cut at only its first boundary, so its remainder stays one unit unless it is also free; a must-split sentence with no boundary stays whole and keeps the `unsplittable-sentence` flag. `segmentScript` needs no other change: the same allowed-chunk rules and cost (including the short-ended-fragment preference, which now applies to a short clause piece exactly like a short sentence) run over units instead of sentences, and a unit's fragment text is still an exact script slice, so pieces reproduce the sentence. The opt-in contract test needs an MP3 (`ALIGNMENT_CONTRACT_MP3`, `ALIGNMENT_CONTRACT_SCRIPT`, `ALIGNMENT_CONTRACT_DURATION`, `RUN_PROVIDER_CONTRACT_TESTS=1`).
+
+**The image stage** (`backend/src/imageProvider.ts`, `orchestrator.ts`, `generate-chunk-image`, JOS-145) turns this story's real, launched-per-scene stage into the second kind of provider adapter this codebase has: `ImageProvider` is the port (`generate(instruction)`), and the Fal.ai adapter (`createFalAiImageProvider`) sends **one** synchronous `POST` to `fal-ai/flux/dev` with the instruction and the recorded `{width: 1920, height: 1088}` request size, `Authorization: Key <FAL_API_KEY>` through `loadCredential`, and the product owner's HTTP-status classification. Unlike the reasoning and alignment adapters (called once per phase, directly, with their dependency passed as a function parameter), the image stage is launched from many places over a session's lifetime — after registration, on resume from pause, on automatic retry, on boot — so `imageProvider.ts` keeps a small module-level `ImageProviderRegistry` (`defaultIdentifier` plus an identifier→adapter map, `getImageProviderRegistry`/`setImageProviderRegistry`) instead of threading the adapter through every one of those call sites; tests swap it for a stub the same way `concurrency.ts`'s `setLimit` and `provider.ts`'s own module-level stub are already configured per test. The *first* attempt of a chunk's image stage binds `scenes.provider` to the registry's current default, atomically (`bindSceneImageProvider`, an `UPDATE ... WHERE provider = <unbound sentinel>`) so a caller never needs a prior read to know whether it is safe to write; every later attempt resolves the *bound* identifier from the registry, and a bound identifier absent from it (a retired provider) fails not-retryable with no other adapter tried (PRD §11.2: no provider switching in the MVP). A successful generation is checked against `isAcceptedImageSize`/`readImageDimensions` (`imageOutputCheck.ts`: at least 1920×1080, horizontal, within ±1% of 16:9 — an exact 16:9 check would reject the recorded 1920×1088 request size) measured from the stored file's own bytes, never from provider-reported metadata; a temporary-link result is downloaded first (`downloadGeneratedImage`, itself swappable for tests the same way). Fal.ai's call has nothing to poll after it returns (unlike a job-based provider), so it is not modelled through `provider.ts`'s submit/poll simulation: `launchImageStage` awaits the adapter directly, and a scene found `image-generating` at boot with a bound (non-sentinel) provider is always reconciled as one interrupted, failed attempt — never as "still pending" — which is how `reconcileOnBoot` tells a real in-flight scene apart from the skeleton's own generic-stub ones (still at the sentinel, resolved through `provider.ts` as before).
 
 ## Coding Standards
 
+Naming, typing, TDD and English-only rules are inherited from `docs/base-standards.md` and are not restated here. This section covers what's specific to this backend.
+
 ### Naming Conventions
 
-- **Variable Naming**: Use camelCase for variables and functions (e.g., `candidateId`, `findCandidateById`)
-- **Class Naming**: Use PascalCase for classes and interfaces (e.g., `Candidate`, `CandidateRepository`)
-- **Constants Naming**: Use UPPER_SNAKE_CASE for constants (e.g., `MAX_CANDIDATES_PER_PAGE`)
-- **Type Naming**: Use PascalCase for types and interfaces (e.g., `CandidateData`, `ICandidateRepository`)
-- **File Naming**: Use camelCase for file names (e.g., `candidateService.ts`, `candidateController.ts`)
-
-**Examples:**
-
-```typescript
-// Good: All in English
-export class CandidateRepository {
-    async findById(candidateId: number): Promise<Candidate | null> {
-        // Find candidate by ID in the database
-        const candidate = await this.prisma.candidate.findUnique({
-            where: { id: candidateId }
-        });
-        return candidate ? new Candidate(candidate) : null;
-    }
-}
-
-// Avoid: Non-English comments or names
-export class RepositorioCandidato {
-    async buscarPorId(idCandidato: number): Promise<Candidato | null> {
-        // Buscar candidato por ID en la base de datos
-        const candidato = await this.prisma.candidate.findUnique({
-            where: { id: idCandidato }
-        });
-        return candidato ? new Candidato(candidato) : null;
-    }
-}
-```
-
-**Error Messages and Logs:**
-
-```typescript
-// Good: English error messages
-throw new NotFoundError('Candidate not found with the provided ID');
-logger.error('Failed to create candidate', { error: error.message });
-
-// Avoid: Non-English messages
-throw new NotFoundError('Candidato no encontrado con el ID proporcionado');
-logger.error('Error al crear candidato', { error: error.message });
-```
-
-### TypeScript Usage
-
-- **Strict Mode**: Always enable strict mode in `tsconfig.json`
-- **Type Definitions**: Use explicit types for function parameters and return values
-- **Interfaces**: Define interfaces for complex data structures
-- **Avoid `any`**: Use `unknown` or specific types instead of `any` when possible
-
-```typescript
-// Good: Explicit types
-async function findCandidateById(id: number): Promise<Candidate | null> {
-    // implementation
-}
-
-// Avoid: Using any
-function processData(data: any): any {
-    // implementation
-}
-```
+- **Files**: camelCase (`orchestrator.ts`, `retryPolicy.ts`)
+- **Types/interfaces/Zod schemas**: PascalCase (`SceneStatus`, `CreateRunBody`)
+- **Stage identifiers**: the PRD's own stage names, not invented synonyms (`voice`, `alignment`, `decomposition`, `image`, `video`, `assembly`)
+- **Constants**: UPPER_SNAKE_CASE, and every hardcoded PRD value (retry budget, concurrency caps, per-phase timeouts) lives in one constants module, **`backend/src/config/providers.ts`**, sourced from `define-provider-configuration` (JOS-165, `docs/adr/0005-provider-selection.md`) — never inlined at the call site. Values are read from it, never redefined; a value still pending another change is marked `"undetermined"` there rather than guessed (the speed-factor limit was marked this way pending `define-media-assembly`'s measurement; `record-speed-adjustment-factor`, JOS-148, set it to `2.0` once that measurement was available).
 
 ### Error Handling
 
-- **Custom Error Classes**: Create domain-specific error classes
-- **Error Middleware**: Use global error middleware for consistent error responses
-- **Error Messages**: Provide descriptive error messages for debugging
+- Domain errors are typed values returned from adapters and the orchestrator (`ProviderOutcome`, per the skeleton's `types.ts`), not thrown exceptions used for control flow. Exceptions are reserved for genuine bugs (an invariant violated, an unreachable branch).
+- HTTP-layer errors map typed domain outcomes to responses at the route boundary; the mapping lives with the routes, not scattered across the domain layer.
+- Never swallow an error silently: a caught error is either handled (with a recorded reason) or re-thrown.
 
-```typescript
-export class NotFoundError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'NotFoundError';
-    }
+### Runtime constraint: erasable TypeScript only
+
+- The server runs as `node src/server.ts`, so Node strips the types and does not compile the file. Node refuses TypeScript syntax that emits code: **constructor parameter properties** (`constructor(readonly x: T)`), **enums** and **namespaces**. Declare class fields explicitly and assign them in the constructor; use union types or `as const` objects instead of enums.
+- Vitest and `tsc` both accept the forbidden syntax, so two guards exist: `erasableSyntaxOnly` in `backend/tsconfig.json` (`npm run typecheck` rejects it) and `backend/test/server-runtime-load.test.ts`, which imports the server in a real `node` process. Found in `lock-script-and-narration` (JOS-137) and `generate-voice-over` (JOS-136), where such a class would have passed every test and crashed `npm start`.
+
+### Validation
+
+- Every route's body, params, and response are Zod schemas, registered through `fastify-type-provider-zod` so validation and the generated OpenAPI document can never drift apart.
+- Schemas live next to the route that uses them, not in a separate, hard-to-find validator module (the shape that made the previous version's `validator.ts` a bottleneck).
+- Validate at the edge (the HTTP boundary); once past it, code works with typed values, not `req.body` shapes.
+
+## API and OpenAPI Conventions
+
+- OpenAPI is **generated** from the Zod route schemas (`@fastify/swagger` + `jsonSchemaTransform`), never hand-written and never allowed to drift from the actual validators — proven in the skeleton (`GET /docs`).
+- Resource-oriented URLs matching the PRD's own vocabulary: `/sessions`, `/sessions/:sessionId`, `/sessions/:sessionId/scenes/:sceneId/{retry,correct}`, `/sessions/:sessionId/{pause,continue}`. The consultation read and the live-update resync are the **same** endpoint (`GET /sessions/:sessionId` — `consult-session`, JOS-135, Decision 1), never two representations that could drift apart.
+- Standard status codes: `200`/`201` for success, `400` for validation failure (Zod's own error shape, not a hand-rolled one), `404` for an unknown identifier (including an unknown session id on the live-update stream itself — see below), `409` for a state-conflict action (e.g. retrying a scene that isn't `failed`, or correcting one that hasn't).
+- **Exception, deliberate:** on `GET /sessions/:sessionId`, a malformed identifier returns the same `404` as an unknown one, not `400` (`consult-session`, JOS-135, Decision 4) — the two must look identical, so this one route's request-side param schema is a plain string, not the strict ULID pattern used elsewhere; the not-found rule is enforced in the handler instead of pre-empted by framework-level validation.
+
+## Live Updates
+
+**Decided:** Server-Sent Events (`docs/adr/0003-live-updates.md`) — confirmed on independently-scored merits against WebSocket and polling, not inherited as a stand-in.
+
+**Stream:** `GET /events?sessionId=<id>` — one stream per open session page, scoped by session identifier. A request naming an unknown session is rejected with `404` **before** upgrading to a stream — an unknown id must never open a live-forever-empty connection that looks identical to a quiet session (a real bug found and fixed while writing this change's mandatory curl transcript).
+
+**Payload — the one contract, referenced from `docs/frontend-standards.md` rather than duplicated there:**
+```ts
+interface SessionEventPayload {
+  type: "session"; sessionId: string; title: string; language: string;
+  state: SessionState;      // PRD §8.1, the eight session states
+  paused: boolean;          // always its own field, never folded into `state`
+  failedPhase?: string;
+  updatedAt: string;
 }
 
-// In controller
-try {
-    const candidate = await candidateService.findById(id);
-    if (!candidate) {
-        throw new NotFoundError('Candidate not found');
-    }
-    res.json(candidate);
-} catch (error) {
-    next(error);
+interface SceneEventPayload {
+  type: "scene"; sessionId: string; sceneId: string; index: number;
+  state: SceneState;        // PRD §8.2, the six chunk states
+  affectedStage?: "image" | "video"; errorCause?: string | null;
+  provider?: string; attempts?: number;
+  result?: { imageUrl?: string; videoUrl?: string };
+  instruction?: string; updatedAt: string;
 }
 ```
+Every message carries **current state, never a delta** — a duplicate delivery is a no-op to apply, and a missed one is superseded by the next. The snapshot read (`GET /sessions/:sessionId`) returns `{ session, scenes: [...] }` in these exact same shapes.
 
-### Validation Patterns
+**Coalescing:** the skeleton broadcasts a full snapshot synchronously on every state change rather than batching pending changes into fewer messages — proven safe under a 200-scene burst (no scene lost or corrupted) precisely *because* every message is a complete, current-state snapshot rather than a delta. This trades message volume for simplicity: literal batching (collapsing several rapid changes for the same entity into one message within a short window) was found unnecessary for correctness at the scale this MVP targets, but a future implementation may still want it purely to reduce bandwidth/render cost at larger scale — that would be a performance optimization on top of this contract, not a correctness requirement of it.
 
-- **Input Validation**: Validate all inputs at the application layer
-- **Use Validator Module**: Centralize validation logic in `src/application/validator.ts`
-- **Validate Before Processing**: Always validate before executing business logic
+**Catch-up rule: resync, not replay.** A reconnecting client refetches the full snapshot; the server keeps no event log for replay. Consequence, stated once rather than left implicit: intermediate transitions occurring entirely within a disconnection window are never individually seen — only the latest state is. A complete transition history, if a story ever needs one, comes from the persisted stage-attempt records (`docs/data-model.md`), not this stream.
 
-```typescript
-import { validateCandidateData } from '../application/validator';
+**A client must resync on every (re)connect, not only render pushed deltas.** An SSE stream has no backlog; a client that only fetches state once on load can go stale forever after a drop, with no visible symptom. This was a real gap found and fixed during `define-backend-stack`'s own E2E testing (`docs/adr/0001-backend-stack.md` § Evidence) — resync belongs in the reconnect handler (`onopen`, which fires on the first connect **and** every automatic browser reconnect), not only at mount.
 
-export async function addCandidate(req: Request, res: Response, next: NextFunction) {
-    try {
-        const validatedData = validateCandidateData(req.body);
-        const candidate = await candidateService.create(validatedData);
-        res.status(201).json(candidate);
-    } catch (error) {
-        next(error);
-    }
-}
-```
+**Heartbeat:** a periodic comment line on an otherwise idle stream keeps it from being mistaken for dead by an intermediary; proven to hold a connection open through a quiet stretch with zero reconnects.
 
-### Logging Standards
-
-- **Use Logger Class**: Use the centralized logger from `src/infrastructure/logger.ts`
-- **Log Levels**: Use appropriate log levels (info, error, warn, debug)
-- **Structured Logging**: Include relevant context in log messages
-
-```typescript
-import { Logger } from '../infrastructure/logger';
-
-const logger = new Logger();
-
-logger.info('Candidate created', { candidateId: candidate.id });
-logger.error('Failed to create candidate', { error: error.message });
-```
-
-## API Design Standards
-
-### REST Endpoints
-
-- **RESTful Naming**: Use RESTful conventions for endpoint naming
-- **HTTP Methods**: Use appropriate HTTP methods (GET, POST, PUT, DELETE, PATCH)
-- **Resource-Based URLs**: URLs should represent resources, not actions
-
-```typescript
-GET    /candidates          // List candidates
-GET    /candidates/:id      // Get candidate by ID
-POST   /candidates          // Create new candidate
-PUT    /candidates/:id      // Update candidate
-DELETE /candidates/:id      // Delete candidate
-```
-
-### Request/Response Patterns
-
-- **JSON Format**: Use JSON for request and response bodies
-- **Consistent Structure**: Maintain consistent response structure across all endpoints
-- **Status Codes**: Use appropriate HTTP status codes
-
-```typescript
-// Success response
-{
-    "success": true,
-    "data": { ... },
-    "message": "Operation completed successfully"
-}
-
-// Error response
-{
-    "success": false,
-    "error": {
-        "message": "Error description",
-        "code": "ERROR_CODE"
-    }
-}
-```
-
-### Error Response Format
-
-- **Consistent Format**: All errors should follow the same response structure
-- **Error Codes**: Use meaningful error codes for different error types
-- **HTTP Status Codes**: Map errors to appropriate HTTP status codes
-
-```typescript
-// 400 Bad Request
-{
-    "success": false,
-    "error": {
-        "message": "Validation failed",
-        "code": "VALIDATION_ERROR",
-        "details": [ ... ]
-    }
-}
-
-// 404 Not Found
-{
-    "success": false,
-    "error": {
-        "message": "Resource not found",
-        "code": "NOT_FOUND"
-    }
-}
-```
-
-### CORS Configuration
-
-- **Enable CORS**: Configure CORS to allow frontend origin
-- **Secure Configuration**: Only allow specific origins in production
-- **Credentials**: Configure credentials handling appropriately
-
-```typescript
-import cors from 'cors';
-
-const corsOptions = {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true
-};
-
-app.use(cors(corsOptions));
-```
-
-## Database Patterns
-
-### Prisma Schema
-
-- **Single Source of Truth**: `prisma/schema.prisma` is the single source of truth for database structure
-- **Relationships**: Define relationships using Prisma relations
-- **Naming Conventions**: Use consistent naming conventions (camelCase for fields, PascalCase for models)
-
-### Migrations
-
-- **Version Control**: All database changes must be version-controlled through migrations
-- **Migration Naming**: Use descriptive names for migrations
-- **Review Migrations**: Review migration files before applying
-
+**Manual verification of a held-open stream** (the mandatory curl step, adapted — a stream doesn't return, so the usual request/response pattern doesn't apply):
 ```bash
-# Create migration
-npx prisma migrate dev --name descriptive_migration_name
-
-# Apply migrations in production
-npx prisma migrate deploy
+# Create the session and start the held-open capture in the SAME script —
+# starting them as two separate commands risks missing the whole burst if
+# the scenes complete faster than the gap between commands.
+SID=$(curl -s -X POST http://127.0.0.1:3100/sessions -H "Content-Type: application/json" -d '{...}' | jq -r .session.sessionId)
+curl -s -N --max-time 30 "http://127.0.0.1:3100/events?sessionId=$SID"
 ```
 
-### Repository Pattern
+## Persistence
 
-- **Repository Interfaces**: Define repository interfaces in the domain layer
-- **Prisma Implementation**: Implement repositories using Prisma in the infrastructure layer
-- **Dependency Injection**: Inject Prisma client into repositories
+**Decided:** embedded SQLite via Node's built-in `node:sqlite` (`docs/adr/0002-persistence.md`) — this confirms the walking skeleton's stand-in as the real engine, on independently-scored merits, not by default. The data model it stores is documented in `docs/data-model.md`.
 
-```typescript
-// Domain layer interface
-export interface ICandidateRepository {
-    findById(id: number): Promise<Candidate | null>;
-    save(candidate: Candidate): Promise<Candidate>;
-}
+What's fixed, because it comes directly from the PRD and is proven against the real store (not assumed):
 
-// Infrastructure layer implementation
-export class CandidateRepository implements ICandidateRepository {
-    constructor(private prisma: PrismaClient) {}
-    
-    async findById(id: number): Promise<Candidate | null> {
-        const data = await this.prisma.candidate.findUnique({ where: { id } });
-        return data ? new Candidate(data) : null;
-    }
-}
-```
+- **Append-only attempts, mutable read model.** `provider_requests` rows are never rewritten — each retry inserts a new row (Decision 1); `scenes.status`/`result` is a derived, idempotently-updatable read model on top of that history.
+- **Write-ahead recording.** A provider request's external id, stage and send time are persisted **before** the request is sent (Decision 2) — the window between send and response is exactly what restart resumption depends on.
+- **Idempotency is a store-level uniqueness constraint, not an application check.** A repeated success confirmation is rejected by a `PRIMARY KEY`/`UNIQUE` constraint on the commit table, never by a prior `if (alreadyDone) return` read — that check-then-act pattern is only safe by accident (e.g. a synchronous single-threaded driver) and is exactly what this project got wrong once and then fixed (`docs/adr/0002-persistence.md` Decision 3). Catch the driver's specific constraint-violation error (not every error) and treat only that as "already applied."
+- **File references are relative, always.** Every artefact path is relative to the owning session's recorded project-folder root, never absolute (Decision 4) — project folders are user-facing and named for humans (PRD §12.2), so they get renamed. Renaming in place means updating the one recorded root column; every existing artefact reference keeps resolving with no further change.
+- **Every data-access method is scoped by session identifier, not by convention.** (`consult-session`, JOS-135, Decision 2.) A scene's `id` is only unique *within* its session, so a lookup that took just the scene id could silently return a different session's scene of the same id. Repository methods take the session identifier as a required argument (`getSceneForRun(runId, sceneId)`, not `getScene(sceneId)`), and a resolved file path is checked against the requesting session's own recorded project folder before use — a resolved path outside it is refused, not merely trusted (`assertWithinProjectFolder`). This is a functional-integrity guarantee (one project must never show or overwrite another's data, PRD §12.3), not an access-control layer — there are no accounts or permissions in this model.
+- **The readiness queue is rebuilt at startup; only the pause marker is persisted** (Decision 5) — everything else is derivable, and a stale persisted queue after a crash is worse than a freshly rebuilt one.
+- **Schema migrations are versioned from the first commit** (Decision 6): a small migration runner takes the target database handle explicitly (not a module-level singleton), so the exact same runner can be pointed at a fixture database in tests — this is what makes "an existing session survives a schema upgrade" a real, repeatable test rather than a claim.
+
+- **What must never change is locked by store triggers, not by convention.** (`lock-script-and-narration`, JOS-137.) A session's `title`, `script` and `language` cannot be updated in any state, and a completed `voice_overs` record can be neither updated nor deleted; each is a `BEFORE UPDATE`/`BEFORE DELETE` trigger that aborts with a message naming what was touched, so a future caller that forgets the rule fails loudly. Chunk `idx`, `prompt`, `run_id`, the narration interval and the requested duration/warning are locked the same way. A new immutable field gets its own trigger in a **new migration** (an applied migration is never edited), with its definition kept in a named constant next to the others in `db.ts`. The full list is in `docs/data-model.md`, *Store-enforced locks*. The only code allowed to lift one is the test-only `resetAll()`, inside one transaction that recreates the trigger from the same constant.
+- **An artefact that must never be replaced is written with `writeArtefactOnce`.** (`lock-script-and-narration`, JOS-137, Decision 3.) It writes to a temporary file beside the target and hard-links it to the final name; the link is atomic and fails when the target exists (`ArtefactAlreadyExistsError`), where `rename` would silently replace it and an `existsSync` check would be a read-then-write race. It keeps the same project-folder scoping as `writeArtefact`. Use it for the voice-over MP3; artefacts that a retry may legitimately overwrite keep using `writeArtefact`.
+- **Voice generation asks `canLaunchVoiceOver` before it launches.** (`lock-script-and-narration`, JOS-137, Decision 4; `backend/src/voiceLaunchGuard.ts`.) Every caller (the first launch and the automatic and manual retries) uses it. It decides from whether the session has a voice-over record, not from the derived session state, so a session that failed before producing valid audio can be retried while one that already has a narration cannot be regenerated.
+
+**Test isolation:** tests that touch persisted state run against an **isolated** database path and an isolated project-folder root (`DB_PATH=data/test.sqlite PROJECTS_ROOT=data/test-projects npx vitest run`), never the same paths used for manual/E2E testing or real use. The test-reset helper wipes **both** the database rows and the real project-folder directory — a store that also writes real files needs its filesystem state reset alongside its rows, or a second test run collides with the first's leftovers (a real gap found and fixed while verifying this, `openspec/changes/define-persistence/reports/2026-09-25-step-7-unit-test-and-db-verification.md`).
 
 ## Testing Standards
 
-The project has strict requirements for code quality and maintainability. These are the unit testing standards and best practices that must be applied. 
+Commands (run from `backend/`, or from `openspec/changes/define-backend-stack/skeleton/` while the skeleton is the active harness):
 
-### Test File Structure
-- Use descriptive test file names: `[componentName].test.ts`
-- Place test files alongside the source code they test
-- Use Jest as the testing framework with TypeScript support
-- Maintain 90% coverage threshold for branches, functions, lines, and statements
-
-
-### Test Organization Pattern
-Template:
-```typescript
-describe('[ComponentName] - [methodName]', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  describe('should_[expected_behavior]_when_[condition]', () => {
-    it('should [specific test case]', async () => {
-      // Arrange
-      // Act  
-      // Assert
-    });
-  });
-});
+```bash
+npx tsc --noEmit      # fully-typed check
+npx vitest run        # unit tests
+npm start             # start the server for manual/E2E testing
 ```
 
-Real example:
-```typescript
-describe('CandidateService - findById', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-    });
+### Unit Testing
 
-    it('should return candidate when found', async () => {
-        // Arrange
-        const candidateId = 1;
-        const mockCandidate = new Candidate({ id: 1, firstName: 'John' });
-        (CandidateRepository.findById as jest.Mock).mockResolvedValue(mockCandidate);
+- Vitest, colocated `test/` directory. Prefer testing `RetryPolicy` and similar pure functions directly, with no mocking required — that is the point of keeping them pure (see Architecture).
+- Tests that touch persisted state must run against an **isolated** database path (e.g. `DB_PATH=data/test.sqlite`), never the same file used for manual/E2E testing or real use — mixing them destroys evidence from one to satisfy the other, as documented in `openspec/changes/define-backend-stack/reports/2026-09-25-step-6-unit-test-and-state-verification.md`.
+- Every test that exercises persisted state must reset it in `beforeEach`, not rely on execution order.
+- Coverage target: exercise every branch of `RetryPolicy` and every idempotency guard explicitly (happy path, transient failure, not-retryable failure, duplicate delivery) — these are exactly the branches PRD §10 and §12.1 turn into acceptance criteria; a coverage percentage without covering these specific branches by name is not sufficient.
 
-        // Act
-        const result = await candidateService.findById(candidateId);
+### Manual Endpoint Testing
 
-        // Assert
-        expect(result).toEqual(mockCandidate);
-        expect(CandidateRepository.findById).toHaveBeenCalledWith(candidateId);
-    });
-});
-```
+Per `docs/openspec-tasks-mandatory-steps.md` (generalized here from "database" to "persisted state" — see `docs/adr/0001-backend-stack.md` Decision 1): start the server, exercise each endpoint with `curl`, verify status codes and response bodies, verify persisted state before/after, and restore it. Reports go under the active change's `reports/` folder. When killing/restarting the server as part of a restart-resumption test, identify the live process by the port it holds (`lsof -tiTCP:<port> -sTCP:LISTEN`), not by matching its command line with `pgrep` — the latter was found unreliable in this sandbox (`openspec/changes/define-backend-stack/reports/2026-09-25-step-7-curl-manual-testing.md`, Outcome).
 
+### End-to-End Testing
 
+Playwright MCP is the tool named by `docs/openspec-tasks-mandatory-steps.md`. If it is unavailable in a session, Claude in Chrome (or an equivalent agent-driven real-browser tool) is an acceptable substitute for the same intent — agent-executed, real-browser verification — and the substitution must be stated explicitly in the report, as it was in `openspec/changes/define-backend-stack/reports/2026-09-25-step-8-e2e-live-push.md`.
 
-### Test Case Naming Convention
-- Use descriptive, behavior-driven naming: `should_[expected_behavior]_when_[condition]`
-- Group related test cases under descriptive `describe` blocks
-- Use snake_case for describe blocks and camelCase for individual tests
+## Logging and Diagnostics
 
-### Test Structure (AAA Pattern)
-Always follow the Arrange-Act-Assert pattern:
-```typescript
-it('should update candidate stage successfully when valid data provided', async () => {
-  // Arrange - Set up test data and mocks
-  const candidateId = 1;
-  const applicationId = 1;
-  const newInterviewStep = 2;
-  
-  // Act - Execute the function under test
-  const result = await updateCandidateStage(candidateId, applicationId, newInterviewStep);
-  
-  // Assert - Verify the expected behavior
-  expect(result).toEqual(expectedResult);
-});
-```
+Structured JSON logging (Fastify's built-in Pino logger), one event per line, never string-interpolated messages that bury the data. Every log line about a provider call or a stage attempt carries enough correlation fields to reconstruct the record US-34 must display, without needing to query the store first:
 
-Assertion pattern:
-- Use specific matchers: `toHaveBeenCalledWith()`, `toHaveBeenCalledTimes()`
-- Verify both successful operations and error conditions
-- Check that mocks were called with correct parameters
-- Assert on return values and side effects
+- `sessionId`, `sceneId` (when the stage is per-scene), `stage`
+- `stageInstanceKey` (per `bounded-retry-policy`'s Decision 1: `(sessionId, stage)` or `(sessionId, sceneId, stage)`)
+- `cycle` and `sequenceInCycle` (which automatic-retry cycle, and which of the 1 + 3 attempts within it — `bounded-retry-policy` Decision 7)
+- `trigger` (`automatic` | `manual`)
+- `providerRequestId` (the external request identifier, recorded before the request is sent)
+- `outcome` (`success` | `failed_transient` | `failed_not_retryable`) once known
 
+**Never log a provider credential or secret value**, even at debug level — this is a hard requirement of `backend-foundation`'s "Provider credentials outside source control" (`specs/backend-foundation/spec.md`), not just good practice. A missing required credential at startup must report *which* credential is missing without ever printing its value.
 
+## Security and Configuration
 
-
-
-
-
-
-### Mocking Standards
-
-- Mock all external dependencies (models, services, database clients)
-- Mock repository layers in service tests
-- Mock service layers in controller tests
-- Use `jest.mock()` at the top of test files for module-level mocking
-- Create mock instances with realistic data structures
-- Clear all mocks in `beforeEach()` to ensure test isolation
-
-
-### Test Coverage Requirements
-
-- **Comprehensive test coverage**: Include these test categories for each function:
-1. **Happy Path Tests**: Valid inputs producing expected outputs
-2. **Error Handling Tests**: Invalid inputs, missing data, database errors
-3. **Edge Cases**: Boundary values, null/undefined inputs, empty data
-4. **Validation Tests**: Input validation, business rule enforcement
-5. **Integration Points**: External service calls, database operations
-
-- **Threshold**: 90% for branches, functions, lines, and statements
-- **Coverage Reports**: Generate coverage reports with `npm run test:coverage`
-- **Coverage Files**: Coverage reports in `coverage/` directory adding the date, like YYYYMMDD-backend-coverage.md
-
-
-### Error Testing
-- Test both expected errors and unexpected errors
-- Verify error messages are descriptive and helpful
-- Test error propagation through service layers
-- Ensure proper HTTP status codes in controller tests
-
-### Controller Testing Specifics
-- Mock the service layer completely
-- Test HTTP request/response handling
-- Verify parameter parsing and validation
-- Test error response formatting
-- Use realistic Express Request/Response mocks
-
-### Service Testing Specifics
-- Mock domain models and repositories
-- Test business logic in isolation
-- Verify data transformation and validation
-- Test error handling and edge cases
-- Mock external dependencies (Prisma, validators)
-
-### Database Testing
-- Mock Prisma client and all database operations
-- Test both successful and failed database operations
-- Verify correct database queries and parameters
-- Test transaction handling and rollback scenarios
-
-### Async Testing
-- Always use `async/await` for asynchronous operations
-- Use `Promise.allSettled()` for testing concurrent operations
-- Properly handle promise rejections in tests
-- Test timeout scenarios where applicable
-
-### Test Data Management
-- Use factory functions for creating test data
-- Keep test data consistent and realistic
-- Avoid hardcoded values in multiple places
-- Use meaningful test data that reflects real-world scenarios
-
-### Integration Testing
-
-- **Controller Testing**: Test HTTP request/response handling
-- **Database Testing**: Test repository implementations with database
-- **End-to-End Flow**: Test complete request flows
-
-
-### Code Quality Standards
-
-#### TypeScript Usage
-- Use strict typing for all test parameters and return values
-- Define proper interfaces for mock data
-- Use type assertions sparingly and with proper justification
-- Leverage TypeScript's type system for better test reliability
-
-#### Documentation
-- Write clear, descriptive test names that explain the scenario
-- Add comments for complex test setups
-- Document any special test conditions or edge cases
-- Keep test code as readable as production code
-
-#### Performance Considerations
-- Keep tests fast and focused
-- Avoid unnecessary async operations in tests
-- Use appropriate mock strategies to avoid real I/O
-- Group related tests to minimize setup/teardown overhead
-
-### Integration with Development Workflow
-- Run tests before every commit
-- Ensure all tests pass before merging
-- Use test-driven development when appropriate
-- Update tests when modifying existing functionality
-
-### Common Anti-Patterns to Avoid
-- Don't test implementation details, test behavior
-- Don't create overly complex test setups
-- Don't ignore failing tests or skip error scenarios
-- Don't use real database connections in unit tests
-- Don't create tests that depend on external services
-- Don't write tests that are too tightly coupled to implementation
-
-### Example Test Structure
-
-
-
-## Performance Best Practices
-
-### Database Query Optimization
-
-- **Select Specific Fields**: Only select fields that are needed
-- **Use Indexes**: Ensure proper database indexes for frequently queried fields
-- **Avoid N+1 Queries**: Use Prisma's `include` to fetch related data efficiently
-
-```typescript
-// Good: Fetch related data efficiently
-const candidate = await prisma.candidate.findUnique({
-    where: { id },
-    include: {
-        educations: true,
-        workExperiences: true
-    }
-});
-
-// Avoid: N+1 queries
-const candidate = await prisma.candidate.findUnique({ where: { id } });
-const educations = await prisma.education.findMany({ where: { candidateId: id } });
-```
-
-### Async/Await Patterns
-
-- **Always Use Async/Await**: Use async/await instead of promises chains
-- **Error Handling**: Properly handle errors in async operations
-- **Parallel Operations**: Use `Promise.all()` for parallel operations when appropriate
-
-```typescript
-// Good: Parallel operations
-const [candidates, positions] = await Promise.all([
-    candidateService.findAll(),
-    positionService.findAll()
-]);
-```
-
-### Error Handling Performance
-
-- **Early Returns**: Return early to avoid unnecessary processing
-- **Error Propagation**: Let errors propagate naturally through the call stack
-- **Avoid Over-Wrapping**: Don't wrap errors unnecessarily
-
-## Security Best Practices
-
-### Input Validation
-
-- **Validate All Inputs**: Validate all user inputs before processing
-- **Sanitize Data**: Sanitize data to prevent injection attacks
-- **Type Checking**: Use TypeScript and validation to ensure type safety
-
-### Environment Variables
-
-- **Never Commit Secrets**: Never commit `.env` files or secrets to version control
-- **Use Environment Variables**: Use environment variables for configuration
-- **Validate Environment**: Validate required environment variables at startup
-
-```typescript
-// Validate required environment variables
-const requiredEnvVars = ['DATABASE_URL', 'PORT'];
-requiredEnvVars.forEach(varName => {
-    if (!process.env[varName]) {
-        throw new Error(`Missing required environment variable: ${varName}`);
-    }
-});
-```
-
-### Dependency Injection
-
-- **Inject Prisma Client**: Inject Prisma client via Express middleware
-- **Avoid Global State**: Avoid global state for database connections
-- **Testability**: Use dependency injection to improve testability
-
-```typescript
-// Middleware to inject Prisma client
-app.use((req: Request, res: Response, next: NextFunction) => {
-    req.prisma = prisma;
-    next();
-});
-
-// Use in controllers
-export async function getCandidate(req: Request, res: Response) {
-    const candidate = await req.prisma.candidate.findUnique({
-        where: { id: req.params.id }
-    });
-    res.json(candidate);
-}
-```
+- Provider credentials are read from the local environment or a local secrets file excluded from version control — never hardcoded, never committed (PRD §12.3, §11).
+- Required environment variables are validated at startup, failing fast with a clear message naming the missing variable (never its value).
+- No accounts, sessions, or authentication in the MVP (PRD §12.3) — this is a local, single-user install. Session/data isolation (a run cannot see or overwrite another run's data) is a **functional integrity requirement**, not a security control, per PRD §12.3 — do not conflate the two when reasoning about what "isolation" needs to guarantee.
+- **Request body size ceiling**: PRD §4.1 imposes no product-side script length limit, but Fastify's own `bodyLimit` is the real, finite ceiling underneath that (`start-video-project`, JOS-134, Decision 6) — set to 50MB (`BODY_LIMIT_BYTES` env var, `server.ts`), far beyond any realistic script while still a named ceiling rather than "no limit at all." A request exceeding it gets Fastify's own `413`, structurally distinct from the `400`s this app's own Zod validation returns — never leave the framework default (1MB) in place, which would look identical to a product limit that does not exist.
 
 ## Development Workflow
 
-### Git Workflow
+- Feature branches, descriptive English commit messages, small focused changes — per `docs/base-standards.md`.
+- `npx tsc --noEmit` and `npx vitest run` must both pass before any commit touching `backend/`.
+- Every backend implementation story follows this document rather than choosing its own technology or layering (`backend-foundation` requirement, `specs/backend-foundation/spec.md`).
 
-- **Feature Branches**: Develop features in separate branches using clear descriptive names to allow working in parallel and avoid conflicts or collisions
-- **Descriptive Commits**: Write descriptive commit messages in English
-- **Code Review**: Code review before merging
-- **Small Branches**: Keep branches small and focused
+## Not Yet Decided
 
-### Development Scripts
+Tracked here so this document is never mistaken for settling more than it has:
 
-```bash
-npm run dev          # Development server with hot reload
-npm run build        # Build for production
-npm test             # Run tests
-npm run test:coverage # Run tests with coverage
-npm run prisma:generate  # Generate Prisma client
-npx prisma migrate dev   # Create and apply migration
-npx prisma db seed       # Seed database
-```
+- ~~Persistence engine and schema~~ — **decided**: embedded SQLite (`docs/adr/0002-persistence.md`). See [Persistence](#persistence).
+- ~~Live-update transport~~ — **decided**: Server-Sent Events (`docs/adr/0003-live-updates.md`). See [Live Updates](#live-updates).
+- **Frontend stack and its interop contract with this backend** — `define-frontend-stack` (US-42b, JOS-180).
+- ~~Hardcoded values~~ (retry backoff base/cap, per-phase max execution times, concurrency caps, speed-factor limits) — **decided**: `backend/src/config/providers.ts` (`define-provider-configuration`, US-33, JOS-165, `docs/adr/0005-provider-selection.md`). The speed-factor limit (`2.0`) was fixed by `record-speed-adjustment-factor` (JOS-148) from `define-media-assembly` (JOS-182)'s measurement. **Still open**: assembly's per-phase max time, pending implementation of the assembly stage; voice/alignment/video's per-stage request caps, no real rate limit found yet for those three.
+- ~~Whether the walking skeleton becomes `backend/`'s seed~~ — **decided**: yes, promoted (`start-video-project`, JOS-134). The full five-stage model (voice, alignment, image, video, assembly as their own real stages, not one generic stand-in) remains future work — each stage's own change (`decompose-script-into-chunks`, `generate-chunk-image`, `generate-chunk-video`, `generate-voice-over`, `assemble-final-video`) implements its slice when it lands.
 
-### Code Quality
+## Media Assembly Pipeline
 
-- **ESLint Validation**: Run ESLint before commits
-- **TypeScript Compilation**: Ensure TypeScript compiles without errors
-- **All Tests Passing**: Ensure all tests pass before deployment
-- **Code Review**: Review code for adherence to standards
+The assembly design and measurements are recorded in [ADR 0005](adr/0005-media-assembly.md). The archived JOS-182 change contains the experimental reference script, fixture, and tests; it proves the pipeline choices but is not the production assembly implementation.
 
-## Serverless Deployment
+The production stage must preserve these measured constraints:
 
-### AWS Lambda Configuration
+1. Retiming applies to video only; never alter the voice-over. Exclude each source clip's audio at input (`-map 0:v:0`) and mux the voice-over as the only audio stream using stream copy (`-c:a copy`) when its format is compatible. Re-encoding AAC was measured to shift reported duration through encoder priming.
+2. Normalize each clip to the target resolution and frame rate before joining. Order clips by ascending scene identifier from interval data, not by filesystem listing.
+3. Derive each clip's frame count from the cumulative target end: `round(cumulativeEndSeconds * fps) - previousRoundedEndFrame`. Independently rounding every clip's duration caused cumulative drift beyond tolerance on long sessions; cumulative accounting bounds drift at every join.
+4. The measured speed-factor recommendation is 0.5×–2.0×. The slowdown bound is based on synthetic footage and should be revisited against real provider footage.
 
-- **Lambda Handler**: Entry point is `src/lambda.ts`
-- **Serverless HTTP**: Use `serverless-http` to wrap Express app
-- **Environment Variables**: Configure environment variables in `serverless.yml`
-
-### Serverless Framework
-
-- **Configuration File**: `serverless.yml` defines Lambda configuration
-- **Build Command**: Use `npm run build:lambda` for Lambda builds
-- **Deployment**: Deploy using Serverless Framework CLI
-
-```typescript
-// lambda.ts
-import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda';
-import serverless from 'serverless-http';
-import { app } from './index';
-
-const serverlessHandler = serverless(app);
-
-export const handler = async (
-  event: APIGatewayProxyEvent,
-  context: Context
-): Promise<APIGatewayProxyResult> => {
-  context.callbackWaitsForEmptyEventLoop = false;
-  return await serverlessHandler(event, context) as APIGatewayProxyResult;
-};
-```
-
-This document serves as the foundation for maintaining code quality and consistency across the LTI backend application. All team members should follow these practices to ensure a maintainable, scalable, and testable codebase.
-
----
-
-## Media Assembly Pipeline (Vid4You — `define-media-assembly`, JOS-182)
-
-**Branch note**: this section was added on `feature/jos-182-define-media-assembly` (branched from `main`), which does not yet contain `define-backend-stack`'s full rewrite of this document (that exists only on `feature/entrega-2-JAME` at the time of writing — everything above this line is still the pre-rewrite inherited template). This section is additive and Vid4You-specific; reconcile it into the rewritten file at merge time rather than losing it.
-
-### Tool and pipeline
-
-**ffmpeg 8.1.2** (confirmed installed at `/opt/homebrew/bin/`, with `libx264`, `aac`, and every filter this pipeline needs), against all six PRD constraints (§7.3, D08) — no fallback needed. Full evaluation, evidence and the central finding behind this pipeline: `docs/adr/0005-media-assembly.md`.
-
-The documented, single-source-of-truth pipeline is a script, not prose duplicated here: `openspec/changes/define-media-assembly/scripts/assemble.sh`. Implementation work (US-16) follows that script rather than composing its own filter chain.
-
-**Stage order** (per clip, then once for the whole session):
-
-1. **Retime** (`setpts`) — video only; the voice-over is never touched (Decision 1).
-2. **Exclude clip audio** (`-map 0:v:0`) — at the input stage, not by muting after decode (Decision 2).
-3. **Normalise** (`scale` + `fps`) — every clip to the target output resolution/frame rate before concatenation (Decision 3).
-4. **State the exact frame count** (`-frames:v`), derived from *cumulative* target position, not from each clip's own duration in isolation (Decision 4 — see below; this is the pipeline's most important detail, not a minor flag choice).
-5. **Concatenate** (`concat` filter) — ascending scene-identifier order, read from the interval data.
-6. **Mux the voice-over** with `-c:a copy` — **never** `-c:a aac` or any re-encode of an already-compliant source; re-encoding was found to shift the voice-over's own duration via AAC encoder-priming delay, which directly violates "the voice-over is never retimed."
-
-### Duration accuracy and cumulative drift — read this before touching the pipeline
-
-Rounding each clip's own duration to the nearest frame independently is a random walk: proven to reach 122ms of cumulative drift (nearly 4 frames) over a 200-scene session — well past the ±1-frame tolerance — even though every individual clip stayed within it. **Never round a clip's duration from its own target alone.** Each clip's frame count must be `round(cumulative target end × fps) − previous clip's own rounded end frame`. This bounds drift to ≤0.5 frame at every join regardless of session length, and is why the per-clip tolerance is ±1 frame, not ±0.5 (two independent half-frame roundings can add). Full evidence: `docs/adr/0005-media-assembly.md` Decision 4.
-
-### Speed-factor recommendation (feeds US-33)
-
-**0.5×-2.0×**, with the two directions degrading asymmetrically (slow-down produces measurable frame duplication starting immediately below 1.0×; speed-up produced none in the tested range) — not a guessed symmetric number. Full sweep data and the stated subjective/fixture limitations: `docs/adr/0005-media-assembly.md` Decision 5.
-
-### Testing
+The archived reference pipeline and its automated `ffprobe` assertions can be run from the repository root:
 
 ```bash
-./test/assembly.test.sh   # from openspec/changes/define-media-assembly/
+cd openspec/changes/archive/2026-09-26-define-media-assembly
+./test/assembly.test.sh
 ```
 
-Asserts (via `ffprobe`, never by eye): output codec/resolution/frame-rate match D08 exactly; video frame count matches the target total exactly (no gaps); exactly one audio stream, matching the source voice-over's codec/rate/duration exactly; and — as an automated, repeatable proof rather than a one-off manual demonstration — that a freshly generated 60-scene session's final frame count matches its target exactly (the cumulative-drift bound above, checked on every run, not just this spike's own).
-
-### Fixture
-
-`openspec/changes/define-media-assembly/fixture/` (~492KB): 5 synthetic scenes spanning 3 resolutions, 3 frame rates, and a mix of clips with/without their own audio, plus a matching voice-over and narration intervals — the minimum that exercises mismatched joins and audio exclusion (not a full long session; that's generated on demand for the drift test, never committed). Regenerate via `scripts/generate-fixture.sh`; both scripts are deterministic (`ffmpeg lavfi` synthetic sources, no external assets, no network).
+This requires `ffmpeg`, `ffprobe`, `python3`, and Bash. The test assembles the committed synthetic fixture and a generated 60-scene session, checking output stream properties and exact target frame counts.

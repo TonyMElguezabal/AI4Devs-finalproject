@@ -1,372 +1,197 @@
 # Data Model Documentation
 
-This document describes the data model for the LTI (Learning Tracking Initiative) application, including entity descriptions, field definitions, relationships, and an entity-relationship diagram.
+This document describes Vid4You's data model: sessions, chunks (scenes), stage attempts, and the result-commit records that make a repeated success confirmation harmless. It replaces the previous version, which described an unrelated inherited application's entities and had no bearing on this product.
+
+The store is embedded SQLite via Node's built-in `node:sqlite` — see `docs/adr/0002-persistence.md` for why, and `openspec/changes/define-backend-stack/skeleton/src/db.ts` for the reference implementation this document describes.
+
+**Scope note, stated once here rather than on every field:** the current implementation (`define-backend-stack`'s walking skeleton, extended by `define-persistence`) is deliberately narrow — it models **one** generic provider-backed stage ("image") standing in for the PRD's five stages, and it does not simulate voice generation, timestamp alignment, or script decomposition. Fields the PRD implies for those stages are noted below as **not modelled**, with the reason, rather than invented ahead of the stories that own them.
 
 ## Model Descriptions
 
-### 1. Candidate
-Represents a job candidate who can apply for positions within the system.
+### 1. Session (`runs` table)
+
+Represents one video project. PRD §3, §4.1, §8.1, §9, §12.2.
 
 **Fields:**
-- `id`: Unique identifier for the candidate (Primary Key)
-- `firstName`: Candidate's first name (max 100 characters)
-- `lastName`: Candidate's last name (max 100 characters)
-- `email`: Candidate's unique email address (max 255 characters)
-- `phone`: Candidate's phone number (optional, max 15 characters)
-- `address`: Candidate's address (optional, max 100 characters)
+- `id`: system-generated identifier (Primary Key) — §3. **ULID**, not a random UUID (`start-video-project`, JOS-134, Decision 3): opaque (not derived from the title) *and* creation-ordered (sorts lexicographically by creation time), which a UUIDv4 is not.
+- `title`: the project's title — §3. **Write-once**, like `script`; enforced by a store trigger (see *Store-enforced locks* below).
+- `script`: the script exactly as submitted, **write-once from registration onward** — §4.2/D10 (`start-video-project`, JOS-134, Decisions 1 and 2). Emptiness is judged on a trimmed view at the validation boundary; the stored value is never trimmed. No operation updates this column after creation, and since `lock-script-and-narration` (JOS-137) the **store itself refuses** any update of it, in every state (see *Store-enforced locks* below).
+- `language`: script language, selected from the hardcoded supported list; a session cannot exist without one — §4.1. Also write-once, same as `script`, and enforced the same way.
+- `created_at`: creation timestamp; also drives the project-folder name, to the minute — §12.2
+- `state`: **derived**, not stored — one of the eight session states in §8.1, computed from the session's scenes each time it is read (`orchestrator.ts`'s `deriveSessionState`). A session with zero scenes (the state immediately after `start-video-project` registers it, before decomposition creates any) derives to `submitted`. The states `voice-over-generating`, `final-video-generating` and the assembly phase are not produced yet. With no chunks yet (`obtain-narration-timestamps`, JOS-139), the state also reads the session's records: a stored `failure` derives to `failed` in that failure's phase; a `timestamps` stage attempt or stored timestamps derive to `chunk-decomposing`; a voice-over alone derives to `voice-over-complete`. No state column exists; JOS-136 adds `voice-over-generating` the same way.
+- `paused`: a marker on top of the current state, never a state itself, per §8.1/§9 (Decision 8, `define-live-updates`)
+- `failure`: the phase failure the session carries when it is `failed`, as JSON: `{ phase, cause, retryable, occurredAt }` with `phase` either `voice-over` (`generate-voice-over`, JOS-136, which added the column in migration 4) or `decomposition` (JOS-144: a refused system-generated decomposition, whose cause never blames the User's script). A session with no chunks and a failure derives to `failed` in that phase. A successful chunk registration clears it.
+- `project_folder`: the real per-project folder name under a configured root, named `<title> <YYYY-MM-DD HH-mm>` with a counter suffix on collision — §12.2 (Decision 4, `define-persistence`)
 
-**Validation Rules:**
-- First name and last name are required, 2-100 characters, letters only
-- Email is required, must be unique, and follow valid email format
-- Phone is optional but must follow Spanish format (6|7|9)XXXXXXXX if provided
-- Address is optional but cannot exceed 100 characters
-- Maximum of 3 education records per candidate
+**Not modelled** (no consumer yet — see the scope note): voice-over/alignment provider bindings, MP3 and timestamp references, total narration duration (§11.2) — these belong to stages this skeleton doesn't simulate.
 
-**Relationships:**
-- `educations`: One-to-many relationship with Education model
-- `workExperiences`: One-to-many relationship with WorkExperience model
-- `resumes`: One-to-many relationship with Resume model
-- `applications`: One-to-many relationship with Application model
+**Relationships:** one session has many scenes.
 
-### 2. Education
-Represents educational background information for candidates.
+### 2. Scene / chunk (`scenes` table)
+
+Represents one narrated segment of the video. PRD §3, §6, §7.2, §7.3, §8.2, §10.3.
 
 **Fields:**
-- `id`: Unique identifier for the education record (Primary Key)
-- `institution`: Name of the educational institution (max 100 characters)
-- `title`: Degree or certification title obtained (max 250 characters)
-- `startDate`: Start date of the education period
-- `endDate`: End date of the education period (optional, null if ongoing)
-- `candidateId`: Foreign key referencing the Candidate
+- `id`: identifier, unique within the session and invariable once assigned (Primary Key) — §6
+- `run_id`: the owning session (Foreign Key)
+- `idx`: the PRD's chunk `ID`, the consecutive integers 1..N in the fragments' order — §6. **Unique within its session** (`scenes_run_id_idx_unique` on `(run_id, idx)`, `assign-scene-identifiers`, JOS-144, Decision 2), not across sessions. Locked once the chunk exists (see *Store-enforced locks*). The UUID `id` stays the internal key routes and foreign keys use.
+- `instruction`: the skeleton's generic stage input, still used by the skeleton-stub scenes the retry/concurrency/pause tests exercise (`test/orchestrator.test.ts`, via `createScene`) and by today's correction route (`correctAndRetry`, §10.3). **Not read by the real image stage** (`generate-chunk-image`, JOS-145), which reads `image_instruction` instead — registration sets both equal at first, but only `instruction` is ever corrected, so the two can diverge until JOS-157 moves correction onto `image_instruction` too.
+- `prompt`: the PRD's `PROMPT`, the exact fragment of the script this chunk narrates — §3. Set at registration, **locked** afterwards. The fragments joined in order reproduce the script apart from whitespace (§4.2), which registration checks.
+- `image_instruction`: the PRD's `IMAGE`, generated by the reasoning provider at registration — §3, §5 step 5. This is what the real image stage sends to the provider (JOS-145). Correctable after a failed image stage (§10.3) — not yet wired to the real stage's failures (JOS-157).
+- `video_instruction`: the PRD's `VIDEO`, generated with `IMAGE` — §3. Correctable after a failed clip stage (§10.3).
+- `narration_start_seconds` / `narration_end_seconds`: the chunk's narration interval, in seconds from the start of the voice-over — §3, §7.3. Nullable `REAL` columns, both set together by registration (`assign-narration-intervals`, JOS-143, migration 9) and **locked** afterwards. They come from the same `unitBoundaries` array that measured the chunk (D11 rule A: a chunk absorbs the silence that follows it), so a session's intervals, in chunk order, start at 0, each begins exactly where the previous one ends, and the last ends at the voice-over's `duration_seconds`; registration checks this before writing anything. Both are null only for scenes created by the pre-decomposition skeleton path. Exposed read-only as `narrationInterval: { startSeconds, endSeconds }`.
+- `requested_duration_seconds` / `duration_warning`: the video provider's admitted clip duration requested for this chunk, and an over-maximum warning when one applies — §7.2, §6.1.1. Nullable `INTEGER`/`TEXT` columns, both set together by registration (`request-admitted-clip-duration`, JOS-147, migration 10) from the chunk's own `narration_start_seconds`/`narration_end_seconds` (never recomputed from a later admitted-durations configuration), and **locked** afterwards. `requested_duration_seconds` is the admitted duration needing the smallest speed change to match the narrated interval (not the fewest seconds), an exact tie going to the longer duration; `duration_warning` is set to `exceeds-maximum` only when the interval is narrated longer than the provider's largest admitted duration (an unsplittable sentence) — not a failure. Both are null only for scenes created by the pre-decomposition skeleton path. Exposed read-only as `requestedDurationSeconds: number` and, when set, `durationWarning: "exceeds-maximum"`. Sending the clip request at this duration belongs to `generate-chunk-video` (JOS-146).
+- `speed_factor` / `speed_factor_warning`: the speed-adjustment factor the requested duration implies, and a warning when it exceeds the hardcoded acceptable limit — §7.2, AC23. Nullable `REAL`/`TEXT` columns, both set together by registration (`record-speed-adjustment-factor`, JOS-148, migration 11), and **locked** afterwards, mirroring the requested-duration pair above exactly. `speed_factor` is `closestAdmittedDuration`'s own `speedRatio` for the chosen duration (`max(requestedDurationSeconds / narratedDurationSeconds, narratedDurationSeconds / requestedDurationSeconds)`, always >= 1) — passed through, not recomputed independently, so it can never disagree with the duration-selection rule. `speed_factor_warning` is set to `exceeds-limit` only when the factor exceeds `SPEED_FACTOR_LIMIT` (`config/providers.ts`, currently `2.0`) in effect at registration; independent of `duration_warning` (a chunk may carry either, both, or neither). Both are null only for scenes created by the pre-decomposition skeleton path. Exposed read-only as `speedFactor: number` and, when set, `speedFactorWarning: "exceeds-limit"`, alongside `requestedDurationSeconds`/`durationWarning` on the session/scene read and in the frontend's scene-details panel (`SceneRow.tsx`).
+- `status`: one of the six chunk states in §8.2. `image-complete` is now real (`generate-chunk-image`, JOS-145): a chunk in `submitted` with a stored image (`image_instruction`) launches automatically, is checked against the accepted-size rule (at least 1920×1080, horizontal, within ±1% of 16:9), and completes at `image-complete` — the scene's final state until `generate-chunk-video` (JOS-146) adds the `video-generating → chunk-complete` transition. The skeleton's own generic-stub scenes (`test/orchestrator.test.ts`) reach the same `image-complete`, through the unchanged fake provider.
+- `attempts`: attempt count within the current 1+3 retry cycle — §10.1. Counts the **current** stage's attempts only: an automatic or boot-triggered retry of the image stage never spends a budget the skeleton's generic mechanism already consumed, and vice versa.
+- `current_request_id`: the in-flight provider request's external id, or null. The real image stage still sets this (so boot reconciliation can find an in-flight scene), even though Fal.ai's own call is a single request/response with nothing left to poll: a scene found `image-generating` at boot with a real (non-sentinel) `provider` is always treated as interrupted — one failed transient attempt, then the ordinary retry rule — never as "still pending", which stays the generic skeleton stub's path (`orchestrator.ts`'s `reconcileOnBoot`).
+- `last_error`: the most recent failure reason, when applicable
+- `result`: the **relative path** to the real artefact file written under the session's project folder — §12.2 (Decision 4). For the image stage this is the generated/downloaded image (`scene-<idx>-attempt-<n>.png` or `.jpg`, named by the attempt so a retry never collides with a previous one's file), never a provider's temporary link.
+- `provider`: the provider identifier bound to the chunk's current stage (§11.2), written once on the first real attempt and never overwritten afterwards — an application-level guarantee (`bindSceneImageProvider`, an atomic `UPDATE ... WHERE provider = <unbound sentinel>`), not a store trigger. Defaults to the sentinel `stub-image-provider` (`STUB_PROVIDER_NAME`) until a real attempt binds it; the skeleton's own generic-stub scenes never leave that default, which is how boot reconciliation (below) tells the two kinds of in-flight scene apart.
+- `provider_mode` / `provider_latency_ms`: skeleton-only fields configuring the stubbed provider's behaviour for that scene; not part of the real product model, and not read by the real image stage
 
-**Validation Rules:**
-- Institution is required and cannot exceed 100 characters
-- Title is required and cannot exceed 250 characters
-- Start date is required and must be in valid date format
-- End date is optional but must be valid if provided
-- Maximum of 3 education records per candidate
+**Not modelled:** the actual video clip itself (`video_result_path` and the `video` stage) — that comes from `generate-chunk-video` (JOS-146), which this skeleton does not simulate yet. The requested duration and the speed-adjustment factor (§7.2, AC23) are both modelled, above (`request-admitted-clip-duration`, JOS-147; `record-speed-adjustment-factor`, JOS-148) — neither depends on the clip existing.
 
-**Relationships:**
-- `candidate`: Many-to-one relationship with Candidate model
+**Relationships:** many scenes belong to one session; one scene has many stage attempts (provider requests) and at most one committed result.
 
-### 3. WorkExperience
-Represents work history and professional experience for candidates.
+**Keying at the read boundary** (`consult-session`, JOS-135, Decision 2): a scene is looked up by the pair `(session id, scene id)`, never by scene id alone — `id` is only unique *within* its owning session, so a repository method that took just the scene id could return a different session's scene of the same id. `getSceneForRun(runId, sceneId)` enforces this at the data-access layer, not by a caller-side check after the fact. The same story's file-reference resolution refuses any path that resolves outside the requesting session's own `project_folder` (Decision 2, reusing `define-persistence` Decision 4's folder-scoping), so a scene result cannot be read through a different session's address either.
 
-**Fields:**
-- `id`: Unique identifier for the work experience record (Primary Key)
-- `company`: Name of the company or organization (max 100 characters)
-- `position`: Job title or position held (max 100 characters)
-- `description`: Description of responsibilities and achievements (optional, max 200 characters)
-- `startDate`: Start date of the work experience
-- `endDate`: End date of the work experience (optional, null if current)
-- `candidateId`: Foreign key referencing the Candidate
+### 3. Provider request / stage attempt (`provider_requests` table)
 
-**Validation Rules:**
-- Company name is required and cannot exceed 100 characters
-- Position is required and cannot exceed 100 characters
-- Description is optional but cannot exceed 200 characters if provided
-- Start date is required and must be in valid date format
-- End date is optional but must be valid if provided
-
-**Relationships:**
-- `candidate`: Many-to-one relationship with Candidate model
-
-### 4. Resume
-Represents uploaded resume files associated with candidates.
+An append-only record of one attempt to call the (stubbed) provider for a scene. PRD §10.1, §10.3, §11, §11.2.
 
 **Fields:**
-- `id`: Unique identifier for the resume record (Primary Key)
-- `filePath`: File system path to the uploaded resume (max 500 characters)
-- `fileType`: MIME type or file extension of the resume (max 50 characters)
-- `uploadDate`: Date and time when the resume was uploaded
-- `candidateId`: Foreign key referencing the Candidate
+- `id`: the external request identifier — without this, restart resumption (§12.1) is impossible
+- `scene_id`: the scene this attempt belongs to (Foreign Key)
+- `sent_at`: when the request was recorded — written **before** the request is sent (Decision 2), so a crash between send and response still leaves a trace
+- `latency_ms`, `mode`: skeleton-only fields the stub provider uses to compute its outcome deterministically
+- `attempt_number`: sequence within the current 1+3 budget — §10.1
+- `resolved`: whether this specific request's delivery has been processed (guards against redelivering the same webhook event — a different, narrower concern than the scene-level idempotency below)
 
-**Validation Rules:**
-- File path is required and cannot exceed 500 characters
-- File type is required and cannot exceed 50 characters
-- Upload date is automatically set when file is uploaded
-- Supported file types: PDF and DOCX (max 10MB)
+**Never updated in place** once written except to flip `resolved`: each retry inserts a **new** row rather than mutating the previous attempt (Decision 1) — proven in `openspec/changes/define-persistence/reports/2026-09-25-step-8-curl-endpoint-testing.md` §8.6.
 
-**Relationships:**
-- `candidate`: Many-to-one relationship with Candidate model
+### 4. Scene result commit (`scene_results` table)
 
-### 5. Company
-Represents companies that post job positions and employ staff.
+The actual idempotency guarantee. PRD §12.1 ("more than one success confirmation for the same generation must not duplicate a result").
 
 **Fields:**
-- `id`: Unique identifier for the company (Primary Key)
-- `name`: Unique company name
+- `scene_id`: **Primary Key** — this is the whole mechanism. A second attempt to insert a row for a scene that already has one is rejected by the store itself, not by application code that read a flag first (Decision 3, `define-persistence`, the change's central finding — see `docs/adr/0002-persistence.md`).
+- `result`: the committed relative artefact path
+- `committed_at`: when the commit happened
 
-**Relationships:**
-- `employees`: One-to-many relationship with Employee model
-- `positions`: One-to-many relationship with Position model
+### 5. Schema migrations (`schema_migrations` table)
 
-### 6. Employee
-Represents employees within companies who can conduct interviews.
+Tracks which versioned migrations have been applied, so an existing session's data survives a schema upgrade (§11.2, Decision 6). Fields: `version` (Primary Key), `applied_at`. Migration 5 adds the three session-content triggers and migration 6 the two voice-over triggers (`lock-script-and-narration`, JOS-137); migration 7 adds `prompt`, `image_instruction` and `video_instruction` to `scenes`, the unique chunk-number index and the four chunk triggers (`assign-scene-identifiers`, JOS-144); migrations 5 and 6 are separate because a database that had already applied 5 must still receive the voice-over triggers, and an applied migration is never edited. Migration 8 adds `narration_timestamps` and its two triggers (`obtain-narration-timestamps`, JOS-139). Migration 9 adds `scenes.narration_start_seconds` and `scenes.narration_end_seconds` with one lock trigger each (`assign-narration-intervals`, JOS-143); its triggers are built from their own constant, not from the array migration 7 uses, so migration 7 is unchanged. Migration 10 adds `scenes.requested_duration_seconds` and `scenes.duration_warning` with one lock trigger each (`request-admitted-clip-duration`, JOS-147), built from a constant of its own for the same reason migration 9's was. Migration 11 adds `scenes.speed_factor` and `scenes.speed_factor_warning` with one lock trigger each (`record-speed-adjustment-factor`, JOS-148), the same pattern again.
 
-**Fields:**
-- `id`: Unique identifier for the employee (Primary Key)
-- `name`: Employee's full name
-- `email`: Employee's unique email address
-- `role`: Employee's role or job title
-- `isActive`: Boolean indicating if the employee is currently active
-- `companyId`: Foreign key referencing the Company
+### 6. Narration timestamps (`narration_timestamps` table)
 
-**Relationships:**
-- `company`: Many-to-one relationship with Company model
-- `interviews`: One-to-many relationship with Interview model
-
-### 7. InterviewType
-Defines different types of interviews that can be conducted.
+Where each character of the script sits in the narration, obtained once per session at the start of the decomposition phase. PRD §5 step 3, §10.3, §11.1 (`obtain-narration-timestamps`, JOS-139).
 
 **Fields:**
-- `id`: Unique identifier for the interview type (Primary Key)
-- `name`: Name of the interview type (e.g., "Technical", "HR", "Behavioral")
-- `description`: Detailed description of the interview type (optional)
+- `run_id`: the owning session (Primary Key, Foreign Key) — one record per session, enforced by the key
+- `mechanism`: `native` (the voice provider's own timestamps) or `alignment` (the alignment stage's forced alignment of the MP3 against the script) — checked by the store
+- `path`: the **relative path** of the file holding the timestamps, always `narration-timestamps.json` in the session's project folder — §12.2
+- `character_count`: the number of characters stored
+- `obtained_at`: when they were stored
 
-**Relationships:**
-- `interviewSteps`: One-to-many relationship with InterviewStep model
+The file holds `{ mechanism, characters: [{ text, start, end }] }`, one entry per character, in one format whatever the mechanism. It and the record are written once and never changed (see *Store-enforced locks*), so segmentation and every decomposition retry use the same timestamps (§10.3). **They are not a partition of the audio:** native timestamps are gapless, but forced alignment starts about 0.1 s in and leaves gaps between characters (up to about 1 s on a 57 s narration); closing them is the job of the interval story (JOS-143, D11). Segmentation (`segment-script-into-chunks`, JOS-140) reads this file to measure each sentence, with an interim rule that puts the boundary between two sentences at the midpoint of the pause between them (first boundary 0, last the MP3's duration); the resulting fragments are registered as chunks and their durations are not stored.
 
-### 8. InterviewFlow
-Represents a sequence of interview steps that define the hiring process.
+**The `timestamps` stage** records its attempts in `stage_attempts` (`stage = 'timestamps'`, numbered apart from the voice-over's). An attempt's provider is the first mechanism tried (`elevenlabs-native` or `elevenlabs-forced-alignment`); when native timestamps were judged unusable, its `error_code` is `native-unusable` and every later attempt goes straight to alignment (§10.3).
 
-**Fields:**
-- `id`: Unique identifier for the interview flow (Primary Key)
-- `description`: Description of the interview flow process (optional)
+**Relationships:** one session has at most one narration-timestamps record, and only after its voice-over exists.
 
-**Relationships:**
-- `interviewSteps`: One-to-many relationship with InterviewStep model
-- `positions`: One-to-many relationship with Position model
+## Store-enforced locks
 
-### 9. InterviewStep
-Represents individual steps within an interview flow.
+What must never change is refused by the store itself (`lock-script-and-narration`, JOS-137; PRD §4.2, D10), so the rule holds for every caller, present or future, and not only for the repository functions in `backend/src/db.ts`. Each trigger aborts the statement with a message that names what was touched.
 
-**Fields:**
-- `id`: Unique identifier for the interview step (Primary Key)
-- `name`: Name of the interview step
-- `orderIndex`: Numeric order of this step within the flow
-- `interviewFlowId`: Foreign key referencing the InterviewFlow
-- `interviewTypeId`: Foreign key referencing the InterviewType
+| Trigger | Table | Fires on | Refusal message |
+|---|---|---|---|
+| `runs_title_locked` | `runs` | `UPDATE OF title` | `locked: runs.title cannot be modified after registration` |
+| `runs_script_locked` | `runs` | `UPDATE OF script` | `locked: runs.script cannot be modified after registration` |
+| `runs_language_locked` | `runs` | `UPDATE OF language` | `locked: runs.language cannot be modified after registration` |
+| `voice_overs_no_update` | `voice_overs` | any `UPDATE` | `locked: voice_overs cannot be modified once the narration is complete` |
+| `voice_overs_no_delete` | `voice_overs` | any `DELETE` | `locked: voice_overs cannot be deleted once the narration is complete` |
+| `narration_timestamps_no_update` | `narration_timestamps` | any `UPDATE` | `locked: narration_timestamps cannot be modified once obtained` |
+| `narration_timestamps_no_delete` | `narration_timestamps` | any `DELETE` | `locked: narration_timestamps cannot be deleted once obtained` |
+| `scenes_idx_locked` | `scenes` | `UPDATE OF idx` | `locked: scenes.idx cannot be modified once the chunk is established` |
+| `scenes_prompt_locked` | `scenes` | `UPDATE OF prompt` | `locked: scenes.prompt cannot be modified once the chunk is established` |
+| `scenes_run_id_locked` | `scenes` | `UPDATE OF run_id` | `locked: scenes.run_id cannot be modified once the chunk is established` |
+| `scenes_no_delete` | `scenes` | any `DELETE` | `locked: scenes cannot be deleted once the chunk is established` |
+| `scenes_narration_start_seconds_locked` | `scenes` | `UPDATE OF narration_start_seconds` | `locked: scenes.narration_start_seconds cannot be modified once the chunk is established` |
+| `scenes_narration_end_seconds_locked` | `scenes` | `UPDATE OF narration_end_seconds` | `locked: scenes.narration_end_seconds cannot be modified once the chunk is established` |
+| `scenes_requested_duration_seconds_locked` | `scenes` | `UPDATE OF requested_duration_seconds` | `locked: scenes.requested_duration_seconds cannot be modified once the chunk is established` |
+| `scenes_duration_warning_locked` | `scenes` | `UPDATE OF duration_warning` | `locked: scenes.duration_warning cannot be modified once the chunk is established` |
+| `scenes_speed_factor_locked` | `scenes` | `UPDATE OF speed_factor` | `locked: scenes.speed_factor cannot be modified once the chunk is established` |
+| `scenes_speed_factor_warning_locked` | `scenes` | `UPDATE OF speed_factor_warning` | `locked: scenes.speed_factor_warning cannot be modified once the chunk is established` |
 
-**Relationships:**
-- `interviewFlow`: Many-to-one relationship with InterviewFlow model
-- `interviewType`: Many-to-one relationship with InterviewType model
-- `applications`: One-to-many relationship with Application model
-- `interviews`: One-to-many relationship with Interview model
-
-### 10. Position
-Represents job positions available for application.
-
-**Fields:**
-- `id`: Unique identifier for the position (Primary Key)
-- `companyId`: Foreign key referencing the Company (required)
-- `interviewFlowId`: Foreign key referencing the InterviewFlow (required)
-- `title`: Job title (required, max 100 characters)
-- `description`: Brief description of the position (required)
-- `status`: Current status of the position (default: "Draft", valid values: Open, Contratado, Cerrado, Borrador)
-- `isVisible`: Boolean indicating if the position is publicly visible (default: false)
-- `location`: Job location (required)
-- `jobDescription`: Detailed job description (required)
-- `requirements`: Job requirements and qualifications (optional)
-- `responsibilities`: Job responsibilities (optional)
-- `salaryMin`: Minimum salary range (optional, must be >= 0)
-- `salaryMax`: Maximum salary range (optional, must be >= 0 and >= salaryMin)
-- `employmentType`: Type of employment (e.g., "Full-time", "Part-time", "Contract") (optional)
-- `benefits`: Job benefits description (optional)
-- `companyDescription`: Description of the hiring company (optional)
-- `applicationDeadline`: Deadline for applications (optional, must be a future date)
-- `contactInfo`: Contact information for inquiries (optional)
-
-**Validation Rules:**
-- Title is required and cannot exceed 100 characters
-- Description, location, and jobDescription are required fields
-- Status must be one of: Open, Contratado, Cerrado, Borrador
-- Company and interview flow references must exist in the database
-- Salary values must be non-negative numbers
-- Application deadline must be a future date if provided
-
-**Relationships:**
-- `company`: Many-to-one relationship with Company model
-- `interviewFlow`: Many-to-one relationship with InterviewFlow model
-- `applications`: One-to-many relationship with Application model
-
-### 11. Application
-Represents a candidate's application to a specific position.
-
-**Fields:**
-- `id`: Unique identifier for the application (Primary Key)
-- `applicationDate`: Date when the application was submitted
-- `currentInterviewStep`: Current step in the interview process
-- `notes`: Additional notes about the application (optional)
-- `positionId`: Foreign key referencing the Position
-- `candidateId`: Foreign key referencing the Candidate
-- `interviewStepId`: Foreign key referencing the current InterviewStep
-
-**Relationships:**
-- `position`: Many-to-one relationship with Position model
-- `candidate`: Many-to-one relationship with Candidate model
-- `interviewStep`: Many-to-one relationship with InterviewStep model
-- `interviews`: One-to-many relationship with Interview model
-
-### 12. Interview
-Represents individual interview sessions conducted as part of an application.
-
-**Fields:**
-- `id`: Unique identifier for the interview (Primary Key)
-- `interviewDate`: Date and time of the interview
-- `result`: Interview result or outcome (optional)
-- `score`: Numeric score or rating from the interview (optional)
-- `notes`: Interview notes and feedback (optional)
-- `applicationId`: Foreign key referencing the Application
-- `interviewStepId`: Foreign key referencing the InterviewStep
-- `employeeId`: Foreign key referencing the conducting Employee
-
-**Relationships:**
-- `application`: Many-to-one relationship with Application model
-- `interviewStep`: Many-to-one relationship with InterviewStep model
-- `employee`: Many-to-one relationship with Employee model
+- `UPDATE OF <column>` fires whenever the column appears in a `SET` list, **even for an identical value**: nothing legitimate writes these columns after the `INSERT`, so any write is a bug worth failing loudly. Updating the other `runs` columns (`paused`, `project_folder`, `voice_provider_id`, `failure`) is unaffected.
+- The four `scenes` triggers come from `assign-scene-identifiers` (JOS-144, migration 7): an established chunk is never split, merged, deleted or reordered (PRD §6). `image_instruction`, `video_instruction`, `instruction` and `status` stay writable, since §10.3 lets the visual instructions be corrected and the stages move the status. A duplicate chunk number is refused by the unique index `scenes_run_id_idx_unique`.
+- The two interval triggers come from `assign-narration-intervals` (JOS-143, migration 9): a chunk's narration interval never changes through processing, retries or corrections (PRD §3 "No permitida"). Retries and corrections write other columns, so they never fire these triggers.
+- The two duration-request triggers come from `request-admitted-clip-duration` (JOS-147, migration 10): a chunk's requested duration and warning are decided once at registration from its interval and never change afterwards, even if a later build's admitted-durations configuration would choose differently. Retries and corrections write other columns, so they never fire these triggers either.
+- The two speed-factor triggers come from `record-speed-adjustment-factor` (JOS-148, migration 11): the same guarantee, for the factor derived from the requested duration and its warning against the hardcoded limit — neither changes afterwards even if a later build's `SPEED_FACTOR_LIMIT` differs.
+- There is no trigger on `INSERT`: a second voice-over for a session is already refused by `voice_overs`' primary key (`run_id`).
+- The `voice_overs` table is created by migration 4 of `generate-voice-over` (JOS-136) and is documented with that change; this section only records how it is protected.
+- **The one exception** is `resetAll()` in `backend/src/db.ts`, which exists only for tests and empties the store. Inside a single transaction it drops `voice_overs_no_delete`, `scenes_no_delete` and `narration_timestamps_no_delete`, deletes every row and recreates the three triggers from the same definition constants the migrations use; if any step fails the whole reset rolls back and the triggers are left in place.
+- The MP3 file has the matching guarantee: it is written with `writeArtefactOnce`, which fails if the target exists and never replaces it (see `docs/backend-standards.md`, Persistence).
 
 ## Entity Relationship Diagram
 
 ```mermaid
 erDiagram
-    Candidate {
-        Int id PK
-        String firstName
-        String lastName
-        String email UK
-        String phone
-        String address
-    }
-    Education {
-        Int id PK
-        String institution
+    Session {
+        String id PK "ULID"
         String title
-        DateTime startDate
-        DateTime endDate
-        Int candidateId FK
+        String script
+        String language
+        String created_at
+        Boolean paused
+        String project_folder
     }
-    WorkExperience {
-        Int id PK
-        String company
-        String position
-        String description
-        DateTime startDate
-        DateTime endDate
-        Int candidateId FK
-    }
-    Resume {
-        Int id PK
-        String filePath
-        String fileType
-        DateTime uploadDate
-        Int candidateId FK
-    }
-    Company {
-        Int id PK
-        String name UK
-    }
-    Employee {
-        Int id PK
-        String name
-        String email UK
-        String role
-        Boolean isActive
-        Int companyId FK
-    }
-    InterviewType {
-        Int id PK
-        String name
-        String description
-    }
-    InterviewFlow {
-        Int id PK
-        String description
-    }
-    InterviewStep {
-        Int id PK
-        String name
-        Int orderIndex
-        Int interviewFlowId FK
-        Int interviewTypeId FK
-    }
-    Position {
-        Int id PK
-        String title
-        String description
+    Scene {
+        String id PK
+        String run_id FK
+        Int idx
+        String instruction
         String status
-        Boolean isVisible
-        String location
-        String jobDescription
-        String requirements
-        String responsibilities
-        Float salaryMin
-        Float salaryMax
-        String employmentType
-        String benefits
-        String companyDescription
-        DateTime applicationDeadline
-        String contactInfo
-        Int companyId FK
-        Int interviewFlowId FK
-    }
-    Application {
-        Int id PK
-        DateTime applicationDate
-        Int currentInterviewStep
-        String notes
-        Int positionId FK
-        Int candidateId FK
-        Int interviewStepId FK
-    }
-    Interview {
-        Int id PK
-        DateTime interviewDate
+        Int attempts
+        String current_request_id
+        String last_error
         String result
-        Int score
-        String notes
-        Int applicationId FK
-        Int interviewStepId FK
-        Int employeeId FK
+        String provider
+    }
+    ProviderRequest {
+        String id PK
+        String scene_id FK
+        String sent_at
+        Int attempt_number
+        Boolean resolved
+    }
+    SceneResult {
+        String scene_id PK "FK to Scene"
+        String result
+        String committed_at
+    }
+    SchemaMigration {
+        Int version PK
+        String applied_at
     }
 
-    Candidate ||--o{ Education : "has"
-    Candidate ||--o{ WorkExperience : "has"
-    Candidate ||--o{ Resume : "has"
-    Candidate ||--o{ Application : "submits"
-    
-    Company ||--o{ Employee : "employs"
-    Company ||--o{ Position : "offers"
-    
-    InterviewType ||--o{ InterviewStep : "defines"
-    InterviewFlow ||--o{ InterviewStep : "includes"
-    InterviewFlow ||--o{ Position : "guides"
-    
-    Position ||--o{ Application : "receives"
-    Application ||--o{ Interview : "includes"
-    
-    InterviewStep ||--o{ Application : "current_step"
-    InterviewStep ||--o{ Interview : "conducted_at"
-    
-    Employee ||--o{ Interview : "conducts"
+    Session ||--o{ Scene : "has (ascending idx)"
+    Scene ||--o{ ProviderRequest : "append-only attempts"
+    Scene ||--o| SceneResult : "at most one commit"
 ```
 
 ## Key Design Principles
 
-1. **Referential Integrity**: All foreign key relationships ensure data consistency across the system.
-
-2. **Flexibility**: The interview flow system allows for customizable hiring processes per position.
-
-3. **Audit Trail**: Application and interview dates provide a complete timeline of the hiring process.
-
-4. **Extensibility**: The modular design allows for easy addition of new features and data points.
-
-5. **Data Normalization**: The model follows database normalization principles to minimize redundancy and ensure data integrity.
+1. **Append-only attempts, mutable read model.** `provider_requests` never rewrites history; `scenes.status`/`result` is a derived, idempotently-updatable read model on top of it (Decision 1).
+2. **The store enforces the guarantees that matter, not application code.** Idempotency (§4 above) and referential integrity (foreign keys, `PRAGMA foreign_keys = ON`) are structural, not conventions a caller has to remember to check first (Decision 3).
+3. **File references are relative, always.** Every artefact path is relative to the owning session's recorded `project_folder`, so renaming that folder in place requires updating exactly one column, not every artefact row (Decision 4).
+4. **No entity models a phase this skeleton doesn't simulate.** Where the PRD implies a field (speed factor, voice/alignment provider bindings) with no current writer or reader, it is documented as **not modelled** here rather than added speculatively — a story that needs it adds it as its own delta.
+5. **Schema versioning from the start.** `schema_migrations` exists even though there is currently one real migration, so a long-lived session (sessions never expire, §12.2) can outlive several schema versions without its existing rows being touched (Decision 6).
+6. **What must never change is locked by the store, not by convention.** The script, title and language, and a completed voice-over record, are protected by triggers (see *Store-enforced locks*), so a new caller that forgets the rule fails loudly instead of corrupting a session.
 
 ## Notes
 
-- All `id` fields serve as primary keys with auto-increment functionality
-- Foreign key relationships maintain referential integrity
-- Optional fields allow for flexible data entry while maintaining required core information
-- The interview system supports multi-step hiring processes with different types of interviews
-- Email fields have unique constraints to prevent duplicate accounts 
+- All identifiers are opaque strings, not auto-incrementing integers, consistent with §3's "system-generated identifier." **Session** identifiers are ULIDs (`start-video-project`, JOS-134, Decision 3 — opaque *and* creation-ordered, which §12.2's "two sessions in the same minute" case relies on being observable). Scene, provider-request and scene-result identifiers remain UUIDs — §12.3's "reached by identifier" guarantee is specifically about sessions, not these internal records.
+- No entity in this model is a security boundary — per §12.3, session separation is a functional-integrity property (a project must not show or overwrite another project's data), not an access-control mechanism. There are no accounts, roles or permissions in this data model.
+- What's still open: the real persistence engine choice is **not** open — that's `docs/adr/0002-persistence.md`, this document's basis. What remains genuinely open is the full multi-stage model (voice, alignment, video as their own simulated stages) and the real hardcoded parameter values (US-33), both out of scope for the changes that produced this document.

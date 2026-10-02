@@ -3,8 +3,6 @@
 - Status: Accepted
 - Date: 2026-09-26
 - Change: `define-media-assembly` (JOS-182, US-42-adjacent spike)
-- **Branch note**: this ADR was authored on `feature/jos-182-define-media-assembly`, branched from `main` (this change is independent of the other E13 spikes — proposal.md — and its own artifacts already existed on `main`, unlike the sibling spikes' skeletons). ADRs 0001-0004 (backend stack, persistence, live updates, frontend stack) exist only on `feature/entrega-2-JAME` at the time of writing and are not present on this branch. This ADR is numbered 0005 to fit that sequence for when the branches converge; reconcile `docs/adr/`'s directory listing at merge time.
-
 ## Context
 
 PRD v1.3 §7.3 and D08 fix the final artefact precisely — a 16:9 MP4 at (expected) 1920×1080/30fps, H.264 video, AAC audio, clips joined in ascending scene order with no gaps, each retimed to its narration interval without touching the voice-over, which is the only audio in the output. No tooling existed, and nobody had measured where retiming quality degrades — the number US-33 needs to hardcode the speed-factor limit.
@@ -15,7 +13,7 @@ ffmpeg 8.1.2 was already installed (`/opt/homebrew/bin/`) with `libx264`, `aac`,
 
 **ffmpeg**, confirmed against all six PRD constraints (16:9 output, target resolution/frame rate, H.264, AAC, ascending-order no-gap concatenation, voice-over-only audio) — no candidate was rejected, no fallback needed.
 
-**The documented pipeline** (`openspec/changes/define-media-assembly/scripts/assemble.sh`, the single source of truth for this — not restated as prose here to avoid the two drifting apart):
+**The experimental reference pipeline** (`openspec/changes/archive/2026-09-26-define-media-assembly/scripts/assemble.sh`):
 
 1. **Per clip**: `setpts` retimes video only (never audio); `-map 0:v:0` excludes the clip's own audio at the input stage, never by muting after decode; `scale` + `fps` normalise to the target shape; the exact output frame count is stated directly (`-frames:v`), not derived from a time cutoff.
 2. **Concatenate**: the `concat` filter joins all normalised clips in ascending `sceneId` order (read from the interval data, never filesystem listing order).
@@ -90,6 +88,6 @@ Machine: Apple M1 Max, 10 cores (8P+2E). 40 scenes (~112s of assembled content):
 ## Consequences
 
 - `docs/backend-standards.md` gains the assembly pipeline section (this change) — **note**: on this branch (based on `main`), that file is still the pre-rewrite inherited template; `define-backend-stack`'s full rewrite exists only on `feature/entrega-2-JAME`. This change's section was added additively rather than assuming a rewritten file that isn't present here — reconcile at merge time.
-- `openspec/changes/define-media-assembly/scripts/assemble.sh` is the single documented pipeline US-16 implements against, per `specs/media-assembly-foundation/spec.md`.
-- `openspec/changes/define-media-assembly/fixture/` (5 scenes, ~492KB) is committed as US-16's test fixture, with `scripts/generate-fixture.sh` documenting exact regeneration.
+- `openspec/changes/archive/2026-09-26-define-media-assembly/scripts/assemble.sh` is the experimental reference pipeline, with its specification in `openspec/changes/archive/2026-09-26-define-media-assembly/specs/media-assembly-foundation/spec.md`.
+- `openspec/changes/archive/2026-09-26-define-media-assembly/fixture/` (5 scenes, ~492KB) is the committed synthetic test fixture, with `scripts/generate-fixture.sh` documenting exact regeneration.
 - The speed-factor recommendation (0.5×-2.0×, evidence above) is an input to US-33, not a value US-33 must re-derive.

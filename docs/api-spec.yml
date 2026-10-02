@@ -1,1093 +1,755 @@
-openapi: 3.0.0
+# Vid4You API contract — reset for this product (start-video-project, JOS-134,
+# Decision 9). The previous version of this file described an unrelated
+# inherited application (an LTI recruitment platform) end to end and has been
+# fully removed.
+#
+# GENERATED, not hand-written: this file is produced from the Fastify + Zod
+# route schemas the backend actually serves (`GET /docs/json` against a
+# running instance), per `docs/backend-standards.md` § API and OpenAPI
+# Conventions — "OpenAPI is generated... never hand-written and never allowed
+# to drift from the actual validators." Task 5.3 confirmed this by generating
+# directly from the real running server, not transcribing intent.
+#
+# Scope note: this story (JOS-134) only implements `POST /sessions` and
+# `GET /languages`. The other paths below (`GET /sessions/{sessionId}`,
+# pause/continue, scene retry/correct, downloads, the provider-callback
+# simulation, the SSE `/events` stream) already exist because they were
+# promoted from the `define-backend-stack` (JOS-179) skeleton this story
+# extends rather than replaces — they belong to their own future stories
+# (consult-session/JOS-135, US-20/US-21, US-25/US-26, US-31/US-32,
+# define-live-updates/JOS-183) and are documented here only because they are
+# real, not because this change built them. Regenerate this file (same
+# command) whenever a route changes, rather than hand-editing it out of sync.
+#
+openapi: 3.0.3
 info:
-  title: LTI (Learning Technology Initiative) API
-  description: |
-    REST API for the Learning Technology Initiative platform, designed for managing candidates, positions, interviews, and recruitment processes.
-    
-    This API follows Domain-Driven Design principles and implements a layered architecture for scalable recruitment management.
-    
-    ## Features
-    - Candidate management with education and work experience tracking
-    - Position management with company and interview flow integration
-    - Application tracking through interview processes
-    - File upload capabilities for resumes and documents
-    - Comprehensive filtering, sorting, and pagination support
-    
-  version: 0.0.0.001
-  contact:
-    name: LTI Development Team
-  license:
-    name: ISC
-    
-servers:
-  - url: http://localhost:3000
-    description: Development server
-  - url: https://api.lti.dev
-    description: Production server
-
+  title: Vid4You API
+  version: 0.0.0
+  description: Local, single-user API for turning a script into a narrated MP4
+    (Vid4You). Generated from the Fastify + Zod route schemas in
+    backend/src/routes.ts (docs/backend-standards.md, API and OpenAPI
+    Conventions) - never hand-written, to avoid drifting from the real
+    validators.
+components:
+  schemas: {}
 paths:
-  /candidates:
+  /health:
     get:
-      summary: Get all candidates
-      description: Retrieve a paginated list of candidates with optional filtering and sorting capabilities
-      tags:
-        - Candidates
-      parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-          description: Page number for pagination
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 10
-          description: Number of candidates per page
-        - in: query
-          name: search
-          schema:
-            type: string
-          description: Search term to filter candidates by first name, last name, or email
-        - in: query
-          name: sort
-          schema:
-            type: string
-            enum: [firstName, lastName, email]
-            default: firstName
-          description: Field to sort candidates by
-        - in: query
-          name: order
-          schema:
-            type: string
-            enum: [asc, desc]
-            default: asc
-          description: Sort order
       responses:
-        '200':
-          description: Successfully retrieved candidates
+        "200":
+          description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CandidateListResponse'
-        '400':
-          description: Invalid request parameters
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required:
+                  - ok
+                additionalProperties: false
+  /languages:
+    get:
+      responses:
+        "200":
+          description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    
+                type: array
+                items:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                    label:
+                      type: string
+                  required:
+                    - code
+                    - label
+                  additionalProperties: false
+  /sessions:
     post:
-      summary: Create a new candidate
-      description: Add a new candidate to the system with their personal information, education, and work experience
-      tags:
-        - Candidates
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              $ref: '#/components/schemas/CreateCandidateRequest'
-      responses:
-        '201':
-          description: Candidate created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CreateCandidateResponse'
-        '400':
-          description: Validation error or email already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /candidates/{id}:
-    get:
-      summary: Get candidate by ID
-      description: Retrieve detailed information about a specific candidate including their applications, interviews, and related data
-      tags:
-        - Candidates
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-          description: Candidate ID
-      responses:
-        '200':
-          description: Successfully retrieved candidate
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateDetails'
-        '400':
-          description: Invalid ID format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Candidate not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    
-    put:
-      summary: Update candidate interview stage
-      description: Update the current interview stage for a candidate's application
-      tags:
-        - Candidates
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-          description: Candidate ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateCandidateStageRequest'
-      responses:
-        '200':
-          description: Candidate stage updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UpdateCandidateStageResponse'
-        '400':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Application not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /positions:
-    get:
-      summary: Get all positions
-      description: Retrieve all visible positions in the system
-      tags:
-        - Positions
-      responses:
-        '200':
-          description: Successfully retrieved positions
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Position'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /positions/{id}:
-    get:
-      summary: Get position by ID
-      description: Retrieve detailed information about a specific position
-      tags:
-        - Positions
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-          description: Position ID
-      responses:
-        '200':
-          description: Successfully retrieved position
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Position'
-        '400':
-          description: Invalid position ID format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Position not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    
-    put:
-      summary: Update position
-      description: |
-        Update an existing position with new information. Supports partial updates - only fields provided in the request body will be updated.
-        Fields not provided will maintain their existing values in the database.
-      tags:
-        - Positions
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-          description: Position ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdatePositionRequest'
-      responses:
-        '200':
-          description: Position updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UpdatePositionResponse'
-        '400':
-          description: Validation error or invalid reference data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Position not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /positions/{id}/candidates:
-    get:
-      summary: Get candidates by position
-      description: Retrieve all candidates who have applied to a specific position with their interview progress
-      tags:
-        - Positions
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-          description: Position ID
-      responses:
-        '200':
-          description: Successfully retrieved candidates for position
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PositionCandidate'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /positions/{id}/candidates/names:
-    get:
-      summary: Get candidate names by position
-      description: Retrieve simplified candidate information (ID and name only) for a specific position
-      tags:
-        - Positions
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-          description: Position ID
-      responses:
-        '200':
-          description: Successfully retrieved candidate names
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/CandidateName'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /positions/{id}/interviewflow:
-    get:
-      summary: Get interview flow by position
-      description: Retrieve the interview flow configuration for a specific position
-      tags:
-        - Positions
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-          description: Position ID
-      responses:
-        '200':
-          description: Successfully retrieved interview flow
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InterviewFlowResponse'
-        '404':
-          description: Position not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /upload:
-    post:
-      summary: Upload file
-      description: Upload a file (PDF or DOCX) for resume or document storage
-      tags:
-        - File Upload
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
             schema:
               type: object
               properties:
-                file:
+                title:
                   type: string
-                  format: binary
-                  description: File to upload (PDF or DOCX, max 10MB)
+                  description: Immutable once the session is registered (PRD §4.2).
+                script:
+                  type: string
+                  description: Stored exactly as submitted and immutable from registration onward,
+                    in every state (PRD §4.2, D10). No operation modifies it.
+                language:
+                  type: string
+                  enum:
+                    - en
+                    - es
+                  description: Immutable once the session is registered (PRD §4.1, §4.2).
               required:
-                - file
+                - title
+                - script
+                - language
+              additionalProperties: false
       responses:
-        '200':
-          description: File uploaded successfully
+        "201":
+          description: Default Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FileUploadResponse'
-        '400':
-          description: Invalid file type or file too large
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Upload error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-components:
-  schemas:
-    CandidateListResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Candidate'
-        metadata:
-          $ref: '#/components/schemas/PaginationMetadata'
-      required:
-        - data
-        - metadata
-
-    Candidate:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Unique candidate identifier
-        firstName:
-          type: string
-          description: Candidate's first name
-        lastName:
-          type: string
-          description: Candidate's last name
-        email:
-          type: string
-          format: email
-          description: Candidate's email address
-        phone:
-          type: string
-          nullable: true
-          description: Candidate's phone number
-        address:
-          type: string
-          nullable: true
-          description: Candidate's address
-        educations:
-          type: array
-          items:
-            $ref: '#/components/schemas/Education'
-        workExperiences:
-          type: array
-          items:
-            $ref: '#/components/schemas/WorkExperience'
-        resumes:
-          type: array
-          items:
-            $ref: '#/components/schemas/Resume'
-        applications:
-          type: array
-          items:
-            $ref: '#/components/schemas/Application'
-      required:
-        - firstName
-        - lastName
-        - email
-
-    CandidateDetails:
-      allOf:
-        - $ref: '#/components/schemas/Candidate'
-        - type: object
-          properties:
-            applications:
-              type: array
-              items:
-                allOf:
-                  - $ref: '#/components/schemas/Application'
-                  - type: object
+                type: object
+                properties:
+                  session:
+                    type: object
                     properties:
-                      position:
-                        type: object
-                        properties:
-                          id:
-                            type: integer
-                          title:
-                            type: string
-                      interviews:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Interview'
-
-    CreateCandidateRequest:
-      type: object
-      properties:
-        firstName:
-          type: string
-          description: Candidate's first name
-        lastName:
-          type: string
-          description: Candidate's last name
-        email:
-          type: string
-          format: email
-          description: Candidate's email address
-        phone:
-          type: string
-          nullable: true
-          description: Candidate's phone number
-        address:
-          type: string
-          nullable: true
-          description: Candidate's address
-        educations:
-          type: array
-          items:
-            $ref: '#/components/schemas/CreateEducationRequest'
-        workExperiences:
-          type: array
-          items:
-            $ref: '#/components/schemas/CreateWorkExperienceRequest'
-        cv:
-          $ref: '#/components/schemas/CreateResumeRequest'
-      required:
-        - firstName
-        - lastName
-        - email
-
-    CreateCandidateResponse:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Created candidate ID
-        firstName:
-          type: string
-        lastName:
-          type: string
-        email:
-          type: string
-        phone:
-          type: string
-          nullable: true
-        address:
-          type: string
-          nullable: true
-      required:
-        - id
-        - firstName
-        - lastName
-        - email
-
-    UpdateCandidateStageRequest:
-      type: object
-      properties:
-        applicationId:
-          type: string
-          description: Application ID (will be converted to integer)
-        currentInterviewStep:
-          type: string
-          description: Current interview step (will be converted to integer)
-      required:
-        - applicationId
-        - currentInterviewStep
-
-    UpdateCandidateStageResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          example: "Candidate stage updated successfully"
-        data:
-          $ref: '#/components/schemas/Application'
-
-    Position:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Position unique identifier
-        companyId:
-          type: integer
-          description: Associated company ID
-        interviewFlowId:
-          type: integer
-          description: Associated interview flow ID
-        title:
-          type: string
-          description: Position title
-        description:
-          type: string
-          description: Position description
-        status:
-          type: string
-          description: Position status
-          default: "Draft"
-        isVisible:
-          type: boolean
-          description: Whether position is visible to candidates
-          default: false
-        location:
-          type: string
-          description: Position location
-        jobDescription:
-          type: string
-          description: Detailed job description
-        requirements:
-          type: string
-          nullable: true
-          description: Position requirements
-        responsibilities:
-          type: string
-          nullable: true
-          description: Position responsibilities
-        salaryMin:
-          type: number
-          nullable: true
-          description: Minimum salary
-        salaryMax:
-          type: number
-          nullable: true
-          description: Maximum salary
-        employmentType:
-          type: string
-          nullable: true
-          description: Type of employment
-        benefits:
-          type: string
-          nullable: true
-          description: Position benefits
-        companyDescription:
-          type: string
-          nullable: true
-          description: Company description
-        applicationDeadline:
-          type: string
-          format: date-time
-          nullable: true
-          description: Application deadline
-        contactInfo:
-          type: string
-          nullable: true
-          description: Contact information
-      required:
-        - companyId
-        - interviewFlowId
-        - title
-        - description
-        - location
-        - jobDescription
-
-    UpdatePositionRequest:
-      type: object
-      properties:
-        companyId:
-          type: integer
-          minimum: 1
-          description: Associated company ID (must be a positive integer)
-        interviewFlowId:
-          type: integer
-          minimum: 1
-          description: Associated interview flow ID (must be a positive integer)
-        title:
-          type: string
-          maxLength: 100
-          minLength: 1
-          description: Position title (required, 1-100 characters)
-        description:
-          type: string
-          minLength: 1
-          description: Position description (required, cannot be empty)
-        status:
-          type: string
-          enum: [Open, Contratado, Cerrado, Borrador]
-          description: Position status (must be one of the valid status values)
-        isVisible:
-          type: boolean
-          description: Whether position is visible to candidates
-        location:
-          type: string
-          minLength: 1
-          description: Position location (required, cannot be empty)
-        jobDescription:
-          type: string
-          minLength: 1
-          description: Detailed job description (required, cannot be empty)
-        requirements:
-          type: string
-          nullable: true
-          description: Position requirements
-        responsibilities:
-          type: string
-          nullable: true
-          description: Position responsibilities
-        salaryMin:
-          type: number
-          minimum: 0
-          nullable: true
-          description: Minimum salary (must be >= 0, cannot be greater than salaryMax)
-        salaryMax:
-          type: number
-          minimum: 0
-          nullable: true
-          description: Maximum salary (must be >= 0, cannot be less than salaryMin)
-        employmentType:
-          type: string
-          nullable: true
-          description: Type of employment
-        benefits:
-          type: string
-          nullable: true
-          description: Position benefits
-        companyDescription:
-          type: string
-          nullable: true
-          description: Company description
-        applicationDeadline:
-          type: string
-          format: date-time
-          nullable: true
-          description: Application deadline (must be a future date)
-        contactInfo:
-          type: string
-          nullable: true
-          description: Contact information
-
-    UpdatePositionResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          example: "Position updated successfully"
-        data:
-          $ref: '#/components/schemas/Position'
-
-    PositionCandidate:
-      type: object
-      properties:
-        fullName:
-          type: string
-          description: Candidate's full name
-        currentInterviewStep:
-          type: string
-          description: Current interview step name
-        candidateId:
-          type: integer
-          description: Candidate ID
-        applicationId:
-          type: integer
-          description: Application ID
-        averageScore:
-          type: number
-          description: Average interview score
-      required:
-        - fullName
-        - currentInterviewStep
-        - candidateId
-        - applicationId
-        - averageScore
-
-    CandidateName:
-      type: object
-      properties:
-        candidateId:
-          type: integer
-          description: Candidate ID
-        fullName:
-          type: string
-          description: Candidate's full name
-      required:
-        - candidateId
-        - fullName
-
-    InterviewFlowResponse:
-      type: object
-      properties:
-        interviewFlow:
-          type: object
-          properties:
-            positionName:
-              type: string
-              description: Position title
-            interviewFlow:
-              $ref: '#/components/schemas/InterviewFlow'
-
-    InterviewFlow:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Interview flow ID
-        description:
-          type: string
-          description: Interview flow description
-        interviewSteps:
-          type: array
-          items:
-            $ref: '#/components/schemas/InterviewStep'
-
-    InterviewStep:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Interview step ID
-        interviewFlowId:
-          type: integer
-          description: Associated interview flow ID
-        interviewTypeId:
-          type: integer
-          description: Associated interview type ID
-        name:
-          type: string
-          description: Interview step name
-        orderIndex:
-          type: integer
-          description: Step order in the interview flow
-
-    Education:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Education record ID
-        candidateId:
-          type: integer
-          description: Associated candidate ID
-        institution:
-          type: string
-          description: Educational institution name
-        title:
-          type: string
-          description: Degree or certification title
-        startDate:
-          type: string
-          format: date-time
-          description: Education start date
-        endDate:
-          type: string
-          format: date-time
-          nullable: true
-          description: Education end date
-      required:
-        - institution
-        - title
-        - startDate
-
-    CreateEducationRequest:
-      type: object
-      properties:
-        institution:
-          type: string
-          description: Educational institution name
-        title:
-          type: string
-          description: Degree or certification title
-        startDate:
-          type: string
-          format: date-time
-          description: Education start date
-        endDate:
-          type: string
-          format: date-time
-          nullable: true
-          description: Education end date
-      required:
-        - institution
-        - title
-        - startDate
-
-    WorkExperience:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Work experience record ID
-        candidateId:
-          type: integer
-          description: Associated candidate ID
-        company:
-          type: string
-          description: Company name
-        position:
-          type: string
-          description: Job position title
-        description:
-          type: string
-          nullable: true
-          description: Job description
-        startDate:
-          type: string
-          format: date-time
-          description: Employment start date
-        endDate:
-          type: string
-          format: date-time
-          nullable: true
-          description: Employment end date
-      required:
-        - company
-        - position
-        - startDate
-
-    CreateWorkExperienceRequest:
-      type: object
-      properties:
-        company:
-          type: string
-          description: Company name
-        position:
-          type: string
-          description: Job position title
-        description:
-          type: string
-          nullable: true
-          description: Job description
-        startDate:
-          type: string
-          format: date-time
-          description: Employment start date
-        endDate:
-          type: string
-          format: date-time
-          nullable: true
-          description: Employment end date
-      required:
-        - company
-        - position
-        - startDate
-
-    Resume:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Resume record ID
-        candidateId:
-          type: integer
-          description: Associated candidate ID
-        filePath:
-          type: string
-          description: Resume file path
-        fileType:
-          type: string
-          description: Resume file MIME type
-      required:
-        - filePath
-        - fileType
-
-    CreateResumeRequest:
-      type: object
-      properties:
-        filePath:
-          type: string
-          description: Resume file path
-        fileType:
-          type: string
-          description: Resume file MIME type
-      required:
-        - filePath
-        - fileType
-
-    Application:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Application ID
-        candidateId:
-          type: integer
-          description: Associated candidate ID
-        positionId:
-          type: integer
-          description: Associated position ID
-        applicationDate:
-          type: string
-          format: date-time
-          description: Application submission date
-        currentInterviewStep:
-          type: integer
-          description: Current interview step ID
-        notes:
-          type: string
-          nullable: true
-          description: Application notes
-
-    Interview:
-      type: object
-      properties:
-        interviewDate:
-          type: string
-          format: date-time
-          description: Interview date and time
-        interviewStep:
-          type: object
-          properties:
-            name:
-              type: string
-              description: Interview step name
-        notes:
-          type: string
-          nullable: true
-          description: Interview notes
-        score:
-          type: number
-          nullable: true
-          description: Interview score
-
-    FileUploadResponse:
-      type: object
-      properties:
-        filePath:
-          type: string
-          description: Uploaded file path
-        fileType:
-          type: string
-          description: Uploaded file MIME type
-      required:
-        - filePath
-        - fileType
-
-    PaginationMetadata:
-      type: object
-      properties:
-        total:
-          type: integer
-          description: Total number of records
-        page:
-          type: integer
-          description: Current page number
-        limit:
-          type: integer
-          description: Records per page
-        totalPages:
-          type: integer
-          description: Total number of pages
-      required:
-        - total
-        - page
-        - limit
-        - totalPages
-
-    ErrorResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          description: Error message
-        error:
-          type: string
-          description: Detailed error information
-      required:
-        - message
-
-tags:
-  - name: Candidates
-    description: Operations related to candidate management
-  - name: Positions
-    description: Operations related to job position management
-  - name: File Upload
-    description: Operations related to file uploads
+                      type:
+                        type: string
+                        enum:
+                          - session
+                      sessionId:
+                        type: string
+                      title:
+                        type: string
+                        description: Immutable once the session is registered (PRD §4.2).
+                      script:
+                        type: string
+                        description: The script exactly as submitted; immutable from registration
+                          onward, in every state (PRD §4.2, D10). No operation
+                          modifies it.
+                      language:
+                        type: string
+                        description: Immutable once the session is registered (PRD §4.1, §4.2).
+                      state:
+                        type: string
+                      paused:
+                        type: boolean
+                      failedPhase:
+                        type: string
+                      createdAt:
+                        type: string
+                      updatedAt:
+                        type: string
+                    required:
+                      - type
+                      - sessionId
+                      - title
+                      - script
+                      - language
+                      - state
+                      - paused
+                      - createdAt
+                      - updatedAt
+                    additionalProperties: false
+                  scenes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - scene
+                        sessionId:
+                          type: string
+                        sceneId:
+                          type: string
+                        index:
+                          type: number
+                        state:
+                          type: string
+                        affectedStage:
+                          type: string
+                          enum:
+                            - image
+                            - video
+                        errorCause:
+                          type: string
+                          nullable: true
+                        provider:
+                          type: string
+                        attempts:
+                          type: number
+                        result:
+                          type: object
+                          properties:
+                            imageUrl:
+                              type: string
+                            videoUrl:
+                              type: string
+                          additionalProperties: false
+                        instruction:
+                          type: string
+                        prompt:
+                          type: string
+                          description: "PRD §3 PROMPT: the fragment of the script this chunk narrates.
+                            Immutable once the chunk is established (PRD §6)."
+                        imageInstruction:
+                          type: string
+                          description: "PRD §3 IMAGE: the instruction to generate the chunk's image."
+                        videoInstruction:
+                          type: string
+                          description: "PRD §3 VIDEO: the instruction to animate the chunk's image."
+                        narrationInterval:
+                          type: object
+                          properties:
+                            startSeconds:
+                              type: number
+                            endSeconds:
+                              type: number
+                          required:
+                            - startSeconds
+                            - endSeconds
+                          additionalProperties: false
+                          description: "PRD §3 and §7.3: the part of the voice-over this chunk narrates,
+                            in seconds. The intervals of a session's chunks are
+                            contiguous and cover the voice-over from 0 to its
+                            full duration. Read-only and immutable once the
+                            chunk is established; absent for a scene created
+                            without a decomposition."
+                        requestedDurationSeconds:
+                          type: number
+                          description: "PRD §7.2: the video provider's admitted clip duration requested
+                            for this chunk, chosen as the one needing the
+                            smallest speed change to match its narrated
+                            interval. Read-only and immutable once the chunk is
+                            established; absent for a scene created without a
+                            decomposition."
+                        durationWarning:
+                          type: string
+                          enum:
+                            - exceeds-maximum
+                          description: "PRD §6.1.1: set when the chunk's narrated interval is longer than
+                            the provider's largest admitted duration (an
+                            unsplittable sentence), so the requested duration
+                            had to be capped at that maximum. Not a failure.
+                            Read-only and immutable once the chunk is
+                            established."
+                        speedFactor:
+                          type: number
+                          description: "PRD §7.2/AC23: the speed-adjustment factor the requested duration
+                            implies (`max(requested/narrated,
+                            narrated/requested)`, always >= 1). Read-only and
+                            immutable once the chunk is established; absent for
+                            a scene created without a decomposition."
+                        speedFactorWarning:
+                          type: string
+                          enum:
+                            - exceeds-limit
+                          description: "PRD §7.2: set when the speed-adjustment factor exceeds the
+                            hardcoded acceptable limit. Not a failure, and
+                            independent of durationWarning. Read-only and
+                            immutable once the chunk is established."
+                        updatedAt:
+                          type: string
+                      required:
+                        - type
+                        - sessionId
+                        - sceneId
+                        - index
+                        - state
+                        - updatedAt
+                      additionalProperties: false
+                required:
+                  - session
+                  - scenes
+                additionalProperties: false
+  /sessions/{sessionId}:
+    get:
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: sessionId
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - session
+                      sessionId:
+                        type: string
+                      title:
+                        type: string
+                        description: Immutable once the session is registered (PRD §4.2).
+                      script:
+                        type: string
+                        description: The script exactly as submitted; immutable from registration
+                          onward, in every state (PRD §4.2, D10). No operation
+                          modifies it.
+                      language:
+                        type: string
+                        description: Immutable once the session is registered (PRD §4.1, §4.2).
+                      state:
+                        type: string
+                      paused:
+                        type: boolean
+                      failedPhase:
+                        type: string
+                      createdAt:
+                        type: string
+                      updatedAt:
+                        type: string
+                    required:
+                      - type
+                      - sessionId
+                      - title
+                      - script
+                      - language
+                      - state
+                      - paused
+                      - createdAt
+                      - updatedAt
+                    additionalProperties: false
+                  scenes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - scene
+                        sessionId:
+                          type: string
+                        sceneId:
+                          type: string
+                        index:
+                          type: number
+                        state:
+                          type: string
+                        affectedStage:
+                          type: string
+                          enum:
+                            - image
+                            - video
+                        errorCause:
+                          type: string
+                          nullable: true
+                        provider:
+                          type: string
+                        attempts:
+                          type: number
+                        result:
+                          type: object
+                          properties:
+                            imageUrl:
+                              type: string
+                            videoUrl:
+                              type: string
+                          additionalProperties: false
+                        instruction:
+                          type: string
+                        prompt:
+                          type: string
+                          description: "PRD §3 PROMPT: the fragment of the script this chunk narrates.
+                            Immutable once the chunk is established (PRD §6)."
+                        imageInstruction:
+                          type: string
+                          description: "PRD §3 IMAGE: the instruction to generate the chunk's image."
+                        videoInstruction:
+                          type: string
+                          description: "PRD §3 VIDEO: the instruction to animate the chunk's image."
+                        narrationInterval:
+                          type: object
+                          properties:
+                            startSeconds:
+                              type: number
+                            endSeconds:
+                              type: number
+                          required:
+                            - startSeconds
+                            - endSeconds
+                          additionalProperties: false
+                          description: "PRD §3 and §7.3: the part of the voice-over this chunk narrates,
+                            in seconds. The intervals of a session's chunks are
+                            contiguous and cover the voice-over from 0 to its
+                            full duration. Read-only and immutable once the
+                            chunk is established; absent for a scene created
+                            without a decomposition."
+                        requestedDurationSeconds:
+                          type: number
+                          description: "PRD §7.2: the video provider's admitted clip duration requested
+                            for this chunk, chosen as the one needing the
+                            smallest speed change to match its narrated
+                            interval. Read-only and immutable once the chunk is
+                            established; absent for a scene created without a
+                            decomposition."
+                        durationWarning:
+                          type: string
+                          enum:
+                            - exceeds-maximum
+                          description: "PRD §6.1.1: set when the chunk's narrated interval is longer than
+                            the provider's largest admitted duration (an
+                            unsplittable sentence), so the requested duration
+                            had to be capped at that maximum. Not a failure.
+                            Read-only and immutable once the chunk is
+                            established."
+                        speedFactor:
+                          type: number
+                          description: "PRD §7.2/AC23: the speed-adjustment factor the requested duration
+                            implies (`max(requested/narrated,
+                            narrated/requested)`, always >= 1). Read-only and
+                            immutable once the chunk is established; absent for
+                            a scene created without a decomposition."
+                        speedFactorWarning:
+                          type: string
+                          enum:
+                            - exceeds-limit
+                          description: "PRD §7.2: set when the speed-adjustment factor exceeds the
+                            hardcoded acceptable limit. Not a failure, and
+                            independent of durationWarning. Read-only and
+                            immutable once the chunk is established."
+                        updatedAt:
+                          type: string
+                      required:
+                        - type
+                        - sessionId
+                        - sceneId
+                        - index
+                        - state
+                        - updatedAt
+                      additionalProperties: false
+                required:
+                  - session
+                  - scenes
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /sessions/{sessionId}/pause:
+    post:
+      parameters:
+        - schema:
+            type: string
+            pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+          in: path
+          name: sessionId
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required:
+                  - ok
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /sessions/{sessionId}/continue:
+    post:
+      parameters:
+        - schema:
+            type: string
+            pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+          in: path
+          name: sessionId
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required:
+                  - ok
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /sessions/{sessionId}/scenes/{sceneId}/retry:
+    post:
+      parameters:
+        - schema:
+            type: string
+            pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+          in: path
+          name: sessionId
+          required: true
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: sceneId
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required:
+                  - ok
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /sessions/{sessionId}/scenes/{sceneId}/correct:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                instruction:
+                  type: string
+                  minLength: 1
+              required:
+                - instruction
+              additionalProperties: false
+      parameters:
+        - schema:
+            type: string
+            pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+          in: path
+          name: sessionId
+          required: true
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: sceneId
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required:
+                  - ok
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /sessions/{sessionId}/scenes/{sceneId}/download/{kind}:
+    get:
+      parameters:
+        - schema:
+            type: string
+            pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+          in: path
+          name: sessionId
+          required: true
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: sceneId
+          required: true
+        - schema:
+            type: string
+            enum:
+              - image
+              - video
+          in: path
+          name: kind
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /sessions/{sessionId}/download/final-video:
+    get:
+      parameters:
+        - schema:
+            type: string
+            pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+          in: path
+          name: sessionId
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: string
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /internal/provider-callback/{requestId}:
+    post:
+      parameters:
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: requestId
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  applied:
+                    type: boolean
+                  note:
+                    type: string
+                required:
+                  - applied
+                  - note
+                additionalProperties: false
+  /events:
+    get:
+      responses:
+        "200":
+          description: Default Response
+  /:
+    get:
+      responses:
+        "200":
+          description: Default Response

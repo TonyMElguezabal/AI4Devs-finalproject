@@ -1,0 +1,107 @@
+# Tasks — Lock the script at project start and the narration once complete (JOS-137)
+
+Tests come first throughout: each behaviour gets a failing test before the code that makes it pass, and every scenario in `specs/content-lock/spec.md` has at least one functional test. No provider is called by this story.
+
+## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
+
+- [x] 0.1 Create branch `feature/jos-137-lock-script-and-narration` from `feature/jos-136-generate-voice-over` (stacked: it needs JOS-136's migration 4; both merge into `feature/entrega-2-JAME`, never `main`)
+- [x] 0.2 Verify the branch was created and is the current branch — `feature/jos-137-lock-script-and-narration` at `b6e6060` (JOS-136 group 3 committed first, so migration 4 is on the branch)
+
+## 1. Gate: Confirm what this story builds on
+
+- [x] 1.1 Confirm JOS-136's migration 4 is on the branch: the `voice_overs` table keyed on `run_id`, and `insertVoiceOver` refusing a second row — confirmed in commit `b6e6060`
+- [x] 1.2 Confirm the current script lock is a convention only: no statement in `backend/src/db.ts` updates `runs.title`, `runs.script` or `runs.language`, and a raw `UPDATE` of them succeeds today. Record the evidence in the step 8 report — confirmed on a scratch database: a raw `UPDATE runs SET script` changed the script, a raw `UPDATE voice_overs` changed `audio_path`, and a raw `DELETE FROM voice_overs` removed the row. The only `UPDATE runs` statements in `db.ts` set `project_folder`, `paused`, `voice_provider_id` and `failure`
+- [x] 1.3 Record whether JOS-136's voice launch (its group 5) exists yet — it does not (no voice launch in `backend/src`; JOS-136 is at group 3 of 12). If it doesn't, group 5 below adds the guard and group 12 hands it to JOS-136's task 5.12 rather than wiring a launch that isn't built
+- [x] 1.4 If 1.1 is not met, stop and record the blocker — 1.1 is met; nothing blocks
+
+## 2. Script, title and language lock (TDD) — design Decision 1
+
+- [x] 2.1 Write failing tests that a raw `UPDATE` of `runs.script` is refused for a session that is `submitted`, paused, and failed in the voice-over phase, and the stored script is unchanged each time — `backend/test/content-lock.test.ts`; also an identical-value write, another session's row, and a mixed `paused` + `script` update that must change neither
+- [x] 2.2 Write failing tests that updating `runs.title` or `runs.language` is refused and both are unchanged
+- [x] 2.3 Write a failing test that `setRunPaused`, `bindVoiceProvider` and `setRunFailure` still succeed and leave the script, title and language unchanged — passed before the trigger existed (a regression guard), and still passes
+- [x] 2.4 Write a failing test that the refusal message names the locked field
+- [x] 2.5 Add migration 5 with one `BEFORE UPDATE OF <column> ON runs` trigger per column (`title`, `script`, `language`), each refusal message naming its column, with the DDL kept in named constants — `SESSION_CONTENT_LOCK_TRIGGERS_DDL` and migration 5 in `backend/src/db.ts`
+- [x] 2.6 Write a failing test that a session stored before migration 5 (fixture database) refuses a script update after the migration runs, and that re-running the migrations is a no-op
+- [x] 2.7 Run the group 2 tests and confirm they pass — 13/13 new tests pass (12 failed before migration 5), full suite 175/175, `npm run typecheck` clean
+
+## 3. Voice-over record lock (TDD) — design Decision 2
+
+- [x] 3.1 Write failing tests that a raw `UPDATE` and a raw `DELETE` of a `voice_overs` row are refused and the row is unchanged — `backend/test/content-lock.test.ts`; three columns updated, one row and all rows deleted, and a second voice-over still refused
+- [x] 3.2 Add the `BEFORE UPDATE` and `BEFORE DELETE` triggers on `voice_overs` as migration 6 (migration 5 is already applied to existing databases and is not edited), each DDL in a named constant — `VOICE_OVER_NO_UPDATE_TRIGGER_DDL` and `VOICE_OVER_NO_DELETE_TRIGGER_DDL` in `backend/src/db.ts`; a fixture test proves a database stopped at version 5 gets protected by migration 6
+- [x] 3.3 Write a failing test that `resetAll()` empties `voice_overs` and that the delete trigger exists again afterwards (queried from `sqlite_master`) — also that a voice-over stored after a reset is locked again, and that the session triggers survive
+- [x] 3.4 Update `resetAll()` to drop the delete trigger, delete the rows and recreate the trigger from the same constant, inside one transaction — rolls the whole reset back if any step fails
+- [x] 3.5 Run the group 3 tests and confirm they pass — 23/23 in `content-lock.test.ts` (8 failed before migration 6), full suite 185/185, `npm run typecheck` clean
+
+## 4. Write-once MP3 file (TDD) — design Decision 3
+
+- [x] 4.1 Write a failing test that `writeArtefactOnce` writes a new file under the session's project folder and returns its relative path — `backend/test/content-lock.test.ts`; also binary content byte for byte and nested paths
+- [x] 4.2 Write a failing test that a second `writeArtefactOnce` to the same path is refused and the first file's bytes are unchanged — refusal is a typed `ArtefactAlreadyExistsError` naming the path; two back-to-back writes leave exactly one winner
+- [x] 4.3 Write a failing test that `writeArtefactOnce` refuses a path outside the session's project folder, as `writeArtefact` does — also that another session's folder is undisturbed
+- [x] 4.4 Write a failing test that no temporary file is left behind after a success or a refusal
+- [x] 4.5 Implement `writeArtefactOnce` in `backend/src/db.ts` (temporary file, `fs.linkSync` to the final name, remove the temporary file), accepting binary content
+- [x] 4.6 Run the group 4 tests and confirm they pass — 33/33 in `content-lock.test.ts` (10 failed before the helper), full suite 195/195, `npm run typecheck` clean
+- [x] 4.7 Declare `ArtefactAlreadyExistsError`'s field explicitly (no constructor parameter property) so `node src/server.ts` can load `backend/src/db.ts` in strip-only mode, and add a test that imports the server module in a real `node` subprocess, the one check `tsc` and vitest cannot make. The `erasableSyntaxOnly` flag (JOS-136 task 2.5) now rejects the syntax at typecheck — `backend/test/server-runtime-load.test.ts` failed on the real node process before the fix; typecheck, 206/206 tests and the server load all pass after it
+
+## 5. Voice launch guard (TDD) — design Decision 4
+
+- [x] 5.1 Write a failing test that `canLaunchVoiceOver` allows a `submitted` session with no attempt — `backend/test/voice-launch-guard.test.ts`; also a session whose attempt is still in flight with no narration yet
+- [x] 5.2 Write a failing test that it allows a session whose voice attempt failed (not retryable, and transient) and which has no voice-over
+- [x] 5.3 Write a failing test that it allows a session whose attempt returned undecodable audio, so no voice-over was stored — modelled as a failed attempt with nothing stored (JOS-136 Decision 7); it exercises the same rule as 5.2, since the guard only sees the record
+- [x] 5.4 Write a failing test that it refuses a session with a voice-over, with reason `narration-complete` — also per-session isolation and that deciding changes nothing
+- [x] 5.5 Write a failing test that it refuses a session with a voice-over that also carries a later failure — the later failure is a failed scene (the image phase), since `runs.failure` only models the voice-over phase; also a narration that completed after an earlier failed attempt
+- [x] 5.6 Implement `canLaunchVoiceOver` as a typed result (`{ allowed: true } | { allowed: false; reason: "narration-complete" }`), reading the voice-over record — `backend/src/voiceLaunchGuard.ts`
+- [x] 5.7 If JOS-136's voice launch exists (task 1.3), write a failing test that a refused launch sends no provider request, then route the launch through the guard. Otherwise record this as the hand-over in task 12.1 — not applicable yet: the voice launch does not exist (task 1.3), so the wiring and its "no provider request" test are handed to JOS-136 task 5.12 through task 12.1
+- [x] 5.8 Run the group 5 tests and confirm they pass — 10/10 new tests pass, full suite 205/205, `npm run typecheck` clean
+
+## 6. API surface (TDD) — design Decision 5
+
+- [x] 6.1 Write a failing test that the built app has no `PUT`, `PATCH` or `DELETE` route on `/sessions/:sessionId` or on anything that exposes the voice-over — `backend/test/session-api-surface.test.ts`: the route table has no PUT/PATCH/DELETE and nothing named voice/narration/audio/mp3, probed candidate paths answer 404, and positive controls prove the listing sees the real routes. It passed on first run (it proves an absence); a temporary `PATCH /sessions/:sessionId` made 2 tests fail, then was reverted
+- [x] 6.2 Write a failing test that a `POST /sessions/:sessionId/scenes/:sceneId/correct` body carrying a `script` field leaves the session's script unchanged — also `title` and `language`, a body of only locked fields (400), and a refused correction on a non-failed scene (409); the session is paused in these tests so no provider timer outlives them
+- [x] 6.3 Make any change the tests require (none is expected), then run the group 6 tests and confirm they pass — no production change needed; 16/16 new tests pass, full suite 222/222, `npm run typecheck` clean
+
+## 7. Review and Update Existing Unit Tests (MANDATORY)
+
+- [x] 7.1 Review `persistence.test.ts` and `voice-over-persistence.test.ts` for any test that updates or deletes a locked column or row, and update it to use the supported path — reviewed all tests: none writes a locked column or deletes a voice-over row. The one raw `UPDATE runs` (`session-read.test.ts`) sets `created_at`, which is not locked; app code writes only `project_folder`, `paused`, `voice_provider_id` and `failure`; `resetAll()` is the design's one test-only exception. No test needed changing
+- [x] 7.2 Confirm the migration fixture tests still pass with migration 5 applied — the fixture tests in `persistence.test.ts` and `voice-over-persistence.test.ts` pass with migrations 5 and 6 applied (223/223)
+- [x] 7.3 Confirm every scenario in `specs/content-lock/spec.md` has at least one functional test, and list the mapping in the step 8 report — all 16 scenarios have a test. One is only partly covered: "Regeneration is requested for a completed narration" is tested as the guard's refusal, but its "no request is sent to the voice provider" clause cannot be tested until JOS-136's voice launch exists (handed over in task 12.1). The mapping goes in the step 8 report (task 8.5)
+- [x] 7.4 Confirm module test coverage has not decreased — measured with `@vitest/coverage-v8` installed locally without saving it (`--no-save`; the project has no coverage script), base `b6e6060` vs head, each on a scratch database. Lines 90.32% → 91.38%, branches 81.54% → 82.35%, functions 97.61% → 97.82%; `db.ts` lines 97.33% → 97.63%, branches 86.02% → 87.03%; `routes.ts` 71.37% → 74.19%. Nothing decreased. Recorded in the step 8 report
+- [x] 7.5 Run `npm run typecheck` with no errors — clean
+- [x] 7.6 Cover the paths this story added that no test reaches: the `resetAll()` rollback (a delete that fails after the delete trigger was dropped must restore both the trigger and the rows) and the non-`EEXIST` error path of `writeArtefactOnce`, then re-measure coverage against the base — a new test makes a delete fail after the trigger was dropped and asserts the trigger and rows come back; removing the transaction from `resetAll()` made it fail (checked against a scratch database, then restored). The non-`EEXIST` branch of `writeArtefactOnce` is unreachable by natural failures (its temporary name is longer than the target, so it fails first), so it became a single expression instead of a separate untested branch
+
+## 8. Run Unit Tests and Verify Database State (MANDATORY)
+
+- [x] 8.1 Capture the pre-test state: row counts from `snapshotCounts()`, the trigger list from `sqlite_master`, and the file list of `backend/data/`
+- [x] 8.2 Run the targeted tests for this story and capture the pass/fail summary — 61/61 in 4 files, 1.33 s
+- [x] 8.3 Run the full suite (`npm test` in `backend/`) and record totals, failures and runtime — 223/223 in 13 files, 3.83 s, 0 failures; `npm run typecheck` exit 0
+- [x] 8.4 Verify the post-test state matches the baseline, including that all five triggers are present. Restore it if it does not — counts, triggers and migrations identical; only the name of an empty leftover test folder differed, and it was removed with `rmdir`
+- [x] 8.5 Write the report `openspec/changes/lock-script-and-narration/reports/2026-09-27-step-8-unit-test-and-db-verification.md`
+- [x] 8.6 Mark this step complete only after the tests pass and the report exists — both true
+
+## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
+
+- [x] 9.1 Start the backend and confirm it responds — real `node src/server.ts` on a scratch database, port 3199; `/health` returned `{"ok":true}`
+- [x] 9.2 POST a session, then try `PUT` and `PATCH` on `/sessions/:id` with a new script. Verify both return 404 and a GET returns the original script — PUT, PATCH and DELETE all returned 404; the script was unchanged
+- [x] 9.3 POST to `/sessions/:id/scenes/:sceneId/correct` with a `script` field in the body. Verify the session's script is unchanged — 200, only the instruction changed; a body with only `script` returned 400 for the missing `instruction`, not for the lock
+- [x] 9.4 With `sqlite3` against the running database, try `UPDATE runs SET script = …` and `DELETE FROM voice_overs` on a test row, and record the trigger refusals — script, title, language, voice-over update and delete all refused with the trigger messages; a second voice-over refused by the primary key; `paused` still changed
+- [x] 9.5 Remove the sessions created above through the test-only reset path and confirm the store and disk match the pre-test state — `resetAll()` emptied the scratch store, all five triggers present, no project folders; the default store was never touched
+- [x] 9.6 Save the transcript as `openspec/changes/lock-script-and-narration/reports/2026-09-27-step-9-curl-endpoint-testing.md`
+
+## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
+
+- [x] 10.1 Decide applicability: this story adds no screen. Check that the session page shows the script read-only with no edit control; if so, record a short check, otherwise record why E2E is not applicable
+- [x] 10.2 If applicable, start backend and frontend, open a session page and assert there is no control that edits the script or regenerates the narration — applicable; run with Claude in Chrome (Playwright MCP is not available here): 0 controls on a submitted session, the script in a non-editable `<p>`; with a failed scene, four controls and none holds the script; a correction typed in the UI reached `chunk-complete` live and left the script unchanged
+- [x] 10.3 Save the report as `openspec/changes/lock-script-and-narration/reports/2026-09-27-step-10-e2e-playwright.md`
+
+## 11. Update Technical Documentation (MANDATORY)
+
+- [x] 11.1 `docs/data-model.md`: record the five triggers under the store's guarantees, next to the existing primary-key guarantees, and note that `resetAll()` is the only code that lifts one, test-only — new *Store-enforced locks* section (a table of the five triggers, the identical-value rule, the `resetAll()` exception, the write-once file), the `title`/`script`/`language` fields, the migrations paragraph and principle 6
+- [x] 11.2 `docs/api-spec.yml`: confirm no operation modifies the script, title or language or touches the voice-over, and state in the session description that they are immutable. The file is generated from the Zod route schemas and must not be hand-edited, so the statement goes into the `title`, `script` and `language` descriptions of the create-body and session-response schemas in `backend/src/routes.ts` (metadata only, no behaviour change), and the file is regenerated from `GET /docs/json` of a running server; any drift the regeneration reveals is reported, not silently kept — descriptions added to the create-body and session-response schemas in `routes.ts`, and the `info` title and description moved into `server.ts`, so the file could be regenerated from `GET /docs/json` and matches a fresh generation. The spec has 0 `put`/`patch`/`delete` operations and no voice or narration path. Regenerating also corrected pre-existing drift: the language enum listed `en, es, fr, de, pt`, but the app supports `en, es` since JOS-165
+- [x] 11.3 `docs/backend-standards.md`: record the rule that immutable fields are locked by store triggers, and that artefacts that must not be replaced are written with `writeArtefactOnce` — two persistence rules (store triggers; `writeArtefactOnce`) and the `canLaunchVoiceOver` rule, plus a new *Runtime constraint: erasable TypeScript only* subsection with its table-of-contents entry
+
+## 12. Close out
+
+- [x] 12.1 Update `generate-voice-over`'s task 5.12 (and its Decision 6 file write) to use `canLaunchVoiceOver` and `writeArtefactOnce`, if the voice launch was not built yet (task 1.3) — done on `feature/jos-136-generate-voice-over` (commit `25fa435`): design Decision 6, task 5.12 (the launch asks the guard and a refusal must send no provider request) and task 5.14 (file writes use `writeArtefactOnce`). The JOS-136 tasks record that group 5 needs this branch's code merged first, since JOS-137 is stacked on JOS-136 and the helpers live here. `writeArtefactOnce` takes the whole content in memory (about 58 MB for an hour of narration), noted there
+- [x] 12.2 Comment on JOS-154 (US-22) and JOS-155 (US-23) that every voice relaunch must call `canLaunchVoiceOver` — posted on 2026-09-27 on JOS-154 and JOS-155 (the guard hand-off), and, at the product owner's request, progress, decisions and hand-offs were also posted on JOS-136, JOS-137, JOS-145, JOS-144, JOS-165 and JOS-134
+- [x] 12.3 Open the PR against `feature/entrega-2-JAME` (after JOS-136) with a description linking to JOS-137 and this change — opened as #8 (https://github.com/TonyMElguezabal/AI4Devs-finalproject/pull/8), **stacked on #7** (the JOS-136 draft PR, `feature/jos-136-generate-voice-over`) so its diff shows only this ticket; retarget it to `feature/entrega-2-JAME` once #7 is merged. JOS-136's PR is #7, opened as a draft (21 of 85 tasks). Both branches were pushed at the product owner's request
+- [x] 12.4 Get a review from at least one human, not only AI agents — reported done by the product owner on 2026-09-27 (no review is recorded on the pull request itself)
+- [x] 12.5 Archive the OpenSpec change after merge — archived on 2026-09-27 after PRs #7 and #8 were merged into `feature/entrega-2-JAME`; the `content-lock` delta spec was synced to `openspec/specs/content-lock/spec.md`

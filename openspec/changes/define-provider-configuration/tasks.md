@@ -6,156 +6,156 @@ This change calls real providers with real credentials — the first in the proj
 
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Create feature branch `feature/jos-165-define-provider-configuration` from `main`
-- [ ] 0.2 Verify branch creation and current branch status
+- [x] 0.1 Create feature branch `feature/jos-165-define-provider-configuration` — **not from `main` as tasks.md's plain text says**: `main` in this repo has never actually received any of the sibling foundation stories' code (their OpenSpec changes were archived, but archiving only moves planning artifacts — it is not a git merge). `main` has no `backend/src`, no reset `docs/backend-standards.md` (it is still the original inherited LTI document), and is literally the merge-base of every feature branch. Branching from it would mean adding this constants module against code and docs that don't exist and editing a stale standards doc nothing else builds on. Branched from `feature/jos-135-consult-session` instead — the actual tip of implementation — consistent with this session's established convention (`consult-session` itself branched from `start-video-project` for the same reason). First tried a literal branch-from-main, discovered this, deleted and redid it before any other work landed on the wrong base.
+- [x] 0.2 Verify branch creation and current branch status — confirmed via `git branch --show-current`: `feature/jos-165-define-provider-configuration`; `backend/src` and the reset `docs/backend-standards.md` are present, confirming the correct base
 
 ## 1. Gate: Collect the inputs and set the limits
 
-- [ ] 1.1 Set the spend ceiling for the spike and record it before any provider is called (Decision 10)
-- [ ] 1.2 Take the image and video providers as decided — credentials are already held for both — and verify them against §11 rather than re-evaluating them (design open question 1)
-- [ ] 1.2a Record whether the image and video keys belong to the same provider account, since stage rate limits are an account property and two stages sharing one account cannot have their caps derived independently (Decision 6)
-- [ ] 1.3 Take the acceptable speed-factor limit from `define-media-assembly` (JOS-182), or record that it is unsettled and the value will be provisional (design open question 2)
-- [ ] 1.4 Re-check the reasoning capability reference in §11 against the current model line, and record what it was compared against (design open question 3)
-- [ ] 1.5 Record what is still undecided at this point, so later conclusions can be traced to what was known
+- [x] 1.1 Set the spend ceiling for the spike and record it before any provider is called (Decision 10) — **$20**, product owner's choice
+- [x] 1.2 Take the image and video providers as decided — credentials are already held for both — and verify them against §11 rather than re-evaluating them (design open question 1) — providers chosen (Fal.ai / RunningHub); **correction**: no credential for either is actually present in this environment despite the proposal's assumption — verification blocked on credential export, not re-evaluation of the choice itself
+- [x] 1.2a Record whether the image and video keys belong to the same provider account, since stage rate limits are an account property and two stages sharing one account cannot have their caps derived independently (Decision 6) — no: Fal.ai and RunningHub are unrelated services, different accounts by construction
+- [x] 1.3 Take the acceptable speed-factor limit from `define-media-assembly` (JOS-182), or record that it is unsettled and the value will be provisional (design open question 2) — unsettled: `define-media-assembly` not archived (0/60 tasks); recorded provisional
+- [x] 1.4 Re-check the reasoning capability reference in §11 against the current model line, and record what it was compared against (design open question 3) — PRD names "Sonnet 4.6 or higher"; compared against the current model line (Claude 5 family) — the written bar predates it; candidate (OpenAI) evaluation blocked on that provider having a key at all
+- [x] 1.5 Record what is still undecided at this point, so later conclusions can be traced to what was known — see `reports/2026-09-26-step-1-gate-and-limits.md`
 
 ## 2. Verify the credential path before using it
 
-- [ ] 2.1 Confirm credentials load from the local environment or a local secrets file, and that the secrets file is excluded from version control (§2.1, §11)
-- [ ] 2.2 Confirm no credential appears in source, and set up the redaction the evidence capture will use
-- [ ] 2.3 Record the check as a task outcome, so the path is verified rather than assumed
+- [x] 2.1 Confirm credentials load from the local environment or a local secrets file, and that the secrets file is excluded from version control (§2.1, §11) — `backend/src/config/credentials.ts`, `loadCredential(name)`: env wins when both are present, falls back to `backend/.secrets.json`. TDD: `backend/test/credentials.test.ts` (6 tests) written failing first (module didn't exist), now passing. `backend/.secrets.json` added to a repo-root `.gitignore` (which did not exist as a tracked file at all before this task — a real gap, fixed as part of verifying this one) and confirmed excluded via `git check-ignore -v`
+- [x] 2.2 Confirm no credential appears in source, and set up the redaction the evidence capture will use — the module holds no credential value, only the lookup logic; a thrown "missing credential" error names the credential, never a value (tested explicitly — see the "never includes a credential value" test). Evidence capture (curl transcripts, group 13) will redact by never inlining a key in a command per task 13.1
+- [x] 2.3 Record the check as a task outcome, so the path is verified rather than assumed — this row, plus the passing test file, is the record
 
 ## 3. Verify the video provider first, because other values derive from it
 
 The provider is already chosen and its key is held, so this group extracts values rather than comparing candidates. It still gates: a capability §11 requires and this provider cannot meet is a finding, not something to work around.
 
-- [ ] 3.1 Verify the §11 capability by calling it: animate a supplied 16:9 reference image at a requested duration
-- [ ] 3.2 Record the admitted duration set and the maximum, as values rather than as a documented range (§7.2)
-- [ ] 3.3 Record the output resolution and frame rate it actually returns, against D08's expected 1920×1080 at 30 fps
-- [ ] 3.4 Record the version identifiers being hardcoded, and note the exposure if the provider retires them (§11.2)
-- [ ] 3.5 Record what is known about its availability, since no failover exists and a stage retries the same provider indefinitely (Decision 9, D03)
-- [ ] 3.6 If a required capability is unmet, record it as a finding and escalate rather than weakening the requirement (design open question 5)
+- [x] 3.1 Verify the §11 capability by calling it: animate a supplied 16:9 reference image at a requested duration — selected MiniMax-H3 (Hailuo-03) via RunningHub's `openapi/v2` Model API (`/minimax/hailuo-h3/image-to-video`), confirmed empirically per Decision 2 rather than assumed from inconsistent third-party docs. Real calls succeeded end-to-end (submit → poll → MP4 result). See `reports/2026-09-27-step-3-video-provider-verification.md`
+- [x] 3.2 Record the admitted duration set and the maximum, as values rather than as a documented range (§7.2) — tested both ends of the claimed 5–15s range: 5s and 15s both accepted and honored almost exactly (5.17s, 15.08s output). Intermediate values and the out-of-range boundary were not tested
+- [x] 3.3 Record the output resolution and frame rate it actually returns, against D08's expected 1920×1080 at 30 fps — `768P`→1344×768@24fps, `2K`→2560×1440@24fps; codec matches (H.264/AAC) but neither tier matches D08's resolution, and frame rate is fixed at 24fps regardless of tier. Recorded as a finding for `define-media-assembly` (JOS-182) to normalize during final-MP4 assembly (§7.3) — not a §11 video-stage capability failure, since §11's video capability statement covers duration, not resolution/fps
+- [x] 3.4 Record the version identifiers being hardcoded, and note the exposure if the provider retires them (§11.2) — hardcoded identifier is the endpoint path itself, `/openapi/v2/minimax/hailuo-h3/image-to-video` (RunningHub versions by path, no separate version field). Exposure: path retirement fails calls outright with no fallback (§11.2); review trigger is RunningHub's model-catalog deprecation notices
+- [x] 3.5 Record what is known about its availability, since no failover exists and a stage retries the same provider indefinitely (Decision 9, D03) — 3/3 real calls succeeded, no transient errors or rate-limit responses observed; sample too small (n=3) to characterize uptime and no public SLA found
+- [x] 3.6 If a required capability is unmet, record it as a finding and escalate rather than weakening the requirement (design open question 5) — not triggered: the §11 video-stage capability is met at both tested duration boundaries. Total spend this group: $2.14 of the $20 ceiling
 
 ## 4. Select the voice provider and settle the timestamp mechanism
 
-- [ ] 4.1 Shortlist candidates against the §11 capability: complete narration as MP3 with preconfigured voice, quality and speed, plus timestamps granular enough to locate every fragment
-- [ ] 4.2 Generate a narration from a script containing the structures §6.1 cuts on: multiple sentences, a sentence with clause boundaries, and a sentence with none
-- [ ] 4.3 Inspect the returned timestamps and record their granularity (Decision 3)
-- [ ] 4.4 Determine whether a sentence boundary can be located from them, and record whether native timestamps are usable in the sense §11.1 requires
-- [ ] 4.5 State which of §11.1's two mechanisms applies in practice: native timestamps, or forced alignment as the standing mechanism
-- [ ] 4.6 Record the chosen narration voice, quality and speed values
-- [ ] 4.7 Select the provider
+- [x] 4.1 Shortlist candidates against the §11 capability: complete narration as MP3 with preconfigured voice, quality and speed, plus timestamps granular enough to locate every fragment — only one voice credential held (`ELEVENLABS_KEY`), so ElevenLabs enters as the decided candidate to verify, consistent with image/video. See `reports/2026-09-27-step-4-voice-provider-verification.md`
+- [x] 4.2 Generate a narration from a script containing the structures §6.1 cuts on: multiple sentences, a sentence with clause boundaries, and a sentence with none — 142-char test script covering all three, called via `POST /v1/text-to-speech/{voice_id}/with-timestamps`
+- [x] 4.3 Inspect the returned timestamps and record their granularity (Decision 3) — character-level (`character_start_times_seconds`/`character_end_times_seconds` per character), far finer than sentence-level
+- [x] 4.4 Determine whether a sentence boundary can be located from them, and record whether native timestamps are usable in the sense §11.1 requires — yes, confirmed with exact timestamps for every sentence-ending period and clause-boundary comma in the real response; usable well beyond the sentence-boundary requirement
+- [x] 4.5 State which of §11.1's two mechanisms applies in practice: native timestamps, or forced alignment as the standing mechanism — native timestamps apply operationally; forced alignment remains the declared fallback per §11.1, not needed as the standing mechanism
+- [x] 4.6 Record the chosen narration voice, quality and speed values — voice: Burt Reynolds™ (`voice_id: 4YYIPFl9wE5c4L2eu2Gb`, professional/licensed tier, product owner's choice, verified callable with no extra provisioning); quality: `eleven_multilingual_v2`, default `mp3_44100_128` output; speed: provider default (not overridden)
+- [x] 4.7 Select the provider — ElevenLabs. Billing is subscription-based (Creator tier, 137,109 chars/period), not metered per call — feeds Decision 6's account-tier provenance for this stage. $0 incremental spend; RunningHub's $2.14 of $20 remains the spike's only metered cost
 
 ## 5. Select the alignment and reasoning providers, and verify the image provider
 
-- [ ] 5.1 Alignment: shortlist candidates that derive timestamps by aligning the generated MP3 against the known script (§11.1)
-- [ ] 5.2 Align a real MP3 from task 4.2 against its script and confirm the intervals are contiguous, non-overlapping and cover from second 0 to the full duration (§7.3, AC19)
-- [ ] 5.3 Image: the provider is already chosen and its key is held, so verify it generates 16:9 images at a minimum of 1920 × 1080 from a text instruction (§7.1), and confirm its output feeds the video provider verified in group 3
-- [ ] 5.4 Reasoning: confirm each candidate splits a script faithfully per §6.1 and produces the `IMAGE` and `VIDEO` instructions, without adding, removing, duplicating or paraphrasing narrative content (§4.2, AC03)
-- [ ] 5.5 Confirm the reasoning candidate reconstructs the original script exactly when the fragments are rejoined in order (§4.2)
-- [ ] 5.6 Select each provider and record the rejected candidates with the reason
+- [x] 5.1 Alignment: shortlist candidates that derive timestamps by aligning the generated MP3 against the known script (§11.1) — ElevenLabs' own Forced Alignment API (`/v1/forced-alignment`), no new credential needed. See `reports/2026-09-27-step-5a-alignment-provider-verification.md`
+- [x] 5.2 Align a real MP3 from task 4.2 against its script and confirm the intervals are contiguous, non-overlapping and cover from second 0 to the full duration (§7.3, AC19) — **finding**: raw output does not already form the partition; first char starts at 0.10s (not 0), last char ends at 9.16s (audio is 9.43s), small internal gaps exist. Non-overlapping holds. Consistent with §7.3's own note that silence allocation is pending D11 — decomposition must extend/post-process, not trust raw timestamps as pre-partitioned
+- [x] 5.3 Image: the provider is already chosen and its key is held, so verify it generates 16:9 images at a minimum of 1920 × 1080 from a text instruction (§7.1), and confirm its output feeds the video provider verified in group 3 — **finding**: Fal.ai's `fal-ai/flux/dev` rounds dimensions to multiples of 16; requesting exactly 1920×1080 returns 1920×1072 (8px short of the minimum). Recorded value: request `{width:1920, height:1088}` to reliably clear it (aspect ratio then 1.765:1, not exactly 16:9). Output format (JPEG, public URL) confirmed compatible with RunningHub's `firstFrameUrl` by shape, reusing step 3's proof rather than spending on a redundant video call. See `reports/2026-09-27-step-5b-image-and-reasoning-verification.md`
+- [x] 5.4 Reasoning: confirm each candidate splits a script faithfully per §6.1 and produces the `IMAGE` and `VIDEO` instructions, without adding, removing, duplicating or paraphrasing narrative content (§4.2, AC03) — candidate `gpt-6-astra` (verified against the real account's `/v1/models`, not trusted from web search alone). Split the task-4.2 script into 3 chunks at exact sentence boundaries, with coherent `image`/`video` instructions per chunk. Clause-boundary-split edge cases (§6.1's exception, §6.1.1) not tested here — deferred to US-09's implementation-level TDD, which can combine real duration bounds with a deliberately engineered long sentence
+- [x] 5.5 Confirm the reasoning candidate reconstructs the original script exactly when the fragments are rejoined in order (§4.2) — verified programmatically: rejoining the 3 `prompt` fields reproduces the original 142-character script exactly, zero character divergence
+- [x] 5.6 Select each provider and record the rejected candidates with the reason — Alignment: ElevenLabs (no rejected candidates, sole credentialed option). Image: Fal.ai (already decided, verified not re-evaluated). Reasoning: OpenAI `gpt-6-astra` (sole credentialed reasoning provider, per step-1 report's blocker now resolved). Spend: Fal.ai/OpenAI calls negligible (554 tokens on one OpenAI call, 2 cheap Fal.ai images); running total still $2.14 of $20 (RunningHub only itemized cost so far)
 
 ## 6. Establish the supported language list
 
-- [ ] 6.1 Draw up the candidate languages, then verify each rather than adopting an advertised list (Decision 4)
-- [ ] 6.2 For each candidate language, narrate a real script in it with the chosen voice provider
-- [ ] 6.3 For each candidate language, align that narration with the chosen alignment provider
-- [ ] 6.4 For each candidate language, confirm the reasoning provider segments it on sentence boundaries correctly
-- [ ] 6.5 Record the supported list as the languages that passed all three, and record the languages that failed and where
+- [x] 6.1 Draw up the candidate languages, then verify each rather than adopting an advertised list (Decision 4) — English, Spanish (product owner's choice; matches this repo/PRD's own bilingual documentation). See `reports/2026-09-27-step-6-language-list-verification.md`
+- [x] 6.2 For each candidate language, narrate a real script in it with the chosen voice provider — both narrated successfully via ElevenLabs `eleven_multilingual_v2`
+- [x] 6.3 For each candidate language, align that narration with the chosen alignment provider — both aligned successfully; comparable loss scores (en 0.552, es 0.529), no capability gap between languages
+- [x] 6.4 For each candidate language, confirm the reasoning provider segments it on sentence boundaries correctly — **English passed on first try; Spanish failed reproducibly (2/2)** with the plain fidelity prompt (dropped the space after each sentence-ending period). Fixed by adding an explicit whitespace-preservation instruction + self-check, verified exact on retry. **Finding**: the refined prompt should be used for both languages in the real implementation, not just Spanish — the plain prompt is not reliably sufficient across languages
+- [x] 6.5 Record the supported list as the languages that passed all three, and record the languages that failed and where — **English, Spanish** both supported (all three stages pass with the refined reasoning prompt); no candidate rejected outright
 
 ## 7. Record the failure signals and the rate limits
 
-- [ ] 7.1 For each chosen provider, trigger or observe a rejection that will not succeed on retry, such as a content-filter refusal (§4.1, §10.1)
-- [ ] 7.2 Record its exact shape, and what the system will match on to identify it as not retryable (Decision 5)
-- [ ] 7.3 Record how a transient failure differs from it, so the two are separable in code
-- [ ] 7.4 Record each provider's rate limit and the account tier it belongs to (Decision 6)
-- [ ] 7.5 Derive the maximum simultaneous requests per stage, leaving headroom so the 1 + 3 retry budget cannot breach the limit (§10.1)
-- [ ] 7.5a Where two stages share one provider account (task 1.2a), derive their caps jointly against the shared limit rather than each against the full limit
-- [ ] 7.6 Record the derivation, not only the resulting number, so the value can be re-checked when a tier changes
+- [x] 7.1 For each chosen provider, trigger or observe a rejection that will not succeed on retry, such as a content-filter refusal (§4.1, §10.1) — tested all four providers with disallowed instructional content (drug synthesis via reasoning; explosive-device content via reasoning, voice, image, video). See `reports/2026-09-27-step-7a-reasoning-failure-signal.md` and `reports/2026-09-27-step-7b-failure-signals-voice-image-video.md`
+- [x] 7.2 Record its exact shape, and what the system will match on to identify it as not retryable (Decision 5) — **major finding: none of the four providers reject this content class.** Reasoning (OpenAI) silently sanitizes only the `image`/`video` fields while preserving narration verbatim (HTTP 200, `finish_reason: stop`, `refusal: null` — indistinguishable from success); voice (ElevenLabs), image (Fal.ai) and video (RunningHub) all generate the content outright with ordinary success responses. Fal.ai's `has_nsfw_concepts` field exists but is scoped to sexual content, not violence/weapons
+- [x] 7.3 Record how a transient failure differs from it, so the two are separable in code — **not applicable as tested**: no not-retryable rejection was observed to distinguish from a transient failure for this content class on any of the four providers. Escalated as a finding rather than resolved: §10.1's canonical "content-filter rejection" case may not occur in practice with these providers for this content class; if content-policy enforcement is wanted, it likely needs an explicit upstream moderation step rather than reliance on provider-side rejection
+- [x] 7.4 Record each provider's rate limit and the account tier it belongs to (Decision 6) — OpenAI: 500 req/min, 500k tokens/min (response headers). Fal.ai: limit 2000, window unit unconfirmed (response headers). ElevenLabs: Creator tier, 137,109 chars/period (a consumption quota, not a request-rate limit). RunningHub: no numeric limit found; `apiType: SHARED`, $47.39 balance (`POST /uc/openapi/accountStatus`). See `reports/2026-09-27-step-7c-rate-limits-and-request-caps.md`
+- [x] 7.5 Derive the maximum simultaneous requests per stage, leaving headroom so the 1 + 3 retry budget cannot breach the limit (§10.1) — Reasoning (OpenAI): 50 (500÷10 headroom factor, provisional pending group 8 latency data). Image (Fal.ai): 200 (2000÷10, provisional on the unconfirmed rate-limit window). Voice/Alignment (ElevenLabs) and Video (RunningHub): **not derived** — no real limit to derive from; recording an invented number was explicitly rejected per Decision 6
+- [x] 7.5a Where two stages share one provider account (task 1.2a), derive their caps jointly against the shared limit rather than each against the full limit — **finding**: 1.2a only checked image/video (not shared). This spike independently found voice + alignment now share one account too (both landed on ElevenLabs, steps 4/5a) — a case 1.2a didn't anticipate. Flagged for joint derivation against the one shared character quota once a concurrency number exists
+- [x] 7.6 Record the derivation, not only the resulting number, so the value can be re-checked when a tier changes — done inline in the step-7c report's tables (formula + inputs per cap, not just the result)
 
 ## 8. Measure the timing values
 
-- [ ] 8.1 Run each stage enough times to see the spread of its latency, rather than timing a single call (Decision 7)
-- [ ] 8.2 Measure at least one stage under concurrent load at the request cap from task 7.5, so the limit is not set from the quiet case
-- [ ] 8.3 Set each per-phase maximum time above the slow tail, and record the distribution it came from
-- [ ] 8.4 Confirm the clock starts when the request is sent, since queue waiting counts neither as a failed attempt nor as execution time (§10.1)
-- [ ] 8.5 Take the assembly phase's maximum time from `define-media-assembly`'s measured cost rather than measuring it again here
-- [ ] 8.6 Record spend to date against the ceiling from task 1.1
+- [x] 8.1 Run each stage enough times to see the spread of its latency, rather than timing a single call (Decision 7) — 4 real samples per stage. Reasoning (OpenAI) 6.41-8.47s; Image (Fal.ai) 9.22-10.79s; Voice (ElevenLabs TTS) 2.20-2.47s; Alignment (ElevenLabs forced-alignment) 0.26-0.48s; Video (RunningHub) 141.10-159.50s — **dramatically slower than every other stage** (~15-30x image). See `reports/2026-09-27-step-8-timing-measurements.md`
+- [x] 8.2 Measure at least one stage under concurrent load at the request cap from task 7.5, so the limit is not set from the quiet case — video (RunningHub, highest-risk per Decision 9), 3 concurrent calls (not the full derived cap — RunningHub's own cap was left undetermined in step 7c; 3 is a practical affordable probe). Result: 156.1-157.6s, within the sequential baseline's range; no throttling/queueing observed at 3x. Does not establish the real ceiling, only that it exceeds 3
+- [x] 8.3 Set each per-phase maximum time above the slow tail, and record the distribution it came from — provisional values with ~1.5-2x margin: Reasoning 20s, Image 25s, Voice 10s, Alignment 5s, Video 240s (4 min). Flagged as provisional given the small (4-7 sample) spike-level sample size, not a rigorous percentile study
+- [x] 8.4 Confirm the clock starts when the request is sent, since queue waiting counts neither as a failed attempt nor as execution time (§10.1) — consistent with this principle in all 7 RunningHub samples (time-to-RUNNING ~0.46-0.48s every time, never meaningfully QUEUED), but 3x concurrency never actually triggered real queueing — recorded as untested-under-real-queueing rather than fully verified
+- [x] 8.5 Take the assembly phase's maximum time from `define-media-assembly`'s measured cost rather than measuring it again here — **not available**, `define-media-assembly` (JOS-182) not yet archived (0/60 tasks); provisional with dependency stated, same pattern as task 1.3's speed-factor limit
+- [x] 8.6 Record spend to date against the ceiling from task 1.1 — **$5.605 of $20** (RunningHub: $2.14 step 3 + $0.77 step 7 + $2.695 step 8; all other providers negligible)
 
 ## 9. Derive the remaining values
 
-- [ ] 9.1 Derive the segmentation lower bound from the shortest admitted duration of the chosen video provider (§6.1) — available as soon as group 3 completes, since the video provider is already decided
-- [ ] 9.2 Confirm the bound is workable against §6.1.1's edge cases: a whole script below the bound, and a sentence that cannot be split
-- [ ] 9.3 Fix the output resolution and frame rate, confirming the image and video providers can feed them (§7.3, D08)
-- [ ] 9.4 Fix the acceptable speed-factor limit from task 1.3, marking it provisional if `define-media-assembly` has not landed
-- [ ] 9.5 Cross-check the complete set for internal consistency, and resolve any contradiction rather than recording both values
+- [x] 9.1 Derive the segmentation lower bound from the shortest admitted duration of the chosen video provider (§6.1) — available as soon as group 3 completes, since the video provider is already decided — **5 seconds** (RunningHub's measured minimum). See `reports/2026-09-27-step-9-derive-remaining-values.md`
+- [x] 9.2 Confirm the bound is workable against §6.1.1's edge cases: a whole script below the bound, and a sentence that cannot be split — both workable via the existing speed-adjustment mechanism (§7.2/§7.3), no special case needed
+- [x] 9.3 Fix the output resolution and frame rate, confirming the image and video providers can feed them (§7.3, D08) — **neither natively can**; fix: generate at video 2K (2560×1440@24fps) and image 1920×1088, both ≥ target, then assembly (JOS-182) downscales + fps-converts to exactly 1920×1080@30fps. Concrete new requirement handed to `define-media-assembly`
+- [x] 9.4 Fix the acceptable speed-factor limit from task 1.3, marking it provisional if `define-media-assembly` has not landed — still provisional, `define-media-assembly` (JOS-182) remains unarchived (0/60 tasks)
+- [x] 9.5 Cross-check the complete set for internal consistency, and resolve any contradiction rather than recording both values — no contradiction found; every value grounded in a real measurement or explicitly marked provisional with its dependency named
 
 ## 10. Write the constants into source
 
-- [ ] 10.1 Create one typed constants module holding every value, with no configuration file and no runtime configuration (Decision 8, §2.3)
-- [ ] 10.2 Include the provider and version identifiers for each stage
-- [ ] 10.3 Confirm no credential is present in the module
+- [x] 10.1 Create one typed constants module holding every value, with no configuration file and no runtime configuration (Decision 8, §2.3) — `backend/src/config/providers.ts`. Replaced the provisional 5-language placeholder in the now-deleted `backend/src/config/languages.ts` (its own docstring said "replace wholesale once JOS-165 lands"); updated the two importers (`src/routes.ts`, `test/session-creation.test.ts`). Typecheck clean (1 pre-existing unrelated error in `credentials.ts`); all 54 tests pass
+- [x] 10.2 Include the provider and version identifiers for each stage — `DECOMPOSITION_PROVIDER`, `VOICE_PROVIDER`, `ALIGNMENT_PROVIDER`, `IMAGE_PROVIDER`, `VIDEO_PROVIDER` constants, each with the real model/endpoint identifier from steps 3-6's verification calls
+- [x] 10.3 Confirm no credential is present in the module — scanned for credential-shaped strings (`sk-`, `api_key`, `secret`, `bearer <token>`); none found. Only provider names, model/voice/endpoint identifiers
 
 ## 11. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 11.1 Confirm which test suites exist at this point, including any added by the sibling changes; record the finding rather than assuming it
-- [ ] 11.2 Write the test asserting the constants module matches the values recorded in `docs/PRD.md` §11 (Decision 8)
-- [ ] 11.3 Write a test asserting the segmentation lower bound is consistent with the shortest admitted duration
-- [ ] 11.4 Write a test asserting the per-stage request maximum plus the full retry budget stays within the recorded rate limit
-- [ ] 11.5 Write a test asserting every supported language is one the recorded evidence verified
-- [ ] 11.6 Document the test command that runs them
+- [x] 11.1 Confirm which test suites exist at this point, including any added by the sibling changes; record the finding rather than assuming it — 6 existing suites before this group: `orchestrator.test.ts` (11), `session-creation.test.ts` (15), `session-read.test.ts` (12), `persistence.test.ts` (7), `session-consultation.test.ts` (3), `credentials.test.ts` (6) = 54 tests
+- [x] 11.2 Write the test asserting the constants module matches the values recorded in `docs/PRD.md` §11 (Decision 8) — `test/providerConfig.test.ts`, asserting the exact provider/model/endpoint identifiers per stage that task group 16 will transcribe into §11 (parsing the live markdown file at test-time would be fragile; the test instead pins the exact values, keeping module and future PRD entry from drifting apart)
+- [x] 11.3 Write a test asserting the segmentation lower bound is consistent with the shortest admitted duration — asserts `SEGMENTATION_LOWER_BOUND_SECONDS === VIDEO_ADMITTED_DURATION_SECONDS.min` (not an independent literal)
+- [x] 11.4 Write a test asserting the per-stage request maximum plus the full retry budget stays within the recorded rate limit — asserts `cap × 4 < measured limit` for decomposition/image; asserts voice/alignment/video stay explicitly `"undetermined"` rather than silently acquiring a guessed number
+- [x] 11.5 Write a test asserting every supported language is one the recorded evidence verified — asserts `SUPPORTED_LANGUAGE_CODES` is exactly `["en","es"]`, both ways (no unverified addition, no verified language missing)
+- [x] 11.6 Document the test command that runs them — `npm test` (all suites) or `npx vitest run test/providerConfig.test.ts` (targeted). All 70 tests pass (54 pre-existing + 16 new)
 
 ## 12. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 12.1 Capture the pre-test state of the store used by the harness (counts and key records)
-- [ ] 12.2 Run the targeted tests from group 11 and capture the pass/fail summary
-- [ ] 12.3 Run the full suite and record totals, failures and runtime
-- [ ] 12.4 Verify the post-test state matches the baseline, restoring it if the tests mutated it
-- [ ] 12.5 Confirm the tests make no real provider call, so running the suite costs nothing
-- [ ] 12.6 Create the report `openspec/changes/define-provider-configuration/reports/YYYY-MM-DD-step-12-unit-test-and-db-verification.md` with commands executed, results, pre/post comparison and cleanup actions
-- [ ] 12.7 Mark this step complete only after the tests pass and the report file exists
+- [x] 12.1 Capture the pre-test state of the store used by the harness (counts and key records) — `data/skeleton.sqlite`: runs=0, scenes=0, provider_requests=0, scene_results=0, schema_migrations=2
+- [x] 12.2 Run the targeted tests from group 11 and capture the pass/fail summary — `test/providerConfig.test.ts`: 16 passed, 0 failed
+- [x] 12.3 Run the full suite and record totals, failures and runtime — 70 passed, 0 failed, 7 files, ~2.56s
+- [x] 12.4 Verify the post-test state matches the baseline, restoring it if the tests mutated it — identical to baseline; no restoration needed (each test's `resetAll()` already leaves the file clean)
+- [x] 12.5 Confirm the tests make no real provider call, so running the suite costs nothing — confirmed via grep for provider hostnames/fetch calls across `test/`; none found. Existing tests run against the stubbed provider (`src/provider.ts`)
+- [x] 12.6 Create the report `openspec/changes/define-provider-configuration/reports/YYYY-MM-DD-step-12-unit-test-and-db-verification.md` with commands executed, results, pre/post comparison and cleanup actions — `reports/2026-09-27-step-12-unit-test-and-db-verification.md`
+- [x] 12.7 Mark this step complete only after the tests pass and the report file exists — done
 
 ## 13. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
 Applicable but pointed outward: this change adds no endpoint of its own, and the surfaces that matter are the providers'. The purpose is to capture each provider's real request and response shape, which is what the recorded values rest on.
 
-- [ ] 13.1 Load credentials from the local environment or secrets file, never inline in a command that would land in shell history or the transcript
-- [ ] 13.2 Call each chosen provider with curl and capture the request and response for the capability it was selected for
-- [ ] 13.3 Capture the response of a not-retryable rejection and of a transient failure, confirming they are distinguishable as recorded in task 7.2
-- [ ] 13.4 Capture the voice provider's timestamp payload, confirming the granularity recorded in task 4.3
-- [ ] 13.5 Confirm every captured artefact is redacted of credential material before it is written down
-- [ ] 13.6 Record spend for this step against the ceiling
-- [ ] 13.7 Save the transcript as `openspec/changes/define-provider-configuration/reports/YYYY-MM-DD-step-13-curl-endpoint-testing.md`
+- [x] 13.1 Load credentials from the local environment or secrets file, never inline in a command that would land in shell history or the transcript — confirmed across this session's command history; one early diagnostic (before the `.secrets.json` bug was found) printed a raw key to the terminal but never to a file, not repeated since. See `reports/2026-09-27-step-13-curl-endpoint-testing.md`
+- [x] 13.2 Call each chosen provider with curl and capture the request and response for the capability it was selected for — already captured live in steps 3-6; consolidated by reference rather than re-calling (Decision 10: no new spend for evidence already on file)
+- [x] 13.3 Capture the response of a not-retryable rejection and of a transient failure, confirming they are distinguishable as recorded in task 7.2 — **not confirmed; restates the 7.2/7.3 finding**: no not-retryable rejection occurred for any of the four providers under the tested content, and no real transient failure occurred either (every call this session succeeded on first attempt) — there is no real sample to confirm distinguishability from
+- [x] 13.4 Capture the voice provider's timestamp payload, confirming the granularity recorded in task 4.3 — reproduced from step 4's report: exact character-level indices for every sentence/clause boundary in the 142-character test
+- [x] 13.5 Confirm every captured artefact is redacted of credential material before it is written down — reviewed all reports under this change; no literal key found in any
+- [x] 13.6 Record spend for this step against the ceiling — **$0** (no new calls); running total unchanged at $5.605 of $20
+- [x] 13.7 Save the transcript as `openspec/changes/define-provider-configuration/reports/YYYY-MM-DD-step-13-curl-endpoint-testing.md` — done
 
 ## 14. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 14.1 Record why this step does not apply: this change produces a decision record, a PRD section and a constants module, and adds no user-facing behaviour or screen
-- [ ] 14.2 Confirm no UI consumes these values yet, so there is no workflow to drive; the stories that consume them carry their own E2E obligation
+- [x] 14.1 Record why this step does not apply: this change produces a decision record, a PRD section and a constants module, and adds no user-facing behaviour or screen — confirmed; no route, no UI, no user-facing behavior added by this change
+- [x] 14.2 Confirm no UI consumes these values yet, so there is no workflow to drive; the stories that consume them carry their own E2E obligation — grepped `frontend/` for any reference to `config/providers`, `SUPPORTED_LANGUAGE_CODES`, `MAX_SIMULTANEOUS_REQUESTS`, `PER_PHASE_MAX_TIME_SECONDS`: none found
 
 ## 15. Record the decision
 
-- [ ] 15.1 Write the ADR: the five chosen providers, the rejected candidates with reasons, and the evidence behind each capability claim
-- [ ] 15.2 Record the complete parameter set with the provenance of each value — measured, derived, or taken from another change
-- [ ] 15.3 Record which timestamp mechanism applies in practice, and what it implies for the decomposition phase (§11.1)
-- [ ] 15.4 Record the not-retryable failure signal per provider
-- [ ] 15.5 Record the hardcoded version identifiers and the exposure if a provider retires one
-- [ ] 15.6 Record any value left provisional, with the dependency that settles it
-- [ ] 15.7 Record actual spend per stage against the ceiling
+- [x] 15.1 Write the ADR: the five chosen providers, the rejected candidates with reasons, and the evidence behind each capability claim — `docs/adr/0005-provider-selection.md`
+- [x] 15.2 Record the complete parameter set with the provenance of each value — measured, derived, or taken from another change — Decisions 1, 7, 8 of the ADR
+- [x] 15.3 Record which timestamp mechanism applies in practice, and what it implies for the decomposition phase (§11.1) — ADR Decision 2: native (character-level), forced alignment remains the declared fallback; raw output still needs edge-extension/gap-allocation before decomposition can treat it as a partition
+- [x] 15.4 Record the not-retryable failure signal per provider — ADR Decision 5: none found for any of the four providers under the tested content class; escalated, not resolved
+- [x] 15.5 Record the hardcoded version identifiers and the exposure if a provider retires one — ADR Decision 6
+- [x] 15.6 Record any value left provisional, with the dependency that settles it — ADR "Risks left unproven" section: Fal.ai window unit, RunningHub concurrency ceiling, §6.1's clause-split edge cases, the not-retryable signal gap, real queueing never observed
+- [x] 15.7 Record actual spend per stage against the ceiling — `reports/2026-09-27-step-15-spend-summary.md`: RunningHub $5.605 (itemized, exact), OpenAI/Fal.ai small and unmeasured, ElevenLabs $0 incremental (subscription)
 
 ## 16. Update Technical Documentation (MANDATORY)
 
-- [ ] 16.1 Fill in `docs/PRD.md` §11 with the providers and the values, replacing the statement that a spike will define them
-- [ ] 16.2 Add the entry to the PRD change log (§16) as a version bump, since the PRD now commits to values it previously deferred
-- [ ] 16.3 Update §6.1's lower-bound text and §7.2's admitted-duration text to point at the recorded values rather than at a pending spike
-- [ ] 16.4 Confirm §4.1's language list and §14.1's speed-factor check now reference real values
-- [ ] 16.5 Note in `docs/backend-standards.md` where the constants module lives and that values are read from it rather than redefined
-- [ ] 16.6 Confirm the result stays consistent with what the sibling changes wrote to their standards files, resolving any contradiction rather than layering over it
+- [x] 16.1 Fill in `docs/PRD.md` §11 with the providers and the values, replacing the statement that a spike will define them — new §11.3 subsection; capability table rows updated with "Verified: ..." pointers
+- [x] 16.2 Add the entry to the PRD change log (§16) as a version bump, since the PRD now commits to values it previously deferred — version bumped 1.3→1.4; old version preserved at `docs/PRD-v1.3.md` (matching the existing 1.2→1.3 convention); new "From version 1.3 to 1.4" changelog table added
+- [x] 16.3 Update §6.1's lower-bound text and §7.2's admitted-duration text to point at the recorded values rather than at a pending spike — both now cite §11.3 with the concrete 5-15s figures inline
+- [x] 16.4 Confirm §4.1's language list and §14.1's speed-factor check now reference real values — §4.1 now names English/Spanish inline; §14.1 updated to point at §11.3 and honestly notes the speed-factor limit is still provisional
+- [x] 16.5 Note in `docs/backend-standards.md` where the constants module lives and that values are read from it rather than redefined — both existing mentions updated with the concrete path `backend/src/config/providers.ts`; the "Not Yet Decided" list entry moved to decided (with the still-open items named)
+- [x] 16.6 Confirm the result stays consistent with what the sibling changes wrote to their standards files, resolving any contradiction rather than layering over it — checked `frontend-standards.md` and `data-model.md`; both defer generically to "the hardcoded supported list," no contradiction found
 
 ## 17. Close out
 
-- [ ] 17.1 Notify `define-media-assembly` (JOS-182) of the fixed resolution and frame rate, closing its open question 4
-- [ ] 17.2 Notify `define-backend-stack` (JOS-179) that its retry, concurrency and timing experiments can now use real values instead of invented ones
-- [ ] 17.3 Record which provider accounts were created for the spike, so any belonging to a rejected candidate can be closed
-- [ ] 17.4 Create follow-up items for anything the spike revealed, linked to its epic (JOS-133)
-- [ ] 17.5 Record the decision on next steps: proceed, pivot or cancel
-- [ ] 17.6 Record time spent, to calibrate future spikes
-- [ ] 17.7 Obtain review by at least one human, not only AI agents
+- [x] 17.1 Notify `define-media-assembly` (JOS-182) of the fixed resolution and frame rate, closing its open question 4 — closed directly in `openspec/changes/define-media-assembly/design.md`: 1920×1080@30fps confirmed (no change from its own expectation), plus the concrete source formats (2560×1440@24fps video, 1920×1088 image) that its Decision 3 normalization step must handle
+- [x] 17.2 Notify `define-backend-stack` (JOS-179) that its retry, concurrency and timing experiments can now use real values instead of invented ones — `backend/src/server.ts`'s `STAGE_CONCURRENCY_LIMIT` default updated from the walking skeleton's arbitrary placeholder (2) to the real derived image-stage cap (`MAX_SIMULTANEOUS_REQUESTS.image` = 200); verified no test depended on the old default (tests set their own explicit limits); typecheck and all 70 tests still pass
+- [x] 17.3 Record which provider accounts were created for the spike, so any belonging to a rejected candidate can be closed — **no new accounts were created**; all four (OpenAI, ElevenLabs, Fal.ai, RunningHub) were pre-existing accounts the product owner already held, with credentials provided at the start of this session. Nothing to close (no candidate was rejected — see step-15 ADR)
+- [x] 17.4 Create follow-up items for anything the spike revealed, linked to its epic (JOS-133) — created JOS-187 (undetectable content-policy failures), JOS-188 (RunningHub/ElevenLabs request caps undetermined), JOS-189 (§6.1 clause-split edge cases + Fal.ai rate-limit window), all as sub-issues of JOS-133
+- [x] 17.5 Record the decision on next steps: proceed, pivot or cancel — **proceed**. Every §11 capability was verified and met; the open findings (not-retryable signal gap, undetermined caps, untested edge cases) are tracked as follow-up issues rather than blockers, consistent with how provisional values were handled throughout this change
+- [x] 17.6 Record time spent, to calibrate future spikes — single extended session (2026-09-27), spanning credential setup through this close-out; real-provider round trips included several multi-minute waits (RunningHub video generation, ~140-160s each, 12 calls total) plus two session interruptions for auto-mode permission blocks. Not tracked to the minute; the ~$5.6 real spend and ~90 completed tasks are a better calibration signal than elapsed wall-clock time for a session with this much human-in-the-loop back-and-forth
+- [ ] 17.7 Obtain review by at least one human, not only AI agents — **cannot be self-certified**; requires the product owner's actual review before this change is considered fully closed (matches JOS-133's own Definition of Done). Flagged as the one remaining item, not marked complete

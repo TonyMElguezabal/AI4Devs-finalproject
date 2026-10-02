@@ -1,0 +1,68 @@
+import type { SessionSnapshot } from "../types";
+import { SessionHeader } from "./SessionHeader";
+import { SceneList } from "./SceneList";
+import { FinalVideoDownload } from "./FinalVideoDownload";
+import { downloadFinalVideoUrl } from "../api/client";
+
+interface Props {
+  sessionId: string;
+  snapshot: SessionSnapshot | undefined;
+  connected: boolean;
+  /** consult-session (JOS-135) Decision 4 — an unknown or malformed
+   * identifier, reported identically. */
+  notFound: boolean;
+  onStartNew: () => void;
+  onPause: () => void;
+  onContinue: () => void;
+  onRetry: (sceneId: string) => void;
+  onCorrect: (sceneId: string, instruction: string) => void;
+}
+
+/**
+ * consult-session (JOS-135) — the session page, reached by identifier
+ * (Decision 5). Shows only what the session read returns (Decision 6): no
+ * state is derived here, and absent sections (no scenes yet) render as
+ * "not yet available" rather than as an error or as silence. Live updates
+ * on this page belong to US-18 (JOS-183's seam, `useLiveSession`, already
+ * owns the one subscription — this component only renders what it hands
+ * back, per task 4.7).
+ */
+export function SessionPage({
+  sessionId,
+  snapshot,
+  connected,
+  notFound,
+  onStartNew,
+  onPause,
+  onContinue,
+  onRetry,
+  onCorrect,
+}: Props) {
+  if (notFound) {
+    return (
+      <section aria-label="Session not found" className="session-not-found">
+        <p>No session was found for this identifier.</p>
+        <button type="button" onClick={onStartNew}>
+          Start a new project
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section aria-label="Session">
+      <p className="session-meta">
+        Session: <code>{sessionId}</code> — {connected ? "connected" : "connecting…"}
+      </p>
+      {snapshot && (
+        <>
+          <SessionHeader session={snapshot.session} onPause={onPause} onContinue={onContinue} />
+          <p className="session-title">{snapshot.session.title}</p>
+          <p className="session-script">{snapshot.session.script}</p>
+          <SceneList sessionId={sessionId} scenes={snapshot.scenes} onRetry={onRetry} onCorrect={onCorrect} />
+          <FinalVideoDownload state={snapshot.session.state} url={downloadFinalVideoUrl(sessionId)} />
+        </>
+      )}
+    </section>
+  );
+}

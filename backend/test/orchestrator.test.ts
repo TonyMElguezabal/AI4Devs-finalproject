@@ -1,0 +1,222 @@
+import { randomUUID } from "node:crypto";
+import { beforeEach, describe, expect, it } from "vitest";
+import * as concurrency from "../src/concurrency.ts";
+import { createRun, createScene, getLatestProviderRequestForScene, getScene, resetAll } from "../src/db.ts";
+import {
+  RETRY_BUDGET,
+  continueSession,
+  correctAndRetry,
+  handleProviderResult,
+  launchScene,
+  manualRetry,
+  nextStageLaunchCount,
+  pauseSession,
+  reconcileOnBoot,
+} from "../src/orchestrator.ts";
+import { STAGE } from "../src/types.ts";
+
+function waitFor(predicate: () => boolean, timeoutMs = 3000, intervalMs = 5): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const tick = () => {
+      if (predicate()) return resolve();
+      if (Date.now() - start > timeoutMs) return reject(new Error("waitFor timed out"));
+      setTimeout(tick, intervalMs);
+    };
+    tick();
+  });
+}
+
+function newRunWithScene(mode: Parameters<typeof createScene>[3], latencyMs: number) {
+  const runId = randomUUID();
+  createRun(runId, `test run ${runId}`, "test script", "en");
+  const sceneId = randomUUID();
+  createScene(sceneId, runId, 1, mode, latencyMs);
+  return { runId, sceneId };
+}
+
+beforeEach(() => {
+  resetAll();
+  concurrency.resetAll();
+  concurrency.setLimit(STAGE, 10); // generous, unrelated to the concurrency-cap experiment
+});
+
+// Experiment 4.3 — retry budget.
+describe("retry budget (PRD §10.1, C2)", () => {
+  it("a transient failure consumes 1 + RETRY_BUDGET attempts, then fails", async () => {
+    const { sceneId } = newRunWithScene("transient_failure", 5);
+    launchScene(sceneId);
+
+    await waitFor(() => getScene(sceneId)?.status === "failed");
+
+    const scene = getScene(sceneId)!;
+    expect(scene.attempts).toBe(1 + RETRY_BUDGET);
+    expect(scene.lastError).toMatch(/retry budget exhausted after 4 attempts/);
+  });
+
+  it("a not-retryable failure fails immediately, with no retries", async () => {
+    const { sceneId } = newRunWithScene("not_retryable_failure", 5);
+    launchScene(sceneId);
+
+    await waitFor(() => getScene(sceneId)?.status === "failed");
+
+    const scene = getScene(sceneId)!;
+    expect(scene.attempts).toBe(1);
+    expect(scene.lastError).toMatch(/content-filter/);
+  });
+
+  it("a manual retry after failure starts a fresh 1 + RETRY_BUDGET cycle", async () => {
+    const { sceneId } = newRunWithScene("transient_failure", 5);
+    launchScene(sceneId);
+    await waitFor(() => getScene(sceneId)?.status === "failed");
+    expect(getScene(sceneId)!.attempts).toBe(1 + RETRY_BUDGET);
+
+    const result = manualRetry(sceneId);
+    expect(result.ok).toBe(true);
+
+    await waitFor(() => getScene(sceneId)?.status === "failed" && getScene(sceneId)!.attempts > 0);
+    expect(getScene(sceneId)!.attempts).toBe(1 + RETRY_BUDGET); // fresh budget, not cumulative
+  });
+});
+
+// Experiment 4.5 — idempotency.
+describe("idempotent success confirmation (PRD §12.1, C7)", () => {
+  it("delivering the same success twice yields one result and one next-stage launch", async () => {
+    const { sceneId } = newRunWithScene("success", 15);
+    launchScene(sceneId);
+
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
+    expect(nextStageLaunchCount(sceneId)).toBe(1);
+
+    const requestId = getLatestProviderRequestForScene(sceneId)!.id;
+    const firstResultSnapshot = getScene(sceneId)!.result;
+
+    const duplicate = handleProviderResult(requestId);
+
+    expect(duplicate.applied).toBe(false);
+    expect(getScene(sceneId)!.result).toBe(firstResultSnapshot);
+    expect(nextStageLaunchCount(sceneId)).toBe(1); // still 1, not 2
+  });
+});
+
+// Experiment 4.1 — restart resumption. A real process kill is exercised
+// manually in tasks.md §7 (curl); this proves the underlying mechanism is
+// correct and repeatable by discarding in-memory state (what a restart loses)
+// while keeping persisted state (what a restart keeps) and reconciling.
+describe("restart-safe resumption (PRD §12.1, C6)", () => {
+  it("resumes a still-pending request across a simulated restart", async () => {
+    const { sceneId } = newRunWithScene("success", 300);
+    launchScene(sceneId);
+    expect(getScene(sceneId)!.status).toBe("image-generating");
+
+    // Simulate the process dying: only in-memory state is lost.
+    concurrency.resetAll();
+    concurrency.setLimit(STAGE, 10);
+
+    const summary = reconcileOnBoot();
+    expect(summary.stillPending).toBe(1);
+
+    // The provider still holds the result; reconciliation re-armed delivery.
+    await waitFor(() => getScene(sceneId)?.status === "image-complete", 2000);
+  });
+
+  it("records exactly one failed attempt when the provider can no longer recover the request", () => {
+    const { sceneId } = newRunWithScene("unrecoverable", 5);
+    launchScene(sceneId);
+    expect(getScene(sceneId)!.status).toBe("image-generating");
+    expect(getScene(sceneId)!.attempts).toBe(1);
+
+    concurrency.resetAll();
+    concurrency.setLimit(STAGE, 10);
+
+    const summary = reconcileOnBoot();
+    expect(summary.recordedFailedAttempt).toBe(1);
+
+    // Within budget (1 < 1 + RETRY_BUDGET): the failed attempt is recorded
+    // and an automatic retry is launched — the scene does not go straight to `failed`.
+    const scene = getScene(sceneId)!;
+    expect(scene.status).toBe("image-generating");
+    expect(scene.attempts).toBe(2);
+  });
+});
+
+// Experiment 4.2 (concurrency) is exercised as a live scenario across two
+// HTTP-level "sessions" in tasks.md §4.2 / §7, since it is about requests
+// actually being held back in FIFO order, not unit-testable in isolation
+// from the scheduler's real timing. This unit test instead proves the
+// semaphore primitive itself.
+describe("shared per-stage concurrency cap (PRD §10.1, C3)", () => {
+  it("queues waiters beyond the limit and releases them in FIFO order", () => {
+    concurrency.resetAll();
+    concurrency.setLimit("TEST_STAGE", 2);
+
+    const acquired: number[] = [];
+    concurrency.acquire("TEST_STAGE", () => acquired.push(1));
+    concurrency.acquire("TEST_STAGE", () => acquired.push(2));
+    concurrency.acquire("TEST_STAGE", () => acquired.push(3)); // queued
+    concurrency.acquire("TEST_STAGE", () => acquired.push(4)); // queued
+
+    expect(acquired).toEqual([1, 2]);
+    expect(concurrency.stats("TEST_STAGE")).toEqual({ inFlight: 2, queued: 2, limit: 2 });
+
+    concurrency.release("TEST_STAGE");
+    expect(acquired).toEqual([1, 2, 3]);
+    expect(concurrency.stats("TEST_STAGE")).toEqual({ inFlight: 2, queued: 1, limit: 2 });
+
+    concurrency.release("TEST_STAGE");
+    expect(acquired).toEqual([1, 2, 3, 4]);
+    expect(concurrency.stats("TEST_STAGE")).toEqual({ inFlight: 2, queued: 0, limit: 2 });
+  });
+});
+
+// define-live-updates (JOS-183) Decision 8 / define-frontend-stack (JOS-180) task 2.6.
+describe("session pause and continue (PRD §9)", () => {
+  it("holds a not-yet-launched scene while paused, and launches it on continue", async () => {
+    const runId = randomUUID();
+    createRun(runId, "pause test", "test script", "en");
+    const sceneId = randomUUID();
+    createScene(sceneId, runId, 1, "success", 20);
+
+    pauseSession(runId);
+    launchScene(sceneId);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(getScene(sceneId)!.status).toBe("submitted"); // held, not sent
+    expect(getScene(sceneId)!.attempts).toBe(0);
+
+    const result = continueSession(runId);
+    expect(result.ok).toBe(true);
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
+  });
+
+  it("does not affect a request already sent before the pause", async () => {
+    const { runId, sceneId } = newRunWithScene("success", 200);
+    launchScene(sceneId);
+    expect(getScene(sceneId)!.status).toBe("image-generating");
+
+    pauseSession(runId); // pause after the request is already in flight
+
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
+  });
+});
+
+// PRD §10.3 — the one visual-correction exception.
+describe("visual correction on a failed stage (PRD §10.3)", () => {
+  it("is rejected on a scene that has not failed", async () => {
+    const { sceneId } = newRunWithScene("success", 5);
+    launchScene(sceneId);
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
+
+    const result = correctAndRetry(sceneId, "a new instruction");
+    expect(result.ok).toBe(false);
+  });
+
+  it("updates the instruction and retries when the stage has failed", async () => {
+    const { sceneId } = newRunWithScene("not_retryable_failure", 5);
+    launchScene(sceneId);
+    await waitFor(() => getScene(sceneId)?.status === "failed");
+
+    const result = correctAndRetry(sceneId, "a corrected instruction");
+    expect(result.ok).toBe(true);
+    expect(getScene(sceneId)!.instruction).toBe("a corrected instruction");
+  });
+});

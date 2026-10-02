@@ -1,0 +1,11 @@
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
+
+# Provider credentials (define-provider-configuration, JOS-165, task 2.1) —
+# read from here or the local environment, never from the repository.
+backend/.secrets.json
+
+# Local SQLite store and generated project folders
+backend/data/
+backend/node_modules/
+frontend/node_modules/
