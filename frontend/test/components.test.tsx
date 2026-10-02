@@ -9,6 +9,8 @@ import { StartProjectForm } from "../src/components/StartProjectForm";
 import { SessionPage } from "../src/components/SessionPage";
 import type { SceneEventPayload, SceneState, SessionEventPayload, SessionState } from "../src/types";
 import { sceneStatusClass, sessionStatusClass } from "../src/styles/status";
+import { sceneActions } from "../src/sceneActions";
+import { API_BASE } from "../src/api/client";
 
 function makeScene(overrides: Partial<SceneEventPayload>): SceneEventPayload {
   return {
@@ -55,6 +57,21 @@ describe("SceneList ordering (Decision 6)", () => {
   });
 });
 
+// show-scene-results-and-actions (JOS-151) — "A state change arrives": the row
+// shows a newly delivered state without a reload.
+describe("A live state change reaches the row (JOS-151)", () => {
+  it("shows image-complete once a new snapshot reports it, without a remount", () => {
+    const props = { sessionId: "s1", onRetry: () => {}, onCorrect: () => {} };
+    const { rerender } = render(<SceneList {...props} scenes={[makeScene({ sceneId: "b", index: 2, state: "image-generating" })]} />);
+    expect(screen.getByRole("listitem", { name: "Scene 2" })).toHaveTextContent("image-generating");
+
+    rerender(<SceneList {...props} scenes={[makeScene({ sceneId: "b", index: 2, state: "image-complete" })]} />);
+
+    expect(screen.getByRole("listitem", { name: "Scene 2" })).toHaveTextContent("image-complete");
+    expect(screen.getByRole("listitem", { name: "Scene 2" })).not.toHaveTextContent("image-generating");
+  });
+});
+
 // task 5.4/6.2 — Decision 4: the correction form is present only on a failed
 // stage, absent (not disabled) otherwise, and never exposes id/prompt/order.
 describe("Conditional editing (Decision 4)", () => {
@@ -65,7 +82,7 @@ describe("Conditional editing (Decision 4)", () => {
   }
 
   it("shows the correction form on a failed scene", async () => {
-    const scene = makeScene({ sceneId: "f1", index: 1, state: "failed", errorCause: "stub: content-filter rejection" });
+    const scene = makeScene({ sceneId: "f1", index: 1, state: "failed", affectedStage: "image", errorCause: "stub: content-filter rejection" });
     render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     await expandRow("f1");
 
@@ -74,7 +91,7 @@ describe("Conditional editing (Decision 4)", () => {
   });
 
   it("does not render the correction form on a successful scene", async () => {
-    const scene = makeScene({ sceneId: "ok1", index: 1, state: "chunk-complete", result: { imageUrl: "scene-1.png" } });
+    const scene = makeScene({ sceneId: "ok1", index: 1, state: "chunk-complete", result: { imageUrl: "/sessions/s1/scenes/ok1/image" } });
     render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     await expandRow("ok1");
 
@@ -83,7 +100,7 @@ describe("Conditional editing (Decision 4)", () => {
   });
 
   it("never renders an editable identifier, prompt-as-narration, or order field", async () => {
-    const scene = makeScene({ sceneId: "f2", index: 1, state: "failed" });
+    const scene = makeScene({ sceneId: "f2", index: 1, state: "failed", affectedStage: "image" });
     render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     await expandRow("f2");
 
@@ -92,6 +109,97 @@ describe("Conditional editing (Decision 4)", () => {
     const textboxes = screen.getAllByRole("textbox");
     expect(textboxes).toHaveLength(1);
     expect(textboxes[0]).toHaveAccessibleName("Corrected image instruction for scene 1");
+  });
+});
+
+// show-scene-results-and-actions (JOS-151), group 4 — design Decisions 4 and 5.
+describe("sceneActions derives actions from state and affected stage (JOS-151, Decision 4)", () => {
+  it("offers retry and image correction only for a failed image scene", () => {
+    expect(sceneActions(makeScene({ state: "failed", affectedStage: "image" }))).toEqual({ retry: true, correctImage: true });
+  });
+
+  it("offers nothing for a failed video scene", () => {
+    expect(sceneActions(makeScene({ state: "failed", affectedStage: "video" }))).toEqual({ retry: false, correctImage: false });
+  });
+
+  it("offers nothing for a failed scene whose stage is unknown", () => {
+    expect(sceneActions(makeScene({ state: "failed" }))).toEqual({ retry: false, correctImage: false });
+  });
+
+  it.each<SceneState>(["submitted", "image-generating", "image-complete", "video-generating", "chunk-complete"])(
+    "offers nothing for a scene in %s",
+    (state) => {
+      expect(sceneActions(makeScene({ state, affectedStage: "image" }))).toEqual({ retry: false, correctImage: false });
+    },
+  );
+});
+
+describe("Scene details show the available results (JOS-151, Decision 5)", () => {
+  async function expand(scene: SceneEventPayload) {
+    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    await userEvent.setup().click(screen.getByRole("button", { name: `View scene ${scene.index} details` }));
+  }
+
+  it("shows the image from the API base plus the result path", async () => {
+    const path = "/sessions/s1/scenes/a/image";
+    await expand(makeScene({ sceneId: "a", index: 2, state: "image-complete", result: { imageUrl: path } }));
+
+    expect(screen.getByRole("img", { name: "Scene 2 image" })).toHaveAttribute("src", `${API_BASE}${path}`);
+  });
+
+  it("shows a video player named for the scene when a clip URL is present", async () => {
+    const path = "/sessions/s1/scenes/a/clip";
+    await expand(makeScene({ sceneId: "a", index: 2, state: "chunk-complete", result: { videoUrl: path } }));
+
+    const player = screen.getByLabelText("Scene 2 clip");
+    expect(player.tagName).toBe("VIDEO");
+    expect(player).toHaveAttribute("src", `${API_BASE}${path}`);
+  });
+
+  it("shows neither an image nor a video player when there is no result", async () => {
+    await expand(makeScene({ sceneId: "a", index: 2, state: "image-generating" }));
+
+    expect(screen.queryByRole("img", { name: "Scene 2 image" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Scene 2 clip")).not.toBeInTheDocument();
+  });
+
+  it("shows the image of a scene that failed after storing it", async () => {
+    await expand(
+      makeScene({ sceneId: "a", index: 1, state: "failed", affectedStage: "video", result: { imageUrl: "/sessions/s1/scenes/a/image" } }),
+    );
+
+    expect(screen.getByRole("img", { name: "Scene 1 image" })).toBeInTheDocument();
+  });
+});
+
+describe("A failed scene shows its error, affected stage and only the actions for that stage (JOS-151)", () => {
+  async function expand(scene: SceneEventPayload) {
+    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    await userEvent.setup().click(screen.getByRole("button", { name: `View scene ${scene.index} details` }));
+  }
+
+  it("shows the error, the stage 'image', the retry button and the correction form for an image failure", async () => {
+    await expand(makeScene({ sceneId: "f", index: 1, state: "failed", affectedStage: "image", errorCause: "content filter rejection" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("content filter rejection");
+    expect(screen.getByText("Affected stage").nextElementSibling).toHaveTextContent("image");
+    expect(screen.getByRole("button", { name: "Retry scene 1" })).toBeInTheDocument();
+    expect(screen.getByRole("form", { name: "Correct scene 1 image instruction" })).toBeInTheDocument();
+  });
+
+  it("shows the error and the stage 'video' and no actions for a clip failure", async () => {
+    await expand(makeScene({ sceneId: "f", index: 1, state: "failed", affectedStage: "video", errorCause: "clip provider timeout" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("clip provider timeout");
+    expect(screen.getByText("Affected stage").nextElementSibling).toHaveTextContent("video");
+    expect(screen.queryByRole("button", { name: "Retry scene 1" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("form", { name: "Correct scene 1 image instruction" })).not.toBeInTheDocument();
+  });
+
+  it("shows no affected stage for a scene that has not failed", async () => {
+    await expand(makeScene({ sceneId: "a", index: 1, state: "image-generating" }));
+
+    expect(screen.queryByText("Affected stage")).not.toBeInTheDocument();
   });
 });
 
@@ -107,7 +215,7 @@ describe("Download gating", () => {
 
   it("offers per-scene downloads once complete", async () => {
     const user = userEvent.setup();
-    const done = makeScene({ sceneId: "d1", index: 1, state: "chunk-complete", result: { imageUrl: "scene-1.png" } });
+    const done = makeScene({ sceneId: "d1", index: 1, state: "chunk-complete", result: { imageUrl: "/sessions/s1/scenes/d1/image" } });
     render(<SceneRow scene={done} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="/img" videoDownloadUrl="/vid" />);
     await user.click(screen.getByRole("button", { name: "View scene 1 details" }));
     expect(screen.getByRole("link", { name: "Download scene 1 image" })).toHaveAttribute("href", "/img");
@@ -241,6 +349,26 @@ describe("Session status class mapping (define-visual-design, Decision 2)", () =
 
     expect(screen.getByText(/paused/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue session" })).toBeInTheDocument();
+  });
+});
+
+// gate-assembly-on-complete-scenes (JOS-150) task 6 — the header names the
+// failed scenes beside the failed phase (PRD §8.1).
+describe("SessionHeader failed scenes (JOS-150)", () => {
+  it("shows the failed phase and the failed scene indexes", () => {
+    const session = makeSession({ state: "failed", failedPhase: "scenes", failedSceneIndexes: [2, 5] });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.getByText(/Failed phase: scenes/)).toBeInTheDocument();
+    expect(screen.getByText(/Failed scenes: 2, 5/)).toBeInTheDocument();
+  });
+
+  it("shows no scene list for a session that failed in another phase", () => {
+    const session = makeSession({ state: "failed", failedPhase: "decomposition" });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.getByText(/Failed phase: decomposition/)).toBeInTheDocument();
+    expect(screen.queryByText(/Failed scenes/)).not.toBeInTheDocument();
   });
 });
 

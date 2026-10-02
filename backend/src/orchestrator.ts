@@ -27,6 +27,7 @@ import {
 } from "./db.ts";
 import * as concurrency from "./concurrency.ts";
 import { admitLaunch, launchHeldWork, registerStageLauncher, sessionHeldWork, type StageLauncher } from "./launchGate.ts";
+import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
 import { downloadGeneratedImage, getImageProviderRegistry, type ImageGenerationResult } from "./imageProvider.ts";
@@ -67,7 +68,9 @@ function sceneToPayload(scene: Scene): SceneEventPayload {
     errorCause: scene.status === "failed" ? scene.lastError : undefined,
     provider: scene.provider,
     attempts: scene.attempts,
-    result: scene.result ? { imageUrl: scene.result } : undefined,
+    // show-scene-results-and-actions (JOS-151), Decision 3 — the route path,
+    // relative to the API base; the stored file path stays internal.
+    result: scene.result ? { imageUrl: `/sessions/${scene.runId}/scenes/${scene.id}/image` } : undefined,
     instruction: scene.instruction,
     prompt: scene.prompt,
     imageInstruction: scene.imageInstruction,
@@ -88,6 +91,15 @@ export interface SessionProgress {
   hasVoiceOver?: boolean;
   /** A `timestamps` attempt was recorded, or the timestamps are stored. */
   timestampsStarted?: boolean;
+  /** A final video exists (US-16b records it). Defaults to false: all scenes complete is `final-video-generating`, not `final-video`. */
+  hasFinalVideo?: boolean;
+}
+
+export interface DerivedSessionState {
+  state: SessionState;
+  failedPhase?: string;
+  /** Present only when `failedPhase` is `"scenes"`: the failed scenes' indexes, ascending. */
+  failedSceneIndexes?: number[];
 }
 
 /** Derives the session state from its scenes, its recorded failure and its
@@ -99,30 +111,27 @@ export function deriveSessionState(
   scenes: Scene[],
   failure: SessionFailure | null = null,
   progress: SessionProgress = {},
-): { state: SessionState; failedPhase?: string } {
+): DerivedSessionState {
   if (scenes.length === 0) {
     if (failure) return { state: "failed", failedPhase: failure.phase };
     if (progress.timestampsStarted) return { state: "chunk-decomposing" };
     if (progress.hasVoiceOver) return { state: "voice-over-complete" };
     return { state: "submitted" };
   }
-  // generate-chunk-image (JOS-145), design Decision 4 — `image-complete`
-  // is not final until JOS-146 adds the video stage; a session made only of
-  // image-complete chunks is still processing, never `final-video`.
-  const anyProcessing = scenes.some(
-    (s) => s.status === "submitted" || s.status === "image-generating" || s.status === "image-complete",
-  );
-  if (anyProcessing) return { state: "chunks-processing" };
-  const anyFailed = scenes.some((s) => s.status === "failed");
-  if (anyFailed) return { state: "failed", failedPhase: "image" };
-  return { state: "final-video" };
+  // gate-assembly-on-complete-scenes (JOS-150), design Decisions 2-4 — PRD §8.1
+  // v1.3: a scene still generating (anything but chunk-complete or failed) keeps
+  // the session in `chunks-processing`, even beside a failed scene.
+  const gate = assemblyGate(scenes);
+  if (gate.open) return { state: progress.hasFinalVideo ? "final-video" : "final-video-generating" };
+  if (gate.processingSceneIndexes.length > 0) return { state: "chunks-processing" };
+  return { state: "failed", failedPhase: "scenes", failedSceneIndexes: gate.failedSceneIndexes };
 }
 
 export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const run = getRun(runId);
   if (!run) return undefined;
   const scenes = getScenesForRun(runId);
-  const { state, failedPhase } = deriveSessionState(scenes, run.failure, {
+  const { state, failedPhase, failedSceneIndexes } = deriveSessionState(scenes, run.failure, {
     hasVoiceOver: getVoiceOver(runId) !== undefined,
     timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
   });
@@ -138,6 +147,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     paused: run.paused,
     held: heldWork.stages.map((s) => ({ stage: s.stage, count: s.count })),
     failedPhase,
+    failedSceneIndexes,
     createdAt: run.createdAt,
     updatedAt: new Date().toISOString(),
   };

@@ -34,6 +34,8 @@ export interface SessionEventPayload {
   paused: boolean;
   held: Array<{ stage: string; count: number }>;
   failedPhase?: string;
+  /** JOS-150 — the failed scenes' indexes, ascending; present only when `failedPhase` is "scenes". */
+  failedSceneIndexes?: number[];
   updatedAt: string;
 }
 

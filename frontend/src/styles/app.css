@@ -250,6 +250,14 @@ button:hover:not(:disabled) {
   color: var(--color-text);
 }
 
+.scene-image,
+.scene-clip {
+  align-self: flex-start;
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+}
+
 .correction-form {
   display: flex;
   flex-direction: column;

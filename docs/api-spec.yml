@@ -142,6 +142,13 @@ paths:
                             - count
                       failedPhase:
                         type: string
+                      failedSceneIndexes:
+                        type: array
+                        items:
+                          type: integer
+                        description: 'PRD §8.1: the indexes of the failed scenes, ascending. Present
+                          only when failedPhase is "scenes". Derived and
+                          read-only.'
                       createdAt:
                         type: string
                       updatedAt:
@@ -329,6 +336,13 @@ paths:
                             - count
                       failedPhase:
                         type: string
+                      failedSceneIndexes:
+                        type: array
+                        items:
+                          type: integer
+                        description: 'PRD §8.1: the indexes of the failed scenes, ascending. Present
+                          only when failedPhase is "scenes". Derived and
+                          read-only.'
                       createdAt:
                         type: string
                       updatedAt:
@@ -692,6 +706,43 @@ paths:
                   - reason
                 additionalProperties: false
         "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /sessions/{sessionId}/scenes/{sceneId}/image:
+    get:
+      parameters:
+        - schema:
+            type: string
+            pattern: ^[0-9A-HJKMNP-TV-Z]{26}$
+          in: path
+          name: sessionId
+          required: true
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: sceneId
+          required: true
+      responses:
+        "200":
+          description: The image bytes (image/png or image/jpeg)
+          content:
+            application/json:
+              schema:
+                description: The image bytes (image/png or image/jpeg)
+        "404":
           description: Default Response
           content:
             application/json:
