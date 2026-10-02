@@ -39,23 +39,23 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. Frontend header (TDD)
 
-- [ ] 6.1 Failing component test in `test/components.test.tsx`: a `failed` session with `failedPhase: "scenes"` and `failedSceneIndexes: [2, 5]` renders the phase and "2, 5"; a session failed in another phase renders no scene list
-- [ ] 6.2 Add `failedSceneIndexes?: number[]` to the frontend `SessionEventPayload`; render it in `SessionHeader.tsx` next to the failed phase; make 6.1 pass
+- [x] 6.1 Failing component test in `test/components.test.tsx`: a `failed` session with `failedPhase: "scenes"` and `failedSceneIndexes: [2, 5]` renders the phase and "2, 5"; a session failed in another phase renders no scene list
+- [x] 6.2 Add `failedSceneIndexes?: number[]` to the frontend `SessionEventPayload`; render it in `SessionHeader.tsx` next to the failed phase; make 6.1 pass
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review every test that derives or reads a scene-based session state (`image-stage.test.ts`, `orchestrator.test.ts`, `scene-registration-session.test.ts`, `narration-interval-immutability.test.ts`) for assumptions this change breaks, beyond the one 3.3 already updates
-- [ ] 7.2 Confirm every scenario in `specs/scene-completion-gate/spec.md` has at least one test; list the mapping in the step 8 report
-- [ ] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit)
+- [x] 7.1 Review every test that derives or reads a scene-based session state (`image-stage.test.ts`, `orchestrator.test.ts`, `scene-registration-session.test.ts`, `narration-interval-immutability.test.ts`) for assumptions this change breaks, beyond the one 3.3 already updates
+- [x] 7.2 Confirm every scenario in `specs/scene-completion-gate/spec.md` has at least one test; list the mapping in the step 8 report
+- [x] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit)
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents
-- [ ] 8.2 Run the targeted tests (gate, derivation, transition table, API surface, components)
-- [ ] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`
-- [ ] 8.4 Verify the post-test state matches the baseline; restore it if not
-- [ ] 8.5 Create the report `openspec/changes/gate-assembly-on-complete-scenes/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
-- [ ] 8.6 Mark this step complete only after the tests pass and the report file exists
+- [x] 8.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents
+- [x] 8.2 Run the targeted tests (gate, derivation, transition table, API surface, components)
+- [x] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`
+- [x] 8.4 Verify the post-test state matches the baseline; restore it if not
+- [x] 8.5 Create the report `openspec/changes/gate-assembly-on-complete-scenes/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
+- [x] 8.6 Mark this step complete only after the tests pass and the report file exists
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 

@@ -243,6 +243,26 @@ describe("Session status class mapping (define-visual-design, Decision 2)", () =
   });
 });
 
+// gate-assembly-on-complete-scenes (JOS-150) task 6 — the header names the
+// failed scenes beside the failed phase (PRD §8.1).
+describe("SessionHeader failed scenes (JOS-150)", () => {
+  it("shows the failed phase and the failed scene indexes", () => {
+    const session = makeSession({ state: "failed", failedPhase: "scenes", failedSceneIndexes: [2, 5] });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.getByText(/Failed phase: scenes/)).toBeInTheDocument();
+    expect(screen.getByText(/Failed scenes: 2, 5/)).toBeInTheDocument();
+  });
+
+  it("shows no scene list for a session that failed in another phase", () => {
+    const session = makeSession({ state: "failed", failedPhase: "decomposition" });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.getByText(/Failed phase: decomposition/)).toBeInTheDocument();
+    expect(screen.queryByText(/Failed scenes/)).not.toBeInTheDocument();
+  });
+});
+
 // define-visual-design task 1.4 — regression guard: applying status classes
 // must not change any accessible name `define-frontend-stack` established.
 describe("Styling does not regress accessible names (define-visual-design)", () => {

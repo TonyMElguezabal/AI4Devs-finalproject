@@ -170,4 +170,10 @@ describe("The final video is refused until it exists (JOS-150, AC12)", () => {
 
     expect(res.statusCode).toBe(409);
   });
+
+  it("answers 404 for the final-video download of an unknown session", async () => {
+    const res = await app.inject({ method: "GET", url: "/sessions/01ARZ3NDEKTSV4RRFFQ69G5FAV/download/final-video" });
+
+    expect(res.statusCode).toBe(404);
+  });
 });
