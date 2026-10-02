@@ -31,6 +31,9 @@ const ALLOWED: ReadonlyArray<readonly [SessionState, SessionState]> = [
   ["voice-over-complete", "chunk-decomposing"],
   ["chunk-decomposing", "chunks-processing"],
   ["chunk-decomposing", "failed"],
+  // gate-assembly-on-complete-scenes (JOS-150): the two exits the assembly gate decides.
+  ["chunks-processing", "final-video-generating"],
+  ["chunks-processing", "failed"],
 ];
 
 const isAllowed = (from: SessionState, to: SessionState): boolean =>

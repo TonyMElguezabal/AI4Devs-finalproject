@@ -4,38 +4,38 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Create branch `feature/jos-150-gate-assembly-on-complete-scenes` from `feature/entrega-2-JAME` (the MVP integration branch; MVP changes do not target `main`), with no upstream set
-- [ ] 0.2 Verify the branch was created and is the current branch
+- [x] 0.1 Create branch `feature/jos-150-gate-assembly-on-complete-scenes` from `feature/entrega-2-JAME` (the MVP integration branch; MVP changes do not target `main`), with no upstream set
+- [x] 0.2 Verify the branch was created and is the current branch
 
 ## 1. Gate
 
-- [ ] 1.1 Confirm `deriveSessionState` on the base branch still has the three gaps this change fixes (the hand-written processing list without `video-generating`, all complete → `final-video`, `failedPhase: "image"`). If another story already changed it, update design.md before coding
-- [ ] 1.2 Check whether a JOS-146 or US-16b branch has touched `deriveSessionState`, `sessionStateMachine.ts` or the session payload since this proposal; record any overlap
-- [ ] 1.3 Confirm no test besides `scene-registration-session.test.ts` asserts `final-video` from derivation, and none asserts `failedPhase: "image"`
+- [x] 1.1 Confirm `deriveSessionState` on the base branch still has the three gaps this change fixes (the hand-written processing list without `video-generating`, all complete → `final-video`, `failedPhase: "image"`). If another story already changed it, update design.md before coding
+- [x] 1.2 Check whether a JOS-146 or US-16b branch has touched `deriveSessionState`, `sessionStateMachine.ts` or the session payload since this proposal; record any overlap
+- [x] 1.3 Confirm no test besides `scene-registration-session.test.ts` asserts `final-video` from derivation, and none asserts `failedPhase: "image"`
 
 ## 2. The gate (TDD, pure; design Decisions 1 and 2)
 
-- [ ] 2.1 Failing tests in `assembly-gate.test.ts`: open when every scene is `chunk-complete`; closed for an empty list; closed with `failedSceneIndexes` for a failed scene; closed with `processingSceneIndexes` for each non-final state (`submitted`, `image-generating`, `image-complete`, `video-generating`); both lists ascending when scenes are given out of order
-- [ ] 2.2 Implement `isSceneSettled` and `assemblyGate` in `assemblyGate.ts`, fully typed, and make 2.1 pass
+- [x] 2.1 Failing tests in `assembly-gate.test.ts`: open when every scene is `chunk-complete`; closed for an empty list; closed with `failedSceneIndexes` for a failed scene; closed with `processingSceneIndexes` for each non-final state (`submitted`, `image-generating`, `image-complete`, `video-generating`); both lists ascending when scenes are given out of order
+- [x] 2.2 Implement `isSceneSettled` and `assemblyGate` in `assemblyGate.ts`, fully typed, and make 2.1 pass
 
 ## 3. Session state derivation (TDD; design Decisions 2-4)
 
-- [ ] 3.1 Failing tests in a new `scene-completion-session.test.ts` for `deriveSessionState`: a failed scene beside one `video-generating` derives `chunks-processing`, and so does one beside a `submitted` scene; all failed or complete with at least one failed derives `failed`, `failedPhase: "scenes"`, `failedSceneIndexes` ascending; all complete derives `final-video-generating`; all complete with `hasFinalVideo: true` derives `final-video`; a scene-less decomposition failure is unchanged and has no `failedSceneIndexes`
-- [ ] 3.2 Rewrite the scene branch of `deriveSessionState` on top of `assemblyGate`/`isSceneSettled`; add `hasFinalVideo` to `SessionProgress` (default false); return `failedSceneIndexes`
-- [ ] 3.3 Update `scene-registration-session.test.ts`'s "is final-video once every chunk has reached chunk-complete" test to the new rule (`final-video-generating`), as design Risk 1 expects
-- [ ] 3.4 Make 3.1 and 3.3 pass
+- [x] 3.1 Failing tests in a new `scene-completion-session.test.ts` for `deriveSessionState`: a failed scene beside one `video-generating` derives `chunks-processing`, and so does one beside a `submitted` scene; all failed or complete with at least one failed derives `failed`, `failedPhase: "scenes"`, `failedSceneIndexes` ascending; all complete derives `final-video-generating`; all complete with `hasFinalVideo: true` derives `final-video`; a scene-less decomposition failure is unchanged and has no `failedSceneIndexes`
+- [x] 3.2 Rewrite the scene branch of `deriveSessionState` on top of `assemblyGate`/`isSceneSettled`; add `hasFinalVideo` to `SessionProgress` (default false); return `failedSceneIndexes`
+- [x] 3.3 Update `scene-registration-session.test.ts`'s "is final-video once every chunk has reached chunk-complete" test to the new rule (`final-video-generating`), as design Risk 1 expects
+- [x] 3.4 Make 3.1 and 3.3 pass
 
 ## 4. Transition table (TDD; design Decision 5)
 
-- [ ] 4.1 Add `["chunks-processing", "final-video-generating"]` and `["chunks-processing", "failed"]` to `session-state-machine.test.ts`'s `ALLOWED` list (the closed-table test then fails), then extend `ALLOWED_SESSION_TRANSITIONS` to make it pass
+- [x] 4.1 Add `["chunks-processing", "final-video-generating"]` and `["chunks-processing", "failed"]` to `session-state-machine.test.ts`'s `ALLOWED` list (the closed-table test then fails), then extend `ALLOWED_SESSION_TRANSITIONS` to make it pass
 
 ## 5. Session read and live updates (TDD)
 
-- [ ] 5.1 Failing tests (API surface): `GET /sessions/:id` carries `failedSceneIndexes` only on a scene-failed session; the snapshot the live updates resync from carries the same; the generated OpenAPI documents it on responses only, never on a request body
-- [ ] 5.2 Failing test of the sequence in the spec: scene 2 `failed` while scene 3 is `image-generating` reads `chunks-processing`; after scene 3 reaches `chunk-complete` and a broadcast, the received snapshot is `failed` with `failedSceneIndexes: [2]`
-- [ ] 5.3 Failing tests for kept results: in a `failed` session, a `chunk-complete` sibling's image and video downloads answer 200, and a scene failed after storing its image still carries its `result` on the read
-- [ ] 5.4 Failing test: with every scene `chunk-complete` (no final video), `GET /sessions/:id/download/final-video` answers 409
-- [ ] 5.5 Add `failedSceneIndexes` to `SessionEventPayload` (`types.ts`), `toSnapshot` and the Zod session schema (`routes.ts`, with a `.describe()` citing PRD §8.1); make 5.1-5.4 pass
+- [x] 5.1 Failing tests (API surface): `GET /sessions/:id` carries `failedSceneIndexes` only on a scene-failed session; the snapshot the live updates resync from carries the same; the generated OpenAPI documents it on responses only, never on a request body
+- [x] 5.2 Failing test of the sequence in the spec: scene 2 `failed` while scene 3 is `image-generating` reads `chunks-processing`; after scene 3 reaches `chunk-complete` and a broadcast, the received snapshot is `failed` with `failedSceneIndexes: [2]`
+- [x] 5.3 Failing tests for kept results: in a `failed` session, a `chunk-complete` sibling's image and video downloads answer 200, and a scene failed after storing its image still carries its `result` on the read
+- [x] 5.4 Failing test: with every scene `chunk-complete` (no final video), `GET /sessions/:id/download/final-video` answers 409
+- [x] 5.5 Add `failedSceneIndexes` to `SessionEventPayload` (`types.ts`), `toSnapshot` and the Zod session schema (`routes.ts`, with a `.describe()` citing PRD §8.1); make 5.1-5.4 pass
 
 ## 6. Frontend header (TDD)
 
