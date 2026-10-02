@@ -56,18 +56,18 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Start the real server on a scratch database and scratch projects folder, and confirm `GET /health` responds
-- [ ] 8.2 Create a session, store a real narration (reuse JOS-142's recorded one), run `runDecompositionPhase` with a stub instruction generator, then `curl GET /sessions/:id` and check every scene's `requestedDurationSeconds` against its `narrationInterval` by the §7.2 rule
-- [ ] 8.3 Force an over-maximum case (a scratch session whose script has a sentence narrated over 15 s with no clause boundary, or a direct registration with such an interval) and confirm `requestedDurationSeconds: 15` and `durationWarning: "exceeds-maximum"` on the session read
-- [ ] 8.4 Try to change the values: an extra field in every scene-writing route's body, and a direct `UPDATE` on the scratch database; confirm they are unchanged and the trigger message appears
-- [ ] 8.5 `curl GET /docs/json` and confirm both fields are documented on responses only
-- [ ] 8.6 Clean up through the test-only reset; confirm the scratch store is empty with all triggers, and the default store untouched
-- [ ] 8.7 Save `reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md` with every command and response
+- [x] 8.1 Start the real server on a scratch database and scratch projects folder, and confirm `GET /health` responds — `{"ok":true}`, migrations 2-10 applied
+- [x] 8.2 Create a session, store a real narration (reuse JOS-142's recorded one), run `runDecompositionPhase` with a stub instruction generator, then `curl GET /sessions/:id` and check every scene's `requestedDurationSeconds` against its `narrationInterval` by the §7.2 rule — 4 scenes, intervals matched JOS-143's own report exactly; requested durations [12, 14, 8, 13] all hand-verified against the ratio rule
+- [x] 8.3 Force an over-maximum case (a scratch session whose script has a sentence narrated over 15 s with no clause boundary, or a direct registration with such an interval) and confirm `requestedDurationSeconds: 15` and `durationWarning: "exceeds-maximum"` on the session read — confirmed, chunk `submitted`, session `chunks-processing`
+- [x] 8.4 Try to change the values: an extra field in every scene-writing route's body, and a direct `UPDATE` on the scratch database; confirm they are unchanged and the trigger message appears — confirmed on both fields
+- [x] 8.5 `curl GET /docs/json` and confirm both fields are documented on responses only — 2 occurrences each, 0 in any request body
+- [x] 8.6 Clean up through the test-only reset; confirm the scratch store is empty with all triggers, and the default store untouched — confirmed; two throwaway helper scripts deleted, never committed
+- [x] 8.7 Save `reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md` with every command and response
 
 ## 9. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Decide applicability: no screen changes. Check that the session page still lists the chunks with the payload's new fields, or record why not
-- [ ] 9.2 Save `reports/YYYY-MM-DD-step-9-e2e.md`
+- [x] 9.1 Decide applicability: no screen changes. Check that the session page still lists the chunks with the payload's new fields, or record why not — not applicable: `SceneRow.tsx`'s own existing comment already defers requested-duration display to JOS-148, and the frontend doesn't read `narrationInterval` either; zero `grep` matches in `frontend/src`
+- [x] 9.2 Save `reports/YYYY-MM-DD-step-9-e2e.md`
 
 ## 10. Update Technical Documentation (MANDATORY)
 
