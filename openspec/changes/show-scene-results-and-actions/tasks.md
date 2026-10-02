@@ -4,24 +4,25 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Create branch `feature/jos-151-show-scene-results-and-actions` from `feature/entrega-2-JAME` (the MVP integration branch; MVP changes do not target `main`), with no upstream set
-- [ ] 0.2 Verify the branch was created and is the current branch
+- [x] 0.1 Create branch `feature/jos-151-show-scene-results-and-actions` from `feature/entrega-2-JAME` (the MVP integration branch; MVP changes do not target `main`), with no upstream set
+- [x] 0.2 Verify the branch was created and is the current branch
 
 ## 1. Gate
 
-- [ ] 1.1 Confirm the base branch still has: `SceneList`'s ascending sort with its test, `useLiveSession`'s tests, `result.imageUrl` copied from `scene.result`, `affectedStage` unrendered, and actions on every failed scene. If another story changed any of these, update design.md before coding
-- [ ] 1.2 Check whether JOS-146, JOS-158, JOS-163 or JOS-150 branches have touched `SceneRow.tsx`, `sceneToPayload` or the per-scene routes since this proposal; record any overlap, especially JOS-150's (`gate-assembly-on-complete-scenes`) edits to the session payload
-- [ ] 1.3 Confirm `resolveArtefactPath` is exported from `db.ts` and wraps the write-side guard
+- [x] 1.1 Confirm the base branch still has: `SceneList`'s ascending sort with its test, `useLiveSession`'s tests, `result.imageUrl` copied from `scene.result`, `affectedStage` unrendered, and actions on every failed scene. If another story changed any of these, update design.md before coding
+- [x] 1.2 Check whether JOS-146, JOS-158, JOS-163 or JOS-150 branches have touched `SceneRow.tsx`, `sceneToPayload` or the per-scene routes since this proposal; record any overlap, especially JOS-150's (`gate-assembly-on-complete-scenes`) edits to the session payload
+  - Result: no overlap. `feature/jos-146-generate-chunk-video` has no source changes (only OpenSpec files); no JOS-158 or JOS-163 branch exists. JOS-150 adds `failedSceneIndexes` to the session payload and `SessionHeader.tsx`, and does not touch `sceneToPayload`, `SceneRow.tsx` or the per-scene routes, so the two changes merge without conflict.
+- [x] 1.3 Confirm `resolveArtefactPath` is exported from `db.ts` and wraps the write-side guard
 
 ## 2. Image route (TDD; design Decisions 1 and 2)
 
-- [ ] 2.1 Failing tests in a new `scene-image-route.test.ts`: a stored `.png` answers 200, `image/png`, with exact bytes; a stored `.jpg` answers `image/jpeg`; a scene of another session answers 404 without reading; a scene with no result, a missing file, and an unrecognised extension each answer 404; a stored `../other-session/scene-1.png` is refused (404) and the outside file is never read; the route is documented in the generated OpenAPI with no request body
-- [ ] 2.2 Implement the route in `routes.ts` (scoped lookup, `resolveArtefactPath`, extension-to-type map, streamed body); make 2.1 pass
+- [x] 2.1 Failing tests in a new `scene-image-route.test.ts`: a stored `.png` answers 200, `image/png`, with exact bytes; a stored `.jpg` answers `image/jpeg`; a scene of another session answers 404 without reading; a scene with no result, a missing file, and an unrecognised extension each answer 404; a stored `../other-session/scene-1.png` is refused (404) and the outside file is never read; the route is documented in the generated OpenAPI with no request body
+- [x] 2.2 Implement the route in `routes.ts` (scoped lookup, `resolveArtefactPath`, extension-to-type map, streamed body); make 2.1 pass
 
 ## 3. Payload (TDD; design Decision 3)
 
-- [ ] 3.1 Failing tests (API surface): a scene with a stored image carries `result.imageUrl` equal to `/sessions/{sessionId}/scenes/{sceneId}/image` on the read and in the live snapshot; a scene failed after storing its image still carries it; a scene with nothing stored has no `result`; no scene carries `videoUrl`
-- [ ] 3.2 Change `sceneToPayload` to build the URL from the scene's identifiers; make 3.1 pass
+- [x] 3.1 Failing tests (API surface): a scene with a stored image carries `result.imageUrl` equal to `/sessions/{sessionId}/scenes/{sceneId}/image` on the read and in the live snapshot; a scene failed after storing its image still carries it; a scene with nothing stored has no `result`; no scene carries `videoUrl`
+- [x] 3.2 Change `sceneToPayload` to build the URL from the scene's identifiers; make 3.1 pass
 
 ## 4. Frontend scene details (TDD; design Decisions 4 and 5)
 
