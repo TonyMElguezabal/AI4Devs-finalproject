@@ -26,30 +26,32 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 4. Frontend scene details (TDD; design Decisions 4 and 5)
 
-- [ ] 4.1 Failing tests in `test/components.test.tsx`: `sceneActions` gives retry and image correction only for `failed` + `image`, nothing for `failed` + `video`, nothing for any other state
-- [ ] 4.2 Failing tests: an expanded scene with `result.imageUrl` shows an image named "Scene N image" whose `src` is the API base plus that path; with `result.videoUrl` it shows a video player named "Scene N clip"; with no result it shows neither
-- [ ] 4.3 Failing tests: a failed `image` scene shows its error, "image" as the affected stage, the retry button and the correction form; a failed `video` scene shows its error and "video" and no retry button or correction form
-- [ ] 4.4 Update the two existing fixtures that set `imageUrl` to a raw file path to the new URL shape
-- [ ] 4.5 Implement `sceneActions`, the URL resolution in `api/client.ts`, and the `SceneRow.tsx` rendering; make 4.1-4.3 pass
+- [x] 4.1 Failing tests in `test/components.test.tsx`: `sceneActions` gives retry and image correction only for `failed` + `image`, nothing for `failed` + `video`, nothing for any other state
+- [x] 4.2 Failing tests: an expanded scene with `result.imageUrl` shows an image named "Scene N image" whose `src` is the API base plus that path; with `result.videoUrl` it shows a video player named "Scene N clip"; with no result it shows neither
+- [x] 4.3 Failing tests: a failed `image` scene shows its error, "image" as the affected stage, the retry button and the correction form; a failed `video` scene shows its error and "video" and no retry button or correction form
+- [x] 4.4 Update the two existing fixtures that set `imageUrl` to a raw file path to the new URL shape
+- [x] 4.5 Implement `sceneActions`, the URL resolution in `api/client.ts`, and the `SceneRow.tsx` rendering; make 4.1-4.3 pass
 
 ## 5. AC1 and AC2 evidence
 
-- [ ] 5.1 Map AC1 (order) and AC2 (live state without reload) to existing tests in `components.test.tsx` and `useLiveSession.test.tsx`; add a test only for a spec scenario that has none (expected: "a state change arrives" at the row level)
+- [x] 5.1 Map AC1 (order) and AC2 (live state without reload) to existing tests in `components.test.tsx` and `useLiveSession.test.tsx`; add a test only for a spec scenario that has none (expected: "a state change arrives" at the row level)
+  - AC1 (order): `components.test.tsx` "SceneList ordering (Decision 6)" and "SessionPage > renders scenes in the order received".
+  - AC2 (live state): `useLiveSession.test.tsx` "collapsed events per scene" and "applying the same event twice" at the hook level; the new "A live state change reaches the row (JOS-151)" at the row level. The new test passed on first run because the behaviour already existed; it pins it down.
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 6.1 Review backend tests reading `result` from the session payload, and frontend tests rendering failed scenes, for assumptions this change breaks beyond task 4.4
-- [ ] 6.2 Confirm every scenario in `specs/scene-detail-view/spec.md` has at least one test; list the mapping in the step 7 report
-- [ ] 6.3 Confirm module test coverage has not decreased (compare against this change's propose commit)
+- [x] 6.1 Review backend tests reading `result` from the session payload, and frontend tests rendering failed scenes, for assumptions this change breaks beyond task 4.4
+- [x] 6.2 Confirm every scenario in `specs/scene-detail-view/spec.md` has at least one test; list the mapping in the step 7 report
+- [x] 6.3 Confirm module test coverage has not decreased (compare against this change's propose commit)
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 7.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents
-- [ ] 7.2 Run the targeted tests (image route, API surface, components)
-- [ ] 7.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`
-- [ ] 7.4 Verify the post-test state matches the baseline; restore it if not
-- [ ] 7.5 Create the report `openspec/changes/show-scene-results-and-actions/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`
-- [ ] 7.6 Mark this step complete only after the tests pass and the report file exists
+- [x] 7.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents
+- [x] 7.2 Run the targeted tests (image route, API surface, components)
+- [x] 7.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`
+- [x] 7.4 Verify the post-test state matches the baseline; restore it if not
+- [x] 7.5 Create the report `openspec/changes/show-scene-results-and-actions/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`
+- [x] 7.6 Mark this step complete only after the tests pass and the report file exists
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
