@@ -78,8 +78,8 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. Close out
 
-- [ ] 11.1 Comment on JOS-146 (read the stored `requested_duration_seconds` instead of calling a function; its design Decision 4 and migration number need updating at its gate) and on JOS-148 (the request and `exceeds-maximum` are stored; the factor and the limit warning are its own)
+- [x] 11.1 Comment on JOS-146 (read the stored `requested_duration_seconds` instead of calling a function; its design Decision 4 and migration number need updating at its gate) and on JOS-148 (the request and `exceeds-maximum` are stored; the factor and the limit warning are its own) — JOS-146 commented and re-gated in the same session (its own gate task 1.1-1.6 re-run); JOS-148 comment posted
 - [ ] 11.2 Rebase onto `feature/entrega-2-JAME` once JOS-142 and JOS-143 merge
-- [ ] 11.3 Open the PR against `feature/entrega-2-JAME`, linking to JOS-147
+- [x] 11.3 Open the PR, linking to JOS-147 — [PR #17](https://github.com/TonyMElguezabal/AI4Devs-finalproject/pull/17), stacked against `feature/jos-143-assign-narration-intervals` (task 11.2 not yet done: retarget to `feature/entrega-2-JAME` once PR #16 merges). The whole stack was opened together: [PR #15](https://github.com/TonyMElguezabal/AI4Devs-finalproject/pull/15) (JOS-142 → entrega-2-JAME), [PR #16](https://github.com/TonyMElguezabal/AI4Devs-finalproject/pull/16) (JOS-143 → JOS-142's branch), this one (JOS-147 → JOS-143's branch)
 - [ ] 11.4 Get a review from at least one human
 - [ ] 11.5 Archive the OpenSpec change after merge
