@@ -80,7 +80,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. Close out
 
-- [ ] 11.1 Ask the user before commenting on JOS-163 (US-31) that its image download can build on this route, and on JOS-146 that it should fill `result.videoUrl` with its clip route
-- [ ] 11.2 Ask before pushing; open the PR with a description linking to JOS-151
-- [ ] 11.3 Obtain review by at least one human, not only AI agents
-- [ ] 11.4 Archive the OpenSpec change after merge
+- [x] 11.1 Ask the user before commenting on JOS-163 (US-31) that its image download can build on this route, and on JOS-146 that it should fill `result.videoUrl` with its clip route
+- [x] 11.2 Ask before pushing; open the PR with a description linking to JOS-151
+- [x] 11.3 Obtain review by at least one human, not only AI agents
+- [x] 11.4 Archive the OpenSpec change after merge
