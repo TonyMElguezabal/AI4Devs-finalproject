@@ -171,11 +171,20 @@ export const PER_PHASE_MAX_TIME_SECONDS = {
   assembly: "undetermined" as const, // define-media-assembly (JOS-182) not yet archived — report: step 8, task 8.5
 } as const;
 
-// ---- Speed-factor limit (§7.3, D11 dependency) ----
-// PROVISIONAL — define-media-assembly (JOS-182)'s Decision 5 owns the real
-// measurement; this change only records the number once that lands (task
-// 1.3, task 9.4). Not yet available.
-export const SPEED_FACTOR_LIMIT: number | "undetermined" = "undetermined";
+// ---- Speed-factor limit (§7.2, §7.3) ----
+// define-media-assembly (JOS-182, ADR 0005 Decision 5, PR #3, Accepted
+// 2026-09-26) measured a sharply asymmetric *mechanism* on the signed
+// playback-rate multiplier (speed-up: 0% duplicate frames up to 2.0×;
+// slow-down: duplication growing as `1 - rate`, reaching 50% at 0.5×) but
+// recommended a *numeric range* of 0.5× (floor) to 2.0× (ceiling) that is
+// reciprocal in both directions (ADR "Design open questions, answered" §2:
+// "asymmetric in basis, not ... in the recommended number"). Because this
+// module's `speed_factor` (record-speed-adjustment-factor, JOS-148) is the
+// unsigned `max(requested/narrated, narrated/requested) >= 1`, a signed
+// floor of 0.5x and a signed ceiling of 2.0x both map to the same unsigned
+// value — 1/0.5 = 2.0 and 2.0/1 = 2.0 — so one scalar limit on the unsigned
+// factor is sufficient; no direction-aware comparison is needed.
+export const SPEED_FACTOR_LIMIT: number = 2.0;
 
 // ---- Not-retryable failure signal (§10.1, Decision 5) ----
 /**
