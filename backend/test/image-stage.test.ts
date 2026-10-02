@@ -13,7 +13,7 @@ import {
   resetAll,
   resolveArtefactPath,
 } from "../src/db.ts";
-import { continueSession, deriveSessionState, launchImageStage, pauseSession, reconcileOnBoot } from "../src/orchestrator.ts";
+import { continueSession, correctAndRetry, deriveSessionState, imageStageLauncher, launchImageStage, manualRetry, pauseSession, reconcileOnBoot } from "../src/orchestrator.ts";
 import {
   createStubImageProvider,
   resetDownloadFetch,
@@ -24,6 +24,7 @@ import {
   type ImageProvider,
 } from "../src/imageProvider.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
+import { getSubmittedScenesForRun, markSceneInFlight, markScenePendingRetry } from "../src/db.ts";
 import { STAGE, STUB_PROVIDER_NAME } from "../src/types.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
 
@@ -456,6 +457,195 @@ describe("Resuming after a pause (continueSession)", () => {
   });
 });
 
+describe("Pause gate scenarios (JOS-152, task 3.1)", () => {
+  it("a scene queued for the cap slot when the pause arrives is not sent and releases the slot", async () => {
+    // Both scenes must be in the SAME session so pause applies to both
+    concurrency.setLimit(STAGE, 1);
+    const runId = randomUUID();
+    createRun(runId, "cap slot test", "The lighthouse stands alone. The keeper lit the lamp.", "en");
+    const fragments: SegmentedFragment[] = [
+      { text: "The lighthouse stands alone.", narrationInterval: { startSeconds: 0, endSeconds: 6 } },
+      { text: "The keeper lit the lamp.", narrationInterval: { startSeconds: 6, endSeconds: 12 } },
+    ];
+    const reg = await registerDecomposition(runId, fragments, stubGenerator(), 12);
+    if (!reg.ok) throw new Error("fixture failed");
+    const [first, second] = reg.sceneIds;
+
+    let resolveFirst!: (r: ImageGenerationResult) => void;
+    useStubAdapter({
+      generate(): Promise<ImageGenerationResult> {
+        return new Promise((res) => { resolveFirst = res; });
+      },
+    });
+
+    // first launches and holds the slot
+    launchImageStage(first!);
+    await waitFor(() => getScene(first!)?.status === "image-generating");
+
+    // second queues (no slot available)
+    launchImageStage(second!);
+
+    // pause while second is queued
+    pauseSession(runId);
+
+    // release first so second's slot callback fires
+    resolveFirst({ kind: "success", image: { source: "bytes", bytes: ACCEPTED_PNG, contentType: "image/png" } });
+    await waitFor(() => getScene(first!)?.status === "image-complete");
+
+    // give second's slot callback time to run
+    await new Promise((res) => setTimeout(res, 30));
+
+    // second never consumed an attempt (its slot callback found the session paused)
+    expect(getScene(second!)?.status).toBe("submitted");
+    expect(getScene(second!)?.attempts).toBe(0);
+  });
+
+  it("an automatic retry after a transient failure during the pause is recorded but not sent", async () => {
+    const { runId, sceneId } = await registeredScene();
+    let resolveFirst!: (r: ImageGenerationResult) => void;
+    let calls = 0;
+    useStubAdapter({
+      generate(): Promise<ImageGenerationResult> {
+        calls++;
+        return new Promise((res) => { resolveFirst = res; });
+      },
+    });
+
+    launchImageStage(sceneId);
+    // Wait until in-flight
+    await waitFor(() => getScene(sceneId)?.status === "image-generating");
+
+    pauseSession(runId); // pause while in-flight, before result
+
+    // Let the in-flight request fail
+    resolveFirst({ kind: "failed_transient", reason: "network blip" });
+    // Wait for the failure to be applied (scene goes back to submitted = pending retry)
+    await waitFor(() => getScene(sceneId)?.status === "submitted");
+
+    const callsAfterPause = calls;
+    await new Promise((res) => setTimeout(res, 40));
+    // No retry was sent while paused
+    expect(calls).toBe(callsAfterPause);
+    expect(getScene(sceneId)!.attempts).toBe(1);
+  });
+
+  it("a manual retry on a real chunk goes through the image adapter, not the stub path (task 3.3)", async () => {
+    const { runId, sceneId } = await registeredScene();
+    // Make the first attempt fail not-retryably so scene is failed
+    const stub = createStubImageProvider("not-retryable-failure");
+    useStubAdapter(stub);
+    launchImageStage(sceneId);
+    await waitForSettled(sceneId);
+    expect(getScene(sceneId)?.status).toBe("failed");
+
+    // Switch to a succeeding adapter for the retry
+    useStubAdapter(createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG }));
+
+    // manual retry while NOT paused: should go through image adapter
+    const result = manualRetry(sceneId);
+    expect(result.ok).toBe(true);
+    await waitForSettled(sceneId);
+
+    // image adapter (not stub provider.ts) was called on retry
+    expect(getScene(sceneId)?.status).toBe("image-complete");
+  });
+
+  it("a manual retry while paused is recorded as pending and not sent", async () => {
+    const { runId, sceneId } = await registeredScene();
+    const stub = createStubImageProvider("not-retryable-failure");
+    useStubAdapter(stub);
+    launchImageStage(sceneId);
+    await waitForSettled(sceneId);
+    expect(getScene(sceneId)?.status).toBe("failed");
+
+    pauseSession(runId);
+    const successAdapter = createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG });
+    useStubAdapter(successAdapter);
+
+    const result = manualRetry(sceneId);
+    expect(result.ok).toBe(true);
+
+    await new Promise((res) => setTimeout(res, 30));
+    // Held, not sent
+    expect(getScene(sceneId)?.status).toBe("submitted");
+    expect(successAdapter.calls).toEqual([]);
+  });
+
+  it("a correction while paused is recorded and not sent", async () => {
+    const { runId, sceneId } = await registeredScene();
+    useStubAdapter(createStubImageProvider("not-retryable-failure"));
+    launchImageStage(sceneId);
+    await waitForSettled(sceneId);
+    expect(getScene(sceneId)?.status).toBe("failed");
+
+    pauseSession(runId);
+    const successAdapter = createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG });
+    useStubAdapter(successAdapter);
+
+    const result = correctAndRetry(sceneId, "a corrected instruction");
+    expect(result.ok).toBe(true);
+    expect(getScene(sceneId)?.instruction).toBe("a corrected instruction");
+
+    await new Promise((res) => setTimeout(res, 30));
+    expect(getScene(sceneId)?.status).toBe("submitted"); // held
+    expect(successAdapter.calls).toEqual([]);
+  });
+
+  it("a request that succeeds during the pause is applied and nothing new is launched", async () => {
+    const { runId, sceneId } = await registeredScene();
+    let resolveAdapter!: (result: ImageGenerationResult) => void;
+    useStubAdapter({
+      generate(): Promise<ImageGenerationResult> {
+        return new Promise((res) => { resolveAdapter = res; });
+      },
+    });
+
+    launchImageStage(sceneId);
+    await new Promise((res) => setTimeout(res, 5)); // let it reach image-generating
+    expect(getScene(sceneId)?.status).toBe("image-generating");
+
+    pauseSession(runId); // pause while in-flight
+
+    // Resolve the in-flight request
+    resolveAdapter({ kind: "success", image: { source: "bytes", bytes: ACCEPTED_PNG, contentType: "image/png" } });
+    await waitForSettled(sceneId);
+
+    // Result applied, stage complete
+    expect(getScene(sceneId)?.status).toBe("image-complete");
+    // Session paused marker still set
+    expect(getRun(runId)?.paused).toBe(true);
+  });
+
+  it("a request that fails during the pause is applied and the retry is held", async () => {
+    const { runId, sceneId } = await registeredScene();
+    let resolveAdapter!: (result: ImageGenerationResult) => void;
+    let adapterCalls = 0;
+    useStubAdapter({
+      generate(): Promise<ImageGenerationResult> {
+        adapterCalls++;
+        return new Promise((res) => { resolveAdapter = res; });
+      },
+    });
+
+    launchImageStage(sceneId);
+    await waitFor(() => getScene(sceneId)?.status === "image-generating");
+
+    pauseSession(runId);
+
+    // Fail the in-flight request
+    resolveAdapter({ kind: "failed_transient", reason: "server error during pause" });
+    // Wait for the failure to be applied (back to submitted = pending retry)
+    await waitFor(() => getScene(sceneId)?.status === "submitted");
+
+    const callsAfterPause = adapterCalls;
+    await new Promise((res) => setTimeout(res, 40));
+    // Retry was NOT sent while paused
+    expect(adapterCalls).toBe(callsAfterPause);
+    expect(getScene(sceneId)?.attempts).toBe(1);
+    expect(getRun(runId)?.paused).toBe(true);
+  });
+});
+
 describe("Restart reconciliation (design Decision 6)", () => {
   it("a scene left image-generating on boot is reconciled as one failed transient attempt, never left polling", async () => {
     const { sceneId } = await registeredScene();
@@ -482,5 +672,59 @@ describe("Restart reconciliation (design Decision 6)", () => {
 
     await waitForSettled(sceneId);
     expect(getScene(sceneId)!.status).toBe("image-complete"); // the retry itself succeeded
+  });
+});
+
+// JOS-152 task 4.1 — image launcher heldWork
+describe("image stage launcher heldWork (JOS-152, task 4.1)", () => {
+  async function twoScenesInSession(): Promise<{ runId: string; sceneId1: string; sceneId2: string }> {
+    const runId = randomUUID();
+    createRun(runId, "heldWork test", "Scene one. Scene two.", "en");
+    const fragments: SegmentedFragment[] = [
+      { text: "Scene one.", narrationInterval: { startSeconds: 0, endSeconds: 6 } },
+      { text: "Scene two.", narrationInterval: { startSeconds: 6, endSeconds: 12 } },
+    ];
+    const result = await registerDecomposition(runId, fragments, stubGenerator(), 12);
+    if (!result.ok) throw new Error("fixture failed");
+    return { runId, sceneId1: result.sceneIds[0]!, sceneId2: result.sceneIds[1]! };
+  }
+
+  it("heldWork lists submitted scenes in ascending index order", async () => {
+    const { runId, sceneId1, sceneId2 } = await twoScenesInSession();
+    const scenes = getSubmittedScenesForRun(runId);
+    const held = imageStageLauncher.heldWork(runId);
+    expect(held.count).toBe(2);
+    expect(held.sceneIds[0]).toBe(scenes[0]!.id);
+    expect(held.sceneIds[1]).toBe(scenes[1]!.id);
+    expect([sceneId1, sceneId2]).toContain(held.sceneIds[0]);
+  });
+
+  it("heldWork returns nothing for scenes already in flight", async () => {
+    const { runId, sceneId1 } = await twoScenesInSession();
+    // Directly mark scene 1 as in-flight without driving the full async lifecycle
+    markSceneInFlight(sceneId1, randomUUID(), 1);
+    expect(getScene(sceneId1)!.status).toBe("image-generating");
+    const held = imageStageLauncher.heldWork(runId);
+    expect(held.sceneIds).not.toContain(sceneId1);
+  });
+
+  it("a pending retry (submitted after a transient failure) is held", async () => {
+    const { runId, sceneId1 } = await twoScenesInSession();
+    // Simulate: the scene went in-flight once, then a transient failure marked it back to submitted
+    markSceneInFlight(sceneId1, randomUUID(), 1);
+    markScenePendingRetry(sceneId1, "test transient failure");
+    // Scene is now submitted with attempts = 1 (a pending retry)
+    expect(getScene(sceneId1)!.status).toBe("submitted");
+    expect(getScene(sceneId1)!.attempts).toBe(1);
+    const held = imageStageLauncher.heldWork(runId);
+    expect(held.sceneIds).toContain(sceneId1);
+  });
+
+  it("a submitted scene in a non-paused session is still reported by heldWork (heldWork is pause-agnostic)", async () => {
+    // heldWork's job is to enumerate what would be launched on continue;
+    // it is the caller's responsibility to call it only while paused.
+    const { runId } = await twoScenesInSession();
+    const held = imageStageLauncher.heldWork(runId);
+    expect(held.count).toBe(2);
   });
 });

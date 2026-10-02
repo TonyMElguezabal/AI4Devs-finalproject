@@ -4,37 +4,37 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Check for an existing `jos-152` branch (local and remote) before creating one
-- [ ] 0.2 Create branch `feature/jos-152-pause-and-continue-session` from `feature/entrega-2-JAME` (the MVP integration branch; MVP changes do not target `main`), with no upstream set
-- [ ] 0.3 Verify the branch was created and is the current branch
+- [x] 0.1 Check for an existing `jos-152` branch (local and remote) before creating one
+- [x] 0.2 Create branch `feature/jos-152-pause-and-continue-session` from `feature/entrega-2-JAME` (the MVP integration branch; MVP changes do not target `main`), with no upstream set
+- [x] 0.3 Verify the branch was created and is the current branch
 
 ## 1. Confirm the baseline
 
-- [ ] 1.1 Confirm `orchestrator.ts` on the base branch still has the three inline `paused` checks (`launchScene`, `launchImageStage`, `runImageAttempt`) and the stub-versus-real choice in `continueSession`, `manualRetry` and `applyOutcome`. If another story changed them, update design.md before coding
-- [ ] 1.2 Check whether a JOS-136, JOS-146, JOS-184 or JOS-185 branch has added a launch, a retry scheduler or a clock since this proposal; record the overlap and which side adopts the gate
-- [ ] 1.3 Confirm the existing pause tests (`orchestrator.test.ts`, "session pause and continue") and the frontend header tests still describe today's behaviour, so the changes below are deliberate
+- [x] 1.1 Confirm `orchestrator.ts` on the base branch still has the three inline `paused` checks (`launchScene`, `launchImageStage`, `runImageAttempt`) and the stub-versus-real choice in `continueSession`, `manualRetry` and `applyOutcome`. If another story changed them, update design.md before coding
+- [x] 1.2 Check whether a JOS-136, JOS-146, JOS-184 or JOS-185 branch has added a launch, a retry scheduler or a clock since this proposal; record the overlap and which side adopts the gate
+- [x] 1.3 Confirm the existing pause tests (`orchestrator.test.ts`, "session pause and continue") and the frontend header tests still describe today's behaviour, so the changes below are deliberate
 
 ## 2. The launch gate and the launcher registry (TDD; design Decisions 1, 3, 10)
 
-- [ ] 2.1 Failing tests in `launch-gate.test.ts`: `admitLaunch` admits a session that is not paused, holds a paused one with reason `session-paused`, and holds again after a second pause; an unknown session is not admitted
-- [ ] 2.2 Failing tests for the registry: `registerStageLauncher` keeps pipeline order regardless of registration order; registering a stage twice is refused; `PIPELINE_STAGES` and `NOT_YET_LAUNCHABLE` are disjoint from the registry (the completeness check: neither-nor and both-and fail, per the spec scenarios)
-- [ ] 2.3 Implement `launchGate.ts` (`admitLaunch`, `PIPELINE_STAGES`, `NOT_YET_LAUNCHABLE`, `registerStageLauncher`, `heldWork`), fully typed, with fields declared explicitly (no parameter properties or enums, strip-only Node), and make 2.1 and 2.2 pass
-- [ ] 2.4 Add a registry reset helper for tests only, as `concurrency.resetAll` does
+- [x] 2.1 Failing tests in `launch-gate.test.ts`: `admitLaunch` admits a session that is not paused, holds a paused one with reason `session-paused`, and holds again after a second pause; an unknown session is not admitted
+- [x] 2.2 Failing tests for the registry: `registerStageLauncher` keeps pipeline order regardless of registration order; registering a stage twice is refused; `PIPELINE_STAGES` and `NOT_YET_LAUNCHABLE` are disjoint from the registry (the completeness check: neither-nor and both-and fail, per the spec scenarios)
+- [x] 2.3 Implement `launchGate.ts` (`admitLaunch`, `PIPELINE_STAGES`, `NOT_YET_LAUNCHABLE`, `registerStageLauncher`, `heldWork`), fully typed, with fields declared explicitly (no parameter properties or enums, strip-only Node), and make 2.1 and 2.2 pass
+- [x] 2.4 Add a registry reset helper for tests only, as `concurrency.resetAll` does
 
 ## 3. Wire the existing launches through the gate (TDD; design Decisions 1, 2, 5, 11)
 
-- [ ] 3.1 Failing tests in `orchestrator.test.ts` and `image-stage.test.ts`, one per held scenario: a first generation, a scene queued for a cap slot when the pause arrives (no attempt consumed, slot passes on), an automatic retry after a sent request fails during the pause, a manual retry during the pause, a correction during the pause; and one per sent-request scenario: success and failure during the pause are applied and nothing new is sent
-- [ ] 3.2 Replace the three inline checks with `admitLaunch`, on entry and again inside the slot callback immediately before the in-flight mark; confirm by reading the code that no `await` sits between them (design Decision 2)
-- [ ] 3.3 Add `launchSceneStage(sceneId)` as the single stub-versus-real dispatcher and call it from the sweep, `manualRetry` and `applyOutcome`; remove the duplicated `if`
-- [ ] 3.4 Failing test then change: a pause landing between the admission and the in-flight mark cannot occur (a launch is sent or held), using an injected hook between the two steps of the stub path and of `runImageAttempt`
-- [ ] 3.5 Route `reconcileOnBoot` launches through the gate; failing test first: a paused session whose request resolved while the process was down gets the result applied and nothing launched
-- [ ] 3.6 Wire `runDecompositionPhase` and `segmentStoredTimestamps` to the gate: while paused they return `{ ok: false, reason: "held" }` and start nothing (failing test first; extend `DecompositionPhaseResult`)
-- [ ] 3.7 Make 3.1 to 3.6 pass
+- [x] 3.1 Failing tests in `orchestrator.test.ts` and `image-stage.test.ts`, one per held scenario: a first generation, a scene queued for a cap slot when the pause arrives (no attempt consumed, slot passes on), an automatic retry after a sent request fails during the pause, a manual retry during the pause, a correction during the pause; and one per sent-request scenario: success and failure during the pause are applied and nothing new is sent
+- [x] 3.2 Replace the three inline checks with `admitLaunch`, on entry and again inside the slot callback immediately before the in-flight mark; confirm by reading the code that no `await` sits between them (design Decision 2)
+- [x] 3.3 Add `launchSceneStage(sceneId)` as the single stub-versus-real dispatcher and call it from the sweep, `manualRetry` and `applyOutcome`; remove the duplicated `if`
+- [x] 3.4 Failing test then change: a pause landing between the admission and the in-flight mark cannot occur (a launch is sent or held), using an injected hook between the two steps of the stub path and of `runImageAttempt`
+- [x] 3.5 Route `reconcileOnBoot` launches through the gate; failing test first: a paused session whose request resolved while the process was down gets the result applied and nothing launched
+- [x] 3.6 Wire `runDecompositionPhase` and `segmentStoredTimestamps` to the gate: while paused they return `{ ok: false, reason: "held" }` and start nothing (failing test first; extend `DecompositionPhaseResult`)
+- [x] 3.7 Make 3.1 to 3.6 pass
 
 ## 4. Held work and the image launcher (TDD; design Decisions 3, 4, 5, 6)
 
-- [ ] 4.1 Failing tests: `heldWork` for the image stage lists `submitted` scenes in ascending index; returns nothing for scenes already in flight; a retry recorded as pending is held; a scene queued for the cap in a session that is not paused is not reported held
-- [ ] 4.2 Register the image-stage launcher (`heldWork` from the `submitted` scenes, `launch` through `launchSceneStage`), remove `image` from `NOT_YET_LAUNCHABLE`, and make 4.1 pass
+- [x] 4.1 Failing tests: `heldWork` for the image stage lists `submitted` scenes in ascending index; returns nothing for scenes already in flight; a retry recorded as pending is held; a scene queued for the cap in a session that is not paused is not reported held
+- [x] 4.2 Register the image-stage launcher (`heldWork` from the `submitted` scenes, `launch` through `launchSceneStage`), remove `image` from `NOT_YET_LAUNCHABLE`, and make 4.1 pass
 - [ ] 4.3 Failing tests with test launchers for stages that do not exist yet: work that became startable during the pause (a decomposition and a video launcher whose `heldWork` becomes non-empty while paused) is reported held and is launched by continue; the session state before and after the pause is unchanged (design Decision 6)
 
 ## 5. Continue (TDD; design Decision 4)

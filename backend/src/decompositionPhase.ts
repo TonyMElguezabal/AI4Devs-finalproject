@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { AlignmentProvider } from "./alignmentProvider.ts";
 import { countScenesForRun, getNarrationTimestamps, getRun, getVoiceOver, resolveArtefactPath, setRunFailure } from "./db.ts";
+import { admitLaunch } from "./launchGate.ts";
 import { obtainNarrationTimestamps, storedFileSchema } from "./narrationTimestampsPhase.ts";
 import { broadcast, launchImageStageForRun } from "./orchestrator.ts";
 import { registerDecomposition, type RegistrationResult } from "./sceneRegistration.ts";
@@ -18,9 +19,9 @@ import type { VisualInstructionGenerator } from "./visualInstructions.ts";
 
 export type SegmentStoredResult =
   | RegistrationResult
-  | { ok: false; reason: "no-timestamps" };
+  | { ok: false; reason: "no-timestamps" | "held" };
 
-export type DecompositionPhaseResult = SegmentStoredResult | { ok: false; reason: "no-voice-over" };
+export type DecompositionPhaseResult = SegmentStoredResult | { ok: false; reason: "no-voice-over" | "held" };
 
 export interface DecompositionDependencies {
   alignmentProvider: AlignmentProvider;
@@ -55,6 +56,7 @@ export async function segmentStoredTimestamps(
 ): Promise<SegmentStoredResult> {
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown-session" };
+  if (!admitLaunch(runId).admitted) return { ok: false, reason: "held" };
   const timestamps = getNarrationTimestamps(runId);
   const voiceOver = getVoiceOver(runId);
   if (!timestamps || !voiceOver) return { ok: false, reason: "no-timestamps" };
@@ -81,6 +83,11 @@ export async function runDecompositionPhase(
   dependencies: DecompositionDependencies,
   now: () => Date = () => new Date(),
 ): Promise<DecompositionPhaseResult> {
+  const admission = admitLaunch(runId);
+  if (!admission.admitted) {
+    if (admission.reason === "unknown-session") return { ok: false, reason: "unknown-session" };
+    return { ok: false, reason: "held" };
+  }
   if (!getNarrationTimestamps(runId)) {
     const obtained = await obtainNarrationTimestamps(runId, dependencies.alignmentProvider, now);
     // "already-obtained" means another run stored them first, which is what this step needed.

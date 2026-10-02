@@ -2,11 +2,28 @@ import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import * as concurrency from "../src/concurrency.ts";
 import { createRun, db, getScene, getScenesForRun, resetAll } from "../src/db.ts";
-import { correctAndRetry, launchScene, manualRetry, RETRY_BUDGET } from "../src/orchestrator.ts";
+import { createStubImageProvider, resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
+import { correctAndRetry, launchImageStage, launchScene, manualRetry, RETRY_BUDGET } from "../src/orchestrator.ts";
 import { registerDecomposition } from "../src/sceneRegistration.ts";
 import { STAGE } from "../src/types.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
 import { contiguousFragments, voiceOverDurationOf } from "./fragmentFixtures.ts";
+
+function buildPng(width: number, height: number): Buffer {
+  const buf = Buffer.alloc(29);
+  buf[0] = 0x89; buf[1] = 0x50; buf[2] = 0x4e; buf[3] = 0x47; // PNG signature
+  buf[4] = 0x0d; buf[5] = 0x0a; buf[6] = 0x1a; buf[7] = 0x0a;
+  buf[8] = 0x00; buf[9] = 0x00; buf[10] = 0x00; buf[11] = 0x0d; // IHDR length
+  buf[12] = 0x49; buf[13] = 0x48; buf[14] = 0x44; buf[15] = 0x52; // IHDR
+  buf[16] = (width >> 24) & 0xff; buf[17] = (width >> 16) & 0xff;
+  buf[18] = (width >> 8) & 0xff; buf[19] = width & 0xff;
+  buf[20] = (height >> 24) & 0xff; buf[21] = (height >> 16) & 0xff;
+  buf[22] = (height >> 8) & 0xff; buf[23] = height & 0xff;
+  buf[24] = 8; buf[25] = 2; // bit depth / color type
+  return buf;
+}
+const ACCEPTED_PNG = buildPng(1920, 1088);
+const STUB_PROVIDER_ID = "stub-test";
 
 // assign-narration-intervals (JOS-143), group 5 — design Decision 6, AC4: no
 // processing, retry or correction changes a chunk's interval. These pass by
@@ -54,13 +71,15 @@ beforeEach(() => {
   resetAll();
   concurrency.resetAll();
   concurrency.setLimit(STAGE, 10);
+  resetImageProviderRegistry();
 });
 
 describe("A chunk's interval survives processing and retries (AC4)", () => {
   it("is unchanged after the stage completes", async () => {
     const { runId, sceneId } = await registeredSession();
 
-    launchScene(sceneId);
+    setImageProviderRegistry({ defaultIdentifier: STUB_PROVIDER_ID, adapters: { [STUB_PROVIDER_ID]: createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG }) } });
+    launchImageStage(sceneId); // image path (scene has imageInstruction)
     await waitFor(() => getScene(sceneId)?.status === "image-complete");
 
     expect(intervalsOf(runId)).toEqual(REGISTERED_INTERVALS);
@@ -68,18 +87,21 @@ describe("A chunk's interval survives processing and retries (AC4)", () => {
 
   it("is unchanged after a failure, its automatic retries, a manual retry and a corrected instruction", async () => {
     const { runId, sceneId } = await registeredSession();
-    db.prepare("UPDATE scenes SET provider_mode = 'transient_failure', provider_latency_ms = 5 WHERE id = ?").run(sceneId);
+    // Failure cycle: all attempts via image path (scene has imageInstruction)
+    setImageProviderRegistry({ defaultIdentifier: STUB_PROVIDER_ID, adapters: { [STUB_PROVIDER_ID]: createStubImageProvider("transient-failure") } });
 
-    launchScene(sceneId);
-    await waitFor(() => getScene(sceneId)?.status === "failed");
+    launchImageStage(sceneId); // image path — exhausts retry budget
+    await waitFor(() => getScene(sceneId)?.status === "failed", 5000);
     expect(getScene(sceneId)?.attempts).toBe(1 + RETRY_BUDGET);
     expect(intervalsOf(runId)).toEqual(REGISTERED_INTERVALS);
 
+    // manualRetry dispatches to launchImageStage; adapter still set to transient-failure
     expect(manualRetry(sceneId).ok).toBe(true);
-    await waitFor(() => getScene(sceneId)?.status === "failed");
+    await waitFor(() => getScene(sceneId)?.status === "failed", 5000);
     expect(intervalsOf(runId)).toEqual(REGISTERED_INTERVALS);
 
-    db.prepare("UPDATE scenes SET provider_mode = 'success' WHERE id = ?").run(sceneId);
+    // correctAndRetry with a success adapter
+    setImageProviderRegistry({ defaultIdentifier: STUB_PROVIDER_ID, adapters: { [STUB_PROVIDER_ID]: createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG }) } });
     expect(correctAndRetry(sceneId, "a corrected image instruction").ok).toBe(true);
     await waitFor(() => getScene(sceneId)?.status === "image-complete");
     expect(intervalsOf(runId)).toEqual(REGISTERED_INTERVALS);

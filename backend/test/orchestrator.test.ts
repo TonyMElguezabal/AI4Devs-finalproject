@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import * as concurrency from "../src/concurrency.ts";
-import { createRun, createScene, getLatestProviderRequestForScene, getScene, resetAll } from "../src/db.ts";
+import { createRun, createScene, getLatestProviderRequestForScene, getRun, getScene, resetAll } from "../src/db.ts";
 import {
   RETRY_BUDGET,
   continueSession,
@@ -12,6 +12,7 @@ import {
   nextStageLaunchCount,
   pauseSession,
   reconcileOnBoot,
+  setPostAdmitHook,
 } from "../src/orchestrator.ts";
 import { STAGE } from "../src/types.ts";
 
@@ -39,6 +40,7 @@ beforeEach(() => {
   resetAll();
   concurrency.resetAll();
   concurrency.setLimit(STAGE, 10); // generous, unrelated to the concurrency-cap experiment
+  setPostAdmitHook(undefined); // clear any hook left by a previous test
 });
 
 // Experiment 4.3 — retry budget.
@@ -196,6 +198,50 @@ describe("session pause and continue (PRD §9)", () => {
     pauseSession(runId); // pause after the request is already in flight
 
     await waitFor(() => getScene(sceneId)?.status === "image-complete");
+  });
+});
+
+// JOS-152 task 3.4 — atomicity: no pause can land between admission and in-flight mark
+describe("admission-to-in-flight atomicity (JOS-152, task 3.4, design Decision 2)", () => {
+  it("stub path: a pause injected between gate and in-flight mark still sends the request", () => {
+    const { runId, sceneId } = newRunWithScene("success", 5);
+
+    setPostAdmitHook((id) => {
+      pauseSession(id);
+    });
+
+    launchScene(sceneId);
+
+    setPostAdmitHook(undefined);
+
+    // The scene is in-flight despite the pause being set during the hook
+    expect(getScene(sceneId)!.status).toBe("image-generating");
+    // The pause is now set
+    expect(getRun(runId)!.paused).toBe(true);
+  });
+});
+
+// JOS-152 task 3.5 — reconcileOnBoot through the gate
+describe("reconcileOnBoot respects the pause gate (JOS-152, task 3.5)", () => {
+  it("applies a resolved request for a paused session but does not launch the retry", () => {
+    const { runId, sceneId } = newRunWithScene("unrecoverable", 5);
+    launchScene(sceneId);
+    expect(getScene(sceneId)!.status).toBe("image-generating");
+
+    // Simulate restart: clear in-memory concurrency state
+    concurrency.resetAll();
+    concurrency.setLimit(STAGE, 10);
+
+    // Pause the session before reconcileOnBoot runs
+    pauseSession(runId);
+
+    const summary = reconcileOnBoot();
+    expect(summary.recordedFailedAttempt).toBe(1);
+
+    // The failure is applied but no retry is sent (held by the gate)
+    const scene = getScene(sceneId)!;
+    expect(scene.status).toBe("submitted"); // pending retry, not failed — one attempt within budget
+    expect(scene.attempts).toBe(1); // no additional attempt
   });
 });
 
