@@ -245,6 +245,10 @@ export interface SceneEventPayload {
   videoInstruction?: string;
   /** PRD §3 narration interval; absent for a scene created without a decomposition. Immutable (assign-narration-intervals, JOS-143). */
   narrationInterval?: NarrationInterval;
+  /** The admitted clip duration requested for this chunk (PRD §7.2); absent for a scene created without a decomposition. Immutable (request-admitted-clip-duration, JOS-147). */
+  requestedDurationSeconds?: number;
+  /** Set only when the interval was narrated longer than the largest admitted duration (§6.1.1). Immutable. */
+  durationWarning?: DurationWarning;
   updatedAt: string;
 }
 

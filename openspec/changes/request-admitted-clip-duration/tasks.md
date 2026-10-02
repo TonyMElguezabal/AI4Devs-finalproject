@@ -29,13 +29,13 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 4. Stability across builds (spec: a different admitted set later)
 
-- [ ] 4.1 Test: a chunk registered with a 17.4 s interval still reads 15 s and `exceeds-maximum` while `requestedClipDuration(interval, 5..20)` now gives 17 s; a second registration is refused and leaves stored values unchanged
+- [x] 4.1 Test: a chunk registered with a 17.4 s interval still reads 15 s and `exceeds-maximum` while `requestedClipDuration(interval, 5..20)` now gives 17 s; a second registration is refused and leaves stored values unchanged — added to `scene-registration.test.ts`; passed immediately (nothing to implement for AC5 beyond group 3's storage, which already makes it hold by construction)
 
 ## 5. Exposure (design Decision 4; spec: readable)
 
-- [ ] 5.1 Failing tests in `scene-api-surface.test.ts`: the session read and scene events carry `requestedDurationSeconds` for registered chunks and `durationWarning` only when set; skeleton scenes omit both; the generated OpenAPI (`GET /docs/json`) documents both on the scene response only, never on a request body
-- [ ] 5.2 Add both fields to `SceneEventPayload`, `sceneToPayload` and the Zod scene schema in `routes.ts`, with a `.describe()` citing PRD §7.2 and §6.1.1 and stating they are immutable
-- [ ] 5.3 Make the 5.1 tests pass
+- [x] 5.1 Failing tests in `scene-api-surface.test.ts`: the session read and scene events carry `requestedDurationSeconds` for registered chunks and `durationWarning` only when set; skeleton scenes omit both; the generated OpenAPI (`GET /docs/json`) documents both on the scene response only, never on a request body — 5 new tests; 3 confirmed failing first (the other 2 passed trivially since the fields didn't exist yet on either side, matched "omitted"/"unchanged")
+- [x] 5.2 Add both fields to `SceneEventPayload`, `sceneToPayload` and the Zod scene schema in `routes.ts`, with a `.describe()` citing PRD §7.2 and §6.1.1 and stating they are immutable
+- [x] 5.3 Make the 5.1 tests pass — 22/22 in `scene-api-surface.test.ts`; typecheck clean
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 

@@ -178,3 +178,81 @@ describe("A chunk's narration interval is readable and never writable (JOS-143)"
     }
   });
 });
+
+// request-admitted-clip-duration (JOS-147), group 5 — design Decision 4: the
+// requested duration and its over-maximum warning are readable, never
+// writable, exactly as the interval they are derived from.
+describe("A chunk's requested duration is readable and never writable (JOS-147)", () => {
+  it("is carried by every scene of the session read", async () => {
+    const { sessionId } = await sessionWithChunks();
+
+    const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}` });
+
+    // 6 s interval -> 6 s (exact admitted match); 9 s interval -> 9 s (exact admitted match). Neither warns.
+    expect(res.json().scenes.map((scene: { requestedDurationSeconds: unknown; durationWarning: unknown }) => ({
+      requestedDurationSeconds: scene.requestedDurationSeconds,
+      durationWarning: scene.durationWarning,
+    }))).toEqual([
+      { requestedDurationSeconds: 6, durationWarning: undefined },
+      { requestedDurationSeconds: 9, durationWarning: undefined },
+    ]);
+  });
+
+  it("is carried by the snapshot entries the live updates resync from", async () => {
+    const { sessionId } = await sessionWithChunks();
+
+    const scenes = toSnapshot(sessionId)?.scenes ?? [];
+
+    expect(scenes.map((scene) => scene.requestedDurationSeconds)).toEqual([6, 9]);
+  });
+
+  it("is omitted for a scene created without a decomposition", async () => {
+    const { sessionId } = await sessionWithChunks();
+    const skeletonSceneId = "skeleton-scene-duration";
+    createScene(skeletonSceneId, sessionId, 4, "success", 10);
+
+    const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}` });
+
+    const skeleton = res.json().scenes.find((scene: { sceneId: string }) => scene.sceneId === skeletonSceneId);
+    expect(skeleton).toBeDefined();
+    expect("requestedDurationSeconds" in skeleton).toBe(false);
+    expect("durationWarning" in skeleton).toBe(false);
+  });
+
+  it("is unchanged when a correction body names it", async () => {
+    const { sessionId, sceneIds } = await sessionWithChunks();
+    const target = sceneIds[0]!;
+    markSceneFailed(target, "the provider failed");
+    const before = getScenesForRun(sessionId).map((scene) => ({
+      requestedDurationSeconds: scene.requestedDurationSeconds,
+      durationWarning: scene.durationWarning,
+    }));
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/scenes/${target}/correct`,
+      payload: { instruction: "a corrected image instruction", requestedDurationSeconds: 999, durationWarning: "exceeds-maximum" },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(
+      getScenesForRun(sessionId).map((scene) => ({
+        requestedDurationSeconds: scene.requestedDurationSeconds,
+        durationWarning: scene.durationWarning,
+      })),
+    ).toEqual(before);
+  });
+
+  it("is documented on the scene response and on no request body", async () => {
+    const res = await app.inject({ method: "GET", url: "/docs/json" });
+    const document = res.json() as { paths: Record<string, Record<string, { requestBody?: unknown }>> };
+
+    expect(JSON.stringify(document)).toContain("requestedDurationSeconds");
+    expect(JSON.stringify(document)).toContain("durationWarning");
+    for (const operations of Object.values(document.paths)) {
+      for (const operation of Object.values(operations)) {
+        expect(JSON.stringify(operation.requestBody ?? null)).not.toMatch(/requestedDuration|durationWarning/i);
+      }
+    }
+  });
+});
