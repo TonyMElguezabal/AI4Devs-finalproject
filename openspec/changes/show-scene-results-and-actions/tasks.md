@@ -72,10 +72,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 10. Update Technical Documentation (MANDATORY)
 
-- [ ] 10.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only changes are the image route and the `imageUrl` description
-- [ ] 10.2 `docs/data-model.md`: update the `result` bullet (stored path stays internal; exposed only as the image route's URL)
-- [ ] 10.3 `docs/backend-standards.md`: record that stored artefacts are read through the same project-folder guard as writes, scoped by `(session, scene)`
-- [ ] 10.4 `docs/frontend-standards.md`: record `sceneActions` as the one place scene actions are derived, and that JOS-158 extends it
+- [x] 10.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only changes are the image route and the `imageUrl` description
+  - Note: the generated diff is the new image route only; the session read's `result` is not described in the response schema, so there was no `imageUrl` description to change.
+- [x] 10.2 `docs/data-model.md`: update the `result` bullet (stored path stays internal; exposed only as the image route's URL)
+- [x] 10.3 `docs/backend-standards.md`: record that stored artefacts are read through the same project-folder guard as writes, scoped by `(session, scene)`
+- [x] 10.4 `docs/frontend-standards.md`: record `sceneActions` as the one place scene actions are derived, and that JOS-158 extends it
 
 ## 11. Close out
 
