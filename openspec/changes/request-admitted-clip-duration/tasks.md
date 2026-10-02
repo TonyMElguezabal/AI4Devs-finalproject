@@ -9,15 +9,15 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 1. Gate
 
-- [ ] 1.1 Confirm on this branch: `closestAdmittedDuration` implements §7.2 (smallest speed change, tie to the longer), `intervalDurationSeconds` and the stored interval exist, and `registerDecomposition`/`insertRegisteredScenes` have the shapes design.md's Context describes
-- [ ] 1.2 Confirm migration 10 is still free on `feature/entrega-2-JAME` and every open feature branch; renumber design.md and these tasks if not
-- [ ] 1.3 If JOS-143 or JOS-142 merged since this branch was cut, rebase onto `feature/entrega-2-JAME` first
+- [x] 1.1 Confirm on this branch: `closestAdmittedDuration` implements §7.2 (smallest speed change, tie to the longer), `intervalDurationSeconds` and the stored interval exist, and `registerDecomposition`/`insertRegisteredScenes` have the shapes design.md's Context describes — confirmed: all four match exactly (`admittedDurations.ts`, `sceneRegistration.ts`, `db.ts`)
+- [x] 1.2 Confirm migration 10 is still free on `feature/entrega-2-JAME` and every open feature branch; renumber design.md and these tasks if not — confirmed 2026-10-02: highest version across every local and remote branch is 9 (this branch, via JOS-143); JOS-146 plans 11 for itself at its own gate. 10 is free
+- [x] 1.3 If JOS-143 or JOS-142 merged since this branch was cut, rebase onto `feature/entrega-2-JAME` first — neither has merged (`git merge-base --is-ancestor b5ec062 origin/feature/entrega-2-JAME` is false); stays stacked
 
 ## 2. The requested duration (design Decision 1; spec: smallest speed change, admitted range, over the maximum)
 
-- [ ] 2.1 Failing tests in `admitted-durations.test.ts`: `requestedClipDuration` gives 6 s for 5.49 s, 9 s for 9.4 s, 6 s for √30 s, 5 s for 3.2 s with no warning, 15 s for exactly 15 s with no warning, 15 s for 17.4 s with `exceeds-maximum`; `closestAdmittedDuration` with an explicit admitted list 5-20 gives 17 s for 17.4 s; its existing tests still pass with the default list
-- [ ] 2.2 Add the optional `admitted` argument to `closestAdmittedDuration` and implement `requestedClipDuration`, fully typed
-- [ ] 2.3 Make the 2.1 tests pass
+- [x] 2.1 Failing tests in `admitted-durations.test.ts`: `requestedClipDuration` gives 6 s for 5.49 s, 9 s for 9.4 s, 6 s for √30 s, 5 s for 3.2 s with no warning, 15 s for exactly 15 s with no warning, 15 s for 17.4 s with `exceeds-maximum`; `closestAdmittedDuration` with an explicit admitted list 5-20 gives 17 s for 17.4 s; its existing tests still pass with the default list — 9 new tests, confirmed failing (`requestedClipDuration is not a function`) before implementation
+- [x] 2.2 Add the optional `admitted` argument to `closestAdmittedDuration` and implement `requestedClipDuration`, fully typed — `admittedDurations.ts`. Also moved `intervalDurationSeconds` here from `sceneRegistration.ts` (re-exported from there unchanged) to avoid a circular import: `requestedClipDuration` needs it, and `sceneRegistration.ts` will need `requestedClipDuration` (group 3)
+- [x] 2.3 Make the 2.1 tests pass — 25/25 in `admitted-durations.test.ts`. First full-suite run had one `orchestrator.test.ts` retry-budget failure (a real-timer `waitFor` test); a second full run passed 615/615, and the same test passed 3/3 times in isolation on both this branch and the unmodified one. Treated as a pre-existing timing flake, not a regression from this change
 
 ## 3. Storage and locks (design Decisions 2 and 3; spec: stored, never changes)
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { VIDEO_ADMITTED_DURATIONS_SECONDS, VIDEO_ADMITTED_DURATION_SECONDS } from "../src/config/providers.ts";
-import { closestAdmittedDuration } from "../src/admittedDurations.ts";
+import { closestAdmittedDuration, requestedClipDuration } from "../src/admittedDurations.ts";
 
 // segment-script-into-chunks (JOS-140), group 2 — design Decision 6 and PRD
 // §7.2: the admitted clip durations, and "closest" defined as the smallest
@@ -76,5 +76,58 @@ describe("The closest admitted duration (PRD §7.2)", () => {
 
   it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])("refuses a narrated duration of %s", (narrated) => {
     expect(() => closestAdmittedDuration(narrated)).toThrow(RangeError);
+  });
+
+  it("accepts an explicit admitted-durations list, scoring against it instead of the default", () => {
+    // With 5-20, 17.4 s is closest to 17 (ratio 17.4/17 = 1.0235), not 15.
+    const result = closestAdmittedDuration(17.4, [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+    expect(result.admitted).toBe(17);
+  });
+
+  it("defaults to the recorded admitted set when no explicit list is given", () => {
+    expect(closestAdmittedDuration(9.4, VIDEO_ADMITTED_DURATIONS_SECONDS)).toEqual(closestAdmittedDuration(9.4));
+  });
+});
+
+describe("requestedClipDuration (request-admitted-clip-duration, JOS-147)", () => {
+  it("picks the admitted duration by smallest speed change, not fewest seconds", () => {
+    // 5.49 s: 5 s needs 5.49/5 = 1.098; 6 s needs 6/5.49 = 1.093. 6 wins despite being farther in seconds.
+    const result = requestedClipDuration({ startSeconds: 0, endSeconds: 5.49 });
+    expect(result).toEqual({ seconds: 6, warning: null });
+  });
+
+  it("picks a shorter admitted duration when it is closer", () => {
+    const result = requestedClipDuration({ startSeconds: 0, endSeconds: 9.4 });
+    expect(result).toEqual({ seconds: 9, warning: null });
+  });
+
+  it("gives an exact tie to the longer duration", () => {
+    const result = requestedClipDuration({ startSeconds: 0, endSeconds: Math.sqrt(30) });
+    expect(result).toEqual({ seconds: 6, warning: null });
+  });
+
+  it("requests the smallest admitted duration below the minimum, with no warning", () => {
+    const result = requestedClipDuration({ startSeconds: 0, endSeconds: 3.2 });
+    expect(result).toEqual({ seconds: 5, warning: null });
+  });
+
+  it("requests the maximum at exactly the maximum, with no warning", () => {
+    const result = requestedClipDuration({ startSeconds: 0, endSeconds: 15 });
+    expect(result).toEqual({ seconds: 15, warning: null });
+  });
+
+  it("requests the maximum with exceeds-maximum above it (an unsplittable sentence)", () => {
+    const result = requestedClipDuration({ startSeconds: 0, endSeconds: 17.4 });
+    expect(result).toEqual({ seconds: 15, warning: "exceeds-maximum" });
+  });
+
+  it("derives the narrated duration from the interval, not a precomputed value", () => {
+    expect(requestedClipDuration({ startSeconds: 100, endSeconds: 105.49 })).toEqual({ seconds: 6, warning: null });
+  });
+
+  it("scores against an explicit admitted list when given one", () => {
+    const wide = Array.from({ length: 16 }, (_, i) => 5 + i); // 5..20
+    const result = requestedClipDuration({ startSeconds: 0, endSeconds: 17.4 }, wide);
+    expect(result).toEqual({ seconds: 17, warning: null });
   });
 });

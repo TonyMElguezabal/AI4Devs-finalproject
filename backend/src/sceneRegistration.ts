@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { intervalDurationSeconds, requestedClipDuration } from "./admittedDurations.ts";
 import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS } from "./config/providers.ts";
 import { countScenesForRun, getRun, insertRegisteredScenes, setRunFailure } from "./db.ts";
 import { broadcast } from "./orchestrator.ts";
@@ -18,10 +19,10 @@ import type { VisualInstructionGenerator, VisualInstructionPair } from "./visual
 /** The two §6.1.1 exceptions segmentation may flag on a fragment outside the bounds. */
 export type FragmentException = "script-below-lower-bound" | "unsplittable-sentence";
 
-/** The narrated duration of an interval; the one place it is derived, so a duration can never disagree with its interval. */
-export function intervalDurationSeconds(interval: NarrationInterval): number {
-  return interval.endSeconds - interval.startSeconds;
-}
+// `intervalDurationSeconds` now lives in admittedDurations.ts (request-admitted-clip-duration,
+// JOS-147): requestedClipDuration needs it, and this module needs requestedClipDuration, so
+// defining it here would create a cycle. Re-exported so existing callers are unaffected.
+export { intervalDurationSeconds };
 
 /** What segmentation hands over for each fragment, in script order. */
 export interface SegmentedFragment {
