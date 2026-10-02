@@ -85,7 +85,7 @@ Every code change starts with a failing test (TDD). Backend only; no screen chan
 ## 13. Close out
 
 - [x] 13.1 Comment on JOS-149 and JOS-148: where the stored intervals live and how to read them
-- [ ] 13.2 Rebase onto `feature/entrega-2-JAME` once JOS-142's PR merges
-- [x] 13.3 Open the PR, linking to JOS-143 — [PR #16](https://github.com/TonyMElguezabal/AI4Devs-finalproject/pull/16), stacked against `feature/jos-142-decide-silence-allocation` (task 13.2 not yet done: retarget to `feature/entrega-2-JAME` once PR #15 merges)
-- [ ] 13.4 Get a review from at least one human
-- [ ] 13.5 Archive the OpenSpec change after merge
+- [x] 13.2 Rebase onto `feature/entrega-2-JAME` once JOS-142's PR merges — landed via the fold-in PR #18 (from `feature/jos-147-request-admitted-clip-duration`, which carried this branch's commits too), not a rebase of this branch directly; same net effect
+- [x] 13.3 Open the PR, linking to JOS-143 — [PR #16](https://github.com/TonyMElguezabal/AI4Devs-finalproject/pull/16), merged
+- [x] 13.4 Get a review from at least one human — reviewed and merged by Jose Muñoz Elguezabal (2026-10-02)
+- [x] 13.5 Archive the OpenSpec change after merge
