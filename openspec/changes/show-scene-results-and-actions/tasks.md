@@ -55,11 +55,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Start the real server on a scratch store and scratch projects folder; confirm `GET /health`
-- [ ] 8.2 Create a session, register chunks, and store a real PNG as one scene's result (as the image stage would); `curl GET /sessions/:id` shows `result.imageUrl`; `curl` that URL returns 200, `image/png`, and bytes identical to the file (`cmp`)
-- [ ] 8.3 Error cases: the same scene under another session's id, a scene with no image, and a stored result pointing outside the folder all answer 404, and the outside file is not read
-- [ ] 8.4 `curl GET /docs/json`: the image route is documented with no request body
-- [ ] 8.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/show-scene-results-and-actions/reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`
+- [x] 8.1 Start the real server on a scratch store and scratch projects folder; confirm `GET /health`
+- [x] 8.2 Create a session, register chunks, and store a real PNG as one scene's result (as the image stage would); `curl GET /sessions/:id` shows `result.imageUrl`; `curl` that URL returns 200, `image/png`, and bytes identical to the file (`cmp`)
+- [x] 8.3 Error cases: the same scene under another session's id, a scene with no image, and a stored result pointing outside the folder all answer 404, and the outside file is not read
+- [x] 8.4 `curl GET /docs/json`: the image route is documented with no request body
+- [x] 8.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/show-scene-results-and-actions/reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`
 
 ## 9. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
