@@ -72,7 +72,7 @@ describe("The derived session state (Decision 6, AC5)", () => {
     expect(deriveSessionState([])).toEqual({ state: "submitted" });
   });
 
-  it("is final-video once every chunk has reached chunk-complete (JOS-146's video stage, not yet wired here)", async () => {
+  it("is final-video-generating once every chunk has reached chunk-complete, until a final video exists (JOS-150, PRD §8.1 v1.3)", async () => {
     // No code path in this story ever produces a real chunk-complete scene
     // (generate-chunk-video, JOS-146, owns the video stage that does); the
     // status is forced directly to exercise deriveSessionState's own truth
@@ -82,7 +82,7 @@ describe("The derived session state (Decision 6, AC5)", () => {
     for (const scene of getScenesForRun(runId)) {
       db.prepare("UPDATE scenes SET status = 'chunk-complete' WHERE id = ?").run(scene.id);
     }
-    expect(deriveSessionState(getScenesForRun(runId), getRun(runId)?.failure)).toEqual({ state: "final-video" });
+    expect(deriveSessionState(getScenesForRun(runId), getRun(runId)?.failure)).toEqual({ state: "final-video-generating" });
   });
 });
 

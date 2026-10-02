@@ -112,6 +112,12 @@ const sessionResponseSchema = z.object({
   state: z.string(),
   paused: z.boolean(),
   failedPhase: z.string().optional(),
+  failedSceneIndexes: z
+    .array(z.number().int())
+    .optional()
+    .describe(
+      "PRD §8.1: the indexes of the failed scenes, ascending. Present only when failedPhase is \"scenes\". Derived and read-only.",
+    ),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
