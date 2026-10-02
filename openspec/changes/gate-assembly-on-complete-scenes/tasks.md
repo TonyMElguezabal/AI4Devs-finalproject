@@ -59,19 +59,19 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the real server on a scratch store and scratch projects folder; confirm `GET /health`
-- [ ] 9.2 Create a session and register chunks directly (`registerDecomposition`, as JOS-148's step 9 did); set one scene `failed` and one `video-generating` and `curl GET /sessions/:id`: `chunks-processing`, no `failedSceneIndexes`
-- [ ] 9.3 Move the generating scene to `chunk-complete`: `failed`, `failedPhase: "scenes"`, `failedSceneIndexes` naming the failed scene; the complete scene's downloads answer 200
-- [ ] 9.4 In a second session, set every scene `chunk-complete`: `final-video-generating`, and `GET .../download/final-video` answers 409
-- [ ] 9.5 `curl GET /docs/json`: `failedSceneIndexes` documented on responses only
-- [ ] 9.6 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/gate-assembly-on-complete-scenes/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`
+- [x] 9.1 Start the real server on a scratch store and scratch projects folder; confirm `GET /health`
+- [x] 9.2 Create a session and register chunks directly (`registerDecomposition`, as JOS-148's step 9 did); set one scene `failed` and one `video-generating` and `curl GET /sessions/:id`: `chunks-processing`, no `failedSceneIndexes`
+- [x] 9.3 Move the generating scene to `chunk-complete`: `failed`, `failedPhase: "scenes"`, `failedSceneIndexes` naming the failed scene; the complete scene's downloads answer 200
+- [x] 9.4 In a second session, set every scene `chunk-complete`: `final-video-generating`, and `GET .../download/final-video` answers 409
+- [x] 9.5 `curl GET /docs/json`: `failedSceneIndexes` documented on responses only
+- [x] 9.6 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/gate-assembly-on-complete-scenes/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: the session header changes, so it applies
-- [ ] 10.2 Run backend (scratch store) and frontend; prepare a session whose scenes leave it `failed` with two failed scenes
-- [ ] 10.3 Open the session page and confirm the header shows the failed phase and both scene indexes, and that the complete scenes' rows still offer their downloads
-- [ ] 10.4 Restore the environment and save `openspec/changes/gate-assembly-on-complete-scenes/reports/YYYY-MM-DD-step-10-e2e.md`
+- [x] 10.1 Decide applicability: the session header changes, so it applies
+- [x] 10.2 Run backend (scratch store) and frontend; prepare a session whose scenes leave it `failed` with two failed scenes
+- [x] 10.3 Open the session page and confirm the header shows the failed phase and both scene indexes, and that the complete scenes' rows still offer their downloads
+- [x] 10.4 Restore the environment and save `openspec/changes/gate-assembly-on-complete-scenes/reports/YYYY-MM-DD-step-10-e2e.md`
 
 ## 11. Update Technical Documentation (MANDATORY)
 
