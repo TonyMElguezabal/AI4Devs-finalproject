@@ -65,14 +65,14 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the real server on a scratch database and scratch projects folder, confirm `GET /health` responds with migrations 2-11 applied
-- [ ] 9.2 Create a session, store a real narration, run `runDecompositionPhase`, then `curl GET /sessions/:id` and hand-verify each scene's `speedFactor` against `requestedDurationSeconds`/`narrationInterval` by the group 2 formula
-- [ ] 9.3 Force a factor-over-limit case and confirm `speedFactorWarning` is set on the session read while the chunk stays `submitted` (not failed) and the session stays `chunks-processing`
-- [ ] 9.4 Force the unsplittable-sentence case and confirm the chunk carries both `durationWarning: "exceeds-maximum"` and `speedFactorWarning`, independently
-- [ ] 9.5 Try to change the values: an extra field in every scene-writing route's body, and a direct `UPDATE` on the scratch database; confirm both are refused with the trigger message
-- [ ] 9.6 `curl GET /docs/json` and confirm the two fields are documented on responses only, never in a request body
-- [ ] 9.7 Clean up through the test-only reset; confirm the scratch store is empty, the default store untouched
-- [ ] 9.8 Save `openspec/changes/record-speed-adjustment-factor/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md` with every command and response
+- [x] 9.1 Start the real server on a scratch database and scratch projects folder, confirm `GET /health` responds with migrations 2-11 applied — `{"ok":true}`
+- [x] 9.2 Create a session, store a real narration, run `runDecompositionPhase`, then `curl GET /sessions/:id` and hand-verify each scene's `speedFactor` against `requestedDurationSeconds`/`narrationInterval` by the group 2 formula — `runDecompositionPhase` is not wired to any route yet (confirmed, same as JOS-147's own finding); registered chunks directly via `registerDecomposition` with a stub generator instead, same pattern JOS-147's own step 8 used. 3 scenes hand-verified: 6/6→1, 9.5/10→1.05263..., 5/5→1, all matching exactly
+- [x] 9.3 Force a factor-over-limit case and confirm `speedFactorWarning` is set on the session read while the chunk stays `submitted` (not failed) and the session stays `chunks-processing` — 35s/15s→2.333 over the 2.0 limit: confirmed `speedFactorWarning: "exceeds-limit"`, scene `submitted`, session `chunks-processing`
+- [x] 9.4 Force the unsplittable-sentence case and confirm the chunk carries both `durationWarning: "exceeds-maximum"` and `speedFactorWarning`, independently — same scene as 9.3 (the 35s unsplittable sentence triggers both at once): confirmed both present together
+- [x] 9.5 Try to change the values: an extra field in every scene-writing route's body, and a direct `UPDATE` on the scratch database; confirm both are refused with the trigger message — correction route (409, scene not `failed`) left values unchanged on re-read; direct `UPDATE` on both columns refused with `locked: scenes.speed_factor[_warning] cannot be modified...`
+- [x] 9.6 `curl GET /docs/json` and confirm the two fields are documented on responses only, never in a request body — 4/2 occurrences, 0 in any `requestBody`
+- [x] 9.7 Clean up through the test-only reset; confirm the scratch store is empty, the default store untouched — scratch `runs`/`scenes` back to 0; default store re-checked untouched (different `DB_PATH` throughout); scratch directory removed
+- [x] 9.8 Save `openspec/changes/record-speed-adjustment-factor/reports/2026-10-02-step-9-manual-endpoint-testing.md` with every command and response
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
