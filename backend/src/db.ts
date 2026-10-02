@@ -14,6 +14,7 @@ import { existsSync, linkSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve, sep } from "node:path";
 import type {
   AttemptStage,
+  NarrationInterval,
   ProviderOutcomeMode,
   ProviderRequestRow,
   Run,
@@ -140,6 +141,21 @@ export const SCENE_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER scenes_no_delete BEFO
     SELECT RAISE(ABORT, 'locked: scenes cannot be deleted once the chunk is established');
   END;`;
 
+// assign-narration-intervals (JOS-143) Decision 3 — a chunk's narration interval
+// is never edited (PRD §3 "No permitida", AC4), not even by processing or
+// retries, which run inside the backend and so are stopped here, below the
+// application code. A constant of its own, not an addition to
+// LOCKED_SCENE_COLUMNS: migration 7 builds its triggers from that array, and
+// an applied migration's behaviour is never edited.
+const LOCKED_SCENE_INTERVAL_COLUMNS = ["narration_start_seconds", "narration_end_seconds"] as const;
+
+export const SCENE_INTERVAL_LOCK_TRIGGERS_DDL: readonly string[] = LOCKED_SCENE_INTERVAL_COLUMNS.map(
+  (column) => `CREATE TRIGGER scenes_${column}_locked BEFORE UPDATE OF ${column} ON scenes
+    BEGIN
+      SELECT RAISE(ABORT, 'locked: scenes.${column} cannot be modified once the chunk is established');
+    END;`,
+);
+
 // obtain-narration-timestamps (JOS-139) Decision 7 — the obtained timestamps are
 // stored once and never replaced (PRD §10.3: segmentation and every retry use
 // the same ones). `resetAll()` (test-only) lifts the delete trigger inside its
@@ -260,6 +276,16 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       `);
       target.exec(NARRATION_TIMESTAMPS_NO_UPDATE_TRIGGER_DDL);
       target.exec(NARRATION_TIMESTAMPS_NO_DELETE_TRIGGER_DDL);
+    },
+  },
+  {
+    version: 9,
+    description: "add the chunk narration interval columns and their locks (assign-narration-intervals, JOS-143)",
+    up: (target) => {
+      // Nullable: scenes created by the pre-decomposition skeleton path have no interval, and a default would be a fake one.
+      target.exec("ALTER TABLE scenes ADD COLUMN narration_start_seconds REAL");
+      target.exec("ALTER TABLE scenes ADD COLUMN narration_end_seconds REAL");
+      for (const ddl of SCENE_INTERVAL_LOCK_TRIGGERS_DDL) target.exec(ddl);
     },
   },
 ];
@@ -422,6 +448,7 @@ export function createScene(
     prompt: "",
     imageInstruction: "",
     videoInstruction: "",
+    narrationInterval: null,
     provider: STUB_PROVIDER_NAME,
     providerMode,
     providerLatencyMs,
@@ -443,6 +470,10 @@ function rowToScene(row: any): Scene {
     prompt: row.prompt,
     imageInstruction: row.image_instruction,
     videoInstruction: row.video_instruction,
+    narrationInterval:
+      row.narration_start_seconds === null || row.narration_end_seconds === null
+        ? null
+        : { startSeconds: row.narration_start_seconds, endSeconds: row.narration_end_seconds },
     provider: row.provider,
     providerMode: row.provider_mode,
     providerLatencyMs: row.provider_latency_ms,
@@ -472,6 +503,8 @@ export interface RegisteredSceneInput {
   prompt: string;
   imageInstruction: string;
   videoInstruction: string;
+  /** assign-narration-intervals (JOS-143): written once here, locked afterwards. */
+  narrationInterval: NarrationInterval;
 }
 
 export function countScenesForRun(runId: string): number {
@@ -488,13 +521,13 @@ export function countScenesForRun(runId: string): number {
 export function insertRegisteredScenes(runId: string, scenes: readonly RegisteredSceneInput[]): void {
   const updatedAt = nowIso();
   const insert = db.prepare(
-    "INSERT INTO scenes (id, run_id, idx, status, attempts, instruction, prompt, image_instruction, video_instruction, updated_at) VALUES (?, ?, ?, 'submitted', 0, ?, ?, ?, ?, ?)",
+    "INSERT INTO scenes (id, run_id, idx, status, attempts, instruction, prompt, image_instruction, video_instruction, narration_start_seconds, narration_end_seconds, updated_at) VALUES (?, ?, ?, 'submitted', 0, ?, ?, ?, ?, ?, ?, ?)",
   );
   db.exec("BEGIN");
   try {
     for (const scene of scenes) {
       // Decision 3 — the skeleton image stage still reads `instruction`.
-      insert.run(scene.id, runId, scene.index, scene.imageInstruction, scene.prompt, scene.imageInstruction, scene.videoInstruction, updatedAt);
+      insert.run(scene.id, runId, scene.index, scene.imageInstruction, scene.prompt, scene.imageInstruction, scene.videoInstruction, scene.narrationInterval.startSeconds, scene.narrationInterval.endSeconds, updatedAt);
     }
     db.prepare("UPDATE runs SET failure = NULL WHERE id = ?").run(runId);
     db.exec("COMMIT");

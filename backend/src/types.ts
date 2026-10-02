@@ -132,6 +132,12 @@ export interface StageAttempt {
   errorMessage: string | null;
 }
 
+/** PRD §3 narration interval: where a chunk sits in the voice-over, in seconds. */
+export interface NarrationInterval {
+  startSeconds: number;
+  endSeconds: number;
+}
+
 export interface Scene {
   id: string;
   runId: string;
@@ -149,6 +155,8 @@ export interface Scene {
   imageInstruction: string;
   /** PRD §3 `VIDEO`: the instruction to animate the image. */
   videoInstruction: string;
+  /** PRD §3 narration interval, in seconds; null for a scene created without a decomposition. Locked once registered (assign-narration-intervals, JOS-143). */
+  narrationInterval: NarrationInterval | null;
   provider: string;
   /** Configured at scene creation so automatic retries can reuse the same behaviour. */
   providerMode: ProviderOutcomeMode;
@@ -228,6 +236,8 @@ export interface SceneEventPayload {
   imageInstruction?: string;
   /** PRD §3 `VIDEO`. */
   videoInstruction?: string;
+  /** PRD §3 narration interval; absent for a scene created without a decomposition. Immutable (assign-narration-intervals, JOS-143). */
+  narrationInterval?: NarrationInterval;
   updatedAt: string;
 }
 

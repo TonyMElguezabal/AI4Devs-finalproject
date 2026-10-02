@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createRun, createScene, getRun, getScenesForRun, resetAll } from "../src/db.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
+import { contiguousFragments, voiceOverDurationOf, type FragmentSpec } from "./fragmentFixtures.ts";
 
 // assign-scene-identifiers (JOS-144), group 4 — PRD §5 step 5, §6, §6.1,
 // §4.2: numbering 1..N, the four content fields, and the refusal of an
@@ -10,11 +11,18 @@ import type { VisualInstructionGenerator, VisualInstructionResult } from "../src
 // script error, leaving no chunks (design Decisions 1, 5 and 6).
 
 const SCRIPT = "The harbor is quiet at dusk. Fishing boats return with the tide. Gulls circle overhead.";
-const FRAGMENTS: SegmentedFragment[] = [
-  { text: "The harbor is quiet at dusk.", narratedDurationSeconds: 6 },
-  { text: "Fishing boats return with the tide.", narratedDurationSeconds: 9.5 },
-  { text: "Gulls circle overhead.", narratedDurationSeconds: 5 },
+const SPECS: FragmentSpec[] = [
+  { text: "The harbor is quiet at dusk.", seconds: 6 },
+  { text: "Fishing boats return with the tide.", seconds: 9.5 },
+  { text: "Gulls circle overhead.", seconds: 5 },
 ];
+const FRAGMENTS: SegmentedFragment[] = contiguousFragments(SPECS);
+const DURATION = voiceOverDurationOf(FRAGMENTS);
+
+/** The base specs with the spec at `index` overridden. */
+function specsWith(index: number, override: Partial<FragmentSpec>): FragmentSpec[] {
+  return SPECS.map((spec, position) => (position === index ? { ...spec, ...override } : spec));
+}
 
 beforeEach(() => {
   resetAll();
@@ -45,7 +53,7 @@ describe("A valid decomposition registers chunks 1..N (AC1, AC2, AC5)", () => {
     const runId = newRunId();
     const { generator } = stubGenerator();
 
-    const result = await registerDecomposition(runId, FRAGMENTS, generator);
+    const result = await registerDecomposition(runId, FRAGMENTS, generator, DURATION);
 
     expect(result.ok).toBe(true);
     const scenes = getScenesForRun(runId);
@@ -58,28 +66,28 @@ describe("A valid decomposition registers chunks 1..N (AC1, AC2, AC5)", () => {
 
   it("sets the skeleton's instruction to the IMAGE instruction (Decision 3)", async () => {
     const runId = newRunId();
-    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator);
+    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator, DURATION);
     expect(getScenesForRun(runId).map((s) => s.instruction)).toEqual(["image 1", "image 2", "image 3"]);
   });
 
   it("asks the generator once, with every fragment text in order and the session's language", async () => {
     const runId = newRunId();
     const { generator, calls } = stubGenerator();
-    await registerDecomposition(runId, FRAGMENTS, generator);
+    await registerDecomposition(runId, FRAGMENTS, generator, DURATION);
     expect(calls).toEqual([{ texts: FRAGMENTS.map((f) => f.text), language: "en" }]);
   });
 
   it("leaves the stored script unchanged", async () => {
     const runId = newRunId();
-    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator);
+    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator, DURATION);
     expect(getRun(runId)?.script).toBe(SCRIPT);
   });
 
   it("gives each session its own chunk 1", async () => {
     const runA = newRunId();
     const runB = newRunId("The harbor is quiet at dusk.");
-    await registerDecomposition(runA, FRAGMENTS, stubGenerator().generator);
-    await registerDecomposition(runB, [FRAGMENTS[0]!], stubGenerator().generator);
+    await registerDecomposition(runA, FRAGMENTS, stubGenerator().generator, DURATION);
+    await registerDecomposition(runB, [FRAGMENTS[0]!], stubGenerator().generator, voiceOverDurationOf([FRAGMENTS[0]!]));
 
     expect(getScenesForRun(runA).map((s) => s.index)).toEqual([1, 2, 3]);
     expect(getScenesForRun(runB).map((s) => s.index)).toEqual([1]);
@@ -89,10 +97,10 @@ describe("A valid decomposition registers chunks 1..N (AC1, AC2, AC5)", () => {
 
   it("clears an earlier decomposition failure once a registration succeeds", async () => {
     const runId = newRunId();
-    await registerDecomposition(runId, [], stubGenerator().generator);
+    await registerDecomposition(runId, [], stubGenerator().generator, DURATION);
     expect(getRun(runId)?.failure?.phase).toBe("decomposition");
 
-    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator);
+    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator, DURATION);
 
     expect(getRun(runId)?.failure).toBeNull();
   });
@@ -101,14 +109,14 @@ describe("A valid decomposition registers chunks 1..N (AC1, AC2, AC5)", () => {
 describe("An invalid decomposition is refused as a decomposition failure (AC3)", () => {
   const invalidCases: Array<[string, SegmentedFragment[], string?]> = [
     ["no fragments", []],
-    ["an empty fragment", [{ text: "   ", narratedDurationSeconds: 6 }, ...FRAGMENTS]],
-    ["a fragment below the lower bound without a flag", [{ ...FRAGMENTS[0]!, narratedDurationSeconds: 3 }, FRAGMENTS[1]!, FRAGMENTS[2]!]],
-    ["a fragment above the upper bound without a flag", [FRAGMENTS[0]!, { ...FRAGMENTS[1]!, narratedDurationSeconds: 16 }, FRAGMENTS[2]!]],
+    ["an empty fragment", contiguousFragments([{ text: "   ", seconds: 6 }, ...SPECS])],
+    ["a fragment below the lower bound without a flag", contiguousFragments(specsWith(0, { seconds: 3 }))],
+    ["a fragment above the upper bound without a flag", contiguousFragments(specsWith(1, { seconds: 16 }))],
     [
       "a script-below-lower-bound flag on one of several fragments",
-      [{ ...FRAGMENTS[0]!, narratedDurationSeconds: 3, exception: "script-below-lower-bound" }, FRAGMENTS[1]!, FRAGMENTS[2]!],
+      contiguousFragments(specsWith(0, { seconds: 3, exception: "script-below-lower-bound" })),
     ],
-    ["a non-positive duration", [{ ...FRAGMENTS[0]!, narratedDurationSeconds: 0 }, FRAGMENTS[1]!, FRAGMENTS[2]!]],
+    ["a non-positive duration", contiguousFragments(specsWith(0, { seconds: 0 }))],
     ["fragments that do not reconstruct the script", [FRAGMENTS[0]!, { ...FRAGMENTS[1]!, text: "Fishing boats leave with the tide." }, FRAGMENTS[2]!]],
     ["a fragment missing from the script", FRAGMENTS.slice(0, 2)],
   ];
@@ -116,7 +124,7 @@ describe("An invalid decomposition is refused as a decomposition failure (AC3)",
   it.each(invalidCases)("refuses %s: no chunks, a decomposition failure that does not blame the script", async (_label, fragments) => {
     const runId = newRunId();
 
-    const result = await registerDecomposition(runId, fragments, stubGenerator().generator);
+    const result = await registerDecomposition(runId, fragments, stubGenerator().generator, voiceOverDurationOf(fragments));
 
     expect(result).toMatchObject({ ok: false, reason: "decomposition-failed" });
     expect(getScenesForRun(runId)).toEqual([]);
@@ -129,7 +137,7 @@ describe("An invalid decomposition is refused as a decomposition failure (AC3)",
   it("validates the fragments before asking the generator", async () => {
     const runId = newRunId();
     const { generator, calls } = stubGenerator();
-    await registerDecomposition(runId, [], generator);
+    await registerDecomposition(runId, [], generator, DURATION);
     expect(calls).toHaveLength(0);
   });
 
@@ -139,7 +147,7 @@ describe("An invalid decomposition is refused as a decomposition failure (AC3)",
     ["invalid output", { kind: "invalid_output", reason: "the reasoning provider's instructions were missing or empty" }],
   ])("refuses %s from the generator, leaving no chunks", async (_label, answer) => {
     const runId = newRunId();
-    const result = await registerDecomposition(runId, FRAGMENTS, stubGenerator(() => answer).generator);
+    const result = await registerDecomposition(runId, FRAGMENTS, stubGenerator(() => answer).generator, DURATION);
     expect(result).toMatchObject({ ok: false, reason: "decomposition-failed" });
     expect(getScenesForRun(runId)).toEqual([]);
     expect(getRun(runId)?.failure).toMatchObject({ phase: "decomposition", retryable: true });
@@ -150,7 +158,7 @@ describe("An invalid decomposition is refused as a decomposition failure (AC3)",
     ["a not-retryable provider failure", { kind: "failed_not_retryable", reason: "the reasoning provider answered HTTP 401" }, false],
   ])("records %s with its retryability, leaving no chunks", async (_label, answer, retryable) => {
     const runId = newRunId();
-    await registerDecomposition(runId, FRAGMENTS, stubGenerator(() => answer).generator);
+    await registerDecomposition(runId, FRAGMENTS, stubGenerator(() => answer).generator, DURATION);
     expect(getScenesForRun(runId)).toEqual([]);
     expect(getRun(runId)?.failure).toMatchObject({ phase: "decomposition", retryable });
     expect(getRun(runId)?.failure?.cause).toMatch(/HTTP/);
@@ -162,8 +170,9 @@ describe("The §6.1.1 exceptions and whitespace (AC3)", () => {
     const runId = newRunId("A short script.");
     const result = await registerDecomposition(
       runId,
-      [{ text: "A short script.", narratedDurationSeconds: 2.1, exception: "script-below-lower-bound" }],
+      contiguousFragments([{ text: "A short script.", seconds: 2.1, exception: "script-below-lower-bound" }]),
       stubGenerator().generator,
+      2.1,
     );
     expect(result.ok).toBe(true);
     expect(getScenesForRun(runId)).toHaveLength(1);
@@ -171,39 +180,102 @@ describe("The §6.1.1 exceptions and whitespace (AC3)", () => {
 
   it("accepts a fragment above the upper bound flagged unsplittable-sentence", async () => {
     const runId = newRunId();
-    const fragments = [FRAGMENTS[0]!, { ...FRAGMENTS[1]!, narratedDurationSeconds: 17, exception: "unsplittable-sentence" as const }, FRAGMENTS[2]!];
-    expect((await registerDecomposition(runId, fragments, stubGenerator().generator)).ok).toBe(true);
+    const fragments = contiguousFragments(specsWith(1, { seconds: 17, exception: "unsplittable-sentence" }));
+    expect((await registerDecomposition(runId, fragments, stubGenerator().generator, voiceOverDurationOf(fragments))).ok).toBe(true);
   });
 
   it("accepts the exact bounds, 5 and 15 seconds", async () => {
     const runId = newRunId();
-    const fragments = [{ ...FRAGMENTS[0]!, narratedDurationSeconds: 5 }, { ...FRAGMENTS[1]!, narratedDurationSeconds: 15 }, FRAGMENTS[2]!];
-    expect((await registerDecomposition(runId, fragments, stubGenerator().generator)).ok).toBe(true);
+    const fragments = contiguousFragments([{ ...SPECS[0]!, seconds: 5 }, { ...SPECS[1]!, seconds: 15 }, SPECS[2]!]);
+    expect((await registerDecomposition(runId, fragments, stubGenerator().generator, voiceOverDurationOf(fragments))).ok).toBe(true);
   });
 
   it("reconstructs a script whose whitespace differs (line breaks, double spaces)", async () => {
     const runId = newRunId("The harbor is quiet at dusk.\n\nFishing boats  return with the tide.   Gulls circle overhead.");
-    expect((await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator)).ok).toBe(true);
+    expect((await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator, DURATION)).ok).toBe(true);
   });
 
   it("reconstructs a sentence split at a clause boundary", async () => {
     const runId = newRunId("Boats return, and gulls circle.");
-    const fragments: SegmentedFragment[] = [
-      { text: "Boats return,", narratedDurationSeconds: 5 },
-      { text: "and gulls circle.", narratedDurationSeconds: 5 },
-    ];
-    expect((await registerDecomposition(runId, fragments, stubGenerator().generator)).ok).toBe(true);
+    const fragments = contiguousFragments([
+      { text: "Boats return,", seconds: 5 },
+      { text: "and gulls circle.", seconds: 5 },
+    ]);
+    expect((await registerDecomposition(runId, fragments, stubGenerator().generator, voiceOverDurationOf(fragments))).ok).toBe(true);
   });
+});
+
+// assign-narration-intervals (JOS-143), group 3 — PRD §7.3, AC19: the intervals
+// must partition the voice-over before anything is generated or written
+// (design Decision 2). Exact comparisons: every boundary comes from one array.
+describe("The narration intervals must partition the voice-over (JOS-143)", () => {
+  const withIntervals = (intervals: Array<[number, number]>): SegmentedFragment[] =>
+    FRAGMENTS.map((fragment, position) => ({
+      ...fragment,
+      narrationInterval: { startSeconds: intervals[position]![0], endSeconds: intervals[position]![1] },
+    }));
+
+  it("registers a valid partition", async () => {
+    const runId = newRunId();
+    const fragments = withIntervals([[0, 7.4], [7.4, 15], [15, 21.3]]);
+
+    const result = await registerDecomposition(runId, fragments, stubGenerator().generator, 21.3);
+
+    expect(result.ok).toBe(true);
+    expect(getScenesForRun(runId)).toHaveLength(3);
+  });
+
+  const partitionCases: Array<[string, Array<[number, number]>, number, RegExp]> = [
+    ["a gap between two intervals", [[0, 7.4], [7.6, 15], [15, 21.3]], 21.3, /scene 2.*scene 1/],
+    ["an overlap between two intervals", [[0, 7.4], [7.2, 15], [15, 21.3]], 21.3, /scene 2.*scene 1/],
+    ["a first interval that does not start at 0", [[0.1, 7.4], [7.4, 15], [15, 21.3]], 21.3, /scene 1.*0/],
+    ["a last interval that ends before the voice-over does", [[0, 7.4], [7.4, 15], [15, 21.3]], 21.5, /scene 3.*21\.5/],
+    ["a last interval that ends after the voice-over does", [[0, 7.4], [7.4, 15], [15, 21.3]], 21.1, /scene 3.*21\.1/],
+    ["an empty interval", [[0, 7.4], [7.4, 7.4], [7.4, 21.3]], 21.3, /scene 2/],
+  ];
+
+  it.each(partitionCases)(
+    "refuses %s: retryable decomposition failure naming the scene, no instruction call, no chunks",
+    async (_label, intervals, voiceOverDuration, expectedCause) => {
+      const runId = newRunId();
+      const { generator, calls } = stubGenerator();
+
+      const result = await registerDecomposition(runId, withIntervals(intervals), generator, voiceOverDuration);
+
+      expect(result).toMatchObject({ ok: false, reason: "decomposition-failed" });
+      expect(calls).toEqual([]);
+      expect(getScenesForRun(runId)).toEqual([]);
+      const failure = getRun(runId)?.failure;
+      expect(failure).toMatchObject({ phase: "decomposition", retryable: true });
+      expect(failure?.cause).toMatch(expectedCause);
+      expect(failure?.cause).toMatch(/not an error in your script/i);
+    },
+  );
+
+  it.each([[0], [-3], [Number.NaN], [Number.POSITIVE_INFINITY]])(
+    "refuses a voice-over duration of %s as a non-retryable decomposition failure",
+    async (voiceOverDuration) => {
+      const runId = newRunId();
+      const { generator, calls } = stubGenerator();
+
+      const result = await registerDecomposition(runId, FRAGMENTS, generator, voiceOverDuration);
+
+      expect(result).toMatchObject({ ok: false, reason: "decomposition-failed" });
+      expect(calls).toEqual([]);
+      expect(getScenesForRun(runId)).toEqual([]);
+      expect(getRun(runId)?.failure).toMatchObject({ phase: "decomposition", retryable: false });
+    },
+  );
 });
 
 describe("Registration is refused without a valid target (AC4)", () => {
   it("refuses a session that already has chunks and leaves them unchanged", async () => {
     const runId = newRunId();
-    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator);
+    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator, DURATION);
     const before = getScenesForRun(runId);
 
     const { generator, calls } = stubGenerator();
-    const result = await registerDecomposition(runId, FRAGMENTS, generator);
+    const result = await registerDecomposition(runId, FRAGMENTS, generator, DURATION);
 
     expect(result).toEqual({ ok: false, reason: "already-registered" });
     expect(calls).toHaveLength(0);
@@ -213,7 +285,7 @@ describe("Registration is refused without a valid target (AC4)", () => {
   it("refuses a session that already has a scene created some other way", async () => {
     const runId = newRunId();
     createScene(randomUUID(), runId, 1, "success", 100);
-    expect(await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator)).toEqual({ ok: false, reason: "already-registered" });
+    expect(await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator, DURATION)).toEqual({ ok: false, reason: "already-registered" });
   });
 
   it("loses a race cleanly: if another registration lands first, nothing of this one is written", async () => {
@@ -225,7 +297,7 @@ describe("Registration is refused without a valid target (AC4)", () => {
       return { kind: "success", pairs: texts.map(() => ({ image: "i", video: "v" })) };
     });
 
-    const result = await registerDecomposition(runId, FRAGMENTS, generator);
+    const result = await registerDecomposition(runId, FRAGMENTS, generator, DURATION);
 
     expect(result).toEqual({ ok: false, reason: "already-registered" });
     expect(getScenesForRun(runId).map((s) => s.id)).toEqual([racingSceneId]);
@@ -233,7 +305,7 @@ describe("Registration is refused without a valid target (AC4)", () => {
 
   it("refuses an unknown session without writing anything", async () => {
     const { generator, calls } = stubGenerator();
-    expect(await registerDecomposition("no-such-session", FRAGMENTS, generator)).toEqual({ ok: false, reason: "unknown-session" });
+    expect(await registerDecomposition("no-such-session", FRAGMENTS, generator, DURATION)).toEqual({ ok: false, reason: "unknown-session" });
     expect(calls).toHaveLength(0);
   });
 });

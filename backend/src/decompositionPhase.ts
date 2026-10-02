@@ -67,7 +67,7 @@ export async function segmentStoredTimestamps(
   const segmentation = segmentScript(run.script, run.language, characters, voiceOver.durationSeconds);
   if (!segmentation.ok) return recordSegmentationFailure(runId, segmentation.reason, now());
 
-  return registerDecomposition(runId, segmentation.fragments, instructionGenerator, now);
+  return registerDecomposition(runId, segmentation.fragments, instructionGenerator, voiceOver.durationSeconds, now);
 }
 
 export async function runDecompositionPhase(
