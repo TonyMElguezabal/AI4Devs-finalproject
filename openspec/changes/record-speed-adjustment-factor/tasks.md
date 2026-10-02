@@ -76,11 +76,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: this story changes `SceneRow.tsx`'s rendered output, so it applies (unlike JOS-147, which had no screen change)
-- [ ] 10.2 Ensure backend (stubbed providers) and frontend are running; start a project through decomposition so at least one chunk has a stored requested duration and factor
-- [ ] 10.3 Navigate to the session page, expand a scene's details, and assert the requested duration and speed factor render
-- [ ] 10.4 Where feasible, exercise a scene whose factor exceeds the limit (or stub one) and assert the warning renders distinguishably from a `durationWarning`
-- [ ] 10.5 Restore the environment and save the report as `openspec/changes/record-speed-adjustment-factor/reports/YYYY-MM-DD-step-10-e2e-playwright.md`
+- [x] 10.1 Decide applicability: this story changes `SceneRow.tsx`'s rendered output, so it applies (unlike JOS-147, which had no screen change) — confirmed applicable
+- [x] 10.2 Ensure backend (stubbed providers) and frontend are running; start a project through decomposition so at least one chunk has a stored requested duration and factor — backend on scratch store (port 3100), frontend (`vite --port 5173`, reachable at `http://localhost:5173/`, IPv6 only); registered one chunk directly via `registerDecomposition` (same approach as step 9, `runDecompositionPhase` still unwired)
+- [x] 10.3 Navigate to the session page, expand a scene's details, and assert the requested duration and speed factor render — confirmed via `claude-in-chrome` (Playwright MCP unavailable in this environment): "Requested duration 15", "Speed factor 2.3333333333333335" both rendered
+- [x] 10.4 Where feasible, exercise a scene whose factor exceeds the limit (or stub one) and assert the warning renders distinguishably from a `durationWarning` — used the step-9 over-limit fixture (35s/15s, factor 2.333): confirmed "15 exceeds-maximum" and "2.3333333333333335 exceeds-limit" both rendered, distinguishable
+- [x] 10.5 Restore the environment and save the report as `openspec/changes/record-speed-adjustment-factor/reports/2026-10-02-step-10-e2e-playwright.md` — servers stopped, default store re-confirmed untouched, scratch directory removed
 
 ## 11. Update Technical Documentation (MANDATORY)
 
