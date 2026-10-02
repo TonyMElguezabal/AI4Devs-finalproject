@@ -110,3 +110,4 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 - [ ] 14.3 Ask before pushing; open the PR with a description linking to JOS-152
 - [ ] 14.4 Obtain review by at least one human, not only AI agents
 - [ ] 14.5 Archive the OpenSpec change after merge
+<!-- Implementation complete — tasks 0–13 all done. Only 14.1–14.5 remain, which require user input. -->
