@@ -65,17 +65,17 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 9. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 9.1 Review every existing test that reads or sets `paused`, calls `launchScene`, `launchImageStage`, `pauseSession`, `continueSession`, `manualRetry` or `reconcileOnBoot`, and every test that builds a session payload by hand; update each to the gate and the `held` fields
-- [ ] 9.2 Confirm module test coverage has not decreased (compare against this change's propose commit)
+- [x] 9.1 Review every existing test that reads or sets `paused`, calls `launchScene`, `launchImageStage`, `pauseSession`, `continueSession`, `manualRetry` or `reconcileOnBoot`, and every test that builds a session payload by hand; update each to the gate and the `held` fields
+- [x] 9.2 Confirm module test coverage has not decreased (compare against this change's propose commit)
 
 ## 10. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 10.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents
-- [ ] 10.2 Run the targeted tests (gate, registry, orchestrator, image stage, session read and API surface, components)
-- [ ] 10.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`
-- [ ] 10.4 Verify the post-test state matches the baseline; restore it if not
-- [ ] 10.5 Create the report `openspec/changes/pause-and-continue-session/reports/YYYY-MM-DD-step-10-unit-test-and-db-verification.md`
-- [ ] 10.6 Mark this step complete only after the tests pass and the report file exists
+- [x] 10.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents
+- [x] 10.2 Run the targeted tests (gate, registry, orchestrator, image stage, session read and API surface, components)
+- [x] 10.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`
+- [x] 10.4 Verify the post-test state matches the baseline; restore it if not
+- [x] 10.5 Create the report `openspec/changes/pause-and-continue-session/reports/YYYY-MM-DD-step-10-unit-test-and-db-verification.md`
+- [x] 10.6 Mark this step complete only after the tests pass and the report file exists
 
 ## 11. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
