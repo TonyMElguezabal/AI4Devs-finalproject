@@ -21,11 +21,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 3. Storage and locks (design Decisions 2 and 3; spec: stored, never changes)
 
-- [ ] 3.1 Failing tests in `scene-registration-persistence.test.ts` and `content-lock.test.ts`: migration 10 applies on a database at version 9 and on a fresh one; registered chunks read back with their requested duration and warning; an `UPDATE` of `requested_duration_seconds` or `duration_warning` is refused with the `locked:` message; skeleton scenes read back with both null
-- [ ] 3.2 Add migration 10 (two nullable columns, two triggers from the new constant); extend `RegisteredSceneInput`, `insertRegisteredScenes`, `Scene`, `rowToScene` and `createScene`; check whether the test-only reset needs anything for the new triggers (it drops only delete triggers)
-- [ ] 3.3 Failing tests in `scene-registration.test.ts`: registration stores, for each chunk, the requested duration and warning its interval gives, including an unsplittable 17.4 s chunk (`exceeds-maximum`, chunk `submitted`, session not failed)
-- [ ] 3.4 Compute both values in `registerDecomposition` after the partition check and pass them to `insertRegisteredScenes`
-- [ ] 3.5 Make the 3.1 and 3.3 tests pass
+- [x] 3.1 Failing tests in `scene-registration-persistence.test.ts` and `content-lock.test.ts`: migration 10 applies on a database at version 9 and on a fresh one; registered chunks read back with their requested duration and warning; an `UPDATE` of `requested_duration_seconds` or `duration_warning` is refused with the `locked:` message; skeleton scenes read back with both null — added to `scene-registration-persistence.test.ts` (mirroring migration 9's own tests), not `content-lock.test.ts`, which covers session/voice-over content locks, not scene columns; 7 new tests, confirmed failing first
+- [x] 3.2 Add migration 10 (two nullable columns, two triggers from the new constant); extend `RegisteredSceneInput`, `insertRegisteredScenes`, `Scene`, `rowToScene` and `createScene`; check whether the test-only reset needs anything for the new triggers (it drops only delete triggers) — confirmed: `resetAll()` only lifts BEFORE DELETE triggers; the new ones are BEFORE UPDATE, untouched by it, no change needed
+- [x] 3.3 Failing tests in `scene-registration.test.ts`: registration stores, for each chunk, the requested duration and warning its interval gives, including an unsplittable 17.4 s chunk (`exceeds-maximum`, chunk `submitted`, session not failed) — 2 new tests
+- [x] 3.4 Compute both values in `registerDecomposition` after the partition check and pass them to `insertRegisteredScenes`
+- [x] 3.5 Make the 3.1 and 3.3 tests pass — 26/26 in `scene-registration-persistence.test.ts`, 42/42 in `scene-registration.test.ts`; typecheck clean; full suite 624/626 (2 intentional skips)
 
 ## 4. Stability across builds (spec: a different admitted set later)
 

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
+import { requestedClipDuration } from "../src/admittedDurations.ts";
 import { applyMigrationsTo, createRun, createScene, db, getScene, getScenesForRun, insertRegisteredScenes, resetAll } from "../src/db.ts";
 
 // assign-scene-identifiers (JOS-144), group 2 — design Decisions 2, 3 and 7:
@@ -135,11 +136,34 @@ describe("The test-only reset keeps the chunk locks (Decision 7)", () => {
 // the interval is stored with the chunk in the registration transaction, and
 // the store refuses any change to it (PRD §3 "No permitida", AC4).
 describe("The narration interval is stored with the chunk (JOS-143, Decision 4)", () => {
+  function requestedDuration(interval: { startSeconds: number; endSeconds: number }) {
+    const { seconds, warning } = requestedClipDuration(interval);
+    return { requestedDurationSeconds: seconds, durationWarning: warning };
+  }
+
   function registerTwoChunks(runId: string): string[] {
     const ids = [randomUUID(), randomUUID()];
+    const first = { startSeconds: 0, endSeconds: 7.4 };
+    const second = { startSeconds: 7.4, endSeconds: 15 };
     insertRegisteredScenes(runId, [
-      { id: ids[0]!, index: 1, prompt: "One.", imageInstruction: "image 1", videoInstruction: "video 1", narrationInterval: { startSeconds: 0, endSeconds: 7.4 } },
-      { id: ids[1]!, index: 2, prompt: "Two.", imageInstruction: "image 2", videoInstruction: "video 2", narrationInterval: { startSeconds: 7.4, endSeconds: 15 } },
+      {
+        id: ids[0]!,
+        index: 1,
+        prompt: "One.",
+        imageInstruction: "image 1",
+        videoInstruction: "video 1",
+        narrationInterval: first,
+        ...requestedDuration(first),
+      },
+      {
+        id: ids[1]!,
+        index: 2,
+        prompt: "Two.",
+        imageInstruction: "image 2",
+        videoInstruction: "video 2",
+        narrationInterval: second,
+        ...requestedDuration(second),
+      },
     ]);
     return ids;
   }
@@ -222,8 +246,19 @@ describe("A registered chunk's interval is locked by the store (JOS-143, AC4)", 
   function registeredSceneId(): string {
     const runId = newRunId();
     const sceneId = randomUUID();
+    const interval = { startSeconds: 0, endSeconds: 6 };
+    const { seconds, warning } = requestedClipDuration(interval);
     insertRegisteredScenes(runId, [
-      { id: sceneId, index: 1, prompt: "One.", imageInstruction: "image", videoInstruction: "video", narrationInterval: { startSeconds: 0, endSeconds: 6 } },
+      {
+        id: sceneId,
+        index: 1,
+        prompt: "One.",
+        imageInstruction: "image",
+        videoInstruction: "video",
+        narrationInterval: interval,
+        requestedDurationSeconds: seconds,
+        durationWarning: warning,
+      },
     ]);
     return sceneId;
   }
@@ -250,6 +285,155 @@ describe("A registered chunk's interval is locked by the store (JOS-143, AC4)", 
     resetAll();
     expect(triggerNames()).toEqual(
       expect.arrayContaining(["scenes_narration_end_seconds_locked", "scenes_narration_start_seconds_locked"]),
+    );
+  });
+});
+
+// request-admitted-clip-duration (JOS-147), group 3 — design Decisions 2 and 3:
+// the requested duration and its over-maximum warning are decided once at
+// registration and stored with the chunk, in the same transaction as the
+// interval; the store refuses any later change to either.
+describe("Migration 10 adds the requested-duration columns and their locks (JOS-147, Decision 3)", () => {
+  const durationColumns = ["requested_duration_seconds", "duration_warning"];
+
+  function createBaselineSchema(target: DatabaseSync): void {
+    target.exec(`
+      CREATE TABLE runs (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, paused INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE scenes (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, idx INTEGER NOT NULL, status TEXT NOT NULL, instruction TEXT NOT NULL DEFAULT '');
+    `);
+  }
+
+  function columnNames(target: DatabaseSync): string[] {
+    return (target.prepare("PRAGMA table_info(scenes)").all() as Array<{ name: string }>).map((row) => row.name);
+  }
+
+  it("applies on a database at version 9 and is idempotent", () => {
+    const dir = mkdtempSync(join(tmpdir(), "vid4you-migration-10-test-"));
+    try {
+      const fixture = new DatabaseSync(join(dir, "at-9.sqlite"));
+      createBaselineSchema(fixture);
+      applyMigrationsTo(fixture);
+      // Pretend this database stopped at version 9: remove what migration 10 added and forget it ran.
+      fixture.exec("DROP TRIGGER scenes_requested_duration_seconds_locked; DROP TRIGGER scenes_duration_warning_locked;");
+      for (const column of durationColumns) fixture.exec(`ALTER TABLE scenes DROP COLUMN ${column}`);
+      fixture.exec("DELETE FROM schema_migrations WHERE version = 10");
+      expect(columnNames(fixture)).not.toContain("requested_duration_seconds");
+
+      expect(applyMigrationsTo(fixture)).toEqual([10]);
+
+      expect(columnNames(fixture)).toEqual(expect.arrayContaining(durationColumns));
+      expect(triggerNames(fixture)).toEqual(
+        expect.arrayContaining(["scenes_duration_warning_locked", "scenes_requested_duration_seconds_locked"]),
+      );
+      expect(applyMigrationsTo(fixture)).toEqual([]);
+      fixture.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves the requested duration and warning of a scene that pre-dates it empty", () => {
+    const dir = mkdtempSync(join(tmpdir(), "vid4you-migration-10-old-test-"));
+    try {
+      const fixture = new DatabaseSync(join(dir, "pre-10.sqlite"));
+      createBaselineSchema(fixture);
+      fixture.prepare("INSERT INTO runs (id, title, created_at) VALUES ('r', 'Old', 'then')").run();
+      fixture.prepare("INSERT INTO scenes (id, run_id, idx, status) VALUES ('s', 'r', 1, 'submitted')").run();
+
+      applyMigrationsTo(fixture);
+
+      expect(fixture.prepare("SELECT requested_duration_seconds a, duration_warning b FROM scenes").get()).toEqual({ a: null, b: null });
+      fixture.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("The requested duration is stored with the chunk (JOS-147, Decision 2)", () => {
+  function registerTwoChunks(runId: string): string[] {
+    const ids = [randomUUID(), randomUUID()];
+    insertRegisteredScenes(runId, [
+      {
+        id: ids[0]!,
+        index: 1,
+        prompt: "One.",
+        imageInstruction: "image 1",
+        videoInstruction: "video 1",
+        narrationInterval: { startSeconds: 0, endSeconds: 5.49 },
+        requestedDurationSeconds: 6,
+        durationWarning: null,
+      },
+      {
+        id: ids[1]!,
+        index: 2,
+        prompt: "Two.",
+        imageInstruction: "image 2",
+        videoInstruction: "video 2",
+        narrationInterval: { startSeconds: 5.49, endSeconds: 22.89 },
+        requestedDurationSeconds: 15,
+        durationWarning: "exceeds-maximum",
+      },
+    ]);
+    return ids;
+  }
+
+  it("reads each registered chunk back with the requested duration and warning registration gave it", () => {
+    const runId = newRunId();
+    registerTwoChunks(runId);
+
+    expect(getScenesForRun(runId).map((scene) => ({ requestedDurationSeconds: scene.requestedDurationSeconds, durationWarning: scene.durationWarning }))).toEqual([
+      { requestedDurationSeconds: 6, durationWarning: null },
+      { requestedDurationSeconds: 15, durationWarning: "exceeds-maximum" },
+    ]);
+  });
+
+  it("gives a scene created without a decomposition no requested duration and no warning", () => {
+    const sceneId = newScene(newRunId());
+    const scene = getScene(sceneId);
+    expect(scene?.requestedDurationSeconds).toBeNull();
+    expect(scene?.durationWarning).toBeNull();
+  });
+});
+
+describe("A registered chunk's requested duration is locked by the store (JOS-147, AC5)", () => {
+  function registeredSceneId(): string {
+    const runId = newRunId();
+    const sceneId = randomUUID();
+    insertRegisteredScenes(runId, [
+      {
+        id: sceneId,
+        index: 1,
+        prompt: "One.",
+        imageInstruction: "image",
+        videoInstruction: "video",
+        narrationInterval: { startSeconds: 0, endSeconds: 17.4 },
+        requestedDurationSeconds: 15,
+        durationWarning: "exceeds-maximum",
+      },
+    ]);
+    return sceneId;
+  }
+
+  it.each([
+    ["requested_duration_seconds", "UPDATE scenes SET requested_duration_seconds = 10 WHERE id = ?"],
+    ["duration_warning", "UPDATE scenes SET duration_warning = NULL WHERE id = ?"],
+  ])("refuses a change of %s, naming the field, and leaves the stored value unchanged", (column, statement) => {
+    const sceneId = registeredSceneId();
+
+    expect(() => db.prepare(statement).run(sceneId)).toThrow(
+      new RegExp(`locked: scenes\\.${column} cannot be modified once the chunk is established`),
+    );
+
+    const scene = getScene(sceneId);
+    expect(scene?.requestedDurationSeconds).toBe(15);
+    expect(scene?.durationWarning).toBe("exceeds-maximum");
+  });
+
+  it("keeps the locks after the test-only reset", () => {
+    resetAll();
+    expect(triggerNames()).toEqual(
+      expect.arrayContaining(["scenes_duration_warning_locked", "scenes_requested_duration_seconds_locked"]),
     );
   });
 });

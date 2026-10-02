@@ -1,5 +1,5 @@
 import { VIDEO_ADMITTED_DURATIONS_SECONDS } from "./config/providers.ts";
-import type { NarrationInterval } from "./types.ts";
+import type { DurationWarning, NarrationInterval } from "./types.ts";
 
 // segment-script-into-chunks (JOS-140) — PRD §7.2: the clip duration the video
 // provider admits that is "closest" to a narrated interval. Closest means the
@@ -45,9 +45,6 @@ export function closestAdmittedDuration(
   }
   return best!;
 }
-
-/** request-admitted-clip-duration (JOS-147) — the one duration-warning value this module ever produces; §6.1.1's unsplittable-sentence case. */
-export type DurationWarning = "exceeds-maximum";
 
 export interface RequestedClipDuration {
   /** The admitted duration to request, in seconds. */

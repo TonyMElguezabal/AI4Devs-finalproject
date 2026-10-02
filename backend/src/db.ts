@@ -14,6 +14,7 @@ import { existsSync, linkSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve, sep } from "node:path";
 import type {
   AttemptStage,
+  DurationWarning,
   NarrationInterval,
   ProviderOutcomeMode,
   ProviderRequestRow,
@@ -156,6 +157,22 @@ export const SCENE_INTERVAL_LOCK_TRIGGERS_DDL: readonly string[] = LOCKED_SCENE_
     END;`,
 );
 
+// request-admitted-clip-duration (JOS-147) Decision 3 — the requested duration
+// and its over-maximum warning are decided once at registration (from the
+// interval above) and never change afterwards, for the same reason the
+// interval itself is locked: a later build with different admitted durations
+// must not alter what an established chunk already asked for. A constant of
+// its own, not an addition to LOCKED_SCENE_INTERVAL_COLUMNS, for the same
+// reason that one is not an addition to LOCKED_SCENE_COLUMNS.
+const LOCKED_SCENE_DURATION_REQUEST_COLUMNS = ["requested_duration_seconds", "duration_warning"] as const;
+
+export const SCENE_DURATION_REQUEST_LOCK_TRIGGERS_DDL: readonly string[] = LOCKED_SCENE_DURATION_REQUEST_COLUMNS.map(
+  (column) => `CREATE TRIGGER scenes_${column}_locked BEFORE UPDATE OF ${column} ON scenes
+    BEGIN
+      SELECT RAISE(ABORT, 'locked: scenes.${column} cannot be modified once the chunk is established');
+    END;`,
+);
+
 // obtain-narration-timestamps (JOS-139) Decision 7 — the obtained timestamps are
 // stored once and never replaced (PRD §10.3: segmentation and every retry use
 // the same ones). `resetAll()` (test-only) lifts the delete trigger inside its
@@ -286,6 +303,17 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       target.exec("ALTER TABLE scenes ADD COLUMN narration_start_seconds REAL");
       target.exec("ALTER TABLE scenes ADD COLUMN narration_end_seconds REAL");
       for (const ddl of SCENE_INTERVAL_LOCK_TRIGGERS_DDL) target.exec(ddl);
+    },
+  },
+  {
+    version: 10,
+    description: "add the requested clip duration and its warning, and lock them (request-admitted-clip-duration, JOS-147)",
+    up: (target) => {
+      // INTEGER: every admitted duration is a whole number of seconds (VIDEO_ADMITTED_DURATIONS_SECONDS).
+      // Nullable: a scene created by the pre-decomposition skeleton path has no interval, hence no request.
+      target.exec("ALTER TABLE scenes ADD COLUMN requested_duration_seconds INTEGER");
+      target.exec("ALTER TABLE scenes ADD COLUMN duration_warning TEXT");
+      for (const ddl of SCENE_DURATION_REQUEST_LOCK_TRIGGERS_DDL) target.exec(ddl);
     },
   },
 ];
@@ -449,6 +477,8 @@ export function createScene(
     imageInstruction: "",
     videoInstruction: "",
     narrationInterval: null,
+    requestedDurationSeconds: null,
+    durationWarning: null,
     provider: STUB_PROVIDER_NAME,
     providerMode,
     providerLatencyMs,
@@ -474,6 +504,8 @@ function rowToScene(row: any): Scene {
       row.narration_start_seconds === null || row.narration_end_seconds === null
         ? null
         : { startSeconds: row.narration_start_seconds, endSeconds: row.narration_end_seconds },
+    requestedDurationSeconds: row.requested_duration_seconds,
+    durationWarning: row.duration_warning,
     provider: row.provider,
     providerMode: row.provider_mode,
     providerLatencyMs: row.provider_latency_ms,
@@ -505,6 +537,9 @@ export interface RegisteredSceneInput {
   videoInstruction: string;
   /** assign-narration-intervals (JOS-143): written once here, locked afterwards. */
   narrationInterval: NarrationInterval;
+  /** request-admitted-clip-duration (JOS-147): written once here, locked afterwards. */
+  requestedDurationSeconds: number;
+  durationWarning: DurationWarning | null;
 }
 
 export function countScenesForRun(runId: string): number {
@@ -521,13 +556,26 @@ export function countScenesForRun(runId: string): number {
 export function insertRegisteredScenes(runId: string, scenes: readonly RegisteredSceneInput[]): void {
   const updatedAt = nowIso();
   const insert = db.prepare(
-    "INSERT INTO scenes (id, run_id, idx, status, attempts, instruction, prompt, image_instruction, video_instruction, narration_start_seconds, narration_end_seconds, updated_at) VALUES (?, ?, ?, 'submitted', 0, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO scenes (id, run_id, idx, status, attempts, instruction, prompt, image_instruction, video_instruction, narration_start_seconds, narration_end_seconds, requested_duration_seconds, duration_warning, updated_at) VALUES (?, ?, ?, 'submitted', 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   );
   db.exec("BEGIN");
   try {
     for (const scene of scenes) {
       // Decision 3 — the skeleton image stage still reads `instruction`.
-      insert.run(scene.id, runId, scene.index, scene.imageInstruction, scene.prompt, scene.imageInstruction, scene.videoInstruction, scene.narrationInterval.startSeconds, scene.narrationInterval.endSeconds, updatedAt);
+      insert.run(
+        scene.id,
+        runId,
+        scene.index,
+        scene.imageInstruction,
+        scene.prompt,
+        scene.imageInstruction,
+        scene.videoInstruction,
+        scene.narrationInterval.startSeconds,
+        scene.narrationInterval.endSeconds,
+        scene.requestedDurationSeconds,
+        scene.durationWarning,
+        updatedAt,
+      );
     }
     db.prepare("UPDATE runs SET failure = NULL WHERE id = ?").run(runId);
     db.exec("COMMIT");

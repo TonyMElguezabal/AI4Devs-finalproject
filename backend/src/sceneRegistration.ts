@@ -155,14 +155,23 @@ export async function registerDecomposition(
   const instructionProblem = findInstructionProblem(instructions.pairs, fragments.length);
   if (instructionProblem) return recordFailure(runId, instructionProblem, true, now());
 
-  const scenes = fragments.map((fragment, position) => ({
-    id: randomUUID(),
-    index: position + 1,
-    prompt: fragment.text,
-    imageInstruction: instructions.pairs[position]!.image.trim(),
-    videoInstruction: instructions.pairs[position]!.video.trim(),
-    narrationInterval: fragment.narrationInterval,
-  }));
+  const scenes = fragments.map((fragment, position) => {
+    // request-admitted-clip-duration (JOS-147), design Decision 2 — computed
+    // once here, after the partition check, and stored with the chunk in the
+    // same transaction as its interval. Cannot fail: the interval is already
+    // checked finite and positive by findFragmentProblem above.
+    const { seconds: requestedDurationSeconds, warning: durationWarning } = requestedClipDuration(fragment.narrationInterval);
+    return {
+      id: randomUUID(),
+      index: position + 1,
+      prompt: fragment.text,
+      imageInstruction: instructions.pairs[position]!.image.trim(),
+      videoInstruction: instructions.pairs[position]!.video.trim(),
+      narrationInterval: fragment.narrationInterval,
+      requestedDurationSeconds,
+      durationWarning,
+    };
+  });
   try {
     insertRegisteredScenes(runId, scenes);
   } catch (err: any) {
