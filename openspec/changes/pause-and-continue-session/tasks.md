@@ -79,29 +79,29 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 11.1 Start the real server on a scratch store and scratch projects folder; confirm `GET /health`
-- [ ] 11.2 Create a session and register chunks directly (`registerDecomposition`, as earlier steps did); `curl POST .../pause`, then `GET /sessions/:id`: `paused: true`, `held` listing the image stage, the state unchanged
-- [ ] 11.3 With a request in flight, pause and confirm the scene reaches `image-complete` while paused and its next stage is not started; `curl POST .../continue` and confirm the held scenes launch once
-- [ ] 11.4 Pause twice and continue twice: both answer `200 { ok: true }` and no second launch occurs
-- [ ] 11.5 Error cases: pause and continue on an unknown session answer 404 in the documented shape; a retry on a failed scene while paused is accepted and held
-- [ ] 11.6 `curl GET /docs/json`: `held` is documented on responses only and the pause and continue operations describe their idempotence
-- [ ] 11.7 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/pause-and-continue-session/reports/YYYY-MM-DD-step-11-manual-endpoint-testing.md`
+- [x] 11.1 Start the real server on a scratch store and scratch projects folder; confirm `GET /health`
+- [x] 11.2 Create a session and register chunks directly (`registerDecomposition`, as earlier steps did); `curl POST .../pause`, then `GET /sessions/:id`: `paused: true`, `held` listing the image stage, the state unchanged
+- [x] 11.3 With a request in flight, pause and confirm the scene reaches `image-complete` while paused and its next stage is not started; `curl POST .../continue` and confirm the held scenes launch once
+- [x] 11.4 Pause twice and continue twice: both answer `200 { ok: true }` and no second launch occurs
+- [x] 11.5 Error cases: pause and continue on an unknown session answer 404 in the documented shape; a retry on a failed scene while paused is accepted and held
+- [x] 11.6 `curl GET /docs/json`: `held` is documented on responses only and the pause and continue operations describe their idempotence
+- [x] 11.7 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/pause-and-continue-session/reports/YYYY-MM-DD-step-11-manual-endpoint-testing.md`
 
 ## 12. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 12.1 Decide applicability: the session header and scene rows change, so it applies
-- [ ] 12.2 Run backend (scratch store) and frontend; prepare a session with scenes not yet launched and one in flight
-- [ ] 12.3 Open the session page, pause, and confirm the header shows "paused" with the held stages, the in-flight scene finishes, and held scenes say they wait for continue
-- [ ] 12.4 Continue and confirm the held scenes move to generating without a reload, and the held text disappears
-- [ ] 12.5 Restore the environment and save `openspec/changes/pause-and-continue-session/reports/YYYY-MM-DD-step-12-e2e.md`
+- [x] 12.1 Decide applicability: the session header and scene rows change, so it applies
+- [x] 12.2 Run backend (scratch store) and frontend; prepare a session with scenes not yet launched and one in flight
+- [x] 12.3 Open the session page, pause, and confirm the header shows "paused" with the held stages, the in-flight scene finishes, and held scenes say they wait for continue
+- [x] 12.4 Continue and confirm the held scenes move to generating without a reload, and the held text disappears
+- [x] 12.5 Restore the environment and save `openspec/changes/pause-and-continue-session/reports/YYYY-MM-DD-step-12-e2e.md`
 
 ## 13. Update Technical Documentation (MANDATORY)
 
-- [ ] 13.1 `docs/data-model.md`: record that `paused` is the only stored pause fact, that held work is derived (start rule per stage) and never stored, and the `held` response fields
-- [ ] 13.2 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only content changes are `held` on the session and scene schemas and the idempotence notes on pause and continue
-- [ ] 13.3 `docs/backend-standards.md`: record the launch-gate rule — every provider launch asks `admitLaunch` and has no `await` between it and the in-flight mark; a retry is recorded as scheduled before it asks the gate; a new stage registers a launcher and removes itself from `NOT_YET_LAUNCHABLE`
-- [ ] 13.4 `docs/PRD-v1.4.md`: check §8.3 and §9 need no wording change; if the open question on in-flight clocks is answered, record the decision there
-- [ ] 13.5 Check `docs/frontend-standards.md` for the held indicator; add a line only if the standards list session markers
+- [x] 13.1 `docs/data-model.md`: record that `paused` is the only stored pause fact, that held work is derived (start rule per stage) and never stored, and the `held` response fields
+- [x] 13.2 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only content changes are `held` on the session and scene schemas and the idempotence notes on pause and continue
+- [x] 13.3 `docs/backend-standards.md`: record the launch-gate rule — every provider launch asks `admitLaunch` and has no `await` between it and the in-flight mark; a retry is recorded as scheduled before it asks the gate; a new stage registers a launcher and removes itself from `NOT_YET_LAUNCHABLE`
+- [x] 13.4 `docs/PRD-v1.4.md`: check §8.3 and §9 need no wording change; if the open question on in-flight clocks is answered, record the decision there
+- [x] 13.5 Check `docs/frontend-standards.md` for the held indicator; add a line only if the standards list session markers
 
 ## 14. Close out
 
