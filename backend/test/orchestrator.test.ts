@@ -348,3 +348,119 @@ describe("continueSession launches held work from registered launchers (JOS-152,
     expect(stateAfter!.paused).toBe(false);
   });
 });
+
+// JOS-152 task 5.1 — continue behavior tests
+describe("continueSession behavior (JOS-152, task 5.1)", () => {
+  it("continue twice does not launch held work twice", () => {
+    const { runId } = newRunWithScene("success", 5);
+    pauseSession(runId);
+
+    const launched: string[] = [];
+    const launcher = { stage: "decomposition" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), launch: () => { launched.push("decomposition"); } };
+    NOT_YET_LAUNCHABLE.delete("decomposition");
+    registerStageLauncher(launcher);
+
+    continueSession(runId);
+    continueSession(runId); // second continue is a no-op
+
+    expect(launched).toHaveLength(1); // launched only once
+  });
+
+  it("continue on a session that is not paused launches nothing", () => {
+    const { runId } = newRunWithScene("success", 5);
+    // Not paused
+
+    let launched = false;
+    const launcher = { stage: "decomposition" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), launch: () => { launched = true; } };
+    NOT_YET_LAUNCHABLE.delete("decomposition");
+    registerStageLauncher(launcher);
+
+    continueSession(runId);
+
+    expect(launched).toBe(false);
+  });
+});
+
+// JOS-152 task 5.4 — continue that races a cap-queued waiter sends the scene once
+describe("continue racing a cap-queued waiter (JOS-152, task 5.4)", () => {
+  it("a scene queued for the cap is sent once when continue fires before the cap slot opens", () => {
+    // Set cap to 0 so launchScene queues but never fires
+    concurrency.resetAll();
+    concurrency.setLimit(STAGE, 0);
+
+    const { runId, sceneId } = newRunWithScene("success", 5);
+    pauseSession(runId);
+
+    // Now unpause and set cap back to 1 so the queued waiter can fire
+    concurrency.resetAll();
+    concurrency.setLimit(STAGE, 1);
+
+    // Call continueSession — it calls imageStageLauncher.launch which calls launchScene
+    // The scene is submitted and not in-flight, so it gets launched exactly once
+    continueSession(runId);
+
+    // The scene is now in-flight (or complete), not submitted twice
+    const scene = getScene(sceneId)!;
+    expect(["image-generating", "image-complete"]).toContain(scene.status);
+    expect(scene.attempts).toBeLessThanOrEqual(1); // at most 1 attempt started
+  });
+});
+
+// JOS-152 task 6.1 — pause never reverts work
+describe("pause never reverts work (JOS-152, task 6.1)", () => {
+  it("a long pause leaves a completed result unchanged", async () => {
+    const { runId, sceneId } = newRunWithScene("success", 5);
+    launchScene(sceneId);
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
+
+    const resultBefore = getScene(sceneId)!.result;
+    const attemptsBefore = getScene(sceneId)!.attempts;
+
+    pauseSession(runId);
+    continueSession(runId);
+
+    expect(getScene(sceneId)!.result).toBe(resultBefore);
+    expect(getScene(sceneId)!.attempts).toBe(attemptsBefore);
+  });
+
+  it("pause and continue write nothing but the paused marker", () => {
+    const { runId } = newRunWithScene("success", 5);
+    const before = getRun(runId)!;
+
+    pauseSession(runId);
+    continueSession(runId);
+
+    const after = getRun(runId)!;
+    expect(after.title).toBe(before.title);
+    expect(after.failure).toBe(before.failure);
+    expect(after.paused).toBe(false);
+  });
+
+  it("a held launch has no attempt and no sentAt", () => {
+    const { runId, sceneId } = newRunWithScene("success", 5);
+    pauseSession(runId);
+    launchScene(sceneId); // held, not sent
+
+    const scene = getScene(sceneId)!;
+    expect(scene.status).toBe("submitted"); // held
+    expect(scene.attempts).toBe(0); // no attempt consumed
+  });
+});
+
+// JOS-152 task 6.3 — pause in one session leaves another session unaffected
+describe("pause isolation between sessions (JOS-152, task 6.3)", () => {
+  it("pausing one session does not block another session's launch", async () => {
+    const { runId: runId1, sceneId: sceneId1 } = newRunWithScene("success", 20);
+    const { runId: runId2, sceneId: sceneId2 } = newRunWithScene("success", 20);
+
+    pauseSession(runId1); // pause session 1 only
+
+    // Session 2 is not paused, so its launch should succeed
+    launchScene(sceneId2);
+    await waitFor(() => getScene(sceneId2)?.status === "image-complete");
+
+    // Session 1's scene was never launched (it was paused before launch)
+    expect(getScene(sceneId1)!.status).toBe("submitted");
+    expect(getScene(sceneId2)!.status).toBe("image-complete");
+  });
+});

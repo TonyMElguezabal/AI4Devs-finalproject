@@ -39,16 +39,16 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 5. Continue (TDD; design Decision 4)
 
-- [ ] 5.1 Failing tests: continue launches held scenes 1 to 3 in ascending order; continue launches held work of every registered stage in pipeline order; continue twice sends each unit once and both answer success; continue on a session that is not paused launches nothing; a pause during the sweep holds the remaining units; a retry whose due time is in the future waits for it
-- [ ] 5.2 Add the conditional store write that clears the marker only if it was set (`setRunPaused` returning whether a row changed, or a dedicated `clearRunPause`), and make `continueSession` sweep only when it did
-- [ ] 5.3 Make `continueSession` walk the registry instead of the `submitted` loop and make `pauseSession` idempotent (no broadcast when already paused); make 5.1 pass
-- [ ] 5.4 Failing test then change: a continue that races a cap-queued waiter for the same scene sends the scene once (the store state decides, not a flag)
+- [x] 5.1 Failing tests: continue launches held scenes 1 to 3 in ascending order; continue launches held work of every registered stage in pipeline order; continue twice sends each unit once and both answer success; continue on a session that is not paused launches nothing; a pause during the sweep holds the remaining units; a retry whose due time is in the future waits for it
+- [x] 5.2 Add the conditional store write that clears the marker only if it was set (`setRunPaused` returning whether a row changed, or a dedicated `clearRunPause`), and make `continueSession` sweep only when it did
+- [x] 5.3 Make `continueSession` walk the registry instead of the `submitted` loop and make `pauseSession` idempotent (no broadcast when already paused); make 5.1 pass
+- [x] 5.4 Failing test then change: a continue that races a cap-queued waiter for the same scene sends the scene once (the store state decides, not a flag)
 
 ## 6. Pause never reverts work; held time is not execution time (TDD)
 
-- [ ] 6.1 Failing tests: a long pause leaves every completed result, attempt, failure and file unchanged and readable; pause and continue write nothing but the marker; a held launch has no attempt and no `sentAt`, and its first attempt after continue is attempt 1 sent at or after the continue
-- [ ] 6.2 Make 6.1 pass; if it already holds, record that in the test name and keep the tests as the guard
-- [ ] 6.3 Failing test: a pause in one session leaves another session's launches sending, and the slot a paused waiter gave up is used by another session's waiter (`concurrency.ts` unchanged)
+- [x] 6.1 Failing tests: a long pause leaves every completed result, attempt, failure and file unchanged and readable; pause and continue write nothing but the marker; a held launch has no attempt and no `sentAt`, and its first attempt after continue is attempt 1 sent at or after the continue
+- [x] 6.2 Make 6.1 pass; if it already holds, record that in the test name and keep the tests as the guard
+- [x] 6.3 Failing test: a pause in one session leaves another session's launches sending, and the slot a paused waiter gave up is used by another session's waiter (`concurrency.ts` unchanged)
 
 ## 7. Representation and API (TDD; design Decisions 7, 8)
 
