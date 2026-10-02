@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { createRun, getRun, getScenesForRun, resetAll } from "../src/db.ts";
+import { createRun, db, getRun, getScenesForRun, resetAll } from "../src/db.ts";
 import { deriveSessionState, events } from "../src/orchestrator.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import { buildApp } from "../src/server.ts";
@@ -70,6 +70,19 @@ describe("The derived session state (Decision 6, AC5)", () => {
 
   it("keeps working for callers that pass only the scenes", () => {
     expect(deriveSessionState([])).toEqual({ state: "submitted" });
+  });
+
+  it("is final-video once every chunk has reached chunk-complete (JOS-146's video stage, not yet wired here)", async () => {
+    // No code path in this story ever produces a real chunk-complete scene
+    // (generate-chunk-video, JOS-146, owns the video stage that does); the
+    // status is forced directly to exercise deriveSessionState's own truth
+    // table completely.
+    const runId = newRunId();
+    await registerDecomposition(runId, FRAGMENTS, generator, 15);
+    for (const scene of getScenesForRun(runId)) {
+      db.prepare("UPDATE scenes SET status = 'chunk-complete' WHERE id = ?").run(scene.id);
+    }
+    expect(deriveSessionState(getScenesForRun(runId), getRun(runId)?.failure)).toEqual({ state: "final-video" });
   });
 });
 

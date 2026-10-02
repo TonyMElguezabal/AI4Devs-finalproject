@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import {
+  bindSceneImageProvider,
   commitSceneResult,
   db,
   getAllInFlightScenes,
@@ -11,8 +13,9 @@ import {
   getStageAttempts,
   getSubmittedScenesForRun,
   getVoiceOver,
+  insertProviderRequest,
+  markImageComplete,
   markProviderRequestResolved,
-  markSceneComplete,
   markSceneFailed,
   markSceneInFlight,
   markScenePendingRetry,
@@ -20,11 +23,15 @@ import {
   setRunPaused,
   setSceneInstruction,
   writeArtefact,
+  writeArtefactOnce,
 } from "./db.ts";
 import * as concurrency from "./concurrency.ts";
 import * as provider from "./provider.ts";
+import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
+import { downloadGeneratedImage, getImageProviderRegistry, type ImageGenerationResult } from "./imageProvider.ts";
 import {
   STAGE,
+  STUB_PROVIDER_NAME,
   type ProviderOutcome,
   type Scene,
   type SceneEventPayload,
@@ -89,8 +96,13 @@ export function deriveSessionState(
     if (progress.hasVoiceOver) return { state: "voice-over-complete" };
     return { state: "submitted" };
   }
-  const anyGenerating = scenes.some((s) => s.status === "submitted" || s.status === "image-generating");
-  if (anyGenerating) return { state: "chunks-processing" };
+  // generate-chunk-image (JOS-145), design Decision 4 — `image-complete`
+  // is not final until JOS-146 adds the video stage; a session made only of
+  // image-complete chunks is still processing, never `final-video`.
+  const anyProcessing = scenes.some(
+    (s) => s.status === "submitted" || s.status === "image-generating" || s.status === "image-complete",
+  );
+  if (anyProcessing) return { state: "chunks-processing" };
   const anyFailed = scenes.some((s) => s.status === "failed");
   if (anyFailed) return { state: "failed", failedPhase: "image" };
   return { state: "final-video" };
@@ -171,6 +183,138 @@ export function launchScene(sceneId: string): void {
   });
 }
 
+/**
+ * generate-chunk-image (JOS-145), design Decision 6 — the real image stage.
+ * Shares `launchScene`'s guards and pause handling, but calls the bound
+ * adapter with a single `await`: Fal.ai's call has nothing to poll after it
+ * returns, unlike `provider.ts`'s stub simulation. Not awaited by its own
+ * callers (design Decision 7): a caller observes progress through
+ * `broadcast`, the same as every other launch in this module.
+ */
+export function launchImageStage(sceneId: string): void {
+  const scene = getScene(sceneId);
+  if (!scene || scene.status !== "submitted") return;
+  const run = getRun(scene.runId);
+  if (run?.paused) return; // held; continueSession() launches it later
+
+  concurrency.acquire(STAGE, () => {
+    void runImageAttempt(sceneId);
+  });
+}
+
+/** Launches every chunk a run's decomposition just registered (AC1) — `continueSession`'s loop, at registration time. */
+export function launchImageStageForRun(runId: string): void {
+  for (const scene of getSubmittedScenesForRun(runId)) {
+    launchImageStage(scene.id);
+  }
+}
+
+async function runImageAttempt(sceneId: string): Promise<void> {
+  const fresh = getScene(sceneId);
+  if (!fresh || fresh.status !== "submitted") {
+    concurrency.release(STAGE);
+    return;
+  }
+  const freshRun = getRun(fresh.runId);
+  if (!freshRun || freshRun.paused) {
+    // Paused while queued: give the slot to the next waiter without
+    // sending anything. No attempt is consumed. A missing run is defensive;
+    // a scene always belongs to one.
+    concurrency.release(STAGE);
+    return;
+  }
+
+  // design Decision 3 — bound once, atomically, and only if still unbound.
+  const registry = getImageProviderRegistry();
+  bindSceneImageProvider(fresh.id, registry.defaultIdentifier);
+  const boundIdentifier = getScene(fresh.id)!.provider;
+  const adapter = registry.adapters[boundIdentifier];
+
+  const attemptNumber = fresh.attempts + 1;
+  const requestId = randomUUID();
+  markSceneInFlight(fresh.id, requestId, attemptNumber);
+  broadcast(fresh.runId);
+
+  const recordAndRelease = (mode: "success" | "transient_failure" | "not_retryable_failure", latencyMs: number) => {
+    concurrency.release(STAGE);
+    // design Decision 6 — inserted already resolved: the call has already
+    // finished by the time it is recorded, so there is nothing left to poll.
+    insertProviderRequest(requestId, fresh.id, latencyMs, mode, attemptNumber);
+    markProviderRequestResolved(requestId);
+  };
+
+  if (!adapter) {
+    recordAndRelease("not_retryable_failure", 0);
+    applyFailureOutcome(
+      fresh.id,
+      { kind: "failed_not_retryable", reason: `no adapter is configured for the bound provider '${boundIdentifier}'` },
+      attemptNumber,
+      () => launchImageStage(fresh.id),
+    );
+    broadcast(fresh.runId);
+    return;
+  }
+
+  const sentAt = Date.now();
+  let outcome: ImageGenerationResult;
+  try {
+    outcome = await adapter.generate(fresh.imageInstruction);
+  } catch (err) {
+    outcome = {
+      kind: "failed_transient",
+      reason: err instanceof Error ? `the image provider threw: ${err.message}` : "the image provider threw an unexpected error",
+    };
+  }
+  const latencyMs = Date.now() - sentAt;
+
+  if (outcome.kind !== "success") {
+    recordAndRelease(outcome.kind === "failed_not_retryable" ? "not_retryable_failure" : "transient_failure", latencyMs);
+    applyFailureOutcome(fresh.id, outcome, attemptNumber, () => launchImageStage(fresh.id));
+    broadcast(fresh.runId);
+    return;
+  }
+
+  let bytes: Buffer;
+  let contentType: string;
+  if (outcome.image.source === "bytes") {
+    bytes = outcome.image.bytes;
+    contentType = outcome.image.contentType;
+  } else {
+    // §12.2 — no expiring links: resolved to a local file before success.
+    const downloaded = await downloadGeneratedImage(outcome.image.url);
+    if (!downloaded.ok) {
+      recordAndRelease("transient_failure", latencyMs);
+      applyFailureOutcome(fresh.id, { kind: "failed_transient", reason: downloaded.reason }, attemptNumber, () =>
+        launchImageStage(fresh.id),
+      );
+      broadcast(fresh.runId);
+      return;
+    }
+    bytes = downloaded.bytes;
+    contentType = downloaded.contentType;
+  }
+
+  // design Decision 1 — measured from the bytes actually held, never from
+  // provider-reported metadata (contentType is only ever used for the
+  // stored filename's extension, not for acceptance).
+  const dimensions = readImageDimensions(bytes);
+  if (!dimensions || !isAcceptedImageSize(dimensions.width, dimensions.height)) {
+    recordAndRelease("transient_failure", latencyMs);
+    const reason = dimensions
+      ? `the generated image is ${dimensions.width}x${dimensions.height}, not an accepted horizontal 16:9 size`
+      : "the generated image's dimensions could not be read";
+    applyFailureOutcome(fresh.id, { kind: "failed_transient", reason }, attemptNumber, () => launchImageStage(fresh.id));
+    broadcast(fresh.runId);
+    return;
+  }
+
+  const extension = sniffImageExtension(bytes) ?? (contentType.includes("png") ? "png" : "jpg");
+  const relativePath = writeArtefactOnce(freshRun.projectFolder, `scene-${fresh.index}-attempt-${attemptNumber}.${extension}`, bytes);
+  recordAndRelease("success", latencyMs);
+  completeImageStage(fresh.id, relativePath);
+  broadcast(fresh.runId);
+}
+
 /** PRD §9 — pause holds every not-yet-launched generation and retry; requests
  * already sent run to completion. There is no per-scene pause. */
 export function pauseSession(runId: string): { ok: boolean; reason?: string } {
@@ -189,7 +333,16 @@ export function continueSession(runId: string): { ok: boolean; reason?: string }
   setRunPaused(runId, false);
   broadcast(runId);
   for (const scene of getSubmittedScenesForRun(runId)) {
-    launchScene(scene.id);
+    // A registered chunk always has a non-empty IMAGE instruction (JOS-144's
+    // registration validation); the skeleton's test-only `createScene()`
+    // never sets one. That distinguishes a real held chunk, resumed through
+    // the real image stage, from the generic stub scenes orchestrator.test.ts
+    // still exercises through `launchScene`/`provider.ts`.
+    if (scene.imageInstruction) {
+      launchImageStage(scene.id);
+    } else {
+      launchScene(scene.id);
+    }
   }
   return { ok: true };
 }
@@ -225,38 +378,52 @@ export function handleProviderResult(requestId: string): { applied: boolean; not
   return { applied: true, note: "applied" };
 }
 
+/** Records a delivered success once, idempotently, and marks the image stage complete. */
+function completeImageStage(sceneId: string, relativePath: string): void {
+  // Decision 3 (define-persistence, JOS-181) — the store, not this
+  // function, decides whether this delivery is the one that gets to
+  // "complete" the scene. `commitSceneResult` is the idempotent guard (a
+  // second insert for the same scene is refused by its own primary key);
+  // the next-stage launch is gated on that store-level uniqueness, not on
+  // any flag this code checked beforehand — that is what makes it correct
+  // even if two deliveries for the same scene ever raced each other.
+  const committed = commitSceneResult(sceneId, relativePath);
+  markImageComplete(sceneId, relativePath);
+  if (committed) {
+    nextStageLaunches.set(sceneId, (nextStageLaunches.get(sceneId) ?? 0) + 1);
+  }
+}
+
+/** The retry/budget rule shared by every stage's failure handling (PRD §10.1) — not the success path, which each stage owns itself. */
+function applyFailureOutcome(
+  sceneId: string,
+  outcome: { kind: "failed_transient" | "failed_not_retryable"; reason: string },
+  attemptNumber: number,
+  retryLaunch: () => void,
+): void {
+  if (outcome.kind === "failed_not_retryable") {
+    // Not-retryable failures skip automatic retries entirely (PRD §10.1).
+    markSceneFailed(sceneId, outcome.reason);
+    return;
+  }
+  if (attemptNumber >= 1 + RETRY_BUDGET) {
+    markSceneFailed(sceneId, `${outcome.reason} (retry budget exhausted after ${attemptNumber} attempts)`);
+    return;
+  }
+  markScenePendingRetry(sceneId, outcome.reason);
+  retryLaunch(); // automatic retry (held automatically if the session is paused)
+}
+
 function applyOutcome(scene: Scene, outcome: ProviderOutcome, attemptNumber: number): void {
   if (outcome.kind === "success") {
-    // Decision 3 (define-persistence, JOS-181) — the store, not this
-    // function, decides whether this delivery is the one that gets to
-    // "complete" the scene. `markSceneComplete` below is an idempotent
-    // UPDATE (safe to repeat), but the next-stage launch is gated on the
-    // store's own uniqueness constraint, not on any flag this code checked
-    // beforehand — that is what makes it correct even if two deliveries for
-    // the same scene ever raced each other.
     const run = getRun(scene.runId);
     const relativePath = run
       ? writeArtefact(run.projectFolder, `scene-${scene.index}.png`, `stub image for scene ${scene.index}: ${outcome.result}`)
       : outcome.result;
-    const committed = commitSceneResult(scene.id, relativePath);
-    markSceneComplete(scene.id, relativePath);
-    if (committed) {
-      nextStageLaunches.set(scene.id, (nextStageLaunches.get(scene.id) ?? 0) + 1);
-    }
+    completeImageStage(scene.id, relativePath);
     return;
   }
-  if (outcome.kind === "failed_not_retryable") {
-    // Not-retryable failures skip automatic retries entirely (PRD §10.1).
-    markSceneFailed(scene.id, outcome.reason);
-    return;
-  }
-  // failed_transient
-  if (attemptNumber >= 1 + RETRY_BUDGET) {
-    markSceneFailed(scene.id, `${outcome.reason} (retry budget exhausted after ${attemptNumber} attempts)`);
-    return;
-  }
-  markScenePendingRetry(scene.id, outcome.reason);
-  launchScene(scene.id); // automatic retry (held automatically if the session is paused)
+  applyFailureOutcome(scene.id, outcome, attemptNumber, () => launchScene(scene.id));
 }
 
 /**
@@ -311,6 +478,23 @@ export function reconcileOnBoot(): { resumed: number; recordedFailedAttempt: num
   let stillPending = 0;
 
   for (const scene of getAllInFlightScenes()) {
+    // generate-chunk-image (JOS-145), design Decision 6 — a real image
+    // attempt is bound (scenes.provider is no longer the sentinel) by the
+    // time it is in flight; there is no live Fal.ai job to poll after a
+    // restart, so it is always treated as lost, unlike the generic stub
+    // scenes below (still at the sentinel, resolved through `provider.ts`).
+    if (scene.provider !== STUB_PROVIDER_NAME) {
+      applyFailureOutcome(
+        scene.id,
+        { kind: "failed_transient", reason: "the image request was interrupted by a restart" },
+        scene.attempts,
+        () => launchImageStage(scene.id),
+      );
+      broadcast(scene.runId);
+      recordedFailedAttempt++;
+      continue;
+    }
+
     const requestId = sceneCurrentRequestId(scene.id);
     if (!requestId) continue;
     const poll = provider.pollResult(requestId);

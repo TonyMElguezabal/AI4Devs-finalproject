@@ -831,10 +831,22 @@ export function markSceneInFlight(sceneId: string, requestId: string, attemptNum
   ).run(requestId, attemptNumber, nowIso(), sceneId);
 }
 
-export function markSceneComplete(sceneId: string, result: string): void {
+// generate-chunk-image (JOS-145), design Decision 4 — the image stage's own
+// terminal state, not the scene's final `chunk-complete` (that needs a
+// clip too, JOS-146). Renamed from the skeleton's `markSceneComplete`,
+// which this replaces as the image stage's completion write.
+export function markImageComplete(sceneId: string, result: string): void {
   db.prepare(
-    "UPDATE scenes SET status = 'chunk-complete', result = ?, current_request_id = NULL, updated_at = ? WHERE id = ?",
+    "UPDATE scenes SET status = 'image-complete', result = ?, current_request_id = NULL, updated_at = ? WHERE id = ?",
   ).run(result, nowIso(), sceneId);
+}
+
+// design Decision 3 — bound once, atomically: the UPDATE only writes when
+// the column is still at the unbound sentinel, so a caller never needs a
+// prior read to know whether it is safe to write (the store enforces it,
+// not application code, matching this project's other uniqueness guards).
+export function bindSceneImageProvider(sceneId: string, identifier: string): void {
+  db.prepare("UPDATE scenes SET provider = ? WHERE id = ? AND provider = ?").run(identifier, sceneId, STUB_PROVIDER_NAME);
 }
 
 export function markScenePendingRetry(sceneId: string, error: string): void {

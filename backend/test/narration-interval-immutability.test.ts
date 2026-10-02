@@ -61,7 +61,7 @@ describe("A chunk's interval survives processing and retries (AC4)", () => {
     const { runId, sceneId } = await registeredSession();
 
     launchScene(sceneId);
-    await waitFor(() => getScene(sceneId)?.status === "chunk-complete");
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
 
     expect(intervalsOf(runId)).toEqual(REGISTERED_INTERVALS);
   });
@@ -81,7 +81,7 @@ describe("A chunk's interval survives processing and retries (AC4)", () => {
 
     db.prepare("UPDATE scenes SET provider_mode = 'success' WHERE id = ?").run(sceneId);
     expect(correctAndRetry(sceneId, "a corrected image instruction").ok).toBe(true);
-    await waitFor(() => getScene(sceneId)?.status === "chunk-complete");
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
     expect(intervalsOf(runId)).toEqual(REGISTERED_INTERVALS);
   });
 });
