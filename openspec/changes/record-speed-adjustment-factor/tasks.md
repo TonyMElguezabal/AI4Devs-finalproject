@@ -42,10 +42,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. Frontend: type and scene-details display
 
-- [ ] 6.1 Add `requestedDurationSeconds?: number`, `durationWarning?: "exceeds-maximum"`, `speedFactor?: number` and `speedFactorWarning?: boolean` to `SceneEventPayload` in `frontend/src/types.ts`
-- [ ] 6.2 Write a failing component test (or extend the existing `SceneRow` test file) asserting the scene-details panel shows the requested duration and speed factor when present, shows the warning text distinguishably when `speedFactorWarning` or `durationWarning` is set, and shows neither when both are absent (skeleton scene)
-- [ ] 6.3 Update `SceneRow.tsx`'s `scene-details` `<dl>` to render the new `<dt>`/`<dd>` pairs conditionally, and remove the comment deferring this to US-15
-- [ ] 6.4 Make the 6.2 test pass
+- [x] 6.1 Add `requestedDurationSeconds?: number`, `durationWarning?: "exceeds-maximum"`, `speedFactor?: number` and `speedFactorWarning?: boolean` to `SceneEventPayload` in `frontend/src/types.ts` — added as `speedFactorWarning?: "exceeds-limit"` (a literal, not `boolean`, to mirror `durationWarning`'s own enum-of-one shape and the backend's actual type)
+- [x] 6.2 Write a failing component test (or extend the existing `SceneRow` test file) asserting the scene-details panel shows the requested duration and speed factor when present, shows the warning text distinguishably when `speedFactorWarning` or `durationWarning` is set, and shows neither when both are absent (skeleton scene) — 3 new tests in `test/components.test.tsx` (the existing file with `SceneRow` coverage, no dedicated `SceneRow.test.tsx` existed); 2 confirmed failing first (typecheck failed before that, confirming the type itself was missing), the "neither" case passed trivially (both already absent)
+- [x] 6.3 Update `SceneRow.tsx`'s `scene-details` `<dl>` to render the new `<dt>`/`<dd>` pairs conditionally, and remove the comment deferring this to US-15 — comment reworded (narration interval is still deferred, to a different, unnamed story; the speed-factor deferral is gone since this story fills it)
+- [x] 6.4 Make the 6.2 test pass — 36/36 in `components.test.tsx`; full frontend suite 42 passed; typecheck clean
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
