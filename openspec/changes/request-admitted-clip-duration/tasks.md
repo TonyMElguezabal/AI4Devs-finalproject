@@ -71,10 +71,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 10. Update Technical Documentation (MANDATORY)
 
-- [ ] 10.1 `docs/data-model.md`: the two `scenes` columns, migration 10 and the two triggers in the lock table
-- [ ] 10.2 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is the two scene response fields
-- [ ] 10.3 `docs/backend-standards.md`: the requested duration is decided once at registration from the stored interval through `closestAdmittedDuration`, and locked
-- [ ] 10.4 `docs/PRD.md`: check §6.1.1, §7.2, §11.2 and AC06 need no wording change; record in the change log only if something changes
+- [x] 10.1 `docs/data-model.md`: the two `scenes` columns, migration 10 and the two triggers in the lock table — added alongside the narration-interval entry, the migrations narrative, the triggers table and its notes
+- [x] 10.2 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is the two scene response fields — regenerated and diffed against a fresh fetch: the only content difference is the two new fields (inserted at both occurrences); the diff also showed a pre-existing, unrelated single-vs-double-quote cosmetic difference from a different `yaml`-library version, left untouched
+- [x] 10.3 `docs/backend-standards.md`: the requested duration is decided once at registration from the stored interval through `closestAdmittedDuration`, and locked — added a paragraph alongside the narration-interval one, and extended the lock-triggers paragraph's field list
+- [x] 10.4 `docs/PRD.md`: check §6.1.1, §7.2, §11.2 and AC06 need no wording change; record in the change log only if something changes — checked, all four already describe exactly this behavior (smallest speed change, tie to longer, below-minimum uses the minimum, unsplittable sentence uses the maximum with a warning, not a failure); no change needed
 
 ## 11. Close out
 
