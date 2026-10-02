@@ -84,10 +84,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/data-model.md`: add `scenes.speed_factor`/`speed_factor_warning`, migration 11 and its two triggers, alongside the existing `requested_duration_seconds` entry; update its note that recording the factor "belongs to JOS-148" now that it is implemented
-- [ ] 11.2 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is the two new scene response fields
-- [ ] 11.3 `docs/backend-standards.md`: add a paragraph next to the requested-duration one explaining the factor is computed from already-locked values at registration, never from a generated clip, and extend the lock-triggers field list
-- [ ] 11.4 `docs/PRD-v1.3.md` (or current PRD version): check §7.2 and AC23 need no wording change; record in the change log only if something changes
+- [x] 11.1 `docs/data-model.md`: add `scenes.speed_factor`/`speed_factor_warning`, migration 11 and its two triggers, alongside the existing `requested_duration_seconds` entry; update its note that recording the factor "belongs to JOS-148" now that it is implemented — done, including fixing a stale "Not modelled" bullet left over from before JOS-147 that still listed "requested clip duration" as unmodelled
+- [x] 11.2 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is the two new scene response fields — regenerated against a scratch server and diffed against a fresh fetch: the only content difference is `speedFactor`/`speedFactorWarning` at both occurrences (session create + session read); same pre-existing single-vs-double-quote/line-wrap cosmetic difference from the installed `yaml` library version JOS-147's own report already found, left as-is
+- [x] 11.3 `docs/backend-standards.md`: add a paragraph next to the requested-duration one explaining the factor is computed from already-locked values at registration, never from a generated clip, and extend the lock-triggers field list — added, plus updated two stale references to the speed-factor limit still being `"undetermined"`/open now that JOS-148 set it
+- [x] 11.4 `docs/PRD-v1.3.md` (or current PRD version): check §7.2 and AC23 need no wording change; record in the change log only if something changes — checked: both already describe exactly this behavior (factor not independent, recorded with the result, shown with the requested duration, hardcoded limit, warning not failure); no change needed
 
 ## 12. Close out
 
