@@ -144,7 +144,9 @@ describe("Each chunk's requested duration is chosen from its interval (JOS-147)"
 
     // A later build with a wider admitted set (5..20) would now choose 17 s for the same interval.
     const wide = Array.from({ length: 16 }, (_, i) => 5 + i);
-    expect(requestedClipDuration(interval, wide)).toEqual({ seconds: 17, warning: null });
+    const widerChoice = requestedClipDuration(interval, wide);
+    expect(widerChoice.seconds).toBe(17);
+    expect(widerChoice.warning).toBeNull();
 
     // The already-registered chunk is untouched by that: a second registration is refused outright.
     const second = await registerDecomposition(runId, fragments, stubGenerator().generator, voiceOverDurationOf(fragments));

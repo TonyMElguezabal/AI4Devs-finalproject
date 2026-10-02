@@ -4,23 +4,23 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Create branch `feature/jos-148-record-speed-adjustment-factor` from `feature/entrega-2-JAME` (the MVP integration branch; MVP changes do not target `main`), with no upstream set
-- [ ] 0.2 Verify the branch was created and is the current branch
+- [x] 0.1 Create branch `feature/jos-148-record-speed-adjustment-factor` from `feature/entrega-2-JAME` (the MVP integration branch; MVP changes do not target `main`), with no upstream set — created from `a3f5801`, no upstream configured
+- [x] 0.2 Verify the branch was created and is the current branch — `git branch --show-current` confirms `feature/jos-148-record-speed-adjustment-factor`
 
 ## 1. Gate
 
-- [ ] 1.1 Confirm `request-admitted-clip-duration` (JOS-147) is on the base branch: `scenes.requested_duration_seconds`/`duration_warning` exist, are locked, and are exposed as `requestedDurationSeconds`/`durationWarning` on the session/scene read (`admittedDurations.ts`, `sceneRegistration.ts`, `db.ts`, `orchestrator.ts`, `routes.ts`)
-- [ ] 1.2 Confirm `SPEED_FACTOR_LIMIT` in `backend/src/config/providers.ts`: if it is still `"undetermined"`, stop before group 3 and record the blocker on JOS-148 against `define-media-assembly` (JOS-182)'s unmerged pull request, naming the real value if it is visible there, rather than inventing one
-- [ ] 1.3 Confirm the next free migration number on `feature/entrega-2-JAME` and every open feature branch (10 is taken by JOS-147); record it in design.md Decision 2 if different from 11
-- [ ] 1.4 Confirm `SceneRow.tsx`'s deferral comment and `frontend/src/types.ts`'s `SceneEventPayload` still lack `requestedDurationSeconds`/`durationWarning`/`speedFactor`/`speedFactorWarning`, so this story is not duplicating already-landed frontend work
-- [ ] 1.5 If 1.1 or 1.2 is not met, stop, and record the blocker on JOS-148 in Linear rather than building against a guess
+- [x] 1.1 Confirm `request-admitted-clip-duration` (JOS-147) is on the base branch: `scenes.requested_duration_seconds`/`duration_warning` exist, are locked, and are exposed as `requestedDurationSeconds`/`durationWarning` on the session/scene read (`admittedDurations.ts`, `sceneRegistration.ts`, `db.ts`, `orchestrator.ts`, `routes.ts`) — confirmed: met, all five files carry it
+- [x] 1.2 Confirm `SPEED_FACTOR_LIMIT` in `backend/src/config/providers.ts`: if it is still `"undetermined"`, stop before group 3 and record the blocker on JOS-148 against `define-media-assembly` (JOS-182)'s unmerged pull request, naming the real value if it is visible there, rather than inventing one — **still `"undetermined"` in code.** The real recommendation exists on `feature/jos-182-define-media-assembly` (PR #3, open, not merged): `docs/backend-standards.md` "Speed-factor recommendation (feeds US-33)" there reads **0.5×-2.0×, asymmetric** — "slow-down produces measurable frame duplication starting immediately below 1.0×; speed-up produced none in the tested range" (full data: `docs/adr/0005-media-assembly.md` Decision 5 on that branch). That number is about the signed §7.3 playback-rate multiplier the assembly stage applies, not directly about this story's unsigned `max(ratio) ≥ 1` factor (JOS-146 Decision 3's framing, which this story's own design Decision 1 reuses) — reconciling the two (does the warning need direction-awareness, i.e. `requestedDurationSeconds` vs `narratedDurationSeconds`, or does one symmetric number on the unsigned factor suffice?) is JOS-165's call once JOS-182 merges, not a guess to make here. **Stopping before group 3 per this task's own instruction; recorded as design.md Open Question 1 and reported to the user.**
+- [x] 1.3 Confirm the next free migration number on `feature/entrega-2-JAME` and every open feature branch (10 is taken by JOS-147); record it in design.md Decision 2 if different from 11 — confirmed: highest version across every open branch with a `db.ts` is 10 (`feature/entrega-2-JAME`, where this branch forked from); `feature/jos-141`/`feature/jos-146` are still at 8; `feature/jos-182`/`jos-167`/`jos-184`/`jos-185` have no `db.ts` changes. **11 stays correct**, no update needed
+- [x] 1.4 Confirm `SceneRow.tsx`'s deferral comment and `frontend/src/types.ts`'s `SceneEventPayload` still lack `requestedDurationSeconds`/`durationWarning`/`speedFactor`/`speedFactorWarning`, so this story is not duplicating already-landed frontend work — confirmed: zero matches for any of the four in either file
+- [x] 1.5 If 1.1 or 1.2 is not met, stop, and record the blocker on JOS-148 in Linear rather than building against a guess — 1.1 is met; 1.2 is not fully met but names its own narrower stopping point (before group 3), which this task follows rather than stopping all work. Groups 2 (the limit-independent ratio function) can proceed; group 3 (the warning comparison) cannot
 
-## 2. Domain: speed-adjustment factor function (TDD, pure logic)
+## 2. Domain: expose the speed-adjustment factor already computed by duration selection (TDD, pure logic)
 
-- [ ] 2.1 Write a failing test for the slow-down example in design.md Decision 1 (9 s narrated, 11 s requested → factor 11/9 ≈ 1.222)
-- [ ] 2.2 Write a failing test for the speed-up example (17.4 s narrated, 15 s requested → factor 17.4/15 = 1.16)
-- [ ] 2.3 Write a failing test that the factor is always ≥ 1, for both a requested duration above and below the narrated interval
-- [ ] 2.4 Implement `speedAdjustmentFactor(requestedDurationSeconds, narratedDurationSeconds)` in `admittedDurations.ts` (next to `requestedClipDuration`, reusing `intervalDurationSeconds`), run the group 2 tests and confirm they pass
+- [x] 2.1 Design-time discovery, recorded in design.md Decision 1: `closestAdmittedDuration` already computes and discards exactly this ratio as `speedRatio`; no new function is needed, `requestedClipDuration` just needs to pass it through as `factor`
+- [x] 2.2 Update the existing `requestedClipDuration` tests in `admitted-durations.test.ts` (currently exact `toEqual({ seconds, warning })`) to also assert `factor`, matching each case's already-known `speedRatio` (6/5.49, 9/9.4, 6/√30, 5/3, 1 at exactly 15 s, 15/17.4, the explicit-admitted-list case) — confirmed failing (`factor` absent) before implementation
+- [x] 2.3 Add `factor: number` to `RequestedClipDuration` and have `requestedClipDuration` return `closestAdmittedDuration`'s `speedRatio` as `factor`, unchanged
+- [x] 2.4 Run the group 2 tests and confirm they pass — 26/26 in `admitted-durations.test.ts`. Full suite found one more full-shape `toEqual` on `requestedClipDuration`'s result in `scene-registration.test.ts` (AC5 "a different admitted set later" test); narrowed it to `.seconds`/`.warning` assertions since that test predates `factor` and isn't about it. Full suite: 691 passed, 2 pre-existing skips; typecheck clean
 
 ## 3. Storage and locks (design Decisions 2 and 4; spec: stored, never changes; warning against the limit)
 
