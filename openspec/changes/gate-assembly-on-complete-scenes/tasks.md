@@ -75,10 +75,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/data-model.md`: update the session `state` bullet (scene rule per §8.1 v1.3, `final-video` only with a final video, `failedPhase: "scenes"`, derived `failedSceneIndexes`)
-- [ ] 11.2 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only content change is `failedSceneIndexes`
-- [ ] 11.3 `docs/backend-standards.md`: record the gate as the single launch condition for assembly and the settled-state definition
-- [ ] 11.4 `docs/PRD-v1.3.md`: check §7.3, §8.1 and §10.2 need no wording change
+- [x] 11.1 `docs/data-model.md`: update the session `state` bullet (scene rule per §8.1 v1.3, `final-video` only with a final video, `failedPhase: "scenes"`, derived `failedSceneIndexes`)
+- [x] 11.2 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only content change is `failedSceneIndexes` — regenerated from a real server; a semantic diff against the committed file shows only `failedSceneIndexes` added at both session-schema occurrences (create and read), no cosmetic noise
+- [x] 11.3 `docs/backend-standards.md`: record the gate as the single launch condition for assembly and the settled-state definition
+- [x] 11.4 `docs/PRD-v1.3.md`: check §7.3, §8.1 and §10.2 need no wording change — none needed: §7.3 and AC12 already require every scene `chunk-complete`, the §8.1 v1.3 state rules and §10.2 already describe the gate this change implements
 
 ## 12. Close out
 

@@ -129,6 +129,13 @@ paths:
                         type: boolean
                       failedPhase:
                         type: string
+                      failedSceneIndexes:
+                        type: array
+                        items:
+                          type: integer
+                        description: 'PRD §8.1: the indexes of the failed scenes, ascending. Present
+                          only when failedPhase is "scenes". Derived and
+                          read-only.'
                       createdAt:
                         type: string
                       updatedAt:
@@ -299,6 +306,13 @@ paths:
                         type: boolean
                       failedPhase:
                         type: string
+                      failedSceneIndexes:
+                        type: array
+                        items:
+                          type: integer
+                        description: 'PRD §8.1: the indexes of the failed scenes, ascending. Present
+                          only when failedPhase is "scenes". Derived and
+                          read-only.'
                       createdAt:
                         type: string
                       updatedAt:
