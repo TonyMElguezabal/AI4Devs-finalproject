@@ -36,6 +36,25 @@ beforeEach(() => {
   resetImageProviderRegistry();
 });
 
+/**
+ * generate-chunk-image (JOS-145) auto-launches the real image stage on every
+ * registration, through `getImageProviderRegistry()`'s default adapter unless
+ * a test configures its own (design Decision 7). A test that only cares about
+ * the state right after registration, not about how the image stage itself
+ * resolves, installs this held (never-settling within the test's lifetime)
+ * adapter first — otherwise it would depend on whatever the default adapter's
+ * real credential/network behaviour happens to do in this environment, which
+ * is exactly what bit JOS-147's own merge verification (report,
+ * reports/2026-10-02-step-*): a local `.secrets.json` masked the real
+ * `FAL_API_KEY`-not-found failure in one developer's checkout.
+ */
+function holdImageStage(): void {
+  setImageProviderRegistry({
+    defaultIdentifier: "test-decomposition-held-adapter",
+    adapters: { "test-decomposition-held-adapter": { generate: () => new Promise(() => {}) } },
+  });
+}
+
 /** `launchImageStageForRun` is fire-and-forget (design Decision 7), so a
  * caller's own return does not mean every launch has settled yet. */
 function waitFor(predicate: () => boolean, timeoutMs = 5000, intervalMs = 5): Promise<void> {
@@ -141,6 +160,7 @@ describe("Segmenting the stored timestamps", () => {
   });
 
   it("leaves the session in chunks-processing", async () => {
+    holdImageStage();
     const { runId } = await newSessionWithStoredTimestamps();
     await segmentStoredTimestamps(runId, stubGenerator().generator);
     expect(stateOf(runId)).toEqual({ state: "chunks-processing" });
@@ -310,6 +330,7 @@ describe("The stored intervals follow the timestamps (JOS-143)", () => {
 
 describe("The decomposition phase (Decision 7)", () => {
   it("obtains the timestamps first when they are missing, then registers the chunks", async () => {
+    holdImageStage();
     const { runId } = newNarratedSession(SCRIPT, false);
     const alignment = stubAlignment();
     const { generator, calls } = stubGenerator();
@@ -360,6 +381,7 @@ describe("The decomposition phase (Decision 7)", () => {
   });
 
   it("recovers on a later run once the timestamps can be obtained, clearing the earlier failure", async () => {
+    holdImageStage();
     const { runId } = newNarratedSession(SCRIPT, false);
     const failing = stubAlignment(() => ({ kind: "failed_transient", reason: "the provider was unavailable (HTTP 503)" }));
     const first = await runDecompositionPhase(runId, { alignmentProvider: failing.provider, instructionGenerator: stubGenerator().generator });
