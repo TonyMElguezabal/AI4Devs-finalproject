@@ -26,6 +26,7 @@ import {
   writeArtefactOnce,
 } from "./db.ts";
 import * as concurrency from "./concurrency.ts";
+import { admitLaunch, launchHeldWork, registerStageLauncher, sessionHeldWork, type StageLauncher } from "./launchGate.ts";
 import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
@@ -46,6 +47,13 @@ import {
 export const RETRY_BUDGET = 3;
 
 export const events = new EventEmitter();
+
+// Test-only hook: fires synchronously after admission and before the in-flight
+// mark, to prove no pause can land between them (design Decision 2).
+let _postAdmitHook: ((runId: string) => void) | undefined;
+export function setPostAdmitHook(hook: ((runId: string) => void) | undefined): void {
+  _postAdmitHook = hook;
+}
 
 // ---- Wire contract helpers (define-live-updates, JOS-183 Decisions 2/4/8) ----
 
@@ -127,6 +135,8 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     hasVoiceOver: getVoiceOver(runId) !== undefined,
     timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
   });
+  const heldWork = sessionHeldWork(runId);
+  const heldSceneIds = heldWork.sceneIds;
   const session: SessionEventPayload = {
     type: "session",
     sessionId: run.id,
@@ -135,6 +145,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     language: run.language,
     state,
     paused: run.paused,
+    held: heldWork.stages.map((s) => ({ stage: s.stage, count: s.count })),
     failedPhase,
     failedSceneIndexes,
     createdAt: run.createdAt,
@@ -142,7 +153,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
   };
   return {
     session,
-    scenes: scenes.map(sceneToPayload),
+    scenes: scenes.map((s) => ({ ...sceneToPayload(s), held: heldSceneIds.has(s.id) || undefined })),
   };
 }
 
@@ -160,6 +171,16 @@ export function nextStageLaunchCount(sceneId: string): number {
   return nextStageLaunches.get(sceneId) ?? 0;
 }
 
+/** Dispatches to the real image stage or the stub stage depending on whether the scene has an IMAGE instruction. */
+function launchSceneStage(sceneId: string): void {
+  const scene = getScene(sceneId);
+  if (scene?.imageInstruction) {
+    launchImageStage(sceneId);
+  } else {
+    launchScene(sceneId);
+  }
+}
+
 /**
  * Launches a scene's next attempt, honouring a session-wide pause (PRD §9):
  * a not-yet-launched generation is held until `continueSession` is called.
@@ -169,19 +190,18 @@ export function nextStageLaunchCount(sceneId: string): number {
 export function launchScene(sceneId: string): void {
   const scene = getScene(sceneId);
   if (!scene || scene.status !== "submitted") return;
-  const run = getRun(scene.runId);
-  if (run?.paused) return; // held; continueSession() launches it later
+  if (!admitLaunch(scene.runId).admitted) return; // held; continueSession() launches it later
 
   concurrency.acquire(STAGE, () => {
     const fresh = getScene(sceneId);
     if (!fresh || fresh.status !== "submitted") return;
-    const freshRun = getRun(fresh.runId);
-    if (freshRun?.paused) {
+    if (!admitLaunch(fresh.runId).admitted) {
       // Paused while queued: give the slot to the next waiter without
-      // sending anything. No attempt is consumed.
+      // sending anything. No attempt is consumed (design Decision 2).
       concurrency.release(STAGE);
       return;
     }
+    _postAdmitHook?.(fresh.runId);
     const attemptNumber = fresh.attempts + 1;
     const requestId = provider.send(
       fresh.id,
@@ -206,8 +226,7 @@ export function launchScene(sceneId: string): void {
 export function launchImageStage(sceneId: string): void {
   const scene = getScene(sceneId);
   if (!scene || scene.status !== "submitted") return;
-  const run = getRun(scene.runId);
-  if (run?.paused) return; // held; continueSession() launches it later
+  if (!admitLaunch(scene.runId).admitted) return; // held; continueSession() launches it later
 
   concurrency.acquire(STAGE, () => {
     void runImageAttempt(sceneId);
@@ -221,20 +240,35 @@ export function launchImageStageForRun(runId: string): void {
   }
 }
 
+export const imageStageLauncher: StageLauncher = {
+  stage: "image",
+  heldWork: (sessionId: string) => {
+    const scenes = getSubmittedScenesForRun(sessionId);
+    return { count: scenes.length, sceneIds: scenes.map((s) => s.id) };
+  },
+  launch: (sessionId: string) => {
+    for (const scene of getSubmittedScenesForRun(sessionId)) {
+      launchSceneStage(scene.id);
+    }
+  },
+};
+
+registerStageLauncher(imageStageLauncher);
+
 async function runImageAttempt(sceneId: string): Promise<void> {
   const fresh = getScene(sceneId);
   if (!fresh || fresh.status !== "submitted") {
     concurrency.release(STAGE);
     return;
   }
-  const freshRun = getRun(fresh.runId);
-  if (!freshRun || freshRun.paused) {
+  if (!admitLaunch(fresh.runId).admitted) {
     // Paused while queued: give the slot to the next waiter without
-    // sending anything. No attempt is consumed. A missing run is defensive;
-    // a scene always belongs to one.
+    // sending anything. No attempt is consumed (design Decision 2).
+    // An unknown session (missing run) is also not admitted.
     concurrency.release(STAGE);
     return;
   }
+  const freshRun = getRun(fresh.runId)!;
 
   // design Decision 3 — bound once, atomically, and only if still unbound.
   const registry = getImageProviderRegistry();
@@ -242,6 +276,7 @@ async function runImageAttempt(sceneId: string): Promise<void> {
   const boundIdentifier = getScene(fresh.id)!.provider;
   const adapter = registry.adapters[boundIdentifier];
 
+  _postAdmitHook?.(fresh.runId);
   const attemptNumber = fresh.attempts + 1;
   const requestId = randomUUID();
   markSceneInFlight(fresh.id, requestId, attemptNumber);
@@ -332,30 +367,19 @@ async function runImageAttempt(sceneId: string): Promise<void> {
 export function pauseSession(runId: string): { ok: boolean; reason?: string } {
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown session" };
-  setRunPaused(runId, true);
-  broadcast(runId);
+  const changed = setRunPaused(runId, true);
+  if (changed) broadcast(runId);
   return { ok: true };
 }
 
 /** Continuing removes the marker and leaves state unchanged, then launches
- * everything that was held. */
+ * everything that was held. Only sweeps when the pause marker was actually set. */
 export function continueSession(runId: string): { ok: boolean; reason?: string } {
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown session" };
-  setRunPaused(runId, false);
+  const changed = setRunPaused(runId, false);
   broadcast(runId);
-  for (const scene of getSubmittedScenesForRun(runId)) {
-    // A registered chunk always has a non-empty IMAGE instruction (JOS-144's
-    // registration validation); the skeleton's test-only `createScene()`
-    // never sets one. That distinguishes a real held chunk, resumed through
-    // the real image stage, from the generic stub scenes orchestrator.test.ts
-    // still exercises through `launchScene`/`provider.ts`.
-    if (scene.imageInstruction) {
-      launchImageStage(scene.id);
-    } else {
-      launchScene(scene.id);
-    }
-  }
+  if (changed) launchHeldWork(runId);
   return { ok: true };
 }
 
@@ -435,7 +459,7 @@ function applyOutcome(scene: Scene, outcome: ProviderOutcome, attemptNumber: num
     completeImageStage(scene.id, relativePath);
     return;
   }
-  applyFailureOutcome(scene.id, outcome, attemptNumber, () => launchScene(scene.id));
+  applyFailureOutcome(scene.id, outcome, attemptNumber, () => launchSceneStage(scene.id));
 }
 
 /**
@@ -450,7 +474,7 @@ export function manualRetry(sceneId: string): { ok: boolean; reason?: string } {
   // A manual retry starts a fresh cycle: reset the attempt counter so the
   // scene gets a full 1 + RETRY_BUDGET budget again, per PRD §10.2.
   resetAttemptsForManualRetry(sceneId);
-  launchScene(sceneId);
+  launchSceneStage(sceneId);
   return { ok: true };
 }
 

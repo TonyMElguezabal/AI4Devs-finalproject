@@ -106,6 +106,7 @@ const sceneResponseSchema = z.object({
     .describe(
       "PRD §7.2: set when the speed-adjustment factor exceeds the hardcoded acceptable limit. Not a failure, and independent of durationWarning. Read-only and immutable once the chunk is established.",
     ),
+  held: z.boolean().optional().describe("True while the session is paused and this scene has pending work waiting to be launched."),
   updatedAt: z.string(),
 });
 
@@ -119,6 +120,7 @@ const sessionResponseSchema = z.object({
   language: z.string().describe("Immutable once the session is registered (PRD §4.1, §4.2)."),
   state: z.string(),
   paused: z.boolean(),
+  held: z.array(z.object({ stage: z.string(), count: z.number() })).describe("Stages with held work; empty when not paused."),
   failedPhase: z.string().optional(),
   failedSceneIndexes: z
     .array(z.number().int())

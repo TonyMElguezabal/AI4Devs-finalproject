@@ -157,7 +157,10 @@ describe("Successful results stay available after a failure (JOS-150, AC10)", ()
 
     const body = await read(sessionId);
 
-    expect(body.scenes[0]).toMatchObject({ state: "failed", result: { imageUrl: "scene-1-image.png" } });
+    expect(body.scenes[0]).toMatchObject({
+      state: "failed",
+      result: { imageUrl: `/sessions/${sessionId}/scenes/${firstSceneId}/image` },
+    });
   });
 });
 

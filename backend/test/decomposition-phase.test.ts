@@ -14,7 +14,7 @@ import {
 import { runDecompositionPhase, segmentStoredTimestamps } from "../src/decompositionPhase.ts";
 import { createStubImageProvider, resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
 import { obtainNarrationTimestamps } from "../src/narrationTimestampsPhase.ts";
-import { deriveSessionState } from "../src/orchestrator.ts";
+import { deriveSessionState, pauseSession } from "../src/orchestrator.ts";
 import { registerDecomposition } from "../src/sceneRegistration.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
 import { writeFileSync } from "node:fs";
@@ -413,5 +413,26 @@ describe("The decomposition phase (Decision 7)", () => {
     await runDecompositionPhase(runId, { alignmentProvider: stubAlignment().provider, instructionGenerator: stubGenerator().generator });
     const result = await runDecompositionPhase(runId, { alignmentProvider: stubAlignment().provider, instructionGenerator: stubGenerator().generator });
     expect(result).toEqual({ ok: false, reason: "already-registered" });
+  });
+
+  // JOS-152 task 3.6 — decomposition gate while paused
+  it("while paused, runDecompositionPhase returns held and starts nothing", async () => {
+    const { runId } = await newSessionWithStoredTimestamps();
+    pauseSession(runId);
+
+    const result = await runDecompositionPhase(runId, { alignmentProvider: stubAlignment().provider, instructionGenerator: stubGenerator().generator });
+
+    expect(result).toEqual({ ok: false, reason: "held" });
+    expect(getScenesForRun(runId)).toHaveLength(0); // no chunks registered
+  });
+
+  it("while paused, segmentStoredTimestamps returns held and starts nothing", async () => {
+    const { runId } = await newSessionWithStoredTimestamps();
+    pauseSession(runId);
+
+    const result = await segmentStoredTimestamps(runId, stubGenerator().generator);
+
+    expect(result).toEqual({ ok: false, reason: "held" });
+    expect(getScenesForRun(runId)).toHaveLength(0);
   });
 });

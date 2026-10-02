@@ -36,6 +36,7 @@ function makeSession(overrides: Partial<SessionEventPayload>): SessionEventPaylo
     language: "en",
     state: "submitted",
     paused: false,
+    held: [],
     updatedAt: "2026-09-25T00:00:00.000Z",
     ...overrides,
   };
@@ -488,5 +489,33 @@ describe("SessionPage", () => {
     const startNew = screen.getByRole("button", { name: "Start a new project" });
     await user.click(startNew);
     expect(onStartNew).toHaveBeenCalled();
+  });
+});
+
+// JOS-152 task 8.1 — held indicator in header and scene rows
+describe("held indicator in session header and scene rows (JOS-152, task 8.1)", () => {
+  it("shows held stages and count in header when paused with held work", () => {
+    const session = makeSession({ state: "chunks-processing", paused: true, held: [{ stage: "image", count: 2 }] });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    expect(screen.getByText(/paused/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 image held/i)).toBeInTheDocument();
+  });
+
+  it("does not show held stages when not paused", () => {
+    const session = makeSession({ state: "chunks-processing", paused: false, held: [] });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    expect(screen.queryByText(/held/i)).not.toBeInTheDocument();
+  });
+
+  it("a held scene row says it is waiting for continue", () => {
+    const scene = makeScene({ sceneId: "h1", index: 1, state: "submitted", held: true });
+    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    expect(screen.getByText(/waiting for continue/i)).toBeInTheDocument();
+  });
+
+  it("a generating scene in the same session does not show waiting for continue", () => {
+    const scene = makeScene({ sceneId: "g1", index: 1, state: "image-generating" });
+    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
   });
 });

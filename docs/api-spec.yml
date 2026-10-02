@@ -127,6 +127,19 @@ paths:
                         type: string
                       paused:
                         type: boolean
+                      held:
+                        type: array
+                        description: Stages with held work; empty when not paused.
+                        items:
+                          type: object
+                          properties:
+                            stage:
+                              type: string
+                            count:
+                              type: number
+                          required:
+                            - stage
+                            - count
                       failedPhase:
                         type: string
                       failedSceneIndexes:
@@ -148,6 +161,7 @@ paths:
                       - language
                       - state
                       - paused
+                      - held
                       - createdAt
                       - updatedAt
                     additionalProperties: false
@@ -250,6 +264,9 @@ paths:
                             hardcoded acceptable limit. Not a failure, and
                             independent of durationWarning. Read-only and
                             immutable once the chunk is established."
+                        held:
+                          type: boolean
+                          description: True while the session is paused and this scene has pending work waiting to be launched.
                         updatedAt:
                           type: string
                       required:
@@ -304,6 +321,19 @@ paths:
                         type: string
                       paused:
                         type: boolean
+                      held:
+                        type: array
+                        description: Stages with held work; empty when not paused.
+                        items:
+                          type: object
+                          properties:
+                            stage:
+                              type: string
+                            count:
+                              type: number
+                          required:
+                            - stage
+                            - count
                       failedPhase:
                         type: string
                       failedSceneIndexes:
@@ -325,6 +355,7 @@ paths:
                       - language
                       - state
                       - paused
+                      - held
                       - createdAt
                       - updatedAt
                     additionalProperties: false
@@ -427,6 +458,9 @@ paths:
                             hardcoded acceptable limit. Not a failure, and
                             independent of durationWarning. Read-only and
                             immutable once the chunk is established."
+                        held:
+                          type: boolean
+                          description: True while the session is paused and this scene has pending work waiting to be launched.
                         updatedAt:
                           type: string
                       required:

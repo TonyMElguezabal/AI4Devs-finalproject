@@ -32,6 +32,7 @@ export interface SessionEventPayload {
   language: string;
   state: SessionState;
   paused: boolean;
+  held: Array<{ stage: string; count: number }>;
   failedPhase?: string;
   /** JOS-150 — the failed scenes' indexes, ascending; present only when `failedPhase` is "scenes". */
   failedSceneIndexes?: number[];
@@ -58,6 +59,7 @@ export interface SceneEventPayload {
   speedFactor?: number;
   /** Set only when the factor exceeds the hardcoded acceptable limit. Independent of durationWarning. */
   speedFactorWarning?: "exceeds-limit";
+  held?: boolean;
   updatedAt: string;
 }
 
