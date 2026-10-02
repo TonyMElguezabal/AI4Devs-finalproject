@@ -39,20 +39,20 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 6.1 Review tests that count migrations, triggers or schema columns (`persistence.test.ts`, `content-lock.test.ts`, `narration-interval-immutability.test.ts`) and update them for migration 10
-- [ ] 6.2 Confirm segmentation's tests (`script-segmentation.test.ts`, `split-segmentation.test.ts`) are unaffected by the new optional argument
-- [ ] 6.3 Confirm no test depended on scene payloads lacking the two fields
-- [ ] 6.4 Confirm every spec scenario has a functional test, and list the mapping in the step 7 report
-- [ ] 6.5 Confirm module test coverage has not decreased (base `b5ec062` vs head, each on a scratch database, `@vitest/coverage-v8` installed locally without saving)
+- [x] 6.1 Review tests that count migrations, triggers or schema columns (`persistence.test.ts`, `content-lock.test.ts`, `narration-interval-immutability.test.ts`) and update them for migration 10 — no update needed: all three use `toContain`/`arrayContaining` for migrations and triggers (open sets), never an exact closed list; `narration-interval-immutability.test.ts` goes through `registerDecomposition`, which computes the new fields internally
+- [x] 6.2 Confirm segmentation's tests (`script-segmentation.test.ts`, `split-segmentation.test.ts`) are unaffected by the new optional argument — 36/36 and 11/11, unchanged
+- [x] 6.3 Confirm no test depended on scene payloads lacking the two fields — searched for exact full-shape `toEqual` against scene/session payloads; none found (every assertion uses `toMatchObject` or a field-specific `.map()` projection), consistent with the full suite passing with no update needed anywhere outside this change's own new tests
+- [x] 6.4 Confirm every spec scenario has a functional test, and list the mapping in the step 7 report — all 11 scenarios across the spec's 5 requirements mapped (listed in the step 7 report)
+- [x] 6.5 Confirm module test coverage has not decreased (base `b5ec062` vs head, each on a scratch database, `@vitest/coverage-v8` installed locally without saving) — totals improved (stmts 95.28%→95.42%, branch 91.29%→91.36%, funcs 98.72%→98.74%, lines 95.28%→95.42%); no file regressed in substance (`sceneRegistration.ts`'s branch % dipped 0.05pp from denominator dilution around the same pre-existing uncovered re-throw line, not a new gap)
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 7.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list
-- [ ] 7.2 Run the targeted tests (admitted durations, registration, persistence, content lock, API surface)
-- [ ] 7.3 Run `npm run typecheck` and the full `npm test`
-- [ ] 7.4 Verify the post-test state matches the baseline; restore it if not
-- [ ] 7.5 Write `openspec/changes/request-admitted-clip-duration/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`
-- [ ] 7.6 Mark this step complete only after the tests pass and the report exists
+- [x] 7.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list — found and cleared a leftover from an earlier `split-segmentation.test.ts` run this session first ("Clause split test", 1 run/2 scenes); clean baseline: all tables 0, migrations 2-10, 15 triggers
+- [x] 7.2 Run the targeted tests (admitted durations, registration, persistence, content lock, API surface) — 150/150
+- [x] 7.3 Run `npm run typecheck` and the full `npm test` — clean; 630/632 (2 intentional skips)
+- [x] 7.4 Verify the post-test state matches the baseline; restore it if not — tables/migrations/triggers matched exactly; found and removed one stray empty project folder (`Traversal Test ...`, same category as `generate-chunk-image`'s own precedent)
+- [x] 7.5 Write `openspec/changes/request-admitted-clip-duration/reports/2026-10-02-step-7-unit-test-and-db-verification.md`
+- [x] 7.6 Mark this step complete only after the tests pass and the report exists
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
