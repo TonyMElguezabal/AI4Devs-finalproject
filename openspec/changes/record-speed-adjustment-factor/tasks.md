@@ -49,19 +49,19 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review tests that count migrations, triggers or schema columns as closed lists (`persistence.test.ts`, `content-lock.test.ts`) and update if any assumes an exact set through migration 10
-- [ ] 7.2 Confirm no backend test depended on scene payloads lacking the two new fields (full-shape `toEqual` against scene/session payloads)
-- [ ] 7.3 Confirm every scenario in `specs/clip-duration-request/spec.md`'s new requirements has at least one functional test (backend) or component test (frontend), and list the mapping in the step 8 report
-- [ ] 7.4 Confirm backend module test coverage has not decreased
+- [x] 7.1 Review tests that count migrations, triggers or schema columns as closed lists (`persistence.test.ts`, `content-lock.test.ts`) and update if any assumes an exact set through migration 10 — grepped for exact (non-`arrayContaining`) `toEqual` on trigger/migration lists across every test file: none found. Same finding as JOS-147's own review; no update needed
+- [x] 7.2 Confirm no backend test depended on scene payloads lacking the two new fields (full-shape `toEqual` against scene/session payloads) — found and fixed one in group 3 (`scene-registration.test.ts`'s AC5 test); full suite green confirms no other one exists
+- [x] 7.3 Confirm every scenario in `specs/clip-duration-request/spec.md`'s new requirements has at least one functional test (backend) or component test (frontend), and list the mapping in the step 8 report — mapped (see step 8 report); all 14 new scenarios across the 5 new requirements covered
+- [x] 7.4 Confirm backend module test coverage has not decreased — compared against the pre-change commit (`a3f5801`, this change's propose commit) in a disposable worktree: all-files stmts/branch/funcs/lines 95.72/91.72/98.91/95.72 → 95.78/91.91/98.91/95.78 at HEAD, improved on every metric; no touched file regressed (`admittedDurations.ts` stayed 100/100/100/100; `sceneRegistration.ts` 98.27→98.34 stmts; `db.ts` 98.19→98.25)
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list
-- [ ] 8.2 Run the targeted backend tests (admitted durations, registration, persistence, API surface) and the frontend `SceneRow` tests
-- [ ] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`
-- [ ] 8.4 Verify the post-test backend state matches the baseline; restore it if not
-- [ ] 8.5 Create the report `openspec/changes/record-speed-adjustment-factor/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
-- [ ] 8.6 Mark this step complete only after the tests pass and the report file exists
+- [x] 8.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list — all 5 tables 0 rows, migrations 2-11, 17 triggers; found and removed one stray empty project folder left over from this session's earlier manual runs
+- [x] 8.2 Run the targeted backend tests (admitted durations, registration, persistence, API surface) and the frontend `SceneRow` tests — 151/151
+- [x] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend` — backend 709 passed/2 pre-existing skips, frontend 42 passed, both typechecks clean. Also ran a coverage comparison against this change's pre-implementation commit in a disposable worktree: all-files stmts/branch/funcs/lines improved on every metric, no touched file regressed
+- [x] 8.4 Verify the post-test backend state matches the baseline; restore it if not — tables/migrations/triggers matched exactly; removed one new stray empty project folder this run's own traversal test created
+- [x] 8.5 Create the report `openspec/changes/record-speed-adjustment-factor/reports/2026-10-02-step-8-unit-test-and-db-verification.md` — includes the full scenario-to-test mapping (task 7.3) and the coverage table (task 7.4)
+- [x] 8.6 Mark this step complete only after the tests pass and the report file exists
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
