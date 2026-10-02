@@ -93,41 +93,64 @@ describe("requestedClipDuration (request-admitted-clip-duration, JOS-147)", () =
   it("picks the admitted duration by smallest speed change, not fewest seconds", () => {
     // 5.49 s: 5 s needs 5.49/5 = 1.098; 6 s needs 6/5.49 = 1.093. 6 wins despite being farther in seconds.
     const result = requestedClipDuration({ startSeconds: 0, endSeconds: 5.49 });
-    expect(result).toEqual({ seconds: 6, warning: null });
+    expect(result.seconds).toBe(6);
+    expect(result.warning).toBeNull();
+    expect(result.factor).toBeCloseTo(6 / 5.49, 10);
   });
 
   it("picks a shorter admitted duration when it is closer", () => {
     const result = requestedClipDuration({ startSeconds: 0, endSeconds: 9.4 });
-    expect(result).toEqual({ seconds: 9, warning: null });
+    expect(result.seconds).toBe(9);
+    expect(result.warning).toBeNull();
+    expect(result.factor).toBeCloseTo(9.4 / 9, 10);
   });
 
   it("gives an exact tie to the longer duration", () => {
     const result = requestedClipDuration({ startSeconds: 0, endSeconds: Math.sqrt(30) });
-    expect(result).toEqual({ seconds: 6, warning: null });
+    expect(result.seconds).toBe(6);
+    expect(result.warning).toBeNull();
+    expect(result.factor).toBeCloseTo(6 / Math.sqrt(30), 10);
   });
 
   it("requests the smallest admitted duration below the minimum, with no warning", () => {
     const result = requestedClipDuration({ startSeconds: 0, endSeconds: 3.2 });
-    expect(result).toEqual({ seconds: 5, warning: null });
+    expect(result.seconds).toBe(5);
+    expect(result.warning).toBeNull();
+    expect(result.factor).toBeCloseTo(5 / 3.2, 10);
   });
 
-  it("requests the maximum at exactly the maximum, with no warning", () => {
+  it("requests the maximum at exactly the maximum, with no warning and a factor of 1", () => {
     const result = requestedClipDuration({ startSeconds: 0, endSeconds: 15 });
-    expect(result).toEqual({ seconds: 15, warning: null });
+    expect(result.seconds).toBe(15);
+    expect(result.warning).toBeNull();
+    expect(result.factor).toBe(1);
   });
 
   it("requests the maximum with exceeds-maximum above it (an unsplittable sentence)", () => {
     const result = requestedClipDuration({ startSeconds: 0, endSeconds: 17.4 });
-    expect(result).toEqual({ seconds: 15, warning: "exceeds-maximum" });
+    expect(result.seconds).toBe(15);
+    expect(result.warning).toBe("exceeds-maximum");
+    expect(result.factor).toBeCloseTo(17.4 / 15, 10);
   });
 
   it("derives the narrated duration from the interval, not a precomputed value", () => {
-    expect(requestedClipDuration({ startSeconds: 100, endSeconds: 105.49 })).toEqual({ seconds: 6, warning: null });
+    const result = requestedClipDuration({ startSeconds: 100, endSeconds: 105.49 });
+    expect(result.seconds).toBe(6);
+    expect(result.warning).toBeNull();
+    expect(result.factor).toBeCloseTo(6 / 5.49, 10);
   });
 
   it("scores against an explicit admitted list when given one", () => {
     const wide = Array.from({ length: 16 }, (_, i) => 5 + i); // 5..20
     const result = requestedClipDuration({ startSeconds: 0, endSeconds: 17.4 }, wide);
-    expect(result).toEqual({ seconds: 17, warning: null });
+    expect(result.seconds).toBe(17);
+    expect(result.warning).toBeNull();
+    expect(result.factor).toBeCloseTo(17.4 / 17, 10);
+  });
+
+  it("never returns a factor below 1 (record-speed-adjustment-factor, JOS-148)", () => {
+    for (let narrated = 1; narrated <= 30; narrated += 0.37) {
+      expect(requestedClipDuration({ startSeconds: 0, endSeconds: narrated }).factor).toBeGreaterThanOrEqual(1);
+    }
   });
 });

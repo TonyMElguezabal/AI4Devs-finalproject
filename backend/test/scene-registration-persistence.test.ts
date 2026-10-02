@@ -5,7 +5,13 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
 import { requestedClipDuration } from "../src/admittedDurations.ts";
+import { SPEED_FACTOR_LIMIT } from "../src/config/providers.ts";
 import { applyMigrationsTo, createRun, createScene, db, getScene, getScenesForRun, insertRegisteredScenes, resetAll } from "../src/db.ts";
+
+/** record-speed-adjustment-factor (JOS-148) — the warning this test file's fixtures set when a fixture's own factor exceeds the real limit. */
+function speedFactorWarningFor(factor: number): "exceeds-limit" | null {
+  return factor > SPEED_FACTOR_LIMIT ? "exceeds-limit" : null;
+}
 
 // assign-scene-identifiers (JOS-144), group 2 — design Decisions 2, 3 and 7:
 // separate PROMPT/IMAGE/VIDEO columns, the PRD's ID (`idx`) unique within a
@@ -137,8 +143,8 @@ describe("The test-only reset keeps the chunk locks (Decision 7)", () => {
 // the store refuses any change to it (PRD §3 "No permitida", AC4).
 describe("The narration interval is stored with the chunk (JOS-143, Decision 4)", () => {
   function requestedDuration(interval: { startSeconds: number; endSeconds: number }) {
-    const { seconds, warning } = requestedClipDuration(interval);
-    return { requestedDurationSeconds: seconds, durationWarning: warning };
+    const { seconds, warning, factor } = requestedClipDuration(interval);
+    return { requestedDurationSeconds: seconds, durationWarning: warning, speedFactor: factor, speedFactorWarning: speedFactorWarningFor(factor) };
   }
 
   function registerTwoChunks(runId: string): string[] {
@@ -247,7 +253,7 @@ describe("A registered chunk's interval is locked by the store (JOS-143, AC4)", 
     const runId = newRunId();
     const sceneId = randomUUID();
     const interval = { startSeconds: 0, endSeconds: 6 };
-    const { seconds, warning } = requestedClipDuration(interval);
+    const { seconds, warning, factor } = requestedClipDuration(interval);
     insertRegisteredScenes(runId, [
       {
         id: sceneId,
@@ -258,6 +264,8 @@ describe("A registered chunk's interval is locked by the store (JOS-143, AC4)", 
         narrationInterval: interval,
         requestedDurationSeconds: seconds,
         durationWarning: warning,
+        speedFactor: factor,
+        speedFactorWarning: speedFactorWarningFor(factor),
       },
     ]);
     return sceneId;
@@ -363,6 +371,8 @@ describe("The requested duration is stored with the chunk (JOS-147, Decision 2)"
         narrationInterval: { startSeconds: 0, endSeconds: 5.49 },
         requestedDurationSeconds: 6,
         durationWarning: null,
+        speedFactor: 6 / 5.49,
+        speedFactorWarning: speedFactorWarningFor(6 / 5.49),
       },
       {
         id: ids[1]!,
@@ -373,6 +383,8 @@ describe("The requested duration is stored with the chunk (JOS-147, Decision 2)"
         narrationInterval: { startSeconds: 5.49, endSeconds: 22.89 },
         requestedDurationSeconds: 15,
         durationWarning: "exceeds-maximum",
+        speedFactor: 17.4 / 15,
+        speedFactorWarning: speedFactorWarningFor(17.4 / 15),
       },
     ]);
     return ids;
@@ -410,6 +422,8 @@ describe("A registered chunk's requested duration is locked by the store (JOS-14
         narrationInterval: { startSeconds: 0, endSeconds: 17.4 },
         requestedDurationSeconds: 15,
         durationWarning: "exceeds-maximum",
+        speedFactor: 17.4 / 15,
+        speedFactorWarning: speedFactorWarningFor(17.4 / 15),
       },
     ]);
     return sceneId;
@@ -434,6 +448,158 @@ describe("A registered chunk's requested duration is locked by the store (JOS-14
     resetAll();
     expect(triggerNames()).toEqual(
       expect.arrayContaining(["scenes_duration_warning_locked", "scenes_requested_duration_seconds_locked"]),
+    );
+  });
+});
+
+describe("Migration 11 adds the speed-factor columns and their locks (record-speed-adjustment-factor, JOS-148, Decision 2)", () => {
+  const speedFactorColumns = ["speed_factor", "speed_factor_warning"];
+
+  function createBaselineSchema(target: DatabaseSync): void {
+    target.exec(`
+      CREATE TABLE runs (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, paused INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE scenes (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, idx INTEGER NOT NULL, status TEXT NOT NULL, instruction TEXT NOT NULL DEFAULT '');
+    `);
+  }
+
+  function columnNames(target: DatabaseSync): string[] {
+    return (target.prepare("PRAGMA table_info(scenes)").all() as Array<{ name: string }>).map((row) => row.name);
+  }
+
+  it("applies on a database at version 10 and is idempotent", () => {
+    const dir = mkdtempSync(join(tmpdir(), "vid4you-migration-11-test-"));
+    try {
+      const fixture = new DatabaseSync(join(dir, "at-10.sqlite"));
+      createBaselineSchema(fixture);
+      applyMigrationsTo(fixture);
+      // Pretend this database stopped at version 10: remove what migration 11 added and forget it ran.
+      fixture.exec("DROP TRIGGER scenes_speed_factor_locked; DROP TRIGGER scenes_speed_factor_warning_locked;");
+      for (const column of speedFactorColumns) fixture.exec(`ALTER TABLE scenes DROP COLUMN ${column}`);
+      fixture.exec("DELETE FROM schema_migrations WHERE version = 11");
+      expect(columnNames(fixture)).not.toContain("speed_factor");
+
+      expect(applyMigrationsTo(fixture)).toEqual([11]);
+
+      expect(columnNames(fixture)).toEqual(expect.arrayContaining(speedFactorColumns));
+      expect(triggerNames(fixture)).toEqual(
+        expect.arrayContaining(["scenes_speed_factor_locked", "scenes_speed_factor_warning_locked"]),
+      );
+      expect(applyMigrationsTo(fixture)).toEqual([]);
+      fixture.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves the speed factor and warning of a scene that pre-dates it empty", () => {
+    const dir = mkdtempSync(join(tmpdir(), "vid4you-migration-11-old-test-"));
+    try {
+      const fixture = new DatabaseSync(join(dir, "pre-11.sqlite"));
+      createBaselineSchema(fixture);
+      fixture.prepare("INSERT INTO runs (id, title, created_at) VALUES ('r', 'Old', 'then')").run();
+      fixture.prepare("INSERT INTO scenes (id, run_id, idx, status) VALUES ('s', 'r', 1, 'submitted')").run();
+
+      applyMigrationsTo(fixture);
+
+      expect(fixture.prepare("SELECT speed_factor a, speed_factor_warning b FROM scenes").get()).toEqual({ a: null, b: null });
+      fixture.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("The speed-adjustment factor is stored with the chunk (record-speed-adjustment-factor, JOS-148, Decision 2)", () => {
+  function registerTwoChunks(runId: string): string[] {
+    const ids = [randomUUID(), randomUUID()];
+    insertRegisteredScenes(runId, [
+      {
+        id: ids[0]!,
+        index: 1,
+        prompt: "One.",
+        imageInstruction: "image 1",
+        videoInstruction: "video 1",
+        narrationInterval: { startSeconds: 0, endSeconds: 5.49 },
+        requestedDurationSeconds: 6,
+        durationWarning: null,
+        speedFactor: 6 / 5.49,
+        speedFactorWarning: null,
+      },
+      {
+        id: ids[1]!,
+        index: 2,
+        prompt: "Two.",
+        imageInstruction: "image 2",
+        videoInstruction: "video 2",
+        narrationInterval: { startSeconds: 5.49, endSeconds: 22.89 },
+        requestedDurationSeconds: 15,
+        durationWarning: "exceeds-maximum",
+        speedFactor: 17.4 / 15,
+        speedFactorWarning: "exceeds-limit",
+      },
+    ]);
+    return ids;
+  }
+
+  it("reads each registered chunk back with the speed factor and warning registration gave it", () => {
+    const runId = newRunId();
+    registerTwoChunks(runId);
+
+    const stored = getScenesForRun(runId).map((scene) => ({ speedFactor: scene.speedFactor, speedFactorWarning: scene.speedFactorWarning }));
+    expect(stored[0]!.speedFactor).toBeCloseTo(6 / 5.49, 10);
+    expect(stored[0]!.speedFactorWarning).toBeNull();
+    expect(stored[1]!.speedFactor).toBeCloseTo(17.4 / 15, 10);
+    expect(stored[1]!.speedFactorWarning).toBe("exceeds-limit");
+  });
+
+  it("gives a scene created without a decomposition no speed factor and no warning", () => {
+    const sceneId = newScene(newRunId());
+    const scene = getScene(sceneId);
+    expect(scene?.speedFactor).toBeNull();
+    expect(scene?.speedFactorWarning).toBeNull();
+  });
+});
+
+describe("A registered chunk's speed factor is locked by the store (record-speed-adjustment-factor, JOS-148)", () => {
+  function registeredSceneId(): string {
+    const runId = newRunId();
+    const sceneId = randomUUID();
+    insertRegisteredScenes(runId, [
+      {
+        id: sceneId,
+        index: 1,
+        prompt: "One.",
+        imageInstruction: "image",
+        videoInstruction: "video",
+        narrationInterval: { startSeconds: 0, endSeconds: 17.4 },
+        requestedDurationSeconds: 15,
+        durationWarning: "exceeds-maximum",
+        speedFactor: 17.4 / 15,
+        speedFactorWarning: "exceeds-limit",
+      },
+    ]);
+    return sceneId;
+  }
+
+  it.each([
+    ["speed_factor", "UPDATE scenes SET speed_factor = 1 WHERE id = ?"],
+    ["speed_factor_warning", "UPDATE scenes SET speed_factor_warning = NULL WHERE id = ?"],
+  ])("refuses a change of %s, naming the field, and leaves the stored value unchanged", (column, statement) => {
+    const sceneId = registeredSceneId();
+
+    expect(() => db.prepare(statement).run(sceneId)).toThrow(
+      new RegExp(`locked: scenes\\.${column} cannot be modified once the chunk is established`),
+    );
+
+    const scene = getScene(sceneId);
+    expect(scene?.speedFactor).toBeCloseTo(17.4 / 15, 10);
+    expect(scene?.speedFactorWarning).toBe("exceeds-limit");
+  });
+
+  it("keeps the locks after the test-only reset", () => {
+    resetAll();
+    expect(triggerNames()).toEqual(
+      expect.arrayContaining(["scenes_speed_factor_locked", "scenes_speed_factor_warning_locked"]),
     );
   });
 });

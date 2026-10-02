@@ -144,7 +144,9 @@ describe("Each chunk's requested duration is chosen from its interval (JOS-147)"
 
     // A later build with a wider admitted set (5..20) would now choose 17 s for the same interval.
     const wide = Array.from({ length: 16 }, (_, i) => 5 + i);
-    expect(requestedClipDuration(interval, wide)).toEqual({ seconds: 17, warning: null });
+    const widerChoice = requestedClipDuration(interval, wide);
+    expect(widerChoice.seconds).toBe(17);
+    expect(widerChoice.warning).toBeNull();
 
     // The already-registered chunk is untouched by that: a second registration is refused outright.
     const second = await registerDecomposition(runId, fragments, stubGenerator().generator, voiceOverDurationOf(fragments));
@@ -152,6 +154,64 @@ describe("Each chunk's requested duration is chosen from its interval (JOS-147)"
     expect(getScenesForRun(runId).map((s) => ({ requestedDurationSeconds: s.requestedDurationSeconds, durationWarning: s.durationWarning }))).toEqual(
       storedBefore,
     );
+  });
+});
+
+describe("Each chunk's speed-adjustment factor is derived from its requested duration (record-speed-adjustment-factor, JOS-148)", () => {
+  it("stores the factor with no warning for an ordinary chunk, within the limit", async () => {
+    const runId = newRunId();
+    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator, DURATION);
+
+    // SPECS: 6 s -> 6 s (factor 1); 9.5 s -> 10 s (factor 10/9.5); 5 s -> 5 s (factor 1).
+    const scenes = getScenesForRun(runId);
+    expect(scenes[0]!.speedFactor).toBe(1);
+    expect(scenes[0]!.speedFactorWarning).toBeNull();
+    expect(scenes[1]!.speedFactor).toBeCloseTo(10 / 9.5, 10);
+    expect(scenes[1]!.speedFactorWarning).toBeNull();
+    expect(scenes[2]!.speedFactor).toBe(1);
+    expect(scenes[2]!.speedFactorWarning).toBeNull();
+  });
+
+  it("stores a factor under the limit with no warning for the unsplittable-sentence case (17.4 s -> 15 s)", async () => {
+    const runId = newRunId();
+    const fragments = contiguousFragments(specsWith(1, { seconds: 17.4, exception: "unsplittable-sentence" }));
+    await registerDecomposition(runId, fragments, stubGenerator().generator, voiceOverDurationOf(fragments));
+
+    const scenes = getScenesForRun(runId);
+    expect(scenes[1]!.speedFactor).toBeCloseTo(17.4 / 15, 10);
+    expect(scenes[1]!.speedFactorWarning).toBeNull();
+  });
+
+  it("records exceeds-limit, without failing the chunk or the session, when the factor exceeds SPEED_FACTOR_LIMIT", async () => {
+    const runId = newRunId();
+    // 35 s narrated, capped at the 15 s admitted maximum: factor 35/15 ≈ 2.33, over the 2.0 limit.
+    const fragments = contiguousFragments(specsWith(1, { seconds: 35, exception: "unsplittable-sentence" }));
+    const result = await registerDecomposition(runId, fragments, stubGenerator().generator, voiceOverDurationOf(fragments));
+
+    expect(result.ok).toBe(true);
+    const scenes = getScenesForRun(runId);
+    expect(scenes[1]).toMatchObject({ status: "submitted", requestedDurationSeconds: 15, speedFactorWarning: "exceeds-limit" });
+    expect(scenes[1]!.speedFactor).toBeCloseTo(35 / 15, 10);
+    expect(getRun(runId)?.failure).toBeNull();
+  });
+
+  it("carries both duration_warning and speed_factor_warning independently when both apply", async () => {
+    const runId = newRunId();
+    const fragments = contiguousFragments(specsWith(1, { seconds: 35, exception: "unsplittable-sentence" }));
+    await registerDecomposition(runId, fragments, stubGenerator().generator, voiceOverDurationOf(fragments));
+
+    const scene = getScenesForRun(runId)[1]!;
+    expect(scene.durationWarning).toBe("exceeds-maximum");
+    expect(scene.speedFactorWarning).toBe("exceeds-limit");
+  });
+
+  it("gives a scene created without a decomposition no speed factor and no warning", async () => {
+    const runId = newRunId();
+    const sceneId = randomUUID();
+    createScene(sceneId, runId, 1, "success", 0);
+    const scene = getScenesForRun(runId)[0]!;
+    expect(scene.speedFactor).toBeNull();
+    expect(scene.speedFactorWarning).toBeNull();
   });
 });
 

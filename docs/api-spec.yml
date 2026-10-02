@@ -25,16 +25,18 @@ openapi: 3.0.3
 info:
   title: Vid4You API
   version: 0.0.0
-  description: Local, single-user API for turning a script into a narrated MP4 (Vid4You). Generated
-    from the Fastify + Zod route schemas in backend/src/routes.ts (docs/backend-standards.md, API
-    and OpenAPI Conventions) - never hand-written, to avoid drifting from the real validators.
+  description: Local, single-user API for turning a script into a narrated MP4
+    (Vid4You). Generated from the Fastify + Zod route schemas in
+    backend/src/routes.ts (docs/backend-standards.md, API and OpenAPI
+    Conventions) - never hand-written, to avoid drifting from the real
+    validators.
 components:
   schemas: {}
 paths:
   /health:
     get:
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -49,7 +51,7 @@ paths:
   /languages:
     get:
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -80,8 +82,8 @@ paths:
                   description: Immutable once the session is registered (PRD §4.2).
                 script:
                   type: string
-                  description: Stored exactly as submitted and immutable from registration onward, in every state (PRD
-                    §4.2, D10). No operation modifies it.
+                  description: Stored exactly as submitted and immutable from registration onward,
+                    in every state (PRD §4.2, D10). No operation modifies it.
                 language:
                   type: string
                   enum:
@@ -94,7 +96,7 @@ paths:
                 - language
               additionalProperties: false
       responses:
-        '201':
+        "201":
           description: Default Response
           content:
             application/json:
@@ -115,8 +117,9 @@ paths:
                         description: Immutable once the session is registered (PRD §4.2).
                       script:
                         type: string
-                        description: The script exactly as submitted; immutable from registration onward, in every state
-                          (PRD §4.2, D10). No operation modifies it.
+                        description: The script exactly as submitted; immutable from registration
+                          onward, in every state (PRD §4.2, D10). No operation
+                          modifies it.
                       language:
                         type: string
                         description: Immutable once the session is registered (PRD §4.1, §4.2).
@@ -182,8 +185,8 @@ paths:
                           type: string
                         prompt:
                           type: string
-                          description: 'PRD §3 PROMPT: the fragment of the script this chunk narrates. Immutable once the
-                            chunk is established (PRD §6).'
+                          description: "PRD §3 PROMPT: the fragment of the script this chunk narrates.
+                            Immutable once the chunk is established (PRD §6)."
                         imageInstruction:
                           type: string
                           description: "PRD §3 IMAGE: the instruction to generate the chunk's image."
@@ -201,23 +204,44 @@ paths:
                             - startSeconds
                             - endSeconds
                           additionalProperties: false
-                          description: "PRD §3 and §7.3: the part of the voice-over this chunk narrates, in seconds. The
-                            intervals of a session's chunks are contiguous and cover the voice-over
-                            from 0 to its full duration. Read-only and immutable once the chunk is
-                            established; absent for a scene created without a decomposition."
+                          description: "PRD §3 and §7.3: the part of the voice-over this chunk narrates,
+                            in seconds. The intervals of a session's chunks are
+                            contiguous and cover the voice-over from 0 to its
+                            full duration. Read-only and immutable once the
+                            chunk is established; absent for a scene created
+                            without a decomposition."
                         requestedDurationSeconds:
                           type: number
-                          description: "PRD §7.2: the video provider's admitted clip duration requested for this chunk, chosen
-                            as the one needing the smallest speed change to match its narrated
-                            interval. Read-only and immutable once the chunk is established; absent
-                            for a scene created without a decomposition."
+                          description: "PRD §7.2: the video provider's admitted clip duration requested
+                            for this chunk, chosen as the one needing the
+                            smallest speed change to match its narrated
+                            interval. Read-only and immutable once the chunk is
+                            established; absent for a scene created without a
+                            decomposition."
                         durationWarning:
                           type: string
                           enum:
                             - exceeds-maximum
-                          description: "PRD §6.1.1: set when the chunk's narrated interval is longer than the provider's
-                            largest admitted duration (an unsplittable sentence), so the requested
-                            duration had to be capped at that maximum. Not a failure. Read-only and
+                          description: "PRD §6.1.1: set when the chunk's narrated interval is longer than
+                            the provider's largest admitted duration (an
+                            unsplittable sentence), so the requested duration
+                            had to be capped at that maximum. Not a failure.
+                            Read-only and immutable once the chunk is
+                            established."
+                        speedFactor:
+                          type: number
+                          description: "PRD §7.2/AC23: the speed-adjustment factor the requested duration
+                            implies (`max(requested/narrated,
+                            narrated/requested)`, always >= 1). Read-only and
+                            immutable once the chunk is established; absent for
+                            a scene created without a decomposition."
+                        speedFactorWarning:
+                          type: string
+                          enum:
+                            - exceeds-limit
+                          description: "PRD §7.2: set when the speed-adjustment factor exceeds the
+                            hardcoded acceptable limit. Not a failure, and
+                            independent of durationWarning. Read-only and
                             immutable once the chunk is established."
                         updatedAt:
                           type: string
@@ -242,7 +266,7 @@ paths:
           name: sessionId
           required: true
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -263,8 +287,9 @@ paths:
                         description: Immutable once the session is registered (PRD §4.2).
                       script:
                         type: string
-                        description: The script exactly as submitted; immutable from registration onward, in every state
-                          (PRD §4.2, D10). No operation modifies it.
+                        description: The script exactly as submitted; immutable from registration
+                          onward, in every state (PRD §4.2, D10). No operation
+                          modifies it.
                       language:
                         type: string
                         description: Immutable once the session is registered (PRD §4.1, §4.2).
@@ -330,8 +355,8 @@ paths:
                           type: string
                         prompt:
                           type: string
-                          description: 'PRD §3 PROMPT: the fragment of the script this chunk narrates. Immutable once the
-                            chunk is established (PRD §6).'
+                          description: "PRD §3 PROMPT: the fragment of the script this chunk narrates.
+                            Immutable once the chunk is established (PRD §6)."
                         imageInstruction:
                           type: string
                           description: "PRD §3 IMAGE: the instruction to generate the chunk's image."
@@ -349,23 +374,44 @@ paths:
                             - startSeconds
                             - endSeconds
                           additionalProperties: false
-                          description: "PRD §3 and §7.3: the part of the voice-over this chunk narrates, in seconds. The
-                            intervals of a session's chunks are contiguous and cover the voice-over
-                            from 0 to its full duration. Read-only and immutable once the chunk is
-                            established; absent for a scene created without a decomposition."
+                          description: "PRD §3 and §7.3: the part of the voice-over this chunk narrates,
+                            in seconds. The intervals of a session's chunks are
+                            contiguous and cover the voice-over from 0 to its
+                            full duration. Read-only and immutable once the
+                            chunk is established; absent for a scene created
+                            without a decomposition."
                         requestedDurationSeconds:
                           type: number
-                          description: "PRD §7.2: the video provider's admitted clip duration requested for this chunk, chosen
-                            as the one needing the smallest speed change to match its narrated
-                            interval. Read-only and immutable once the chunk is established; absent
-                            for a scene created without a decomposition."
+                          description: "PRD §7.2: the video provider's admitted clip duration requested
+                            for this chunk, chosen as the one needing the
+                            smallest speed change to match its narrated
+                            interval. Read-only and immutable once the chunk is
+                            established; absent for a scene created without a
+                            decomposition."
                         durationWarning:
                           type: string
                           enum:
                             - exceeds-maximum
-                          description: "PRD §6.1.1: set when the chunk's narrated interval is longer than the provider's
-                            largest admitted duration (an unsplittable sentence), so the requested
-                            duration had to be capped at that maximum. Not a failure. Read-only and
+                          description: "PRD §6.1.1: set when the chunk's narrated interval is longer than
+                            the provider's largest admitted duration (an
+                            unsplittable sentence), so the requested duration
+                            had to be capped at that maximum. Not a failure.
+                            Read-only and immutable once the chunk is
+                            established."
+                        speedFactor:
+                          type: number
+                          description: "PRD §7.2/AC23: the speed-adjustment factor the requested duration
+                            implies (`max(requested/narrated,
+                            narrated/requested)`, always >= 1). Read-only and
+                            immutable once the chunk is established; absent for
+                            a scene created without a decomposition."
+                        speedFactorWarning:
+                          type: string
+                          enum:
+                            - exceeds-limit
+                          description: "PRD §7.2: set when the speed-adjustment factor exceeds the
+                            hardcoded acceptable limit. Not a failure, and
+                            independent of durationWarning. Read-only and
                             immutable once the chunk is established."
                         updatedAt:
                           type: string
@@ -381,7 +427,7 @@ paths:
                   - session
                   - scenes
                 additionalProperties: false
-        '404':
+        "404":
           description: Default Response
           content:
             application/json:
@@ -403,7 +449,7 @@ paths:
           name: sessionId
           required: true
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -415,7 +461,7 @@ paths:
                 required:
                   - ok
                 additionalProperties: false
-        '404':
+        "404":
           description: Default Response
           content:
             application/json:
@@ -440,7 +486,7 @@ paths:
           name: sessionId
           required: true
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -452,7 +498,7 @@ paths:
                 required:
                   - ok
                 additionalProperties: false
-        '404':
+        "404":
           description: Default Response
           content:
             application/json:
@@ -483,7 +529,7 @@ paths:
           name: sceneId
           required: true
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -495,7 +541,7 @@ paths:
                 required:
                   - ok
                 additionalProperties: false
-        '409':
+        "409":
           description: Default Response
           content:
             application/json:
@@ -539,7 +585,7 @@ paths:
           name: sceneId
           required: true
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -551,7 +597,7 @@ paths:
                 required:
                   - ok
                 additionalProperties: false
-        '409':
+        "409":
           description: Default Response
           content:
             application/json:
@@ -590,13 +636,13 @@ paths:
           name: kind
           required: true
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
               schema:
                 type: string
-        '404':
+        "404":
           description: Default Response
           content:
             application/json:
@@ -611,7 +657,7 @@ paths:
                   - ok
                   - reason
                 additionalProperties: false
-        '409':
+        "409":
           description: Default Response
           content:
             application/json:
@@ -636,13 +682,13 @@ paths:
           name: sessionId
           required: true
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
               schema:
                 type: string
-        '404':
+        "404":
           description: Default Response
           content:
             application/json:
@@ -657,7 +703,7 @@ paths:
                   - ok
                   - reason
                 additionalProperties: false
-        '409':
+        "409":
           description: Default Response
           content:
             application/json:
@@ -682,7 +728,7 @@ paths:
           name: requestId
           required: true
       responses:
-        '200':
+        "200":
           description: Default Response
           content:
             application/json:
@@ -700,10 +746,10 @@ paths:
   /events:
     get:
       responses:
-        '200':
+        "200":
           description: Default Response
   /:
     get:
       responses:
-        '200':
+        "200":
           description: Default Response

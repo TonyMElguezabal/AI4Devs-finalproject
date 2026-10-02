@@ -51,6 +51,13 @@ export interface RequestedClipDuration {
   seconds: number;
   /** Set only when the interval is narrated longer than the largest admitted duration. */
   warning: DurationWarning | null;
+  /**
+   * The speed-adjustment factor this duration implies: `closestAdmittedDuration`'s
+   * own `speedRatio` for the chosen duration, passed through unchanged
+   * (record-speed-adjustment-factor, JOS-148, design Decision 1) rather than
+   * recomputed — always ≥ 1.
+   */
+  factor: number;
 }
 
 /**
@@ -67,9 +74,9 @@ export function requestedClipDuration(
   admitted: readonly number[] = VIDEO_ADMITTED_DURATIONS_SECONDS,
 ): RequestedClipDuration {
   const narratedSeconds = intervalDurationSeconds(interval);
-  const { admitted: seconds } = closestAdmittedDuration(narratedSeconds, admitted);
+  const { admitted: seconds, speedRatio: factor } = closestAdmittedDuration(narratedSeconds, admitted);
   // `admitted` is ascending (closestAdmittedDuration's own invariant), so its last entry is the largest.
   const largestAdmitted = admitted[admitted.length - 1]!;
   const warning: DurationWarning | null = narratedSeconds > largestAdmitted ? "exceeds-maximum" : null;
-  return { seconds, warning };
+  return { seconds, warning, factor };
 }

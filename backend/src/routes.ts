@@ -86,6 +86,18 @@ const sceneResponseSchema = z.object({
     .describe(
       "PRD §6.1.1: set when the chunk's narrated interval is longer than the provider's largest admitted duration (an unsplittable sentence), so the requested duration had to be capped at that maximum. Not a failure. Read-only and immutable once the chunk is established.",
     ),
+  speedFactor: z
+    .number()
+    .optional()
+    .describe(
+      "PRD §7.2/AC23: the speed-adjustment factor the requested duration implies (`max(requested/narrated, narrated/requested)`, always >= 1). Read-only and immutable once the chunk is established; absent for a scene created without a decomposition.",
+    ),
+  speedFactorWarning: z
+    .enum(["exceeds-limit"])
+    .optional()
+    .describe(
+      "PRD §7.2: set when the speed-adjustment factor exceeds the hardcoded acceptable limit. Not a failure, and independent of durationWarning. Read-only and immutable once the chunk is established.",
+    ),
   updatedAt: z.string(),
 });
 
