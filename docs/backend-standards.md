@@ -30,6 +30,7 @@ alwaysApply: true
 - [Logging and Diagnostics](#logging-and-diagnostics)
 - [Security and Configuration](#security-and-configuration)
 - [Development Workflow](#development-workflow)
+- [Media Assembly Pipeline](#media-assembly-pipeline)
 - [Not Yet Decided](#not-yet-decided)
 
 ---
@@ -275,5 +276,25 @@ Tracked here so this document is never mistaken for settling more than it has:
 - ~~Persistence engine and schema~~ — **decided**: embedded SQLite (`docs/adr/0002-persistence.md`). See [Persistence](#persistence).
 - ~~Live-update transport~~ — **decided**: Server-Sent Events (`docs/adr/0003-live-updates.md`). See [Live Updates](#live-updates).
 - **Frontend stack and its interop contract with this backend** — `define-frontend-stack` (US-42b, JOS-180).
-- ~~Hardcoded values~~ (retry backoff base/cap, per-phase max execution times, concurrency caps, speed-factor limits) — **decided**: `backend/src/config/providers.ts` (`define-provider-configuration`, US-33, JOS-165, `docs/adr/0005-provider-selection.md`). The speed-factor limit (`2.0`) was fixed by `record-speed-adjustment-factor` (JOS-148) from `define-media-assembly` (JOS-182)'s measurement. **Still open**: assembly's per-phase max time, still pending JOS-182 landing in code; voice/alignment/video's per-stage request caps, no real rate limit found yet for those three.
+- ~~Hardcoded values~~ (retry backoff base/cap, per-phase max execution times, concurrency caps, speed-factor limits) — **decided**: `backend/src/config/providers.ts` (`define-provider-configuration`, US-33, JOS-165, `docs/adr/0005-provider-selection.md`). The speed-factor limit (`2.0`) was fixed by `record-speed-adjustment-factor` (JOS-148) from `define-media-assembly` (JOS-182)'s measurement. **Still open**: assembly's per-phase max time, pending implementation of the assembly stage; voice/alignment/video's per-stage request caps, no real rate limit found yet for those three.
 - ~~Whether the walking skeleton becomes `backend/`'s seed~~ — **decided**: yes, promoted (`start-video-project`, JOS-134). The full five-stage model (voice, alignment, image, video, assembly as their own real stages, not one generic stand-in) remains future work — each stage's own change (`decompose-script-into-chunks`, `generate-chunk-image`, `generate-chunk-video`, `generate-voice-over`, `assemble-final-video`) implements its slice when it lands.
+
+## Media Assembly Pipeline
+
+The assembly design and measurements are recorded in [ADR 0005](adr/0005-media-assembly.md). The archived JOS-182 change contains the experimental reference script, fixture, and tests; it proves the pipeline choices but is not the production assembly implementation.
+
+The production stage must preserve these measured constraints:
+
+1. Retiming applies to video only; never alter the voice-over. Exclude each source clip's audio at input (`-map 0:v:0`) and mux the voice-over as the only audio stream using stream copy (`-c:a copy`) when its format is compatible. Re-encoding AAC was measured to shift reported duration through encoder priming.
+2. Normalize each clip to the target resolution and frame rate before joining. Order clips by ascending scene identifier from interval data, not by filesystem listing.
+3. Derive each clip's frame count from the cumulative target end: `round(cumulativeEndSeconds * fps) - previousRoundedEndFrame`. Independently rounding every clip's duration caused cumulative drift beyond tolerance on long sessions; cumulative accounting bounds drift at every join.
+4. The measured speed-factor recommendation is 0.5×–2.0×. The slowdown bound is based on synthetic footage and should be revisited against real provider footage.
+
+The archived reference pipeline and its automated `ffprobe` assertions can be run from the repository root:
+
+```bash
+cd openspec/changes/archive/2026-09-26-define-media-assembly
+./test/assembly.test.sh
+```
+
+This requires `ffmpeg`, `ffprobe`, `python3`, and Bash. The test assembles the committed synthetic fixture and a generated 60-scene session, checking output stream properties and exact target frame counts.
