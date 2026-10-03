@@ -51,11 +51,11 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 6. API: session representation exposes the final video
 
-- [ ] 6.1 Write a failing test that a session's representation includes the final video download route only once in `final-video`
-- [ ] 6.2 Write a failing test that a failed assembly is exposed with cause and retryability, phase `assembly`
-- [ ] 6.3 Write a failing test that no route ever serves the MP3, timestamps, or generated texts, regardless of session state
-- [ ] 6.4 Add the fields and the download route to the session read consumed by `consult-session`
-- [ ] 6.5 Run the group 6 tests and confirm they pass
+- [x] 6.1 Write a failing test that a session's representation includes the final video download route only once in `final-video`
+- [x] 6.2 Write a failing test that a failed assembly is exposed with cause and retryability, phase `assembly`
+- [x] 6.3 Write a failing test that no route ever serves the MP3, timestamps, or generated texts, regardless of session state
+- [x] 6.4 Add the fields and the download route to the session read consumed by `consult-session`
+- [x] 6.5 Run the group 6 tests and confirm they pass
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 

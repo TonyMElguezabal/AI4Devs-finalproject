@@ -184,6 +184,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const { state, failedPhase, failedSceneIndexes } = deriveSessionState(scenes, run.failure, {
     hasVoiceOver: getVoiceOver(runId) !== undefined,
     timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
+    hasFinalVideo: run.finalVideoPath != null,
   });
   const heldWork = sessionHeldWork(runId);
   const heldSceneIds = heldWork.sceneIds;
@@ -200,6 +201,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     failedSceneIndexes,
     createdAt: run.createdAt,
     updatedAt: new Date().toISOString(),
+    finalVideoUrl: run.finalVideoPath != null ? `/sessions/${run.id}/download/final-video` : undefined,
   };
   return {
     session,

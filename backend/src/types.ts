@@ -241,6 +241,8 @@ export interface SessionEventPayload {
    * consult-session (JOS-135) task 3.1 requires it in the session read. */
   createdAt: string;
   updatedAt: string;
+  /** Route to download the assembled MP4; present only when state is `final-video` (JOS-149). */
+  finalVideoUrl?: string;
 }
 
 /** Scene event / snapshot entry — carries CURRENT state, never a delta. */

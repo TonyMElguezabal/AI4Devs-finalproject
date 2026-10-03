@@ -132,6 +132,7 @@ const sessionResponseSchema = z.object({
     ),
   createdAt: z.string(),
   updatedAt: z.string(),
+  finalVideoUrl: z.string().optional().describe("Route to download the assembled MP4; present only when state is final-video (JOS-149)."),
 });
 
 const languageResponseSchema = z.array(z.object({ code: z.string(), label: z.string() }));
@@ -355,21 +356,29 @@ export const routes: FastifyPluginAsync = async (app) => {
     {
       schema: {
         params: sessionParamsSchema,
-        response: { 200: z.string(), 409: conflictSchema, 404: conflictSchema },
+        response: { 200: z.any().describe("The assembled MP4 file (video/mp4)"), 409: conflictSchema, 404: conflictSchema },
       },
     },
     async (request, reply) => {
-      const snapshot = toSnapshot(request.params.sessionId);
-      if (!snapshot) {
+      const run = getRun(request.params.sessionId);
+      if (!run) {
         reply.code(404);
         return { ok: false, reason: "unknown session" };
       }
-      if (snapshot.session.state !== "final-video") {
+      if (!run.finalVideoPath) {
         reply.code(409);
-        return { ok: false, reason: `final video is not available in state '${snapshot.session.state}'` };
+        return { ok: false, reason: "final video is not yet available" };
       }
-      reply.type("text/plain");
-      return `stub final MP4 content for session ${request.params.sessionId}`;
+      const fullPath = resolveArtefactPath(run.projectFolder, run.finalVideoPath);
+      if (!existsSync(fullPath)) {
+        reply.code(404);
+        return { ok: false, reason: "final video file not found on disk" };
+      }
+      const { size } = statSync(fullPath);
+      reply.header("Content-Disposition", `attachment; filename="final-video.mp4"`);
+      reply.header("Content-Length", size);
+      reply.type("video/mp4");
+      return reply.send(createReadStream(fullPath));
     },
   );
 
