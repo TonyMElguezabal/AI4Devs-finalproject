@@ -97,8 +97,8 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 13. Close out
 
-- [ ] 13.1 Comment on JOS-158, JOS-148, JOS-149 and JOS-163: where the clip, its binding and its per-stage attempts live, and that manual clip retry is refused until JOS-158
-- [ ] 13.2 Comment on JOS-150: a session with every chunk `chunk-complete` still derives to `final-video` with no final MP4 (design Risks)
+- [x] 13.1 Comment on JOS-158, JOS-148, JOS-149 and JOS-163: where the clip, its binding and its per-stage attempts live, and that manual clip retry is refused until JOS-158
+- [x] 13.2 Comment on JOS-150: a session with every chunk `chunk-complete` still derives to `final-video` with no final MP4 (design Risks)
 - [ ] 13.3 Open the PR against `feature/entrega-2-JAME`, linking to JOS-146
 - [ ] 13.4 Get a review from at least one human
 - [ ] 13.5 Archive the OpenSpec change after merge
