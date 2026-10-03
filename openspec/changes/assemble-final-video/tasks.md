@@ -59,10 +59,10 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review `generate-chunk-video` tests for any assumption that nothing launches after all chunks complete, and update for the automatic assembly launch
-- [ ] 7.2 Confirm every scenario in `specs/final-video-assembly/spec.md` has at least one functional test
-- [ ] 7.3 Confirm module test coverage has not decreased
-- [ ] 7.4 Document the test command
+- [x] 7.1 Review `generate-chunk-video` tests for any assumption that nothing launches after all chunks complete, and update for the automatic assembly launch
+- [x] 7.2 Confirm every scenario in `specs/final-video-assembly/spec.md` has at least one functional test
+- [x] 7.3 Confirm module test coverage has not decreased
+- [x] 7.4 Document the test command
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 

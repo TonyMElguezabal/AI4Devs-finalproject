@@ -547,7 +547,10 @@ describe("Group 6 — Failures, retries, binding (Decisions 5, 6, 7)", () => {
 // ---- Group 7: Session state after video stage ----
 
 describe("Group 7 — Session state after video stage", () => {
-  it("all chunks chunk-complete → session is final-video", async () => {
+  it("all chunks chunk-complete → session is final-video-generating (assembly not yet done)", async () => {
+    // JOS-149: chunks reaching chunk-complete moves the session to
+    // `final-video-generating`, NOT `final-video`. `final-video` requires
+    // assembly to succeed (run.finalVideoPath set by assemble-final-video).
     const runId = randomUUID();
     createRun(runId, "final video test", "script", "en");
 
@@ -558,7 +561,7 @@ describe("Group 7 — Session state after video stage", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const snapshot = toSnapshot(runId);
-    expect(snapshot?.session.state).toBe("final-video");
+    expect(snapshot?.session.state).toBe("final-video-generating");
   });
 
   it("deriveSessionState: 'video-generating' scenes still count as processing", () => {
