@@ -21,6 +21,13 @@
 # real, not because this change built them. Regenerate this file (same
 # command) whenever a route changes, rather than hand-editing it out of sync.
 #
+# JOS-146 (generate-chunk-video) verification — 2026-10-03: regenerated and
+# confirmed no structural schema changes. Behavioral additions only:
+# (1) scene.state now reaches 'video-generating' on the path to 'chunk-complete';
+# (2) POST .../retry and POST .../correct return 409 with reason
+#     "retrying a failed clip is not available yet" when affectedStage is 'video';
+# (3) affectedStage is now populated for both image-stage and video-stage failures.
+#
 openapi: 3.0.3
 info:
   title: Vid4You API

@@ -66,34 +66,34 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 9. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 9.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list
-- [ ] 9.2 Run the targeted tests (adapter, launch, completion, failures, reconciliation, persistence)
-- [ ] 9.3 Run `npm run typecheck` and the full `npm test`
-- [ ] 9.4 Verify the post-test state matches the baseline; restore it if not
-- [ ] 9.5 Write `openspec/changes/generate-chunk-video/reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`
-- [ ] 9.6 Mark this step complete only after the tests pass and the report exists
+- [x] 9.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list
+- [x] 9.2 Run the targeted tests (adapter, launch, completion, failures, reconciliation, persistence)
+- [x] 9.3 Run `npm run typecheck` and the full `npm test`
+- [x] 9.4 Verify the post-test state matches the baseline; restore it if not
+- [x] 9.5 Write `openspec/changes/generate-chunk-video/reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`
+- [x] 9.6 Mark this step complete only after the tests pass and the report exists
 
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Start the real server on a scratch database and scratch projects folder, and confirm `GET /health` responds
-- [ ] 10.2 With the stub adapter: create a session, bring one chunk to `image-complete`, and follow it with `curl GET /sessions/:id` through `video-generating` to `chunk-complete`; confirm the clip file is in the project folder and `result` still points to the image
-- [ ] 10.3 With the stub adapter: force a clip failure until the budget is exhausted; confirm `affectedStage: "video"`, then `POST .../retry` and `POST .../correct` answer 409 and change nothing
-- [ ] 10.4 One real RunningHub call (about $0.60): a chunk with a real stored image goes to `chunk-complete`; record the cost, the time, and the stored file's size and `ftyp` check. Skip and record why if the credential or quota is missing
-- [ ] 10.5 `curl GET /docs/json` and confirm no request schema gained a field
-- [ ] 10.6 Clean up through the test-only reset; confirm the scratch store is empty with all triggers, and the default store untouched
-- [ ] 10.7 Save `reports/YYYY-MM-DD-step-10-manual-endpoint-testing.md` with every command and response
+- [x] 10.1 Start the real server on a scratch database and scratch projects folder, and confirm `GET /health` responds
+- [x] 10.2 With the stub adapter: create a session, bring one chunk to `image-complete`, and follow it with `curl GET /sessions/:id` through `video-generating` to `chunk-complete`; confirm the clip file is in the project folder and `result` still points to the image
+- [x] 10.3 With the stub adapter: force a clip failure until the budget is exhausted; confirm `affectedStage: "video"`, then `POST .../retry` and `POST .../correct` answer 409 and change nothing
+- [x] 10.4 One real RunningHub call (about $0.60): a chunk with a real stored image goes to `chunk-complete`; record the cost, the time, and the stored file's size and `ftyp` check. Skip and record why if the credential or quota is missing
+- [x] 10.5 `curl GET /docs/json` and confirm no request schema gained a field
+- [x] 10.6 Clean up through the test-only reset; confirm the scratch store is empty with all triggers, and the default store untouched
+- [x] 10.7 Save `reports/YYYY-MM-DD-step-10-manual-endpoint-testing.md` with every command and response
 
 ## 11. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 11.1 Decide applicability: no screen changes. Check that a chunk shown in the UI moves through `video-generating` to `chunk-complete`, and that a clip failure shows the video stage, or record why not
-- [ ] 11.2 Save `reports/YYYY-MM-DD-step-11-e2e.md`
+- [x] 11.1 Decide applicability: no screen changes. Check that a chunk shown in the UI moves through `video-generating` to `chunk-complete`, and that a clip failure shows the video stage, or record why not
+- [x] 11.2 Save `reports/YYYY-MM-DD-step-11-e2e.md`
 
 ## 12. Update Technical Documentation (MANDATORY)
 
-- [ ] 12.1 `docs/data-model.md`: the two `scenes` columns, `provider_requests.stage`, `scene_video_results`, the migration, the per-stage `attempts`, and the derived `affectedStage`
-- [ ] 12.2 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only changes are descriptions (states, `affectedStage`, the 409 reasons)
-- [ ] 12.3 `docs/backend-standards.md`: the `VideoProvider` port and its submit-and-poll shape, the per-stage concurrency key and provisional cap, per-stage attempts, and the clip-retry refusal until JOS-158
-- [ ] 12.4 `docs/PRD.md`: check §7.1, §7.2, §8.2 and §11.2 need no wording change; record in the change log only if something changes
+- [x] 12.1 `docs/data-model.md`: the two `scenes` columns, `provider_requests.stage`, `scene_video_results`, the migration, the per-stage `attempts`, and the derived `affectedStage`
+- [x] 12.2 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only changes are descriptions (states, `affectedStage`, the 409 reasons)
+- [x] 12.3 `docs/backend-standards.md`: the `VideoProvider` port and its submit-and-poll shape, the per-stage concurrency key and provisional cap, per-stage attempts, and the clip-retry refusal until JOS-158
+- [x] 12.4 `docs/PRD.md`: check §7.1, §7.2, §8.2 and §11.2 need no wording change; record in the change log only if something changes
 
 ## 13. Close out
 
