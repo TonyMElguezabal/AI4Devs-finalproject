@@ -8,6 +8,7 @@ import {
   correctAndRetry,
   handleProviderResult,
   imageStageLauncher,
+  videoStageLauncher,
   launchScene,
   manualRetry,
   nextStageLaunchCount,
@@ -49,9 +50,10 @@ beforeEach(() => {
   concurrency.resetAll();
   concurrency.setLimit(STAGE, 10); // generous, unrelated to the concurrency-cap experiment
   setPostAdmitHook(undefined); // clear any hook left by a previous test
-  // Restore the registry to its default state (imageStageLauncher registered, others in NOT_YET_LAUNCHABLE)
+  // Restore the registry to the currently launchable stages.
   resetRegistry();
   registerStageLauncher(imageStageLauncher);
+  registerStageLauncher(videoStageLauncher);
 });
 
 // Experiment 4.3 — retry budget.
@@ -307,6 +309,8 @@ describe("continueSession launches held work from registered launchers (JOS-152,
     const { runId } = newRunWithScene("success", 5);
     pauseSession(runId);
 
+    resetRegistry();
+    registerStageLauncher(imageStageLauncher);
     const launched: PipelineStage[] = [];
     const decompLauncher = { stage: "decomposition" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), launch: () => { launched.push("decomposition"); } };
     const videoLauncher = { stage: "video" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), launch: () => { launched.push("video"); } };

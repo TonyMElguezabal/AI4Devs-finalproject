@@ -3,7 +3,15 @@ import { beforeEach, describe, expect, it } from "vitest";
 import * as concurrency from "../src/concurrency.ts";
 import { createRun, db, getScene, getScenesForRun, resetAll } from "../src/db.ts";
 import { createStubImageProvider, resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
-import { correctAndRetry, launchImageStage, launchScene, manualRetry, RETRY_BUDGET } from "../src/orchestrator.ts";
+import {
+  correctAndRetry,
+  launchImageStage,
+  launchScene,
+  manualRetry,
+  RETRY_BUDGET,
+  setVideoStageStartDelayMs,
+  resetVideoStageStartDelayMs,
+} from "../src/orchestrator.ts";
 import { registerDecomposition } from "../src/sceneRegistration.ts";
 import { STAGE } from "../src/types.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
@@ -68,9 +76,11 @@ async function registeredSession(): Promise<{ runId: string; sceneId: string }> 
 const intervalsOf = (runId: string) => getScenesForRun(runId).map((scene) => scene.narrationInterval);
 
 beforeEach(() => {
+  resetVideoStageStartDelayMs();
   resetAll();
   concurrency.resetAll();
   concurrency.setLimit(STAGE, 10);
+  setVideoStageStartDelayMs(9_999_999);
   resetImageProviderRegistry();
 });
 

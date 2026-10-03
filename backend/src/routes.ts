@@ -3,12 +3,15 @@ import { z } from "zod";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname } from "node:path";
-import { createRun, getRun, getSceneForRun, resolveArtefactPath } from "./db.ts";
+import { createRun, getRun, getSceneForRun, insertRegisteredScenes, commitSceneResult, markImageComplete, writeArtefactOnce } from "./db.ts";
+import { randomUUID } from "node:crypto";
+import { resolveArtefactPath } from "./db.ts";
 import {
   continueSession,
   correctAndRetry,
   events,
   handleProviderResult,
+  launchVideoStage,
   manualRetry,
   pauseSession,
   toSnapshot,
@@ -428,4 +431,62 @@ export const routes: FastifyPluginAsync = async (app) => {
       clearInterval(heartbeat);
     });
   });
+
+  // Test-only endpoint for manual endpoint testing (task 10). Guarded by
+  // ALLOW_TEST_ENDPOINTS env var; never available in production.
+  if (process.env.ALLOW_TEST_ENDPOINTS) {
+    typed.post(
+      "/internal/test/quick-scene",
+      {
+        schema: {
+          body: z.object({
+            sessionId: z.string(),
+            videoInstruction: z.string().min(1),
+            requestedDurationSeconds: z.number().positive(),
+            imageBytesBase64: z.string().optional(),
+          }),
+          response: {
+            200: z.object({ sceneId: z.string() }),
+            404: z.object({ error: z.string() }),
+          },
+        },
+      },
+      async (request, reply) => {
+        const { sessionId, videoInstruction, requestedDurationSeconds, imageBytesBase64 } = request.body;
+        const run = getRun(sessionId);
+        if (!run) {
+          reply.code(404);
+          return { error: "session not found" };
+        }
+        const sceneId = randomUUID();
+        const imagePath = `scene-0.png`;
+        // minimal 1×1 PNG bytes (overrideable for real-call tests)
+        const pngBytes = imageBytesBase64
+          ? Buffer.from(imageBytesBase64, "base64")
+          : Buffer.from(
+              "89504e470d0a1a0a0000000d49484452000000010000000108020000009001" +
+              "2e00000000c4944415478016360f8cfc00000000200016700418000000025" +
+              "8e32390000000049454e44ae426082",
+              "hex",
+            );
+        insertRegisteredScenes(sessionId, [{
+          id: sceneId,
+          index: 0,
+          prompt: videoInstruction,
+          imageInstruction: videoInstruction,
+          videoInstruction,
+          narrationInterval: { startSeconds: 0, endSeconds: requestedDurationSeconds },
+          requestedDurationSeconds,
+          durationWarning: null,
+          speedFactor: 1,
+          speedFactorWarning: null,
+        }]);
+        writeArtefactOnce(run.projectFolder, imagePath, pngBytes);
+        commitSceneResult(sceneId, imagePath);
+        markImageComplete(sceneId, imagePath);
+        launchVideoStage(sceneId);
+        return { sceneId };
+      },
+    );
+  }
 };

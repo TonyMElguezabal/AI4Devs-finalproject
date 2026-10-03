@@ -9,6 +9,7 @@ import { reconcileOnBoot } from "./orchestrator.ts";
 import * as concurrency from "./concurrency.ts";
 import { STAGE } from "./types.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
+import { setVideoProviderRegistry, createStubVideoProvider, STUB_VIDEO_PROVIDER_NAME } from "./videoProvider.ts";
 
 const PORT = Number(process.env.PORT ?? 3100);
 // define-provider-configuration (JOS-165) task 17.2 — this skeleton's one
@@ -68,6 +69,13 @@ export async function buildApp(): Promise<FastifyInstance> {
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
   concurrency.setLimit(STAGE, STAGE_CONCURRENCY_LIMIT);
+  // USE_STUB_VIDEO_PROVIDER=success|transient-failure|not-retryable-failure — manual endpoint testing only.
+  const stubVideoMode = process.env.USE_STUB_VIDEO_PROVIDER as string | undefined;
+  if (stubVideoMode) {
+    const bytes = Buffer.from("00000000667479706d703432", "hex"); // minimal ftyp mp4
+    const stub = createStubVideoProvider(stubVideoMode as Parameters<typeof createStubVideoProvider>[0], { bytes });
+    setVideoProviderRegistry({ defaultIdentifier: STUB_VIDEO_PROVIDER_NAME, adapters: { [STUB_VIDEO_PROVIDER_NAME]: stub } });
+  }
   const app = await buildApp();
   const summary = reconcileOnBoot();
   app.log.info(summary, "boot reconciliation complete");
