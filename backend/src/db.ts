@@ -385,6 +385,36 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       `);
     },
   },
+  {
+    version: 13,
+    description:
+      "add runs.final_video_path and make stage_attempts.provider_id nullable (assemble-final-video, JOS-149)",
+    up: (target) => {
+      // Session.final_video_path — null until assembly succeeds; set once by setFinalVideoPath.
+      target.exec("ALTER TABLE runs ADD COLUMN final_video_path TEXT");
+      // assembly stage has no external provider (design.md Decision 5) — recreate with nullable provider_id.
+      target.exec(`
+        CREATE TABLE stage_attempts_v13 (
+          id TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL REFERENCES runs(id),
+          stage TEXT NOT NULL,
+          provider_id TEXT,
+          attempt_number INTEGER NOT NULL,
+          queued_at TEXT NOT NULL,
+          sent_at TEXT NOT NULL,
+          outcome TEXT NOT NULL CHECK (outcome IN ('in-flight', 'success', 'transient', 'not-retryable')),
+          finished_at TEXT,
+          external_request_id TEXT,
+          error_code TEXT,
+          error_message TEXT,
+          UNIQUE (run_id, stage, attempt_number)
+        );
+      `);
+      target.exec("INSERT INTO stage_attempts_v13 SELECT * FROM stage_attempts");
+      target.exec("DROP TABLE stage_attempts");
+      target.exec("ALTER TABLE stage_attempts_v13 RENAME TO stage_attempts");
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync): number[] {
@@ -514,7 +544,7 @@ export function createRun(id: string, title: string, script: string, language: s
   db.prepare(
     "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script) VALUES (?, ?, ?, 0, ?, ?, ?)",
   ).run(id, title, createdAt, language, projectFolder, script);
-  return { id, title, script, createdAt, paused: false, language, projectFolder, voiceProviderId: null, failure: null };
+  return { id, title, script, createdAt, paused: false, language, projectFolder, voiceProviderId: null, failure: null, finalVideoPath: null };
 }
 
 export function setRunProjectFolder(runId: string, projectFolder: string): void {
@@ -601,6 +631,7 @@ function rowToRun(row: any): Run {
     projectFolder: row.project_folder ?? "",
     voiceProviderId: row.voice_provider_id ?? null,
     failure: row.failure ? (JSON.parse(row.failure) as SessionFailure) : null,
+    finalVideoPath: row.final_video_path ?? null,
   };
 }
 
@@ -839,7 +870,7 @@ function rowToStageAttempt(row: any): StageAttempt {
 export function recordStageAttempt(input: {
   runId: string;
   stage: AttemptStage;
-  providerId: string;
+  providerId: string | null;
   queuedAt: string;
   sentAt: string;
 }): StageAttempt {
@@ -889,6 +920,11 @@ export function getStageAttempts(runId: string, stage: AttemptStage): StageAttem
     .prepare("SELECT * FROM stage_attempts WHERE run_id = ? AND stage = ? ORDER BY attempt_number ASC")
     .all(runId, stage) as any[];
   return rows.map(rowToStageAttempt);
+}
+
+/** Sets `runs.final_video_path` once after a successful assembly (JOS-149). */
+export function setFinalVideoPath(runId: string, relativePath: string): void {
+  db.prepare("UPDATE runs SET final_video_path = ? WHERE id = ?").run(relativePath, runId);
 }
 
 export function getAllInFlightScenes(): Scene[] {

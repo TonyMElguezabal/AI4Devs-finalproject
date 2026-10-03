@@ -4,30 +4,30 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Create feature branch `feature/assemble-final-video` from `main`
-- [ ] 0.2 Verify branch creation and current branch status
+- [x] 0.1 Create feature branch `feature/assemble-final-video` from `main`
+- [x] 0.2 Verify branch creation and current branch status
 
 ## 1. Gate: Confirm the foundations this phase stands on
 
-- [ ] 1.1 Confirm `generate-chunk-video` has landed; chunks reach `chunk-complete` with recorded result paths, requested durations and speed factors
-- [ ] 1.2 Confirm `define-backend-stack`, `define-persistence` have landed
-- [ ] 1.3 Confirm `define-media-assembly` status; if landed, take the chosen assembly tool from its ADR; if not, use a documented stand-in and record the dependency explicitly, per design.md
-- [ ] 1.4 Confirm `bounded-retry-policy`, `stage-execution-time-limit`, and the shared phase-launch gate are available to extend
-- [ ] 1.5 If any of 1.1, 1.2, or 1.4 is missing, stop and record the blocker rather than building against a guess
+- [x] 1.1 Confirm `generate-chunk-video` has landed; chunks reach `chunk-complete` with recorded result paths, requested durations and speed factors
+- [x] 1.2 Confirm `define-backend-stack`, `define-persistence` have landed
+- [x] 1.3 Confirm `define-media-assembly` status; if landed, take the chosen assembly tool from its ADR; if not, use a documented stand-in and record the dependency explicitly, per design.md
+- [x] 1.4 Confirm `bounded-retry-policy`, `stage-execution-time-limit`, and the shared phase-launch gate are available to extend
+- [x] 1.5 If any of 1.1, 1.2, or 1.4 is missing, stop and record the blocker rather than building against a guess
 
 ## 2. Domain: all-scenes-complete gate (TDD)
 
-- [ ] 2.1 Write a failing test that assembly launches only when every chunk of a session is `chunk-complete`
-- [ ] 2.2 Write a failing test that assembly does not launch while any chunk is `failed` or still processing
-- [ ] 2.3 Write a failing test that the check re-evaluates on every chunk-completion event (design.md Decision 1), not on a poll
-- [ ] 2.4 Implement the gate as a listener on chunk-completion events, launching through the shared phase-launch gate
+- [x] 2.1 Write a failing test that assembly launches only when every chunk of a session is `chunk-complete`
+- [x] 2.2 Write a failing test that assembly does not launch while any chunk is `failed` or still processing
+- [x] 2.3 Write a failing test that the check re-evaluates on every chunk-completion event (design.md Decision 1), not on a poll
+- [x] 2.4 Implement the gate as a listener on chunk-completion events, launching through the shared phase-launch gate
 
 ## 3. Persistence: session assembly fields and stage instance (TDD)
 
-- [ ] 3.1 Write a failing test for `Session.final_video_path` (nullable until success)
-- [ ] 3.2 Write a failing test for a `StageExecution` row keyed `(session, stage=assembly)`, with a nullable `provider` field (design.md Decision 5)
-- [ ] 3.3 Add the migration if needed, implement the repository changes
-- [ ] 3.4 Run the group 3 tests and confirm they pass
+- [x] 3.1 Write a failing test for `Session.final_video_path` (nullable until success)
+- [x] 3.2 Write a failing test for a `StageExecution` row keyed `(session, stage=assembly)`, with a nullable `provider` field (design.md Decision 5)
+- [x] 3.3 Add the migration if needed, implement the repository changes
+- [x] 3.4 Run the group 3 tests and confirm they pass
 
 ## 4. Assembly tool port and adapter (TDD)
 
