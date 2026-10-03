@@ -13,7 +13,7 @@ import {
   resetAll,
   resolveArtefactPath,
 } from "../src/db.ts";
-import { continueSession, correctAndRetry, deriveSessionState, imageStageLauncher, launchImageStage, manualRetry, pauseSession, reconcileOnBoot } from "../src/orchestrator.ts";
+import { continueSession, correctAndRetry, deriveSessionState, imageStageLauncher, launchImageStage, manualRetry, pauseSession, reconcileOnBoot, setVideoStageStartDelayMs, resetVideoStageStartDelayMs } from "../src/orchestrator.ts";
 import {
   createStubImageProvider,
   resetDownloadFetch,
@@ -119,9 +119,13 @@ function useStubAdapter(adapter: ImageProvider) {
 }
 
 beforeEach(() => {
+  resetVideoStageStartDelayMs();
   resetAll();
   concurrency.resetAll();
   concurrency.setLimit(STAGE, 10);
+  // Prevent video stage from starting during image-stage tests: it would race
+  // with waitForSettled's 5ms tick. Tests only care about image stage behavior.
+  setVideoStageStartDelayMs(9_999_999);
   resetImageProviderRegistry();
   resetDownloadFetch();
 });

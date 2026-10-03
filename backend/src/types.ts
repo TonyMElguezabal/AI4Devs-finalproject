@@ -175,6 +175,10 @@ export interface Scene {
   /** Configured at scene creation so automatic retries can reuse the same behaviour. */
   providerMode: ProviderOutcomeMode;
   providerLatencyMs: number;
+  /** The video stage's provider binding; null until the first video attempt (generate-chunk-video, JOS-146, Decision 5). */
+  videoProvider: string | null;
+  /** The clip's relative path in the project folder; null until the video stage succeeds (JOS-146, Decision 5). */
+  videoResult: string | null;
 }
 
 /**
@@ -207,6 +211,8 @@ export interface ProviderRequestRow {
   mode: ProviderOutcomeMode;
   attemptNumber: number;
   resolved: 0 | 1;
+  /** Which stage this request belongs to; defaults to 'image' for existing rows (generate-chunk-video, JOS-146, Decision 5). */
+  stage: "image" | "video";
 }
 
 // ---- Wire contract (define-live-updates, JOS-183, Decisions 2/4/8) ----

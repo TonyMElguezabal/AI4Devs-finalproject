@@ -1,158 +1,161 @@
 # Chunk video generation
 
-Requirements for animating a chunk's completed image into a stored video clip. The per-stage retry budget, the shared concurrency cap, pause handling, and the per-stage execution time limit are owned by `stage-retry-policy` and `stage-execution-time-limit`; this capability covers when generation launches, how the requested duration is selected, what is persisted, the one correction path a failed video stage allows, and how one chunk's failure leaves the rest of the session unaffected.
+Requirements for turning a chunk's stored image and `VIDEO` instruction into a stored clip (JOS-146, US-13; PRD §5 step 7, §7.1, §7.2, §8.2, §11.2, §12.1, §12.2, AC05). The requested duration is chosen and stored with the chunk by JOS-147. Recording the speed factor belongs to JOS-148, manual retry and correction after a clip failure to JOS-158, and the real retry budget, time limit and concurrency cap to JOS-184/154, JOS-185 and JOS-167.
 
 ## ADDED Requirements
 
-### Requirement: Video generation launches automatically once the image is complete
+### Requirement: No clip is requested without an available image
 
-The system SHALL launch video generation for a chunk as soon as its image stage reaches `image-complete`, without further action from the User, through the shared phase-launch gate. The chunk SHALL be in state `video-generating` before the request is sent to the video provider.
+The video stage SHALL start only for a chunk in `image-complete` whose stored image file can be read from the session's project folder (§7.1). A chunk in any other state SHALL NOT have a clip request sent. A chunk in `image-complete` whose image file cannot be read SHALL fail its video stage with a not-retryable cause naming the missing image, and SHALL NOT send any provider request. The image SHALL NOT be regenerated (§11.2).
 
-#### Scenario: A chunk's image has just completed
+#### Scenario: A chunk still generating its image sends no clip request
 
-- **WHEN** a chunk's image stage reaches `image-complete`
-- **THEN** video generation is launched without further User action
-- **AND** the chunk state is `video-generating` before the provider request is sent
+- **GIVEN** a chunk in `image-generating`
+- **WHEN** clip generation would be launched for it
+- **THEN** no request is sent to the video provider and the chunk stays `image-generating`
 
-### Requirement: The requested duration is the admitted duration needing the smallest speed change
+#### Scenario: A failed image stage sends no clip request
 
-The system SHALL select the requested duration from the video provider's hardcoded set of admitted durations as the one requiring the smallest speed change — acceleration or deceleration ratio — to match the chunk's narrated duration, not the one with the smallest difference in seconds. On an exact tie between two candidates' speed-change ratios, the system SHALL select the longer duration. When the narrated duration is below every admitted duration, the system SHALL select the smallest admitted duration.
+- **GIVEN** a chunk in `failed` whose affected stage is `image`
+- **WHEN** clip generation would be launched for it
+- **THEN** no request is sent to the video provider
 
-#### Scenario: One admitted duration needs a smaller speed change than another that is numerically closer
+#### Scenario: The stored image file is missing
 
-- **WHEN** a chunk's narrated duration is 6 seconds and the provider admits 5 and 10 seconds
-- **THEN** the 5-second duration is selected, because it needs a smaller speed change (1.2×) than the 10-second duration (1.67×), even though 10 seconds is numerically closer to 6
+- **GIVEN** a chunk in `image-complete` whose image file has been removed from the project folder
+- **WHEN** clip generation is launched
+- **THEN** no request is sent to the video provider, the chunk is `failed` with affected stage `video`, and the cause names the missing image and says it is not retryable
 
-#### Scenario: Two admitted durations require exactly the same speed change
+### Requirement: Clip generation launches from `image-complete` and uses the image and the `VIDEO` instruction
 
-- **WHEN** two admitted durations would require the same speed-change ratio for a chunk's narrated duration
-- **THEN** the longer of the two durations is selected
+A chunk that reaches `image-complete` SHALL start clip generation without User action, through the phase-launch gate the image stage uses: a concurrency slot of the `video` stage and the session pause. The chunk SHALL be `video-generating` before the provider request is sent. The request SHALL carry the chunk's stored image, its `VIDEO` instruction exactly as registered, and the requested duration JOS-147 stored with the chunk. Each chunk SHALL progress on its own: a chunk's clip does not wait for any other chunk's image or clip.
 
-#### Scenario: The narrated duration is below the smallest admitted duration
+#### Scenario: Launch after the image completes
 
-- **WHEN** a chunk's narrated duration is shorter than every duration the video provider admits
-- **THEN** the smallest admitted duration is requested
+- **GIVEN** a chunk whose image stage has just completed
+- **WHEN** the image result is committed
+- **THEN** the chunk is `video-generating` before the video provider is called
 
-### Requirement: The resulting speed factor is recorded and shown, not chosen independently
+#### Scenario: The request carries the image and the `VIDEO` instruction
 
-The system SHALL compute the speed factor as the ratio between the requested duration and the chunk's narrated duration, and SHALL persist it together with the requested duration on the chunk. The speed factor SHALL NOT be set or overridden independently of this computation.
+- **GIVEN** a chunk in `image-complete` with the `VIDEO` instruction "Slow push-in on the lighthouse as waves break"
+- **WHEN** its clip is requested
+- **THEN** the provider receives that chunk's stored image, exactly that instruction, and the requested duration stored with the chunk
 
-#### Scenario: A chunk's video completes
+#### Scenario: A paused session holds the clip
 
-- **WHEN** video generation completes for a chunk
-- **THEN** its requested duration and its resulting speed factor are both recorded
+- **GIVEN** a paused session with a chunk in `image-complete`
+- **WHEN** the chunk would start its clip
+- **THEN** no request is sent and the chunk stays `image-complete` until the session continues
 
-#### Scenario: The scene details are consulted
+#### Scenario: Chunks progress independently
 
-- **WHEN** a chunk's details are read
-- **THEN** its requested duration and its speed factor are shown
+- **GIVEN** chunk 1 in `video-generating` and chunk 2 whose image has just completed
+- **WHEN** chunk 2's image result is committed
+- **THEN** chunk 2 starts its clip without waiting for chunk 1
 
-### Requirement: A speed factor above the acceptable limit is a warning, not a failure
+### Requirement: A stored clip completes the chunk
 
-When a chunk's speed factor exceeds the hardcoded acceptable limit, the system SHALL record a speed-factor warning for that chunk and SHALL NOT treat it as a failure.
+A clip returned by the provider SHALL be written to the session's project folder before the stage succeeds. When the provider returns a temporary link, the file SHALL be downloaded first; the stored path SHALL never be the link (§12.2). A clip that cannot be downloaded or written, or whose file is not an MP4, SHALL count as a failed attempt of the video stage. A stored clip SHALL move the chunk to `chunk-complete`, and the chunk's image SHALL remain as it was. A repeated delivery of the same success SHALL NOT store a second clip.
 
-#### Scenario: The speed factor exceeds the limit
+#### Scenario: Clip stored and chunk complete
 
-- **WHEN** a chunk's computed speed factor exceeds the hardcoded acceptable limit
-- **THEN** a speed-factor warning is recorded for that chunk
-- **AND** the chunk's video stage still completes successfully
+- **GIVEN** a chunk in `video-generating`
+- **WHEN** the provider returns a valid clip
+- **THEN** the clip is stored under the session's project folder, the chunk records its relative path, the chunk is `chunk-complete`, and its image path is unchanged
 
-### Requirement: The provider receives the generated image, the instruction, and the selected duration
+#### Scenario: A temporary link is downloaded first
 
-The video request SHALL carry the chunk's already-generated image, its `VIDEO` instruction, and the selected requested duration.
+- **GIVEN** a provider result that is a temporary URL
+- **WHEN** the stage completes
+- **THEN** the clip file exists in the project folder before the chunk is `chunk-complete`, and the recorded path is relative, not the URL
 
-#### Scenario: A video request is built
+#### Scenario: A failed download is a failed attempt
 
-- **WHEN** a chunk's video request is sent
-- **THEN** it carries that chunk's generated image, its `VIDEO` instruction, and the selected duration
+- **GIVEN** a provider result whose download fails
+- **WHEN** the result is processed
+- **THEN** the chunk does not reach `chunk-complete` and the failure counts as one attempt of the video stage
 
-### Requirement: A temporary link is resolved to a local file before the stage succeeds
+#### Scenario: A file that is not an MP4 is refused
 
-When the video provider returns the result only as a temporary link, the system SHALL download and store the clip in the session's project folder before the stage instance is marked successful, and before the link can be expected to expire.
+- **GIVEN** a provider result whose downloaded file is not an MP4
+- **WHEN** the result is processed
+- **THEN** no clip is recorded and the failure counts as one attempt of the video stage
 
-#### Scenario: The provider returns a temporary link
+#### Scenario: A duplicate success delivery
 
-- **WHEN** the video provider's response is a temporary link
-- **THEN** the clip is downloaded and stored in the project folder before the stage is marked successful
+- **GIVEN** a chunk already `chunk-complete`
+- **WHEN** the same provider result is delivered again
+- **THEN** no second clip is stored and the chunk's state and paths are unchanged
 
-### Requirement: A successful generation completes the chunk
+### Requirement: Clip failures belong to the video stage
 
-When a clip has been persisted locally, the system SHALL record its path on the chunk and set the chunk's state to `chunk-complete`, the scene's final state.
+A failure while generating a chunk's clip SHALL be attributed to the video stage (§8.2): the chunk's `affectedStage` SHALL be `video`, and its stored image SHALL be kept. An automatic retry of a transient clip failure SHALL repeat only the video stage, with the skeleton's retry budget counted for the video stage alone. A not-retryable clip failure SHALL skip automatic retries. Until JOS-158 lands, a manual retry or a correction requested for a chunk whose video stage failed SHALL be refused, and SHALL NOT change the chunk.
 
-#### Scenario: Generation succeeds
+#### Scenario: A transient failure retries the clip, not the image
 
-- **WHEN** a clip is generated and persisted for a chunk
-- **THEN** the chunk's video result path is recorded
-- **AND** the chunk's state is `chunk-complete`
+- **GIVEN** a chunk in `video-generating` whose first clip attempt fails transiently
+- **WHEN** the failure is applied
+- **THEN** the video stage is attempted again with attempt number 2 of the video stage, and no image request is sent
 
-### Requirement: A video retry does not regenerate the image
+#### Scenario: Exhausted retries fail the video stage
 
-When the video stage of a chunk is retried, automatically or manually, the system SHALL reuse the chunk's existing image and SHALL NOT request a new one.
+- **GIVEN** a chunk whose clip fails transiently on every attempt
+- **WHEN** the video stage's retry budget is exhausted
+- **THEN** the chunk is `failed`, its `affectedStage` is `video`, and its image path is unchanged
 
-#### Scenario: The video stage is retried
+#### Scenario: The image stage's attempts do not use up the clip's budget
 
-- **WHEN** a chunk's video stage is retried
-- **THEN** its existing image is reused
-- **AND** no new image is generated
+- **GIVEN** a chunk whose image succeeded on its third attempt
+- **WHEN** its first clip attempt is sent
+- **THEN** it is attempt 1 of the video stage
 
-### Requirement: An exhausted video stage can be corrected
+#### Scenario: Manual retry of a clip failure is refused for now
 
-When a chunk's video stage is `failed`, the system SHALL allow the User to either retry with the same `VIDEO` instruction or replace `VIDEO` with a new instruction and retry, preserving the chunk's already-successful image. The chunk's `ID`, `PROMPT`, `IMAGE`, and its position in the scene order SHALL remain unchanged by this or any other operation.
+- **GIVEN** a chunk `failed` at the video stage
+- **WHEN** the User asks for a manual retry or a correction
+- **THEN** the request is refused with a reason saying clip retry is not available yet, and the chunk, its image and its instructions are unchanged
 
-#### Scenario: A retry with the same instruction is requested
+### Requirement: The video provider is bound to the chunk's video stage
 
-- **WHEN** the User retries a failed video stage without changing `VIDEO`
-- **THEN** a new attempt is made with the same instruction and the existing image
+The first attempt of a chunk's video stage SHALL record the video provider it uses as the chunk's video-stage provider (§11.2), separately from the image-stage provider. Every later attempt of that chunk's video stage SHALL use the recorded provider, not the one currently configured. An attempt whose recorded provider has no adapter in the running build SHALL fail with a not-retryable cause, with no silent switch to another provider.
 
-#### Scenario: The instruction is corrected
+#### Scenario: Binding on the first attempt
 
-- **WHEN** the User replaces `VIDEO` on a chunk whose video stage is `failed`
-- **THEN** the new instruction is stored
-- **AND** a new attempt is made with it, reusing the existing image
+- **GIVEN** a chunk in `image-complete` with no video-stage provider recorded
+- **WHEN** its first clip attempt is sent
+- **THEN** the chunk's video-stage provider is recorded, and its image-stage provider is unchanged
 
-#### Scenario: The correction form is unavailable outside failure
+#### Scenario: A retry uses the bound provider
 
-- **WHEN** a chunk's video stage is not `failed`
-- **THEN** no operation offers a way to change its `VIDEO` instruction
+- **GIVEN** a chunk whose video stage is bound to provider A, and a build whose configured video provider is now B
+- **WHEN** the video stage is retried automatically
+- **THEN** the attempt is sent to provider A
 
-#### Scenario: A correction attempts to change a locked field
+#### Scenario: A bound provider with no adapter
 
-- **WHEN** a request to correct a chunk's `VIDEO` also attempts to change its `ID`, `PROMPT`, `IMAGE`, or position in the scene order
-- **THEN** only `VIDEO` is affected
-- **AND** `ID`, `PROMPT`, `IMAGE`, and the scene order are unchanged
+- **GIVEN** a chunk whose video stage is bound to a provider this build has no adapter for
+- **WHEN** the video stage is attempted
+- **THEN** no request is sent and the chunk fails its video stage with a not-retryable cause naming the provider
 
-### Requirement: One chunk's video failure does not affect other chunks
+### Requirement: An interrupted clip resumes after a restart
 
-When a chunk's video stage reaches `failed`, other chunks of the same session SHALL continue processing toward their own `chunk-complete` or `failed` outcome, unaffected by that chunk's failure.
+A chunk left in `video-generating` when the application stops SHALL be reconciled on boot by asking the bound provider for the request's result (§12.1): a finished result SHALL be applied as a normal delivery; a request the provider no longer holds SHALL count as one failed attempt of the video stage and follow the retry rule; a request still in progress SHALL keep being followed. An attempt that has not finished within the recorded video phase limit SHALL count as a failed transient attempt.
 
-#### Scenario: One chunk fails while others are in progress
+#### Scenario: The clip finished while the application was down
 
-- **WHEN** one chunk's video stage reaches `failed`
-- **THEN** the other chunks of the session continue processing independently
+- **GIVEN** a chunk in `video-generating` whose provider request succeeded while the application was stopped
+- **WHEN** the application boots
+- **THEN** the clip is stored and the chunk is `chunk-complete`
 
-### Requirement: A successful clip can be downloaded individually during processing
+#### Scenario: The provider no longer holds the request
 
-The system SHALL offer a completed chunk's clip for individual download while other chunks of the same session are still processing or have failed.
+- **GIVEN** a chunk in `video-generating` whose provider request is unknown to the provider after a restart
+- **WHEN** the application boots
+- **THEN** one failed attempt of the video stage is recorded and the retry rule decides the next step
 
-#### Scenario: Other scenes are still processing
+#### Scenario: A clip exceeds the phase limit
 
-- **WHEN** a chunk reaches `chunk-complete` while other chunks of the session are still generating or have failed
-- **THEN** that chunk's clip is available for individual download
-
-### Requirement: The video stage's diagnostics are recorded without exposing credentials
-
-The system SHALL record the provider used, the attempts made, the status, and — when failed — the cause and its retryability for a chunk's video stage. The recorded cause SHALL NOT include credentials or raw provider payloads.
-
-#### Scenario: A chunk's video details are consulted
-
-- **WHEN** a chunk's details are read
-- **THEN** its video stage shows the provider used, the attempts made, and its current status
-
-### Requirement: Video generation is scoped to its own session
-
-The system SHALL NOT generate, expose, or persist a video result against a chunk belonging to a different session than the one the request identifies.
-
-#### Scenario: Two sessions each have a chunk with the same identifier
-
-- **WHEN** a video-generation result is being recorded for a chunk
-- **THEN** it is attributed only to the chunk's own session, even if another session has a chunk with the same identifier
+- **GIVEN** a clip attempt still unfinished at the recorded video phase limit
+- **WHEN** the limit is reached
+- **THEN** the attempt counts as a failed transient attempt of the video stage

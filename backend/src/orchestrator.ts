@@ -1,10 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
+import { readFileSync } from "node:fs";
 import {
+  ArtefactAlreadyExistsError,
   bindSceneImageProvider,
+  bindSceneVideoProvider,
   commitSceneResult,
+  commitSceneVideoResult,
   db,
   getAllInFlightScenes,
+  getAllVideoGeneratingScenes,
+  getImageCompleteScenesForRun,
   getProviderRequest,
   getNarrationTimestamps,
   getRun,
@@ -14,11 +20,16 @@ import {
   getSubmittedScenesForRun,
   getVoiceOver,
   insertProviderRequest,
+  markChunkComplete,
   markImageComplete,
   markProviderRequestResolved,
   markSceneFailed,
   markSceneInFlight,
   markScenePendingRetry,
+  markSceneVideoRetry,
+  markVideoGenerating,
+  resetAttemptsForVideoStart,
+  resolveArtefactPath,
   sceneCurrentRequestId,
   setRunPaused,
   setSceneInstruction,
@@ -29,8 +40,15 @@ import * as concurrency from "./concurrency.ts";
 import { admitLaunch, launchHeldWork, registerStageLauncher, sessionHeldWork, type StageLauncher } from "./launchGate.ts";
 import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
+import { PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
 import { downloadGeneratedImage, getImageProviderRegistry, type ImageGenerationResult } from "./imageProvider.ts";
+import {
+  downloadGeneratedClip,
+  getVideoProviderRegistry,
+  type VideoGenerationResult,
+  type VideoSubmitResult,
+} from "./videoProvider.ts";
 import {
   STAGE,
   STUB_PROVIDER_NAME,
@@ -45,6 +63,33 @@ import {
 
 /** 1 initial attempt + this many automatic retries, per PRD §10.1 (C2). */
 export const RETRY_BUDGET = 3;
+
+const VIDEO_STAGE = "video";
+/** Provisional cap — JOS-167 replaces this (design Decision 2). */
+export const PROVISIONAL_VIDEO_CONCURRENCY = 3;
+concurrency.setLimit(VIDEO_STAGE, PROVISIONAL_VIDEO_CONCURRENCY);
+
+/** Poll interval between checks of the video provider (Decision 3). */
+let videoPollIntervalMs = 10_000;
+export function setVideoPollIntervalMs(ms: number): void {
+  videoPollIntervalMs = ms;
+}
+export function resetVideoPollIntervalMs(): void {
+  videoPollIntervalMs = 10_000;
+}
+
+/**
+ * How long `runVideoAttempt` waits (as a deferred setTimeout) before making
+ * any DB writes. 0 in production. Set to a large value in tests that only
+ * care about the image stage so the video stage never starts during the test.
+ */
+let videoStageStartDelayMs = 0;
+export function setVideoStageStartDelayMs(ms: number): void {
+  videoStageStartDelayMs = ms;
+}
+export function resetVideoStageStartDelayMs(): void {
+  videoStageStartDelayMs = 0;
+}
 
 export const events = new EventEmitter();
 
@@ -64,7 +109,8 @@ function sceneToPayload(scene: Scene): SceneEventPayload {
     sceneId: scene.id,
     index: scene.index,
     state: scene.status,
-    affectedStage: scene.status === "failed" ? "image" : undefined,
+    // Decision 6 (JOS-146) — derived: a failed scene with a stored image path failed at the video stage.
+    affectedStage: scene.status === "failed" ? (scene.result ? "video" : "image") : undefined,
     errorCause: scene.status === "failed" ? scene.lastError : undefined,
     provider: scene.provider,
     attempts: scene.attempts,
@@ -181,6 +227,12 @@ function launchSceneStage(sceneId: string): void {
   }
 }
 
+/** Same idempotency guard for the video stage (JOS-146). */
+const nextVideoStageLaunches = new Map<string, number>();
+export function nextVideoStageLaunchCount(sceneId: string): number {
+  return nextVideoStageLaunches.get(sceneId) ?? 0;
+}
+
 /**
  * Launches a scene's next attempt, honouring a session-wide pause (PRD §9):
  * a not-yet-launched generation is held until `continueSession` is called.
@@ -254,6 +306,280 @@ export const imageStageLauncher: StageLauncher = {
 };
 
 registerStageLauncher(imageStageLauncher);
+
+// ---- Video stage (generate-chunk-video, JOS-146) ----
+
+function isMp4(bytes: Buffer): boolean {
+  return bytes.length >= 8 && bytes.subarray(4, 8).toString("ascii") === "ftyp";
+}
+
+function applyVideoFailureOutcome(
+  sceneId: string,
+  outcome: { kind: "failed_transient" | "failed_not_retryable"; reason: string },
+  attemptNumber: number,
+): void {
+  if (outcome.kind === "failed_not_retryable") {
+    markSceneFailed(sceneId, outcome.reason);
+    return;
+  }
+  if (attemptNumber >= 1 + RETRY_BUDGET) {
+    markSceneFailed(sceneId, `${outcome.reason} (video retry budget exhausted after ${attemptNumber} attempts)`);
+    return;
+  }
+  markSceneVideoRetry(sceneId, outcome.reason);
+  launchVideoStage(sceneId);
+}
+
+function completeVideoStage(sceneId: string, relativePath: string): void {
+  const committed = commitSceneVideoResult(sceneId, relativePath);
+  if (committed) {
+    markChunkComplete(sceneId, relativePath);
+    nextVideoStageLaunches.set(sceneId, (nextVideoStageLaunches.get(sceneId) ?? 0) + 1);
+  }
+}
+
+async function pollVideoRequestOnce(
+  sceneId: string,
+  requestId: string,
+  attemptNumber: number,
+  sentAtMs: number,
+): Promise<void> {
+  const fresh = getScene(sceneId);
+  if (!fresh || fresh.status !== "video-generating") {
+    concurrency.release(VIDEO_STAGE);
+    return;
+  }
+  if (!fresh.videoProvider) {
+    concurrency.release(VIDEO_STAGE);
+    return;
+  }
+  const adapter = getVideoProviderRegistry().adapters[fresh.videoProvider];
+  if (!adapter) {
+    insertProviderRequest(requestId, sceneId, 0, "not_retryable_failure", attemptNumber, "video");
+    markProviderRequestResolved(requestId);
+    concurrency.release(VIDEO_STAGE);
+    applyVideoFailureOutcome(sceneId, { kind: "failed_not_retryable", reason: `no adapter for the bound video provider '${fresh.videoProvider}'` }, attemptNumber);
+    broadcast(fresh.runId);
+    return;
+  }
+
+  const elapsed = Date.now() - sentAtMs;
+  if (elapsed > PER_PHASE_MAX_TIME_SECONDS.video * 1000) {
+    insertProviderRequest(requestId, sceneId, elapsed, "transient_failure", attemptNumber, "video");
+    markProviderRequestResolved(requestId);
+    concurrency.release(VIDEO_STAGE);
+    applyVideoFailureOutcome(sceneId, { kind: "failed_transient", reason: `the clip request exceeded the ${PER_PHASE_MAX_TIME_SECONDS.video} s phase limit` }, attemptNumber);
+    broadcast(fresh.runId);
+    return;
+  }
+
+  let pollResult: VideoGenerationResult;
+  try {
+    pollResult = await adapter.poll(requestId);
+  } catch (err) {
+    pollResult = { kind: "failed_transient", reason: "the video provider threw during polling" };
+  }
+
+  if (pollResult.kind === "pending") {
+    const timer = setTimeout(() => { void pollVideoRequestOnce(sceneId, requestId, attemptNumber, sentAtMs); }, videoPollIntervalMs);
+    if (typeof timer === "object" && timer !== null && "unref" in timer) (timer as NodeJS.Timeout).unref();
+    return;
+  }
+
+  const latencyMs = Date.now() - sentAtMs;
+
+  if (pollResult.kind === "not_found" || pollResult.kind === "failed_transient" || pollResult.kind === "failed_not_retryable") {
+    const isNotRetryable = pollResult.kind === "failed_not_retryable";
+    const mode = isNotRetryable ? "not_retryable_failure" : "transient_failure";
+    const reason = pollResult.kind === "not_found" ? "the video provider no longer holds the request" : pollResult.reason;
+    const kind: "failed_not_retryable" | "failed_transient" = isNotRetryable ? "failed_not_retryable" : "failed_transient";
+    insertProviderRequest(requestId, sceneId, latencyMs, mode, attemptNumber, "video");
+    markProviderRequestResolved(requestId);
+    concurrency.release(VIDEO_STAGE);
+    applyVideoFailureOutcome(sceneId, { kind, reason }, attemptNumber);
+    broadcast(fresh.runId);
+    return;
+  }
+
+  // success
+  const clip = pollResult.clip;
+  let clipBytes: Buffer;
+  if (clip.source === "bytes") {
+    clipBytes = clip.bytes;
+  } else {
+    const downloaded = await downloadGeneratedClip(clip.url);
+    if (!downloaded.ok) {
+      insertProviderRequest(requestId, sceneId, latencyMs, "transient_failure", attemptNumber, "video");
+      markProviderRequestResolved(requestId);
+      concurrency.release(VIDEO_STAGE);
+      applyVideoFailureOutcome(sceneId, { kind: "failed_transient", reason: downloaded.reason }, attemptNumber);
+      broadcast(fresh.runId);
+      return;
+    }
+    clipBytes = downloaded.bytes;
+  }
+
+  if (!isMp4(clipBytes)) {
+    insertProviderRequest(requestId, sceneId, latencyMs, "transient_failure", attemptNumber, "video");
+    markProviderRequestResolved(requestId);
+    concurrency.release(VIDEO_STAGE);
+    applyVideoFailureOutcome(sceneId, { kind: "failed_transient", reason: "the downloaded file is not an MP4" }, attemptNumber);
+    broadcast(fresh.runId);
+    return;
+  }
+
+  const run = getRun(fresh.runId)!;
+  let relativePath: string;
+  try {
+    relativePath = writeArtefactOnce(run.projectFolder, `scene-${fresh.index}.mp4`, clipBytes);
+  } catch (err) {
+    if (err instanceof ArtefactAlreadyExistsError) {
+      // Duplicate success — already committed; release and return
+      insertProviderRequest(requestId, sceneId, latencyMs, "success", attemptNumber, "video");
+      markProviderRequestResolved(requestId);
+      concurrency.release(VIDEO_STAGE);
+      return;
+    }
+    insertProviderRequest(requestId, sceneId, latencyMs, "transient_failure", attemptNumber, "video");
+    markProviderRequestResolved(requestId);
+    concurrency.release(VIDEO_STAGE);
+    applyVideoFailureOutcome(sceneId, { kind: "failed_transient", reason: err instanceof Error ? err.message : "failed to write the clip file" }, attemptNumber);
+    broadcast(fresh.runId);
+    return;
+  }
+
+  insertProviderRequest(requestId, sceneId, latencyMs, "success", attemptNumber, "video");
+  markProviderRequestResolved(requestId);
+  concurrency.release(VIDEO_STAGE);
+  completeVideoStage(sceneId, relativePath);
+  broadcast(fresh.runId);
+}
+
+async function runVideoAttempt(sceneId: string): Promise<void> {
+  // Yield before any DB writes so that image-complete observers (e.g. 5ms
+  // waitFor polls in tests) can fire before we transition to video-generating.
+  // videoStageStartDelayMs is 0 in production; tests that only test the image
+  // stage set it to a large value so the video stage never starts during them.
+  if (videoStageStartDelayMs > 0) {
+    await new Promise<void>(resolve => {
+      const t = setTimeout(resolve, videoStageStartDelayMs);
+      if (typeof t === "object" && t !== null && "unref" in t) (t as NodeJS.Timeout).unref();
+    });
+  }
+
+  const fresh = getScene(sceneId);
+  if (!fresh || fresh.status !== "image-complete") {
+    concurrency.release(VIDEO_STAGE);
+    return;
+  }
+  const freshRun = getRun(fresh.runId);
+  if (!freshRun || freshRun.paused) {
+    concurrency.release(VIDEO_STAGE);
+    return;
+  }
+
+  // Decision 4 — need stored requested duration
+  if (fresh.requestedDurationSeconds === null) {
+    if (fresh.videoProvider === null) resetAttemptsForVideoStart(sceneId);
+    concurrency.release(VIDEO_STAGE);
+    markSceneFailed(sceneId, "no requested duration is stored for this chunk (not retryable)");
+    broadcast(fresh.runId);
+    return;
+  }
+
+  // Decision 1 — need a readable image file
+  if (!fresh.result) {
+    if (fresh.videoProvider === null) resetAttemptsForVideoStart(sceneId);
+    concurrency.release(VIDEO_STAGE);
+    markSceneFailed(sceneId, "no image path is stored for this chunk (not retryable)");
+    broadcast(fresh.runId);
+    return;
+  }
+
+  let imageBytes: Buffer;
+  try {
+    imageBytes = readFileSync(resolveArtefactPath(freshRun.projectFolder, fresh.result));
+  } catch {
+    if (fresh.videoProvider === null) resetAttemptsForVideoStart(sceneId);
+    concurrency.release(VIDEO_STAGE);
+    markSceneFailed(sceneId, `the image file '${fresh.result}' could not be read (not retryable)`);
+    broadcast(fresh.runId);
+    return;
+  }
+
+  // Bind on first attempt (Decision 5); reset per-stage attempt counter
+  const isFirstAttempt = fresh.videoProvider === null;
+  const registry = getVideoProviderRegistry();
+  if (isFirstAttempt) {
+    bindSceneVideoProvider(sceneId, registry.defaultIdentifier);
+    resetAttemptsForVideoStart(sceneId);
+  }
+  const reread = getScene(sceneId)!;
+  const boundId = reread.videoProvider ?? registry.defaultIdentifier;
+  const adapter = registry.adapters[boundId];
+
+  const attemptNumber = (isFirstAttempt ? 0 : reread.attempts) + 1;
+  const localId = randomUUID();
+  markVideoGenerating(sceneId, localId, attemptNumber);
+  broadcast(fresh.runId);
+
+  if (!adapter) {
+    insertProviderRequest(localId, sceneId, 0, "not_retryable_failure", attemptNumber, "video");
+    markProviderRequestResolved(localId);
+    concurrency.release(VIDEO_STAGE);
+    applyVideoFailureOutcome(sceneId, { kind: "failed_not_retryable", reason: `no adapter is configured for the bound video provider '${boundId}'` }, attemptNumber);
+    broadcast(fresh.runId);
+    return;
+  }
+
+  const sentAtMs = Date.now();
+  let submitResult: VideoSubmitResult;
+  try {
+    submitResult = await adapter.submit({
+      imageBytes,
+      instruction: fresh.videoInstruction,
+      durationSeconds: fresh.requestedDurationSeconds,
+    });
+  } catch (err) {
+    submitResult = {
+      kind: "failed_transient",
+      reason: err instanceof Error ? `video provider submit threw: ${err.message}` : "video provider submit threw",
+    };
+  }
+
+  if (submitResult.kind !== "submitted") {
+    const latencyMs = Date.now() - sentAtMs;
+    const mode = submitResult.kind === "failed_not_retryable" ? "not_retryable_failure" : "transient_failure";
+    insertProviderRequest(localId, sceneId, latencyMs, mode, attemptNumber, "video");
+    markProviderRequestResolved(localId);
+    concurrency.release(VIDEO_STAGE);
+    applyVideoFailureOutcome(sceneId, submitResult, attemptNumber);
+    broadcast(fresh.runId);
+    return;
+  }
+
+  // Update current_request_id to the provider's taskId for restart reconciliation
+  db.prepare("UPDATE scenes SET current_request_id = ? WHERE id = ?").run(submitResult.requestId, sceneId);
+
+  await pollVideoRequestOnce(sceneId, submitResult.requestId, attemptNumber, sentAtMs);
+}
+
+export function launchVideoStage(sceneId: string): void {
+  const scene = getScene(sceneId);
+  if (!scene || scene.status !== "image-complete") return;
+  const run = getRun(scene.runId);
+  if (run?.paused) return;
+
+  concurrency.acquire(VIDEO_STAGE, () => {
+    void runVideoAttempt(sceneId);
+  });
+}
+
+export function launchVideoStageForRun(runId: string): void {
+  for (const scene of getImageCompleteScenesForRun(runId)) {
+    launchVideoStage(scene.id);
+  }
+}
 
 async function runImageAttempt(sceneId: string): Promise<void> {
   const fresh = getScene(sceneId);
@@ -380,6 +706,9 @@ export function continueSession(runId: string): { ok: boolean; reason?: string }
   const changed = setRunPaused(runId, false);
   broadcast(runId);
   if (changed) launchHeldWork(runId);
+  // generate-chunk-video (JOS-146) Decision 2 — also launch held image-complete chunks;
+  // remove once the video stage registers its own launcher in launchGate.ts.
+  if (changed) launchVideoStageForRun(runId);
   return { ok: true };
 }
 
@@ -427,6 +756,11 @@ function completeImageStage(sceneId: string, relativePath: string): void {
   markImageComplete(sceneId, relativePath);
   if (committed) {
     nextStageLaunches.set(sceneId, (nextStageLaunches.get(sceneId) ?? 0) + 1);
+    // Only launch video stage for real registered chunks (not createScene skeletons).
+    const scene = getScene(sceneId);
+    if (scene?.requestedDurationSeconds != null) {
+      launchVideoStage(sceneId); // JOS-146 Decision 2 — launch video stage after image complete
+    }
   }
 }
 
@@ -470,6 +804,10 @@ export function manualRetry(sceneId: string): { ok: boolean; reason?: string } {
   const scene = getScene(sceneId);
   if (!scene) return { ok: false, reason: "unknown scene" };
   if (scene.status !== "failed") return { ok: false, reason: `cannot retry a scene in status '${scene.status}'` };
+  // Decision 7 (JOS-146) — video-stage failures are not retryable manually until JOS-158.
+  if (scene.result !== null) {
+    return { ok: false, reason: "retrying a failed clip is not available yet" };
+  }
   markScenePendingRetry(sceneId, scene.lastError ?? "manual retry");
   // A manual retry starts a fresh cycle: reset the attempt counter so the
   // scene gets a full 1 + RETRY_BUDGET budget again, per PRD §10.2.
@@ -488,6 +826,10 @@ export function correctAndRetry(sceneId: string, instruction: string): { ok: boo
   if (!scene) return { ok: false, reason: "unknown scene" };
   if (scene.status !== "failed") {
     return { ok: false, reason: `correction is only offered on a failed stage, not '${scene.status}'` };
+  }
+  // Decision 7 (JOS-146) — video-stage failures are not correctable until JOS-158.
+  if (scene.result !== null) {
+    return { ok: false, reason: "retrying a failed clip is not available yet" };
   }
   setSceneInstruction(sceneId, instruction);
   return manualRetry(sceneId);
@@ -562,6 +904,43 @@ export function reconcileOnBoot(): { resumed: number; recordedFailedAttempt: num
       const timer = setTimeout(() => handleProviderResult(requestId), remainingMs);
       timer.unref();
     }
+    stillPending++;
+  }
+
+  // JOS-146 Decision 9 — reconcile video-generating scenes through the bound adapter.
+  for (const scene of getAllVideoGeneratingScenes()) {
+    if (!scene.videoProvider) {
+      // No bound provider — treat as a lost attempt
+      applyVideoFailureOutcome(
+        scene.id,
+        { kind: "failed_transient", reason: "the video request was interrupted by a restart (no bound provider)" },
+        scene.attempts,
+      );
+      broadcast(scene.runId);
+      recordedFailedAttempt++;
+      continue;
+    }
+
+    const requestId = sceneCurrentRequestId(scene.id);
+    if (!requestId) {
+      applyVideoFailureOutcome(
+        scene.id,
+        { kind: "failed_transient", reason: "the video request id was lost on restart" },
+        scene.attempts,
+      );
+      broadcast(scene.runId);
+      recordedFailedAttempt++;
+      continue;
+    }
+
+    // Re-acquire a slot and resume polling from now (gives the full phase window after restart).
+    const capturedId = scene.id;
+    const capturedReqId = requestId;
+    const capturedAttempt = scene.attempts;
+    const sentAtMs = Date.now();
+    concurrency.acquire(VIDEO_STAGE, () => {
+      void pollVideoRequestOnce(capturedId, capturedReqId, capturedAttempt, sentAtMs);
+    });
     stillPending++;
   }
 
