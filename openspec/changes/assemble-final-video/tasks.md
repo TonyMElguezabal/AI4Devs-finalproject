@@ -37,17 +37,17 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 5. Application: assembly phase (TDD)
 
-- [ ] 5.1 Write a failing test that clips are ordered by ascending `sequence_number`, independent of completion order
-- [ ] 5.2 Write a failing test that each clip's placement comes from its chunk's persisted `narration_start_seconds`/`narration_duration_seconds`, never recomputed from the clip's measured duration (design.md Decision 2)
-- [ ] 5.3 Write a failing test that each clip's own audio is discarded and the output's only audio track is the voice-over
-- [ ] 5.4 Write a failing test that the output is produced at the hardcoded format (H.264/AAC, expected resolution/frame rate) regardless of any per-session input
-- [ ] 5.5 Write a failing test that the result covers the complete narration and every scene with no omission, duplication, or gap, for a session with N chunks
-- [ ] 5.6 Write a failing test that a successful assembly persists the file, sets `final-video`, and makes it downloadable
-- [ ] 5.7 Write a failing test that a failed assembly attempt writes only to the `assembly` stage instance and, on later success, to `Session.final_video_path` — never to any `Chunk` or voice-over record (design.md Decision 4)
-- [ ] 5.8 Write a failing test that a retried assembly reuses the same voice-over, images, and clips without regenerating any of them
-- [ ] 5.9 Implement the phase, wired to `stage-retry-policy`, `stage-execution-time-limit`, and the group 2 launch gate
-- [ ] 5.10 Publish each state change to the live-update mechanism, matching `consult-session`'s expected shape
-- [ ] 5.11 Run the group 5 tests and confirm they pass
+- [x] 5.1 Write a failing test that clips are ordered by ascending `sequence_number`, independent of completion order
+- [x] 5.2 Write a failing test that each clip's placement comes from its chunk's persisted `narration_start_seconds`/`narration_duration_seconds`, never recomputed from the clip's measured duration (design.md Decision 2)
+- [x] 5.3 Write a failing test that each clip's own audio is discarded and the output's only audio track is the voice-over
+- [x] 5.4 Write a failing test that the output is produced at the hardcoded format (H.264/AAC, expected resolution/frame rate) regardless of any per-session input
+- [x] 5.5 Write a failing test that the result covers the complete narration and every scene with no omission, duplication, or gap, for a session with N chunks
+- [x] 5.6 Write a failing test that a successful assembly persists the file, sets `final-video`, and makes it downloadable
+- [x] 5.7 Write a failing test that a failed assembly attempt writes only to the `assembly` stage instance and, on later success, to `Session.final_video_path` — never to any `Chunk` or voice-over record (design.md Decision 4)
+- [x] 5.8 Write a failing test that a retried assembly reuses the same voice-over, images, and clips without regenerating any of them
+- [x] 5.9 Implement the phase, wired to `stage-retry-policy`, `stage-execution-time-limit`, and the group 2 launch gate
+- [x] 5.10 Publish each state change to the live-update mechanism, matching `consult-session`'s expected shape
+- [x] 5.11 Run the group 5 tests and confirm they pass
 
 ## 6. API: session representation exposes the final video
 

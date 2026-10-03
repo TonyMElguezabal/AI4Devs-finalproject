@@ -7,6 +7,7 @@ import {
   bindSceneVideoProvider,
   commitSceneResult,
   commitSceneVideoResult,
+  completeStageAttempt,
   db,
   getAllInFlightScenes,
   getAllVideoGeneratingScenes,
@@ -28,19 +29,22 @@ import {
   markScenePendingRetry,
   markSceneVideoRetry,
   markVideoGenerating,
+  recordStageAttempt,
   resetAttemptsForVideoStart,
   resolveArtefactPath,
   sceneCurrentRequestId,
+  setFinalVideoPath,
   setRunPaused,
   setSceneInstruction,
   writeArtefact,
   writeArtefactOnce,
 } from "./db.ts";
+import type { AssemblyTool } from "./assemblyTool.ts";
 import * as concurrency from "./concurrency.ts";
 import { admitLaunch, launchHeldWork, registerStageLauncher, sessionHeldWork, type StageLauncher } from "./launchGate.ts";
 import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
-import { PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
+import { FINAL_OUTPUT, PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
 import { downloadGeneratedImage, getImageProviderRegistry, type ImageGenerationResult } from "./imageProvider.ts";
 import {
@@ -233,6 +237,137 @@ export function nextVideoStageLaunchCount(sceneId: string): number {
   return nextVideoStageLaunches.get(sceneId) ?? 0;
 }
 
+// ---- Assembly launch gate (assemble-final-video, JOS-149) ----
+
+/** Per-session assembly launch counter (test observable, like nextVideoStageLaunchCount). */
+const assemblyLaunches = new Map<string, number>();
+export function nextAssemblyLaunchCount(runId: string): number {
+  return assemblyLaunches.get(runId) ?? 0;
+}
+/** Test-only: reset counters without clearing the full store. */
+export function resetAssemblyLaunchCount(): void {
+  assemblyLaunches.clear();
+}
+
+// ---- Assembly tool registry ----
+
+let _assemblyTool: AssemblyTool | undefined;
+
+/** Set the AssemblyTool adapter (use the stub in tests, the ffmpeg adapter in production). */
+export function setAssemblyTool(tool: AssemblyTool): void {
+  _assemblyTool = tool;
+}
+
+/** Reset to undefined (test teardown). */
+export function resetAssemblyTool(): void {
+  _assemblyTool = undefined;
+}
+
+function getAssemblyTool(): AssemblyTool | undefined {
+  return _assemblyTool;
+}
+
+/** Runs one assembly attempt; retries on transient failure up to RETRY_BUDGET. */
+async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise<void> {
+  const run = getRun(runId);
+  if (!run) return;
+
+  const tool = getAssemblyTool();
+  if (!tool) {
+    broadcast(runId);
+    return;
+  }
+
+  const voiceOver = getVoiceOver(runId);
+  if (!voiceOver) {
+    broadcast(runId);
+    return;
+  }
+
+  const scenes = getScenesForRun(runId).sort((a, b) => a.index - b.index);
+  const fps = FINAL_OUTPUT.fps;
+
+  // Build cumulative frame geometry (ADR 0005, Decision 4).
+  let prevEndFrame = 0;
+  const clips = scenes.map((scene) => {
+    const interval = scene.narrationInterval!;
+    const cumEndFrame = Math.round(interval.endSeconds * fps);
+    const frameCount = cumEndFrame - prevEndFrame;
+    prevEndFrame = cumEndFrame;
+    return {
+      clipPath: resolveArtefactPath(run.projectFolder, scene.videoResult!),
+      narrationStartSeconds: interval.startSeconds,
+      narrationDurationSeconds: interval.endSeconds - interval.startSeconds,
+      cumulativeStartFrame: cumEndFrame - frameCount,
+      frameCount,
+    };
+  });
+
+  const outputPath = resolveArtefactPath(run.projectFolder, "final-video.mp4");
+  const now = new Date().toISOString();
+
+  const attemptId = recordStageAttempt({
+    runId,
+    stage: "assembly",
+    providerId: null,
+    queuedAt: now,
+    sentAt: now,
+  }).id;
+
+  let result;
+  try {
+    result = await tool.assemble({
+      clips,
+      voiceOverPath: resolveArtefactPath(run.projectFolder, voiceOver.audioPath),
+      outputPath,
+      fps: FINAL_OUTPUT.fps,
+      width: FINAL_OUTPUT.width,
+      height: FINAL_OUTPUT.height,
+    });
+  } catch (err: unknown) {
+    result = { kind: "failed_transient" as const, reason: err instanceof Error ? err.message : String(err) };
+  }
+
+  const finishedAt = new Date().toISOString();
+
+  if (result.kind === "success") {
+    const relativePath = "final-video.mp4";
+    completeStageAttempt(attemptId, { outcome: "success", finishedAt });
+    setFinalVideoPath(runId, relativePath);
+    broadcast(runId);
+    return;
+  }
+
+  if (result.kind === "failed_not_retryable") {
+    completeStageAttempt(attemptId, { outcome: "not-retryable", finishedAt, errorMessage: result.reason });
+    broadcast(runId);
+    return;
+  }
+
+  // Transient failure — retry if budget remains.
+  completeStageAttempt(attemptId, { outcome: "transient", finishedAt, errorMessage: result.reason });
+  if (attemptNumber >= 1 + RETRY_BUDGET) {
+    broadcast(runId);
+    return;
+  }
+  void runAssemblyAttempt(runId, attemptNumber + 1);
+}
+
+function launchAssemblyPhase(runId: string): void {
+  assemblyLaunches.set(runId, (assemblyLaunches.get(runId) ?? 0) + 1);
+  void runAssemblyAttempt(runId, 1);
+}
+
+/** Called after every chunk reaches chunk-complete or failed; launches assembly
+ * when the gate is open and the session is not paused (design.md Decision 1). */
+function triggerAssemblyIfReady(runId: string): void {
+  const admit = admitLaunch(runId);
+  if (!admit.admitted) return;
+  const scenes = getScenesForRun(runId);
+  const gate = assemblyGate(scenes);
+  if (gate.open) launchAssemblyPhase(runId);
+}
+
 /**
  * Launches a scene's next attempt, honouring a session-wide pause (PRD §9):
  * a not-yet-launched generation is held until `continueSession` is called.
@@ -335,6 +470,8 @@ function completeVideoStage(sceneId: string, relativePath: string): void {
   if (committed) {
     markChunkComplete(sceneId, relativePath);
     nextVideoStageLaunches.set(sceneId, (nextVideoStageLaunches.get(sceneId) ?? 0) + 1);
+    const scene = getScene(sceneId);
+    if (scene) triggerAssemblyIfReady(scene.runId);
   }
 }
 
