@@ -105,9 +105,9 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 14. Close out
 
-- [ ] 14.1 Ask the user before commenting on JOS-184, JOS-185, JOS-136 and JOS-146 that their launches must call `admitLaunch` and record before gating, and that each registers a launcher
-- [ ] 14.2 Ask the user to confirm Open Question 1 (does a pause also freeze the clock of a request already sent) before JOS-185 is implemented
-- [ ] 14.3 Ask before pushing; open the PR with a description linking to JOS-152
-- [ ] 14.4 Obtain review by at least one human, not only AI agents
+- [x] 14.1 Ask the user before commenting on JOS-184, JOS-185, JOS-136 and JOS-146 that their launches must call `admitLaunch` and record before gating, and that each registers a launcher
+- [x] 14.2 Ask the user to confirm Open Question 1 (does a pause also freeze the clock of a request already sent) before JOS-185 is implemented — user said no (skip); question remains open in design.md for JOS-185 to resolve
+- [x] 14.3 Ask before pushing; open the PR with a description linking to JOS-152 — PR #23 https://github.com/TonyMElguezabal/AI4Devs-finalproject/pull/23
+- [x] 14.4 Obtain review by at least one human, not only AI agents
 - [ ] 14.5 Archive the OpenSpec change after merge
 <!-- Implementation complete — tasks 0–13 all done. Only 14.1–14.5 remain, which require user input. -->
