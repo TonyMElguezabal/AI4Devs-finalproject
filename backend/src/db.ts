@@ -344,6 +344,47 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       for (const ddl of SCENE_SPEED_FACTOR_LOCK_TRIGGERS_DDL) target.exec(ddl);
     },
   },
+  {
+    version: 12,
+    description:
+      "add video stage columns, stage column on provider_requests, and scene_video_results table (generate-chunk-video, JOS-146)",
+    up: (target) => {
+      // Decision 5 — the video stage's provider binding, written once on the first attempt (AC4).
+      target.exec("ALTER TABLE scenes ADD COLUMN video_provider TEXT");
+      // Decision 5 — the clip's relative path; scenes.result stays the image path.
+      target.exec("ALTER TABLE scenes ADD COLUMN video_result TEXT");
+      // Decision 5 — which stage each request belongs to; existing rows become 'image'.
+      // `provider_requests` is part of the baseline schema for production, but fixture databases
+      // used by other migration tests may not have it. Create or ALTER accordingly.
+      const hasProviderRequests = (
+        target
+          .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='provider_requests'")
+          .all() as any[]
+      ).length > 0;
+      if (hasProviderRequests) {
+        target.exec("ALTER TABLE provider_requests ADD COLUMN stage TEXT NOT NULL DEFAULT 'image'");
+      } else {
+        target.exec(`CREATE TABLE provider_requests (
+          id TEXT PRIMARY KEY,
+          scene_id TEXT NOT NULL,
+          sent_at TEXT NOT NULL,
+          latency_ms INTEGER NOT NULL,
+          mode TEXT NOT NULL,
+          attempt_number INTEGER NOT NULL,
+          resolved INTEGER NOT NULL DEFAULT 0,
+          stage TEXT NOT NULL DEFAULT 'image'
+        );`);
+      }
+      // Decision 5 — mirrors scene_results for the video stage; scene_id PRIMARY KEY refuses a duplicate.
+      target.exec(`
+        CREATE TABLE scene_video_results (
+          scene_id TEXT PRIMARY KEY REFERENCES scenes(id),
+          result TEXT NOT NULL,
+          committed_at TEXT NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync): number[] {
@@ -541,6 +582,8 @@ function rowToScene(row: any): Scene {
     provider: row.provider,
     providerMode: row.provider_mode,
     providerLatencyMs: row.provider_latency_ms,
+    videoProvider: row.video_provider ?? null,
+    videoResult: row.video_result ?? null,
     updatedAt: row.updated_at,
   };
 }
@@ -898,6 +941,46 @@ export function markSceneFailed(sceneId: string, error: string): void {
   ).run(error, nowIso(), sceneId);
 }
 
+// generate-chunk-video (JOS-146) — video-stage lifecycle functions mirroring the image-stage ones.
+
+export function resetAttemptsForVideoStart(sceneId: string): void {
+  db.prepare("UPDATE scenes SET attempts = 0 WHERE id = ?").run(sceneId);
+}
+
+export function markVideoGenerating(sceneId: string, requestId: string, attemptNumber: number): void {
+  db.prepare(
+    "UPDATE scenes SET status = 'video-generating', current_request_id = ?, attempts = ?, updated_at = ? WHERE id = ?",
+  ).run(requestId, attemptNumber, nowIso(), sceneId);
+}
+
+export function markChunkComplete(sceneId: string, videoResult: string): void {
+  db.prepare(
+    "UPDATE scenes SET status = 'chunk-complete', video_result = ?, current_request_id = NULL, updated_at = ? WHERE id = ?",
+  ).run(videoResult, nowIso(), sceneId);
+}
+
+export function bindSceneVideoProvider(sceneId: string, identifier: string): void {
+  db.prepare("UPDATE scenes SET video_provider = ? WHERE id = ? AND video_provider IS NULL").run(identifier, sceneId);
+}
+
+export function markSceneVideoRetry(sceneId: string, error: string): void {
+  db.prepare(
+    "UPDATE scenes SET status = 'image-complete', last_error = ?, current_request_id = NULL, updated_at = ? WHERE id = ?",
+  ).run(error, nowIso(), sceneId);
+}
+
+export function getImageCompleteScenesForRun(runId: string): Scene[] {
+  const rows = db
+    .prepare("SELECT * FROM scenes WHERE run_id = ? AND status = 'image-complete' ORDER BY idx ASC")
+    .all(runId) as any[];
+  return rows.map(rowToScene);
+}
+
+export function getAllVideoGeneratingScenes(): Scene[] {
+  const rows = db.prepare("SELECT * FROM scenes WHERE status = 'video-generating'").all() as any[];
+  return rows.map(rowToScene);
+}
+
 export function setSceneInstruction(sceneId: string, instruction: string): void {
   db.prepare("UPDATE scenes SET instruction = ?, updated_at = ? WHERE id = ?").run(instruction, nowIso(), sceneId);
 }
@@ -933,18 +1016,41 @@ export function countSceneResults(sceneId: string): number {
   return row.c as number;
 }
 
+/** generate-chunk-video (JOS-146) Decision 5 — mirrors `commitSceneResult` for the video stage. */
+export function commitSceneVideoResult(sceneId: string, result: string): boolean {
+  try {
+    db.prepare("INSERT INTO scene_video_results (scene_id, result, committed_at) VALUES (?, ?, ?)").run(
+      sceneId,
+      result,
+      nowIso(),
+    );
+    return true;
+  } catch (err: any) {
+    if (err?.code === "ERR_SQLITE_ERROR" && /UNIQUE constraint failed/i.test(String(err.message))) {
+      return false;
+    }
+    throw err;
+  }
+}
+
+export function countSceneVideoResults(sceneId: string): number {
+  const row = db.prepare("SELECT COUNT(*) c FROM scene_video_results WHERE scene_id = ?").get(sceneId) as any;
+  return row.c as number;
+}
+
 export function insertProviderRequest(
   id: string,
   sceneId: string,
   latencyMs: number,
   mode: ProviderOutcomeMode,
   attemptNumber: number,
+  stage: "image" | "video" = "image",
 ): ProviderRequestRow {
   const sentAt = nowIso();
   db.prepare(
-    "INSERT INTO provider_requests (id, scene_id, sent_at, latency_ms, mode, attempt_number, resolved) VALUES (?, ?, ?, ?, ?, ?, 0)",
-  ).run(id, sceneId, sentAt, latencyMs, mode, attemptNumber);
-  return { id, sceneId, sentAt, latencyMs, mode, attemptNumber, resolved: 0 };
+    "INSERT INTO provider_requests (id, scene_id, sent_at, latency_ms, mode, attempt_number, resolved, stage) VALUES (?, ?, ?, ?, ?, ?, 0, ?)",
+  ).run(id, sceneId, sentAt, latencyMs, mode, attemptNumber, stage);
+  return { id, sceneId, sentAt, latencyMs, mode, attemptNumber, resolved: 0, stage };
 }
 
 export function getProviderRequest(id: string): ProviderRequestRow | undefined {
@@ -958,6 +1064,7 @@ export function getProviderRequest(id: string): ProviderRequestRow | undefined {
     mode: row.mode,
     attemptNumber: row.attempt_number,
     resolved: row.resolved,
+    stage: (row.stage ?? "image") as "image" | "video",
   };
 }
 
@@ -975,6 +1082,7 @@ export function getLatestProviderRequestForScene(sceneId: string): ProviderReque
     mode: row.mode,
     attemptNumber: row.attempt_number,
     resolved: row.resolved,
+    stage: (row.stage ?? "image") as "image" | "video",
   };
 }
 
@@ -1019,7 +1127,7 @@ export function resetAll(): void {
     db.exec("DROP TRIGGER scenes_no_delete");
     db.exec("DROP TRIGGER narration_timestamps_no_delete");
     db.exec(
-      "DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
+      "DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
     );
     db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
     db.exec(SCENE_NO_DELETE_TRIGGER_DDL);

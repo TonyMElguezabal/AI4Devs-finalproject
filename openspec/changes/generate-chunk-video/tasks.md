@@ -18,17 +18,17 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 2. Storage for the video stage (design Decision 5)
 
-- [ ] 2.1 Failing tests in `scene-registration-persistence.test.ts` / `persistence.test.ts`: the migration applies on a database at the previous version and on a fresh one; existing scenes read back with null `videoProvider` and `videoResult`; existing `provider_requests` rows read back as `stage = 'image'`; a second `scene_video_results` commit for the same scene is refused
-- [ ] 2.2 Add the migration: `scenes.video_provider`, `scenes.video_result`, `provider_requests.stage` (NOT NULL DEFAULT `'image'`) and the `scene_video_results` table; extend `Scene`, `rowToScene`, `insertProviderRequest` and add `commitSceneVideoResult`; make the test-only reset empty the new table
-- [ ] 2.3 Make the 2.1 tests pass
+- [x] 2.1 Failing tests in `scene-registration-persistence.test.ts` / `persistence.test.ts`: the migration applies on a database at the previous version and on a fresh one; existing scenes read back with null `videoProvider` and `videoResult`; existing `provider_requests` rows read back as `stage = 'image'`; a second `scene_video_results` commit for the same scene is refused
+- [x] 2.2 Add the migration: `scenes.video_provider`, `scenes.video_result`, `provider_requests.stage` (NOT NULL DEFAULT `'image'`) and the `scene_video_results` table; extend `Scene`, `rowToScene`, `insertProviderRequest` and add `commitSceneVideoResult`; make the test-only reset empty the new table
+- [x] 2.3 Make the 2.1 tests pass
 
 ## 3. Provider port and adapters (design Decision 3)
 
-- [ ] 3.1 Define the typed `VideoProvider` port: `submit({ imageBytes, instruction, durationSeconds })` and `poll(requestId)` with the outcomes of Decision 3
-- [ ] 3.2 Build the stub adapter with these modes: success (bytes), success (temporary link), download failure, not an MP4, transient failure, not-retryable failure, pending past the phase limit, request lost after restart
-- [ ] 3.3 Failing tests for the RunningHub adapter against a mocked HTTP layer: the upload sends the image bytes; the submit body carries `prompt` (the `VIDEO` instruction), `duration`, `resolution: "2K"` and the uploaded `firstFrameUrl`; the `taskId` becomes the request id; the poll maps `QUEUED`/`RUNNING`, `SUCCESS` (with `results[0].url`) and `FAILED`; 4xx except 408/429 is not retryable, everything else transient; an unexpected response shape is transient
-- [ ] 3.4 Implement the RunningHub adapter, reading the credential only through `config/credentials.ts` and validating every response with Zod; the HTTP client's automatic retries are disabled
-- [ ] 3.5 Make the group 3 tests pass
+- [x] 3.1 Define the typed `VideoProvider` port: `submit({ imageBytes, instruction, durationSeconds })` and `poll(requestId)` with the outcomes of Decision 3
+- [x] 3.2 Build the stub adapter with these modes: success (bytes), success (temporary link), download failure, not an MP4, transient failure, not-retryable failure, pending past the phase limit, request lost after restart
+- [x] 3.3 Failing tests for the RunningHub adapter against a mocked HTTP layer: the upload sends the image bytes; the submit body carries `prompt` (the `VIDEO` instruction), `duration`, `resolution: "2K"` and the uploaded `firstFrameUrl`; the `taskId` becomes the request id; the poll maps `QUEUED`/`RUNNING`, `SUCCESS` (with `results[0].url`) and `FAILED`; 4xx except 408/429 is not retryable, everything else transient; an unexpected response shape is transient
+- [x] 3.4 Implement the RunningHub adapter, reading the credential only through `config/credentials.ts` and validating every response with Zod; the HTTP client's automatic retries are disabled
+- [x] 3.5 Make the group 3 tests pass
 
 ## 4. Precondition and launch (design Decisions 1, 2 and 4; spec: no clip without an image, launch)
 
