@@ -14,7 +14,7 @@ import {
 import { runDecompositionPhase, segmentStoredTimestamps } from "../src/decompositionPhase.ts";
 import { createStubImageProvider, resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
 import { obtainNarrationTimestamps } from "../src/narrationTimestampsPhase.ts";
-import { deriveSessionState } from "../src/orchestrator.ts";
+import { deriveSessionState, setVideoStageStartDelayMs, resetVideoStageStartDelayMs } from "../src/orchestrator.ts";
 import { registerDecomposition } from "../src/sceneRegistration.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
 import { writeFileSync } from "node:fs";
@@ -32,8 +32,10 @@ const SCRIPT = "The harbor is quiet at dusk. Fishing boats return with the tide.
 const UNGROUPABLE_SCRIPT = `${"W".repeat(55)}. Go home.`;
 
 beforeEach(() => {
+  resetVideoStageStartDelayMs();
   resetAll();
   resetImageProviderRegistry();
+  setVideoStageStartDelayMs(9_999_999);
 });
 
 /**

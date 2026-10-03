@@ -553,6 +553,8 @@ export function createScene(
     provider: STUB_PROVIDER_NAME,
     providerMode,
     providerLatencyMs,
+    videoProvider: null,
+    videoResult: null,
     updatedAt,
   };
 }

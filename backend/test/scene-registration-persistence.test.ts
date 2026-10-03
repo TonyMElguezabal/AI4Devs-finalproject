@@ -509,6 +509,109 @@ describe("Migration 11 adds the speed-factor columns and their locks (record-spe
   });
 });
 
+describe("Migration 12 (generate-chunk-video, JOS-146): video stage columns, provider_requests.stage, scene_video_results", () => {
+  const videoColumns = ["video_provider", "video_result"];
+
+  function createBaselineSchema(target: DatabaseSync): void {
+    target.exec(`
+      CREATE TABLE runs (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, paused INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE scenes (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, idx INTEGER NOT NULL, status TEXT NOT NULL, instruction TEXT NOT NULL DEFAULT '');
+    `);
+  }
+
+  function columnNames(target: DatabaseSync): string[] {
+    return (target.prepare("PRAGMA table_info(scenes)").all() as Array<{ name: string }>).map((row) => row.name);
+  }
+
+  function providerRequestColumns(target: DatabaseSync): string[] {
+    return (target.prepare("PRAGMA table_info(provider_requests)").all() as Array<{ name: string }>).map((row) => row.name);
+  }
+
+  function tableNames(target: DatabaseSync): string[] {
+    return (target.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>).map((row) => row.name);
+  }
+
+  it("applies on a database at version 11 and is idempotent", () => {
+    const dir = mkdtempSync(join(tmpdir(), "vid4you-migration-12-test-"));
+    try {
+      const fixture = new DatabaseSync(join(dir, "at-11.sqlite"));
+      createBaselineSchema(fixture);
+      applyMigrationsTo(fixture);
+      // Pretend the database stopped at version 11.
+      fixture.exec("DROP TABLE scene_video_results");
+      for (const col of videoColumns) fixture.exec(`ALTER TABLE scenes DROP COLUMN ${col}`);
+      fixture.exec("ALTER TABLE provider_requests DROP COLUMN stage");
+      fixture.exec("DELETE FROM schema_migrations WHERE version = 12");
+      expect(columnNames(fixture)).not.toContain("video_provider");
+
+      expect(applyMigrationsTo(fixture)).toEqual([12]);
+
+      expect(columnNames(fixture)).toEqual(expect.arrayContaining(videoColumns));
+      expect(providerRequestColumns(fixture)).toContain("stage");
+      expect(tableNames(fixture)).toContain("scene_video_results");
+      expect(applyMigrationsTo(fixture)).toEqual([]);
+      fixture.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves video_provider and video_result null for scenes that pre-date it", () => {
+    const dir = mkdtempSync(join(tmpdir(), "vid4you-migration-12-old-test-"));
+    try {
+      const fixture = new DatabaseSync(join(dir, "pre-12.sqlite"));
+      createBaselineSchema(fixture);
+      fixture.prepare("INSERT INTO runs (id, title, created_at) VALUES ('r', 'Old', 'then')").run();
+      fixture.prepare("INSERT INTO scenes (id, run_id, idx, status) VALUES ('s', 'r', 1, 'submitted')").run();
+
+      applyMigrationsTo(fixture);
+
+      expect(fixture.prepare("SELECT video_provider vp, video_result vr FROM scenes").get()).toEqual({ vp: null, vr: null });
+      fixture.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("existing provider_requests rows read back with stage = 'image'", () => {
+    const dir = mkdtempSync(join(tmpdir(), "vid4you-migration-12-pr-test-"));
+    try {
+      const fixture = new DatabaseSync(join(dir, "pre-12-pr.sqlite"));
+      createBaselineSchema(fixture);
+      applyMigrationsTo(fixture);
+      // Undo ALL of migration 12 so we can simulate a pre-12 state with an existing row.
+      fixture.exec("DROP TABLE scene_video_results");
+      fixture.exec("ALTER TABLE scenes DROP COLUMN video_result");
+      fixture.exec("ALTER TABLE scenes DROP COLUMN video_provider");
+      fixture.exec("ALTER TABLE provider_requests DROP COLUMN stage");
+      fixture.exec("DELETE FROM schema_migrations WHERE version = 12");
+      fixture.prepare("INSERT INTO runs (id, title, created_at) VALUES ('r', 'Old', 'then')").run();
+      fixture.prepare("INSERT INTO scenes (id, run_id, idx, status) VALUES ('s', 'r', 1, 'submitted')").run();
+      fixture.prepare("INSERT INTO provider_requests (id, scene_id, sent_at, latency_ms, mode, attempt_number, resolved) VALUES ('pr', 's', 'then', 0, 'success', 1, 1)").run();
+
+      applyMigrationsTo(fixture);
+
+      const row = fixture.prepare("SELECT stage FROM provider_requests WHERE id = 'pr'").get() as { stage: string };
+      expect(row.stage).toBe("image");
+      fixture.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("a second scene_video_results commit for the same scene is refused", () => {
+    const runId = randomUUID();
+    createRun(runId, "T", "s", "en");
+    const sceneId = randomUUID();
+    db.prepare("INSERT INTO scenes (id, run_id, idx, status, updated_at) VALUES (?, ?, 1, 'submitted', ?)").run(sceneId, runId, new Date().toISOString());
+    db.prepare("INSERT INTO scene_video_results (scene_id, result, committed_at) VALUES (?, ?, ?)").run(sceneId, "scene-1.mp4", new Date().toISOString());
+
+    expect(() => {
+      db.prepare("INSERT INTO scene_video_results (scene_id, result, committed_at) VALUES (?, ?, ?)").run(sceneId, "scene-1-dup.mp4", new Date().toISOString());
+    }).toThrow();
+  });
+});
+
 describe("The speed-adjustment factor is stored with the chunk (record-speed-adjustment-factor, JOS-148, Decision 2)", () => {
   function registerTwoChunks(runId: string): string[] {
     const ids = [randomUUID(), randomUUID()];

@@ -71,7 +71,7 @@ export function createRunningHubVideoProvider(
       response = await fetchFn(`${RUNNINGHUB_BASE}/openapi/v2/media/upload/binary`, {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/octet-stream" },
-        body: imageBytes,
+        body: new Uint8Array(imageBytes),
       });
     } catch {
       return { ok: false, kind: "failed_transient", reason: "the video provider could not be reached during image upload" };

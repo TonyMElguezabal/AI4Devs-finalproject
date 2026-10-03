@@ -9,21 +9,26 @@ import {
   db,
   getAllVideoGeneratingScenes,
   getImageCompleteScenesForRun,
+  getRun,
   getScene,
   getScenesForRun,
   markImageComplete,
   PROJECTS_ROOT,
   resetAll,
   resolveArtefactPath,
+  writeArtefactOnce,
 } from "../src/db.ts";
 import {
   continueSession,
+  correctAndRetry,
   deriveSessionState,
   launchVideoStage,
   launchVideoStageForRun,
+  manualRetry,
   nextVideoStageLaunchCount,
   pauseSession,
   reconcileOnBoot,
+  resetVideoStageStartDelayMs,
   toSnapshot,
 } from "../src/orchestrator.ts";
 import {
@@ -35,11 +40,6 @@ import {
   STUB_VIDEO_PROVIDER_NAME,
 } from "../src/videoProvider.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
-import {
-  createStubImageProvider,
-  resetImageProviderRegistry,
-  setImageProviderRegistry,
-} from "../src/imageProvider.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
 
 // generate-chunk-video (JOS-146), groups 4-7: launch, completion, failures/retries, restart.
@@ -86,28 +86,36 @@ function stubGenerator(): VisualInstructionGenerator {
 
 const TEST_VIDEO_PROVIDER_ID = "test-video-adapter";
 
+/**
+ * Registers scenes and brings them to `image-complete` by writing the image
+ * bytes directly (bypasses the image-stage orchestration so the helper works
+ * regardless of session pause state). Calls `launchVideoStageForRun` at the
+ * end — gated by pause — to simulate what `completeImageStage` would do.
+ */
 async function bringToImageComplete(runId: string): Promise<string[]> {
-  const imageProvider = createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG });
-  setImageProviderRegistry({
-    defaultIdentifier: "test-image-adapter",
-    adapters: { "test-image-adapter": imageProvider },
-  });
-
   const fragments: SegmentedFragment[] = [
-    { prompt: "Scene one.", index: 1, startSeconds: 0, endSeconds: 8 },
+    { text: "script", narrationInterval: { startSeconds: 0, endSeconds: 8 } },
   ];
-  await registerDecomposition(runId, { kind: "success", pairs: [{ image: "img1", video: "vid1" }] }, fragments, stubGenerator());
+  const regResult = await registerDecomposition(runId, fragments, stubGenerator(), 8);
+  if (!regResult.ok) throw new Error(`bringToImageComplete: registration failed: ${regResult.reason}`);
 
-  // Wait for image stage to complete
-  await new Promise((resolve) => setTimeout(resolve, 50));
-
+  const run = getRun(runId)!;
   const scenes = getScenesForRun(runId);
+  for (const scene of scenes) {
+    const relativePath = writeArtefactOnce(run.projectFolder, `scene-${scene.index}.png`, ACCEPTED_PNG);
+    commitSceneResult(scene.id, relativePath);
+    markImageComplete(scene.id, relativePath);
+  }
+
+  // Launch video stage for image-complete scenes; pause state gates this.
+  launchVideoStageForRun(runId);
+
   return scenes.map((s) => s.id);
 }
 
 beforeEach(() => {
+  resetVideoStageStartDelayMs(); // ensure 0ms (no delay) for video-stage tests
   resetAll();
-  resetImageProviderRegistry();
   resetVideoProviderRegistry();
   resetVideoDownloadFetch();
   concurrency.resetAll();
@@ -120,7 +128,7 @@ describe("Group 4 — Precondition and launch (Decisions 1, 2, 4)", () => {
     const runId = randomUUID();
     createRun(runId, "test", "script", "en");
     const sceneId = randomUUID();
-    db.prepare("INSERT INTO scenes (id, run_id, idx, status) VALUES (?, ?, 1, 'submitted')").run(sceneId, runId);
+    db.prepare("INSERT INTO scenes (id, run_id, idx, status, updated_at) VALUES (?, ?, 1, 'submitted', ?)").run(sceneId, runId, new Date().toISOString());
 
     const provider = createStubVideoProvider("success-bytes");
     setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
@@ -136,7 +144,7 @@ describe("Group 4 — Precondition and launch (Decisions 1, 2, 4)", () => {
     const runId = randomUUID();
     createRun(runId, "test", "script", "en");
     const sceneId = randomUUID();
-    db.prepare("INSERT INTO scenes (id, run_id, idx, status) VALUES (?, ?, 1, 'failed')").run(sceneId, runId);
+    db.prepare("INSERT INTO scenes (id, run_id, idx, status, updated_at) VALUES (?, ?, 1, 'failed', ?)").run(sceneId, runId, new Date().toISOString());
 
     const provider = createStubVideoProvider("success-bytes");
     setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
@@ -151,7 +159,7 @@ describe("Group 4 — Precondition and launch (Decisions 1, 2, 4)", () => {
     const runId = randomUUID();
     createRun(runId, "test", "script", "en");
     const sceneId = randomUUID();
-    db.prepare("INSERT INTO scenes (id, run_id, idx, status) VALUES (?, ?, 1, 'chunk-complete')").run(sceneId, runId);
+    db.prepare("INSERT INTO scenes (id, run_id, idx, status, updated_at) VALUES (?, ?, 1, 'chunk-complete', ?)").run(sceneId, runId, new Date().toISOString());
 
     const provider = createStubVideoProvider("success-bytes");
     setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
@@ -167,8 +175,8 @@ describe("Group 4 — Precondition and launch (Decisions 1, 2, 4)", () => {
     createRun(runId, "test", "script", "en");
     const sceneId = randomUUID();
     db.prepare(
-      "INSERT INTO scenes (id, run_id, idx, status, instruction, image_instruction, video_instruction) VALUES (?, ?, 1, 'image-complete', 'i', 'i', 'v')",
-    ).run(sceneId, runId);
+      "INSERT INTO scenes (id, run_id, idx, status, instruction, image_instruction, video_instruction, updated_at) VALUES (?, ?, 1, 'image-complete', 'i', 'i', 'v', ?)",
+    ).run(sceneId, runId, new Date().toISOString());
     commitSceneResult(sceneId, "scene-1.png");
     markImageComplete(sceneId, "scene-1.png");
 
@@ -323,7 +331,7 @@ describe("Group 5 — Completion (Decision 8)", () => {
       url: "https://cdn.example.com/stub.mp4",
     });
     setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
-    setVideoDownloadFetch(async () => new Response(MP4_BYTES, { status: 200 }));
+    setVideoDownloadFetch(async () => new Response(new Uint8Array(MP4_BYTES), { status: 200 }));
 
     const sceneIds = await bringToImageComplete(runId);
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -422,8 +430,8 @@ describe("Group 6 — Failures, retries, binding (Decisions 5, 6, 7)", () => {
     createRun(runId, "image fail test", "script", "en");
     const sceneId = randomUUID();
     db.prepare(
-      "INSERT INTO scenes (id, run_id, idx, status, instruction, image_instruction, video_instruction) VALUES (?, ?, 1, 'failed', 'i', 'i', 'v')",
-    ).run(sceneId, runId);
+      "INSERT INTO scenes (id, run_id, idx, status, instruction, image_instruction, video_instruction, updated_at) VALUES (?, ?, 1, 'failed', 'i', 'i', 'v', ?)",
+    ).run(sceneId, runId, new Date().toISOString());
     // No scenes.result set — image stage never completed
 
     const snapshot = toSnapshot(runId);
@@ -470,6 +478,70 @@ describe("Group 6 — Failures, retries, binding (Decisions 5, 6, 7)", () => {
 
     expect(firstAttemptNumber).toBe(1); // video stage starts at attempt 1
   });
+
+  it("manualRetry on a video-stage failure answers {ok:false} with 'retrying a failed clip is not available yet' and leaves everything unchanged", async () => {
+    const runId = randomUUID();
+    createRun(runId, "manual retry video test", "script", "en");
+
+    const provider = createStubVideoProvider("not-retryable-failure");
+    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
+
+    const sceneIds = await bringToImageComplete(runId);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const sceneId = sceneIds[0]!;
+    const before = getScene(sceneId)!;
+    expect(before.status).toBe("failed");
+    expect(before.result).not.toBeNull(); // image path still present
+
+    const result = manualRetry(sceneId);
+
+    expect(result).toEqual({ ok: false, reason: "retrying a failed clip is not available yet" });
+    const after = getScene(sceneId)!;
+    expect(after.status).toBe("failed");
+    expect(after.attempts).toBe(before.attempts); // unchanged
+    expect(after.result).toBe(before.result); // image path unchanged
+  });
+
+  it("correctAndRetry on a video-stage failure answers {ok:false} with 'retrying a failed clip is not available yet' and leaves everything unchanged", async () => {
+    const runId = randomUUID();
+    createRun(runId, "correct retry video test", "script", "en");
+
+    const provider = createStubVideoProvider("not-retryable-failure");
+    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
+
+    const sceneIds = await bringToImageComplete(runId);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const sceneId = sceneIds[0]!;
+    const before = getScene(sceneId)!;
+    expect(before.status).toBe("failed");
+
+    const result = correctAndRetry(sceneId, "a new instruction");
+
+    expect(result).toEqual({ ok: false, reason: "retrying a failed clip is not available yet" });
+    const after = getScene(sceneId)!;
+    expect(after.status).toBe("failed");
+    expect(after.instruction).toBe(before.instruction); // instruction unchanged
+    expect(after.result).toBe(before.result); // image path unchanged
+  });
+
+  it("manualRetry on an image-stage failure works as before (unchanged behaviour)", () => {
+    const runId = randomUUID();
+    createRun(runId, "manual retry image test", "script", "en");
+    const sceneId = randomUUID();
+    // Scene that failed the image stage: result is null (image path never stored)
+    db.prepare(
+      "INSERT INTO scenes (id, run_id, idx, status, instruction, image_instruction, video_instruction, attempts, updated_at) VALUES (?, ?, 1, 'failed', 'i', 'i', 'v', 1, ?)",
+    ).run(sceneId, runId, new Date().toISOString());
+
+    const result = manualRetry(sceneId);
+
+    // manualRetry succeeds (not refused with the 409 video-stage guard)
+    expect(result.ok).toBe(true);
+    // Scene is no longer failed — relaunched (exact status depends on provider availability)
+    expect(getScene(sceneId)?.status).not.toBe("failed");
+  });
 });
 
 // ---- Group 7: Session state after video stage ----
@@ -507,8 +579,8 @@ describe("Group 7 — Session state after video stage", () => {
     createRun(runId, "derive test", "script", "en");
     const sceneId = randomUUID();
     db.prepare(
-      "INSERT INTO scenes (id, run_id, idx, status, result) VALUES (?, ?, 1, 'failed', 'scene-1.png')",
-    ).run(sceneId, runId);
+      "INSERT INTO scenes (id, run_id, idx, status, result, updated_at) VALUES (?, ?, 1, 'failed', 'scene-1.png', ?)",
+    ).run(sceneId, runId, new Date().toISOString());
 
     const snapshot = toSnapshot(runId);
     expect(snapshot?.scenes[0]?.affectedStage).toBe("video");
@@ -524,8 +596,8 @@ describe("Reconciliation on boot (Decision 9)", () => {
     const sceneId = randomUUID();
     // Scene in video-generating with no video_provider (unbound → lost)
     db.prepare(
-      "INSERT INTO scenes (id, run_id, idx, status, attempts, current_request_id) VALUES (?, ?, 1, 'video-generating', 1, ?)",
-    ).run(sceneId, runId, randomUUID());
+      "INSERT INTO scenes (id, run_id, idx, status, attempts, current_request_id, updated_at) VALUES (?, ?, 1, 'video-generating', 1, ?, ?)",
+    ).run(sceneId, runId, randomUUID(), new Date().toISOString());
 
     const provider = createStubVideoProvider("success-bytes", { bytes: MP4_BYTES });
     setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });

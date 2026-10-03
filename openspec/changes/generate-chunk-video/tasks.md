@@ -32,37 +32,37 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 4. Precondition and launch (design Decisions 1, 2 and 4; spec: no clip without an image, launch)
 
-- [ ] 4.1 Failing tests: a chunk in `submitted`, `image-generating`, `failed` (image stage) or `chunk-complete` sends no clip request; a chunk in `image-complete` whose image file is missing fails its video stage, not retryable, with no request; a chunk with no stored requested duration fails its video stage, not retryable, with no request
-- [ ] 4.2 Failing tests: committing an image result launches the clip; the chunk is `video-generating` before the adapter is called; the adapter receives the stored image's bytes, the `VIDEO` instruction exactly as registered, and the chunk's stored `requestedDurationSeconds` (JOS-147); a duplicate image delivery launches nothing a second time
-- [ ] 4.3 Failing tests: a paused session holds an `image-complete` chunk with no request, and continuing launches it; a chunk's clip starts while a sibling is still `video-generating`; the `video` concurrency key is used, never the `image` one, with the provisional limit of 3
-- [ ] 4.4 Implement `launchVideoStage`, the launch after the image commit, the `continueSession` launch of held `image-complete` chunks, and the provisional video concurrency constant
-- [ ] 4.5 Make the group 4 tests pass
+- [x] 4.1 Failing tests: a chunk in `submitted`, `image-generating`, `failed` (image stage) or `chunk-complete` sends no clip request; a chunk in `image-complete` whose image file is missing fails its video stage, not retryable, with no request; a chunk with no stored requested duration fails its video stage, not retryable, with no request
+- [x] 4.2 Failing tests: committing an image result launches the clip; the chunk is `video-generating` before the adapter is called; the adapter receives the stored image's bytes, the `VIDEO` instruction exactly as registered, and the chunk's stored `requestedDurationSeconds` (JOS-147); a duplicate image delivery launches nothing a second time
+- [x] 4.3 Failing tests: a paused session holds an `image-complete` chunk with no request, and continuing launches it; a chunk's clip starts while a sibling is still `video-generating`; the `video` concurrency key is used, never the `image` one, with the provisional limit of 3
+- [x] 4.4 Implement `launchVideoStage`, the launch after the image commit, the `continueSession` launch of held `image-complete` chunks, and the provisional video concurrency constant
+- [x] 4.5 Make the group 4 tests pass
 
 ## 5. Completion (design Decision 8; spec: a stored clip completes the chunk)
 
-- [ ] 5.1 Failing tests: a success stores `scene-<idx>.mp4` in the project folder, records its relative path in `video_result`, commits `scene_video_results`, and the chunk is `chunk-complete` with `result` (the image path) unchanged; a temporary link is downloaded before `chunk-complete` and the URL is never stored; a failed download and a file that is not an MP4 each count as one failed attempt with no clip recorded; a duplicate success delivery stores nothing twice
-- [ ] 5.2 Implement the completion path, with the `ftyp` check
-- [ ] 5.3 Make the group 5 tests pass
+- [x] 5.1 Failing tests: a success stores `scene-<idx>.mp4` in the project folder, records its relative path in `video_result`, commits `scene_video_results`, and the chunk is `chunk-complete` with `result` (the image path) unchanged; a temporary link is downloaded before `chunk-complete` and the URL is never stored; a failed download and a file that is not an MP4 each count as one failed attempt with no clip recorded; a duplicate success delivery stores nothing twice
+- [x] 5.2 Implement the completion path, with the `ftyp` check
+- [x] 5.3 Make the group 5 tests pass
 
 ## 6. Failures, retries and binding (design Decisions 5, 6 and 7; spec: failures belong to the video stage, binding)
 
-- [ ] 6.1 Failing tests: the first clip attempt is attempt 1 of the video stage whatever the image stage used; a transient clip failure retries the video stage only (no image request); an exhausted budget leaves the chunk `failed` with `affectedStage: "video"` and the image path unchanged; a not-retryable clip failure skips automatic retries; an image-stage failure still reports `affectedStage: "image"`
-- [ ] 6.2 Failing tests: the first attempt records `video_provider` and leaves `provider` unchanged; a retry after the configured provider changes is sent to the bound one; a bound provider with no adapter fails not-retryable with no request; each attempt's `provider_requests` row carries `stage = 'video'`
-- [ ] 6.3 Failing tests: `POST .../retry` and `POST .../correct` on a video-stage failure answer 409 with "retrying a failed clip is not available yet" and change nothing (state, attempts, instructions, paths); on an image-stage failure they behave as before
-- [ ] 6.4 Implement the per-stage attempt reset, the derived `affectedStage`, the binding, and the refusal in `manualRetry` and `correctAndRetry`
-- [ ] 6.5 Make the group 6 tests pass
+- [x] 6.1 Failing tests: the first clip attempt is attempt 1 of the video stage whatever the image stage used; a transient clip failure retries the video stage only (no image request); an exhausted budget leaves the chunk `failed` with `affectedStage: "video"` and the image path unchanged; a not-retryable clip failure skips automatic retries; an image-stage failure still reports `affectedStage: "image"`
+- [x] 6.2 Failing tests: the first attempt records `video_provider` and leaves `provider` unchanged; a retry after the configured provider changes is sent to the bound one; a bound provider with no adapter fails not-retryable with no request; each attempt's `provider_requests` row carries `stage = 'video'`
+- [x] 6.3 Failing tests: `POST .../retry` and `POST .../correct` on a video-stage failure answer 409 with "retrying a failed clip is not available yet" and change nothing (state, attempts, instructions, paths); on an image-stage failure they behave as before
+- [x] 6.4 Implement the per-stage attempt reset, the derived `affectedStage`, the binding, and the refusal in `manualRetry` and `correctAndRetry`
+- [x] 6.5 Make the group 6 tests pass
 
 ## 7. Restart and phase limit (design Decisions 3 and 9; spec: an interrupted clip resumes)
 
-- [ ] 7.1 Failing tests: on boot, a `video-generating` chunk whose request succeeded is completed; a lost request counts as one failed video attempt and follows the retry rule; a pending request keeps being polled from its persisted `sent_at`; an attempt unfinished at 240 s counts as a failed transient attempt
-- [ ] 7.2 Implement reconciliation and polling for the video stage through the bound adapter
-- [ ] 7.3 Make the group 7 tests pass
+- [x] 7.1 Failing tests: on boot, a `video-generating` chunk whose request succeeded is completed; a lost request counts as one failed video attempt and follows the retry rule; a pending request keeps being polled from its persisted `sent_at`; an attempt unfinished at 240 s counts as a failed transient attempt
+- [x] 7.2 Implement reconciliation and polling for the video stage through the bound adapter
+- [x] 7.3 Make the group 7 tests pass
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 8.1 Review tests that expect a scene to go straight from the stage to `chunk-complete`, or that assert `affectedStage: "image"` for every failure, and update each to the two-stage flow, keeping its intent; no bulk rewrite
-- [ ] 8.2 Review tests that count migrations, tables or `provider_requests` columns (`persistence.test.ts`, `content-lock.test.ts`) and update them for the new migration
-- [ ] 8.3 Review the manual-retry and correction tests: image-stage behaviour must be unchanged
+- [x] 8.1 Review tests that expect a scene to go straight from the stage to `chunk-complete`, or that assert `affectedStage: "image"` for every failure, and update each to the two-stage flow, keeping its intent; no bulk rewrite
+- [x] 8.2 Review tests that count migrations, tables or `provider_requests` columns (`persistence.test.ts`, `content-lock.test.ts`) and update them for the new migration
+- [x] 8.3 Review the manual-retry and correction tests: image-stage behaviour must be unchanged
 
 ## 9. Run Unit Tests and Verify Database State (MANDATORY)
 
