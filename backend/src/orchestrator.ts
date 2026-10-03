@@ -37,6 +37,8 @@ import {
   writeArtefactOnce,
 } from "./db.ts";
 import * as concurrency from "./concurrency.ts";
+import { admitLaunch, launchHeldWork, registerStageLauncher, sessionHeldWork, type StageLauncher } from "./launchGate.ts";
+import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
 import { PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
@@ -91,6 +93,13 @@ export function resetVideoStageStartDelayMs(): void {
 
 export const events = new EventEmitter();
 
+// Test-only hook: fires synchronously after admission and before the in-flight
+// mark, to prove no pause can land between them (design Decision 2).
+let _postAdmitHook: ((runId: string) => void) | undefined;
+export function setPostAdmitHook(hook: ((runId: string) => void) | undefined): void {
+  _postAdmitHook = hook;
+}
+
 // ---- Wire contract helpers (define-live-updates, JOS-183 Decisions 2/4/8) ----
 
 function sceneToPayload(scene: Scene): SceneEventPayload {
@@ -105,7 +114,9 @@ function sceneToPayload(scene: Scene): SceneEventPayload {
     errorCause: scene.status === "failed" ? scene.lastError : undefined,
     provider: scene.provider,
     attempts: scene.attempts,
-    result: scene.result ? { imageUrl: scene.result } : undefined,
+    // show-scene-results-and-actions (JOS-151), Decision 3 — the route path,
+    // relative to the API base; the stored file path stays internal.
+    result: scene.result ? { imageUrl: `/sessions/${scene.runId}/scenes/${scene.id}/image` } : undefined,
     instruction: scene.instruction,
     prompt: scene.prompt,
     imageInstruction: scene.imageInstruction,
@@ -126,6 +137,15 @@ export interface SessionProgress {
   hasVoiceOver?: boolean;
   /** A `timestamps` attempt was recorded, or the timestamps are stored. */
   timestampsStarted?: boolean;
+  /** A final video exists (US-16b records it). Defaults to false: all scenes complete is `final-video-generating`, not `final-video`. */
+  hasFinalVideo?: boolean;
+}
+
+export interface DerivedSessionState {
+  state: SessionState;
+  failedPhase?: string;
+  /** Present only when `failedPhase` is `"scenes"`: the failed scenes' indexes, ascending. */
+  failedSceneIndexes?: number[];
 }
 
 /** Derives the session state from its scenes, its recorded failure and its
@@ -137,35 +157,32 @@ export function deriveSessionState(
   scenes: Scene[],
   failure: SessionFailure | null = null,
   progress: SessionProgress = {},
-): { state: SessionState; failedPhase?: string } {
+): DerivedSessionState {
   if (scenes.length === 0) {
     if (failure) return { state: "failed", failedPhase: failure.phase };
     if (progress.timestampsStarted) return { state: "chunk-decomposing" };
     if (progress.hasVoiceOver) return { state: "voice-over-complete" };
     return { state: "submitted" };
   }
-  // generate-chunk-video (JOS-146) — `video-generating` is also still processing.
-  const anyProcessing = scenes.some(
-    (s) =>
-      s.status === "submitted" ||
-      s.status === "image-generating" ||
-      s.status === "image-complete" ||
-      s.status === "video-generating",
-  );
-  if (anyProcessing) return { state: "chunks-processing" };
-  const anyFailed = scenes.some((s) => s.status === "failed");
-  if (anyFailed) return { state: "failed", failedPhase: "image" };
-  return { state: "final-video" };
+  // gate-assembly-on-complete-scenes (JOS-150), design Decisions 2-4 — PRD §8.1
+  // v1.3: a scene still generating (anything but chunk-complete or failed) keeps
+  // the session in `chunks-processing`, even beside a failed scene.
+  const gate = assemblyGate(scenes);
+  if (gate.open) return { state: progress.hasFinalVideo ? "final-video" : "final-video-generating" };
+  if (gate.processingSceneIndexes.length > 0) return { state: "chunks-processing" };
+  return { state: "failed", failedPhase: "scenes", failedSceneIndexes: gate.failedSceneIndexes };
 }
 
 export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const run = getRun(runId);
   if (!run) return undefined;
   const scenes = getScenesForRun(runId);
-  const { state, failedPhase } = deriveSessionState(scenes, run.failure, {
+  const { state, failedPhase, failedSceneIndexes } = deriveSessionState(scenes, run.failure, {
     hasVoiceOver: getVoiceOver(runId) !== undefined,
     timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
   });
+  const heldWork = sessionHeldWork(runId);
+  const heldSceneIds = heldWork.sceneIds;
   const session: SessionEventPayload = {
     type: "session",
     sessionId: run.id,
@@ -174,13 +191,15 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     language: run.language,
     state,
     paused: run.paused,
+    held: heldWork.stages.map((s) => ({ stage: s.stage, count: s.count })),
     failedPhase,
+    failedSceneIndexes,
     createdAt: run.createdAt,
     updatedAt: new Date().toISOString(),
   };
   return {
     session,
-    scenes: scenes.map(sceneToPayload),
+    scenes: scenes.map((s) => ({ ...sceneToPayload(s), held: heldSceneIds.has(s.id) || undefined })),
   };
 }
 
@@ -204,6 +223,16 @@ export function nextVideoStageLaunchCount(sceneId: string): number {
   return nextVideoStageLaunches.get(sceneId) ?? 0;
 }
 
+/** Dispatches to the real image stage or the stub stage depending on whether the scene has an IMAGE instruction. */
+function launchSceneStage(sceneId: string): void {
+  const scene = getScene(sceneId);
+  if (scene?.imageInstruction) {
+    launchImageStage(sceneId);
+  } else {
+    launchScene(sceneId);
+  }
+}
+
 /**
  * Launches a scene's next attempt, honouring a session-wide pause (PRD §9):
  * a not-yet-launched generation is held until `continueSession` is called.
@@ -213,19 +242,18 @@ export function nextVideoStageLaunchCount(sceneId: string): number {
 export function launchScene(sceneId: string): void {
   const scene = getScene(sceneId);
   if (!scene || scene.status !== "submitted") return;
-  const run = getRun(scene.runId);
-  if (run?.paused) return; // held; continueSession() launches it later
+  if (!admitLaunch(scene.runId).admitted) return; // held; continueSession() launches it later
 
   concurrency.acquire(STAGE, () => {
     const fresh = getScene(sceneId);
     if (!fresh || fresh.status !== "submitted") return;
-    const freshRun = getRun(fresh.runId);
-    if (freshRun?.paused) {
+    if (!admitLaunch(fresh.runId).admitted) {
       // Paused while queued: give the slot to the next waiter without
-      // sending anything. No attempt is consumed.
+      // sending anything. No attempt is consumed (design Decision 2).
       concurrency.release(STAGE);
       return;
     }
+    _postAdmitHook?.(fresh.runId);
     const attemptNumber = fresh.attempts + 1;
     const requestId = provider.send(
       fresh.id,
@@ -250,8 +278,7 @@ export function launchScene(sceneId: string): void {
 export function launchImageStage(sceneId: string): void {
   const scene = getScene(sceneId);
   if (!scene || scene.status !== "submitted") return;
-  const run = getRun(scene.runId);
-  if (run?.paused) return; // held; continueSession() launches it later
+  if (!admitLaunch(scene.runId).admitted) return; // held; continueSession() launches it later
 
   concurrency.acquire(STAGE, () => {
     void runImageAttempt(sceneId);
@@ -431,7 +458,7 @@ async function runVideoAttempt(sceneId: string): Promise<void> {
     return;
   }
   const freshRun = getRun(fresh.runId);
-  if (!freshRun || freshRun.paused) {
+  if (!freshRun || !admitLaunch(fresh.runId).admitted) {
     concurrency.release(VIDEO_STAGE);
     return;
   }
@@ -525,8 +552,7 @@ async function runVideoAttempt(sceneId: string): Promise<void> {
 export function launchVideoStage(sceneId: string): void {
   const scene = getScene(sceneId);
   if (!scene || scene.status !== "image-complete") return;
-  const run = getRun(scene.runId);
-  if (run?.paused) return;
+  if (!admitLaunch(scene.runId).admitted) return;
 
   concurrency.acquire(VIDEO_STAGE, () => {
     void runVideoAttempt(sceneId);
@@ -534,10 +560,36 @@ export function launchVideoStage(sceneId: string): void {
 }
 
 export function launchVideoStageForRun(runId: string): void {
-  for (const scene of getImageCompleteScenesForRun(runId)) {
+  for (const scene of getImageCompleteScenesForRun(runId).filter((item) => item.requestedDurationSeconds !== null)) {
     launchVideoStage(scene.id);
   }
 }
+
+export const imageStageLauncher: StageLauncher = {
+  stage: "image",
+  heldWork: (sessionId: string) => {
+    const scenes = getSubmittedScenesForRun(sessionId);
+    return { count: scenes.length, sceneIds: scenes.map((s) => s.id) };
+  },
+  launch: (sessionId: string) => {
+    for (const scene of getSubmittedScenesForRun(sessionId)) {
+      launchSceneStage(scene.id);
+    }
+  },
+};
+
+registerStageLauncher(imageStageLauncher);
+
+export const videoStageLauncher: StageLauncher = {
+  stage: "video",
+  heldWork: (sessionId: string) => {
+    const scenes = getImageCompleteScenesForRun(sessionId).filter((scene) => scene.requestedDurationSeconds !== null);
+    return { count: scenes.length, sceneIds: scenes.map((s) => s.id) };
+  },
+  launch: launchVideoStageForRun,
+};
+
+registerStageLauncher(videoStageLauncher);
 
 async function runImageAttempt(sceneId: string): Promise<void> {
   const fresh = getScene(sceneId);
@@ -545,14 +597,14 @@ async function runImageAttempt(sceneId: string): Promise<void> {
     concurrency.release(STAGE);
     return;
   }
-  const freshRun = getRun(fresh.runId);
-  if (!freshRun || freshRun.paused) {
+  if (!admitLaunch(fresh.runId).admitted) {
     // Paused while queued: give the slot to the next waiter without
-    // sending anything. No attempt is consumed. A missing run is defensive;
-    // a scene always belongs to one.
+    // sending anything. No attempt is consumed (design Decision 2).
+    // An unknown session (missing run) is also not admitted.
     concurrency.release(STAGE);
     return;
   }
+  const freshRun = getRun(fresh.runId)!;
 
   // design Decision 3 — bound once, atomically, and only if still unbound.
   const registry = getImageProviderRegistry();
@@ -560,6 +612,7 @@ async function runImageAttempt(sceneId: string): Promise<void> {
   const boundIdentifier = getScene(fresh.id)!.provider;
   const adapter = registry.adapters[boundIdentifier];
 
+  _postAdmitHook?.(fresh.runId);
   const attemptNumber = fresh.attempts + 1;
   const requestId = randomUUID();
   markSceneInFlight(fresh.id, requestId, attemptNumber);
@@ -650,32 +703,19 @@ async function runImageAttempt(sceneId: string): Promise<void> {
 export function pauseSession(runId: string): { ok: boolean; reason?: string } {
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown session" };
-  setRunPaused(runId, true);
-  broadcast(runId);
+  const changed = setRunPaused(runId, true);
+  if (changed) broadcast(runId);
   return { ok: true };
 }
 
 /** Continuing removes the marker and leaves state unchanged, then launches
- * everything that was held. */
+ * everything that was held. Only sweeps when the pause marker was actually set. */
 export function continueSession(runId: string): { ok: boolean; reason?: string } {
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown session" };
-  setRunPaused(runId, false);
+  const changed = setRunPaused(runId, false);
   broadcast(runId);
-  for (const scene of getSubmittedScenesForRun(runId)) {
-    // A registered chunk always has a non-empty IMAGE instruction (JOS-144's
-    // registration validation); the skeleton's test-only `createScene()`
-    // never sets one. That distinguishes a real held chunk, resumed through
-    // the real image stage, from the generic stub scenes orchestrator.test.ts
-    // still exercises through `launchScene`/`provider.ts`.
-    if (scene.imageInstruction) {
-      launchImageStage(scene.id);
-    } else {
-      launchScene(scene.id);
-    }
-  }
-  // JOS-146 Decision 2 — also launch held image-complete chunks
-  launchVideoStageForRun(runId);
+  if (changed) launchHeldWork(runId);
   return { ok: true };
 }
 
@@ -760,7 +800,7 @@ function applyOutcome(scene: Scene, outcome: ProviderOutcome, attemptNumber: num
     completeImageStage(scene.id, relativePath);
     return;
   }
-  applyFailureOutcome(scene.id, outcome, attemptNumber, () => launchScene(scene.id));
+  applyFailureOutcome(scene.id, outcome, attemptNumber, () => launchSceneStage(scene.id));
 }
 
 /**
@@ -779,7 +819,7 @@ export function manualRetry(sceneId: string): { ok: boolean; reason?: string } {
   // A manual retry starts a fresh cycle: reset the attempt counter so the
   // scene gets a full 1 + RETRY_BUDGET budget again, per PRD §10.2.
   resetAttemptsForManualRetry(sceneId);
-  launchScene(sceneId);
+  launchSceneStage(sceneId);
   return { ok: true };
 }
 

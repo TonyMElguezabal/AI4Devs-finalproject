@@ -230,7 +230,10 @@ export interface SessionEventPayload {
   language: string;
   state: SessionState;
   paused: boolean; // Decision 8 — always its own field, never folded into `state`
+  held: Array<{ stage: string; count: number }>; // only non-empty while paused; derived from registry
   failedPhase?: string;
+  /** gate-assembly-on-complete-scenes (JOS-150): the failed scenes' indexes, ascending; present only when `failedPhase` is `"scenes"`. Derived, never stored. */
+  failedSceneIndexes?: number[];
   /** PRD §12.2 — the project-folder name derives from this instant, and
    * consult-session (JOS-135) task 3.1 requires it in the session read. */
   createdAt: string;
@@ -266,6 +269,7 @@ export interface SceneEventPayload {
   speedFactor?: number;
   /** Set only when the factor exceeds the hardcoded `SPEED_FACTOR_LIMIT`. Immutable. */
   speedFactorWarning?: SpeedFactorWarning;
+  held?: boolean; // true only while the session is paused and this scene has pending work
   updatedAt: string;
 }
 

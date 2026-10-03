@@ -265,6 +265,7 @@ describe("Group 4 — Precondition and launch (Decisions 1, 2, 4)", () => {
     const scenes = getScenesForRun(runId);
     expect(scenes[0]?.status).toBe("image-complete");
     expect(provider.calls).toHaveLength(0);
+    expect(toSnapshot(runId)?.session.held).toEqual([{ stage: "video", count: 1 }]);
 
     continueSession(runId);
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -558,7 +559,7 @@ describe("Group 7 — Session state after video stage", () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     const snapshot = toSnapshot(runId);
-    expect(snapshot?.session.state).toBe("final-video");
+    expect(snapshot?.session.state).toBe("final-video-generating");
   });
 
   it("deriveSessionState: 'video-generating' scenes still count as processing", () => {

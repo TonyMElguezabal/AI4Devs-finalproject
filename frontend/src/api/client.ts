@@ -64,6 +64,11 @@ export function downloadSceneUrl(sessionId: string, sceneId: string, kind: "imag
   return `${API_BASE}/sessions/${sessionId}/scenes/${sceneId}/download/${kind}`;
 }
 
+/** A result URL in the session payload is a path relative to the API base. */
+export function resolveResultUrl(path: string): string {
+  return `${API_BASE}${path}`;
+}
+
 export function downloadFinalVideoUrl(sessionId: string): string {
   return `${API_BASE}/sessions/${sessionId}/download/final-video`;
 }

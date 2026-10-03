@@ -14,7 +14,8 @@ const ALLOWED_SESSION_TRANSITIONS: Readonly<Record<SessionState, readonly Sessio
   // obtain-narration-timestamps (JOS-139): the decomposition phase.
   "voice-over-complete": ["chunk-decomposing"],
   "chunk-decomposing": ["chunks-processing", "failed"],
-  "chunks-processing": [],
+  // gate-assembly-on-complete-scenes (JOS-150): the exits the assembly gate decides.
+  "chunks-processing": ["final-video-generating", "failed"],
   "final-video-generating": [],
   "final-video": [],
   failed: [],

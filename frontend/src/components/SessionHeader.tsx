@@ -8,7 +8,7 @@ interface Props {
 }
 
 /** PRD §8.1, §8.3, §9, AC07, AC21 — session's current state, the failed
- * phase when `failed`, and the paused marker shown distinctly from a
+ * phase and failed scene indexes when `failed`, and the paused marker shown distinctly from a
  * generation that is still running (Decision 8: `paused` is never folded
  * into `state`). */
 export function SessionHeader({ session, onPause, onContinue }: Props) {
@@ -19,8 +19,16 @@ export function SessionHeader({ session, onPause, onContinue }: Props) {
       <p className={`session-state-line${session.paused ? " paused" : ""}`}>
         Session state: <strong>{session.state}</strong>
         {session.paused && <span> — paused</span>}
+        {session.paused && session.held.length > 0 && (
+          <span className="held-stages">
+            {" "}({session.held.map((h) => `${h.count} ${h.stage}`).join(", ")} held)
+          </span>
+        )}
       </p>
       {session.state === "failed" && session.failedPhase && <p role="alert">Failed phase: {session.failedPhase}</p>}
+      {session.state === "failed" && session.failedSceneIndexes && session.failedSceneIndexes.length > 0 && (
+        <p>Failed scenes: {session.failedSceneIndexes.join(", ")}</p>
+      )}
       {isRunning &&
         (session.paused ? (
           <button type="button" onClick={onContinue}>

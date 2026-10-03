@@ -76,7 +76,7 @@ Every screen traces to a PRD section; none was invented beyond what the PRD impl
 | Scene list | §6, §8.2, AC21 | Ascending scene-identifier order regardless of completion order, chunk state, results, errors, actions |
 | Scene details | §3, §7.2, AC23 | `PROMPT`/`IMAGE`/`VIDEO`, narration interval, requested duration, speed factor + warning, provider + attempts |
 | Correction form | §10.3, AC09 | Present only on a failed image or video stage; never exposes `ID`, `PROMPT`, or order |
-| Pause / continue | §8.1, §9, AC07 | Session-level control; the paused marker shown on top of current state, distinct from a generation still running |
+| Pause / continue | §8.1, §9, AC07 | Session-level control; the paused marker shown on top of current state, distinct from a generation still running; `held` stages and counts shown in the header when paused; a held scene row shows "waiting for continue" (`pause-and-continue-session`, JOS-152) |
 | Downloads | §12.3 | Per-scene image/clip during processing; final MP4 only at `final-video`; nothing offered for MP3, timestamps or generated texts |
 
 **Recorded gap, not invented:** no project-list screen exists anywhere in the PRD or backlog (§12.3 describes reaching a session only by identifier) — see [Not Yet Decided](#not-yet-decided).
@@ -104,6 +104,7 @@ Naming, typing, TDD and English-only rules are inherited from `docs/base-standar
 - **Files**: PascalCase for components (`SceneRow.tsx`), camelCase for everything else (`useLiveSession.ts`, `client.ts`).
 - **State derivation, never duplication**: a component never stores its own copy of session/scene state in local `useState` and reconciles it against the live snapshot — it reads directly from the snapshot the seam hook returns. `SceneRow`'s only local state is UI-only (whether its details are expanded, the draft text in the correction textarea) — never a shadow copy of server truth.
 - **Conditional rendering derives from state, never from a stored flag** (`docs/adr/0004-frontend-stack.md` Decision 4, proven in `test/components.test.tsx`): the correction form's presence is `scene.state === "failed"`, computed at render time — never a `canEdit` flag set once and left to drift out of sync with the state that actually governs it.
+- **Scene actions are derived in one place, `sceneActions(scene)`** (`frontend/src/sceneActions.ts`; `show-scene-results-and-actions`, JOS-151, Decision 4). It maps `(state, affectedStage)` to which actions a scene offers (today: retry and image correction, only for a `failed` scene whose `affectedStage` is `image`), and `SceneRow` renders from it instead of testing `state === "failed"` itself. Adding or changing an action (the video-stage retry of JOS-158 is the next one) means extending this function and its tests, not adding a condition in a component. This refines the previous bullet: the presence of an action is still computed at render time, just not inline.
 
 ## Accessible Naming Convention
 
