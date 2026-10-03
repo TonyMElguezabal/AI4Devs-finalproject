@@ -31,9 +31,9 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 4. Assembly tool port and adapter (TDD)
 
-- [ ] 4.1 Define the `AssemblyTool` port: given an ordered list of (clip path, narration start, narration duration) and the voice-over path, produce one output file, failing with a classified error
-- [ ] 4.2 Implement a stand-in/stub satisfying the port for tests (per design.md Open Question 2), with scenarios for success, transient failure, and not-retryable failure
-- [ ] 4.3 Once `define-media-assembly` lands, implement the real adapter against its chosen tool
+- [x] 4.1 Define the `AssemblyTool` port: given an ordered list of (clip path, narration start, narration duration) and the voice-over path, produce one output file, failing with a classified error
+- [x] 4.2 Implement a stand-in/stub satisfying the port for tests (per design.md Open Question 2), with scenarios for success, transient failure, and not-retryable failure
+- [x] 4.3 Once `define-media-assembly` lands, implement the real adapter against its chosen tool
 
 ## 5. Application: assembly phase (TDD)
 
