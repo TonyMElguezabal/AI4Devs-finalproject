@@ -48,6 +48,14 @@ export interface SceneEventPayload {
   attempts?: number;
   result?: { imageUrl?: string; videoUrl?: string };
   instruction?: string;
+  /** PRD §7.2: the admitted clip duration requested for this chunk; absent for a scene created without a decomposition (request-admitted-clip-duration, JOS-147). */
+  requestedDurationSeconds?: number;
+  /** Set only when the interval was narrated longer than the largest admitted duration (§6.1.1). */
+  durationWarning?: "exceeds-maximum";
+  /** PRD §7.2/AC23: the speed-adjustment factor the requested duration implies, always >= 1 (record-speed-adjustment-factor, JOS-148). */
+  speedFactor?: number;
+  /** Set only when the factor exceeds the hardcoded acceptable limit. Independent of durationWarning. */
+  speedFactorWarning?: "exceeds-limit";
   updatedAt: string;
 }
 

@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS } from "./config/providers.ts";
+import { intervalDurationSeconds, requestedClipDuration } from "./admittedDurations.ts";
+import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS, SPEED_FACTOR_LIMIT } from "./config/providers.ts";
 import { countScenesForRun, getRun, insertRegisteredScenes, setRunFailure } from "./db.ts";
 import { broadcast } from "./orchestrator.ts";
 import { createDecompositionFailure } from "./sessionStateMachine.ts";
-import type { DecompositionFailure } from "./types.ts";
+import type { DecompositionFailure, NarrationInterval, SpeedFactorWarning } from "./types.ts";
 import type { VisualInstructionGenerator, VisualInstructionPair } from "./visualInstructions.ts";
 
 // assign-scene-identifiers (JOS-144) — PRD §5 step 5: number the ordered
@@ -18,11 +19,17 @@ import type { VisualInstructionGenerator, VisualInstructionPair } from "./visual
 /** The two §6.1.1 exceptions segmentation may flag on a fragment outside the bounds. */
 export type FragmentException = "script-below-lower-bound" | "unsplittable-sentence";
 
+// `intervalDurationSeconds` now lives in admittedDurations.ts (request-admitted-clip-duration,
+// JOS-147): requestedClipDuration needs it, and this module needs requestedClipDuration, so
+// defining it here would create a cycle. Re-exported so existing callers are unaffected.
+export { intervalDurationSeconds };
+
 /** What segmentation hands over for each fragment, in script order. */
 export interface SegmentedFragment {
   /** The exact text of the script this fragment narrates; it becomes the chunk's PROMPT. */
   text: string;
-  narratedDurationSeconds: number;
+  /** From the D11 boundaries `unitBoundaries` gives segmentation (assign-narration-intervals, JOS-143, Decision 1). */
+  narrationInterval: NarrationInterval;
   exception?: FragmentException;
 }
 
@@ -47,7 +54,7 @@ function findFragmentProblem(script: string, fragments: readonly SegmentedFragme
     const number = position + 1;
     if (fragment.text.trim() === "") return `scene ${number} has no text`;
 
-    const duration = fragment.narratedDurationSeconds;
+    const duration = intervalDurationSeconds(fragment.narrationInterval);
     if (!Number.isFinite(duration) || duration <= 0) return `scene ${number} has no valid narrated duration`;
 
     // §6.1 bounds, with the two §6.1.1 exceptions.
@@ -65,6 +72,30 @@ function findFragmentProblem(script: string, fragments: readonly SegmentedFragme
   const joined = fragments.map((fragment) => fragment.text).join(" ");
   if (normaliseWhitespace(joined) !== normaliseWhitespace(script)) {
     return "its scenes, joined in order, do not reproduce the script";
+  }
+  return null;
+}
+
+/**
+ * assign-narration-intervals (JOS-143), Decision 2 — the intervals, in order, must be
+ * contiguous and cover the voice-over from 0 to its duration. Exact comparisons: every
+ * boundary comes from one `unitBoundaries` array, so a correct segmentation is bit-identical.
+ */
+function findPartitionProblem(fragments: readonly SegmentedFragment[], voiceOverDurationSeconds: number): string | null {
+  let previousEnd = 0;
+  for (const [position, fragment] of fragments.entries()) {
+    const number = position + 1;
+    const { startSeconds, endSeconds } = fragment.narrationInterval;
+    if (startSeconds !== previousEnd) {
+      return position === 0
+        ? `scene 1 starts at ${startSeconds} s instead of 0 s`
+        : `scene ${number} starts at ${startSeconds} s but scene ${number - 1} ends at ${previousEnd} s`;
+    }
+    if (!(endSeconds > startSeconds)) return `scene ${number} has an empty narration interval`;
+    previousEnd = endSeconds;
+  }
+  if (previousEnd !== voiceOverDurationSeconds) {
+    return `scene ${fragments.length} ends at ${previousEnd} s but the voice-over lasts ${voiceOverDurationSeconds} s`;
   }
   return null;
 }
@@ -91,6 +122,7 @@ export async function registerDecomposition(
   runId: string,
   fragments: readonly SegmentedFragment[],
   generator: VisualInstructionGenerator,
+  voiceOverDurationSeconds: number,
   now: () => Date = () => new Date(),
 ): Promise<RegistrationResult> {
   const run = getRun(runId);
@@ -101,6 +133,13 @@ export async function registerDecomposition(
   const fragmentProblem = findFragmentProblem(run.script, fragments);
   // A validation failure is retryable: a new decomposition can come out valid.
   if (fragmentProblem) return recordFailure(runId, fragmentProblem, true, now());
+
+  // Without a usable duration the partition cannot be checked, and retrying the same input cannot change that.
+  if (!Number.isFinite(voiceOverDurationSeconds) || voiceOverDurationSeconds <= 0) {
+    return recordFailure(runId, `the voice-over duration (${voiceOverDurationSeconds}) is not usable`, false, now());
+  }
+  const partitionProblem = findPartitionProblem(fragments, voiceOverDurationSeconds);
+  if (partitionProblem) return recordFailure(runId, partitionProblem, true, now());
 
   const instructions = await generator.generate(
     fragments.map((fragment) => fragment.text),
@@ -116,13 +155,32 @@ export async function registerDecomposition(
   const instructionProblem = findInstructionProblem(instructions.pairs, fragments.length);
   if (instructionProblem) return recordFailure(runId, instructionProblem, true, now());
 
-  const scenes = fragments.map((fragment, position) => ({
-    id: randomUUID(),
-    index: position + 1,
-    prompt: fragment.text,
-    imageInstruction: instructions.pairs[position]!.image.trim(),
-    videoInstruction: instructions.pairs[position]!.video.trim(),
-  }));
+  const scenes = fragments.map((fragment, position) => {
+    // request-admitted-clip-duration (JOS-147), design Decision 2 — computed
+    // once here, after the partition check, and stored with the chunk in the
+    // same transaction as its interval. Cannot fail: the interval is already
+    // checked finite and positive by findFragmentProblem above.
+    // record-speed-adjustment-factor (JOS-148), design Decision 1 — `factor`
+    // is `requestedClipDuration`'s own `speedRatio`, passed through rather
+    // than recomputed; the warning is independent of `durationWarning`
+    // (a chunk may carry either, both, or neither).
+    const { seconds: requestedDurationSeconds, warning: durationWarning, factor: speedFactor } = requestedClipDuration(
+      fragment.narrationInterval,
+    );
+    const speedFactorWarning: SpeedFactorWarning | null = speedFactor > SPEED_FACTOR_LIMIT ? "exceeds-limit" : null;
+    return {
+      id: randomUUID(),
+      index: position + 1,
+      prompt: fragment.text,
+      imageInstruction: instructions.pairs[position]!.image.trim(),
+      videoInstruction: instructions.pairs[position]!.video.trim(),
+      narrationInterval: fragment.narrationInterval,
+      requestedDurationSeconds,
+      durationWarning,
+      speedFactor,
+      speedFactorWarning,
+    };
+  });
   try {
     insertRegisteredScenes(runId, scenes);
   } catch (err: any) {

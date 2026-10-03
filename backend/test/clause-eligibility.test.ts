@@ -107,7 +107,7 @@ describe("Clause pieces get real timings (Decision 3)", () => {
     return [...text].map((character, index) => ({ text: character, start: offset + index * step, end: offset + (index + 1) * step }));
   }
 
-  it("gives each piece its own speech span, and places the piece boundary at the pause midpoint", () => {
+  it("gives each piece its own speech span, and places the piece boundary at the following piece's speech start", () => {
     const script = "The tide rose, but the wind stayed calm.";
     const sentences = findSentences(script, "en");
     const units = buildUnits(script, sentences, "en", [23]);
@@ -121,7 +121,7 @@ describe("Clause pieces get real timings (Decision 3)", () => {
     expect(spans[1]!.end).toBeCloseTo(script.length * 0.5, 9);
 
     const boundaries = unitBoundaries(spans, script.length * 0.5);
-    expect(boundaries[1]).toBeCloseTo((spans[0]!.end + spans[1]!.start) / 2, 10);
+    expect(boundaries[1]).toBeCloseTo(spans[1]!.start, 10);
 
     const durations = chunkDurations(spans, script.length * 0.5);
     expect(durations.reduce((a, b) => a + b, 0)).toBeCloseTo(script.length * 0.5, 9);

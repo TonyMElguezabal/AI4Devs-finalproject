@@ -67,7 +67,7 @@ export async function segmentStoredTimestamps(
   const segmentation = segmentScript(run.script, run.language, characters, voiceOver.durationSeconds);
   if (!segmentation.ok) return recordSegmentationFailure(runId, segmentation.reason, now());
 
-  const result = await registerDecomposition(runId, segmentation.fragments, instructionGenerator, now);
+  const result = await registerDecomposition(runId, segmentation.fragments, instructionGenerator, voiceOver.durationSeconds, now);
   // generate-chunk-image (JOS-145), AC1 — launches every newly-registered
   // chunk's image generation automatically, with no further User action.
   // Not awaited: the caller observes progress through `broadcast`/SSE, the

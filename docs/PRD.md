@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.4  
+**Versión:** 1.5  
 **Alcance:** MVP  
-**Status (v1.4):** §11's providers and hardcoded parameter values are now recorded, defined by `define-provider-configuration` (JOS-165). All product decisions closed except D11 (pending POC). Changes are listed in §16. The previous version is kept in `docs/PRD-v1.3.md`.
+**Status (v1.5):** D11 closed — silence allocation decided (`decide-silence-allocation`, JOS-142). All product decisions now closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.4.md`.
 
 ## 1. Objetivo del producto
 
@@ -176,7 +176,7 @@ La duración de cada clip se ajusta a su intervalo de narración mediante ajuste
 
 Los intervalos de narración de los chunks forman una **partición del eje temporal del voice-over**: son contiguos, no se solapan y cubren desde el segundo 0 hasta la duración total del MP3. Esta propiedad es un requisito del producto y se mantiene cualquiera que sea la regla adoptada en D11.
 
-La asignación de los silencios de la narración a una escena concreta está pendiente de D11 y se validará mediante la POC descrita en §14.1.
+**D11 (closed, JOS-142, product owner decision 2026-09-29):** cada silencio de la narración se asigna a la escena anterior — el corte a la siguiente escena ocurre exactamente cuando comienza su narración, no a mitad del silencio. Un clip sostiene hasta 2 segundos de silencio de forma aceptable; a partir de 3 segundos empieza a sentirse lento. Ningún guion real medido en la comparación (inglés y español, marcas nativas y de alineación forzada) superó 1.26 segundos, por debajo del umbral, así que no se define una tercera regla. Evidencia completa: `docs/adr/0006-silence-allocation.md` y `openspec/changes/archive/2026-09-29-decide-silence-allocation/reports/`.
 
 El montaje debe conservar todo el contenido narrado y la secuencia de escenas, sin omisiones, duplicaciones ni huecos visuales. Debe cubrir también las pausas existentes en la narración.
 
@@ -321,7 +321,7 @@ Defined by `define-provider-configuration` (JOS-165), verified against real call
 | Segmentation lower bound (§6.1) | 5 seconds | = video provider's measured minimum |
 | Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264/AAC | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
 | Supported script languages (§4.1, D09) | English, Spanish | Each verified independently across voice, alignment and reasoning |
-| Acceptable speed-factor limit | **Provisional** | Depends on `define-media-assembly` (JOS-182), not yet archived |
+| Acceptable speed-factor limit | **Provisional** | `define-media-assembly` (JOS-182) recommends 0.5x-2.0x (its ADR, Decision 5); `decide-silence-allocation` (JOS-142) verified D11's adopted rule against that recommendation (max 1.08x observed). Not yet the fixed constant: US-33 records it, and JOS-182's own PR is not yet merged into this branch's history. |
 | Per-phase maximum times | Reasoning 20s, Image 25s, Voice 10s, Alignment 5s, Video 240s, Assembly provisional | Set above the observed slow tail of 4-7 real samples per stage; assembly depends on JOS-182 |
 | Maximum simultaneous requests per stage | Reasoning 50, Image 200 (provisional), Voice/Alignment/Video undetermined | No invented numbers where no real rate limit was found |
 
@@ -370,20 +370,20 @@ Exponer la aplicación fuera de un entorno local exige definir previamente auten
 | AC09 | Un fallo visual permite corregir únicamente el prompt de su etapa y conserva el contenido narrativo. |
 | AC10 | Una escena fallida impide generar el video final; sus resultados exitosos y los de otras escenas siguen disponibles. |
 | AC11 | El montaje respeta el orden numérico, aunque las escenas hayan terminado en otro orden. |
-| AC12 | `final-video` solo se alcanza con todas las escenas completas y un MP4 16:9 narrado, sincronizado y descargable. |
+| AC12 | `final-video` solo se alcanza con todas las escenas completas y un MP4 16:9 narrado, sincronizado y descargable. El cambio de escena ocurre exactamente cuando comienza la narración de la siguiente, conforme a la regla de D11 (§7.3). |
 | AC13 | Un fallo de montaje permite reintentar sin regenerar voz, imágenes ni clips exitosos. |
 | AC14 | Un reinicio no pierde el avance; confirmaciones repetidas no duplican escenas ni lanzamientos. |
 | AC15 | Los archivos locales no se eliminan automáticamente y dos proyectos con el mismo título no sobrescriben sus resultados. |
 | AC16 | El MVP permite pausas y descargas parciales sin requerir una interfaz de administración o reportes. |
 | AC17 | Los cortes entre chunks coinciden con fronteras de oración, salvo la excepción de oración larga prevista en §6.1. |
 | AC18 | No chunk exceeds the video provider's maximum or falls below the hardcoded lower bound, except for a whole script shorter than the lower bound and a sentence that cannot be split (§6.1.1). |
-| AC19 | Los intervalos de los chunks son contiguos, no se solapan y cubren el voice-over desde el segundo 0 hasta su duración total. |
+| AC19 | Los intervalos de los chunks son contiguos, no se solapan y cubren el voice-over desde el segundo 0 hasta su duración total, con cada silencio asignado a la escena anterior (D11, §7.3). |
 | AC20 | El sistema obtiene los intervalos mediante marcas de tiempo nativas o, en su ausencia, mediante alineación forzada; la imposibilidad de obtenerlos se reporta como fallo de descomposición y no como fallo de voz. |
 | AC21 | La interfaz muestra, por fase y por escena, el estado vigente, los resultados disponibles, los errores y las acciones aplicables, y refleja el avance durante el procesamiento. |
 | AC22 | Una sesión consultada por su identificador muestra únicamente sus propios chunks, archivos y resultados. |
 | AC23 | Each scene records the requested duration and the applied speed factor, and shows them in its scene details. |
 
-Los criterios afectados por la sección siguiente deberán completarse al cerrar esas decisiones. AC12 y AC19 quedan sujetos a la regla que resulte de D11 en lo relativo a los silencios.
+Los criterios afectados por la sección siguiente deberán completarse al cerrar esas decisiones. AC12 y AC19 reflejan ya la regla adoptada en D11 (silencios asignados a la escena anterior).
 
 ## 14. Decisiones de producto
 
@@ -401,20 +401,21 @@ Las decisiones marcadas como abiertas no están aprobadas y deben cerrarse antes
 | D08 | Parámetros de salida del MP4 final. | **Closed (v1.3)** | Voice-over-only audio (clip sound removed); hardcoded resolution and frame rate (expected 1920×1080 at 30 fps); H.264 video and AAC audio (§7.3). |
 | D09 | Idiomas admitidos. | **Closed (v1.3)** | Hardcoded list of supported languages; the User selects the script language from that list when starting a project, and no provider is called before that (§4.1). |
 | D10 | Momento exacto del bloqueo del guion durante la generación de voz. | **Closed (v1.3)** | The script is locked when the User starts the project (§4.2). |
-| D11 | Asignación de los silencios de la narración a una escena. | **Pendiente de POC** | Dos candidatas: la escena previa absorbe el silencio posterior, o el silencio se reparte entre escenas contiguas. Se valida según §14.1. |
+| D11 | Asignación de los silencios de la narración a una escena. | **Cerrada (JOS-142, 2026-09-29)** | La escena previa absorbe el silencio posterior (comparada frente a repartir el silencio entre escenas contiguas, la regla interina de JOS-140, ahora descartada). Umbral: hasta 2 s aceptable, 3 s empieza a sentirse lento; ningún guion real supera 1.26 s. Verificado según §14.1. |
 
 D08, D09 y D10 proceden de la división de la antigua D07 de la versión 1.1, que agrupaba decisiones heterogéneas bajo un solo identificador y no cubría las reglas de autorización que §12.3 le asignaba.
 
-### 14.1 POC pendiente (D11)
+### 14.1 POC de asignación de silencios (D11) — Cerrada
 
-La POC debe determinar la regla de asignación de silencios y producir una decisión cerrada. Alcance mínimo:
+La POC (`decide-silence-allocation`, JOS-142, 2026-09-29) comparó las dos reglas candidatas y produjo una decisión cerrada:
 
-- Comparar las dos reglas candidatas sobre guiones con pausas representativas del contenido previsto.
-- Determinar a partir de qué duración un silencio sostenido por un único clip resulta visualmente aceptable, y si ese umbral obliga a una tercera regla.
-- Verificar que la regla elegida preserva la partición de §7.3 y no deja huecos ni solapes.
-- Comprobar que la regla es compatible con las cotas de §6.1 y no eleva el factor de ajuste por encima del límite configurado (hardcoded limit, §11.3 — **still provisional as of v1.4**, pending `define-media-assembly`'s own measurement).
+- Comparadas sobre cuatro guiones reales (inglés y español) con marcas de tiempo nativas y de alineación forzada: ninguna regla queda descartada por las cotas de §6.1 ni por el factor de ajuste (máximo observado 1.08x, muy por debajo de la recomendación de `define-media-assembly`, JOS-182: 0.5x-2.0x).
+- Comparación audiovisual: el mismo guion real, ensamblado una vez con cada regla y con un barrido de silencios crecientes (1, 1.5, 2, 3 y 4 s) mostrado al product owner.
+- Veredicto (product owner, 2026-09-29): la regla A (la escena previa absorbe el silencio) se lee mejor en pausas naturales; un clip sostiene hasta 2 s de silencio de forma aceptable, 3 s empieza a sentirse lento.
+- El silencio real más largo medido (1.26 s) queda por debajo del umbral, así que no se define una tercera regla.
+- Regla adoptada, umbral y actualización de §7.3, AC12 y AC19: hecha. Evidencia completa: `docs/adr/0006-silence-allocation.md` y `openspec/changes/archive/2026-09-29-decide-silence-allocation/reports/`.
 
-Salida esperada: regla adoptada, umbral asociado si procede, y actualización de §7.3, AC12 y AC19.
+**Idea derivada, no incluida en el alcance de esta decisión**: un control manual para que el usuario ajuste una escena que se sienta lenta y regenere su clip, registrado como JOS-190, pendiente de alcance propio.
 
 ## 15. Gaps abiertos no bloqueantes
 
@@ -434,6 +435,19 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
+
+### From version 1.4 to 1.5
+
+Origin: `decide-silence-allocation` (JOS-142), 2026-09-29.
+
+| Change | Origin |
+|---|---|
+| D11 closed: the previous scene absorbs the silence that follows it (the cut to the next scene falls exactly when its narration starts), chosen over splitting the silence between adjacent scenes (JOS-140's interim rule) from a product-owner-judged rendered comparison of real narration (§7.3, §14.1). | JOS-142 |
+| Silence threshold recorded: a clip sustains up to 2 s of silence acceptably; 3 s starts dragging. No real surveyed pause (max 1.26 s) exceeds it, so no third rule was defined (§14.1). | JOS-142 |
+| AC12 and AC19 updated to state the adopted rule. | JOS-142 |
+| §11.3's speed-factor row now references `define-media-assembly`'s (JOS-182) recommended 0.5x-2.0x range, verified against D11's adopted rule (max 1.08x observed); still provisional pending US-33 and JOS-182's own merge. | JOS-142 |
+| All product decisions now closed. | JOS-142 |
+| **Idea raised, not in this change's scope**: a manual dial for the user to adjust a scene that feels like it drags and regenerate its clip, filed as JOS-190. | Product owner, JOS-142 |
 
 ### From version 1.3 to 1.4
 

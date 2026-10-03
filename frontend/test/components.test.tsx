@@ -125,6 +125,52 @@ describe("Download gating", () => {
   });
 });
 
+// record-speed-adjustment-factor (JOS-148), task 6.2 — the requested
+// duration and speed factor shown in scene details (PRD §3/§7.2/AC23),
+// which SceneRow.tsx's own comment had deferred to this story.
+describe("Speed-adjustment factor in scene details (JOS-148)", () => {
+  it("shows the requested duration and speed factor when present", async () => {
+    const user = userEvent.setup();
+    const scene = makeScene({ sceneId: "sf1", index: 1, state: "chunk-complete", requestedDurationSeconds: 15, speedFactor: 1.16 });
+    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    await user.click(screen.getByRole("button", { name: "View scene 1 details" }));
+
+    expect(screen.getByText("15")).toBeInTheDocument();
+    expect(screen.getByText("1.16")).toBeInTheDocument();
+  });
+
+  it("shows the speed-factor warning distinguishably from a duration warning", async () => {
+    const user = userEvent.setup();
+    const scene = makeScene({
+      sceneId: "sf2",
+      index: 1,
+      state: "chunk-complete",
+      requestedDurationSeconds: 15,
+      durationWarning: "exceeds-maximum",
+      speedFactor: 2.33,
+      speedFactorWarning: "exceeds-limit",
+    });
+    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    await user.click(screen.getByRole("button", { name: "View scene 1 details" }));
+
+    const durationWarning = screen.getByText(/exceeds-maximum/);
+    const factorWarning = screen.getByText(/exceeds-limit/);
+    expect(durationWarning).toBeInTheDocument();
+    expect(factorWarning).toBeInTheDocument();
+    expect(durationWarning).not.toBe(factorWarning);
+  });
+
+  it("shows neither the requested duration nor the speed factor for a skeleton scene", async () => {
+    const user = userEvent.setup();
+    const scene = makeScene({ sceneId: "sf3", index: 1, state: "submitted" });
+    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    await user.click(screen.getByRole("button", { name: "View scene 1 details" }));
+
+    expect(screen.queryByText("Requested duration")).not.toBeInTheDocument();
+    expect(screen.queryByText("Speed factor")).not.toBeInTheDocument();
+  });
+});
+
 // task 6.3 — the accessible naming convention (Decision 5) itself, so drift
 // breaks a test here rather than a later story's E2E.
 describe("Accessible naming convention (Decision 5)", () => {

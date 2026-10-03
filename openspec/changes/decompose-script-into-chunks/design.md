@@ -18,7 +18,7 @@ Two invariants make this phase's correctness checkable independently of the segm
 
 **Non-Goals:**
 - Choosing the alignment provider or measuring native-timestamp granularity — `define-provider-configuration` (JOS-165) owns that verification.
-- Deciding how the narration silence between chunks is allocated (D11); this phase's partition requirement is written to hold under whichever rule D11 adopts, without anticipating it.
+- Deciding how the narration silence between chunks is allocated (D11, `decide-silence-allocation`, JOS-142); this phase's partition requirement is written to hold under whichever rule D11 adopts, without anticipating it.
 - Image generation, video generation or assembly — each is its own change and consumes this phase's chunks as input, not as something this change specifies.
 - Any concrete endpoint, route or storage engine — deferred to `define-backend-stack`, `define-frontend-stack` and `define-persistence`.
 
@@ -39,7 +39,7 @@ The loop greedily extends a candidate grouping while it stays under the upper bo
 *Alternative rejected:* three independent special-case functions run before the main loop. §6.1.1 frames these as what the same optimization does at its boundaries, not as exceptions to it, and separate functions would let them drift out of sync with the main rule's admitted-duration preference.
 
 **Decision 4 — Verify the two invariants (script reconstruction, interval partition) as a post-condition check independent of the segmentation implementation.**
-*Carved out 2026-09-27:* the script-reconstruction half of this check now lives in `assign-scene-identifiers` (JOS-144) (its Decision 5); only the interval partition stays here.
+*Carved out 2026-09-27:* the script-reconstruction half of this check now lives in `assign-scene-identifiers` (JOS-144) (its Decision 5). *Carved out 2026-09-29:* the interval-partition half now lives in `assign-narration-intervals` (JOS-143) (its Decision 2), so nothing of this decision stays here.
 After chunks are produced, a dedicated check concatenates `PROMPT` fields (normalizing only whitespace) against the stored script, and a second check walks the intervals in `sequence_number` order asserting `start[i+1] == start[i] + duration[i]` with `start[0] == 0` and the last interval's end equal to the voice-over's total duration. Either check failing marks the stage instance `failed` as a decomposition defect, distinct from a provider failure.
 *Alternative rejected:* trusting the segmentation algorithm to guarantee both invariants by construction. §6, §6.1 and §6.1.1 are intricate enough (three edge cases, one exception clause) that a construction bug is plausible, and AC03/AC19 are stated as properties of the *result*, not of the algorithm — they should be checked as such.
 
@@ -61,5 +61,5 @@ Nothing is deployed and no chunk-producing code exists yet, so there is no migra
 ## Open Questions
 
 1. **Does the chosen voice provider's native timestamp granularity make alignment the fallback or the standing mechanism?** Answered by `define-provider-configuration`'s Decision 3, not by this change.
-2. **How does D11's eventual silence-allocation rule interact with the partition invariant?** Recorded as a risk above; this change's invariant is written to survive either candidate rule, but re-verification is expected.
+2. **How does D11's eventual silence-allocation rule interact with the partition invariant?** Recorded as a risk above; this change's invariant is written to survive either candidate rule, but re-verification is expected. Settled by `decide-silence-allocation` (JOS-142).
 3. **What are the exact hardcoded values for the lower bound and the video provider's admitted durations?** Owned by `define-provider-configuration`; this change consumes them as named constants, not as numbers it fixes itself.

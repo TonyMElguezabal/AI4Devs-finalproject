@@ -13,6 +13,7 @@ import {
   FINAL_OUTPUT,
   MAX_SIMULTANEOUS_REQUESTS,
   PER_PHASE_MAX_TIME_SECONDS,
+  SPEED_FACTOR_LIMIT,
 } from "../src/config/providers.ts";
 
 // define-provider-configuration (JOS-165) task 11.2 — Decision 8 requires the
@@ -89,6 +90,12 @@ describe("Per-stage request maximum stays within the recorded rate limit under t
     expect(MAX_SIMULTANEOUS_REQUESTS.voice).toBe("undetermined");
     expect(MAX_SIMULTANEOUS_REQUESTS.alignment).toBe("undetermined");
     expect(MAX_SIMULTANEOUS_REQUESTS.video).toBe("undetermined");
+  });
+});
+
+describe("The speed-factor limit (§7.2, record-speed-adjustment-factor, JOS-148)", () => {
+  it("is 2.0, the unsigned mapping of define-media-assembly's 0.5x-2.0x recommendation (ADR 0005 Decision 5)", () => {
+    expect(SPEED_FACTOR_LIMIT).toBe(2.0);
   });
 });
 

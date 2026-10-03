@@ -11,10 +11,11 @@ interface Props {
 }
 
 /**
- * PRD §6, §8.2, AC21 — one scene row. PRD §3/§7.2/AC23 also calls for
- * narration interval, requested duration and speed factor in scene details;
- * those come from stories this skeleton does not model (US-15, the media
- * pipeline) and are left out here rather than faked.
+ * PRD §6, §8.2, AC21 — one scene row. PRD §3/§7.2/AC23 also calls for a
+ * narration interval in scene details; that comes from a story this
+ * skeleton does not model and is left out here rather than faked. The
+ * requested duration and speed factor (record-speed-adjustment-factor,
+ * JOS-148) are rendered below, read-only, when the backend sends them.
  *
  * PRD §10.3, Decision 4 — the correction form exists ONLY when
  * `scene.state === "failed"`; it is never rendered-and-disabled otherwise,
@@ -46,6 +47,24 @@ export function SceneRow({ scene, onRetry, onCorrect, imageDownloadUrl, videoDow
             <dd>{scene.provider}</dd>
             <dt>Attempts</dt>
             <dd>{scene.attempts}</dd>
+            {scene.requestedDurationSeconds !== undefined && (
+              <>
+                <dt>Requested duration</dt>
+                <dd>
+                  {scene.requestedDurationSeconds}
+                  {scene.durationWarning && <span role="alert"> {scene.durationWarning}</span>}
+                </dd>
+              </>
+            )}
+            {scene.speedFactor !== undefined && (
+              <>
+                <dt>Speed factor</dt>
+                <dd>
+                  {scene.speedFactor}
+                  {scene.speedFactorWarning && <span role="alert"> {scene.speedFactorWarning}</span>}
+                </dd>
+              </>
+            )}
           </dl>
 
           {isFailed && (
