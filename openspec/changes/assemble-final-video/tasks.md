@@ -75,32 +75,32 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the backend wired to the stand-in assembly tool and confirm it is reachable
-- [ ] 9.2 POST a valid project through every chunk reaching `chunk-complete`; GET the session and verify it reaches `final-video` with a downloadable file
-- [ ] 9.3 Verify the downloaded file's audio track is the voice-over only, and that its scenes are in ascending `sequence_number` order
-- [ ] 9.4 With one chunk forced to `failed`, verify the session never reaches `final-video-generating`
-- [ ] 9.5 With the assembly stand-in set to fail, verify the session's voice-over and completed chunks are unchanged, then retry and verify success without regeneration
-- [ ] 9.6 Verify no route returns the MP3, timestamps, or generated texts at any session state
-- [ ] 9.7 Delete the sessions and files created above and confirm the store and disk match the pre-test state
-- [ ] 9.8 Save the transcript as `openspec/changes/assemble-final-video/reports/YYYY-MM-DD-step-9-curl-endpoint-testing.md`
+- [x] 9.1 Start the backend wired to the stand-in assembly tool and confirm it is reachable
+- [x] 9.2 POST a valid project through every chunk reaching `chunk-complete`; GET the session and verify it reaches `final-video` with a downloadable file
+- [x] 9.3 Verify the downloaded file's audio track is the voice-over only, and that its scenes are in ascending `sequence_number` order
+- [x] 9.4 With one chunk forced to `failed`, verify the session never reaches `final-video-generating`
+- [x] 9.5 With the assembly stand-in set to fail, verify the session's voice-over and completed chunks are unchanged, then retry and verify success without regeneration
+- [x] 9.6 Verify no route returns the MP3, timestamps, or generated texts at any session state
+- [x] 9.7 Delete the sessions and files created above and confirm the store and disk match the pre-test state
+- [x] 9.8 Save the transcript as `openspec/changes/assemble-final-video/reports/YYYY-MM-DD-step-9-curl-endpoint-testing.md`
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: if the session page can show `final-video` and offer the download, run the steps below; otherwise record why not
-- [ ] 10.2 Ensure backend (with the assembly stand-in) and frontend are running
-- [ ] 10.3 Start a project end to end and assert the session page shows the final video becoming available, without reloading, once every scene completes
-- [ ] 10.4 Restore the environment and save the report as `openspec/changes/assemble-final-video/reports/YYYY-MM-DD-step-10-e2e-playwright.md`
+- [x] 10.1 Decide applicability: if the session page can show `final-video` and offer the download, run the steps below; otherwise record why not
+- [x] 10.2 Ensure backend (with the assembly stand-in) and frontend are running
+- [x] 10.3 Start a project end to end and assert the session page shows the final video becoming available, without reloading, once every scene completes
+- [x] 10.4 Restore the environment and save the report as `openspec/changes/assemble-final-video/reports/YYYY-MM-DD-step-10-e2e-playwright.md`
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 Add `Session.final_video_path` and the `assembly` stage instance to `docs/data-model.md`
-- [ ] 11.2 Add the final-video download route and the assembly failure fields to `docs/api-spec.yml`
-- [ ] 11.3 Record the assembly contract (ordering, interval trust, audio replacement, fixed format) in `docs/backend-standards.md`, if not already documented there
+- [x] 11.1 Add `Session.final_video_path` and the `assembly` stage instance to `docs/data-model.md`
+- [x] 11.2 Add the final-video download route and the assembly failure fields to `docs/api-spec.yml`
+- [x] 11.3 Record the assembly contract (ordering, interval trust, audio replacement, fixed format) in `docs/backend-standards.md`, if not already documented there
 
 ## 12. Close out
 
-- [ ] 12.1 Confirm with `generate-chunk-video` that chunk and voice-over records remain untouched by any assembly attempt, successful or failed
-- [ ] 12.2 Record that this is the MVP flow's terminal producing story — no downstream story consumes its output within the MVP
+- [x] 12.1 Confirm with `generate-chunk-video` that chunk and voice-over records remain untouched by any assembly attempt, successful or failed
+- [x] 12.2 Record that this is the MVP flow's terminal producing story — no downstream story consumes its output within the MVP
 - [ ] 12.3 Open the PR with a description linking to this change
 - [ ] 12.4 Obtain review by at least one human, not only AI agents
 - [ ] 12.5 Archive the OpenSpec change after merge

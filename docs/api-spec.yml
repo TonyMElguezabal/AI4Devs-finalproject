@@ -156,6 +156,11 @@ paths:
                         description: 'PRD §8.1: the indexes of the failed scenes, ascending. Present
                           only when failedPhase is "scenes". Derived and
                           read-only.'
+                      finalVideoUrl:
+                        type: string
+                        description: "Present only when state is final-video (JOS-149). Relative URL
+                          to download the assembled MP4. GET returns 200 stream, 409
+                          if not yet available, or 404 if file missing on disk."
                       createdAt:
                         type: string
                       updatedAt:
@@ -350,6 +355,11 @@ paths:
                         description: 'PRD §8.1: the indexes of the failed scenes, ascending. Present
                           only when failedPhase is "scenes". Derived and
                           read-only.'
+                      finalVideoUrl:
+                        type: string
+                        description: "Present only when state is final-video (JOS-149). Relative URL
+                          to download the assembled MP4. GET returns 200 stream, 409
+                          if not yet available, or 404 if file missing on disk."
                       createdAt:
                         type: string
                       updatedAt:
