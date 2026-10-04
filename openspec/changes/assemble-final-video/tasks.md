@@ -66,12 +66,12 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test state of the store and the project folders on disk
-- [ ] 8.2 Run the targeted tests for this module and capture the pass/fail summary
-- [ ] 8.3 Run the full suite and record totals, failures and runtime
-- [ ] 8.4 Verify the post-test state matches the baseline, restoring the store and removing any test videos left behind
-- [ ] 8.5 Create the report `openspec/changes/assemble-final-video/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
-- [ ] 8.6 Mark this step complete only after the tests pass and the report file exists
+- [x] 8.1 Capture the pre-test state of the store and the project folders on disk
+- [x] 8.2 Run the targeted tests for this module and capture the pass/fail summary
+- [x] 8.3 Run the full suite and record totals, failures and runtime
+- [x] 8.4 Verify the post-test state matches the baseline, restoring the store and removing any test videos left behind
+- [x] 8.5 Create the report `openspec/changes/assemble-final-video/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
+- [x] 8.6 Mark this step complete only after the tests pass and the report file exists
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
