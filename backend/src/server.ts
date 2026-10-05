@@ -100,7 +100,7 @@ if (isMainModule) {
   if (Number.isFinite(retryBaseSeconds) && Number.isFinite(retryCapSeconds) && retryBaseSeconds >= 0 && retryCapSeconds >= retryBaseSeconds) {
     setRetryDelayConfig({ baseSeconds: retryBaseSeconds, capSeconds: retryCapSeconds });
   }
-  // USE_STUB_VOICE_PROVIDER=success|success-without-timestamps|transient-failure|transient-twice-then-success|not-retryable-failure|undecodable-audio|empty-audio|hang — manual endpoint testing only.
+  // USE_STUB_VOICE_PROVIDER=success|success-without-timestamps|transient-failure|transient-twice-then-success|not-retryable-failure|undecodable-audio|empty-audio|hang|hang-once-then-success|success-after-limit — manual endpoint testing only.
   const stubVoiceMode = process.env.USE_STUB_VOICE_PROVIDER as StubVoiceProviderMode | undefined;
   if (stubVoiceMode) {
     setVoiceProviderRegistry({ defaultIdentifier: "stub-voice", adapters: { "stub-voice": createStubVoice(stubVoiceMode) } });
