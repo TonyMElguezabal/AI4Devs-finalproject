@@ -40,27 +40,27 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 3. Backend: retry service checks and step choice (TDD; design Decisions 1, 2 and 7)
 
-- [ ] 3.1 Write failing tests in a new `backend/test/decomposition-retry.test.ts` for `retryDecomposition(sessionId)`:
+- [x] 3.1 Write failing tests in a new `backend/test/decomposition-retry.test.ts` for `retryDecomposition(sessionId)`:
   - unknown session;
   - each 409 reason, with every provider stub asserting it received nothing;
   - concurrent calls open exactly one cycle;
   - acceptance after a retryable failure, and refusal with `not-retryable` after a not-retryable one.
-- [ ] 3.2 Write failing tests for the step choice: no stored timestamps schedules an attempt of stage `timestamps`; stored timestamps schedule one of stage `decomposition`; both are in cycle 2 of the shared instance.
-- [ ] 3.3 Implement `backend/src/decompositionRetry.ts`: the checks, the step choice, `startNewCycle`, then the gate. Make 3.1-3.2 pass.
+- [x] 3.2 Write failing tests for the step choice: no stored timestamps schedules an attempt of stage `timestamps`; stored timestamps schedule one of stage `decomposition`; both are in cycle 2 of the shared instance.
+- [x] 3.3 Implement `backend/src/decompositionRetry.ts`: the checks, the step choice, `startNewCycle`, then the gate. Make 3.1-3.2 pass.
 
 ## 4. Backend: the two steps and the voice-over (TDD; design Decision 4)
 
-- [ ] 4.1 Write failing tests for the timestamps step through the retry:
-  - after an exhausted alignment cycle, the retry obtains the timestamps from the same MP3 and registers the chunks;
-  - after `native-unusable`, the retry goes straight to the alignment stub, and the native file is not read (spy on the read).
-- [ ] 4.2 Write failing tests for the division step through the retry:
+- [x] 4.1 Write failing tests for the timestamps step through the retry:
+  - after a failed alignment (the step records no automatic retries, so one failed attempt ends the cycle), the retry obtains the timestamps from the same MP3 and registers the chunks;
+  - after `native-unusable`, the retry goes straight to the alignment stub, and the native file is not read (the file is made usable between the attempts, so reading it would show as a native mechanism).
+- [x] 4.2 Write failing tests for the division step through the retry:
   - after an instruction failure, the same script is divided from the same timestamps;
   - no `timestamps` attempt is added, and the new `decomposition` attempt is in cycle 2 beside the first;
   - the chunks' `PROMPT`s reconstruct the stored script;
   - the session reaches `chunks-processing`;
   - the script, title and language are unchanged.
-- [ ] 4.3 Write failing tests for AC3: for both steps, and for both a successful and a failed retry, the voice stub receives nothing, and the MP3 hash, the `voice_overs` row and the native timestamps file are unchanged.
-- [ ] 4.4 Make 4.1-4.3 pass. Expect them to pass through the senders of group 2. Fix any gap in the steps or senders, not in the retry service.
+- [x] 4.3 Write failing tests for AC3: for both steps, and for both a successful and a failed retry, the voice stub receives nothing, and the MP3 hash, the `voice_overs` row and the native timestamps file are unchanged.
+- [x] 4.4 Make 4.1-4.3 pass. Expect them to pass through the senders of group 2. Fix any gap in the steps or senders, not in the retry service.
 
 ## 5. Backend: launcher, pause and derived state (TDD; design Decisions 5 and 6)
 
