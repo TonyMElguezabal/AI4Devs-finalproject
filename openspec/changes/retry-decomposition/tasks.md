@@ -134,11 +134,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 11.1 Decide applicability: a new button and flow on the session page, so it applies.
-- [ ] 11.2 Run backend (scratch store, stub providers) and frontend. Open a session failed in decomposition: the section shows `Failed`, the cause and `Retry decomposition`.
-- [ ] 11.3 Click `Retry decomposition`. The section moves to `In progress`, then `Complete`, and the Scenes section fills in, all without a reload.
-- [ ] 11.4 On a second failed session, pause, then retry. The section shows `In progress` with `Waiting for you to continue (1 held)`. Continue, and it completes.
-- [ ] 11.5 Restore the environment and save `openspec/changes/retry-decomposition/reports/YYYY-MM-DD-step-10-e2e.md`.
+- [x] 11.1 Decide applicability: a new button and flow on the session page, so it applies.
+- [x] 11.2 Run backend (scratch store, stub providers) and frontend. Open a session failed in decomposition: the section shows `Failed`, the cause and `Retry decomposition`.
+- [x] 11.3 Click `Retry decomposition`. The section moves to `In progress`, then `Complete`, and the Scenes section fills in, all without a reload.
+- [x] 11.4 On a second failed session, pause, then retry. The section shows `In progress` with `Waiting for you to continue (1 held)`. Continue, and it completes.
+- [x] 11.5 Restore the environment and save `openspec/changes/retry-decomposition/reports/2026-10-05-step-10-e2e.md`.
 
 ## 12. Update Technical Documentation (MANDATORY)
 

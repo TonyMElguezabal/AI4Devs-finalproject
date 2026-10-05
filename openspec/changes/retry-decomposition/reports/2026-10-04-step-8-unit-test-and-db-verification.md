@@ -36,12 +36,14 @@ Date: 2026-10-04. Branch: `feature/jos-156-retry-decomposition`.
 | Division retry in progress | `decomposition-retry` derived state tests |
 | The retry fails again | `decomposition-retry` derived state: failed with the new cause |
 | Button on a failed decomposition / No button otherwise | `components.test.tsx` "Decomposition section offers a retry", `phaseActions` tests |
+| A held retry is published (added after the E2E pass) | `decomposition-retry.test.ts` "An accepted retry is published to live subscribers" (held and sent) |
+| Continue a held retry from the page (added after the E2E pass) | `components.test.tsx` "SessionHeader pause and continue while decomposing" |
 
 Ticket ACs: AC1 (timestamps step) = `decomposition-retry-steps` timestamps tests. AC2 (division step) = division tests. AC3 (voice-over never touched) = the AC3 table, which checks the voice stub received nothing and the MP3 hash, the `voice_overs` row and the native file are unchanged.
 
 ## Coverage (task 8.3)
 
-No coverage tool is configured in either package, so line coverage cannot be compared. Test counts instead: backend 1177 passed (propose commit baseline: 1141 plus the new files), frontend 89 passed. No test was removed.
+No coverage tool is configured in either package, so line coverage cannot be compared. Test counts instead: backend 1179 passed and frontend 91 passed after the E2E pass added four tests (they were 1177 and 89 when this report was first written). No test was removed.
 
 ## Runs (tasks 9.2-9.3)
 
