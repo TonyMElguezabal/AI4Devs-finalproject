@@ -7,9 +7,11 @@ import { SessionHeader } from "../src/components/SessionHeader";
 import { FinalVideoDownload } from "../src/components/FinalVideoDownload";
 import { StartProjectForm } from "../src/components/StartProjectForm";
 import { SessionPage } from "../src/components/SessionPage";
-import type { SceneEventPayload, SceneState, SessionEventPayload, SessionState } from "../src/types";
-import { sceneStatusClass, sessionStatusClass } from "../src/styles/status";
+import type { Phase, PhaseProgress, PhaseStatus, SceneEventPayload, SceneState, SessionEventPayload, SessionState } from "../src/types";
+import { phaseStatusClass, sceneStatusClass, sessionStatusClass } from "../src/styles/status";
 import { sceneActions } from "../src/sceneActions";
+import { phaseActions } from "../src/phaseActions";
+import { PHASE_LABEL, PHASE_STATUS_LABEL } from "../src/phaseLabels";
 import { API_BASE } from "../src/api/client";
 
 function makeScene(overrides: Partial<SceneEventPayload>): SceneEventPayload {
@@ -27,6 +29,13 @@ function makeScene(overrides: Partial<SceneEventPayload>): SceneEventPayload {
   };
 }
 
+const PHASE_ORDER: Phase[] = ["voice-over", "decomposition", "scenes", "assembly"];
+
+/** The four phases in pipeline order; every phase is pending unless `statuses` says otherwise. */
+function makePhases(statuses: Partial<Record<Phase, PhaseStatus>> = {}, extras: Partial<Record<Phase, Partial<PhaseProgress>>> = {}): PhaseProgress[] {
+  return PHASE_ORDER.map((phase) => ({ phase, status: statuses[phase] ?? "pending", heldCount: 0, ...extras[phase] }));
+}
+
 function makeSession(overrides: Partial<SessionEventPayload>): SessionEventPayload {
   return {
     type: "session",
@@ -37,6 +46,7 @@ function makeSession(overrides: Partial<SessionEventPayload>): SessionEventPaylo
     state: "submitted",
     paused: false,
     held: [],
+    phases: makePhases(),
     updatedAt: "2026-09-25T00:00:00.000Z",
     ...overrides,
   };
@@ -517,5 +527,30 @@ describe("held indicator in session header and scene rows (JOS-152, task 8.1)", 
     const scene = makeScene({ sceneId: "g1", index: 1, state: "image-generating" });
     render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
+  });
+});
+
+// view-progress-by-phase (JOS-168), task 5.2 — design Decisions 6 and 7.
+describe("Phase actions, status classes and labels (JOS-168)", () => {
+  const statuses: PhaseStatus[] = ["pending", "in-progress", "complete", "failed"];
+
+  it("phaseActions offers no action for any phase and status, until US-23 to US-27 add endpoints", () => {
+    for (const phase of PHASE_ORDER) {
+      for (const status of statuses) {
+        expect(phaseActions({ phase, status, heldCount: 0, failure: status === "failed" ? { cause: "x", retryable: true } : undefined })).toEqual({ retry: false });
+      }
+    }
+  });
+
+  it("maps the four statuses through the shared status classes", () => {
+    expect(phaseStatusClass("pending")).toBe("status-queued");
+    expect(phaseStatusClass("in-progress")).toBe("status-progress");
+    expect(phaseStatusClass("complete")).toBe("status-complete");
+    expect(phaseStatusClass("failed")).toBe("status-failed");
+  });
+
+  it("labels the statuses and the phases", () => {
+    expect(statuses.map((status) => PHASE_STATUS_LABEL[status])).toEqual(["Not started", "In progress", "Complete", "Failed"]);
+    expect(PHASE_ORDER.map((phase) => PHASE_LABEL[phase])).toEqual(["Voice-over", "Decomposition", "Scenes", "Final video"]);
   });
 });

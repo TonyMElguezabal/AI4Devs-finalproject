@@ -63,12 +63,12 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 5. Frontend: types, status and actions (TDD; design Decisions 6 and 7)
 
-- [ ] 5.1 Add `phases` to `SessionEventPayload` in `frontend/src/types.ts`, and add `phases` to every test fixture that builds a session payload.
-- [ ] 5.2 Write failing tests in `test/components.test.tsx`:
+- [x] 5.1 Add `phases` to `SessionEventPayload` in `frontend/src/types.ts`, and add `phases` to every test fixture that builds a session payload.
+- [x] 5.2 Write failing tests in `test/components.test.tsx`:
   - `phaseActions` returns no action for every phase and status;
   - `phaseStatusClass` maps the four statuses through `styles/status.ts`;
   - the status-to-label map gives `Not started`, `In progress`, `Complete`, `Failed`.
-- [ ] 5.3 Implement `frontend/src/phaseActions.ts` and `phaseStatusClass`; make 5.2 pass.
+- [x] 5.3 Implement `frontend/src/phaseActions.ts` and `phaseStatusClass`; make 5.2 pass.
 
 ## 6. Frontend: phase sections (TDD; design Decisions 6 and 8)
 
