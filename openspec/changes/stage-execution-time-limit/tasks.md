@@ -83,9 +83,9 @@ A backend change with no screen of its own. Group 1 is a hard gate. Tests come f
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [ ] 9.1 Add the new outcomes and `lateResultAt` to `docs/data-model.md`, with the allowed transitions
-- [ ] 9.2 Add to the "Retries and attempts" section of `docs/backend-standards.md`: the clock starts at `sentAt`; late results go through the ordinary result handler; adapters record whether they can receive a late result
-- [ ] 9.3 Confirm the per-phase maximum times in the constants module match PRD §11 (constants test)
+- [x] 9.1 Add the new outcomes and `lateResultAt` to `docs/data-model.md`, with the allowed transitions
+- [x] 9.2 Add to the "Retries and attempts" section of `docs/backend-standards.md`: the clock starts at `sentAt`; late results go through the ordinary result handler; adapters record whether they can receive a late result
+- [x] 9.3 Confirm the per-phase maximum times in the constants module match PRD §11 (constants test)
 
 ## 10. Close out
 
