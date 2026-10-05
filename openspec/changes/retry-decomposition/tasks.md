@@ -25,7 +25,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
   Recorded: JOS-168 is merged (PR #28); the branch was rebased onto `origin/feature/entrega-2-JAME` (`1d04777`). JOS-155 merged only its service (`voiceOverRetry.ts`): no route schemas, reason table, button or rule change exist to reuse yet. JOS-166 is not built. Only the voice-over, image, video and assembly launchers are registered; none for `decomposition`.
 - [x] 1.3 Use the product owner's answer to JOS-155 Open Question 1 (manual retry after a not-retryable failure). Answer: no, follow JOS-184. Decision 7, the spec and `phaseActions` are updated.
-- [ ] 1.4 With the user's approval, update the umbrella change `decompose-script-into-chunks`. Replace its two manual-retry requirements ("A manual retry of timestamps stays on the same audio…" and "A manual retry of decomposition re-splits the same script") with a pointer to this change, so the requirement lives in one place.
+- [x] 1.4 With the user's approval, update the umbrella change `decompose-script-into-chunks`. Replace its two manual-retry requirements ("A manual retry of timestamps stays on the same audio…" and "A manual retry of decomposition re-splits the same script") with a pointer to this change, so the requirement lives in one place.
 
 ## 2. Backend: attempts, senders and providers for the two steps (TDD; design Decisions 3 and 4)
 
