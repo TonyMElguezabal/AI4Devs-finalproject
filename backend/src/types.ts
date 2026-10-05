@@ -220,6 +220,20 @@ export interface ProviderRequestRow {
 
 // ---- Wire contract (define-live-updates, JOS-183, Decisions 2/4/8) ----
 
+/** view-progress-by-phase (JOS-168) — the four processing phases, in pipeline order (PRD §8.1, §8.3). */
+export type Phase = "voice-over" | "decomposition" | "scenes" | "assembly";
+export type PhaseStatus = "pending" | "in-progress" | "complete" | "failed";
+
+/** One entry of the session's `phases`: derived on every read from the session state, never stored. */
+export interface PhaseProgress {
+  phase: Phase;
+  status: PhaseStatus;
+  /** Work units a pause is holding for this phase; 0 when not paused. */
+  heldCount: number;
+  /** Only on a failed voice-over, decomposition or assembly entry; never the failure time or provider detail. */
+  failure?: { cause: string; retryable: boolean };
+}
+
 /** Session event / snapshot field — carries CURRENT state, never a delta. */
 export interface SessionEventPayload {
   type: "session";
@@ -237,6 +251,8 @@ export interface SessionEventPayload {
   failedPhase?: string;
   /** gate-assembly-on-complete-scenes (JOS-150): the failed scenes' indexes, ascending; present only when `failedPhase` is `"scenes"`. Derived, never stored. */
   failedSceneIndexes?: number[];
+  /** view-progress-by-phase (JOS-168): the four phases in pipeline order, each with its status. Derived, never stored. */
+  phases: PhaseProgress[];
   /** PRD §12.2 — the project-folder name derives from this instant, and
    * consult-session (JOS-135) task 3.1 requires it in the session read. */
   createdAt: string;
