@@ -52,13 +52,31 @@ export interface VoiceOverLogEntry {
   scriptLength?: number;
   scriptSha256?: string;
   reason?: string;
+  stageInstanceKey?: string;
+  cycle?: number;
+  sequenceInCycle?: number;
+  trigger?: string;
+  /** Time from the attempt being queued (or scheduled) to it being sent. */
+  queuedMs?: number;
 }
 
 export interface VoiceOverLogger {
   info(entry: VoiceOverLogEntry, message?: string): void;
+  warn(entry: VoiceOverLogEntry, message?: string): void;
 }
 
-let logger: VoiceOverLogger = { info: () => {} };
+let logger: VoiceOverLogger = { info: () => {}, warn: () => {} };
+
+/** bounded-retry-policy (JOS-184) — the fields every attempt log carries, so one stage instance's attempts can be followed. */
+function attemptFields(attempt: StageAttempt, sentAt: Date): Pick<VoiceOverLogEntry, "stageInstanceKey" | "cycle" | "sequenceInCycle" | "trigger" | "queuedMs"> {
+  return {
+    stageInstanceKey: attempt.stageInstanceKey,
+    cycle: attempt.cycle,
+    sequenceInCycle: attempt.sequenceInCycle,
+    trigger: attempt.trigger,
+    queuedMs: Math.max(0, sentAt.getTime() - Date.parse(attempt.queuedAt)),
+  };
+}
 
 export function setVoiceOverLogger(next: VoiceOverLogger): void {
   logger = next;
@@ -181,7 +199,7 @@ export async function sendVoiceAttempt(attempt: StageAttempt, now: () => Date = 
     recordAttemptOutcome(attempt.id, { outcome: "success" }, { now });
     return { ok: false, reason: "narration-complete" };
   }
-  logger.info({ event: "voice-over.attempt.started", sessionId: runId, stage: "voice-over", provider: providerId, attemptNumber: attempt.attemptNumber, ...fingerprint });
+  logger.info({ event: "voice-over.attempt.started", sessionId: runId, stage: "voice-over", provider: providerId, attemptNumber: attempt.attemptNumber, ...attemptFields(attempt, startedAt), ...fingerprint });
   broadcast(runId);
 
   const finishFailure = (
@@ -206,9 +224,22 @@ export async function sendVoiceAttempt(attempt: StageAttempt, now: () => Date = 
       latencyMs: occurredAt.getTime() - startedAt.getTime(),
       reason: detail,
       ...(providerRequestId ? { providerRequestId } : {}),
+      ...attemptFields(attempt, startedAt),
       ...fingerprint,
     });
     if (recorded.action === "failed") {
+      logger.warn(
+        {
+          event: recorded.retryable ? "voice-over.retries.exhausted" : "voice-over.failure.not-retryable",
+          sessionId: runId,
+          stage: "voice-over",
+          provider: providerId,
+          outcome,
+          reason: detail,
+          ...attemptFields(attempt, startedAt),
+        },
+        recorded.retryable ? "the voice-over cycle used all its attempts" : "the voice-over failed and cannot be retried",
+      );
       setRunFailure(
         runId,
         createVoiceOverFailure({
@@ -260,6 +291,7 @@ export async function sendVoiceAttempt(attempt: StageAttempt, now: () => Date = 
       outcome: "success",
       latencyMs: finishedAt.getTime() - startedAt.getTime(),
       ...(result.providerRequestId ? { providerRequestId: result.providerRequestId } : {}),
+      ...attemptFields(attempt, startedAt),
       ...fingerprint,
     });
     broadcast(runId);

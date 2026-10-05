@@ -264,8 +264,8 @@ export interface SessionEventPayload {
   failedSceneIndexes?: number[];
   /** generate-voice-over (JOS-136) Decision 11 — present once the narration exists; never its file paths or the provider's request id, and no download (PRD §12.3). */
   voiceOver?: { provider: string; durationSeconds: number; nativeTimestampsAvailable: boolean; completedAt: string };
-  /** Present while the session is `failed` in a phase that records its failure (Decision 9): the phase, a cause written for a person, and whether a retry may help. */
-  failure?: { phase: string; cause: string; retryable: boolean; occurredAt: string };
+  /** Present while the session is `failed` in a phase that records its failure (Decision 9): the phase, a cause written for a person, and whether a retry may help, whether the User can start a new cycle, and which cycle and how many attempts it held (bounded-retry-policy, JOS-184). */
+  failure?: { phase: string; cause: string; retryable: boolean; manualRetryAvailable: boolean; cycle: number; attemptsInCycle: number; occurredAt: string };
   /** PRD §12.2 — the project-folder name derives from this instant, and
    * consult-session (JOS-135) task 3.1 requires it in the session read. */
   createdAt: string;

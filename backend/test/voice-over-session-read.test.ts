@@ -71,6 +71,9 @@ describe("A failed session's representation (6.2)", () => {
       phase: "voice-over",
       cause: expect.stringContaining("stub: voice provider rejected the input"),
       retryable: false,
+      manualRetryAvailable: false,
+      cycle: 1,
+      attemptsInCycle: 1,
       occurredAt: expect.any(String),
     });
     expect(session.voiceOver).toBeUndefined();

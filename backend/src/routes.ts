@@ -144,7 +144,17 @@ const sessionResponseSchema = z.object({
       "Present once the narration exists (PRD §5 step 2). Derived and read-only; the MP3 itself is never offered for download (PRD §12.3).",
     ),
   failure: z
-    .object({ phase: z.string(), cause: z.string(), retryable: z.boolean(), occurredAt: z.string() })
+    .object({
+      phase: z.string(),
+      cause: z.string(),
+      retryable: z.boolean(),
+      manualRetryAvailable: z
+        .boolean()
+        .describe("Whether the User can start a new cycle of up to four attempts. True only for a retryable failure whose cycle is exhausted."),
+      cycle: z.number().int().min(1).describe("The cycle that ended in this failure, from 1."),
+      attemptsInCycle: z.number().int().min(1).max(4).describe("Attempts the cycle held when it failed."),
+      occurredAt: z.string(),
+    })
     .optional()
     .describe("Present while the session is failed in a phase that records its failure (PRD §8.1); the cause is written for a person."),
   createdAt: z.string(),

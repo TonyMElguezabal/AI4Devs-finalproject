@@ -65,15 +65,16 @@ A cross-cutting backend change with no screen of its own. Group 1 is a hard gate
 
 ## 6. API and live updates (TDD)
 
-- [ ] 6.1 Write a failing test that a failed stage instance's representation carries cause, `retryable`, `manualRetryAvailable`, `cycle` and `attemptsInCycle`
-- [ ] 6.2 Write a failing test that a provider error containing a credential or raw payload is not reflected in the cause
-- [ ] 6.3 Add the fields to the session representation (`consult-session`) and to the live-update event payload (JOS-183)
-- [ ] 6.4 Log each attempt with `stageInstanceKey`, `cycle`, `sequenceInCycle`, `trigger`, `outcome`, `latencyMs` and `queuedMs`; log exhaustion and not-retryable failures at warning level
-- [ ] 6.5 Run the group 6 tests and confirm they pass
+- [x] 6.1 Write a failing test that a failed stage instance's representation carries cause, `retryable`, `manualRetryAvailable`, `cycle` and `attemptsInCycle`
+- [x] 6.2 Write a failing test that a provider error containing a credential or raw payload is not reflected in the cause
+- [x] 6.3 Add the fields to the session representation (`consult-session`) and to the live-update event payload (JOS-183)
+  - One response schema serves both the read and the event payload (`routes.ts` failure object, `types.ts` snapshot type); the tests in `test/failure-representation.test.ts` check both.
+- [x] 6.4 Log each attempt with `stageInstanceKey`, `cycle`, `sequenceInCycle`, `trigger`, `outcome`, `latencyMs` and `queuedMs`; log exhaustion and not-retryable failures at warning level
+- [x] 6.5 Run the group 6 tests and confirm they pass
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Update `generate-voice-over` tests that asserted "transient failure fails the session" to the new retry behaviour
+- [x] 7.1 Update `generate-voice-over` tests that asserted "transient failure fails the session" to the new retry behaviour
 - [ ] 7.2 Confirm every scenario in `specs/stage-retry-policy/spec.md` has at least one functional test
 - [ ] 7.3 Confirm module test coverage has not decreased
 

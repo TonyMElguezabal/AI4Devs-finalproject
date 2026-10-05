@@ -52,7 +52,7 @@ beforeEach(async () => {
   resetAll();
   logs.length = 0;
   published.length = 0;
-  setVoiceOverLogger({ info: (entry) => logs.push(entry) });
+  setVoiceOverLogger({ info: (entry) => logs.push(entry), warn: (entry) => logs.push(entry) });
   events.on("state", onState);
   app = await buildApp();
 });
