@@ -6,11 +6,12 @@ Requirements for retrying a failed decomposition by hand (PRD §10.2, §10.3 tim
 
 ### Requirement: A failed decomposition can be retried by command
 
-The system SHALL accept `POST /sessions/:sessionId/decomposition/retry` for a session that derives `failed` with `failedPhase: "decomposition"` and has no chunks, whether its failure is retryable or not. An accepted retry SHALL answer 200 with `held` saying whether a pause holds it. The command SHALL refuse with 409 and a reason, and SHALL call no provider, when:
+The system SHALL accept `POST /sessions/:sessionId/decomposition/retry` for a session that derives `failed` with `failedPhase: "decomposition"` and has no chunks, and whose failure is retryable (`manualRetryAvailable`). An accepted retry SHALL answer 200 with `held` saying whether a pause holds it. The command SHALL refuse with 409 and a reason, and SHALL call no provider, when:
 
 - the session is not failed in decomposition (`not-failed-in-decomposition`);
 - it has chunks (`already-registered`);
-- a retry is already pending or running (`retry-already-pending`).
+- a retry is already pending or running (`retry-already-pending`);
+- the failure is not retryable (`not-retryable`).
 
 An unknown or malformed session identifier SHALL answer 404. A request body with any field SHALL answer 400.
 
@@ -20,11 +21,17 @@ An unknown or malformed session identifier SHALL answer 404. A request body with
 - **WHEN** the User retries the decomposition
 - **THEN** the command answers 200 with `held: false`
 
-#### Scenario: Retry after a not-retryable segmentation failure
+#### Scenario: Retry refused after a not-retryable failure
 
 - **GIVEN** a session whose segmentation was refused with `retryable: false`
 - **WHEN** the User retries the decomposition
-- **THEN** the command answers 200 and the division step runs again
+- **THEN** the command answers 409 with `not-retryable`, no provider is called, and no cycle is opened
+
+#### Scenario: Session already has chunks
+
+- **GIVEN** a session whose chunks are registered
+- **WHEN** a decomposition retry is requested
+- **THEN** the command answers 409 with `already-registered`, no provider is called, and the chunks are unchanged
 
 #### Scenario: Session not failed in decomposition
 
@@ -76,6 +83,20 @@ When the session has stored timestamps and no chunks, the retry SHALL segment th
 - **WHEN** a division retry registers its chunks
 - **THEN** the chunks' `PROMPT` fields, in order, reconstruct the stored script exactly
 
+### Requirement: The division step is recorded as an attempt
+
+Each try of the division step SHALL record one attempt under the `decomposition` stage, in flight before segmentation or any request. It SHALL end `success` when the chunks are registered, `transient` for a retryable failure and `not-retryable` otherwise. A failure the step writes SHALL carry the attempt's cycle and its position in that cycle.
+
+#### Scenario: A failed division is recorded
+
+- **GIVEN** a division whose instruction request fails retryably
+- **THEN** one `decomposition` attempt is recorded as `transient`, and the session's failure names cycle 1 and one attempt
+
+#### Scenario: A retried division is recorded in a new cycle
+
+- **GIVEN** a failed division that is retried and fails again
+- **THEN** the new attempt is in cycle 2, the first attempt is still recorded, and the new failure names cycle 2
+
 ### Requirement: A decomposition retry never regenerates the voice-over
 
 No decomposition retry SHALL call the voice provider, or write or delete the voice-over's MP3, its record or its native timestamps file (§10.3, AC3).
@@ -111,7 +132,7 @@ An accepted retry SHALL open a new cycle on the stage instance of the failed ste
 
 ### Requirement: An accepted retry shows the decomposition in progress
 
-From the moment a decomposition retry is accepted until its cycle ends, the session SHALL derive `chunk-decomposing`, and the decomposition phase SHALL be `in-progress` with no `failure`. This SHALL hold whether the retry's attempt is scheduled, held, waiting for a request-cap slot, or in flight, and for either step. The rule SHALL be the same rule that derives a retried voice-over in progress (§8.1).
+From the moment a decomposition retry is accepted until its cycle ends, the session SHALL derive `chunk-decomposing`, and the decomposition phase SHALL be `in-progress` with no `failure`. This SHALL hold whether the retry's attempt is scheduled, held, waiting for a request-cap slot, or in flight, and for either step (§8.1).
 
 #### Scenario: Division retry in progress
 
@@ -126,7 +147,7 @@ From the moment a decomposition retry is accepted until its cycle ends, the sess
 
 ### Requirement: The page offers the retry on a failed decomposition phase
 
-`phaseActions` SHALL return a retry action for the decomposition phase when it is `failed`, whatever its `retryable` value, and none otherwise. The Decomposition phase section SHALL show a `Retry decomposition` button for it. A click SHALL call the retry command, and the button SHALL be disabled while the request is outstanding. A 409 refusal SHALL be shown in the section as a readable sentence. The new state SHALL come from the live update.
+`phaseActions` SHALL return a retry action for the decomposition phase when it is `failed` and its failure is retryable, and none otherwise. The Decomposition phase section SHALL show a `Retry decomposition` button for it. A click SHALL call the retry command, and the button SHALL be disabled while the request is outstanding. A 409 refusal SHALL be shown in the section as a readable sentence. The new state SHALL come from the live update.
 
 #### Scenario: Button on a failed decomposition
 
@@ -136,6 +157,6 @@ From the moment a decomposition retry is accepted until its cycle ends, the sess
 
 #### Scenario: No button otherwise
 
-- **GIVEN** a decomposition phase `pending`, `in-progress` or `complete`
+- **GIVEN** a decomposition phase `pending`, `in-progress` or `complete`, or `failed` with `retryable: false`
 - **WHEN** the page renders
 - **THEN** no `Retry decomposition` button is shown

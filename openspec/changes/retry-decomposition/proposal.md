@@ -29,6 +29,7 @@ The entry points already exist, and the ticket's hand-off comments describe them
 - **A manual decomposition retry command**: `POST /sessions/:sessionId/decomposition/retry`, with no request body. It follows the route pattern from `retry-voice-over` (JOS-155). It is accepted only when:
   - the session is `failed` with `failedPhase: "decomposition"`;
   - it has no chunks;
+  - its failure is retryable (JOS-184: a not-retryable failure offers no manual retry);
   - no retry for it is already pending or running.
 
   Each refusal answers 409 with a reason. An unknown session answers 404, and any body field answers 400.
@@ -37,9 +38,11 @@ The entry points already exist, and the ticket's hand-off comments describe them
   - **Timestamps stored → the division step (AC2).** The same locked script is divided again from the stored timestamps, and new `IMAGE` and `VIDEO` instructions are requested. Nothing is rewritten.
 - **Never the voice-over (AC3)**: the retry has no path to the voice provider. The MP3, its record and its native timestamps file are read, never written. Tests check that the voice stub receives nothing and that the MP3's bytes are unchanged.
 - **A new retry cycle on the stage that failed**: `startNewCycle` (JOS-184) opens a cycle on the `timestamps` or the `decomposition` stage instance, matching §10.3's two rows. Earlier attempts stay recorded (§10.2, D06).
+- **The division step records its attempts**: today it records none, so a division failure has nothing to open a cycle on. This change adds the `decomposition` attempt stage and records one attempt per division try, as the timestamps step already does.
+- **The retry runs on the scheduled attempt**: the `timestamps` and `decomposition` stages get attempt senders, so the attempt `startNewCycle` leaves is claimed and used rather than duplicated, and a small registry supplies the alignment and instruction providers at runtime.
 - **A decomposition launcher for pause and continue**: the `decomposition` stage gets a registered launcher (JOS-152), so a retry requested while paused is accepted, counted as held, and launched on continue. The stage comes off `NOT_YET_LAUNCHABLE`.
-- **The session shows progress at once**: an accepted retry derives `chunk-decomposing` until it ends (§8.1). This uses the same per-phase rule that `retry-voice-over` extends for the voice-over, so there is one rule in `deriveSessionState`, not one per phase.
-- **A retry button on the page**: `phaseActions` returns `retry` for a failed decomposition phase. The Decomposition phase section shows a "Retry decomposition" button.
+- **The session shows progress at once**: an accepted retry derives `chunk-decomposing` until it ends (§8.1). The existing rules already give this, because `startNewCycle` clears the failure and earlier `timestamps` attempts exist; tests pin it.
+- **A retry button on the page**: `phaseActions` returns `retry` for a failed, retryable decomposition phase. The Decomposition phase section shows a "Retry decomposition" button.
 
 ## Capabilities
 
@@ -67,17 +70,19 @@ This change owns and implements them. The umbrella's artifacts must then point h
 
 - **Backend**:
   - A new `decompositionRetry.ts` service: checks, choice of the failed step, `startNewCycle`, then the gate.
+  - `AttemptStage` gains `decomposition`; `segmentStoredTimestamps` records its attempts; both steps accept a claimed attempt (`narrationTimestampsPhase.ts`, `decompositionPhase.ts`, `sceneRegistration.ts`).
+  - Attempt senders for `timestamps` and `decomposition`, and a `decompositionDependencies.ts` registry for the two providers.
   - The `decomposition` stage launcher, registered next to the image and video launchers, with `heldWork` and `launch`.
   - `routes.ts`: the route and its Zod schemas.
-  - `deriveSessionState`: one table-driven retry rule shared with the voice-over.
-  - No new table; the pending retry is JOS-184's scheduled attempt.
+  - No new table and no migration; the pending retry is JOS-184's scheduled attempt.
 - **Frontend**: `phaseActions.ts`, `PhaseSection.tsx` (button, pending state, refusal text), and `api/client.ts` (`retryDecomposition`).
 - **API contract**: `docs/api-spec.yml` gains the route.
-- **Blocked on (gate before code)**:
-  - **`bounded-retry-policy` (JOS-184)**: `startNewCycle`, scheduled attempts, and how it names the decomposition phase's stage instances.
-  - **`view-progress-by-phase` (JOS-168)**: phase sections and `phaseActions`. This branch stacks on it.
-- **Not blocked on `generate-voice-over` (JOS-136)**: the retry needs only a stored voice-over, which tests create through the store, as the existing decomposition tests do.
-- **Relationship to `retry-voice-over` (JOS-155)**: same route shape, same reason table, same retry rule. Whichever lands second reuses what the first added, rather than adding a parallel version.
+- **Built on (all merged into `feature/entrega-2-JAME`)**:
+  - **`bounded-retry-policy` (JOS-184)**: `startNewCycle`, scheduled attempts and the attempt senders.
+  - **`view-progress-by-phase` (JOS-168)**: phase sections and `phaseActions`.
+  - **`generate-voice-over` (JOS-136)**: the stored voice-over. Tests create it through the store, as the existing decomposition tests do.
+- **Product decision (answered with JOS-155)**: a manual retry is not offered after a not-retryable failure, so segmentation refusals, which are recorded as not retryable, offer no retry.
+- **Relationship to `retry-voice-over` (JOS-155)**: JOS-155 has merged its service only. Its route schemas, reason table, button and derived-state change are still to come. Whichever lands first adds them, and the other reuses them.
 - **Out of scope**:
   - automatic retries and delays (JOS-184);
   - per-phase time limits (JOS-185);
