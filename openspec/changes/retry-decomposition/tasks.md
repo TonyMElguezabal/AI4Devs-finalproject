@@ -76,13 +76,13 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. Backend: route (TDD; design Decision 1)
 
-- [ ] 6.1 Write failing tests in `session-api-surface.test.ts` for `POST /sessions/:sessionId/decomposition/retry`:
+- [x] 6.1 Write failing tests in `session-api-surface.test.ts` for `POST /sessions/:sessionId/decomposition/retry`:
   - 200 `{ ok: true, held }`;
   - 404 for an unknown session and for a malformed id;
   - 409 `{ ok: false, reason }` for each reason;
   - 400 for any body field;
   - the route is in `/docs/json`.
-- [ ] 6.2 Add the route and its Zod schemas in `routes.ts`, reusing the retry-route schemas if JOS-155 has merged; make 5.1 pass.
+- [x] 6.2 Add the route and its Zod schemas in `routes.ts`, reusing the retry-route schemas if JOS-155 has merged; make 6.1 pass.
 
 ## 7. Frontend: retry action (TDD; design Decision 8)
 
