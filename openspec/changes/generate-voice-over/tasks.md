@@ -114,16 +114,16 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 Add the voice-over and stage-attempt records and the new session fields to `docs/data-model.md`
-- [ ] 11.2 Add `voiceOver` and `failure` to the session schema in `docs/api-spec.yml`, and confirm it matches what the implementation returns
-- [ ] 11.3 Record the provider port-and-adapter convention and the phase-launch gate in `docs/backend-standards.md`, if the standards do not already define them
-- [ ] 11.4 Record the logging rule for script text and credentials in `docs/backend-standards.md`
+- [x] 11.1 Add the voice-over and stage-attempt records and the new session fields to `docs/data-model.md` — `docs/data-model.md`: new §5b (`voice_overs`, `stage_attempts`), `voice_provider_id` and the derived-state order on the session, and the diagram
+- [x] 11.2 Add `voiceOver` and `failure` to the session schema in `docs/api-spec.yml`, and confirm it matches what the implementation returns — `docs/api-spec.yml` regenerated from the running server (`GET /docs/json`); the diff shows only `voiceOver` and `failure` on both session schemas plus cosmetic re-folding and `additionalProperties: false` on `held` items that the validators already enforced; the file parses
+- [x] 11.3 Record the provider port-and-adapter convention and the phase-launch gate in `docs/backend-standards.md`, if the standards do not already define them — `docs/backend-standards.md`: the existing adapter and `admitLaunch` conventions already covered the general rule; added the voice stage (port, adapter, registry, stub, binding) and the voice-over launcher and gate entry
+- [x] 11.4 Record the logging rule for script text and credentials in `docs/backend-standards.md` — `docs/backend-standards.md` Logging and Diagnostics: script text is never logged, only its length and SHA-256 fingerprint
 
 ## 12. Close out
 
-- [ ] 12.1 Confirm with `start-video-project` task 12.2 that the transition out of `submitted` is implemented only here
-- [ ] 12.2 Record for US-20, US-22 and US-37 where the phase-launch gate and the retry hook live, so they extend them rather than wrap the phase
-- [ ] 12.3 Record for US-05/US-06 where raw native timestamps are stored and in what form
+- [x] 12.1 Confirm with `start-video-project` task 12.2 that the transition out of `submitted` is implemented only here — confirmed: `start-video-project` task 12.2 hands the trigger to this change, and `launchVoiceOverFor` is called from exactly one place, the session-creation route (`routes.ts`, after the commit)
+- [x] 12.2 Record for US-20, US-22 and US-37 where the phase-launch gate and the retry hook live, so they extend them rather than wrap the phase — recorded in `docs/backend-standards.md` (the voice stage, gate and retry hook paragraphs): the gate entry is `voiceOverLauncher` in `voiceOverPhase.ts`, registered with `registerStageLauncher`; the retry hook is `setTransientFailureHook`; the state is derived in `deriveSessionState`
+- [x] 12.3 Record for US-05/US-06 where raw native timestamps are stored and in what form — recorded in `docs/data-model.md` §5b: `voice-over-timestamps.json` in the project folder, the provider's raw alignment object, referenced by `voice_overs.timestamps_path`
 - [ ] 12.4 Open the PR with a description linking to JOS-136
 - [ ] 12.5 Obtain review by at least one human, not only AI agents
 - [ ] 12.6 Archive the OpenSpec change after merge

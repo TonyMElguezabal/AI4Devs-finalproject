@@ -28,6 +28,16 @@
 #     "retrying a failed clip is not available yet" when affectedStage is 'video';
 # (3) affectedStage is now populated for both image-stage and video-stage failures.
 #
+# JOS-136 (generate-voice-over) - 2026-10-04: regenerated from the running
+# server. The session read (`GET /sessions/{sessionId}` and the SSE session
+# event) gained two optional objects: `voiceOver` ({ provider, durationSeconds,
+# nativeTimestampsAvailable, completedAt }, present once the narration exists)
+# and `failure` ({ phase, cause, retryable, occurredAt }, present while the
+# session is failed in a phase that records its failure). No new path: the MP3
+# is never offered for download (PRD 12.3). The regeneration also records
+# `additionalProperties: false` on the `held` items, which the validators
+# already enforced, and re-folds two long descriptions.
+#
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -136,7 +146,6 @@ paths:
                         type: boolean
                       held:
                         type: array
-                        description: Stages with held work; empty when not paused.
                         items:
                           type: object
                           properties:
@@ -147,6 +156,8 @@ paths:
                           required:
                             - stage
                             - count
+                          additionalProperties: false
+                        description: Stages with held work; empty when not paused.
                       failedPhase:
                         type: string
                       failedSceneIndexes:
@@ -156,6 +167,45 @@ paths:
                         description: 'PRD §8.1: the indexes of the failed scenes, ascending. Present
                           only when failedPhase is "scenes". Derived and
                           read-only.'
+                      voiceOver:
+                        type: object
+                        properties:
+                          provider:
+                            type: string
+                          durationSeconds:
+                            type: number
+                          nativeTimestampsAvailable:
+                            type: boolean
+                          completedAt:
+                            type: string
+                        required:
+                          - provider
+                          - durationSeconds
+                          - nativeTimestampsAvailable
+                          - completedAt
+                        additionalProperties: false
+                        description: Present once the narration exists (PRD §5 step 2). Derived and
+                          read-only; the MP3 itself is never offered for
+                          download (PRD §12.3).
+                      failure:
+                        type: object
+                        properties:
+                          phase:
+                            type: string
+                          cause:
+                            type: string
+                          retryable:
+                            type: boolean
+                          occurredAt:
+                            type: string
+                        required:
+                          - phase
+                          - cause
+                          - retryable
+                          - occurredAt
+                        additionalProperties: false
+                        description: Present while the session is failed in a phase that records its
+                          failure (PRD §8.1); the cause is written for a person.
                       createdAt:
                         type: string
                       updatedAt:
@@ -273,7 +323,8 @@ paths:
                             immutable once the chunk is established."
                         held:
                           type: boolean
-                          description: True while the session is paused and this scene has pending work waiting to be launched.
+                          description: True while the session is paused and this scene has pending work
+                            waiting to be launched.
                         updatedAt:
                           type: string
                       required:
@@ -330,7 +381,6 @@ paths:
                         type: boolean
                       held:
                         type: array
-                        description: Stages with held work; empty when not paused.
                         items:
                           type: object
                           properties:
@@ -341,6 +391,8 @@ paths:
                           required:
                             - stage
                             - count
+                          additionalProperties: false
+                        description: Stages with held work; empty when not paused.
                       failedPhase:
                         type: string
                       failedSceneIndexes:
@@ -350,6 +402,45 @@ paths:
                         description: 'PRD §8.1: the indexes of the failed scenes, ascending. Present
                           only when failedPhase is "scenes". Derived and
                           read-only.'
+                      voiceOver:
+                        type: object
+                        properties:
+                          provider:
+                            type: string
+                          durationSeconds:
+                            type: number
+                          nativeTimestampsAvailable:
+                            type: boolean
+                          completedAt:
+                            type: string
+                        required:
+                          - provider
+                          - durationSeconds
+                          - nativeTimestampsAvailable
+                          - completedAt
+                        additionalProperties: false
+                        description: Present once the narration exists (PRD §5 step 2). Derived and
+                          read-only; the MP3 itself is never offered for
+                          download (PRD §12.3).
+                      failure:
+                        type: object
+                        properties:
+                          phase:
+                            type: string
+                          cause:
+                            type: string
+                          retryable:
+                            type: boolean
+                          occurredAt:
+                            type: string
+                        required:
+                          - phase
+                          - cause
+                          - retryable
+                          - occurredAt
+                        additionalProperties: false
+                        description: Present while the session is failed in a phase that records its
+                          failure (PRD §8.1); the cause is written for a person.
                       createdAt:
                         type: string
                       updatedAt:
@@ -467,7 +558,8 @@ paths:
                             immutable once the chunk is established."
                         held:
                           type: boolean
-                          description: True while the session is paused and this scene has pending work waiting to be launched.
+                          description: True while the session is paused and this scene has pending work
+                            waiting to be launched.
                         updatedAt:
                           type: string
                       required:
