@@ -77,9 +77,9 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
 - [x] 7.1 Review the `start-video-project` tests that assert a session stays in `submitted`, and update them for the automatic launch: `session-creation.test.ts` now checks that the response reads `submitted` before the provider is called, and `session-read.test.ts` expects a paused new session to hold its voice-over launch. `test/setup.ts` installs a stub that never answers before every test, so no test can reach the real provider with a key from the local secrets file
-- [ ] 7.2 Confirm every scenario in `specs/voice-over-generation/spec.md` has at least one functional test
-- [ ] 7.3 Confirm module test coverage has not decreased
-- [ ] 7.4 Document the test command, and the separate command for the opt-in contract test
+- [x] 7.2 Confirm every scenario in `specs/voice-over-generation/spec.md` has at least one functional test (all 23 scenarios are covered by `voice-over-phase`, `voice-over-session-read`, `session-creation`, `voice-provider` and the earlier persistence and guard tests)
+- [x] 7.3 Confirm module test coverage has not decreased (v8, against the base commit `ecfe430`: `orchestrator.ts` 82.28 → 82.58 %, `routes.ts` 76.54 → 77.58 %, `db.ts` 98.17 → 98.49 %; new `voiceOverPhase.ts` 94.5 % and `voiceProvider.ts` 98.5 %)
+- [x] 7.4 Document the test command, and the separate command for the opt-in contract test (`backend/README.md`)
 - [x] 7.5 Make `npm run typecheck` pass: the `Record<string, unknown> | undefined` return-type error in `backend/src/config/credentials.ts` (from JOS-165) is fixed with no behaviour change, covered by the existing `credentials.test.ts`
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)

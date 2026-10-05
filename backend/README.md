@@ -28,6 +28,15 @@ npm test            # vitest run
 npm start           # starts the server on PORT (default 3100)
 ```
 
+Voice-over tests (JOS-136, no real provider is ever called; `test/setup.ts` installs a stub before every test):
+
+```bash
+npx vitest run test/voice-over-phase.test.ts test/voice-over-session-state.test.ts test/voice-over-session-read.test.ts test/voice-provider.test.ts
+RUN_PROVIDER_CONTRACT_TESTS=1 npx vitest run test/voice-provider.contract.test.ts   # opt-in, calls the real ElevenLabs API with the key from the environment or .secrets.json
+```
+
+Voice-over generation needs `ffprobe` on the `PATH` (it measures the returned MP3). To run the server without a real voice provider, start it with `USE_STUB_VOICE_PROVIDER=<mode>` (`success`, `success-without-timestamps`, `transient-failure`, `not-retryable-failure`, `undecodable-audio`, `empty-audio`, `hang`).
+
 Data lives in `data/skeleton.sqlite`, gitignored. Delete it to reset.
 
 ## Environment

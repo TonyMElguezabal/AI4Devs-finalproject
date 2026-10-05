@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   completeStageAttempt,
   createRun,
+  getRun,
+  getStageAttempts,
+  startVoiceAttempt,
   insertVoiceOver,
   recordStageAttempt,
   resetAll,
@@ -98,5 +101,30 @@ describe("toSnapshot reads the records", () => {
     });
 
     expect(toSnapshot(runId)?.session.state).toBe("voice-over-complete");
+  });
+});
+
+describe("startVoiceAttempt (Decision 2)", () => {
+  it("writes the binding and the in-flight attempt together", () => {
+    const runId = randomUUID();
+    createRun(runId, "T", "Script.", "en");
+
+    const attempt = startVoiceAttempt({ runId, providerId: "stub-voice", queuedAt: "2026-01-01T00:00:00.000Z", sentAt: "2026-01-01T00:00:01.000Z" });
+
+    expect(attempt.outcome).toBe("in-flight");
+    expect(getRun(runId)?.voiceProviderId).toBe("stub-voice");
+    expect(getStageAttempts(runId, "voice-over")).toHaveLength(1);
+  });
+
+  it("rolls back as a whole when the attempt cannot be recorded", () => {
+    const unknownRunId = randomUUID();
+
+    expect(() => startVoiceAttempt({ runId: unknownRunId, providerId: "stub-voice", queuedAt: "x", sentAt: "y" })).toThrow();
+
+    expect(getStageAttempts(unknownRunId, "voice-over")).toEqual([]);
+
+    const runId = randomUUID();
+    createRun(runId, "T", "Script.", "en");
+    expect(startVoiceAttempt({ runId, providerId: "stub-voice", queuedAt: "x", sentAt: "y" }).outcome).toBe("in-flight");
   });
 });
