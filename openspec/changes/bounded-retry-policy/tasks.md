@@ -119,6 +119,6 @@ A cross-cutting backend change with no screen of its own. Group 1 is a hard gate
 - [x] 12.1 Record for US-22b (JOS-185) where the recorder and scheduler live, so the timeout watcher records through them (comment posted on JOS-185)
 - [ ] 12.2 Record for US-23 to US-27 the `startNewCycle` contract (comments posted on JOS-155, JOS-156, JOS-157 and JOS-158; the JOS-159 (US-27) comment was blocked by the auto-mode permission check and is still to be posted, its text is in `reports/pr-description.md`)
 - [x] 12.3 Record for US-20 and US-37 that retries already pass through the gate they extend (comments posted on JOS-152 and JOS-167)
-- [ ] 12.4 Open the PR with a description linking to JOS-184
+- [x] 12.4 Open the PR with a description linking to JOS-184 (PR #27, based on `feature/jos-136-generate-voice-over`; retarget to `feature/entrega-2-JAME` once #26 merges)
 - [ ] 12.5 Obtain review by at least one human, not only AI agents
 - [ ] 12.6 Archive the OpenSpec change after merge
