@@ -64,15 +64,15 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 5. Backend: launcher, pause and derived state (TDD; design Decisions 5 and 6)
 
-- [ ] 5.1 Write failing tests in `launch-gate.test.ts`:
+- [x] 5.1 Write failing tests in `decomposition-retry.test.ts` (`launch-gate.test.ts` resets the launcher registry, so it cannot see this registration):
   - the `decomposition` stage has a registered launcher and is no longer in `NOT_YET_LAUNCHABLE`;
   - a paused retry is counted as one held decomposition unit;
   - continue launches it exactly once.
-- [ ] 5.2 Write failing tests in `phase-progress.test.ts`:
+- [x] 5.2 Write tests in `decomposition-retry.test.ts` (they need the store; `phase-progress.test.ts` is pure derivation and is unchanged and still passing). They pin the derivation, so they pass before 5.3 by design (Decision 6):
   - an accepted retry derives `chunk-decomposing` while scheduled, held or in flight, on either step;
   - a retry whose cycle fails derives `failed` with the new cause;
   - JOS-168's and JOS-155's existing rule tests still pass.
-- [ ] 5.3 Register the decomposition launcher (`heldWork`, `launch`), leaving a documented hook for JOS-136's "after the narration" term. No derived-state rule is added (design Decision 6). Make 5.1-5.2 pass.
+- [x] 5.3 Register the decomposition launcher (`heldWork`, `launch`), leaving a documented hook for JOS-136's "after the narration" term. No derived-state rule is added (design Decision 6). Make 5.1-5.2 pass.
 
 ## 6. Backend: route (TDD; design Decision 1)
 

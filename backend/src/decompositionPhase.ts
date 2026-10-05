@@ -12,10 +12,10 @@ import {
   resolveArtefactPath,
   setRunFailure,
 } from "./db.ts";
-import { admitLaunch } from "./launchGate.ts";
+import { admitLaunch, registerStageLauncher, type StageLauncher } from "./launchGate.ts";
 import { obtainNarrationTimestamps, storedFileSchema } from "./narrationTimestampsPhase.ts";
 import { broadcast, launchImageStageForRun } from "./orchestrator.ts";
-import { registerAttemptSender } from "./retry/retryScheduler.ts";
+import { registerAttemptSender, releaseSessionAttempts } from "./retry/retryScheduler.ts";
 import { registerDecomposition, type RegistrationResult, type RetryPosition } from "./sceneRegistration.ts";
 import { segmentScript } from "./segmentation.ts";
 import { createDecompositionFailure } from "./sessionStateMachine.ts";
@@ -193,3 +193,26 @@ async function sendDecompositionAttempt(attempt: StageAttempt): Promise<void> {
 
 registerAttemptSender("timestamps", sendDecompositionAttempt);
 registerAttemptSender("decomposition", sendDecompositionAttempt);
+
+/**
+ * The stage's entry in the phase-launch gate (retry-decomposition, Decision 5). Held work is a retry's scheduled
+ * attempt for a session with no chunks. JOS-136's "directly after the narration" start joins the held-work and launch
+ * terms here, when it launches this phase itself.
+ */
+export const decompositionLauncher: StageLauncher = {
+  stage: "decomposition",
+  heldWork: (sessionId: string) => {
+    const retryScheduled =
+      countScenesForRun(sessionId) === 0 &&
+      [...getStageAttempts(sessionId, "timestamps"), ...getStageAttempts(sessionId, "decomposition")].some(
+        (attempt) => attempt.outcome === "scheduled",
+      );
+    return { count: retryScheduled ? 1 : 0, sceneIds: [] };
+  },
+  launch: (sessionId: string) => {
+    if (!admitLaunch(sessionId).admitted) return;
+    releaseSessionAttempts(sessionId);
+  },
+};
+
+registerStageLauncher(decompositionLauncher);

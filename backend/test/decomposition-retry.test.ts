@@ -4,10 +4,11 @@ import type { AlignmentProvider, AlignmentResult } from "../src/alignmentProvide
 import { createRun, getRun, getScenesForRun, getStageAttempts, insertVoiceOver, resetAll, setRunFailure, writeArtefactOnce } from "../src/db.ts";
 import { retryDecomposition } from "../src/decompositionRetry.ts";
 import { resetDecompositionDependencies, setDecompositionDependencies } from "../src/decompositionDependencies.ts";
-import { segmentStoredTimestamps } from "../src/decompositionPhase.ts";
+import { decompositionLauncher, segmentStoredTimestamps } from "../src/decompositionPhase.ts";
 import { resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
 import { obtainNarrationTimestamps } from "../src/narrationTimestampsPhase.ts";
-import { pauseSession, resetVideoStageStartDelayMs, setVideoStageStartDelayMs, toSnapshot } from "../src/orchestrator.ts";
+import { continueSession, pauseSession, resetVideoStageStartDelayMs, setVideoStageStartDelayMs, toSnapshot } from "../src/orchestrator.ts";
+import { NOT_YET_LAUNCHABLE } from "../src/launchGate.ts";
 import { createVoiceOverFailure } from "../src/sessionStateMachine.ts";
 import type { StageAttempt } from "../src/types.ts";
 import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
@@ -263,5 +264,98 @@ describe("The step the retry schedules (3.2)", () => {
     expect(scheduledAttempts(runId).map((attempt) => ({ stage: attempt.stage, cycle: attempt.cycle, trigger: attempt.trigger }))).toEqual([
       { stage: "decomposition", cycle: 2, trigger: "manual" },
     ]);
+  });
+});
+
+describe("The launcher and the pause (5.1)", () => {
+  it("registers a decomposition launcher, so the stage is no longer not-yet-launchable", () => {
+    expect(decompositionLauncher.stage).toBe("decomposition");
+    expect(NOT_YET_LAUNCHABLE.has("decomposition")).toBe(false);
+  });
+
+  it("counts a paused retry as one held decomposition unit, and none for a session with nothing scheduled", async () => {
+    const failed = await failDivision();
+    useRetryProviders();
+    pauseSession(failed);
+    expect(decompositionLauncher.heldWork(failed).count).toBe(0);
+
+    retryDecomposition(failed);
+
+    expect(decompositionLauncher.heldWork(failed).count).toBe(1);
+    expect(toSnapshot(failed)?.session.held).toEqual([{ stage: "decomposition", count: 1 }]);
+    expect(toSnapshot(failed)?.session.phases.find((phase) => phase.phase === "decomposition")?.heldCount).toBe(1);
+  });
+
+  it("counts no held work once chunks exist", async () => {
+    const runId = newNarratedSession(true);
+    await obtainNarrationTimestamps(runId, alignmentAnswering());
+    await segmentStoredTimestamps(runId, generatorAnswering());
+    pauseSession(runId);
+
+    expect(decompositionLauncher.heldWork(runId).count).toBe(0);
+  });
+
+  it("holds the retry's providers while paused, and continue launches it exactly once", async () => {
+    const runId = await failDivision();
+    useRetryProviders();
+    pauseSession(runId);
+    retryDecomposition(runId);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(providerCalls).toEqual({ align: 0, generate: 0 });
+
+    continueSession(runId);
+    continueSession(runId);
+
+    await waitFor(() => getScenesForRun(runId).length === 2);
+    expect(providerCalls).toEqual({ align: 0, generate: 1 });
+    expect(decompositionLauncher.heldWork(runId).count).toBe(0);
+  });
+});
+
+describe("The derived state around a retry (5.2, design Decision 6)", () => {
+  it("derives chunk-decomposing while a timestamps retry is held, and then while it is in flight", async () => {
+    const runId = await failTimestamps();
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    useRetryProviders({ align: async () => (await gate, { kind: "failed_transient", reason: "late" }) });
+    pauseSession(runId);
+
+    retryDecomposition(runId);
+    expect(toSnapshot(runId)?.session.state).toBe("chunk-decomposing");
+
+    continueSession(runId);
+    await waitFor(() => getStageAttempts(runId, "timestamps").some((attempt) => attempt.outcome === "in-flight"));
+    expect(toSnapshot(runId)?.session.state).toBe("chunk-decomposing");
+    release();
+  });
+
+  it("derives chunk-decomposing while a division retry is held, and then while it is in flight", async () => {
+    const runId = await failDivision();
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    useRetryProviders(alignmentAnswering(), { generate: async () => (await gate, transientInstructions()) });
+    pauseSession(runId);
+
+    retryDecomposition(runId);
+    expect(toSnapshot(runId)?.session.state).toBe("chunk-decomposing");
+
+    continueSession(runId);
+    await waitFor(() => getStageAttempts(runId, "decomposition").some((attempt) => attempt.outcome === "in-flight"));
+    expect(toSnapshot(runId)?.session.state).toBe("chunk-decomposing");
+    release();
+  });
+
+  it("derives failed with the new cause when the retry's cycle fails", async () => {
+    const runId = await failDivision();
+    const before = getRun(runId)!.failure!;
+    useRetryProviders(alignmentAnswering(), generatorAnswering(() => ({ kind: "failed_transient", reason: "the reasoning provider answered HTTP 502" })));
+
+    retryDecomposition(runId);
+
+    await waitFor(() => toSnapshot(runId)?.session.state === "failed");
+    const failure = getRun(runId)!.failure!;
+    expect(failure.cause).toContain("502");
+    expect(failure.cause).not.toBe(before.cause);
+    expect(failure).toMatchObject({ phase: "decomposition", cycle: 2 });
   });
 });
