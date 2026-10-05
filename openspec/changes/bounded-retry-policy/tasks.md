@@ -55,10 +55,13 @@ A cross-cutting backend change with no screen of its own. Group 1 is a hard gate
 
 ## 5. Adapters: no hidden retries (TDD)
 
-- [ ] 5.1 For each existing provider adapter, write a failing test that a failing provider call is made exactly once
-- [ ] 5.2 Configure each adapter's HTTP client and SDK with automatic retries disabled
-- [ ] 5.3 Add the rule to the adapter template so later adapters (image, video, reasoning, alignment) inherit it
-- [ ] 5.4 Run the group 5 tests and confirm they pass
+- [x] 5.1 For each existing provider adapter, write a failing test that a failing provider call is made exactly once
+  - Voice, alignment, image, reasoning and video (upload, create, status) are covered in `test/adapters-no-hidden-retries.test.ts`. The tests passed on first run, not red: every adapter already used a single `fetch` per call and no SDK.
+- [x] 5.2 Configure each adapter's HTTP client and SDK with automatic retries disabled
+  - Nothing to configure today: no adapter uses an SDK and Node's `fetch` does not retry. The rule is recorded for later adapters in task 5.3.
+- [x] 5.3 Add the rule to the adapter template so later adapters (image, video, reasoning, alignment) inherit it
+  - There is no separate template file; the adapter rules live in `docs/backend-standards.md` "Provider adapters", where the rule is now an explicit checklist item.
+- [x] 5.4 Run the group 5 tests and confirm they pass
 
 ## 6. API and live updates (TDD)
 
