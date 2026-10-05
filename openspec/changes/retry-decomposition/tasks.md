@@ -111,23 +111,23 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Start the real server on a scratch store and scratch projects folder, with stub alignment and reasoning providers; confirm `GET /health`.
-- [ ] 10.2 Prepare a session with a stored MP3 and a failed alignment, and record the MP3's hash. Then:
+- [x] 10.1 Start the real server on a scratch store and scratch projects folder, with stub alignment and reasoning providers; confirm `GET /health`.
+- [x] 10.2 Prepare a session with a stored MP3 and a failed alignment, and record the MP3's hash. Then:
   - `curl -X POST /sessions/:id/decomposition/retry` → 200;
   - `curl GET /sessions/:id` reaches `chunks-processing`;
   - the MP3 hash is unchanged.
-- [ ] 10.3 Prepare a session with stored timestamps and a failed instruction request. Then:
+- [x] 10.3 Prepare a session with stored timestamps and a failed instruction request. Then:
   - retry → 200;
   - chunks registered;
   - no new `timestamps` attempt row.
-- [ ] 10.4 Error cases, each with `curl`:
+- [x] 10.4 Error cases, each with `curl`:
   - the retry again on a session with chunks → 409;
   - an unknown id → 404;
   - a body `{"script":"x"}` → 400;
   - a paused failed session → 200 `{ held: true }`, then `POST /continue` runs it.
 
   `curl GET /docs/json` documents the route.
-- [ ] 10.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/retry-decomposition/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
+- [x] 10.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/retry-decomposition/reports/2026-10-04-step-9-manual-endpoint-testing.md`.
 
 ## 11. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
