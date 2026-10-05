@@ -4,16 +4,16 @@ A cross-cutting backend change with no screen of its own. Group 1 is a hard gate
 
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Create feature branch `feature/jos-184-bounded-retry-policy` from `main`
-- [ ] 0.2 Verify branch creation and current branch status
+- [x] 0.1 Create feature branch `feature/jos-184-bounded-retry-policy` from `main` — created from `feature/jos-136-generate-voice-over`, not `main`: this change replaces JOS-136's retry hook and extends its attempt record and gate, which exist only on that branch (PR #26, unmerged). Its PR must target the JOS-136 branch until #26 merges, then be retargeted to `feature/entrega-2-JAME`
+- [x] 0.2 Verify branch creation and current branch status — current branch `feature/jos-184-bounded-retry-policy`, clean tree
 
 ## 1. Gate: Confirm the foundations and the values
 
-- [ ] 1.1 Confirm `define-backend-stack` (JOS-179) has landed; take the framework, job mechanism and layering from `docs/backend-standards.md`
-- [ ] 1.2 Confirm `define-persistence` (JOS-181) has landed; take the store and the migration approach from `docs/data-model.md`
-- [ ] 1.3 Confirm `generate-voice-over` (JOS-136) has landed, with the StageAttempt record, the phase-launch gate and the retry hook this change replaces
-- [ ] 1.4 Confirm `define-provider-configuration` (JOS-165) has recorded, in PRD §11 and the constants module, the retry delay base and cap per stage (Decision 5) and the not-retryable signal per provider; if not, stop and escalate JOS-154 open question 1
-- [ ] 1.5 If any of the above is missing, stop and record the blocker rather than building against a guess
+- [x] 1.1 Confirm `define-backend-stack` (JOS-179) has landed; take the framework, job mechanism and layering from `docs/backend-standards.md` — confirmed: `docs/backend-standards.md` (Fastify, Zod, `node:sqlite`, orchestrator and gate layering)
+- [x] 1.2 Confirm `define-persistence` (JOS-181) has landed; take the store and the migration approach from `docs/data-model.md` — confirmed: `docs/data-model.md` and the versioned migrations in `backend/src/db.ts`
+- [x] 1.3 Confirm `generate-voice-over` (JOS-136) has landed, with the StageAttempt record, the phase-launch gate and the retry hook this change replaces — present on the base branch only: StageAttempt (`stage_attempts`), the launch gate (`voiceOverLauncher`) and `setTransientFailureHook` exist in JOS-136, which is in review as PR #26 and not yet merged
+- [ ] 1.4 Confirm `define-provider-configuration` (JOS-165) has recorded, in PRD §11 and the constants module, the retry delay base and cap per stage (Decision 5) and the not-retryable signal per provider; if not, stop and escalate JOS-154 open question 1 — **BLOCKED, not confirmed.** PRD §11.3 (`docs/PRD-v1.4.md`) and `backend/src/config/providers.ts` record no retry delay base or cap for any stage and no `MAX_ATTEMPTS_PER_CYCLE`; and the not-retryable signal is still unconfirmed for the providers in general (`NOT_RETRYABLE_FAILURE_SIGNAL_CONFIRMED = false`; voice classifies by HTTP status under the product owner's rule from JOS-136 Decision 4). Escalated: JOS-154 open question 1 / US-33 must record the values in PRD §11 (a version bump) first
+- [x] 1.5 If any of the above is missing, stop and record the blocker rather than building against a guess — blocker recorded in 1.4; implementation (groups 2 onward) not started
 
 ## 2. Domain: the policy (TDD)
 
