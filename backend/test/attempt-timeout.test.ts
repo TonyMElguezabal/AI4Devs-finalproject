@@ -1,58 +1,16 @@
-import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createRun, getRun, getStageAttempt, getStageAttempts, resetAll, startVoiceAttempt } from "../src/db.ts";
-import { generateVoiceOver } from "../src/voiceOverPhase.ts";
-import { releaseAttempt } from "../src/retry/retryScheduler.ts";
-import { sweepTimedOutAttempts } from "../src/retry/attemptTimeoutWatcher.ts";
-import { PER_PHASE_MAX_TIME_SECONDS } from "../src/config/providers.ts";
-import { createStubVoiceProvider, setVoiceProviderRegistry } from "../src/voiceProvider.ts";
+import { getRun, getStageAttempt, getStageAttempts, resetAll, startVoiceAttempt } from "../src/db.ts";
+import { continueSession, pauseSession } from "../src/orchestrator.ts";
+import { setVoiceOverLogger, type VoiceOverLogEntry } from "../src/voiceOverPhase.ts";
+import { startAttemptTimeoutWatcher, sweepTimedOutAttempts } from "../src/retry/attemptTimeoutWatcher.ts";
+import { after, createGatedVoiceProvider, register, sendFirstAttempt, sendScheduledRetry, T0, useProvider, VOICE_LIMIT_MS, waitFor } from "./voiceTimeoutFixtures.ts";
 
 // stage-execution-time-limit (JOS-185), group 4 — a sent attempt that outlasts its stage's maximum
 // time is timed out through the retry policy. Time is injected: nothing here waits for real time.
 
-const SCRIPT = "The sun rose slowly over the quiet hills. Birds began to sing.";
-const VOICE_LIMIT_MS = PER_PHASE_MAX_TIME_SECONDS.voice * 1000;
-const T0 = new Date("2026-10-05T10:00:00.000Z");
-const after = (ms: number) => new Date(T0.getTime() + ms);
-
 beforeEach(() => {
   resetAll();
 });
-
-function register(): string {
-  const runId = randomUUID();
-  createRun(runId, "Timeout test", SCRIPT, "en");
-  return runId;
-}
-
-function useHangingProvider() {
-  const stub = createStubVoiceProvider("hang");
-  setVoiceProviderRegistry({ defaultIdentifier: "stub-voice", adapters: { "stub-voice": stub } });
-  return stub;
-}
-
-async function waitFor(condition: () => boolean, timeoutMs = 2000): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  while (!condition()) {
-    if (Date.now() > deadline) throw new Error("timed out waiting for the condition");
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-}
-
-/** Starts the first attempt at T0; the provider never answers until the stub is released. */
-async function sendFirstAttempt(runId: string) {
-  const stub = useHangingProvider();
-  const pending = generateVoiceOver(runId, () => T0);
-  await waitFor(() => getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight"));
-  return { stub, pending };
-}
-
-/** Claims the scheduled retry as if its due time had come, with the clock at `at`. */
-function sendScheduledRetry(runId: string, at: Date): void {
-  const scheduled = getStageAttempts(runId, "voice-over").find((attempt) => attempt.outcome === "scheduled");
-  if (!scheduled) throw new Error("no retry is scheduled");
-  expect(releaseAttempt(scheduled.id, () => at)).toBe("sent");
-}
 
 describe("a sent attempt that never answers", () => {
   it("is recorded timed-out after the stage's maximum time, and the retry policy schedules the next attempt", async () => {
@@ -118,8 +76,8 @@ describe("a sent attempt that never answers", () => {
 describe("a result and a timeout racing on the same attempt", () => {
   it("leave exactly one outcome: a result that already arrived is never timed out", async () => {
     const runId = register();
-    const { stub, pending } = await sendFirstAttempt(runId);
-    stub.release();
+    const { provider, pending } = await sendFirstAttempt(runId);
+    provider.answer(1);
     await pending;
     expect(getStageAttempts(runId, "voice-over")[0]!.outcome).toBe("success");
 
@@ -149,5 +107,65 @@ describe("the clock survives a restart", () => {
     expect(sweepTimedOutAttempts(after(3 * 3_600_000))).toBe(1); // three hours later, at startup
 
     expect(getStageAttempt(attempt.id)!.outcome).toBe("timed-out");
+  });
+});
+
+describe("an attempt held by a pause", () => {
+  it("starts its clock when it is sent after the User continues, not when it was held", async () => {
+    const runId = register();
+    useProvider(createGatedVoiceProvider());
+    pauseSession(runId);
+
+    // Held for far longer than the maximum time: no attempt exists, so there is nothing to time out.
+    expect(sweepTimedOutAttempts(new Date(Date.now() + 10 * VOICE_LIMIT_MS))).toBe(0);
+    expect(getStageAttempts(runId, "voice-over")).toHaveLength(0);
+
+    continueSession(runId);
+    await waitFor(() => getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight"));
+    const sentAt = Date.parse(getStageAttempts(runId, "voice-over")[0]!.sentAt!);
+
+    expect(sweepTimedOutAttempts(new Date(sentAt + VOICE_LIMIT_MS - 1))).toBe(0);
+    expect(sweepTimedOutAttempts(new Date(sentAt + VOICE_LIMIT_MS + 1))).toBe(1);
+  });
+});
+
+describe("the watcher at startup", () => {
+  it("sweeps once immediately, so an attempt whose limit passed while the application was down is timed out", () => {
+    const runId = register();
+    const attempt = startVoiceAttempt({ runId, providerId: "stub-voice", queuedAt: "2020-01-01T00:00:00.000Z", sentAt: "2020-01-01T00:00:00.000Z" });
+
+    const stop = startAttemptTimeoutWatcher(60_000);
+    stop();
+
+    expect(getStageAttempt(attempt.id)!.outcome).toBe("timed-out");
+  });
+
+  it("keeps sweeping on its interval until stopped", async () => {
+    const runId = register();
+    const stop = startAttemptTimeoutWatcher(10);
+    const attempt = startVoiceAttempt({ runId, providerId: "stub-voice", queuedAt: "2020-01-01T00:00:00.000Z", sentAt: "2020-01-01T00:00:00.000Z" });
+
+    await waitFor(() => getStageAttempt(attempt.id)!.outcome === "timed-out");
+    stop();
+  });
+});
+
+describe("logging", () => {
+  it("logs a timeout and a late result with the attempt's identity, send time, elapsed time and outcome", async () => {
+    const entries: VoiceOverLogEntry[] = [];
+    setVoiceOverLogger({ info: (entry) => entries.push(entry), warn: (entry) => entries.push(entry) });
+    const runId = register();
+    const { provider } = await sendFirstAttempt(runId);
+
+    sweepTimedOutAttempts(after(VOICE_LIMIT_MS + 1));
+    provider.answer(1, { kind: "failed_transient", reason: "stub: gave up late" });
+    await waitFor(() => entries.some((entry) => entry.event === "voice-over.attempt.late-result"));
+
+    const timeout = entries.find((entry) => entry.event === "voice-over.attempt.timed-out")!;
+    expect(timeout).toMatchObject({ outcome: "timed-out", cycle: 1, sequenceInCycle: 1, sentAt: T0.toISOString(), latencyMs: VOICE_LIMIT_MS + 1 });
+    expect(timeout.stageInstanceKey).toMatch(/voice-over$/);
+    const late = entries.find((entry) => entry.event === "voice-over.attempt.late-result")!;
+    expect(late).toMatchObject({ outcome: "late-failure", cycle: 1, sequenceInCycle: 1, sentAt: T0.toISOString() });
+    setVoiceOverLogger({ info: () => {}, warn: () => {} });
   });
 });

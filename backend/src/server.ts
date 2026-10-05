@@ -11,6 +11,7 @@ import { STAGE } from "./types.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
 import { setVoiceOverLogger } from "./voiceOverPhase.ts";
 import { rebuildScheduler } from "./retry/retryScheduler.ts";
+import { startAttemptTimeoutWatcher } from "./retry/attemptTimeoutWatcher.ts";
 import { setRetryDelayConfig } from "./retry/stageAttemptRecorder.ts";
 import { createStubVoiceProvider as createStubVoice, setVoiceProviderRegistry, type StubVoiceProviderMode } from "./voiceProvider.ts";
 import { setVideoProviderRegistry, createStubVideoProvider, STUB_VIDEO_PROVIDER_NAME, type StubVideoProviderMode } from "./videoProvider.ts";
@@ -117,6 +118,8 @@ if (isMainModule) {
   const summary = reconcileOnBoot();
   app.log.info(bootLogFields(summary), "boot reconciliation complete");
   app.log.info({ scheduledRetries: rebuildScheduler() }, "scheduled retries re-armed");
+  // stage-execution-time-limit (JOS-185) Decision 8 — after resumption, so a result recovered at boot wins over a timeout.
+  startAttemptTimeoutWatcher();
   await app.listen({ port: PORT, host: "127.0.0.1" });
   app.log.info(`listening on http://127.0.0.1:${PORT} (docs at /docs) — stage concurrency limit ${STAGE_CONCURRENCY_LIMIT}, body limit ${BODY_LIMIT_BYTES} bytes`);
 }

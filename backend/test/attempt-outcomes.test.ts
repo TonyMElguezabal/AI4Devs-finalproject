@@ -8,10 +8,12 @@ import {
   acceptLateResult,
   applyMigrationsTo,
   cancelScheduledAttempt,
+  cancelScheduledAttemptsOfInstance,
   claimScheduledAttempt,
   completeStageAttempt,
   createRun,
   getStageAttempt,
+  recordLateFailure,
   recordStageAttempt,
   scheduleStageAttempt,
   supersedeLateResult,
@@ -123,6 +125,32 @@ describe("scheduled → cancelled", () => {
 
     expect(cancelScheduledAttempt(attempt.id)).toBe(true);
     expect(claimScheduledAttempt(attempt.id, LATER)).toBe(false);
+  });
+});
+
+describe("a late failure and bulk cancellation", () => {
+  it("records a late failure on a timed-out attempt without changing its outcome, and not on any other", () => {
+    const timedOut = inFlight(newRunId());
+    timeOutAttempt(timedOut.id, LATER);
+    const running = inFlight(newRunId());
+
+    expect(recordLateFailure(timedOut.id, "provider gave up")).toBe(true);
+    expect(recordLateFailure(running.id, "provider gave up")).toBe(false);
+
+    expect(getStageAttempt(timedOut.id)).toMatchObject({ outcome: "timed-out", errorMessage: "provider gave up" });
+  });
+
+  it("cancels only the scheduled attempts of one stage instance", () => {
+    const runId = newRunId();
+    const first = scheduled(runId);
+    const other = scheduled(newRunId());
+    const sent = inFlight(runId);
+
+    expect(cancelScheduledAttemptsOfInstance(first.stageInstanceKey)).toBe(1);
+
+    expect(getStageAttempt(first.id)!.outcome).toBe("cancelled");
+    expect(getStageAttempt(other.id)!.outcome).toBe("scheduled");
+    expect(getStageAttempt(sent.id)!.outcome).toBe("in-flight");
   });
 });
 

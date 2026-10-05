@@ -31,24 +31,24 @@ A backend change with no screen of its own. Group 1 is a hard gate. Tests come f
 
 ## 4. Application: the watcher and late results (TDD)
 
-- [ ] 4.1 Write a failing test that an attempt queued behind the request limit for longer than the maximum time, then answering promptly, succeeds with no timeout
-- [ ] 4.2 Write a failing test that an attempt held by a pause for longer than the maximum time starts its clock when sent
-- [ ] 4.3 Write a failing test that a sent attempt with no result after the maximum time is recorded `timed-out` and the retry policy schedules the next attempt
-- [ ] 4.4 Write a failing test that a timeout on the fourth attempt of a cycle sets the stage instance to `failed`, retryable
-- [ ] 4.5 Write a failing test that a result and a timeout racing on the same attempt produce exactly one outcome (Decision 3)
-- [ ] 4.6 Write a failing test that a late success before the retry is sent is accepted and the scheduled retry is cancelled and never sent
-- [ ] 4.7 Write a failing test that a late success while the retry is in flight is accepted, and the retry's later success is recorded `superseded`
-- [ ] 4.8 Write a failing test that a late success after a later attempt already succeeded is `superseded` and the next stage is not launched again
-- [ ] 4.9 Write a failing test that a late success after exhaustion, with no manual retry, completes the stage instance and clears the failure (Decision 6)
-- [ ] 4.10 Write a failing test that a late success after a manual retry opened a new cycle is `superseded`
-- [ ] 4.11 Write a failing test that a late failure is recorded on its attempt and consumes no budget
-- [ ] 4.12 Write a failing test that after a restart an in-flight attempt times out at its original `sentAt` plus its maximum time, and one whose deadline passed during downtime is timed out promptly at startup
-- [ ] 4.12a Write failing tests that the default Fal.ai adapter abandons a call that outlasts the image stage's maximum time and reports a transient failure, and that its clock starts when the call is made, not when the scene was queued
-- [ ] 4.12b Give the Fal.ai adapter the image stage's maximum time as its default `timeoutMs`
-- [ ] 4.13 Implement `AttemptTimeoutWatcher` over `in-flight` `stage_attempts` rows (voice-over, timestamps, decomposition; design Decision 9): run at startup after US-28's resumption, then on a fixed interval; claim expired attempts with the conditional update; hand them to `StageAttemptRecorder` as transient
-- [ ] 4.14 Route late results through the ordinary result handler; on successful completion mark `late-success`, on collision mark `superseded`, and cancel scheduled retries of the stage instance
-- [ ] 4.15 Log every timeout and late result with `stageInstanceKey`, `cycle`, `sequenceInCycle`, `sentAt`, elapsed time and resulting outcome
-- [ ] 4.16 Run the group 4 tests and confirm they pass
+- [x] 4.1 Write a failing test that an attempt queued behind the request limit for longer than the maximum time, then answering promptly, succeeds with no timeout
+- [x] 4.2 Write a failing test that an attempt held by a pause for longer than the maximum time starts its clock when sent
+- [x] 4.3 Write a failing test that a sent attempt with no result after the maximum time is recorded `timed-out` and the retry policy schedules the next attempt
+- [x] 4.4 Write a failing test that a timeout on the fourth attempt of a cycle sets the stage instance to `failed`, retryable
+- [x] 4.5 Write a failing test that a result and a timeout racing on the same attempt produce exactly one outcome (Decision 3)
+- [x] 4.6 Write a failing test that a late success before the retry is sent is accepted and the scheduled retry is cancelled and never sent
+- [x] 4.7 Write a failing test that a late success while the retry is in flight is accepted, and the retry's later success is recorded `superseded`
+- [x] 4.8 Write a failing test that a late success after a later attempt already succeeded is `superseded` and the next stage is not launched again
+- [x] 4.9 Write a failing test that a late success after exhaustion, with no manual retry, completes the stage instance and clears the failure (Decision 6)
+- [x] 4.10 Write a failing test that a late success after a manual retry opened a new cycle is `superseded`
+- [x] 4.11 Write a failing test that a late failure is recorded on its attempt and consumes no budget
+- [x] 4.12 Write a failing test that after a restart an in-flight attempt times out at its original `sentAt` plus its maximum time, and one whose deadline passed during downtime is timed out promptly at startup
+- [x] 4.12a Write failing tests that the default Fal.ai adapter abandons a call that outlasts the image stage's maximum time and reports a transient failure, and that its clock starts when the call is made, not when the scene was queued
+- [x] 4.12b Give the Fal.ai adapter the image stage's maximum time as its default `timeoutMs`
+- [x] 4.13 Implement `AttemptTimeoutWatcher` over `in-flight` `stage_attempts` rows for the stages that register a timeout handler (voice-over today; design Decision 9): run at startup after US-28's resumption, then on a fixed interval; claim expired attempts with the conditional update; hand them to `StageAttemptRecorder` as transient
+- [x] 4.14 Route late results through the ordinary result handler; on successful completion mark `late-success`, on collision mark `superseded`, and cancel scheduled retries of the stage instance
+- [x] 4.15 Log every timeout and late result with `stageInstanceKey`, `cycle`, `sequenceInCycle`, `sentAt`, elapsed time and resulting outcome
+- [x] 4.16 Run the group 4 tests and confirm they pass
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 

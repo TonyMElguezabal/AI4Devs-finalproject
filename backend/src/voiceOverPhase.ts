@@ -5,14 +5,22 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import {
+  acceptLateResult,
   ArtefactAlreadyExistsError,
+  cancelScheduledAttemptsOfInstance,
+  clearRunFailure,
+  completeStageAttempt,
   countScenesForRun,
   getRun,
+  getStageAttempt,
   getStageAttempts,
+  getStageInstanceAttempts,
   getVoiceOver,
   insertVoiceOver,
+  recordLateFailure,
   setRunFailure,
   startVoiceAttempt,
+  supersedeLateResult,
   writeArtefactOnce,
 } from "./db.ts";
 import { VOICE_PROVIDER } from "./config/providers.ts";
@@ -57,6 +65,8 @@ export interface VoiceOverLogEntry {
   cycle?: number;
   sequenceInCycle?: number;
   trigger?: string;
+  /** When the request was sent; the clock of a timeout (stage-execution-time-limit, JOS-185). */
+  sentAt?: string;
   /** Time from the attempt being queued (or scheduled) to it being sent. */
   queuedMs?: number;
 }
@@ -237,6 +247,7 @@ registerTimeoutHandler("voice-over", (attempt, recorded, { now, limitSeconds }) 
       provider: providerId,
       attemptNumber: attempt.attemptNumber,
       outcome: "timed-out",
+      sentAt: sentAt.toISOString(),
       latencyMs: now.getTime() - sentAt.getTime(),
       reason: detail,
       ...attemptFields(attempt, sentAt),
@@ -245,6 +256,60 @@ registerTimeoutHandler("voice-over", (attempt, recorded, { now, limitSeconds }) 
   );
   reportRecordedFailure(attempt, recorded, "timed-out", detail, providerId, now, sentAt);
 });
+
+/**
+ * JOS-185 Decisions 4-7 — a result for an attempt that already timed out goes through the ordinary completion
+ * (the store decides whether the stage already has one). Accepted: it is the voice-over, any retry not yet sent
+ * is cancelled and an exhaustion failure is lifted. Otherwise it is superseded, and a failure is only noted.
+ */
+async function handleLateResult(attempt: StageAttempt, result: VoiceSynthesisResult, now: () => Date): Promise<VoiceOverOutcome> {
+  const runId = attempt.runId;
+  const lateAt = now();
+  const log = (outcome: string, reason?: string) =>
+    logger.info(
+      {
+        event: "voice-over.attempt.late-result",
+        sessionId: runId,
+        stage: "voice-over",
+        attemptNumber: attempt.attemptNumber,
+        outcome,
+        ...(attempt.sentAt ? { sentAt: attempt.sentAt } : {}),
+        latencyMs: lateAt.getTime() - Date.parse(attempt.sentAt ?? attempt.queuedAt),
+        ...(reason ? { reason } : {}),
+        ...attemptFields(attempt, lateAt),
+      },
+      "a result arrived for a voice-over attempt that had timed out",
+    );
+
+  if (result.kind !== "success") {
+    recordLateFailure(attempt.id, result.reason);
+    log("late-failure", result.reason);
+    return { ok: false, reason: "failed" };
+  }
+  // Decision 6 — once a manual retry opened a new cycle, the new cycle owns the outcome.
+  if (getStageInstanceAttempts(attempt.stageInstanceKey).some((other) => other.cycle > attempt.cycle)) {
+    supersedeLateResult(attempt.id, lateAt.toISOString());
+    log("superseded");
+    return { ok: false, reason: "narration-complete" };
+  }
+  const confirmed = await confirmVoiceOver(runId, result, now);
+  if (confirmed.stored) {
+    acceptLateResult(attempt.id, lateAt.toISOString());
+    cancelScheduledAttemptsOfInstance(attempt.stageInstanceKey);
+    if (getRun(runId)?.failure?.phase === "voice-over") clearRunFailure(runId);
+    log("late-success");
+    broadcast(runId);
+    return { ok: true };
+  }
+  if (confirmed.reason === "already-stored") {
+    supersedeLateResult(attempt.id, lateAt.toISOString());
+    log("superseded");
+    return { ok: false, reason: "narration-complete" };
+  }
+  recordLateFailure(attempt.id, confirmed.detail);
+  log("late-failure", confirmed.detail);
+  return { ok: false, reason: "failed" };
+}
 
 /** Sends one in-flight voice attempt (the first, or a claimed retry) and reports its classified outcome to the recorder. */
 export async function sendVoiceAttempt(attempt: StageAttempt, now: () => Date = () => new Date()): Promise<VoiceOverOutcome> {
@@ -308,8 +373,11 @@ export async function sendVoiceAttempt(attempt: StageAttempt, now: () => Date = 
       speed: VOICE_PROVIDER.speed,
     });
   } catch {
-    return finishFailure("transient", "the voice provider call failed unexpectedly");
+    result = { kind: "failed_transient", reason: "the voice provider call failed unexpectedly" };
   }
+
+  // stage-execution-time-limit (JOS-185) Decision 4 — the watcher may have timed this attempt out while the call was still running.
+  if (getStageAttempt(attempt.id)?.outcome === "timed-out") return handleLateResult(attempt, result, now);
 
   if (result.kind !== "success") {
     return finishFailure(result.kind === "failed_transient" ? "transient" : "not-retryable", result.reason);
@@ -335,7 +403,10 @@ export async function sendVoiceAttempt(attempt: StageAttempt, now: () => Date = 
     return { ok: true };
   }
   if (confirmed.reason === "already-stored") {
-    recordAttemptOutcome(attempt.id, { outcome: "success" }, { now });
+    // An accepted late result is what this attempt collided with (JOS-185 Decision 5): its own result is the one discarded.
+    const collidedWithLateResult = getStageInstanceAttempts(attempt.stageInstanceKey).some((other) => other.outcome === "late-success");
+    if (collidedWithLateResult) completeStageAttempt(attempt.id, { outcome: "superseded", finishedAt: now().toISOString() });
+    else recordAttemptOutcome(attempt.id, { outcome: "success" }, { now });
     return { ok: false, reason: "narration-complete" };
   }
   if (confirmed.reason === "invalid-audio") return finishFailure("transient", confirmed.detail, INVALID_AUDIO, result.providerRequestId);

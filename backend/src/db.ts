@@ -1118,6 +1118,18 @@ function moveTimedOutAttempt(attemptId: string, outcome: "late-success" | "super
   return Number(result.changes) > 0;
 }
 
+/** JOS-185 Decision 7 — a failure that arrives for a timed-out attempt is kept on that attempt; its outcome and the budget are untouched. */
+export function recordLateFailure(attemptId: string, errorMessage: string): boolean {
+  const result = db.prepare("UPDATE stage_attempts SET error_message = ? WHERE id = ? AND outcome = 'timed-out'").run(errorMessage, attemptId);
+  return Number(result.changes) > 0;
+}
+
+/** JOS-185 Decision 5 — cancels every retry of a stage instance that has not been sent; returns how many were cancelled. */
+export function cancelScheduledAttemptsOfInstance(stageInstanceKey: string): number {
+  const result = db.prepare("UPDATE stage_attempts SET outcome = 'cancelled' WHERE stage_instance_key = ? AND outcome = 'scheduled'").run(stageInstanceKey);
+  return Number(result.changes);
+}
+
 /** JOS-185 Decision 5 — cancels a retry that has not been sent; the same condition `claimScheduledAttempt` uses, so exactly one of cancel and send wins. */
 export function cancelScheduledAttempt(attemptId: string): boolean {
   const result = db.prepare("UPDATE stage_attempts SET outcome = 'cancelled' WHERE id = ? AND outcome = 'scheduled'").run(attemptId);
