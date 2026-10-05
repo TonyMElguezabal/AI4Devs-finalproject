@@ -6,7 +6,6 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import {
   ArtefactAlreadyExistsError,
-  completeStageAttempt,
   countScenesForRun,
   getRun,
   getStageAttempts,
@@ -19,10 +18,12 @@ import {
 import { VOICE_PROVIDER } from "./config/providers.ts";
 import { admitLaunch, registerStageLauncher, type StageLauncher } from "./launchGate.ts";
 import { broadcast } from "./orchestrator.ts";
+import { recordAttemptOutcome } from "./retry/stageAttemptRecorder.ts";
+import { hasScheduledAttempt, registerAttemptSender, releaseSessionAttempts } from "./retry/retryScheduler.ts";
 import { createVoiceOverFailure } from "./sessionStateMachine.ts";
 import { getVoiceProviderRegistry, type VoiceSynthesisResult } from "./voiceProvider.ts";
 import { canLaunchVoiceOver } from "./voiceLaunchGuard.ts";
-import type { VoiceOver } from "./types.ts";
+import type { StageAttempt, VoiceOver } from "./types.ts";
 
 // generate-voice-over (JOS-136) — PRD §5 step 2, §10.1, §10.3, §11.2: one
 // request with the whole stored script, one MP3 kept for good, whatever the
@@ -51,35 +52,39 @@ export interface VoiceOverLogEntry {
   scriptLength?: number;
   scriptSha256?: string;
   reason?: string;
+  stageInstanceKey?: string;
+  cycle?: number;
+  sequenceInCycle?: number;
+  trigger?: string;
+  /** Time from the attempt being queued (or scheduled) to it being sent. */
+  queuedMs?: number;
 }
 
 export interface VoiceOverLogger {
   info(entry: VoiceOverLogEntry, message?: string): void;
+  warn(entry: VoiceOverLogEntry, message?: string): void;
 }
 
-let logger: VoiceOverLogger = { info: () => {} };
+let logger: VoiceOverLogger = { info: () => {}, warn: () => {} };
+
+/** bounded-retry-policy (JOS-184) — the fields every attempt log carries, so one stage instance's attempts can be followed. */
+function attemptFields(attempt: StageAttempt, sentAt: Date): Pick<VoiceOverLogEntry, "stageInstanceKey" | "cycle" | "sequenceInCycle" | "trigger" | "queuedMs"> {
+  return {
+    stageInstanceKey: attempt.stageInstanceKey,
+    cycle: attempt.cycle,
+    sequenceInCycle: attempt.sequenceInCycle,
+    trigger: attempt.trigger,
+    queuedMs: Math.max(0, sentAt.getTime() - Date.parse(attempt.queuedAt)),
+  };
+}
 
 export function setVoiceOverLogger(next: VoiceOverLogger): void {
   logger = next;
 }
 
-/** Decision 10 — what happens to a transient failure until the retry policy (JOS-184) exists. */
-export type TransientFailureHook = (info: { runId: string; attemptNumber: number; cause: string }) => "fail" | "handled";
-
-const failTransientFailures: TransientFailureHook = () => "fail";
-let transientFailureHook: TransientFailureHook = failTransientFailures;
-
-export function setTransientFailureHook(hook: TransientFailureHook): void {
-  transientFailureHook = hook;
-}
-
-export function resetTransientFailureHook(): void {
-  transientFailureHook = failTransientFailures;
-}
-
 export type VoiceOverOutcome =
   | { ok: true }
-  | { ok: false; reason: "unknown-session" | "narration-complete" | "already-in-flight" | "failed" };
+  | { ok: false; reason: "unknown-session" | "narration-complete" | "already-in-flight" | "failed" | "retry-scheduled" };
 
 export type ConfirmOutcome =
   | { stored: true; voiceOver: VoiceOver }
@@ -160,25 +165,41 @@ function scriptFingerprint(script: string): { scriptLength: number; scriptSha256
 
 /**
  * The voice phase for one session: guard, persist the state change and the
- * in-flight attempt, send once, record the outcome. Every caller that launches
- * voice generation — registration, the held launch on continue, and later the
- * automatic and manual retries — goes through here.
+ * in-flight attempt, send once, record the outcome. Registration and the held
+ * launch on continue come through here for the first attempt; every later
+ * attempt (automatic or manual retry) is a scheduled attempt that the retry
+ * scheduler claims and hands to `sendVoiceAttempt`.
  */
 export async function generateVoiceOver(runId: string, now: () => Date = () => new Date()): Promise<VoiceOverOutcome> {
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown-session" };
   if (!canLaunchVoiceOver(runId).allowed) return { ok: false, reason: "narration-complete" };
-  if (getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight")) {
+  if (getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight" || attempt.outcome === "scheduled")) {
     return { ok: false, reason: "already-in-flight" };
   }
 
   // Decision 3 — the binding wins over whatever the build's default is today.
-  const registry = getVoiceProviderRegistry();
-  const providerId = run.voiceProviderId ?? registry.defaultIdentifier;
+  const providerId = run.voiceProviderId ?? getVoiceProviderRegistry().defaultIdentifier;
   const startedAt = now();
   const attempt = startVoiceAttempt({ runId, providerId, queuedAt: startedAt.toISOString(), sentAt: startedAt.toISOString() });
+  return sendVoiceAttempt(attempt, now);
+}
+
+/** Sends one in-flight voice attempt (the first, or a claimed retry) and reports its classified outcome to the recorder. */
+export async function sendVoiceAttempt(attempt: StageAttempt, now: () => Date = () => new Date()): Promise<VoiceOverOutcome> {
+  const runId = attempt.runId;
+  const run = getRun(runId);
+  if (!run) return { ok: false, reason: "unknown-session" };
+  const registry = getVoiceProviderRegistry();
+  const providerId = attempt.providerId ?? run.voiceProviderId ?? registry.defaultIdentifier;
+  const startedAt = now();
   const fingerprint = scriptFingerprint(run.script);
-  logger.info({ event: "voice-over.attempt.started", sessionId: runId, stage: "voice-over", provider: providerId, attemptNumber: attempt.attemptNumber, ...fingerprint });
+
+  if (!canLaunchVoiceOver(runId).allowed) {
+    recordAttemptOutcome(attempt.id, { outcome: "success" }, { now });
+    return { ok: false, reason: "narration-complete" };
+  }
+  logger.info({ event: "voice-over.attempt.started", sessionId: runId, stage: "voice-over", provider: providerId, attemptNumber: attempt.attemptNumber, ...attemptFields(attempt, startedAt), ...fingerprint });
   broadcast(runId);
 
   const finishFailure = (
@@ -188,13 +209,11 @@ export async function generateVoiceOver(runId: string, now: () => Date = () => n
     providerRequestId?: string,
   ): VoiceOverOutcome => {
     const occurredAt = now();
-    completeStageAttempt(attempt.id, {
-      outcome,
-      finishedAt: occurredAt.toISOString(),
-      errorMessage: detail,
-      ...(errorCode ? { errorCode } : {}),
-      ...(providerRequestId ? { externalRequestId: providerRequestId } : {}),
-    });
+    const recorded = recordAttemptOutcome(
+      attempt.id,
+      { outcome, errorMessage: detail, ...(errorCode ? { errorCode } : {}), ...(providerRequestId ? { externalRequestId: providerRequestId } : {}) },
+      { now },
+    );
     logger.info({
       event: "voice-over.attempt.finished",
       sessionId: runId,
@@ -205,21 +224,35 @@ export async function generateVoiceOver(runId: string, now: () => Date = () => n
       latencyMs: occurredAt.getTime() - startedAt.getTime(),
       reason: detail,
       ...(providerRequestId ? { providerRequestId } : {}),
+      ...attemptFields(attempt, startedAt),
       ...fingerprint,
     });
-    const handled = outcome === "transient" && transientFailureHook({ runId, attemptNumber: attempt.attemptNumber, cause: detail }) === "handled";
-    if (!handled) {
+    if (recorded.action === "failed") {
+      logger.warn(
+        {
+          event: recorded.retryable ? "voice-over.retries.exhausted" : "voice-over.failure.not-retryable",
+          sessionId: runId,
+          stage: "voice-over",
+          provider: providerId,
+          outcome,
+          reason: detail,
+          ...attemptFields(attempt, startedAt),
+        },
+        recorded.retryable ? "the voice-over cycle used all its attempts" : "the voice-over failed and cannot be retried",
+      );
       setRunFailure(
         runId,
         createVoiceOverFailure({
           cause: `The voice-over could not be generated: ${detail}. The script is unchanged.`,
-          retryable: outcome === "transient",
+          retryable: recorded.retryable,
           occurredAt,
+          cycle: recorded.cycle,
+          attemptsInCycle: recorded.attemptsInCycle,
         }),
       );
     }
     broadcast(runId);
-    return { ok: false, reason: "failed" };
+    return { ok: false, reason: recorded.action === "scheduled" ? "retry-scheduled" : "failed" };
   };
 
   const adapter = registry.adapters[providerId];
@@ -248,11 +281,7 @@ export async function generateVoiceOver(runId: string, now: () => Date = () => n
   const confirmed = await confirmVoiceOver(runId, result, now);
   if (confirmed.stored) {
     const finishedAt = now();
-    completeStageAttempt(attempt.id, {
-      outcome: "success",
-      finishedAt: finishedAt.toISOString(),
-      ...(result.providerRequestId ? { externalRequestId: result.providerRequestId } : {}),
-    });
+    recordAttemptOutcome(attempt.id, { outcome: "success", ...(result.providerRequestId ? { externalRequestId: result.providerRequestId } : {}) }, { now });
     logger.info({
       event: "voice-over.attempt.finished",
       sessionId: runId,
@@ -262,19 +291,26 @@ export async function generateVoiceOver(runId: string, now: () => Date = () => n
       outcome: "success",
       latencyMs: finishedAt.getTime() - startedAt.getTime(),
       ...(result.providerRequestId ? { providerRequestId: result.providerRequestId } : {}),
+      ...attemptFields(attempt, startedAt),
       ...fingerprint,
     });
     broadcast(runId);
     return { ok: true };
   }
   if (confirmed.reason === "already-stored") {
-    completeStageAttempt(attempt.id, { outcome: "success", finishedAt: now().toISOString() });
+    recordAttemptOutcome(attempt.id, { outcome: "success" }, { now });
     return { ok: false, reason: "narration-complete" };
   }
   if (confirmed.reason === "invalid-audio") return finishFailure("transient", confirmed.detail, INVALID_AUDIO, result.providerRequestId);
   if (confirmed.reason === "probe-unavailable") return finishFailure("not-retryable", confirmed.detail, PROBE_UNAVAILABLE, result.providerRequestId);
   return finishFailure("not-retryable", confirmed.detail, undefined, result.providerRequestId);
 }
+
+registerAttemptSender("voice-over", (attempt) => {
+  sendVoiceAttempt(attempt).catch((err: unknown) => {
+    logger.info({ event: "voice-over.launch.error", sessionId: attempt.runId, stage: "voice-over", reason: err instanceof Error ? err.name : "unknown" });
+  });
+});
 
 function launchInBackground(sessionId: string): void {
   generateVoiceOver(sessionId).catch((err: unknown) => {
@@ -300,6 +336,10 @@ export const voiceOverLauncher: StageLauncher = {
   },
   launch: (sessionId: string) => {
     if (!admitLaunch(sessionId).admitted) return;
+    if (hasScheduledAttempt(sessionId)) {
+      releaseSessionAttempts(sessionId);
+      return;
+    }
     launchInBackground(sessionId);
   },
 };

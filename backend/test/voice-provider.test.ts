@@ -248,6 +248,14 @@ describe("The stub provider", () => {
     expect((await createStubVoiceProvider("transient-failure").synthesize(REQUEST)).kind).toBe("failed_transient");
   });
 
+  it("fails transiently on its first two calls and succeeds on the third, for manual retry testing (JOS-184)", async () => {
+    const stub = createStubVoiceProvider("transient-twice-then-success");
+
+    const kinds = [(await stub.synthesize(REQUEST)).kind, (await stub.synthesize(REQUEST)).kind, (await stub.synthesize(REQUEST)).kind, (await stub.synthesize(REQUEST)).kind];
+
+    expect(kinds).toEqual(["failed_transient", "failed_transient", "success", "success"]);
+  });
+
   it("fails as not retryable", async () => {
     expect((await createStubVoiceProvider("not-retryable-failure").synthesize(REQUEST)).kind).toBe("failed_not_retryable");
   });

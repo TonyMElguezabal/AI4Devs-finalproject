@@ -91,7 +91,7 @@ describe("The derived session state with no chunks (Decision 8)", () => {
   });
 
   it("is failed with the failure's phase when the session carries a failure, whatever else it has", () => {
-    const failure = { phase: "decomposition" as const, cause: "x", retryable: true, occurredAt: "now" };
+    const failure = { phase: "decomposition" as const, cause: "x", retryable: true, manualRetryAvailable: true, cycle: 1, attemptsInCycle: 1, occurredAt: "now" };
     expect(deriveSessionState([], failure, { hasVoiceOver: true, timestampsStarted: true })).toEqual({
       state: "failed",
       failedPhase: "decomposition",

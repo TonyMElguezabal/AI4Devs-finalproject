@@ -38,6 +38,11 @@
 # `additionalProperties: false` on the `held` items, which the validators
 # already enforced, and re-folds two long descriptions.
 #
+# JOS-184 (bounded-retry-policy) - 2026-10-04: the session `failure` object
+# gained `manualRetryAvailable`, `cycle` and `attemptsInCycle` (all required).
+# No new path. A transient failure with budget left no longer produces a
+# `failure` at all: the session stays in progress while retries are made.
+#
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -196,12 +201,29 @@ paths:
                             type: string
                           retryable:
                             type: boolean
+                          manualRetryAvailable:
+                            type: boolean
+                            description: Whether the User can start a new cycle of up to four
+                              attempts. True only for a retryable failure whose cycle is
+                              exhausted.
+                          cycle:
+                            type: integer
+                            minimum: 1
+                            description: The cycle that ended in this failure, from 1.
+                          attemptsInCycle:
+                            type: integer
+                            minimum: 1
+                            maximum: 4
+                            description: Attempts the cycle held when it failed.
                           occurredAt:
                             type: string
                         required:
                           - phase
                           - cause
                           - retryable
+                          - manualRetryAvailable
+                          - cycle
+                          - attemptsInCycle
                           - occurredAt
                         additionalProperties: false
                         description: Present while the session is failed in a phase that records its
@@ -431,12 +453,29 @@ paths:
                             type: string
                           retryable:
                             type: boolean
+                          manualRetryAvailable:
+                            type: boolean
+                            description: Whether the User can start a new cycle of up to four
+                              attempts. True only for a retryable failure whose cycle is
+                              exhausted.
+                          cycle:
+                            type: integer
+                            minimum: 1
+                            description: The cycle that ended in this failure, from 1.
+                          attemptsInCycle:
+                            type: integer
+                            minimum: 1
+                            maximum: 4
+                            description: Attempts the cycle held when it failed.
                           occurredAt:
                             type: string
                         required:
                           - phase
                           - cause
                           - retryable
+                          - manualRetryAvailable
+                          - cycle
+                          - attemptsInCycle
                           - occurredAt
                         additionalProperties: false
                         description: Present while the session is failed in a phase that records its

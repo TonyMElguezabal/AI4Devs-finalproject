@@ -1,4 +1,6 @@
 import { beforeEach } from "vitest";
+import { resetRetryDelayConfig } from "../src/retry/stageAttemptRecorder.ts";
+import { resetScheduler } from "../src/retry/retryScheduler.ts";
 import { createStubVoiceProvider, setVoiceProviderRegistry } from "../src/voiceProvider.ts";
 
 // generate-voice-over (JOS-136): registering a session now launches voice
@@ -7,6 +9,8 @@ import { createStubVoiceProvider, setVoiceProviderRegistry } from "../src/voiceP
 // with a stub that never answers; a test that needs another outcome installs
 // its own registry.
 beforeEach(() => {
+  resetScheduler();
+  resetRetryDelayConfig();
   setVoiceProviderRegistry({
     defaultIdentifier: "stub-voice",
     adapters: { "stub-voice": createStubVoiceProvider("hang") },

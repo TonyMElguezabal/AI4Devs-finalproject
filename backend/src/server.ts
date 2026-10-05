@@ -10,6 +10,8 @@ import * as concurrency from "./concurrency.ts";
 import { STAGE } from "./types.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
 import { setVoiceOverLogger } from "./voiceOverPhase.ts";
+import { rebuildScheduler } from "./retry/retryScheduler.ts";
+import { setRetryDelayConfig } from "./retry/stageAttemptRecorder.ts";
 import { createStubVoiceProvider as createStubVoice, setVoiceProviderRegistry, type StubVoiceProviderMode } from "./voiceProvider.ts";
 import { setVideoProviderRegistry, createStubVideoProvider, STUB_VIDEO_PROVIDER_NAME } from "./videoProvider.ts";
 
@@ -78,7 +80,13 @@ if (isMainModule) {
     const stub = createStubVideoProvider(stubVideoMode as Parameters<typeof createStubVideoProvider>[0], { bytes });
     setVideoProviderRegistry({ defaultIdentifier: STUB_VIDEO_PROVIDER_NAME, adapters: { [STUB_VIDEO_PROVIDER_NAME]: stub } });
   }
-  // USE_STUB_VOICE_PROVIDER=success|success-without-timestamps|transient-failure|not-retryable-failure|undecodable-audio|empty-audio|hang — manual endpoint testing only.
+  // RETRY_BASE_DELAY_SECONDS / RETRY_CAP_DELAY_SECONDS — manual endpoint testing only: shortens the retry delays so a retry sequence can be watched in seconds (fractions allowed).
+  const retryBaseSeconds = Number(process.env.RETRY_BASE_DELAY_SECONDS);
+  const retryCapSeconds = Number(process.env.RETRY_CAP_DELAY_SECONDS);
+  if (Number.isFinite(retryBaseSeconds) && Number.isFinite(retryCapSeconds) && retryBaseSeconds >= 0 && retryCapSeconds >= retryBaseSeconds) {
+    setRetryDelayConfig({ baseSeconds: retryBaseSeconds, capSeconds: retryCapSeconds });
+  }
+  // USE_STUB_VOICE_PROVIDER=success|success-without-timestamps|transient-failure|transient-twice-then-success|not-retryable-failure|undecodable-audio|empty-audio|hang — manual endpoint testing only.
   const stubVoiceMode = process.env.USE_STUB_VOICE_PROVIDER as StubVoiceProviderMode | undefined;
   if (stubVoiceMode) {
     setVoiceProviderRegistry({ defaultIdentifier: "stub-voice", adapters: { "stub-voice": createStubVoice(stubVoiceMode) } });
@@ -87,6 +95,7 @@ if (isMainModule) {
   setVoiceOverLogger(app.log);
   const summary = reconcileOnBoot();
   app.log.info(summary, "boot reconciliation complete");
+  app.log.info({ scheduledRetries: rebuildScheduler() }, "scheduled retries re-armed");
   await app.listen({ port: PORT, host: "127.0.0.1" });
   app.log.info(`listening on http://127.0.0.1:${PORT} (docs at /docs) — stage concurrency limit ${STAGE_CONCURRENCY_LIMIT}, body limit ${BODY_LIMIT_BYTES} bytes`);
 }

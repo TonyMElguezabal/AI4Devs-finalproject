@@ -18,7 +18,6 @@ import { buildApp } from "../src/server.ts";
 import {
   confirmVoiceOver,
   generateVoiceOver,
-  resetTransientFailureHook,
   setVoiceOverLogger,
   voiceOverLauncher,
   type VoiceOverLogEntry,
@@ -32,6 +31,8 @@ import {
   type VoiceProvider,
 } from "../src/voiceProvider.ts";
 import { VOICE_PROVIDER } from "../src/config/providers.ts";
+import { releaseAttempt, releaseSessionAttempts } from "../src/retry/retryScheduler.ts";
+import { recordAttemptOutcome, setRetryDelayConfig } from "../src/retry/stageAttemptRecorder.ts";
 import { continueSession, pauseSession } from "../src/orchestrator.ts";
 import type { SessionSnapshot } from "../src/types.ts";
 
@@ -51,8 +52,7 @@ beforeEach(async () => {
   resetAll();
   logs.length = 0;
   published.length = 0;
-  resetTransientFailureHook();
-  setVoiceOverLogger({ info: (entry) => logs.push(entry) });
+  setVoiceOverLogger({ info: (entry) => logs.push(entry), warn: (entry) => logs.push(entry) });
   events.on("state", onState);
   app = await buildApp();
 });
@@ -84,6 +84,14 @@ async function waitFor(condition: () => boolean, timeoutMs = 2000): Promise<void
     if (Date.now() > deadline) throw new Error("timed out waiting for the condition");
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
+}
+
+/** Releases the session's scheduled retry as if its delay had passed, and waits for the send to finish. */
+async function sendScheduledRetry(runId: string): Promise<void> {
+  const scheduled = getStageAttempts(runId, "voice-over").find((attempt) => attempt.outcome === "scheduled");
+  if (!scheduled) throw new Error("no retry is scheduled");
+  expect(releaseAttempt(scheduled.id, () => new Date(Date.now() + 3_600_000))).toBe("sent");
+  await waitFor(() => getStageAttempts(runId, "voice-over").every((attempt) => attempt.outcome !== "in-flight"));
 }
 
 function stateOf(runId: string): string | undefined {
@@ -212,7 +220,7 @@ describe("The provider binding (5.4)", () => {
     const bound = createStubVoiceProvider("success");
     const other = createStubVoiceProvider("success");
     setVoiceProviderRegistry({ defaultIdentifier: "voice-b", adapters: { "voice-a": bound, "voice-b": other } });
-    await generateVoiceOver(runId);
+    await sendScheduledRetry(runId);
 
     expect(bound.calls).toHaveLength(1);
     expect(other.calls).toHaveLength(0);
@@ -227,7 +235,7 @@ describe("The provider binding (5.4)", () => {
 
     const replacement = createStubVoiceProvider("success");
     setVoiceProviderRegistry({ defaultIdentifier: "voice-b", adapters: { "voice-b": replacement } });
-    await generateVoiceOver(runId);
+    await sendScheduledRetry(runId);
 
     expect(replacement.calls).toHaveLength(0);
     const failure = getRun(runId)?.failure;
@@ -307,25 +315,39 @@ describe("Audio that is not usable (5.7)", () => {
 
     const outcome = await generateVoiceOver(runId);
 
-    expect(outcome).toMatchObject({ ok: false, reason: "failed" });
+    expect(outcome).toMatchObject({ ok: false, reason: "retry-scheduled" });
     expect(getVoiceOver(runId)).toBeUndefined();
     const folder = getRun(runId)?.projectFolder ?? "";
     expect(existsSync(resolveArtefactPath(folder, "voice-over.mp3"))).toBe(false);
     expect(getStageAttempts(runId, "voice-over")[0]).toMatchObject({ outcome: "transient", errorCode: "invalid-audio" });
-    expect(stateOf(runId)).toBe("failed");
-    expect(getRun(runId)?.failure).toMatchObject({ phase: "voice-over", retryable: true });
+    expect(getStageAttempts(runId, "voice-over")[1]).toMatchObject({ outcome: "scheduled", sequenceInCycle: 2 });
+    expect(getRun(runId)?.failure).toBeNull();
   });
 
-  it("leaves the session launchable again after unusable audio", async () => {
+  it.each(["undecodable-audio", "empty-audio"] as const)("%s four times in a row fails the session as retryable with a manual retry available", async (mode) => {
+    const runId = register();
+    useStub(mode);
+
+    await generateVoiceOver(runId);
+    for (let attempt = 2; attempt <= 4; attempt++) await sendScheduledRetry(runId);
+
+    expect(getStageAttempts(runId, "voice-over")).toHaveLength(4);
+    expect(getRun(runId)?.failure).toMatchObject({ phase: "voice-over", retryable: true, manualRetryAvailable: true, cycle: 1, attemptsInCycle: 4 });
+    expect(stateOf(runId)).toBe("failed");
+  });
+
+  it("the scheduled retry succeeds once the audio is usable, and the session completes with no failure", async () => {
     const runId = register();
     useStub("undecodable-audio");
     await generateVoiceOver(runId);
 
     const stub = useStub("success");
-    const outcome = await generateVoiceOver(runId);
+    await sendScheduledRetry(runId);
 
-    expect(outcome).toEqual({ ok: true });
     expect(stub.calls).toHaveLength(1);
+    expect(getVoiceOver(runId)).toBeDefined();
+    expect(getRun(runId)?.failure).toBeNull();
+    expect(getStageAttempts(runId, "voice-over").map((attempt) => attempt.outcome)).toEqual(["transient", "success"]);
   });
 });
 
@@ -374,16 +396,87 @@ describe("A not-retryable rejection (5.8)", () => {
   });
 });
 
-describe("A transient failure (5.9)", () => {
-  it("is recorded as transient and, with the default retry hook, fails the session", async () => {
+describe("A transient failure (5.9, retry policy JOS-184)", () => {
+  it("is recorded as transient and schedules the next attempt without failing the session", async () => {
     const runId = register();
     useStub("transient-failure");
 
-    await generateVoiceOver(runId);
+    const outcome = await generateVoiceOver(runId);
 
+    expect(outcome).toEqual({ ok: false, reason: "retry-scheduled" });
     expect(getStageAttempts(runId, "voice-over")[0]).toMatchObject({ outcome: "transient" });
-    expect(getRun(runId)?.failure).toMatchObject({ phase: "voice-over", retryable: true });
+    expect(getStageAttempts(runId, "voice-over")[1]).toMatchObject({ outcome: "scheduled", trigger: "automatic", sequenceInCycle: 2 });
+    expect(getRun(runId)?.failure).toBeNull();
+    expect(stateOf(runId)).not.toBe("failed");
+  });
+
+  it("sends the scheduled retry on its own once its delay has passed", async () => {
+    setRetryDelayConfig({ baseSeconds: 0, capSeconds: 0 });
+    const runId = register();
+    const stub = useStub("transient-failure");
+
+    await generateVoiceOver(runId);
+    await waitFor(() => stub.calls.length >= 2);
+
+    expect(getStageAttempts(runId, "voice-over")[1]?.outcome).not.toBe("scheduled");
+  });
+
+  it("fails the session after the fourth transient failure: retryable, manual retry available, nothing scheduled", async () => {
+    const runId = register();
+    const stub = useStub("transient-failure");
+
+    await generateVoiceOver(runId);
+    for (let attempt = 2; attempt <= 4; attempt++) await sendScheduledRetry(runId);
+
+    expect(stub.calls).toHaveLength(4);
+    expect(getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "scheduled")).toBe(false);
+    expect(getRun(runId)?.failure).toMatchObject({ phase: "voice-over", retryable: true, manualRetryAvailable: true, cycle: 1, attemptsInCycle: 4 });
     expect(stateOf(runId)).toBe("failed");
+  });
+
+  it("makes no second provider call when a send job is redelivered for an attempt already claimed", async () => {
+    const runId = register();
+    const stub = useStub("transient-failure");
+    await generateVoiceOver(runId);
+    const scheduled = getStageAttempts(runId, "voice-over")[1];
+    const later = () => new Date(Date.now() + 3_600_000);
+
+    releaseAttempt(scheduled?.id ?? "", later);
+    releaseAttempt(scheduled?.id ?? "", later);
+    await waitFor(() => stub.calls.length >= 2);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(stub.calls).toHaveLength(2);
+  });
+
+  it("is held while the session is paused and sent after continue", async () => {
+    setRetryDelayConfig({ baseSeconds: 0, capSeconds: 0 });
+    const runId = register();
+    const stub = useStub("transient-failure");
+    pauseSession(runId);
+
+    await generateVoiceOver(runId);
+    await new Promise((resolve) => setTimeout(resolve, 30)); // the retry is due and its timer has fired
+
+    expect(stub.calls).toHaveLength(1);
+    expect(getStageAttempts(runId, "voice-over")[1]?.outcome).toBe("scheduled");
+
+    continueSession(runId);
+    await waitFor(() => stub.calls.length >= 2);
+  });
+
+  it("never reaches the provider again for a session whose voice-over is already stored", async () => {
+    const runId = register();
+    useStub("transient-failure");
+    await generateVoiceOver(runId);
+    const stored = useStub("success");
+    const scheduled = getStageAttempts(runId, "voice-over")[1];
+    insertVoiceOver({ runId, audioPath: "voice-over.mp3", timestampsPath: null, durationSeconds: 1, sizeBytes: 1, nativeTimestampsAvailable: false, providerRequestId: null, completedAt: new Date().toISOString() });
+
+    releaseAttempt(scheduled?.id ?? "", () => new Date(Date.now() + 3_600_000));
+    await waitFor(() => getStageAttempts(runId, "voice-over").every((attempt) => attempt.outcome !== "in-flight"));
+
+    expect(stored.calls).toHaveLength(0);
   });
 });
 

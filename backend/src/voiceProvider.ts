@@ -116,6 +116,7 @@ export type StubVoiceProviderMode =
   | "success-without-timestamps"
   | "transient-failure"
   | "not-retryable-failure"
+  | "transient-twice-then-success"
   | "undecodable-audio"
   | "empty-audio"
   | "hang";
@@ -147,6 +148,7 @@ export function createStubVoiceProvider(
   options: { audioSeconds?: number } = {},
 ): VoiceProvider & { calls: VoiceSynthesisRequest[]; release: () => void } {
   const calls: VoiceSynthesisRequest[] = [];
+  let transientFailuresLeft = 2;
   let releaseHeld: () => void = () => {};
   const held = new Promise<void>((resolve) => {
     releaseHeld = resolve;
@@ -176,6 +178,17 @@ export function createStubVoiceProvider(
           return { kind: "success", audio: new Uint8Array(0), providerRequestId: "stub-request-1" };
         case "transient-failure":
           return { kind: "failed_transient", reason: "stub: transient voice provider error (503)" };
+        case "transient-twice-then-success":
+          if (transientFailuresLeft > 0) {
+            transientFailuresLeft -= 1;
+            return { kind: "failed_transient", reason: "stub: transient voice provider error (503)" };
+          }
+          return {
+            kind: "success",
+            audio: createSilentMp3(options.audioSeconds ?? 1),
+            nativeTimestamps: stubTimestamps(request.text),
+            providerRequestId: "stub-request-1",
+          };
         case "not-retryable-failure":
           return { kind: "failed_not_retryable", reason: "stub: voice provider rejected the input" };
       }
