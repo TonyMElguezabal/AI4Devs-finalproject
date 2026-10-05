@@ -8,9 +8,11 @@ import {
   getRun,
   getScene,
   resetAll,
+  sceneCurrentRequestId,
   writeArtefactOnce,
 } from "../src/db.ts";
 import {
+  handleProviderResult,
   launchScene,
   launchVideoStage,
   reconcileOnBoot,
@@ -60,6 +62,20 @@ function simulateRestart(limits: { image?: number; video?: number }): void {
   concurrency.resetAll();
   if (limits.image !== undefined) concurrency.setLimit(STAGE, limits.image);
   if (limits.video !== undefined) concurrency.setLimit(VIDEO_STAGE, limits.video);
+}
+
+/**
+ * Delivers the answer of every request that is due. The stub's own delivery timer can fire a
+ * millisecond before `sent_at + latency` on the wall clock and then drop the delivery as "not
+ * ready"; these tests check slot accounting, not delivery timing, so a due delivery is retried.
+ * `handleProviderResult` is idempotent, so a repeated delivery changes nothing. Returns true.
+ */
+function deliverDue(sceneIds: string[]): true {
+  for (const sceneId of sceneIds) {
+    const requestId = sceneCurrentRequestId(sceneId);
+    if (requestId && getScene(sceneId)!.status === "image-generating") handleProviderResult(requestId);
+  }
+  return true;
 }
 
 function newImageScene(runId: string, index: number, mode: Parameters<typeof createScene>[3], latencyMs: number): string {
@@ -162,7 +178,7 @@ describe("image stage: stub requests pending at boot (spec: Requests in flight a
     launchScene(third);
 
     const tracker = trackPeakInFlight(STAGE);
-    await waitFor(() => getScene(third)!.status === "image-complete");
+    await waitFor(() => deliverDue([third]) && getScene(third)!.status === "image-complete");
     tracker.stop();
 
     expect(tracker.peak()).toBeLessThanOrEqual(2);
@@ -251,7 +267,7 @@ describe("the cap holds across a restart and a burst of new work", () => {
     expect(concurrency.stats(STAGE)).toEqual({ inFlight: 2, queued: 4, limit: 2 });
 
     const tracker = trackPeakInFlight(STAGE);
-    await waitFor(() => burstIds.every((id) => getScene(id)!.status === "image-complete"), 5000);
+    await waitFor(() => deliverDue(burstIds) && burstIds.every((id) => getScene(id)!.status === "image-complete"), 5000);
     tracker.stop();
 
     expect(tracker.peak()).toBeLessThanOrEqual(2);

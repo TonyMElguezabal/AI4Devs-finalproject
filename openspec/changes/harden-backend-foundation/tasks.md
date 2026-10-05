@@ -31,15 +31,15 @@ Every code change starts with a failing test (TDD). Every scenario in `specs/res
 
 ## 4. Write capacity at MVP scale (design Decision 4; spec: result recording holds at MVP session scale)
 
-- [ ] 4.1 Write `test/write-capacity.test.ts`: one session, 300 scenes, image cap raised above 300, zero-latency stub, two `handleProviderResult` calls per request id in shuffled order, each wrapped in `setImmediate`; assert 300 `scene_results` rows, 300 duplicate-ignored notes, no thrown store error, the same derived session state as the small-scale all-complete case, and the same rows read through a second connection; log the elapsed time
-- [ ] 4.2 Run it. If it fails, stop and record the failure as a finding before changing any store code. A failure here is the risk ADR 0002 named, and it needs its own design decision, not a quiet fix
-- [ ] 4.3 Run it 5 times and record the min/median/max elapsed time for the report
+- [x] 4.1 Write `test/write-capacity.test.ts` (requests are recorded straight as resolved zero-latency stub requests, not through `launchScene`, whose own delivery timer would add deliveries the test cannot count): one session, 300 scenes, image cap raised above 300, zero-latency stub, two `handleProviderResult` calls per request id in shuffled order, each wrapped in `setImmediate`; assert 300 `scene_results` rows, 300 duplicate-ignored notes, no thrown store error, the same derived session state as the small-scale all-complete case, and the same rows read through a second connection; log the elapsed time
+- [x] 4.2 Run it. If it fails, stop and record the failure as a finding before changing any store code. A failure here is the risk ADR 0002 named, and it needs its own design decision, not a quiet fix
+- [x] 4.3 Run it 5 times and record the min/median/max elapsed time for the report. Recorded 2026-10-05, 600 deliveries for 300 scenes: 578.1, 537.5, 541.2, 547.7, 538.9 ms, so min 537.5 / median 541.2 / max 578.1 ms
 
 ## 5. Backend: Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Review the restart cases in `orchestrator.test.ts`, `image-stage.test.ts` and `video-stage.test.ts` for assumptions about anonymous `release` or the old `acquire`-on-boot video path; update them to the holder API without weakening any assertion
-- [ ] 5.2 Make sure every test resets the semaphore (`concurrency.resetAll`) and the store (`db.resetAll`) so holder sets cannot leak between cases
-- [ ] 5.3 Run `npx tsc --noEmit` (type-check gate) and fix any errors
+- [x] 5.1 Review the restart cases in `orchestrator.test.ts`, `image-stage.test.ts` and `video-stage.test.ts` for assumptions about anonymous `release` or the old `acquire`-on-boot video path; update them to the holder API without weakening any assertion
+- [x] 5.2 Make sure every test resets the semaphore (`concurrency.resetAll`) and the store (`db.resetAll`) so holder sets cannot leak between cases
+- [x] 5.3 Run `npx tsc --noEmit` (type-check gate) and fix any errors
 
 ## 6. Backend: Run Unit Tests and Verify Database State (MANDATORY)
 
