@@ -149,7 +149,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 13. Close out
 
-- [ ] 13.1 Ask the user before commenting on JOS-136 that the `decomposition` launcher exists and that its "launch after the narration" term goes into `heldWork` and the launch hook.
+- [x] 13.1 Ask the user before commenting on JOS-136 that the `decomposition` launcher exists and that its "launch after the narration" term goes into `heldWork` and the launch hook.
 - [ ] 13.2 Ask before pushing. Open the PR with a description linking to JOS-156. Target `feature/entrega-2-JAME`.
 - [ ] 13.3 Obtain review by at least one human, not only AI agents.
 - [ ] 13.4 Archive the OpenSpec change after merge.
