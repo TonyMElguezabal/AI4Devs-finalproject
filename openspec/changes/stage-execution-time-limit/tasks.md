@@ -67,19 +67,19 @@ A backend change with no screen of its own. Group 1 is a hard gate. Tests come f
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the backend wired to the stubbed provider, with a short injected maximum time and retry delay, and confirm it is reachable
-- [ ] 7.1a Add two stub voice modes with failing tests first, so a timeout and a late result can be shown by hand: `hang-once-then-success` (the first call never answers, later calls succeed) and `success-after-limit` (every call answers successfully after the voice stage's maximum time plus two seconds)
-- [ ] 7.2 Capture the pre-test session and attempt counts
-- [ ] 7.3 With the stub set to hang once then answer, POST a project; verify via GET that the first attempt is `timed-out` and the session completes on the retry
-- [ ] 7.4 With the stub set to answer late (after the maximum time, before the retry delay), POST a project; verify the late result is accepted, the retry is `cancelled`, and only one voice-over exists
-- [ ] 7.5 With the stub set to hang always, POST a project; verify `failed` after four timed-out attempts, `retryable: true`
-- [ ] 7.6 Verify that time spent waiting before a send is not timed: the voice stage has no request cap to queue behind (its cap is undetermined), so hold a session with a pause for longer than the maximum time, then continue it, and verify the attempt is sent at that moment and does not time out while held. The request-cap queue case is the image stage's and is covered by `image-time-limit.test.ts`
-- [ ] 7.7 Delete the sessions and records created above and confirm the store matches its pre-test state
-- [ ] 7.8 Save the transcript as `openspec/changes/stage-execution-time-limit/reports/YYYY-MM-DD-step-7-curl-endpoint-testing.md`
+- [x] 7.1 Start the backend wired to the stubbed provider, with a short injected maximum time and retry delay, and confirm it is reachable
+- [x] 7.1a Add two stub voice modes with failing tests first, so a timeout and a late result can be shown by hand: `hang-once-then-success` (the first call never answers, later calls succeed) and `success-after-limit` (every call answers successfully after the voice stage's maximum time plus two seconds)
+- [x] 7.2 Capture the pre-test session and attempt counts
+- [x] 7.3 With the stub set to hang once then answer, POST a project; verify via GET that the first attempt is `timed-out` and the session completes on the retry
+- [x] 7.4 With the stub set to answer late (after the maximum time, before the retry delay), POST a project; verify the late result is accepted, the retry is `cancelled`, and only one voice-over exists
+- [x] 7.5 With the stub set to hang always, POST a project; verify `failed` after four timed-out attempts, `retryable: true`
+- [x] 7.6 Verify that time spent waiting before a send is not timed: the voice stage has no request cap to queue behind (its cap is undetermined), so hold a session with a pause for longer than the maximum time, then continue it, and verify the attempt is sent at that moment and does not time out while held. The request-cap queue case is the image stage's and is covered by `image-time-limit.test.ts`
+- [x] 7.7 Delete the sessions and records created above and confirm the store matches its pre-test state
+- [x] 7.8 Save the transcript as `openspec/changes/stage-execution-time-limit/reports/YYYY-MM-DD-step-7-curl-endpoint-testing.md`
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Record in `openspec/changes/stage-execution-time-limit/reports/YYYY-MM-DD-step-8-e2e-playwright.md` that E2E is not applicable: this change has no user-facing behaviour beyond the failure fields already covered by `bounded-retry-policy`
+- [x] 8.1 Record in `openspec/changes/stage-execution-time-limit/reports/YYYY-MM-DD-step-8-e2e-playwright.md` that E2E is not applicable: this change has no user-facing behaviour beyond the failure fields already covered by `bounded-retry-policy`
 
 ## 9. Update Technical Documentation (MANDATORY)
 
