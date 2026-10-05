@@ -165,7 +165,7 @@ describe("One read serves consultation and resynchronisation (3.9, Decision 1)",
     const body = res.json();
     expect(body.session.type).toBe("session");
     expect(Object.keys(body.session).sort()).toEqual(
-      ["type", "sessionId", "title", "script", "language", "state", "paused", "held", "createdAt", "updatedAt"].sort(),
+      ["type", "sessionId", "title", "script", "language", "state", "paused", "held", "phases", "createdAt", "updatedAt"].sort(),
     );
     expect(body.scenes[0].type).toBe("scene");
     expect(body.scenes[0]).toHaveProperty("sceneId");
@@ -195,13 +195,14 @@ describe("held field on session and scene payloads (JOS-152, task 7.1)", () => {
     expect(body.scenes[0].held).toBe(true);
   });
 
-  it("a paused session with no submitted scenes reports empty held", async () => {
+  it("a paused session with no scenes reports only its held voice-over launch (generate-voice-over, JOS-136)", async () => {
     const sessionId = await startSession({ title: "Paused but empty", script: "Empty." });
     pauseSession(sessionId);
     const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}` });
     const body = res.json();
     expect(body.session.paused).toBe(true);
-    expect(body.session.held).toEqual([]);
+    expect(body.session.held).toEqual([{ stage: "voice-over", count: 1 }]);
+    expect(body.scenes).toEqual([]);
   });
 
   it("after continue the held array is empty and scene held flag is gone", async () => {

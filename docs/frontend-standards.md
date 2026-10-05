@@ -105,6 +105,7 @@ Naming, typing, TDD and English-only rules are inherited from `docs/base-standar
 - **State derivation, never duplication**: a component never stores its own copy of session/scene state in local `useState` and reconciles it against the live snapshot — it reads directly from the snapshot the seam hook returns. `SceneRow`'s only local state is UI-only (whether its details are expanded, the draft text in the correction textarea) — never a shadow copy of server truth.
 - **Conditional rendering derives from state, never from a stored flag** (`docs/adr/0004-frontend-stack.md` Decision 4, proven in `test/components.test.tsx`): the correction form's presence is `scene.state === "failed"`, computed at render time — never a `canEdit` flag set once and left to drift out of sync with the state that actually governs it.
 - **Scene actions are derived in one place, `sceneActions(scene)`** (`frontend/src/sceneActions.ts`; `show-scene-results-and-actions`, JOS-151, Decision 4). It maps `(state, affectedStage)` to which actions a scene offers (today: retry and image correction, only for a `failed` scene whose `affectedStage` is `image`), and `SceneRow` renders from it instead of testing `state === "failed"` itself. Adding or changing an action (the video-stage retry of JOS-158 is the next one) means extending this function and its tests, not adding a condition in a component. This refines the previous bullet: the presence of an action is still computed at render time, just not inline.
+- **Phase actions are derived in one place, `phaseActions(progress)`** (`frontend/src/phaseActions.ts`; `view-progress-by-phase`, JOS-168, Decision 7), mirroring `sceneActions`. It returns no action for any phase and status today, because no manual-retry endpoint exists for voice-over, decomposition or assembly and the scenes phase acts per scene. `PhaseSection` renders from it, so US-23 to US-27 add their retry actions by extending this function and its tests, not by adding a condition in a component; the page must not offer an action the backend would reject. `PhaseSection` also derives nothing else: the status, `heldCount` and `failure` come from `session.phases`, and the status classes and labels from `styles/status.ts` and `phaseLabels.ts`.
 
 ## Accessible Naming Convention
 
@@ -114,7 +115,9 @@ Fixed here as a documented convention, not left to per-story judgement (`docs/ad
 |---|---|---|
 | A scene row | `Scene {index}` (`aria-label` on the `<li>`) | `Scene 7` |
 | Expand/collapse a scene's details | `View scene {index} details` / `Hide scene {index} details` | `View scene 7 details` |
+| A phase section | `{Phase} phase` (`aria-label` on the `<section>`; phases `Voice-over`, `Decomposition`, `Scenes`, `Final video`) | `Decomposition phase` |
 | Retry a failed scene | `Retry scene {index}` | `Retry scene 7` |
+| Retry a failed decomposition | `Retry decomposition` (the shared `PhaseRetryButton`, rendered by `PhaseSection` from `phaseActions`) | `Retry decomposition` |
 | The correction form | `Correct scene {index} image instruction` (`aria-label` on the `<form>`) | `Correct scene 7 image instruction` |
 | The correction textarea | `Corrected image instruction for scene {index}` | — |
 | Per-scene downloads | `Download scene {index} image` / `Download scene {index} video` | `Download scene 7 image` |

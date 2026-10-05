@@ -171,6 +171,50 @@ button:hover:not(:disabled) {
   color: var(--color-muted);
 }
 
+/* Phase sections (view-progress-by-phase, JOS-168) */
+
+.phase-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  border-left: 4px solid var(--color-border);
+  padding-left: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.phase-section.status-complete {
+  border-left-color: var(--color-status-complete);
+}
+
+.phase-section.status-progress {
+  border-left-color: var(--color-status-progress);
+}
+
+.phase-section.status-failed {
+  border-left-color: var(--color-status-failed);
+}
+
+.phase-section.status-queued {
+  border-left-color: var(--color-status-queued);
+}
+
+.phase-heading {
+  margin: 0;
+  font-size: var(--font-size-md, 1rem);
+}
+
+.phase-status {
+  font-size: var(--font-size-sm);
+  font-weight: normal;
+  color: var(--color-muted);
+}
+
+.phase-held {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+}
+
 /* Scene list */
 
 .scene-list {

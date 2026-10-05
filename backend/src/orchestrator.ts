@@ -7,6 +7,7 @@ import {
   bindSceneVideoProvider,
   commitSceneResult,
   commitSceneVideoResult,
+  completeStageAttempt,
   db,
   getAllInFlightScenes,
   getAllVideoGeneratingScenes,
@@ -28,19 +29,22 @@ import {
   markScenePendingRetry,
   markSceneVideoRetry,
   markVideoGenerating,
+  recordStageAttempt,
   resetAttemptsForVideoStart,
   resolveArtefactPath,
   sceneCurrentRequestId,
+  setFinalVideoPath,
   setRunPaused,
   setSceneInstruction,
   writeArtefact,
   writeArtefactOnce,
 } from "./db.ts";
+import type { AssemblyTool } from "./assemblyTool.ts";
 import * as concurrency from "./concurrency.ts";
 import { admitLaunch, launchHeldWork, registerStageLauncher, sessionHeldWork, type StageLauncher } from "./launchGate.ts";
 import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
-import { PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
+import { FINAL_OUTPUT, PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
 import { downloadGeneratedImage, getImageProviderRegistry, type ImageGenerationResult } from "./imageProvider.ts";
 import {
@@ -52,6 +56,10 @@ import {
 import {
   STAGE,
   STUB_PROVIDER_NAME,
+  type AttemptStage,
+  type Phase,
+  type PhaseProgress,
+  type PhaseStatus,
   type ProviderOutcome,
   type Scene,
   type SceneEventPayload,
@@ -135,10 +143,14 @@ function sceneToPayload(scene: Scene): SceneEventPayload {
  * records, never stored. JOS-136 (task 5.15) adds `voice-over-generating`. */
 export interface SessionProgress {
   hasVoiceOver?: boolean;
+  /** A `voice-over` attempt is in flight (generate-voice-over, JOS-136, Decision 12). */
+  voiceAttemptInFlight?: boolean;
   /** A `timestamps` attempt was recorded, or the timestamps are stored. */
   timestampsStarted?: boolean;
   /** A final video exists (US-16b records it). Defaults to false: all scenes complete is `final-video-generating`, not `final-video`. */
   hasFinalVideo?: boolean;
+  /** view-progress-by-phase (JOS-168), Decision 5: the failed phase has an attempt in flight that was queued no earlier than the recorded failure. */
+  retryInFlight?: boolean;
 }
 
 export interface DerivedSessionState {
@@ -151,17 +163,38 @@ export interface DerivedSessionState {
 /** Derives the session state from its scenes, its recorded failure and its
  * progress — PRD §8.1. A session with no chunks and a failure (a refused
  * decomposition, assign-scene-identifiers Decision 6) is `failed` in that phase;
- * without a failure, the timestamps stage means `chunk-decomposing` and a
- * completed narration `voice-over-complete`. */
+ * without a failure, the timestamps stage means `chunk-decomposing`, a
+ * completed narration `voice-over-complete` and a voice attempt in flight
+ * `voice-over-generating` (generate-voice-over, JOS-136, Decision 12). */
+/** The in-progress state of a failed phase that is being retried (PRD §8.1). */
+const RETRY_STATE: Record<SessionFailure["phase"], SessionState> = {
+  "voice-over": "voice-over-generating",
+  decomposition: "chunk-decomposing",
+};
+
+/** The attempt stage whose in-flight attempt means the failed phase is being retried. */
+const RETRY_ATTEMPT_STAGE: Record<SessionFailure["phase"], AttemptStage> = {
+  "voice-over": "voice-over",
+  decomposition: "timestamps",
+};
+
+function isRetryInFlight(runId: string, failure: SessionFailure | null): boolean {
+  if (!failure) return false;
+  const latest = getStageAttempts(runId, RETRY_ATTEMPT_STAGE[failure.phase]).at(-1);
+  return latest !== undefined && latest.outcome === "in-flight" && latest.queuedAt >= failure.occurredAt;
+}
+
 export function deriveSessionState(
   scenes: Scene[],
   failure: SessionFailure | null = null,
   progress: SessionProgress = {},
 ): DerivedSessionState {
   if (scenes.length === 0) {
+    if (failure && progress.retryInFlight) return { state: RETRY_STATE[failure.phase] };
     if (failure) return { state: "failed", failedPhase: failure.phase };
     if (progress.timestampsStarted) return { state: "chunk-decomposing" };
     if (progress.hasVoiceOver) return { state: "voice-over-complete" };
+    if (progress.voiceAttemptInFlight) return { state: "voice-over-generating" };
     return { state: "submitted" };
   }
   // gate-assembly-on-complete-scenes (JOS-150), design Decisions 2-4 — PRD §8.1
@@ -173,14 +206,74 @@ export function deriveSessionState(
   return { state: "failed", failedPhase: "scenes", failedSceneIndexes: gate.failedSceneIndexes };
 }
 
+const PHASES: readonly Phase[] = ["voice-over", "decomposition", "scenes", "assembly"];
+
+/** For each non-failed state: how many leading phases are complete, and whether the next one is in progress. */
+const PROGRESS_BY_STATE: Record<Exclude<SessionState, "failed">, { completePhases: number; nextInProgress: boolean }> = {
+  submitted: { completePhases: 0, nextInProgress: false },
+  "voice-over-generating": { completePhases: 0, nextInProgress: true },
+  "voice-over-complete": { completePhases: 1, nextInProgress: false },
+  "chunk-decomposing": { completePhases: 1, nextInProgress: true },
+  "chunks-processing": { completePhases: 2, nextInProgress: true },
+  "final-video-generating": { completePhases: 3, nextInProgress: true },
+  "final-video": { completePhases: 4, nextInProgress: false },
+};
+
+const STAGE_PHASE: Record<string, Phase> = {
+  "voice-over": "voice-over",
+  decomposition: "decomposition",
+  image: "scenes",
+  video: "scenes",
+  assembly: "assembly",
+};
+
+/** view-progress-by-phase (JOS-168), design Decisions 1-4 — the four phases in
+ * pipeline order, derived from the session state alone so the header and the
+ * sections cannot disagree. Throws when a failed session names no known phase,
+ * since PRD §8.1 requires one. */
+export function derivePhaseProgress(input: {
+  state: SessionState;
+  failedPhase?: string;
+  failure?: { phase: string; cause: string; retryable: boolean } | null;
+  held: ReadonlyArray<{ stage: string; count: number }>;
+}): PhaseProgress[] {
+  const { state, failedPhase, failure, held } = input;
+  let completePhases: number;
+  let activeStatus: PhaseStatus | undefined;
+  if (state === "failed") {
+    completePhases = PHASES.findIndex((phase) => phase === failedPhase);
+    if (completePhases === -1) throw new Error(`a failed session must carry a failedPhase naming one of ${PHASES.join(", ")}; got ${String(failedPhase)}`);
+    activeStatus = "failed";
+  } else {
+    const progress = PROGRESS_BY_STATE[state];
+    completePhases = progress.completePhases;
+    activeStatus = progress.nextInProgress ? "in-progress" : undefined;
+  }
+
+  return PHASES.map((phase, index): PhaseProgress => {
+    let status: PhaseStatus = "pending";
+    if (index < completePhases) status = "complete";
+    else if (index === completePhases && activeStatus) status = activeStatus;
+
+    const heldCount = held.reduce((sum, entry) => (STAGE_PHASE[entry.stage] === phase ? sum + entry.count : sum), 0);
+    const entry: PhaseProgress = { phase, status, heldCount };
+    if (status === "failed" && phase !== "scenes" && failure && failure.phase === phase) entry.failure = { cause: failure.cause, retryable: failure.retryable };
+    return entry;
+  });
+}
+
 export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const run = getRun(runId);
   if (!run) return undefined;
   const scenes = getScenesForRun(runId);
   const { state, failedPhase, failedSceneIndexes } = deriveSessionState(scenes, run.failure, {
     hasVoiceOver: getVoiceOver(runId) !== undefined,
+    voiceAttemptInFlight: getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight"),
     timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
+    hasFinalVideo: run.finalVideoPath != null,
+    retryInFlight: isRetryInFlight(runId, run.failure),
   });
+  const voiceOver = getVoiceOver(runId);
   const heldWork = sessionHeldWork(runId);
   const heldSceneIds = heldWork.sceneIds;
   const session: SessionEventPayload = {
@@ -194,8 +287,19 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     held: heldWork.stages.map((s) => ({ stage: s.stage, count: s.count })),
     failedPhase,
     failedSceneIndexes,
+    voiceOver: voiceOver
+      ? {
+          provider: run.voiceProviderId ?? "unknown",
+          durationSeconds: voiceOver.durationSeconds,
+          nativeTimestampsAvailable: voiceOver.nativeTimestampsAvailable,
+          completedAt: voiceOver.completedAt,
+        }
+      : undefined,
+    failure: state === "failed" && run.failure ? { ...run.failure } : undefined,
+    phases: derivePhaseProgress({ state, failedPhase, failure: run.failure, held: heldWork.stages }),
     createdAt: run.createdAt,
     updatedAt: new Date().toISOString(),
+    finalVideoUrl: run.finalVideoPath != null ? `/sessions/${run.id}/download/final-video` : undefined,
   };
   return {
     session,
@@ -231,6 +335,139 @@ function launchSceneStage(sceneId: string): void {
   } else {
     launchScene(sceneId);
   }
+}
+
+// ---- Assembly launch gate (assemble-final-video, JOS-149) ----
+
+/** Per-session assembly launch counter (test observable, like nextVideoStageLaunchCount). */
+const assemblyLaunches = new Map<string, number>();
+export function nextAssemblyLaunchCount(runId: string): number {
+  return assemblyLaunches.get(runId) ?? 0;
+}
+/** Test-only: reset counters without clearing the full store. */
+export function resetAssemblyLaunchCount(): void {
+  assemblyLaunches.clear();
+}
+
+// ---- Assembly tool registry ----
+
+let _assemblyTool: AssemblyTool | undefined;
+
+/** Set the AssemblyTool adapter (use the stub in tests, the ffmpeg adapter in production). */
+export function setAssemblyTool(tool: AssemblyTool): void {
+  _assemblyTool = tool;
+}
+
+/** Reset to undefined (test teardown). */
+export function resetAssemblyTool(): void {
+  _assemblyTool = undefined;
+}
+
+function getAssemblyTool(): AssemblyTool | undefined {
+  return _assemblyTool;
+}
+
+/** Runs one assembly attempt; retries on transient failure up to RETRY_BUDGET. */
+async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise<void> {
+  const run = getRun(runId);
+  if (!run) return;
+  if (!admitLaunch(runId).admitted) return;
+
+  const tool = getAssemblyTool();
+  if (!tool) {
+    broadcast(runId);
+    return;
+  }
+
+  const voiceOver = getVoiceOver(runId);
+  if (!voiceOver) {
+    broadcast(runId);
+    return;
+  }
+
+  const scenes = getScenesForRun(runId).sort((a, b) => a.index - b.index);
+  const fps = FINAL_OUTPUT.fps;
+
+  // Build cumulative frame geometry (ADR 0005, Decision 4).
+  let prevEndFrame = 0;
+  const clips = scenes.map((scene) => {
+    const interval = scene.narrationInterval!;
+    const cumEndFrame = Math.round(interval.endSeconds * fps);
+    const frameCount = cumEndFrame - prevEndFrame;
+    prevEndFrame = cumEndFrame;
+    return {
+      clipPath: resolveArtefactPath(run.projectFolder, scene.videoResult!),
+      narrationStartSeconds: interval.startSeconds,
+      narrationDurationSeconds: interval.endSeconds - interval.startSeconds,
+      cumulativeStartFrame: cumEndFrame - frameCount,
+      frameCount,
+    };
+  });
+
+  const outputPath = resolveArtefactPath(run.projectFolder, "final-video.mp4");
+  const now = new Date().toISOString();
+
+  const attemptId = recordStageAttempt({
+    runId,
+    stage: "assembly",
+    providerId: null,
+    queuedAt: now,
+    sentAt: now,
+  }).id;
+
+  let result;
+  try {
+    result = await tool.assemble({
+      clips,
+      voiceOverPath: resolveArtefactPath(run.projectFolder, voiceOver.audioPath),
+      outputPath,
+      fps: FINAL_OUTPUT.fps,
+      width: FINAL_OUTPUT.width,
+      height: FINAL_OUTPUT.height,
+    });
+  } catch (err: unknown) {
+    result = { kind: "failed_transient" as const, reason: err instanceof Error ? err.message : String(err) };
+  }
+
+  const finishedAt = new Date().toISOString();
+
+  if (result.kind === "success") {
+    const relativePath = "final-video.mp4";
+    completeStageAttempt(attemptId, { outcome: "success", finishedAt });
+    setFinalVideoPath(runId, relativePath);
+    broadcast(runId);
+    return;
+  }
+
+  if (result.kind === "failed_not_retryable") {
+    completeStageAttempt(attemptId, { outcome: "not-retryable", finishedAt, errorMessage: result.reason });
+    broadcast(runId);
+    return;
+  }
+
+  // Transient failure — retry if budget remains.
+  completeStageAttempt(attemptId, { outcome: "transient", finishedAt, errorMessage: result.reason });
+  if (attemptNumber >= 1 + RETRY_BUDGET) {
+    broadcast(runId);
+    return;
+  }
+  void runAssemblyAttempt(runId, attemptNumber + 1);
+}
+
+function launchAssemblyPhase(runId: string): void {
+  if (!admitLaunch(runId).admitted) return;
+  assemblyLaunches.set(runId, (assemblyLaunches.get(runId) ?? 0) + 1);
+  void runAssemblyAttempt(runId, 1);
+}
+
+/** Called after every chunk reaches chunk-complete or failed; launches assembly
+ * when the gate is open and the session is not paused (design.md Decision 1). */
+function triggerAssemblyIfReady(runId: string): void {
+  const admit = admitLaunch(runId);
+  if (!admit.admitted) return;
+  const scenes = getScenesForRun(runId);
+  const gate = assemblyGate(scenes);
+  if (gate.open) launchAssemblyPhase(runId);
 }
 
 /**
@@ -292,6 +529,21 @@ export function launchImageStageForRun(runId: string): void {
   }
 }
 
+export const imageStageLauncher: StageLauncher = {
+  stage: "image",
+  heldWork: (sessionId: string) => {
+    const scenes = getSubmittedScenesForRun(sessionId);
+    return { count: scenes.length, sceneIds: scenes.map((s) => s.id) };
+  },
+  launch: (sessionId: string) => {
+    for (const scene of getSubmittedScenesForRun(sessionId)) {
+      launchSceneStage(scene.id);
+    }
+  },
+};
+
+registerStageLauncher(imageStageLauncher);
+
 // ---- Video stage (generate-chunk-video, JOS-146) ----
 
 function isMp4(bytes: Buffer): boolean {
@@ -320,6 +572,8 @@ function completeVideoStage(sceneId: string, relativePath: string): void {
   if (committed) {
     markChunkComplete(sceneId, relativePath);
     nextVideoStageLaunches.set(sceneId, (nextVideoStageLaunches.get(sceneId) ?? 0) + 1);
+    const scene = getScene(sceneId);
+    if (scene) triggerAssemblyIfReady(scene.runId);
   }
 }
 
@@ -564,22 +818,6 @@ export function launchVideoStageForRun(runId: string): void {
     launchVideoStage(scene.id);
   }
 }
-
-export const imageStageLauncher: StageLauncher = {
-  stage: "image",
-  heldWork: (sessionId: string) => {
-    const scenes = getSubmittedScenesForRun(sessionId);
-    return { count: scenes.length, sceneIds: scenes.map((s) => s.id) };
-  },
-  launch: (sessionId: string) => {
-    for (const scene of getSubmittedScenesForRun(sessionId)) {
-      launchSceneStage(scene.id);
-    }
-  },
-};
-
-registerStageLauncher(imageStageLauncher);
-
 export const videoStageLauncher: StageLauncher = {
   stage: "video",
   heldWork: (sessionId: string) => {
@@ -590,6 +828,19 @@ export const videoStageLauncher: StageLauncher = {
 };
 
 registerStageLauncher(videoStageLauncher);
+
+export const assemblyStageLauncher: StageLauncher = {
+  stage: "assembly",
+  heldWork: (sessionId: string) => {
+    const run = getRun(sessionId);
+    const gate = assemblyGate(getScenesForRun(sessionId));
+    const count = run && !run.finalVideoPath && gate.open ? 1 : 0;
+    return { count, sceneIds: [] };
+  },
+  launch: triggerAssemblyIfReady,
+};
+
+registerStageLauncher(assemblyStageLauncher);
 
 async function runImageAttempt(sceneId: string): Promise<void> {
   const fresh = getScene(sceneId);

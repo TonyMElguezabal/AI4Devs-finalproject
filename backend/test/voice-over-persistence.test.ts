@@ -264,9 +264,9 @@ describe("Stage attempts are recorded before the request and never rewritten (De
     expect(() =>
       db
         .prepare(
-          "INSERT INTO stage_attempts (id, run_id, stage, provider_id, attempt_number, queued_at, sent_at, outcome) VALUES (?, ?, 'voice-over', 'elevenlabs', 1, 'q', 's', 'in-flight')",
+          "INSERT INTO stage_attempts (id, run_id, stage, stage_instance_key, cycle, sequence_in_cycle, attempt_trigger, provider_id, attempt_number, queued_at, sent_at, outcome) VALUES (?, ?, 'voice-over', ?, 1, 2, 'automatic', 'elevenlabs', 1, 'q', 's', 'in-flight')",
         )
-        .run(randomUUID(), runId),
+        .run(randomUUID(), runId, `${runId}:voice-over`),
     ).toThrow(/UNIQUE constraint failed/);
   });
 
