@@ -72,22 +72,23 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. Frontend: phase sections (TDD; design Decisions 6 and 8)
 
-- [ ] 6.1 Write failing tests for `PhaseSection` and `SessionPage`:
+- [x] 6.1 Write failing tests for `PhaseSection` and `SessionPage`:
   - the four sections appear in order, with names `Voice-over phase`, `Decomposition phase`, `Scenes phase`, `Final video phase`;
   - each shows its status label;
   - the scene list is inside `Scenes phase` and the final-video download inside `Final video phase`;
   - the header still shows the session state, failed phase, failed scenes and pause and continue.
-- [ ] 6.2 Write failing tests for failure and held work:
+- [x] 6.2 Write failing tests for failure and held work:
   - a failed decomposition section shows `Failed`, the cause as an alert, and no retry button;
   - an `assembly` failure fixture shows `Failed` and its cause in `Final video phase`;
   - a scenes failure shows `Failed` with scene 2's row offering retry and correction;
   - `heldCount` 1 shows `Waiting for you to continue (1 held)`.
-- [ ] 6.3 Write failing tests for live re-render (AC2): re-rendering `SessionPage` with a new snapshot moves Decomposition to `Complete` and Scenes to `In progress`, and a retry going `in-progress` removes the alert.
-- [ ] 6.4 Implement `frontend/src/components/PhaseSection.tsx` and reorganize `SessionPage.tsx`; add the section styles to `app.css` using existing tokens only; make 6.1-6.3 pass.
+- [x] 6.3 Write failing tests for live re-render (AC2): re-rendering `SessionPage` with a new snapshot moves Decomposition to `Complete` and Scenes to `In progress`, and a retry going `in-progress` removes the alert.
+- [x] 6.4 Implement `frontend/src/components/PhaseSection.tsx` and reorganize `SessionPage.tsx`; add the section styles to `app.css` using existing tokens only; make 6.1-6.3 pass.
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review backend tests that assert the exact session payload shape, and frontend tests that locate the scene list or the download by position, for assumptions this change breaks; update them.
+- [x] 7.1 Review backend tests that assert the exact session payload shape, and frontend tests that locate the scene list or the download by position, for assumptions this change breaks; update them.
+  - Result: the backend exact-key assertion in `session-read.test.ts` now lists `phases` (done in group 4); the frontend `SessionPage` tests find rows by role and name, so the new sections broke none; `makeSession` and the `useLiveSession` snapshot fixture gained `phases`.
 - [ ] 7.2 Confirm every scenario in `specs/session-phase-progress/spec.md` has at least one test, and map each ticket AC (1-5) to its tests; list both mappings in the step 8 report.
 - [ ] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
