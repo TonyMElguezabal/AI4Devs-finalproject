@@ -34,12 +34,12 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 2. Backend: retry service checks (TDD; design Decisions 2 and 4)
 
-- [ ] 2.1 Write failing tests in a new `backend/test/voice-over-retry.test.ts` for `retryVoiceOver(sessionId)`:
+- [x] 2.1 Write failing tests in a new `backend/test/voice-over-retry.test.ts` for `retryVoiceOver(sessionId)`:
   - an unknown session is refused as not found;
   - each refusal reason (`not-failed-in-voice-over`, `narration-complete`, `not-retryable`, `retry-already-pending`), with the stub asserting that no request was received;
   - two concurrent calls open exactly one cycle.
-- [ ] 2.2 Write failing tests for acceptance after an exhausted cycle (a retryable failure), and that no cycle is opened for a not-retryable one.
-- [ ] 2.3 Implement `backend/src/voiceOverRetry.ts` with the checks in Decision 2's order, then `startNewCycle`, then the gate; make 2.1-2.2 pass.
+- [x] 2.2 Write failing tests for acceptance after an exhausted cycle (a retryable failure), and that no cycle is opened for a not-retryable one.
+- [x] 2.3 Implement `backend/src/voiceOverRetry.ts` with the checks in Decision 2's order, then `startNewCycle`, then the gate; make 2.1-2.2 pass.
 
 ## 3. Backend: same script, same provider, nothing deleted (TDD; design Decisions 4-6)
 

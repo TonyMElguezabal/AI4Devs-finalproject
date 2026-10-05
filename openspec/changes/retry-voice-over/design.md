@@ -50,13 +50,13 @@ What exists, and what this story builds on:
 `retryVoiceOver(sessionId)` in a new `voiceOverRetry.ts` runs these steps in order:
 
 1. The session exists. Otherwise 404.
-2. It derives `failed` with `failedPhase: "voice-over"`. Otherwise 409 `not-failed-in-voice-over`.
+2. It derives `failed` with `failedPhase: "voice-over"`. Otherwise 409, with `retry-already-pending` when a retry is pending (the latest `voice-over` attempt is `scheduled` or `in-flight` and is not the session's first attempt), and `not-failed-in-voice-over` for any other state.
 3. `canLaunchVoiceOver(sessionId)` allows a launch. Otherwise 409 `narration-complete`. This is unreachable in normal flow, because a stored narration means the voice-over phase cannot be `failed`, but it is kept as the guard JOS-137 requires every voice launch to ask.
 4. The failure is retryable (`failure.manualRetryAvailable`). Otherwise 409 `not-retryable`. See Decision 3.
 5. `startNewCycle({ sessionId, stage: "voice-over" })` succeeds. It is atomic in the store and refuses an instance that is not `failed`, so two concurrent requests open one cycle. The loser gets 409 `retry-already-pending`. A `not-retryable` refusal from it is mapped to the same reason as step 4.
 6. The retry is handed to the phase-launch gate, which sends it, or holds it while paused. `startNewCycle` already records the attempt as scheduled and arms the scheduler, so this step is `releaseAttempt` through the gate: nothing new is launched by hand.
 
-The first attempt of a session is never a retry, so a session whose first request is in flight or scheduled is `voice-over-generating`, not `failed`, and answers 409 `not-failed-in-voice-over`. `retry-already-pending` is the answer of a request that lost the race at step 5. A request arriving after the winner has committed finds the failure already cleared (Decision 7) and answers `not-failed-in-voice-over`.
+The first attempt of a session is never a retry, so a session whose first request is in flight or scheduled is `voice-over-generating`, not `failed`, and answers `not-failed-in-voice-over`. The service is synchronous over a synchronous store, so a second request always runs after the first has committed. It finds the failure already cleared (Decision 7) and a pending retry, and answers `retry-already-pending` at step 2. Step 5's refusal covers a second process, and maps to the same reason.
 
 Steps 1-5 read and write the store only. No provider request is possible before step 6.
 
