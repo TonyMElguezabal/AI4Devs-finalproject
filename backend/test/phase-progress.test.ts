@@ -11,11 +11,22 @@ function statuses(phases: PhaseProgress[]): string[] {
   return phases.map((entry) => entry.status);
 }
 
-const voiceOverFailure: SessionFailure = { phase: "voice-over", cause: "The voice provider is not reachable.", retryable: false, occurredAt: "2026-10-05T10:00:00.000Z" };
+const voiceOverFailure: SessionFailure = {
+  phase: "voice-over",
+  cause: "The voice provider is not reachable.",
+  retryable: false,
+  manualRetryAvailable: false,
+  cycle: 1,
+  attemptsInCycle: 1,
+  occurredAt: "2026-10-05T10:00:00.000Z",
+};
 const decompositionFailure: SessionFailure = {
   phase: "decomposition",
   cause: "The narration's timestamps could not be obtained: alignment timed out. The script and the narration are unchanged.",
   retryable: true,
+  manualRetryAvailable: true,
+  cycle: 1,
+  attemptsInCycle: 1,
   occurredAt: "2026-10-05T10:00:00.000Z",
 };
 

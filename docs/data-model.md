@@ -18,14 +18,15 @@ Represents one video project. PRD §3, §4.1, §8.1, §9, §12.2.
 - `script`: the script exactly as submitted, **write-once from registration onward** — §4.2/D10 (`start-video-project`, JOS-134, Decisions 1 and 2). Emptiness is judged on a trimmed view at the validation boundary; the stored value is never trimmed. No operation updates this column after creation, and since `lock-script-and-narration` (JOS-137) the **store itself refuses** any update of it, in every state (see *Store-enforced locks* below).
 - `language`: script language, selected from the hardcoded supported list; a session cannot exist without one — §4.1. Also write-once, same as `script`, and enforced the same way.
 - `created_at`: creation timestamp; also drives the project-folder name, to the minute — §12.2
-- `state`: **derived**, not stored — one of the eight session states in §8.1, computed from the session's scenes each time it is read (`orchestrator.ts`'s `deriveSessionState`). A session with zero scenes (the state immediately after `start-video-project` registers it, before decomposition creates any) derives to `submitted`. With scenes, the state follows the PRD §8.1 v1.3 rules: while any scene is not settled (settled means `chunk-complete` or `failed`) the session is `chunks-processing`, even beside a `failed` scene; once every scene is settled it is `failed` if at least one scene failed, and `final-video-generating` if all are `chunk-complete`. `final-video` additionally requires `final_video_path != NULL` (see below) — the assembly phase (`assemble-final-video`, JOS-149) sets this once `AssemblyTool.assemble()` returns success. With no chunks yet, the state also reads the session's records: a stored `failure` derives to `failed` in that failure's phase; a `timestamps` stage attempt or stored timestamps derive to `chunk-decomposing`; a voice-over alone derives to `voice-over-complete`. No state column exists.
+- `state`: **derived**, not stored — one of the eight session states in §8.1, computed from current scenes and phase records (`orchestrator.ts`'s `deriveSessionState`). With scenes, while any scene is not settled (`chunk-complete` or `failed`) the session is `chunks-processing`, even beside a failed scene; once all are settled, it is `failed` with `failedPhase: "scenes"` and ascending `failedSceneIndexes` if any failed, or `final-video-generating` if all are complete. `final-video` additionally requires `final_video_path != NULL`, set by assembly on success. With no scenes, a failed phase is `failed` unless its retry attempt is in flight; otherwise timestamps work derives to `chunk-decomposing`, a stored voice-over to `voice-over-complete`, an in-flight voice-over attempt to `voice-over-generating`, and no started work to `submitted`. No state column exists.
 - `phases` (not a column): **derived**, never stored (`view-progress-by-phase`, JOS-168). Four entries in pipeline order (`voice-over`, `decomposition`, `scenes`, `assembly`), each with `status` (`pending`, `in-progress`, `complete`, `failed`), `heldCount` and, on a failed voice-over, decomposition or assembly entry, the stored `failure`'s `cause` and `retryable` only. `derivePhaseProgress` computes them on every read from the derived session state, the `failure` column and the held work, so nothing was added to the schema. The same rule makes a retried phase read `in-progress`: with no chunks and a recorded `failure`, an `in-flight` `stage_attempts` row for the failed phase's stage (`voice-over`, or `timestamps` for decomposition) queued at or after the failure's `occurredAt` derives `voice-over-generating` or `chunk-decomposing`. The `failure` stays recorded until the retry succeeds and clears it.
 - `final_video_path`: nullable TEXT. Set by `setFinalVideoPath()` (migration 13, JOS-149) to the relative path of the assembled MP4 under `project_folder` (e.g. `"final-video.mp4"`). NULL until assembly succeeds. This is the single stored fact that gates the `final-video` state and the `/sessions/:id/download/final-video` route. Chunks and voice-over are **never updated** by the assembly phase (JOS-149 Decision 4).
 - `paused`: a marker on top of the current state, never a state itself, per §8.1/§9. This is the **only stored pause fact** — it is set to `1` by `pauseSession` and cleared to `0` by `continueSession`. Held work (scenes or other stage units not yet launched) is **derived**, not stored: each registered stage launcher computes it from the current store state on demand (see `sessionHeldWork` in `launchGate.ts`). The `held` fields on the session and scene response payloads are computed at read time from the registry; they are never persisted. Held time (time spent paused) does not count as execution time: no attempt is recorded, no `sentAt` is set, and no budget is consumed for a scene that was held.
-- `failure`: the phase failure the session carries when it is `failed`, as JSON: `{ phase, cause, retryable, occurredAt }` with `phase` either `voice-over` (`generate-voice-over`, JOS-136, which added the column in migration 4) or `decomposition` (JOS-144: a refused system-generated decomposition, whose cause never blames the User's script). A session with no chunks and a failure derives to `failed` in that phase. A successful chunk registration clears it.
+- `failure`: the phase failure the session carries when it is `failed`, as JSON: `{ phase, cause, retryable, manualRetryAvailable, cycle, attemptsInCycle, occurredAt }` (the last three added by `bounded-retry-policy`, JOS-184: whether the User can start a new cycle, which cycle ended in this failure, and how many attempts it held) with `phase` either `voice-over` (`generate-voice-over`, JOS-136, which added the column in migration 4) or `decomposition` (JOS-144: a refused system-generated decomposition, whose cause never blames the User's script). A session with no chunks and a failure derives to `failed` in that phase. A successful chunk registration clears it, and a voice-over attempt that starts after a failure clears it in the same write that records the attempt.
+- `voice_provider_id`: the identifier of the voice provider bound to the session, nullable. Bound by the first voice-over attempt and read from here by every later attempt, so a later change of the default provider cannot split one narration across providers (`generate-voice-over`, JOS-136, Decision 3). It is written once: `bindVoiceProvider` only sets it while it is null and leaves an existing binding untouched.
 - `project_folder`: the real per-project folder name under a configured root, named `<title> <YYYY-MM-DD HH-mm>` with a counter suffix on collision — §12.2 (Decision 4, `define-persistence`)
 
-**Not modelled** (no consumer yet — see the scope note): voice-over/alignment provider bindings, MP3 and timestamp references, total narration duration (§11.2) — these belong to stages this skeleton doesn't simulate.
+**Not modelled** (no consumer yet — see the scope note): the alignment provider binding and the total narration duration as a session field (the duration lives on the voice-over record, §6 below) — these belong to stages this skeleton doesn't simulate.
 
 **Relationships:** one session has many scenes.
 
@@ -97,6 +98,24 @@ The clip-specific idempotency guarantee, mirroring `scene_results` for the video
 
 Tracks which versioned migrations have been applied, so an existing session's data survives a schema upgrade (§11.2, Decision 6). Fields: `version` (Primary Key), `applied_at`. Migration 5 adds the three session-content triggers and migration 6 the two voice-over triggers (`lock-script-and-narration`, JOS-137); migration 7 adds `prompt`, `image_instruction` and `video_instruction` to `scenes`, the unique chunk-number index and the four chunk triggers (`assign-scene-identifiers`, JOS-144); migrations 5 and 6 are separate because a database that had already applied 5 must still receive the voice-over triggers, and an applied migration is never edited. Migration 8 adds `narration_timestamps` and its two triggers (`obtain-narration-timestamps`, JOS-139). Migration 9 adds `scenes.narration_start_seconds` and `scenes.narration_end_seconds` with one lock trigger each (`assign-narration-intervals`, JOS-143); its triggers are built from their own constant, not from the array migration 7 uses, so migration 7 is unchanged. Migration 10 adds `scenes.requested_duration_seconds` and `scenes.duration_warning` with one lock trigger each (`request-admitted-clip-duration`, JOS-147), built from a constant of its own for the same reason migration 9's was. Migration 11 adds `scenes.speed_factor` and `scenes.speed_factor_warning` with one lock trigger each (`record-speed-adjustment-factor`, JOS-148), the same pattern again. Migration 12 (`generate-chunk-video`, JOS-146) adds `scenes.video_provider` (nullable TEXT) and `scenes.video_result` (nullable TEXT), a `stage` column (NOT NULL DEFAULT `'image'`, TEXT) to `provider_requests`, and the `scene_video_results` table — the clip idempotency guard — with a Foreign Key on `scene_id`.
 
+### 5b. Voice-over (`voice_overs` table) and stage attempts (`stage_attempts` table) — `generate-voice-over`, JOS-136, migration 4
+
+**The voice-over** is the session's single narration, generated once from the whole script. PRD §5 step 2, §11.2, §12.2. Fields:
+- `run_id`: the owning session (Primary Key, Foreign Key) — one voice-over per session, enforced by the key (Decision 8)
+- `audio_path`: the **relative path** of the MP3 in the session's project folder, always `voice-over.mp3`
+- `timestamps_path`: the relative path of the provider's native timestamps, `voice-over-timestamps.json`, stored raw and uninterpreted, as the provider's own alignment object (for ElevenLabs `{ characters, character_start_times_seconds, character_end_times_seconds }`, one entry per character); null when the provider returned none. Interpreting it, and deciding whether it is usable, belongs to the timestamps stage (US-05, US-06), which reads this file and falls back to alignment when it is absent or unusable
+- `duration_seconds`: measured by probing the stored MP3, never the provider's claim (Decision 7); always greater than zero
+- `size_bytes`: the MP3's size
+- `native_timestamps_available`: whether the provider returned timestamps (`1`) or not (`0`)
+- `provider_request_id`: the provider's own request identifier, nullable; kept for diagnosis and never exposed by the API
+- `completed_at`: when the voice-over was stored
+
+The MP3 and the timestamps file are written once (`writeArtefactOnce`) before the record is inserted, and the record is locked against update and delete (see *Store-enforced locks*). A success confirmation that arrives twice, or concurrently, leaves one record and one MP3 (Decision 8). The API exposes `provider`, `durationSeconds`, `nativeTimestampsAvailable` and `completedAt` on the session read, and never the file paths, the request id or the audio itself (Decision 11, PRD §12.3).
+
+**Stage attempts** (`stage_attempts`) record every attempt of a stage instance before its request is sent (Decision 2); only the outcome columns are filled in afterwards. Fields: `id` (Primary Key), `run_id` (Foreign Key), `stage` (`voice-over`, `timestamps`, `image` or `video`), `scene_id` (null for the session-level stages), `stage_instance_key` (`<session>:<stage>`, or `<session>:<scene>:<stage>` for `image` and `video`; the unit the retry budget belongs to, `bounded-retry-policy` Decision 1), `cycle` (from 1; a manual retry opens the next one), `sequence_in_cycle` (1 to 4, checked by the store), `attempt_trigger` (`initial`, `automatic` or `manual`), `provider_id` (nullable until the attempt is sent), `attempt_number` (unique per `run_id` and `stage`), `queued_at`, `sent_at` (null while `scheduled`), `due_at` (when a scheduled attempt may be sent), `outcome` (`scheduled`, `in-flight`, `success`, `transient` or `not-retryable`, checked by the store), `finished_at`, `external_request_id`, `error_code` and `error_message` (a cause written for a person, never the script text or a credential). `(stage_instance_key, cycle, sequence_in_cycle)` is unique, so no mechanism can record a fifth attempt in a cycle (`bounded-retry-policy` Decision 3, migration 14; migration 13 belongs to JOS-149). A `voice-over` attempt with outcome `in-flight` is what makes the session `voice-over-generating`; an automatic retry waiting for its delay is `scheduled`, which adds no state: the session stays in progress and shows no failure until the cycle is spent. The attempt that confirms the voice-over finishes with `success`. Attempts are never updated except to complete them, and earlier cycles stay readable.
+
+**Relationships:** one session has at most one voice-over and many stage attempts; a voice-over exists only after a successful `voice-over` attempt.
+
 ### 6. Narration timestamps (`narration_timestamps` table)
 
 Where each character of the script sits in the narration, obtained once per session at the start of the decomposition phase. PRD §5 step 3, §10.3, §11.1 (`obtain-narration-timestamps`, JOS-139).
@@ -162,6 +181,30 @@ erDiagram
         String created_at
         Boolean paused
         String project_folder
+        String voice_provider_id "nullable, bound on the first voice-over attempt"
+        String failure "nullable JSON {phase, cause, retryable, manualRetryAvailable, cycle, attemptsInCycle, occurredAt}"
+    }
+    VoiceOver {
+        String run_id PK "FK to Session"
+        String audio_path
+        String timestamps_path "nullable"
+        Float duration_seconds
+        Boolean native_timestamps_available
+        String completed_at
+    }
+    StageAttempt {
+        String id PK
+        String run_id FK
+        String stage
+        String scene_id "nullable"
+        String stage_instance_key
+        Int cycle
+        Int sequence_in_cycle "1 to 4"
+        String attempt_trigger
+        String provider_id "nullable"
+        Int attempt_number
+        String due_at "nullable"
+        String outcome
     }
     Scene {
         String id PK
@@ -193,6 +236,8 @@ erDiagram
     }
 
     Session ||--o{ Scene : "has (ascending idx)"
+    Session ||--o| VoiceOver : "at most one narration"
+    Session ||--o{ StageAttempt : "append-only attempts per stage"
     Scene ||--o{ ProviderRequest : "append-only attempts"
     Scene ||--o| SceneResult : "at most one commit"
 ```

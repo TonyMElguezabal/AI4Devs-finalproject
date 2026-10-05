@@ -66,6 +66,12 @@ export interface DecompositionFailure {
   /** Written for a person; never blames the script, never contains credentials or raw provider payloads. */
   cause: string;
   retryable: boolean;
+  /** Whether the User can start a new cycle (bounded-retry-policy, JOS-184). */
+  manualRetryAvailable: boolean;
+  /** The cycle the failure ended, from 1. */
+  cycle: number;
+  /** Attempts the cycle held when it failed, 1 to 4. */
+  attemptsInCycle: number;
   /** ISO-8601 instant. */
   occurredAt: string;
 }
@@ -77,6 +83,12 @@ export interface VoiceOverFailure {
   /** Written for a person; never contains credentials or the script text. */
   cause: string;
   retryable: boolean;
+  /** Whether the User can start a new cycle (bounded-retry-policy, JOS-184). */
+  manualRetryAvailable: boolean;
+  /** The cycle the failure ended, from 1. */
+  cycle: number;
+  /** Attempts the cycle held when it failed, 1 to 4. */
+  attemptsInCycle: number;
   /** ISO-8601 instant. */
   occurredAt: string;
 }
@@ -97,8 +109,8 @@ export interface VoiceOverInput {
 
 export type VoiceOver = VoiceOverInput;
 
-/** The stages that record attempts at session level (`timestamps`: obtain-narration-timestamps, JOS-139; `assembly`: assemble-final-video, JOS-149). */
-export type AttemptStage = "voice-over" | "timestamps" | "assembly";
+/** Stages that record attempts, including session-level and scene-level stages. */
+export type AttemptStage = "voice-over" | "timestamps" | "image" | "video" | "assembly";
 
 /** How the narration timestamps were obtained (PRD §11.1). */
 export type TimestampMechanism = "native" | "alignment";
@@ -114,20 +126,35 @@ export interface NarrationTimestampsInput {
 
 export type NarrationTimestamps = NarrationTimestampsInput;
 
-export const STAGE_ATTEMPT_OUTCOMES = ["in-flight", "success", "transient", "not-retryable"] as const;
+/** `scheduled`: an automatic retry that is persisted with its due time and not yet sent (bounded-retry-policy, Decision 9). */
+export const STAGE_ATTEMPT_OUTCOMES = ["scheduled", "in-flight", "success", "transient", "not-retryable"] as const;
 export type StageAttemptOutcome = (typeof STAGE_ATTEMPT_OUTCOMES)[number];
+
+export type AttemptTrigger = "initial" | "automatic" | "manual";
 
 /** One provider call, written before the request is sent (Decision 2) and never rewritten except to record its outcome. */
 export interface StageAttempt {
   id: string;
   runId: string;
   stage: AttemptStage;
-  /** Null for the assembly stage, which has no external provider (JOS-149, design.md Decision 5). */
+  /** Set for the scene-level stages (image, video); null for the session-level ones. */
+  sceneId: string | null;
+  /** The budget this attempt counts against (bounded-retry-policy, Decision 1). */
+  stageInstanceKey: string;
+  /** Starts at 1; a manual retry opens the next one. */
+  cycle: number;
+  /** 1 to 4 within the cycle; the store rejects a fifth. */
+  sequenceInCycle: number;
+  trigger: AttemptTrigger;
+  /** Null for a stage with no external provider (assembly, JOS-149). */
   providerId: string | null;
-  /** Sequence within the session's stage, from 1. */
+  /** Sequence across the session's stage, from 1, continuing through cycles. */
   attemptNumber: number;
   queuedAt: string;
-  sentAt: string;
+  /** Null while the attempt is only scheduled. */
+  sentAt: string | null;
+  /** When a scheduled attempt becomes due; null otherwise. */
+  dueAt: string | null;
   outcome: StageAttemptOutcome;
   finishedAt: string | null;
   externalRequestId: string | null;
@@ -251,6 +278,10 @@ export interface SessionEventPayload {
   failedPhase?: string;
   /** gate-assembly-on-complete-scenes (JOS-150): the failed scenes' indexes, ascending; present only when `failedPhase` is `"scenes"`. Derived, never stored. */
   failedSceneIndexes?: number[];
+  /** generate-voice-over (JOS-136) Decision 11 — present once the narration exists; never its file paths or the provider's request id, and no download (PRD §12.3). */
+  voiceOver?: { provider: string; durationSeconds: number; nativeTimestampsAvailable: boolean; completedAt: string };
+  /** Present while the session is `failed` in a phase that records its failure (Decision 9): the phase, a cause written for a person, and whether a retry may help, whether the User can start a new cycle, and which cycle and how many attempts it held (bounded-retry-policy, JOS-184). */
+  failure?: { phase: string; cause: string; retryable: boolean; manualRetryAvailable: boolean; cycle: number; attemptsInCycle: number; occurredAt: string };
   /** view-progress-by-phase (JOS-168): the four phases in pipeline order, each with its status. Derived, never stored. */
   phases: PhaseProgress[];
   /** PRD §12.2 — the project-folder name derives from this instant, and

@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname } from "node:path";
+import { launchVoiceOverFor } from "./voiceOverPhase.ts";
 import { randomUUID } from "node:crypto";
 import {
   createRun,
@@ -154,6 +155,31 @@ const sessionResponseSchema = z.object({
     .describe(
       "PRD §8.1: the indexes of the failed scenes, ascending. Present only when failedPhase is \"scenes\". Derived and read-only.",
     ),
+  voiceOver: z
+    .object({
+      provider: z.string(),
+      durationSeconds: z.number(),
+      nativeTimestampsAvailable: z.boolean(),
+      completedAt: z.string(),
+    })
+    .optional()
+    .describe(
+      "Present once the narration exists (PRD §5 step 2). Derived and read-only; the MP3 itself is never offered for download (PRD §12.3).",
+    ),
+  failure: z
+    .object({
+      phase: z.string(),
+      cause: z.string(),
+      retryable: z.boolean(),
+      manualRetryAvailable: z
+        .boolean()
+        .describe("Whether the User can start a new cycle of up to four attempts. True only for a retryable failure whose cycle is exhausted."),
+      cycle: z.number().int().min(1).describe("The cycle that ended in this failure, from 1."),
+      attemptsInCycle: z.number().int().min(1).max(4).describe("Attempts the cycle held when it failed."),
+      occurredAt: z.string(),
+    })
+    .optional()
+    .describe("Present while the session is failed in a phase that records its failure (PRD §8.1); the cause is written for a person."),
   phases: z
     .array(phaseResponseSchema)
     .describe("PRD §8.3: always the four phases in pipeline order (voice-over, decomposition, scenes, assembly). Derived and read-only."),
@@ -203,7 +229,11 @@ export const routes: FastifyPluginAsync = async (app) => {
       const sessionId = ulid();
       createRun(sessionId, request.body.title, request.body.script, request.body.language);
       reply.code(201);
-      return toSnapshot(sessionId);
+      const snapshot = toSnapshot(sessionId);
+      // generate-voice-over (JOS-136) Decision 1 — the session is committed; the
+      // response above still says `submitted`, and the launch follows it.
+      setImmediate(() => launchVoiceOverFor(sessionId));
+      return snapshot;
     },
   );
 

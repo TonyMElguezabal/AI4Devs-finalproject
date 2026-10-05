@@ -93,7 +93,7 @@ describe("The derived session state with no chunks (Decision 8)", () => {
   });
 
   it("is failed with the failure's phase when the session carries a failure, whatever else it has", () => {
-    const failure = { phase: "decomposition" as const, cause: "x", retryable: true, occurredAt: "now" };
+    const failure = { phase: "decomposition" as const, cause: "x", retryable: true, manualRetryAvailable: true, cycle: 1, attemptsInCycle: 1, occurredAt: "now" };
     expect(deriveSessionState([], failure, { hasVoiceOver: true, timestampsStarted: true })).toEqual({
       state: "failed",
       failedPhase: "decomposition",
@@ -166,7 +166,15 @@ describe("Live updates", () => {
 
 describe("A decomposition retry in flight (JOS-168 task 3.1, design Decision 5)", () => {
   const failedAt = "2026-10-05T10:00:00.000Z";
-  const failure = { phase: "decomposition" as const, cause: "The narration's timestamps could not be obtained: alignment timed out.", retryable: true, occurredAt: failedAt };
+  const failure = {
+    phase: "decomposition" as const,
+    cause: "The narration's timestamps could not be obtained: alignment timed out.",
+    retryable: true,
+    manualRetryAvailable: true,
+    cycle: 1,
+    attemptsInCycle: 1,
+    occurredAt: failedAt,
+  };
 
   it("reads chunk-decomposing while the failure stays recorded, then shows no failure on the phase", async () => {
     const runId = await narratedSessionViaApi();

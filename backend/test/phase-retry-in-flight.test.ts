@@ -33,7 +33,15 @@ describe("A voice-over retry in flight (3.1)", () => {
   it("reads voice-over-generating while the failure stays recorded", async () => {
     const sessionId = ulid();
     createRun(sessionId, "Voice test", "A short script.", "en");
-    const failure = { phase: "voice-over" as const, cause: "The voice provider is not reachable.", retryable: true, occurredAt: "2026-10-05T10:00:00.000Z" };
+    const failure = {
+      phase: "voice-over" as const,
+      cause: "The voice provider is not reachable.",
+      retryable: true,
+      manualRetryAvailable: true,
+      cycle: 1,
+      attemptsInCycle: 1,
+      occurredAt: "2026-10-05T10:00:00.000Z",
+    };
     setRunFailure(sessionId, failure);
     recordStageAttempt({ runId: sessionId, stage: "voice-over", providerId: "voice", queuedAt: "2026-10-05T10:00:05.000Z", sentAt: "2026-10-05T10:00:05.000Z" });
 

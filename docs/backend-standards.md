@@ -15,6 +15,7 @@ alwaysApply: true
   - [Why not classic DDD/CRUD layering](#why-not-classic-dddcrud-layering)
   - [Core components](#core-components)
   - [Provider adapters](#provider-adapters)
+  - [Retries and attempts](#retries-and-attempts)
 - [Coding Standards](#coding-standards)
   - [Naming Conventions](#naming-conventions)
   - [Error Handling](#error-handling)
@@ -101,9 +102,17 @@ Stage attempts are recorded **append-only**, written *before* the request is sen
 
 One adapter per stage (voice, alignment, image, video, assembly). Per `generate-voice-over` (JOS-136)'s Decision 4, an adapter returns an **already-classified** outcome (success, transient failure, or not-retryable failure) — classification is the adapter's job, not the orchestrator's, since only the adapter knows a given provider's error shapes. Per `bounded-retry-policy`'s Decision 6, every adapter disables its own HTTP client's/SDK's built-in retries; the bounded retry budget (§10.1) is the *only* retry mechanism, or an internal library retry loop would silently multiply it.
 
+**Rule for every new adapter (image, video, reasoning, alignment, assembly and any later one):** one provider request per call, made with `fetch` directly or an SDK client configured with automatic retries off (`maxRetries: 0` or the equivalent); no retry loop, no backoff, no `Retry-After` handling inside the adapter. A `Retry-After` is only reported upward so the retry policy can respect it. The guard is `backend/test/adapters-no-hidden-retries.test.ts`: add the new adapter to it, and the story is not done until a failing call is shown to be made exactly once.
+
 **The reasoning adapter** (`backend/src/visualInstructions.ts`, `assign-scene-identifiers`, JOS-144) follows the same rule: `VisualInstructionGenerator` is the port and the OpenAI adapter sends **one** chat-completions request for all fragments (`response_format: json_object`, the shape verified in JOS-165), validates the answer with Zod (exactly one non-empty `image` and `video` per fragment), and classifies failures by HTTP status the way the product owner set for voice (not retryable: 4xx except 408 and 429; transient: 408, 429, 5xx, network errors and the phase time limit). It uses `fetch` directly, with no SDK and no retry loop, reads `OPENAI_KEY` through `loadCredential`, and never puts the provider's raw body or the key in a reason. Real calls run only in the opt-in contract test (`RUN_PROVIDER_CONTRACT_TESTS=1`).
 
 **The alignment adapter and the timestamps step** (`backend/src/alignmentProvider.ts`, `narrationTimestampsPhase.ts`, `obtain-narration-timestamps`, JOS-139) follow the same rules. `AlignmentProvider` is the port; the ElevenLabs Forced Alignment adapter sends one multipart request (the stored MP3 as `file`, the locked script as `text`, unaltered), with the 5 s phase limit, no retry and the HTTP-status classification. `obtainNarrationTimestamps(runId, alignmentProvider)` takes only the alignment port, so the voice provider cannot be called again and the MP3 cannot be regenerated. **Usable** timestamps (`narrationTimestamps.ts`, pure) are those with at least one character, characters that reproduce the script (exactly for native, apart from whitespace for alignment), finite non-negative ordered times, and a last end within the narration's duration plus half a second; gaps are allowed. Native first, alignment in the same attempt when native are missing or unusable, and straight to alignment on every later attempt once native were judged unusable. Nothing in the running app calls it yet: the voice phase (JOS-136) calls it once a narration completes.
+
+**The voice stage and the voice-over phase** (`backend/src/voiceProvider.ts`, `voiceOverPhase.ts`, `generate-voice-over`, JOS-136) are the first session-level stage, launched once per session rather than once per scene, and follow the same rules. `VoiceProvider` is the port (`synthesize(request)`), and the ElevenLabs adapter sends **one** synchronous text-to-speech request with timestamps for the whole script, sent exactly as stored: no SDK, no retry loop, no default time limit (the per-phase limit is passed in by the time-limits story, JOS-185). It classifies by HTTP status (4xx except 408 and 429 is not retryable, everything else transient), reads its credential only through `loadCredential`, and never copies the provider's body into a failure reason. The registry (`getVoiceProviderRegistry`, `setVoiceProviderRegistry`, `resetVoiceProviderRegistry`) mirrors the video provider's, and the session binds its provider on the first attempt (`voice_provider_id`) so a later change of the default cannot split one narration across providers. `createStubVoiceProvider(mode)` is the stand-in every test uses, and `USE_STUB_VOICE_PROVIDER=<mode>` selects it at server start for manual and end-to-end runs; the real ElevenLabs is never called from tests.
+
+**The phase-launch gate for the voice stage.** The phase registers its own `StageLauncher` (`voiceOverLauncher`, stage `voice-over`) with `registerStageLauncher`, as the image and video stages do, and every start goes through `launchVoiceOverFor(sessionId)`, which asks `admitLaunch` before anything is claimed: a paused session keeps its voice-over as held work (count 1, no scenes) and `continueSession` launches it. `startVoiceAttempt` is the one write that moves a session to `voice-over-generating`: it binds the provider, clears an earlier failure and records the `in-flight` stage attempt in one transaction, before the request is sent. A confirmed result is stored through `confirmVoiceOver`, which measures the duration of the stored MP3 with `ffprobe` (a prerequisite of the backend), writes the MP3 and the raw timestamps once and inserts the locked record; a duplicate or concurrent confirmation changes nothing. The session state is derived from these records (`deriveSessionState`); no state column exists.
+
+**The retry hook** is `setTransientFailureHook` / `resetTransientFailureHook` in `voiceOverPhase.ts`: a transient failure is handed to the hook with `{ runId, attemptNumber, cause }`, and it answers `"handled"` (the policy took over: nothing is stored as a failure, and the policy starts the next attempt itself through `startVoiceAttempt`, which is what moves the session back to `voice-over-generating`) or `"fail"` (the phase stores the failure). Either way the failed attempt itself is already recorded as `transient`. The default hook answers `"fail"`, so until the bounded retry policy (JOS-184) installs its own, a transient failure fails the session with `retryable: true`. Manual retry (JOS-155), the pause and continue stories and the time limits (JOS-185) extend the launcher and this hook; they do not wrap the phase or re-derive its state.
 
 **Registering chunks** goes through one entry point, `registerDecomposition(runId, fragments, generator, voiceOverDurationSeconds)` (`backend/src/sceneRegistration.ts`). It validates the fragments first (non-empty, the 5-15 s bounds with the two §6.1.1 exceptions, script reconstruction), then checks that the fragments' narration intervals partition the voice-over (`assign-narration-intervals`, JOS-143; see below), then asks the generator, then inserts every chunk in one transaction; an invalid result records a `decomposition` failure and writes no chunk. Nothing in the running app calls it yet: the segmentation story (JOS-140) wires it in.
 
@@ -137,6 +146,18 @@ interface VideoProvider {
 **Clip-retry refusal**: `manualRetry` and `correctAndRetry` refuse a video-stage failure (`scene.result !== null`) with `{ ok: false, reason: "retrying a failed clip is not available yet" }` (HTTP 409). The clip retry path is deferred to JOS-150 (`gate-assembly-on-complete-scenes`) or later. Callers must check `affectedStage` on a failed scene to distinguish image-stage failures (retryable via these endpoints) from video-stage failures (not yet retryable). This refusal is tested in Group 6.3 of `test/video-stage.test.ts`.
 
 **MP4 validation**: `completeVideoStage` checks the first 8 bytes of the downloaded clip for the `ftyp` box before writing it to disk — `bytes[4..7] === 'ftyp'` — and rejects non-MP4 data as a transient failure.
+
+### Retries and attempts
+
+`bounded-retry-policy` (JOS-184, PRD §10.1) owns every retry: a stage instance (`stageInstanceKey`) gets at most four attempts per cycle, and nothing but a new cycle started by the User adds more.
+
+- **Record every outcome through `recordAttemptOutcome`** (`src/retry/stageAttemptRecorder.ts`). It completes the attempt, decides with the pure `decideRetry`, and schedules the next one in a single transaction. A stage never sets its own failure on a transient error and never decides whether to retry.
+- **Fail the stage instance only on the recorder's `failed` result** (cap spent, or not retryable). Until then the session stays in progress and shows no failure.
+- **Never enable client or SDK retries**; see the checklist under *Provider adapters*. `test/adapters-no-hidden-retries.test.ts` is the guard.
+- **Retries go through the launch gate.** A scheduled attempt is released by `releaseAttempt` (`src/retry/retryScheduler.ts`), which asks `admitLaunch` first, so a paused session holds its retries and `continue` releases them.
+- **A new cycle is opened only by `startNewCycle`**, which refuses an instance that has not failed or whose failure is not retryable.
+- **A stage that wants retries registers a sender** with `registerAttemptSender(stage, sender)`; the scheduler calls it when an attempt is due and after a restart (`rebuildScheduler`). The sender must not make its own scheduling decisions.
+- **Delays are injected**, never read from a constant inside the policy. The defaults are `PROVISIONAL_RETRY_DELAY_SECONDS` until US-33 records the PRD values; tests call `setRetryDelayConfig`, and `RETRY_BASE_DELAY_SECONDS` / `RETRY_CAP_DELAY_SECONDS` shorten them for manual runs.
 
 ## Coding Standards
 
@@ -274,11 +295,13 @@ Structured JSON logging (Fastify's built-in Pino logger), one event per line, ne
 - `sessionId`, `sceneId` (when the stage is per-scene), `stage`
 - `stageInstanceKey` (per `bounded-retry-policy`'s Decision 1: `(sessionId, stage)` or `(sessionId, sceneId, stage)`)
 - `cycle` and `sequenceInCycle` (which automatic-retry cycle, and which of the 1 + 3 attempts within it — `bounded-retry-policy` Decision 7)
-- `trigger` (`automatic` | `manual`)
+- `trigger` (`initial` | `automatic` | `manual`), and `queuedMs` (time from the attempt being queued or scheduled to it being sent) next to `latencyMs`
 - `providerRequestId` (the external request identifier, recorded before the request is sent)
 - `outcome` (`success` | `failed_transient` | `failed_not_retryable`) once known
 
 **Never log a provider credential or secret value**, even at debug level — this is a hard requirement of `backend-foundation`'s "Provider credentials outside source control" (`specs/backend-foundation/spec.md`), not just good practice. A missing required credential at startup must report *which* credential is missing without ever printing its value.
+
+**Script text is never logged.** The script is the User's content and may be long or private, so neither the voice-over phase nor any adapter writes it, a prefix of it, or the provider's response body to a log line or to a failure cause. The voice-over phase logs only `scriptLength` and `scriptSha256` (a fingerprint that identifies a script without revealing it) beside `sessionId`, `stage`, `provider`, `attemptNumber`, `providerRequestId`, `outcome`, `latencyMs` and a `reason` written for a person (`VoiceOverLogEntry`, `setVoiceOverLogger`). The same rule holds for the failure cause the API returns. A new phase that sends the script to a provider follows it.
 
 ## Security and Configuration
 

@@ -14,6 +14,8 @@ import {
   MAX_SIMULTANEOUS_REQUESTS,
   PER_PHASE_MAX_TIME_SECONDS,
   SPEED_FACTOR_LIMIT,
+  MAX_ATTEMPTS_PER_CYCLE,
+  PROVISIONAL_RETRY_DELAY_SECONDS,
 } from "../src/config/providers.ts";
 
 // define-provider-configuration (JOS-165) task 11.2 — Decision 8 requires the
@@ -128,5 +130,19 @@ describe("Supported language list contains only evidence-verified languages (Dec
 
   it("no verified language is missing from the supported list", () => {
     expect([...SUPPORTED_LANGUAGE_CODES].sort()).toEqual([...EVIDENCE_VERIFIED_LANGUAGE_CODES].sort());
+  });
+});
+
+describe("Retry policy constants (bounded-retry-policy, JOS-184)", () => {
+  it("allows the initial attempt plus three automatic retries per cycle (§10.1)", () => {
+    expect(MAX_ATTEMPTS_PER_CYCLE).toBe(4);
+  });
+
+  // PRD §11 records no retry delay base or cap yet (task 1.4 waits for US-33).
+  // The values are named PROVISIONAL so no one mistakes them for PRD values;
+  // when US-33 records them, replace this test with an assertion against §11.
+  it("keeps the retry delays provisional and well-formed until the PRD records them", () => {
+    expect(PROVISIONAL_RETRY_DELAY_SECONDS).toEqual({ base: 2, cap: 30 });
+    expect(PROVISIONAL_RETRY_DELAY_SECONDS.cap).toBeGreaterThanOrEqual(PROVISIONAL_RETRY_DELAY_SECONDS.base);
   });
 });
