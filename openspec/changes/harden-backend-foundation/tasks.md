@@ -14,10 +14,10 @@ Every code change starts with a failing test (TDD). Every scenario in `specs/res
 
 ## 2. Semaphore: slots owned by a holder (design Decision 1; spec: every released slot has a matching slot that was taken)
 
-- [ ] 2.1 Failing tests in `test/concurrency.test.ts`: a release by a holder with no slot, at the cap with a waiter queued, starts nothing and leaves the count unchanged; releasing the same holder twice frees one slot and starts at most one waiter; a handed-over slot belongs to the waiter's holder (releasing the previous holder again does nothing); `acquire` for a holder that already holds a slot or is queued is ignored (queued once, in-flight count unchanged, and the single release frees exactly one slot)
-- [ ] 2.2 Change `acquire(stage, holder, onAcquired)` / `release(stage, holder)` to keep a holder set per stage; `stats` reports the set's size
-- [ ] 2.3 Pass the scene id as the holder at every `orchestrator.ts` call site (one mechanical commit, kept separate from 2.2 so rebases stay simple)
-- [ ] 2.4 Make the group 2 tests pass, plus the existing `orchestrator`, `image-stage` and `video-stage` suites
+- [x] 2.1 Failing tests in `test/concurrency.test.ts`: a release by a holder with no slot, at the cap with a waiter queued, starts nothing and leaves the count unchanged; releasing the same holder twice frees one slot and starts at most one waiter; a handed-over slot belongs to the waiter's holder (releasing the previous holder again does nothing); `acquire` for a holder that already holds a slot or is queued is ignored (queued once, in-flight count unchanged, and the single release frees exactly one slot)
+- [x] 2.2 Change `acquire(stage, holder, onAcquired)` / `release(stage, holder)` to keep a holder set per stage; `stats` reports the set's size
+- [x] 2.3 Pass the scene id as the holder at every `orchestrator.ts` call site (one mechanical commit, kept separate from 2.2 so rebases stay simple)
+- [x] 2.4 Make the group 2 tests pass, plus the existing `orchestrator`, `image-stage` and `video-stage` suites
 
 ## 3. Requests already sent count at boot (design Decisions 2 and 3; spec: requests in flight at restart count against the cap)
 
