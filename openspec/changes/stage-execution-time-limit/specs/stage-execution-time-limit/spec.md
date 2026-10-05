@@ -48,6 +48,21 @@ When a sent attempt has produced no result after its stage's hardcoded maximum t
 - **WHEN** attempts of two different stages are in flight
 - **THEN** each is timed against the maximum time of its own stage
 
+### Requirement: A scene-level image request is limited at the provider call
+
+The image stage, which records no attempt row, SHALL stop waiting for an image request once its stage's maximum time has passed since the request was made, and SHALL treat that as a transient failure of the scene's attempt.
+
+#### Scenario: The image provider never answers
+
+- **WHEN** an image request has had no answer after the image stage's maximum time
+- **THEN** the request is abandoned and the scene's attempt is a transient failure
+- **AND** the scene's own retry path decides the next attempt
+
+#### Scenario: A scene waited behind the request limit
+
+- **WHEN** a scene waited longer than the image stage's maximum time for a request slot and its request then answers promptly
+- **THEN** the image is accepted and no timeout is recorded
+
 ### Requirement: A late result is accepted once, or discarded
 
 When a result arrives for an attempt that already timed out, the system SHALL accept it as the stage instance's result if the stage instance has no successful result yet, and SHALL cancel any retry of that stage instance that has been scheduled but not sent. If the stage instance already has a successful result, the system SHALL record the late result as superseded and discard it. In no case SHALL the stage instance complete more than once or launch its next stage more than once.

@@ -43,7 +43,9 @@ A backend change with no screen of its own. Group 1 is a hard gate. Tests come f
 - [ ] 4.10 Write a failing test that a late success after a manual retry opened a new cycle is `superseded`
 - [ ] 4.11 Write a failing test that a late failure is recorded on its attempt and consumes no budget
 - [ ] 4.12 Write a failing test that after a restart an in-flight attempt times out at its original `sentAt` plus its maximum time, and one whose deadline passed during downtime is timed out promptly at startup
-- [ ] 4.13 Implement `AttemptTimeoutWatcher`: run at startup after US-28's resumption, then on a fixed interval; claim expired attempts with the conditional update; hand them to `StageAttemptRecorder` as transient
+- [ ] 4.12a Write failing tests that the default Fal.ai adapter abandons a call that outlasts the image stage's maximum time and reports a transient failure, and that its clock starts when the call is made, not when the scene was queued
+- [ ] 4.12b Give the Fal.ai adapter the image stage's maximum time as its default `timeoutMs`
+- [ ] 4.13 Implement `AttemptTimeoutWatcher` over `in-flight` `stage_attempts` rows (voice-over, timestamps, decomposition; design Decision 9): run at startup after US-28's resumption, then on a fixed interval; claim expired attempts with the conditional update; hand them to `StageAttemptRecorder` as transient
 - [ ] 4.14 Route late results through the ordinary result handler; on successful completion mark `late-success`, on collision mark `superseded`, and cancel scheduled retries of the stage instance
 - [ ] 4.15 Log every timeout and late result with `stageInstanceKey`, `cycle`, `sequenceInCycle`, `sentAt`, elapsed time and resulting outcome
 - [ ] 4.16 Run the group 4 tests and confirm they pass

@@ -55,6 +55,10 @@ A failure arriving for a timed-out attempt is stored as detail on that attempt; 
 At startup it immediately times out every in-flight attempt whose deadline passed while the application was down, unless US-28's resumption recovers its result first; afterwards it runs on an interval well below the smallest per-phase maximum time, so a timeout is detected within a bounded lag.
 *Alternatives:* scanning only on demand (rejected: a hung attempt with no other activity would never be noticed).
 
+**Decision 9 — The watcher times attempt rows; the scene-level image stage is limited at its adapter.**
+`AttemptTimeoutWatcher` selects `stage_attempts` rows that are `in-flight`. Those exist for the session-level stages (voice-over, timestamps, decomposition, assembly). The scene-level image and video stages do not record attempt rows: they track attempts on `scenes` and retry through `scenes.attempts`. So the image stage gets the same limit where its request is made: the Fal.ai adapter's default `timeoutMs` is the image stage's maximum time, started when the call is made (after the request-cap slot is taken, so queue time is excluded by construction). The video stage keeps its existing poll limit in `pollVideoRequestOnce`. An aborted call is a transient failure through the stage's own retry path. Because the call is aborted, a result cannot arrive late for image; late results apply where the call keeps running after the watcher marks the attempt (voice-over). Decided by the product owner on 2026-10-05.
+*Alternatives:* moving image and video onto `stage_attempts` and the recorder (rejected for this change: it is a migration of two stages' retry paths owned by JOS-145 and JOS-146, not a time limit); leaving image without a limit (rejected: a hung Fal.ai call would wait forever).
+
 ## Risks / Trade-offs
 
 - **The per-phase values are too tight** → Healthy requests time out and burn budget. JOS-165 Decision 7 sets them above the slow tail of measured runs; this change reads them, it does not choose them.
