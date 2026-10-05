@@ -49,3 +49,18 @@ Each slot SHALL belong to the scene whose request holds it. The concurrency cap 
 - **WHEN** the backend restarts with requests pending, new launches are requested, and every pending and new request then settles one by one
 - **THEN** the stage's in-flight count never goes above its cap, except for requests already sent before the restart
 - **AND** every launch that was queued is eventually started exactly once
+
+### Requirement: A scene takes at most one slot or queue place per stage
+
+A scene SHALL hold or wait for at most one slot in a stage at a time. A launch request for a scene that already holds a slot, or is already queued, in that stage SHALL be ignored.
+
+#### Scenario: The same scene is launched twice while queued
+
+- **WHEN** a stage is at its cap, a scene is queued, and a second launch is requested for the same scene (for example when a paused session continues)
+- **THEN** the scene is queued once
+- **AND** when it takes its slot and later releases it, the in-flight count of other holders is unchanged
+
+#### Scenario: A launch for a scene that already holds a slot
+
+- **WHEN** a launch is requested for a scene whose request is already in flight in that stage
+- **THEN** no second slot is taken and the in-flight count stays the same

@@ -36,6 +36,8 @@ Write capacity: one process, one `DatabaseSync` connection in WAL mode (`db.ts`)
 
 A scene has at most one request in flight per stage at a time (attempts are strictly sequential, `handleProviderResult`'s own comment). The scene id is therefore a unique key within a stage.
 
+A scene must also have at most one slot *or queue entry* per stage. A queued scene is still `submitted`/`image-complete`, so a second launch (for example `continueSession` after a pause that held it while queued) would queue it twice. The second grant sees the scene already moved on and releases, which with holder keys would free the first grant's live slot. So `acquire(stage, holder, onAcquired)` is a no-op when that holder already holds a slot or is already queued in that stage: the existing entry does the work.
+
 *Alternatives considered:*
 - **Slot handle object** (`acquire` gives the callback a `{ release() }` handle that only works once). Cleanest API, but every release site would need the handle threaded through closures and async polls (about 25 `release(VIDEO_STAGE)` sites), and a handle cannot survive the hops through `setTimeout`/poll re-entry without extra plumbing. The holder key is already in scope at every site.
 - **Only fix the stub branch** (add the missing `acquire`) and keep the anonymous count. Fixes today's bug, but the next unmatched release reintroduces it silently. The spec asks for a guarantee, not a single patch.
@@ -96,6 +98,6 @@ No schema or data migration. No API change. Rollback = revert the commit. The se
 
 ## Open Questions
 
-**Duplicate queued launches for one scene (found in 1.2, blocks group 2).** Decision 1 assumes a scene has one *request* in flight per stage, but nothing guarantees one *queued acquire* per scene. `launchImageStage` checks `status === "submitted"` before `acquire`, and a queued scene stays `submitted`. So pause while a scene is queued, then `continueSession` → `launchHeldWork`, queues the same scene twice (registration + continue are other routes). Today each queued callback owns its own anonymous slot, and the second one correctly releases its slot after seeing the scene already moved on (`runImageAttempt` / `runVideoAttempt` early `release`). With holder keys, that second grant would call `release(stage, sceneId)` and free the **first** grant's live slot, reopening the over-cap defect. Proposed resolution: `acquire(stage, holder, …)` is a no-op when that holder already holds a slot or is already queued in that stage (the queued callback will do the work). Add a scenario to `restart-safe-concurrency` and a test in 2.1.
+~~Duplicate queued launches for one scene~~ — resolved in Decision 1 (`acquire` ignores a holder that already holds a slot or is queued).
 
 None other blocking. If JOS-136 (voice-over) lands a session-level semaphore use before this change merges, it adopts the run id as its holder key per Decision 1.
