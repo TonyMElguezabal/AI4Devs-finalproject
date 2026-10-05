@@ -9,8 +9,8 @@ Every code change starts with a failing test (TDD). Every scenario in `specs/res
 
 ## 1. Gate: Confirm the starting point
 
-- [ ] 1.1 Re-fetch and confirm `reconcileOnBoot` on the base branch still has the three branches listed in design.md § Context (bound image, stub pending, video). Record any new branch an open stage PR added (for example a voice-over or assembly reconciliation) and add it to Decision 2's list before coding
-- [ ] 1.2 List every `concurrency.acquire`/`release` call site on the base branch, and on any open feature branch that adds one (`git grep` across `origin/feature/jos-*`). Record in design.md which holder key each will use
+- [x] 1.1 Re-fetch and confirm `reconcileOnBoot` on the base branch still has the three branches listed in design.md § Context (bound image, stub pending, video). Record any new branch an open stage PR added (for example a voice-over or assembly reconciliation) and add it to Decision 2's list before coding
+- [x] 1.2 List every `concurrency.acquire`/`release` call site on the base branch, and on any open feature branch that adds one (`git grep` across `origin/feature/jos-*`). Record in design.md which holder key each will use
 
 ## 2. Semaphore: slots owned by a holder (design Decision 1; spec: every released slot has a matching slot that was taken)
 

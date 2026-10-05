@@ -88,6 +88,14 @@ Both limits are set before `reconcileOnBoot`, and no HTTP request can launch wor
 
 No schema or data migration. No API change. Rollback = revert the commit. The semaphore is in-memory only, so no state is left behind.
 
+## Pre-implementation findings (tasks 1.1, 1.2)
+
+**1.1 — `reconcileOnBoot` branches** (checked after merging `origin/feature/entrega-2-JAME`, 2026-10-05): still exactly the three listed in Context (bound image, stub pending, video). No open branch adds a reconciliation branch. Decision 2's list stands.
+
+**1.2 — semaphore call sites:** all 26 are in `backend/src/orchestrator.ts` (plus 6 in `test/orchestrator.test.ts`). No other open `origin/feature/*` branch adds one: every branch that has them carries the same 26 as integration. The holder key is the scene id at every site: image (`launchScene`, `launchImageStage`, `runImageAttempt`, `handleProviderResult`, reconcile) and video (`launchVideoStage`, `runVideoAttempt`, `pollVideoRequestOnce`, reconcile) all have `sceneId` or `scene.id` in scope. `handleProviderResult` reaches it through `req`/`scene`. The assembly stage does not use the semaphore.
+
 ## Open Questions
 
-None blocking. If JOS-136 (voice-over) lands a session-level semaphore use before this change merges, it adopts the run id as its holder key per Decision 1.
+**Duplicate queued launches for one scene (found in 1.2, blocks group 2).** Decision 1 assumes a scene has one *request* in flight per stage, but nothing guarantees one *queued acquire* per scene. `launchImageStage` checks `status === "submitted"` before `acquire`, and a queued scene stays `submitted`. So pause while a scene is queued, then `continueSession` → `launchHeldWork`, queues the same scene twice (registration + continue are other routes). Today each queued callback owns its own anonymous slot, and the second one correctly releases its slot after seeing the scene already moved on (`runImageAttempt` / `runVideoAttempt` early `release`). With holder keys, that second grant would call `release(stage, sceneId)` and free the **first** grant's live slot, reopening the over-cap defect. Proposed resolution: `acquire(stage, holder, …)` is a no-op when that holder already holds a slot or is already queued in that stage (the queued callback will do the work). Add a scenario to `restart-safe-concurrency` and a test in 2.1.
+
+None other blocking. If JOS-136 (voice-over) lands a session-level semaphore use before this change merges, it adopts the run id as its holder key per Decision 1.
