@@ -1,4 +1,5 @@
 import { loadCredential } from "./config/credentials.ts";
+import { VOICE_PROVIDER } from "./config/providers.ts";
 
 // generate-voice-over (JOS-136) Decision 4 — the voice stage's provider (PRD
 // §11): ElevenLabs text-to-speech with timestamps. The adapter makes exactly
@@ -180,4 +181,32 @@ export function createStubVoiceProvider(
       }
     },
   };
+}
+
+// ---- Registry (mirrors videoProvider.ts) ----
+
+export interface VoiceProviderRegistry {
+  defaultIdentifier: string;
+  adapters: Record<string, VoiceProvider>;
+}
+
+function defaultRegistry(): VoiceProviderRegistry {
+  return {
+    defaultIdentifier: VOICE_PROVIDER.name,
+    adapters: { [VOICE_PROVIDER.name]: createElevenLabsVoiceProvider() },
+  };
+}
+
+let registry: VoiceProviderRegistry = defaultRegistry();
+
+export function getVoiceProviderRegistry(): VoiceProviderRegistry {
+  return registry;
+}
+
+export function setVoiceProviderRegistry(next: VoiceProviderRegistry): void {
+  registry = next;
+}
+
+export function resetVoiceProviderRegistry(): void {
+  registry = defaultRegistry();
 }

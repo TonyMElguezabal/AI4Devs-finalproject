@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    setupFiles: ["./test/setup.ts"],
     fileParallelism: false, // all tests share one SQLite file; keep them sequential
   },
 });

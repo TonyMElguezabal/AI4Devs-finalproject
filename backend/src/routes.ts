@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname } from "node:path";
+import { launchVoiceOverFor } from "./voiceOverPhase.ts";
 import { createRun, getRun, getSceneForRun, insertRegisteredScenes, commitSceneResult, markImageComplete, writeArtefactOnce } from "./db.ts";
 import { randomUUID } from "node:crypto";
 import { resolveArtefactPath } from "./db.ts";
@@ -176,7 +177,11 @@ export const routes: FastifyPluginAsync = async (app) => {
       const sessionId = ulid();
       createRun(sessionId, request.body.title, request.body.script, request.body.language);
       reply.code(201);
-      return toSnapshot(sessionId);
+      const snapshot = toSnapshot(sessionId);
+      // generate-voice-over (JOS-136) Decision 1 — the session is committed; the
+      // response above still says `submitted`, and the launch follows it.
+      setImmediate(() => launchVoiceOverFor(sessionId));
+      return snapshot;
     },
   );
 

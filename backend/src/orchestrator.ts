@@ -135,6 +135,8 @@ function sceneToPayload(scene: Scene): SceneEventPayload {
  * records, never stored. JOS-136 (task 5.15) adds `voice-over-generating`. */
 export interface SessionProgress {
   hasVoiceOver?: boolean;
+  /** A `voice-over` attempt is in flight (generate-voice-over, JOS-136, Decision 12). */
+  voiceAttemptInFlight?: boolean;
   /** A `timestamps` attempt was recorded, or the timestamps are stored. */
   timestampsStarted?: boolean;
   /** A final video exists (US-16b records it). Defaults to false: all scenes complete is `final-video-generating`, not `final-video`. */
@@ -151,8 +153,9 @@ export interface DerivedSessionState {
 /** Derives the session state from its scenes, its recorded failure and its
  * progress — PRD §8.1. A session with no chunks and a failure (a refused
  * decomposition, assign-scene-identifiers Decision 6) is `failed` in that phase;
- * without a failure, the timestamps stage means `chunk-decomposing` and a
- * completed narration `voice-over-complete`. */
+ * without a failure, the timestamps stage means `chunk-decomposing`, a
+ * completed narration `voice-over-complete` and a voice attempt in flight
+ * `voice-over-generating` (generate-voice-over, JOS-136, Decision 12). */
 export function deriveSessionState(
   scenes: Scene[],
   failure: SessionFailure | null = null,
@@ -162,6 +165,7 @@ export function deriveSessionState(
     if (failure) return { state: "failed", failedPhase: failure.phase };
     if (progress.timestampsStarted) return { state: "chunk-decomposing" };
     if (progress.hasVoiceOver) return { state: "voice-over-complete" };
+    if (progress.voiceAttemptInFlight) return { state: "voice-over-generating" };
     return { state: "submitted" };
   }
   // gate-assembly-on-complete-scenes (JOS-150), design Decisions 2-4 — PRD §8.1
@@ -179,6 +183,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const scenes = getScenesForRun(runId);
   const { state, failedPhase, failedSceneIndexes } = deriveSessionState(scenes, run.failure, {
     hasVoiceOver: getVoiceOver(runId) !== undefined,
+    voiceAttemptInFlight: getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight"),
     timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
   });
   const heldWork = sessionHeldWork(runId);

@@ -714,6 +714,32 @@ export function bindVoiceProvider(runId: string, providerId: string): boolean {
   return Number(result.changes) > 0;
 }
 
+/**
+ * generate-voice-over (JOS-136) Decision 2 — the one write that moves a session
+ * to `voice-over-generating`: the provider binding, the end of an earlier
+ * failure and the in-flight attempt are committed together, so a crash leaves
+ * either all of them or none.
+ */
+export function startVoiceAttempt(input: { runId: string; providerId: string; queuedAt: string; sentAt: string }): StageAttempt {
+  db.exec("BEGIN");
+  try {
+    bindVoiceProvider(input.runId, input.providerId);
+    clearRunFailure(input.runId);
+    const attempt = recordStageAttempt({
+      runId: input.runId,
+      stage: "voice-over",
+      providerId: input.providerId,
+      queuedAt: input.queuedAt,
+      sentAt: input.sentAt,
+    });
+    db.exec("COMMIT");
+    return attempt;
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
+
 /** Clears the session's failure once the phase that failed has succeeded (a retry that worked). A no-op when there is none. */
 export function clearRunFailure(runId: string): void {
   db.prepare("UPDATE runs SET failure = NULL WHERE id = ?").run(runId);

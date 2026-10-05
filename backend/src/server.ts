@@ -9,6 +9,8 @@ import { reconcileOnBoot } from "./orchestrator.ts";
 import * as concurrency from "./concurrency.ts";
 import { STAGE } from "./types.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
+import { setVoiceOverLogger } from "./voiceOverPhase.ts";
+import { createStubVoiceProvider as createStubVoice, setVoiceProviderRegistry, type StubVoiceProviderMode } from "./voiceProvider.ts";
 import { setVideoProviderRegistry, createStubVideoProvider, STUB_VIDEO_PROVIDER_NAME } from "./videoProvider.ts";
 
 const PORT = Number(process.env.PORT ?? 3100);
@@ -76,7 +78,13 @@ if (isMainModule) {
     const stub = createStubVideoProvider(stubVideoMode as Parameters<typeof createStubVideoProvider>[0], { bytes });
     setVideoProviderRegistry({ defaultIdentifier: STUB_VIDEO_PROVIDER_NAME, adapters: { [STUB_VIDEO_PROVIDER_NAME]: stub } });
   }
+  // USE_STUB_VOICE_PROVIDER=success|success-without-timestamps|transient-failure|not-retryable-failure|undecodable-audio|empty-audio|hang — manual endpoint testing only.
+  const stubVoiceMode = process.env.USE_STUB_VOICE_PROVIDER as StubVoiceProviderMode | undefined;
+  if (stubVoiceMode) {
+    setVoiceProviderRegistry({ defaultIdentifier: "stub-voice", adapters: { "stub-voice": createStubVoice(stubVoiceMode) } });
+  }
   const app = await buildApp();
+  setVoiceOverLogger(app.log);
   const summary = reconcileOnBoot();
   app.log.info(summary, "boot reconciliation complete");
   await app.listen({ port: PORT, host: "127.0.0.1" });

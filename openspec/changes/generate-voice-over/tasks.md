@@ -46,26 +46,26 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 5. Application: the voice-over phase (TDD)
 
-- [ ] 5.1 Write a failing test that registering a session launches generation with no User action, and the session is `voice-over-generating` before the stub receives the request
-- [ ] 5.2 Write a failing test that an `in-flight` attempt record exists while the stub hangs (Decision 2)
-- [ ] 5.3 Write a failing test that the text the stub receives is identical to the stored script, including a script far beyond 1500 words, with the hardcoded voice, quality and speed and the session's language
-- [ ] 5.4 Write a failing test that the first attempt binds the provider and a later attempt uses the binding
-- [ ] 5.5 Write a failing test that success stores exactly one MP3 in the project folder, records the measured duration and size, and reaches `voice-over-complete`
-- [ ] 5.6 Write failing tests that native timestamps are stored unmodified when returned, and that their absence is recorded
-- [ ] 5.7 Write a failing test that undecodable or zero-length audio fails the attempt and does not reach `voice-over-complete`
-- [ ] 5.8 Write failing tests that a not-retryable rejection records the attempt, fails the session with phase `voice-over` and its cause, stores no MP3, leaves the script unchanged and makes no retry
-- [ ] 5.9 Write a failing test that a transient failure is recorded as transient and, with the default retry hook, fails the session (Decision 10)
-- [ ] 5.10 Write a failing test that a missing credential sends no request and fails the session with a cause naming the credential and containing no secret
-- [ ] 5.11 Write failing tests that a repeated or concurrent success confirmation stores one voice-over and launches nothing again
-- [ ] 5.12 Write a failing test that requesting generation for a session in `voice-over-complete` sends nothing and leaves the MP3 unchanged. The launch asks `canLaunchVoiceOver` (`backend/src/voiceLaunchGuard.ts`, `lock-script-and-narration`, JOS-137) and the test proves that a refusal sends no provider request; this is the clause JOS-137's scenario "Regeneration is requested for a completed narration" could not test before the launch existed. **Depends on JOS-137's code:** merge `feature/jos-137-lock-script-and-narration` into this branch (or wait until it is merged into `feature/entrega-2-JAME`) before starting group 5
-- [ ] 5.13 Implement the phase-launch gate, admitting every launch in this story, as the single entry point for US-20, US-37 and US-22 (Decision 1)
-- [ ] 5.14 Implement the phase: state change, provider binding and attempt record persisted together before sending; writing the MP3 and the raw timestamps with `writeArtefactOnce` (JOS-137: a temporary file hard-linked to its final name, never replacing an existing file; the whole content is passed in memory); audio probing; recording the outcome
-- [ ] 5.15 Extend `deriveSessionState` in `backend/src/orchestrator.ts` to derive `voice-over-generating`, `voice-over-complete` and `failed` from the attempt, voice-over and failure records, with a test for each state and for the precedence between them (Decision 12); no state column is added
-- [ ] 5.16 Hook registration so a committed `submitted` session is handed to the gate
-- [ ] 5.17 Publish each state change to the live-update mechanism from `define-live-updates` (JOS-183)
-- [ ] 5.18 Log every transition and attempt with session id, stage, provider, attempt sequence, external request id, outcome and latency; log script length and hash, never the text or a credential
-- [ ] 5.19 Write a test asserting neither the script text nor a credential appears in the logs
-- [ ] 5.20 Run the group 5 tests and confirm they pass
+- [x] 5.1 Write a failing test that registering a session launches generation with no User action, and the session is `voice-over-generating` before the stub receives the request
+- [x] 5.2 Write a failing test that an `in-flight` attempt record exists while the stub hangs (Decision 2)
+- [x] 5.3 Write a failing test that the text the stub receives is identical to the stored script, including a script far beyond 1500 words, with the hardcoded voice, quality and speed and the session's language
+- [x] 5.4 Write a failing test that the first attempt binds the provider and a later attempt uses the binding
+- [x] 5.5 Write a failing test that success stores exactly one MP3 in the project folder, records the measured duration and size, and reaches `voice-over-complete`
+- [x] 5.6 Write failing tests that native timestamps are stored unmodified when returned, and that their absence is recorded
+- [x] 5.7 Write a failing test that undecodable or zero-length audio fails the attempt and does not reach `voice-over-complete`
+- [x] 5.8 Write failing tests that a not-retryable rejection records the attempt, fails the session with phase `voice-over` and its cause, stores no MP3, leaves the script unchanged and makes no retry
+- [x] 5.9 Write a failing test that a transient failure is recorded as transient and, with the default retry hook, fails the session (Decision 10)
+- [x] 5.10 Write a failing test that a missing credential sends no request and fails the session with a cause naming the credential and containing no secret
+- [x] 5.11 Write failing tests that a repeated or concurrent success confirmation stores one voice-over and launches nothing again
+- [x] 5.12 Write a failing test that requesting generation for a session in `voice-over-complete` sends nothing and leaves the MP3 unchanged. The launch asks `canLaunchVoiceOver` (`backend/src/voiceLaunchGuard.ts`, `lock-script-and-narration`, JOS-137) and the test proves that a refusal sends no provider request; this is the clause JOS-137's scenario "Regeneration is requested for a completed narration" could not test before the launch existed. **Depends on JOS-137's code:** merge `feature/jos-137-lock-script-and-narration` into this branch (or wait until it is merged into `feature/entrega-2-JAME`) before starting group 5
+- [x] 5.13 Register the voice phase as the `voice-over` launcher of the existing phase-launch gate (`backend/src/launchGate.ts`, JOS-152), the single entry point for US-20, US-37 and US-22 (Decision 1), instead of building a second gate: the launch asks `admitLaunch` (a paused session holds it and continue launches it) and the stage leaves `NOT_YET_LAUNCHABLE`. A session counts as held voice-over work when it has no chunks, no voice-over, no failure and no in-flight attempt
+- [x] 5.14 Implement the phase: state change, provider binding and attempt record persisted together before sending; writing the MP3 and the raw timestamps with `writeArtefactOnce` (JOS-137: a temporary file hard-linked to its final name, never replacing an existing file; the whole content is passed in memory); audio probing; recording the outcome
+- [x] 5.15 Extend `deriveSessionState` in `backend/src/orchestrator.ts` to derive `voice-over-generating`, `voice-over-complete` and `failed` from the attempt, voice-over and failure records, with a test for each state and for the precedence between them (Decision 12); no state column is added
+- [x] 5.16 Hook registration so a committed `submitted` session is handed to the gate (`POST /sessions` hands the committed session to the gate right after its response, which still reads `submitted`)
+- [x] 5.17 Publish each state change to the live-update mechanism from `define-live-updates` (JOS-183)
+- [x] 5.18 Log every transition and attempt with session id, stage, provider, attempt sequence, external request id, outcome and latency; log script length and hash, never the text or a credential (the logger is injected; `server.ts` passes Fastify's)
+- [x] 5.19 Write a test asserting neither the script text nor a credential appears in the logs
+- [x] 5.20 Run the group 5 tests and confirm they pass
 
 ## 6. API: session representation (TDD)
 
@@ -76,7 +76,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review the `start-video-project` tests that assert a session stays in `submitted`, and update them for the automatic launch
+- [x] 7.1 Review the `start-video-project` tests that assert a session stays in `submitted`, and update them for the automatic launch: `session-creation.test.ts` now checks that the response reads `submitted` before the provider is called, and `session-read.test.ts` expects a paused new session to hold its voice-over launch. `test/setup.ts` installs a stub that never answers before every test, so no test can reach the real provider with a key from the local secrets file
 - [ ] 7.2 Confirm every scenario in `specs/voice-over-generation/spec.md` has at least one functional test
 - [ ] 7.3 Confirm module test coverage has not decreased
 - [ ] 7.4 Document the test command, and the separate command for the opt-in contract test
