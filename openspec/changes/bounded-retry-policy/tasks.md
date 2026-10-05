@@ -108,10 +108,11 @@ A cross-cutting backend change with no screen of its own. Group 1 is a hard gate
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 Add the StageAttempt fields, constraints and the failure fields to `docs/data-model.md`
-- [ ] 11.2 Add the failure fields to the session schema in `docs/api-spec.yml` and confirm it matches the implementation
-- [ ] 11.3 Add a "Retries and attempts" section to `docs/backend-standards.md`: record outcomes through `StageAttemptRecorder`, never change stage state directly, never enable client or SDK retries, retries go through the gate
+- [x] 11.1 Add the StageAttempt fields, constraints and the failure fields to `docs/data-model.md`
+- [x] 11.2 Add the failure fields to the session schema in `docs/api-spec.yml` and confirm it matches the implementation
+- [x] 11.3 Add a "Retries and attempts" section to `docs/backend-standards.md`: record outcomes through `StageAttemptRecorder`, never change stage state directly, never enable client or SDK retries, retries go through the gate
 - [ ] 11.4 Confirm the retry delay values and `MAX_ATTEMPTS_PER_CYCLE` in the constants module match PRD §11 and §10.1 (constants test)
+  - `MAX_ATTEMPTS_PER_CYCLE = 4` is asserted in `providerConfig.test.ts` (§10.1). The delays cannot be confirmed: PRD §11 records none, so the test pins the PROVISIONAL values and this task stays open with 1.4 until US-33 records them.
 
 ## 12. Close out
 

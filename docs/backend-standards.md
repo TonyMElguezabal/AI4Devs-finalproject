@@ -15,6 +15,7 @@ alwaysApply: true
   - [Why not classic DDD/CRUD layering](#why-not-classic-dddcrud-layering)
   - [Core components](#core-components)
   - [Provider adapters](#provider-adapters)
+  - [Retries and attempts](#retries-and-attempts)
 - [Coding Standards](#coding-standards)
   - [Naming Conventions](#naming-conventions)
   - [Error Handling](#error-handling)
@@ -145,6 +146,18 @@ interface VideoProvider {
 **Clip-retry refusal**: `manualRetry` and `correctAndRetry` refuse a video-stage failure (`scene.result !== null`) with `{ ok: false, reason: "retrying a failed clip is not available yet" }` (HTTP 409). The clip retry path is deferred to JOS-150 (`gate-assembly-on-complete-scenes`) or later. Callers must check `affectedStage` on a failed scene to distinguish image-stage failures (retryable via these endpoints) from video-stage failures (not yet retryable). This refusal is tested in Group 6.3 of `test/video-stage.test.ts`.
 
 **MP4 validation**: `completeVideoStage` checks the first 8 bytes of the downloaded clip for the `ftyp` box before writing it to disk — `bytes[4..7] === 'ftyp'` — and rejects non-MP4 data as a transient failure.
+
+### Retries and attempts
+
+`bounded-retry-policy` (JOS-184, PRD §10.1) owns every retry: a stage instance (`stageInstanceKey`) gets at most four attempts per cycle, and nothing but a new cycle started by the User adds more.
+
+- **Record every outcome through `recordAttemptOutcome`** (`src/retry/stageAttemptRecorder.ts`). It completes the attempt, decides with the pure `decideRetry`, and schedules the next one in a single transaction. A stage never sets its own failure on a transient error and never decides whether to retry.
+- **Fail the stage instance only on the recorder's `failed` result** (cap spent, or not retryable). Until then the session stays in progress and shows no failure.
+- **Never enable client or SDK retries**; see the checklist under *Provider adapters*. `test/adapters-no-hidden-retries.test.ts` is the guard.
+- **Retries go through the launch gate.** A scheduled attempt is released by `releaseAttempt` (`src/retry/retryScheduler.ts`), which asks `admitLaunch` first, so a paused session holds its retries and `continue` releases them.
+- **A new cycle is opened only by `startNewCycle`**, which refuses an instance that has not failed or whose failure is not retryable.
+- **A stage that wants retries registers a sender** with `registerAttemptSender(stage, sender)`; the scheduler calls it when an attempt is due and after a restart (`rebuildScheduler`). The sender must not make its own scheduling decisions.
+- **Delays are injected**, never read from a constant inside the policy. The defaults are `PROVISIONAL_RETRY_DELAY_SECONDS` until US-33 records the PRD values; tests call `setRetryDelayConfig`, and `RETRY_BASE_DELAY_SECONDS` / `RETRY_CAP_DELAY_SECONDS` shorten them for manual runs.
 
 ## Coding Standards
 
@@ -280,7 +293,7 @@ Structured JSON logging (Fastify's built-in Pino logger), one event per line, ne
 - `sessionId`, `sceneId` (when the stage is per-scene), `stage`
 - `stageInstanceKey` (per `bounded-retry-policy`'s Decision 1: `(sessionId, stage)` or `(sessionId, sceneId, stage)`)
 - `cycle` and `sequenceInCycle` (which automatic-retry cycle, and which of the 1 + 3 attempts within it — `bounded-retry-policy` Decision 7)
-- `trigger` (`automatic` | `manual`)
+- `trigger` (`initial` | `automatic` | `manual`), and `queuedMs` (time from the attempt being queued or scheduled to it being sent) next to `latencyMs`
 - `providerRequestId` (the external request identifier, recorded before the request is sent)
 - `outcome` (`success` | `failed_transient` | `failed_not_retryable`) once known
 

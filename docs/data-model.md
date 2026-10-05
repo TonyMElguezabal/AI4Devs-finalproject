@@ -20,7 +20,7 @@ Represents one video project. PRD §3, §4.1, §8.1, §9, §12.2.
 - `created_at`: creation timestamp; also drives the project-folder name, to the minute — §12.2
 - `state`: **derived**, not stored — one of the eight session states in §8.1, computed from the session's scenes each time it is read (`orchestrator.ts`'s `deriveSessionState`). A session with zero scenes (the state immediately after `start-video-project` registers it, before decomposition creates any) derives to `submitted`. With scenes, the state follows the PRD §8.1 v1.3 rules through `assemblyGate` (`backend/src/assemblyGate.ts`): while any scene is not settled (settled means `chunk-complete` or `failed`) the session is `chunks-processing`, even beside a `failed` scene; once every scene is settled it is `failed` if at least one scene failed, with `failedPhase: "scenes"` and a derived, ascending `failedSceneIndexes` naming them (present only then, never stored, read-only), and `final-video-generating` if all are `chunk-complete`. `final-video` additionally needs a final video, which no code produces yet (US-16b), so it is not reachable today. The assembly phase is not produced yet. With no chunks yet, the state is derived from the session's records, in this order (`deriveSessionState`, `generate-voice-over` JOS-136 Decision 12): a stored `failure` derives to `failed` in that failure's phase; a `timestamps` stage attempt or stored timestamps derive to `chunk-decomposing` (`obtain-narration-timestamps`, JOS-139); a stored voice-over derives to `voice-over-complete`; a `voice-over` stage attempt still `in-flight` derives to `voice-over-generating`; nothing at all is `submitted`. No state column exists.
 - `paused`: a marker on top of the current state, never a state itself, per §8.1/§9. This is the **only stored pause fact** — it is set to `1` by `pauseSession` and cleared to `0` by `continueSession`. Held work (scenes or other stage units not yet launched) is **derived**, not stored: each registered stage launcher computes it from the current store state on demand (see `sessionHeldWork` in `launchGate.ts`). The `held` fields on the session and scene response payloads are computed at read time from the registry; they are never persisted. Held time (time spent paused) does not count as execution time: no attempt is recorded, no `sentAt` is set, and no budget is consumed for a scene that was held.
-- `failure`: the phase failure the session carries when it is `failed`, as JSON: `{ phase, cause, retryable, occurredAt }` with `phase` either `voice-over` (`generate-voice-over`, JOS-136, which added the column in migration 4) or `decomposition` (JOS-144: a refused system-generated decomposition, whose cause never blames the User's script). A session with no chunks and a failure derives to `failed` in that phase. A successful chunk registration clears it, and a voice-over attempt that starts after a failure clears it in the same write that records the attempt.
+- `failure`: the phase failure the session carries when it is `failed`, as JSON: `{ phase, cause, retryable, manualRetryAvailable, cycle, attemptsInCycle, occurredAt }` (the last three added by `bounded-retry-policy`, JOS-184: whether the User can start a new cycle, which cycle ended in this failure, and how many attempts it held) with `phase` either `voice-over` (`generate-voice-over`, JOS-136, which added the column in migration 4) or `decomposition` (JOS-144: a refused system-generated decomposition, whose cause never blames the User's script). A session with no chunks and a failure derives to `failed` in that phase. A successful chunk registration clears it, and a voice-over attempt that starts after a failure clears it in the same write that records the attempt.
 - `voice_provider_id`: the identifier of the voice provider bound to the session, nullable. Bound by the first voice-over attempt and read from here by every later attempt, so a later change of the default provider cannot split one narration across providers (`generate-voice-over`, JOS-136, Decision 3). It is written once: `bindVoiceProvider` only sets it while it is null and leaves an existing binding untouched.
 - `project_folder`: the real per-project folder name under a configured root, named `<title> <YYYY-MM-DD HH-mm>` with a counter suffix on collision — §12.2 (Decision 4, `define-persistence`)
 
@@ -115,7 +115,7 @@ Tracks which versioned migrations have been applied, so an existing session's da
 
 The MP3 and the timestamps file are written once (`writeArtefactOnce`) before the record is inserted, and the record is locked against update and delete (see *Store-enforced locks*). A success confirmation that arrives twice, or concurrently, leaves one record and one MP3 (Decision 8). The API exposes `provider`, `durationSeconds`, `nativeTimestampsAvailable` and `completedAt` on the session read, and never the file paths, the request id or the audio itself (Decision 11, PRD §12.3).
 
-**Stage attempts** (`stage_attempts`) record every attempt of a session-level stage before its request is sent (Decision 2); only the outcome columns are filled in afterwards. Fields: `id` (Primary Key), `run_id` (Foreign Key), `stage` (`voice-over` or `timestamps`), `provider_id`, `attempt_number` (unique per `run_id` and `stage`), `queued_at`, `sent_at`, `outcome` (`in-flight`, `success`, `transient` or `not-retryable`, checked by the store), `finished_at`, `external_request_id`, `error_code` and `error_message` (a cause written for a person, never the script text or a credential). A `voice-over` attempt with outcome `in-flight` is what makes the session `voice-over-generating`; the attempt that confirms the voice-over finishes with `success`.
+**Stage attempts** (`stage_attempts`) record every attempt of a stage instance before its request is sent (Decision 2); only the outcome columns are filled in afterwards. Fields: `id` (Primary Key), `run_id` (Foreign Key), `stage` (`voice-over`, `timestamps`, `image` or `video`), `scene_id` (null for the session-level stages), `stage_instance_key` (`<session>:<stage>`, or `<session>:<scene>:<stage>` for `image` and `video`; the unit the retry budget belongs to, `bounded-retry-policy` Decision 1), `cycle` (from 1; a manual retry opens the next one), `sequence_in_cycle` (1 to 4, checked by the store), `attempt_trigger` (`initial`, `automatic` or `manual`), `provider_id` (nullable until the attempt is sent), `attempt_number` (unique per `run_id` and `stage`), `queued_at`, `sent_at` (null while `scheduled`), `due_at` (when a scheduled attempt may be sent), `outcome` (`scheduled`, `in-flight`, `success`, `transient` or `not-retryable`, checked by the store), `finished_at`, `external_request_id`, `error_code` and `error_message` (a cause written for a person, never the script text or a credential). `(stage_instance_key, cycle, sequence_in_cycle)` is unique, so no mechanism can record a fifth attempt in a cycle (`bounded-retry-policy` Decision 3, migration 14; migration 13 belongs to JOS-149). A `voice-over` attempt with outcome `in-flight` is what makes the session `voice-over-generating`; an automatic retry waiting for its delay is `scheduled`, which adds no state: the session stays in progress and shows no failure until the cycle is spent. The attempt that confirms the voice-over finishes with `success`. Attempts are never updated except to complete them, and earlier cycles stay readable.
 
 **Relationships:** one session has at most one voice-over and many stage attempts; a voice-over exists only after a successful `voice-over` attempt.
 
@@ -183,7 +183,7 @@ erDiagram
         Boolean paused
         String project_folder
         String voice_provider_id "nullable, bound on the first voice-over attempt"
-        String failure "nullable JSON {phase, cause, retryable, occurredAt}"
+        String failure "nullable JSON {phase, cause, retryable, manualRetryAvailable, cycle, attemptsInCycle, occurredAt}"
     }
     VoiceOver {
         String run_id PK "FK to Session"
@@ -197,8 +197,14 @@ erDiagram
         String id PK
         String run_id FK
         String stage
-        String provider_id
+        String scene_id "nullable"
+        String stage_instance_key
+        Int cycle
+        Int sequence_in_cycle "1 to 4"
+        String attempt_trigger
+        String provider_id "nullable"
         Int attempt_number
+        String due_at "nullable"
         String outcome
     }
     Scene {
