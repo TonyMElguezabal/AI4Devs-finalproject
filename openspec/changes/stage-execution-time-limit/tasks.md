@@ -10,16 +10,17 @@ A backend change with no screen of its own. Group 1 is a hard gate. Tests come f
 ## 1. Gate: Confirm the foundations and the values
 
 - [x] 1.1 Confirm `bounded-retry-policy` (JOS-184) has landed, with `StageAttemptRecorder`, `RetryScheduler` and the conditional claim on scheduled attempts
-- [ ] 1.2 Confirm `define-provider-configuration` (JOS-165) has recorded the per-phase maximum time for every stage in PRD §11 and the constants module. **Open: recorded for decomposition, image, voice, alignment and video; assembly is `undetermined`**
-- [ ] 1.3 Confirm the product decision on accepting late results (design open question 1); if it is "always discard", simplify Decisions 4–6 in these artifacts before coding. **Open: no confirmation exists anywhere; waiting for the product owner**
+- [x] 1.2 Confirm `define-provider-configuration` (JOS-165) has recorded the per-phase maximum time for every stage in PRD §11 and the constants module. Recorded for decomposition, image, voice, alignment and video; assembly is `undetermined`, decided 2026-10-05: not timed until defined (spec requirement "A stage without a defined maximum time is not timed", task 2.2a)
+- [x] 1.3 Confirm the product decision on accepting late results (design open question 1); if it is "always discard", simplify Decisions 4–6 in these artifacts before coding. Confirmed by the product owner 2026-10-05: accept late results, including lifting an exhausted `failed` stage; Decisions 4-6 stand
 - [x] 1.4 Record, per existing provider adapter, whether a result can still be received after the client stopped waiting (design open question 2). Recorded in design.md § Pre-implementation findings
-- [ ] 1.5 If any of the above is missing, stop and record the blocker rather than building against a guess
+- [x] 1.5 If any of the above is missing, stop and record the blocker rather than building against a guess (blockers recorded and resolved: late results, assembly limit; the unfrozen clock during a pause stays an assumption from `pause-and-continue-session` Decision 9)
 
 ## 2. Domain: deadlines (TDD)
 
 - [ ] 2.1 Write failing tests that the deadline is `sentAt + maxExecutionTime(stage)` and that an attempt without `sentAt` has no deadline
 - [ ] 2.2 Write a failing test that each stage uses its own maximum time from the constants module
-- [ ] 2.3 Implement the deadline computation with an injectable clock
+- [ ] 2.2a Write a failing test that a stage whose maximum time is `undetermined` has no deadline
+- [ ] 2.3 Implement the deadline computation with an injectable clock (a stage with an `undetermined` limit has no deadline)
 - [ ] 2.4 Run the group 2 tests and confirm they pass
 
 ## 3. Persistence: outcomes (TDD)

@@ -24,6 +24,7 @@
 
 **Decision 1 — The deadline is derived from `sentAt`, not held in a timer.**
 `deadline = sentAt + maxExecutionTime(stage)`. A single `AttemptTimeoutWatcher` periodically selects in-flight attempts whose deadline has passed and times them out. Attempts not yet sent have no `sentAt` and are never selected.
+A stage whose maximum time is `"undetermined"` in the constants module (assembly today, pending `define-media-assembly`) has no deadline and is never selected; filling in the value turns the watcher on for it with no code change (product owner decision, 2026-10-05).
 *Alternatives:* an in-memory timer per attempt (rejected: lost on restart, and at two hundred scenes it is two hundred timers to keep consistent with the store); starting the clock at `queuedAt` (rejected: §10.1 — this is exactly the premature failure the PRD forbids).
 
 **Decision 2 — A timeout is recorded as its own outcome and classified transient.**
@@ -85,10 +86,10 @@ The migration adds the outcomes `timed-out`, `superseded`, `late-success` and `c
 
 So the watcher is the only timeout for voice and image (and for any attempt whose process died), and it overlaps with the inline limits of decomposition, alignment and video. Recommended: leave those inline limits in place as the first line of defence (they abort a hung socket, which the watcher cannot), and let the watcher's conditional claim decide any race. A race between an adapter's own timeout failure and the watcher is already handled by Decision 3.
 
-**1.3 and the pause question are not confirmed.** No product confirmation on accepting late results exists in the repository or in Linear (JOS-154, JOS-185 threads). `pause-and-continue-session` Decision 9 (a pause does not freeze the clock of a sent request) is still marked as awaiting confirmation (its Open Question 1).
+**1.3 confirmed 2026-10-05** (accept late results, Decisions 4-6 as written); **assembly's missing limit decided 2026-10-05** (stage not timed until defined, Decision 1). **Still unconfirmed:** `pause-and-continue-session` Decision 9 (a pause does not freeze the clock of a sent request) is still marked as awaiting confirmation (its Open Question 1).
 
 ## Open Questions
 
-1. **Product confirmation for accepting late results** (JOS-154 open question 2), including lifting an exhausted `failed` stage instance (Decision 6).
+1. ~~Product confirmation for accepting late results~~ — **confirmed 2026-10-05**: accept it, including lifting an exhausted `failed` stage instance before any manual retry (Decisions 4-6 stand as written).
 2. **Can every chosen provider deliver a result after the client stopped waiting?** Depends on each provider's API (polling or webhook vs a single blocking call); recorded per adapter.
 3. **Watcher interval.** A small fixed value relative to the smallest per-phase maximum time; if it needs to be hardcoded, it joins PRD §11 through US-33.
