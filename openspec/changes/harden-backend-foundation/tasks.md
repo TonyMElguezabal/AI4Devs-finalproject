@@ -78,6 +78,6 @@ Every code change starts with a failing test (TDD). Every scenario in `specs/res
 
 ## 10. Linear and delivery
 
-- [ ] 10.1 Comment on JOS-186: the narrowed scope and why (bootstrap done by JOS-134, stages owned by their own stories, SSE resync and `scene.result` already done), and a link to this change
-- [ ] 10.2 Comment on JOS-167 that restart-time accounting is now enforced
-- [ ] 10.3 Commit the finished work on the feature branch; ask before pushing or opening the PR into `feature/entrega-2-JAME`, and list the open branches that need a rebase in the PR description
+- [x] 10.1 Comment on JOS-186: the narrowed scope and why (bootstrap done by JOS-134, stages owned by their own stories, SSE resync and `scene.result` already done), and a link to this change
+- [x] 10.2 Comment on JOS-167 that restart-time accounting is now enforced
+- [x] 10.3 Commit the finished work on the feature branch; ask before pushing or opening the PR into `feature/entrega-2-JAME`, and list the open branches that need a rebase in the PR description
