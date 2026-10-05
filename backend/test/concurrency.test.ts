@@ -90,3 +90,35 @@ describe("concurrency: slots belong to a holder", () => {
     expect(concurrency.stats(STAGE).inFlight).toBe(0);
   });
 });
+
+describe("concurrency: occupy counts a request that is already sent", () => {
+  it("adds a holder above the limit without queuing", () => {
+    concurrency.occupy(STAGE, "a");
+    concurrency.occupy(STAGE, "b");
+    concurrency.occupy(STAGE, "c");
+
+    expect(concurrency.stats(STAGE)).toEqual({ inFlight: 3, queued: 0, limit: 2 });
+  });
+
+  it("does not grant an acquire while the count is at or above the limit, and grants once it drains below", () => {
+    const started: string[] = [];
+    concurrency.occupy(STAGE, "a");
+    concurrency.occupy(STAGE, "b");
+    concurrency.occupy(STAGE, "c");
+    concurrency.acquire(STAGE, "d", () => started.push("d"));
+
+    concurrency.release(STAGE, "a"); // 3 -> 2: still at the limit
+    expect(started).toEqual([]);
+
+    concurrency.release(STAGE, "b"); // 2 -> 1: below the limit
+    expect(started).toEqual(["d"]);
+    expect(concurrency.stats(STAGE)).toEqual({ inFlight: 2, queued: 0, limit: 2 });
+  });
+
+  it("is idempotent for a holder that already holds a slot", () => {
+    concurrency.occupy(STAGE, "a");
+    concurrency.occupy(STAGE, "a");
+
+    expect(concurrency.stats(STAGE).inFlight).toBe(1);
+  });
+});

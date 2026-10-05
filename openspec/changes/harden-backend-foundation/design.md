@@ -50,6 +50,8 @@ A new `occupy(stage, holder)` adds the holder to the stage's set unconditionally
 - the image-stub "still pending" branch, before re-arming the delivery timer (its delivery then releases a slot it actually holds);
 - the video branch with a known request id, replacing today's `acquire`, so polling resumes right away.
 
+`occupy` runs in a pre-pass at the top of `reconcileOnBoot`, before any scene is processed, not inside each branch. `getAllInFlightScenes` returns scenes in table order, so a lost request's retry (which goes through `acquire`) could otherwise start before a later pending request had been counted, which is the gap this change closes. A restart test with the lost scene created first pins that.
+
 Branches that record a failed attempt (provider lost the request, no request id, bound image) call nothing. Their retries take a slot through `acquire` as usual.
 
 *Alternative:* a separate "legacy in-flight" counter added to the cap check. That means two counts to keep in step, and still no ownership. Rejected for the same reason as Decision 1's second alternative.
@@ -77,6 +79,7 @@ Both limits are set before `reconcileOnBoot`, and no HTTP request can launch wor
 ### Decision 7: Two small test aids so a restart can be observed by hand
 
 - The stub video provider answers a poll for an id it never saw with its configured mode (`request-lost` still answers `not_found`). Its in-memory map is empty after a restart, so today every resumed stub clip turns into a lost attempt, and the curl step could never show one resuming or settling. Stub only; the RunningHub adapter is untouched.
+- `server.ts` accepts the stub video modes directly in `USE_STUB_VIDEO_PROVIDER` (`pending`, `success-bytes`, `request-lost`, besides the older `success` alias); before, every other value fell back to `transient-failure`, so the curl step's `pending` run was not possible.
 - `server.ts`'s boot log line adds each stage's `inFlight`/`limit` right after `reconcileOnBoot()`. This is the only observable place for the restart-time count, since no endpoint exposes semaphore stats, and adding one for a diagnostic is not worth an API change.
 
 ## Risks / Trade-offs

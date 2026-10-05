@@ -72,7 +72,7 @@ import {
 /** 1 initial attempt + this many automatic retries, per PRD §10.1 (C2). */
 export const RETRY_BUDGET = 3;
 
-const VIDEO_STAGE = "video";
+export const VIDEO_STAGE = "video";
 /** Provisional cap — JOS-167 replaces this (design Decision 2). */
 export const PROVISIONAL_VIDEO_CONCURRENCY = 3;
 concurrency.setLimit(VIDEO_STAGE, PROVISIONAL_VIDEO_CONCURRENCY);
@@ -1107,11 +1107,24 @@ function resetAttemptsForManualRetry(sceneId: string): void {
  *    attempt and apply the normal retry/failed rule (PRD §12.1);
  *  - if it is still genuinely pending, re-arm a delivery watcher for the
  *    remaining latency instead of polling forever.
+ *
+ * Every request that is resumed rather than recorded as failed already sits
+ * at the provider, so it takes its concurrency slot up front (JOS-186). That
+ * happens before any scene is processed: a retry scheduled for a lost request
+ * must not start ahead of a pending request that is not yet counted.
  */
 export function reconcileOnBoot(): { resumed: number; recordedFailedAttempt: number; stillPending: number } {
   let resumed = 0;
   let recordedFailedAttempt = 0;
   let stillPending = 0;
+
+  for (const scene of getAllInFlightScenes()) {
+    const requestId = scene.provider === STUB_PROVIDER_NAME ? sceneCurrentRequestId(scene.id) : null;
+    if (requestId && provider.pollResult(requestId).status === "pending") concurrency.occupy(STAGE, scene.id);
+  }
+  for (const scene of getAllVideoGeneratingScenes()) {
+    if (scene.videoProvider && sceneCurrentRequestId(scene.id)) concurrency.occupy(VIDEO_STAGE, scene.id);
+  }
 
   for (const scene of getAllInFlightScenes()) {
     // generate-chunk-image (JOS-145), design Decision 6 — a real image
@@ -1191,14 +1204,9 @@ export function reconcileOnBoot(): { resumed: number; recordedFailedAttempt: num
       continue;
     }
 
-    // Re-acquire a slot and resume polling from now (gives the full phase window after restart).
-    const capturedId = scene.id;
-    const capturedReqId = requestId;
-    const capturedAttempt = scene.attempts;
-    const sentAtMs = Date.now();
-    concurrency.acquire(VIDEO_STAGE, capturedId, () => {
-      void pollVideoRequestOnce(capturedId, capturedReqId, capturedAttempt, sentAtMs);
-    });
+    // The request already holds its slot (taken above): resume polling from now
+    // (gives the full phase window after restart).
+    void pollVideoRequestOnce(scene.id, requestId, scene.attempts, Date.now());
     stillPending++;
   }
 

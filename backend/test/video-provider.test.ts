@@ -17,6 +17,24 @@ const TEST_BYTES = Buffer.from("fake-mp4-bytes");
 const VALID_IMAGE = Buffer.from("fake-image-bytes");
 
 describe("StubVideoProvider (Decision 3 — covers all outcome modes)", () => {
+  // harden-backend-foundation (JOS-186) 3.5 — after a restart the stub's in-memory
+  // map is empty, so a request id submitted before it is answered from the mode.
+  describe("a request id it never saw (submitted before a restart)", () => {
+    it("is answered with the configured mode", async () => {
+      const bytes = Buffer.from("fake-mp4-bytes");
+      expect(await createStubVideoProvider("success-bytes", { bytes }).poll("sent-before-restart")).toEqual({
+        kind: "success",
+        clip: { source: "bytes", bytes },
+      });
+      expect(await createStubVideoProvider("pending").poll("sent-before-restart")).toEqual({ kind: "pending" });
+      expect((await createStubVideoProvider("transient-failure").poll("sent-before-restart")).kind).toBe("failed_transient");
+    });
+
+    it("stays not_found in request-lost mode", async () => {
+      expect(await createStubVideoProvider("request-lost").poll("sent-before-restart")).toEqual({ kind: "not_found" });
+    });
+  });
+
   describe("success-bytes mode", () => {
     it("submit returns a requestId", async () => {
       const provider = createStubVideoProvider("success-bytes");
@@ -94,12 +112,6 @@ describe("StubVideoProvider (Decision 3 — covers all outcome modes)", () => {
       const poll = await provider.poll(submit.requestId);
       expect(poll.kind).toBe("not_found");
     });
-  });
-
-  it("poll with an unknown requestId returns not_found", async () => {
-    const provider = createStubVideoProvider("success-bytes");
-    const poll = await provider.poll(randomUUID());
-    expect(poll.kind).toBe("not_found");
   });
 
   it("records calls in the calls list", async () => {

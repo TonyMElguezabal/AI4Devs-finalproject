@@ -21,13 +21,13 @@ Every code change starts with a failing test (TDD). Every scenario in `specs/res
 
 ## 3. Requests already sent count at boot (design Decisions 2 and 3; spec: requests in flight at restart count against the cap)
 
-- [ ] 3.1 Failing tests in `test/concurrency.test.ts`: `occupy` adds a holder above the limit without queuing; `acquire` does not grant while the count is at or above the limit, and grants once it drains below
-- [ ] 3.2 Failing tests in `test/restart-concurrency.test.ts`, one per spec scenario: 2 stub image requests pending at boot with cap 2 → `stats("image").inFlight === 2` right after `reconcileOnBoot()` returns, and a new launch queues without sending; 5 video requests pending with cap 3 → all 5 count and all 5 poll right away, and no new video request is sent until fewer than 3 are in flight; delivering a resumed request hands its slot to the queued launch and the count never goes above the cap; a request the provider lost holds no slot and its retry queues normally; a full restart + burst + settle-all sequence never goes above the cap except for requests sent before the restart, and starts every queued launch exactly once
-- [ ] 3.3 Implement `occupy(stage, holder)` in `concurrency.ts`
-- [ ] 3.4 In `reconcileOnBoot`, call `occupy` in the stub-pending image branch (before re-arming the timer) and in the video branch (replacing `acquire`, so polling resumes right away)
-- [ ] 3.5 Failing test, then fix: the stub video provider answers a poll for an id it never saw (one submitted before a restart) with its own configured mode, instead of always `not_found`. `request-lost` stays `not_found`. Today a restart can never be shown, by hand, resuming a pending clip or settling it afterwards
-- [ ] 3.6 Failing test, then add: after `reconcileOnBoot()`, `server.ts`'s boot log line includes each stage's `inFlight`/`limit` from `concurrency.stats`, so the curl step can observe the restart-time count
-- [ ] 3.7 Make the group 3 tests pass
+- [x] 3.1 Failing tests in `test/concurrency.test.ts`: `occupy` adds a holder above the limit without queuing; `acquire` does not grant while the count is at or above the limit, and grants once it drains below
+- [x] 3.2 Failing tests in `test/restart-concurrency.test.ts`, one per spec scenario: 2 stub image requests pending at boot with cap 2 → `stats("image").inFlight === 2` right after `reconcileOnBoot()` returns, and a new launch queues without sending; 5 video requests pending with cap 3 → all 5 count and all 5 poll right away, and no new video request is sent until fewer than 3 are in flight; delivering a resumed request hands its slot to the queued launch and the count never goes above the cap; a request the provider lost holds no slot and its retry queues normally; a full restart + burst + settle-all sequence never goes above the cap except for requests sent before the restart, and starts every queued launch exactly once
+- [x] 3.3 Implement `occupy(stage, holder)` in `concurrency.ts`
+- [x] 3.4 In `reconcileOnBoot`, call `occupy` in the stub-pending image branch (before re-arming the timer) and in the video branch (replacing `acquire`, so polling resumes right away)
+- [x] 3.5 Failing test, then fix: the stub video provider answers a poll for an id it never saw (one submitted before a restart) with its own configured mode, instead of always `not_found`. `request-lost` stays `not_found`. Today a restart can never be shown, by hand, resuming a pending clip or settling it afterwards
+- [x] 3.6 Failing test, then add: after `reconcileOnBoot()`, `server.ts`'s boot log line includes each stage's `inFlight`/`limit` from `concurrency.stats`, so the curl step can observe the restart-time count
+- [x] 3.7 Make the group 3 tests pass
 
 ## 4. Write capacity at MVP scale (design Decision 4; spec: result recording holds at MVP session scale)
 

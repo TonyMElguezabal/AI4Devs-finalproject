@@ -51,6 +51,15 @@ export function acquire(stage: string, holder: string, onAcquired: () => void): 
 }
 
 /**
+ * Counts a request that was already sent (before a restart) against `stage`,
+ * even at or above the limit, and never queues. New `acquire`s wait until the
+ * count drains below the limit. A holder that already has a slot is ignored.
+ */
+export function occupy(stage: string, holder: string): void {
+  holdersOf(stage).add(holder);
+}
+
+/**
  * Releases the slot `holder` owns in `stage` and starts the next FIFO waiter,
  * if any. A holder with no slot (never acquired, or already released) changes
  * nothing.

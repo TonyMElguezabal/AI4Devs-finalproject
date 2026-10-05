@@ -194,8 +194,8 @@ export function createStubVideoProvider(
       return { kind: "submitted", requestId };
     },
     async poll(requestId) {
-      const m = submitted.get(requestId);
-      if (!m) return { kind: "not_found" };
+      // An id from before a restart is unknown to this in-memory map; answer it from the mode.
+      const m = submitted.get(requestId) ?? mode;
       switch (m) {
         case "success-bytes":
           return { kind: "success", clip: { source: "bytes", bytes: options.bytes ?? Buffer.alloc(0) } };
