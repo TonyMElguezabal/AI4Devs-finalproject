@@ -58,12 +58,12 @@ A backend change with no screen of its own. Group 1 is a hard gate. Tests come f
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 6.1 Capture the pre-test state of the store (session, scene and attempt counts by outcome)
-- [ ] 6.2 Run the targeted tests for this module and capture the pass/fail summary
-- [ ] 6.3 Run the full suite and record totals, failures and runtime
-- [ ] 6.4 Verify the post-test state matches the baseline, restoring it if needed
-- [ ] 6.5 Create the report `openspec/changes/stage-execution-time-limit/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md` with commands executed, results, pre/post comparison and cleanup actions
-- [ ] 6.6 Mark this step complete only after the tests pass and the report file exists
+- [x] 6.1 Capture the pre-test state of the store (session, scene and attempt counts by outcome)
+- [x] 6.2 Run the targeted tests for this module and capture the pass/fail summary
+- [x] 6.3 Run the full suite and record totals, failures and runtime
+- [x] 6.4 Verify the post-test state matches the baseline, restoring it if needed
+- [x] 6.5 Create the report `openspec/changes/stage-execution-time-limit/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md` with commands executed, results, pre/post comparison and cleanup actions
+- [x] 6.6 Mark this step complete only after the tests pass and the report file exists
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
