@@ -111,14 +111,14 @@ describe("The scheduled outcome", () => {
 });
 
 describe("Migration 14 backfills the existing attempts (design Migration Plan)", () => {
-  function fixtureAt12(dir: string): DatabaseSync {
+  function fixtureAt13(dir: string): DatabaseSync {
     const fixture = new DatabaseSync(join(dir, "pre-retry-policy.sqlite"));
     fixture.exec(`
       CREATE TABLE runs (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, paused INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE scenes (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, idx INTEGER NOT NULL, status TEXT NOT NULL, instruction TEXT NOT NULL DEFAULT '');
     `);
     fixture.prepare("INSERT INTO runs (id, title, created_at) VALUES ('old', 'Old', '2026-01-01T00:00:00.000Z')").run();
-    applyMigrationsTo(fixture, 12);
+    applyMigrationsTo(fixture, 13);
     return fixture;
   }
 
@@ -133,7 +133,7 @@ describe("Migration 14 backfills the existing attempts (design Migration Plan)",
   it("makes every old attempt cycle 1 with a sequence in sent order, and keys timestamps attempts to the decomposition instance", () => {
     const dir = mkdtempSync(join(tmpdir(), "vid4you-retry-migration-test-"));
     try {
-      const fixture = fixtureAt12(dir);
+      const fixture = fixtureAt13(dir);
       oldAttempt(fixture, "voice-over", 1);
       oldAttempt(fixture, "voice-over", 2);
       oldAttempt(fixture, "timestamps", 1);
@@ -157,7 +157,7 @@ describe("Migration 14 backfills the existing attempts (design Migration Plan)",
   it("fails loudly, leaving the old table untouched, when a stage instance already holds more than four attempts", () => {
     const dir = mkdtempSync(join(tmpdir(), "vid4you-retry-migration-test-"));
     try {
-      const fixture = fixtureAt12(dir);
+      const fixture = fixtureAt13(dir);
       for (let n = 1; n <= 5; n++) oldAttempt(fixture, "voice-over", n);
 
       expect(() => applyMigrationsTo(fixture)).toThrow(/CHECK constraint failed/);

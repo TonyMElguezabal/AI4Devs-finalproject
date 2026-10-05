@@ -1,4 +1,4 @@
-import type { SceneState, SessionState } from "../types";
+import type { PhaseStatus, SceneState, SessionState } from "../types";
 
 /**
  * The one shared status-to-style mapping every component draws from
@@ -27,6 +27,17 @@ const SESSION_STATE_TO_CLASS: Record<SessionState, StatusClass> = {
   "final-video": "status-complete",
   failed: "status-failed",
 };
+
+const PHASE_STATUS_TO_CLASS: Record<PhaseStatus, StatusClass> = {
+  pending: "status-queued",
+  "in-progress": "status-progress",
+  complete: "status-complete",
+  failed: "status-failed",
+};
+
+export function phaseStatusClass(status: PhaseStatus): StatusClass {
+  return PHASE_STATUS_TO_CLASS[status];
+}
 
 export function sceneStatusClass(state: SceneState): StatusClass {
   return SCENE_STATE_TO_CLASS[state];

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { SceneList } from "../src/components/SceneList";
@@ -7,9 +7,12 @@ import { SessionHeader } from "../src/components/SessionHeader";
 import { FinalVideoDownload } from "../src/components/FinalVideoDownload";
 import { StartProjectForm } from "../src/components/StartProjectForm";
 import { SessionPage } from "../src/components/SessionPage";
-import type { SceneEventPayload, SceneState, SessionEventPayload, SessionState } from "../src/types";
-import { sceneStatusClass, sessionStatusClass } from "../src/styles/status";
+import { PhaseSection } from "../src/components/PhaseSection";
+import type { Phase, PhaseProgress, PhaseStatus, SceneEventPayload, SceneState, SessionEventPayload, SessionState } from "../src/types";
+import { phaseStatusClass, sceneStatusClass, sessionStatusClass } from "../src/styles/status";
 import { sceneActions } from "../src/sceneActions";
+import { phaseActions } from "../src/phaseActions";
+import { PHASE_LABEL, PHASE_STATUS_LABEL } from "../src/phaseLabels";
 import { API_BASE } from "../src/api/client";
 
 function makeScene(overrides: Partial<SceneEventPayload>): SceneEventPayload {
@@ -27,6 +30,13 @@ function makeScene(overrides: Partial<SceneEventPayload>): SceneEventPayload {
   };
 }
 
+const PHASE_ORDER: Phase[] = ["voice-over", "decomposition", "scenes", "assembly"];
+
+/** The four phases in pipeline order; every phase is pending unless `statuses` says otherwise. */
+function makePhases(statuses: Partial<Record<Phase, PhaseStatus>> = {}, extras: Partial<Record<Phase, Partial<PhaseProgress>>> = {}): PhaseProgress[] {
+  return PHASE_ORDER.map((phase) => ({ phase, status: statuses[phase] ?? "pending", heldCount: 0, ...extras[phase] }));
+}
+
 function makeSession(overrides: Partial<SessionEventPayload>): SessionEventPayload {
   return {
     type: "session",
@@ -37,6 +47,7 @@ function makeSession(overrides: Partial<SessionEventPayload>): SessionEventPaylo
     state: "submitted",
     paused: false,
     held: [],
+    phases: makePhases(),
     updatedAt: "2026-09-25T00:00:00.000Z",
     ...overrides,
   };
@@ -517,5 +528,144 @@ describe("held indicator in session header and scene rows (JOS-152, task 8.1)", 
     const scene = makeScene({ sceneId: "g1", index: 1, state: "image-generating" });
     render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
+  });
+});
+
+// view-progress-by-phase (JOS-168), task 5.2 — design Decisions 6 and 7.
+describe("Phase actions, status classes and labels (JOS-168)", () => {
+  const statuses: PhaseStatus[] = ["pending", "in-progress", "complete", "failed"];
+
+  it("phaseActions offers no action for any phase and status, until US-23 to US-27 add endpoints", () => {
+    for (const phase of PHASE_ORDER) {
+      for (const status of statuses) {
+        expect(phaseActions({ phase, status, heldCount: 0, failure: status === "failed" ? { cause: "x", retryable: true } : undefined })).toEqual({ retry: false });
+      }
+    }
+  });
+
+  it("maps the four statuses through the shared status classes", () => {
+    expect(phaseStatusClass("pending")).toBe("status-queued");
+    expect(phaseStatusClass("in-progress")).toBe("status-progress");
+    expect(phaseStatusClass("complete")).toBe("status-complete");
+    expect(phaseStatusClass("failed")).toBe("status-failed");
+  });
+
+  it("labels the statuses and the phases", () => {
+    expect(statuses.map((status) => PHASE_STATUS_LABEL[status])).toEqual(["Not started", "In progress", "Complete", "Failed"]);
+    expect(PHASE_ORDER.map((phase) => PHASE_LABEL[phase])).toEqual(["Voice-over", "Decomposition", "Scenes", "Final video"]);
+  });
+});
+
+// view-progress-by-phase (JOS-168), tasks 6.1-6.3 — design Decisions 6 and 8.
+describe("The session page shows one section per phase (JOS-168)", () => {
+  const noop = () => {};
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: noop, onCorrect: noop };
+  const SECTION_NAMES = ["Voice-over phase", "Decomposition phase", "Scenes phase", "Final video phase"];
+
+  it("lists the four sections in pipeline order, each with its status label (6.1)", () => {
+    const session = makeSession({ state: "chunks-processing", phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "in-progress" }) });
+    render(<SessionPage {...baseProps} snapshot={{ session, scenes: [] }} />);
+
+    const sections = SECTION_NAMES.map((name) => screen.getByRole("region", { name }));
+
+    expect(sections.map((section) => section.getAttribute("aria-label"))).toEqual(SECTION_NAMES);
+    expect(sections[0]?.compareDocumentPosition(sections[1] as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(sections[1]?.compareDocumentPosition(sections[2] as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(sections[2]?.compareDocumentPosition(sections[3] as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(within(sections[0] as HTMLElement).getByText("Complete")).toBeInTheDocument();
+    expect(within(sections[2] as HTMLElement).getByText("In progress")).toBeInTheDocument();
+    expect(within(sections[3] as HTMLElement).getByText("Not started")).toBeInTheDocument();
+  });
+
+  it("puts the scene list in the Scenes section and the download in the Final video section (6.1)", () => {
+    const session = makeSession({ state: "final-video", phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "complete", assembly: "complete" }) });
+    render(<SessionPage {...baseProps} snapshot={{ session, scenes: [makeScene({ sceneId: "a", index: 1, state: "chunk-complete" })] }} />);
+
+    expect(within(screen.getByRole("region", { name: "Scenes phase" })).getByRole("listitem", { name: "Scene 1" })).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Final video phase" })).getByRole("link", { name: "Download final video" })).toBeInTheDocument();
+  });
+
+  it("keeps the header's state, failed phase, failed scenes and pause button (6.1, Decision 8)", () => {
+    const session = makeSession({ state: "failed", failedPhase: "scenes", failedSceneIndexes: [2], phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "failed" }) });
+    render(<SessionPage {...baseProps} snapshot={{ session, scenes: [makeScene({ sceneId: "b", index: 2, state: "failed", affectedStage: "image", errorCause: "The image provider refused the request." })] }} />);
+
+    const header = within(screen.getByRole("region", { name: "Session status" }));
+    expect(header.getByText("failed")).toBeInTheDocument();
+    expect(header.getByText("Failed phase: scenes")).toBeInTheDocument();
+    expect(header.getByText("Failed scenes: 2")).toBeInTheDocument();
+  });
+
+  it("shows the cause of a failed decomposition as an alert, with no retry button (6.2)", () => {
+    const cause = "The narration's timestamps could not be obtained: alignment timed out.";
+    const session = makeSession({ state: "failed", failedPhase: "decomposition", phases: makePhases({ "voice-over": "complete", decomposition: "failed" }, { decomposition: { failure: { cause, retryable: true } } }) });
+    render(<SessionPage {...baseProps} snapshot={{ session, scenes: [] }} />);
+
+    const section = within(screen.getByRole("region", { name: "Decomposition phase" }));
+    expect(section.getByText("Failed")).toBeInTheDocument();
+    expect(section.getByRole("alert")).toHaveTextContent(cause);
+    expect(section.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("shows a failed assembly phase with its cause as soon as one arrives (6.2)", () => {
+    const cause = "The final video could not be assembled.";
+    const session = makeSession({ state: "failed", failedPhase: "assembly", phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "complete", assembly: "failed" }, { assembly: { failure: { cause, retryable: true } } }) });
+    render(<SessionPage {...baseProps} snapshot={{ session, scenes: [] }} />);
+
+    const section = within(screen.getByRole("region", { name: "Final video phase" }));
+    expect(section.getByText("Failed")).toBeInTheDocument();
+    expect(section.getByRole("alert")).toHaveTextContent(cause);
+  });
+
+  it("shows a failed scenes phase with the failed scene offering retry and correction (6.2)", async () => {
+    const user = userEvent.setup();
+    const session = makeSession({ state: "failed", failedPhase: "scenes", failedSceneIndexes: [2], phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "failed" }) });
+    const scenes = [makeScene({ sceneId: "a", index: 1, state: "chunk-complete" }), makeScene({ sceneId: "b", index: 2, state: "failed", affectedStage: "image", errorCause: "The image provider refused the request." })];
+    render(<SessionPage {...baseProps} snapshot={{ session, scenes }} />);
+
+    const section = within(screen.getByRole("region", { name: "Scenes phase" }));
+    expect(section.getByText("Failed")).toBeInTheDocument();
+    await user.click(section.getByRole("button", { name: "View scene 2 details" }));
+    expect(section.getByRole("button", { name: "Retry scene 2" })).toBeInTheDocument();
+  });
+
+  it("says that held work waits for the User to continue (6.2)", () => {
+    const session = makeSession({ state: "chunks-processing", paused: true, held: [{ stage: "image", count: 1 }], phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "in-progress" }, { scenes: { heldCount: 1 } }) });
+    render(<SessionPage {...baseProps} snapshot={{ session, scenes: [] }} />);
+
+    expect(within(screen.getByRole("region", { name: "Scenes phase" })).getByText("Waiting for you to continue (1 held)")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Voice-over phase" })).queryByText(/waiting for you/i)).not.toBeInTheDocument();
+  });
+
+  it("updates the sections when a new snapshot arrives, without a reload (6.3, AC2)", () => {
+    const before = makeSession({ state: "chunk-decomposing", phases: makePhases({ "voice-over": "complete", decomposition: "in-progress" }) });
+    const { rerender } = render(<SessionPage {...baseProps} snapshot={{ session: before, scenes: [] }} />);
+    expect(within(screen.getByRole("region", { name: "Decomposition phase" })).getByText("In progress")).toBeInTheDocument();
+
+    const after = makeSession({ state: "chunks-processing", phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "in-progress" }) });
+    rerender(<SessionPage {...baseProps} snapshot={{ session: after, scenes: [] }} />);
+
+    expect(within(screen.getByRole("region", { name: "Decomposition phase" })).getByText("Complete")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Scenes phase" })).getByText("In progress")).toBeInTheDocument();
+  });
+
+  it("removes the failure alert when the phase goes back to in progress (6.3, AC5)", () => {
+    const failed = makeSession({ state: "failed", failedPhase: "decomposition", phases: makePhases({ "voice-over": "complete", decomposition: "failed" }, { decomposition: { failure: { cause: "It timed out.", retryable: true } } }) });
+    const { rerender } = render(<SessionPage {...baseProps} snapshot={{ session: failed, scenes: [] }} />);
+    expect(within(screen.getByRole("region", { name: "Decomposition phase" })).getByRole("alert")).toBeInTheDocument();
+
+    const retrying = makeSession({ state: "chunk-decomposing", phases: makePhases({ "voice-over": "complete", decomposition: "in-progress" }) });
+    rerender(<SessionPage {...baseProps} snapshot={{ session: retrying, scenes: [] }} />);
+
+    expect(within(screen.getByRole("region", { name: "Decomposition phase" })).queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("renders a PhaseSection on its own with its children", () => {
+    render(
+      <PhaseSection progress={{ phase: "scenes", status: "pending", heldCount: 0 }}>
+        <p>inside</p>
+      </PhaseSection>,
+    );
+
+    expect(within(screen.getByRole("region", { name: "Scenes phase" })).getByText("inside")).toBeInTheDocument();
   });
 });

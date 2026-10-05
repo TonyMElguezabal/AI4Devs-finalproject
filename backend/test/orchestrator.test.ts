@@ -413,18 +413,19 @@ describe("continue racing a cap-queued waiter (JOS-152, task 5.4)", () => {
 // JOS-152 task 6.1 — pause never reverts work
 describe("pause never reverts work (JOS-152, task 6.1)", () => {
   it("a long pause leaves a completed result unchanged", async () => {
+    // JOS-149: continueSession now also launches the video stage for image-complete
+    // scenes (JOS-146). The video stage resets scene.attempts to 0 when it starts,
+    // so only the IMAGE result (result path) is checked for immutability here.
     const { runId, sceneId } = newRunWithScene("success", 5);
     launchScene(sceneId);
     await waitFor(() => getScene(sceneId)?.status === "image-complete");
 
     const resultBefore = getScene(sceneId)!.result;
-    const attemptsBefore = getScene(sceneId)!.attempts;
 
     pauseSession(runId);
     continueSession(runId);
 
     expect(getScene(sceneId)!.result).toBe(resultBefore);
-    expect(getScene(sceneId)!.attempts).toBe(attemptsBefore);
   });
 
   it("pause and continue write nothing but the paused marker", () => {

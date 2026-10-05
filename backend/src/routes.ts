@@ -4,9 +4,18 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname } from "node:path";
 import { launchVoiceOverFor } from "./voiceOverPhase.ts";
-import { createRun, getRun, getSceneForRun, insertRegisteredScenes, commitSceneResult, markImageComplete, writeArtefactOnce } from "./db.ts";
 import { randomUUID } from "node:crypto";
-import { resolveArtefactPath } from "./db.ts";
+import {
+  createRun,
+  getRun,
+  getSceneForRun,
+  insertRegisteredScenes,
+  commitSceneResult,
+  markImageComplete,
+  resolveArtefactPath,
+  writeArtefactOnce,
+  insertVoiceOver,
+} from "./db.ts";
 import {
   continueSession,
   correctAndRetry,
@@ -114,6 +123,20 @@ const sceneResponseSchema = z.object({
   updatedAt: z.string(),
 });
 
+const phaseResponseSchema = z.object({
+  phase: z.enum(["voice-over", "decomposition", "scenes", "assembly"]),
+  status: z
+    .enum(["pending", "in-progress", "complete", "failed"])
+    .describe("PRD §8.1, §8.3: derived from the session state on every read, never stored."),
+  heldCount: z.number().int().describe("Work units a pause is holding for this phase; 0 when not paused."),
+  failure: z
+    .object({ cause: z.string(), retryable: z.boolean() })
+    .optional()
+    .describe(
+      "Present only on a failed voice-over, decomposition or assembly entry. Never carries the failure time, provider detail, credentials or the script. Scene failures are per scene, so the scenes entry has none.",
+    ),
+});
+
 const sessionResponseSchema = z.object({
   type: z.literal("session"),
   sessionId: z.string(),
@@ -157,8 +180,12 @@ const sessionResponseSchema = z.object({
     })
     .optional()
     .describe("Present while the session is failed in a phase that records its failure (PRD §8.1); the cause is written for a person."),
+  phases: z
+    .array(phaseResponseSchema)
+    .describe("PRD §8.3: always the four phases in pipeline order (voice-over, decomposition, scenes, assembly). Derived and read-only."),
   createdAt: z.string(),
   updatedAt: z.string(),
+  finalVideoUrl: z.string().optional().describe("Route to download the assembled MP4; present only when state is final-video (JOS-149)."),
 });
 
 const languageResponseSchema = z.array(z.object({ code: z.string(), label: z.string() }));
@@ -386,21 +413,29 @@ export const routes: FastifyPluginAsync = async (app) => {
     {
       schema: {
         params: sessionParamsSchema,
-        response: { 200: z.string(), 409: conflictSchema, 404: conflictSchema },
+        response: { 200: z.any().describe("The assembled MP4 file (video/mp4)"), 409: conflictSchema, 404: conflictSchema },
       },
     },
     async (request, reply) => {
-      const snapshot = toSnapshot(request.params.sessionId);
-      if (!snapshot) {
+      const run = getRun(request.params.sessionId);
+      if (!run) {
         reply.code(404);
         return { ok: false, reason: "unknown session" };
       }
-      if (snapshot.session.state !== "final-video") {
+      if (!run.finalVideoPath) {
         reply.code(409);
-        return { ok: false, reason: `final video is not available in state '${snapshot.session.state}'` };
+        return { ok: false, reason: "final video is not yet available" };
       }
-      reply.type("text/plain");
-      return `stub final MP4 content for session ${request.params.sessionId}`;
+      const fullPath = resolveArtefactPath(run.projectFolder, run.finalVideoPath);
+      if (!existsSync(fullPath)) {
+        reply.code(404);
+        return { ok: false, reason: "final video file not found on disk" };
+      }
+      const { size } = statSync(fullPath);
+      reply.header("Content-Disposition", `attachment; filename="final-video.mp4"`);
+      reply.header("Content-Length", size);
+      reply.type("video/mp4");
+      return reply.send(createReadStream(fullPath));
     },
   );
 
@@ -462,15 +497,53 @@ export const routes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  // Test-only endpoint for manual endpoint testing (task 10). Guarded by
+  // Test-only endpoints for manual endpoint testing (task 9). Guarded by
   // ALLOW_TEST_ENDPOINTS env var; never available in production.
   if (process.env.ALLOW_TEST_ENDPOINTS) {
+    typed.post(
+      "/internal/test/quick-voice-over",
+      {
+        schema: {
+          body: z.object({
+            sessionId: z.string(),
+            durationSeconds: z.number().positive(),
+          }),
+          response: {
+            200: z.object({ ok: z.boolean() }),
+            404: z.object({ error: z.string() }),
+            409: z.object({ error: z.string() }),
+          },
+        },
+      },
+      async (request, reply) => {
+        const { sessionId, durationSeconds } = request.body;
+        const run = getRun(sessionId);
+        if (!run) { reply.code(404); return { error: "session not found" }; }
+        const audioPath = `voice-over.mp3`;
+        writeArtefactOnce(run.projectFolder, audioPath, Buffer.alloc(0));
+        const ok = insertVoiceOver({
+          runId: sessionId,
+          audioPath,
+          timestampsPath: null,
+          durationSeconds,
+          sizeBytes: 0,
+          nativeTimestampsAvailable: false,
+          providerRequestId: null,
+          completedAt: new Date().toISOString(),
+        });
+        if (!ok) { reply.code(409); return { error: "voice-over already exists" }; }
+        return { ok: true };
+      },
+    );
+
     typed.post(
       "/internal/test/quick-scene",
       {
         schema: {
           body: z.object({
             sessionId: z.string(),
+            sceneIndex: z.number().int().min(0).optional(),
+            narrationStartSeconds: z.number().min(0).optional(),
             videoInstruction: z.string().min(1),
             requestedDurationSeconds: z.number().positive(),
             imageBytesBase64: z.string().optional(),
@@ -482,14 +555,16 @@ export const routes: FastifyPluginAsync = async (app) => {
         },
       },
       async (request, reply) => {
-        const { sessionId, videoInstruction, requestedDurationSeconds, imageBytesBase64 } = request.body;
+        const { sessionId, videoInstruction, requestedDurationSeconds, imageBytesBase64, sceneIndex, narrationStartSeconds } = request.body;
         const run = getRun(sessionId);
         if (!run) {
           reply.code(404);
           return { error: "session not found" };
         }
+        const idx = sceneIndex ?? 0;
+        const startSec = narrationStartSeconds ?? 0;
         const sceneId = randomUUID();
-        const imagePath = `scene-0.png`;
+        const imagePath = `scene-${idx}.png`;
         // minimal 1×1 PNG bytes (overrideable for real-call tests)
         const pngBytes = imageBytesBase64
           ? Buffer.from(imageBytesBase64, "base64")
@@ -501,11 +576,11 @@ export const routes: FastifyPluginAsync = async (app) => {
             );
         insertRegisteredScenes(sessionId, [{
           id: sceneId,
-          index: 0,
+          index: idx,
           prompt: videoInstruction,
           imageInstruction: videoInstruction,
           videoInstruction,
-          narrationInterval: { startSeconds: 0, endSeconds: requestedDurationSeconds },
+          narrationInterval: { startSeconds: startSec, endSeconds: startSec + requestedDurationSeconds },
           requestedDurationSeconds,
           durationWarning: null,
           speedFactor: 1,

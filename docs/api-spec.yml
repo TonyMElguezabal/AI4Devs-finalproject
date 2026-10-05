@@ -42,6 +42,14 @@
 # gained `manualRetryAvailable`, `cycle` and `attemptsInCycle` (all required).
 # No new path. A transient failure with budget left no longer produces a
 # `failure` at all: the session stays in progress while retries are made.
+# JOS-168 (view-progress-by-phase) — 2026-10-04: regenerated. The new field is
+# `session.phases` (four entries in pipeline order, each with `status`,
+# `heldCount` and, on a failed voice-over, decomposition or assembly entry, a
+# `failure` of `cause` and `retryable`); it is on the create and read
+# responses and the live snapshot. Regenerating also normalized wording the
+# generator now emits differently (line wrapping, the `finalVideoUrl` property
+# position and description, `additionalProperties: false` on `held` items); no
+# other field or type changed.
 #
 openapi: 3.0.3
 info:
@@ -228,10 +236,62 @@ paths:
                         additionalProperties: false
                         description: Present while the session is failed in a phase that records its
                           failure (PRD §8.1); the cause is written for a person.
+                      phases:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            phase:
+                              type: string
+                              enum:
+                                - voice-over
+                                - decomposition
+                                - scenes
+                                - assembly
+                            status:
+                              type: string
+                              enum:
+                                - pending
+                                - in-progress
+                                - complete
+                                - failed
+                              description: "PRD §8.1, §8.3: derived from the session state on every read,
+                                never stored."
+                            heldCount:
+                              type: integer
+                              description: Work units a pause is holding for this phase; 0 when not paused.
+                            failure:
+                              type: object
+                              properties:
+                                cause:
+                                  type: string
+                                retryable:
+                                  type: boolean
+                              required:
+                                - cause
+                                - retryable
+                              additionalProperties: false
+                              description: Present only on a failed voice-over, decomposition or assembly
+                                entry. Never carries the failure time, provider
+                                detail, credentials or the script. Scene
+                                failures are per scene, so the scenes entry has
+                                none.
+                          required:
+                            - phase
+                            - status
+                            - heldCount
+                          additionalProperties: false
+                        description: "PRD §8.3: always the four phases in pipeline order (voice-over,
+                          decomposition, scenes, assembly). Derived and
+                          read-only."
                       createdAt:
                         type: string
                       updatedAt:
                         type: string
+                      finalVideoUrl:
+                        type: string
+                        description: Route to download the assembled MP4; present only when state is
+                          final-video (JOS-149).
                     required:
                       - type
                       - sessionId
@@ -241,6 +301,7 @@ paths:
                       - state
                       - paused
                       - held
+                      - phases
                       - createdAt
                       - updatedAt
                     additionalProperties: false
@@ -480,10 +541,62 @@ paths:
                         additionalProperties: false
                         description: Present while the session is failed in a phase that records its
                           failure (PRD §8.1); the cause is written for a person.
+                      phases:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            phase:
+                              type: string
+                              enum:
+                                - voice-over
+                                - decomposition
+                                - scenes
+                                - assembly
+                            status:
+                              type: string
+                              enum:
+                                - pending
+                                - in-progress
+                                - complete
+                                - failed
+                              description: "PRD §8.1, §8.3: derived from the session state on every read,
+                                never stored."
+                            heldCount:
+                              type: integer
+                              description: Work units a pause is holding for this phase; 0 when not paused.
+                            failure:
+                              type: object
+                              properties:
+                                cause:
+                                  type: string
+                                retryable:
+                                  type: boolean
+                              required:
+                                - cause
+                                - retryable
+                              additionalProperties: false
+                              description: Present only on a failed voice-over, decomposition or assembly
+                                entry. Never carries the failure time, provider
+                                detail, credentials or the script. Scene
+                                failures are per scene, so the scenes entry has
+                                none.
+                          required:
+                            - phase
+                            - status
+                            - heldCount
+                          additionalProperties: false
+                        description: "PRD §8.3: always the four phases in pipeline order (voice-over,
+                          decomposition, scenes, assembly). Derived and
+                          read-only."
                       createdAt:
                         type: string
                       updatedAt:
                         type: string
+                      finalVideoUrl:
+                        type: string
+                        description: Route to download the assembled MP4; present only when state is
+                          final-video (JOS-149).
                     required:
                       - type
                       - sessionId
@@ -493,6 +606,7 @@ paths:
                       - state
                       - paused
                       - held
+                      - phases
                       - createdAt
                       - updatedAt
                     additionalProperties: false
@@ -906,11 +1020,11 @@ paths:
           required: true
       responses:
         "200":
-          description: Default Response
+          description: The assembled MP4 file (video/mp4)
           content:
             application/json:
               schema:
-                type: string
+                description: The assembled MP4 file (video/mp4)
         "404":
           description: Default Response
           content:

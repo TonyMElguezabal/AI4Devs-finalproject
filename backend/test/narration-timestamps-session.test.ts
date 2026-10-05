@@ -11,7 +11,9 @@ import {
   getStageAttempts,
   getVoiceOver,
   insertVoiceOver,
+  recordStageAttempt,
   resetAll,
+  setRunFailure,
   writeArtefactOnce,
 } from "../src/db.ts";
 import { obtainNarrationTimestamps } from "../src/narrationTimestampsPhase.ts";
@@ -159,5 +161,58 @@ describe("Live updates", () => {
     const runId = await narratedSessionViaApi();
     await obtainNarrationTimestamps(runId, { align: async () => ({ kind: "failed_transient", reason: "x" }) });
     expect(received.filter((s) => s.session.sessionId === runId).at(-1)?.session).toMatchObject({ state: "failed", failedPhase: "decomposition" });
+  });
+});
+
+describe("A decomposition retry in flight (JOS-168 task 3.1, design Decision 5)", () => {
+  const failedAt = "2026-10-05T10:00:00.000Z";
+  const failure = {
+    phase: "decomposition" as const,
+    cause: "The narration's timestamps could not be obtained: alignment timed out.",
+    retryable: true,
+    manualRetryAvailable: true,
+    cycle: 1,
+    attemptsInCycle: 1,
+    occurredAt: failedAt,
+  };
+
+  it("reads chunk-decomposing while the failure stays recorded, then shows no failure on the phase", async () => {
+    const runId = await narratedSessionViaApi();
+    setRunFailure(runId, failure);
+    recordStageAttempt({ runId, stage: "timestamps", providerId: "alignment", queuedAt: "2026-10-05T10:00:05.000Z", sentAt: "2026-10-05T10:00:05.000Z" });
+
+    const session = await readState(runId);
+
+    expect(session.state).toBe("chunk-decomposing");
+    expect(session.failedPhase).toBeUndefined();
+    expect(session.phases[1]).toMatchObject({ phase: "decomposition", status: "in-progress" });
+    expect(session.phases[1].failure).toBeUndefined();
+    expect(getRun(runId)?.failure).toEqual(failure);
+  });
+
+  it("still reads failed when the only in-flight attempt was queued before the failure", async () => {
+    const runId = await narratedSessionViaApi();
+    recordStageAttempt({ runId, stage: "timestamps", providerId: "alignment", queuedAt: "2026-10-05T09:59:00.000Z", sentAt: "2026-10-05T09:59:00.000Z" });
+    setRunFailure(runId, failure);
+
+    expect(await readState(runId)).toMatchObject({ state: "failed", failedPhase: "decomposition" });
+  });
+
+  it("reads failed again, with the new cause, when the retry fails", async () => {
+    const runId = await narratedSessionViaApi();
+    await obtainNarrationTimestamps(runId, { align: async () => ({ kind: "failed_transient", reason: "first failure" }) });
+    let release!: (result: AlignmentResult) => void;
+    const pending = new Promise<AlignmentResult>((resolve) => (release = resolve));
+
+    const retrying = obtainNarrationTimestamps(runId, { align: () => pending });
+    expect((await readState(runId)).state).toBe("chunk-decomposing");
+
+    release({ kind: "failed_transient", reason: "second failure" });
+    await retrying;
+    const session = await readState(runId);
+
+    expect(session).toMatchObject({ state: "failed", failedPhase: "decomposition" });
+    expect(session.phases[1]).toMatchObject({ status: "failed", failure: { retryable: true } });
+    expect(getRun(runId)?.failure?.cause).toContain("second failure");
   });
 });
