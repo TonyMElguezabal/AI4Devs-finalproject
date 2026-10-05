@@ -1,6 +1,6 @@
 import { countScenesForRun, getNarrationTimestamps, getRun, getStageInstanceAttempts, stageInstanceKeyOf } from "./db.ts";
 import "./decompositionPhase.ts";
-import { toSnapshot } from "./orchestrator.ts";
+import { broadcast, toSnapshot } from "./orchestrator.ts";
 import { releaseSessionAttempts } from "./retry/retryScheduler.ts";
 import { startNewCycle } from "./retry/stageAttemptRecorder.ts";
 
@@ -44,5 +44,6 @@ export function retryDecomposition(sessionId: string): DecompositionRetryResult 
   }
 
   const sent = releaseSessionAttempts(sessionId);
+  broadcast(sessionId);
   return { ok: true, held: sent === 0 };
 }

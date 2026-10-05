@@ -69,8 +69,9 @@ Whichever of JOS-155 and this change adds the route schemas and the reason-to-se
    Both refs name the same stage instance, so the choice sets the stage of the scheduled attempt, and so which sender runs it.
 7. `startNewCycle` with that stage. It is atomic, so a concurrent second request is refused. A `not-retryable` refusal maps to the same reason as step 5, and `not-failed` to `retry-already-pending`.
 8. `releaseSessionAttempts` hands the scheduled attempt to the gate: `held` is true when a pause keeps it.
+9. The session's new state is published to live subscribers (`broadcast`), whether the attempt was sent or held. Opening the cycle clears the failure and a held attempt runs nothing, so no step would publish it; without this the page would keep showing the failed phase until something else changed.
 
-The service is synchronous over a synchronous store, so a second request after the first finds the failure already cleared and a pending retry, and answers at step 3. Steps 1-7 read and write the store only. No provider can be called before step 8.
+The service is synchronous over a synchronous store, so a second request after the first finds the failure already cleared and a pending retry, and answers at step 3. Steps 1-7 read and write the store only. No provider can be called before step 8, and the publish at step 9 follows the release so a subscriber never sees the retry before the gate has decided it.
 
 *Alternative rejected:* tagging the failure with its step when it is recorded. That would add a field to every failure already written, while the records answer the question exactly: stored timestamps mean the timestamps step succeeded, and `obtainNarrationTimestamps` refuses to run again once they exist.
 

@@ -132,12 +132,18 @@ An accepted retry SHALL open a new cycle on the session's decomposition stage in
 
 ### Requirement: An accepted retry shows the decomposition in progress
 
-From the moment a decomposition retry is accepted until its cycle ends, the session SHALL derive `chunk-decomposing`, and the decomposition phase SHALL be `in-progress` with no `failure`. This SHALL hold whether the retry's attempt is scheduled, held, waiting for a request-cap slot, or in flight, and for either step (§8.1).
+From the moment a decomposition retry is accepted until its cycle ends, the session SHALL derive `chunk-decomposing`, and the decomposition phase SHALL be `in-progress` with no `failure`. This SHALL hold whether the retry's attempt is scheduled, held, waiting for a request-cap slot, or in flight, and for either step (§8.1). The retry command SHALL publish the new session state to live subscribers before it answers, including when the attempt is held, so a page that is showing the failure moves to `in-progress` without a reload.
 
 #### Scenario: Division retry in progress
 
 - **WHEN** a division retry is accepted
 - **THEN** the session derives `chunk-decomposing` until the chunks are registered or the cycle fails
+
+#### Scenario: A held retry is published
+
+- **GIVEN** a failed decomposition on a paused session, with a live subscriber
+- **WHEN** the retry is accepted with `held: true`
+- **THEN** the subscriber receives a snapshot in which the decomposition phase is `in-progress` with one held unit and no failure
 
 #### Scenario: The retry fails again
 

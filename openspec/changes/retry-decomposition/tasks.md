@@ -74,6 +74,8 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
   - JOS-168's and JOS-155's existing rule tests still pass.
 - [x] 5.3 Register the decomposition launcher (`heldWork`, `launch`), leaving a documented hook for JOS-136's "after the narration" term. No derived-state rule is added (design Decision 6). Make 5.1-5.2 pass.
 
+- [x] 5.4 Write a failing test in `decomposition-retry.test.ts`: with a subscriber on the state events, an accepted retry on a paused session (`held: true`) and on an unpaused one each publish a snapshot with the decomposition phase `in-progress` and no failure before the command returns. Then publish the session state at the end of `retryDecomposition` (design Decision 2, step 9) and make it pass.
+
 ## 6. Backend: route (TDD; design Decision 1)
 
 - [x] 6.1 Write failing tests in `session-api-surface.test.ts` for `POST /sessions/:sessionId/decomposition/retry`:

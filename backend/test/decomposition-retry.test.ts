@@ -7,10 +7,10 @@ import { resetDecompositionDependencies, setDecompositionDependencies } from "..
 import { decompositionLauncher, segmentStoredTimestamps } from "../src/decompositionPhase.ts";
 import { resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
 import { obtainNarrationTimestamps } from "../src/narrationTimestampsPhase.ts";
-import { continueSession, pauseSession, resetVideoStageStartDelayMs, setVideoStageStartDelayMs, toSnapshot } from "../src/orchestrator.ts";
+import { continueSession, events, pauseSession, resetVideoStageStartDelayMs, setVideoStageStartDelayMs, toSnapshot } from "../src/orchestrator.ts";
 import { NOT_YET_LAUNCHABLE } from "../src/launchGate.ts";
 import { createVoiceOverFailure } from "../src/sessionStateMachine.ts";
-import type { StageAttempt } from "../src/types.ts";
+import type { SessionSnapshot, StageAttempt } from "../src/types.ts";
 import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
 
 // retry-decomposition (JOS-156), group 3 — design Decisions 2 and 7: the order
@@ -357,5 +357,42 @@ describe("The derived state around a retry (5.2, design Decision 6)", () => {
     expect(failure.cause).toContain("502");
     expect(failure.cause).not.toBe(before.cause);
     expect(failure).toMatchObject({ phase: "decomposition", cycle: 2 });
+  });
+});
+
+describe("An accepted retry is published to live subscribers (5.4)", () => {
+  function publishedDuring(action: () => void): SessionSnapshot[] {
+    const published: SessionSnapshot[] = [];
+    const onState = (snapshot: SessionSnapshot) => published.push(snapshot);
+    events.on("state", onState);
+    try {
+      action();
+    } finally {
+      events.off("state", onState);
+    }
+    return published;
+  }
+
+  it("publishes the decomposition in progress, with one held unit and no failure, when the retry is held", async () => {
+    const runId = await failDivision();
+    useRetryProviders();
+    pauseSession(runId);
+
+    const published = publishedDuring(() => expect(retryDecomposition(runId)).toEqual({ ok: true, held: true }));
+
+    const last = published.filter((snapshot) => snapshot.session.sessionId === runId).at(-1);
+    expect(last?.session.phases.find((phase) => phase.phase === "decomposition")).toMatchObject({ status: "in-progress", heldCount: 1 });
+    expect(last?.session.phases.find((phase) => phase.phase === "decomposition")).not.toHaveProperty("failure");
+  });
+
+  it("publishes the decomposition in progress before the command returns when the retry is sent", async () => {
+    const runId = await failTimestamps();
+    useRetryProviders();
+
+    const published = publishedDuring(() => expect(retryDecomposition(runId)).toEqual({ ok: true, held: false }));
+
+    const last = published.filter((snapshot) => snapshot.session.sessionId === runId).at(-1);
+    expect(last?.session.phases.find((phase) => phase.phase === "decomposition")?.status).toBe("in-progress");
+    await waitFor(() => getScenesForRun(runId).length > 0);
   });
 });
