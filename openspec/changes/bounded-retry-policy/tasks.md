@@ -75,17 +75,17 @@ A cross-cutting backend change with no screen of its own. Group 1 is a hard gate
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
 - [x] 7.1 Update `generate-voice-over` tests that asserted "transient failure fails the session" to the new retry behaviour
-- [ ] 7.2 Confirm every scenario in `specs/stage-retry-policy/spec.md` has at least one functional test
-- [ ] 7.3 Confirm module test coverage has not decreased
+- [x] 7.2 Confirm every scenario in `specs/stage-retry-policy/spec.md` has at least one functional test
+- [x] 7.3 Confirm module test coverage has not decreased
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test state of the store (session, scene and attempt counts)
-- [ ] 8.2 Run the targeted tests for this module and capture the pass/fail summary
-- [ ] 8.3 Run the full suite and record totals, failures and runtime
-- [ ] 8.4 Verify the post-test state matches the baseline, restoring it if needed
-- [ ] 8.5 Create the report `openspec/changes/bounded-retry-policy/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md` with commands executed, results, pre/post comparison and cleanup actions
-- [ ] 8.6 Mark this step complete only after the tests pass and the report file exists
+- [x] 8.1 Capture the pre-test state of the store (session, scene and attempt counts)
+- [x] 8.2 Run the targeted tests for this module and capture the pass/fail summary
+- [x] 8.3 Run the full suite and record totals, failures and runtime
+- [x] 8.4 Verify the post-test state matches the baseline, restoring it if needed
+- [x] 8.5 Create the report `openspec/changes/bounded-retry-policy/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md` with commands executed, results, pre/post comparison and cleanup actions
+- [x] 8.6 Mark this step complete only after the tests pass and the report file exists
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
