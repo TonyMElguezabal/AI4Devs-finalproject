@@ -132,6 +132,21 @@ const sessionResponseSchema = z.object({
     .describe(
       "PRD §8.1: the indexes of the failed scenes, ascending. Present only when failedPhase is \"scenes\". Derived and read-only.",
     ),
+  voiceOver: z
+    .object({
+      provider: z.string(),
+      durationSeconds: z.number(),
+      nativeTimestampsAvailable: z.boolean(),
+      completedAt: z.string(),
+    })
+    .optional()
+    .describe(
+      "Present once the narration exists (PRD §5 step 2). Derived and read-only; the MP3 itself is never offered for download (PRD §12.3).",
+    ),
+  failure: z
+    .object({ phase: z.string(), cause: z.string(), retryable: z.boolean(), occurredAt: z.string() })
+    .optional()
+    .describe("Present while the session is failed in a phase that records its failure (PRD §8.1); the cause is written for a person."),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

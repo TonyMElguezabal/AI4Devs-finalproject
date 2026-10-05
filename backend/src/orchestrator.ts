@@ -186,6 +186,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     voiceAttemptInFlight: getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight"),
     timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
   });
+  const voiceOver = getVoiceOver(runId);
   const heldWork = sessionHeldWork(runId);
   const heldSceneIds = heldWork.sceneIds;
   const session: SessionEventPayload = {
@@ -199,6 +200,15 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     held: heldWork.stages.map((s) => ({ stage: s.stage, count: s.count })),
     failedPhase,
     failedSceneIndexes,
+    voiceOver: voiceOver
+      ? {
+          provider: run.voiceProviderId ?? "unknown",
+          durationSeconds: voiceOver.durationSeconds,
+          nativeTimestampsAvailable: voiceOver.nativeTimestampsAvailable,
+          completedAt: voiceOver.completedAt,
+        }
+      : undefined,
+    failure: state === "failed" && run.failure ? { ...run.failure } : undefined,
     createdAt: run.createdAt,
     updatedAt: new Date().toISOString(),
   };

@@ -234,6 +234,10 @@ export interface SessionEventPayload {
   failedPhase?: string;
   /** gate-assembly-on-complete-scenes (JOS-150): the failed scenes' indexes, ascending; present only when `failedPhase` is `"scenes"`. Derived, never stored. */
   failedSceneIndexes?: number[];
+  /** generate-voice-over (JOS-136) Decision 11 — present once the narration exists; never its file paths or the provider's request id, and no download (PRD §12.3). */
+  voiceOver?: { provider: string; durationSeconds: number; nativeTimestampsAvailable: boolean; completedAt: string };
+  /** Present while the session is `failed` in a phase that records its failure (Decision 9): the phase, a cause written for a person, and whether a retry may help. */
+  failure?: { phase: string; cause: string; retryable: boolean; occurredAt: string };
   /** PRD §12.2 — the project-folder name derives from this instant, and
    * consult-session (JOS-135) task 3.1 requires it in the session read. */
   createdAt: string;

@@ -69,10 +69,10 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 6. API: session representation (TDD)
 
-- [ ] 6.1 Write a failing test that a completed session's representation carries `voiceOver` with provider, duration, native-timestamp availability and completion time
-- [ ] 6.2 Write a failing test that a failed session's representation carries `failure` with phase `voice-over`, cause and retryability
-- [ ] 6.3 Add the fields to the session read (US-02), validating the response with the approach from the backend standards
-- [ ] 6.4 Confirm no route serves the MP3 (§12.3)
+- [x] 6.1 Write a failing test that a completed session's representation carries `voiceOver` with provider, duration, native-timestamp availability and completion time
+- [x] 6.2 Write a failing test that a failed session's representation carries `failure` with phase `voice-over`, cause and retryability
+- [x] 6.3 Add the fields to the session read (US-02), validating the response with the approach from the backend standards (`voiceOver` and `failure` are optional fields of the session payload and of the route's Zod response schema; `failure` appears only while the derived state is `failed`)
+- [x] 6.4 Confirm no route serves the MP3 (§12.3) (`voice-over-session-read.test.ts` probes the session sub-paths; `session-api-surface.test.ts` already asserts no route names voice, narration, audio or mp3)
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
