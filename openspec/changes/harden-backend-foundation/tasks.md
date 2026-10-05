@@ -55,17 +55,17 @@ Every code change starts with a failing test (TDD). Every scenario in `specs/res
 
 ## 7. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the backend with `ALLOW_TEST_ENDPOINTS=1 USE_STUB_VIDEO_PROVIDER=pending` (video cap: the provisional 3); note the database baseline
-- [ ] 7.2 Create a session (`POST /sessions`), then 5 scenes through `POST /internal/test/quick-scene`; confirm through `GET /sessions/:id` that 3 are `video-generating` and 2 wait
-- [ ] 7.3 `kill -9` the server, restart it with the same environment, and check in the boot log (3.6) that video `inFlight` is 3 right after reconciliation, before any new launch; add a 6th scene and confirm it waits
-- [ ] 7.4 Restart once more with `USE_STUB_VIDEO_PROVIDER=success-bytes` so pending clips settle; confirm each scene ends with exactly one clip and every waiting launch ran exactly once
-- [ ] 7.5 Error cases: unknown session id → 404; repeated delivery has no visible effect on the scene
-- [ ] 7.6 Delete the created session data / project folder and confirm the database matches the 7.1 baseline
-- [ ] 7.7 Write report `openspec/changes/harden-backend-foundation/reports/YYYY-MM-DD-step-7-curl-restart-concurrency.md` with every command and response
+- [x] 7.1 Start the backend with `ALLOW_TEST_ENDPOINTS=1 USE_STUB_VIDEO_PROVIDER=pending` (video cap: the provisional 3); note the database baseline
+- [x] 7.2 Create a session (`POST /sessions`), then 5 scenes through `POST /internal/test/quick-scene`; confirm through `GET /sessions/:id` that 3 are `video-generating` and 2 wait
+- [x] 7.3 `kill -9` the server, restart it with the same environment, and check in the boot log (3.6) that video `inFlight` is 3 right after reconciliation, before any new launch; add a 6th scene and confirm it waits
+- [x] 7.4 Restart once more with `USE_STUB_VIDEO_PROVIDER=success-bytes` so pending clips settle; confirm each scene ends with exactly one clip and every waiting launch ran exactly once
+- [x] 7.5 Error cases: unknown session id → 404; repeated delivery has no visible effect on the scene
+- [x] 7.6 Delete the created session data / project folder and confirm the database matches the 7.1 baseline
+- [x] 7.7 Write report `openspec/changes/harden-backend-foundation/reports/YYYY-MM-DD-step-7-curl-restart-concurrency.md` with every command and response
 
 ## 8. Frontend: E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Not applicable: this change touches no frontend code and no API contract. Record that in the step 7 report, and note that the SSE reconnect resync carry-forward from JOS-179 is already in `useLiveSession.ts` (verified during proposal)
+- [x] 8.1 Not applicable: this change touches no frontend code and no API contract. Record that in the step 7 report, and note that the SSE reconnect resync carry-forward from JOS-179 is already in `useLiveSession.ts` (verified during proposal)
 
 ## 9. Update Technical Documentation (MANDATORY)
 
