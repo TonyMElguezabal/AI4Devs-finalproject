@@ -103,14 +103,14 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the real server on a scratch store and scratch projects folder; confirm `GET /health`.
-- [ ] 9.2 Create a session with `POST /sessions`; `curl GET /sessions/:id` shows `phases` with four entries in order.
-- [ ] 9.3 Prepare in the scratch store, then `curl` each:
+- [x] 9.1 Start the real server on a scratch store and scratch projects folder; confirm `GET /health`.
+- [x] 9.2 Create a session with `POST /sessions`; `curl GET /sessions/:id` shows `phases` with four entries in order.
+- [x] 9.3 Prepare in the scratch store, then `curl` each:
   - a decomposition failure: the entry is `failed` with cause and `retryable`;
   - the same session with a later in-flight `timestamps` attempt: the state is `chunk-decomposing` and the entry is `in-progress` with no `failure`;
-  - a paused session with held decomposition: `heldCount` 1.
-- [ ] 9.4 Error case: `curl GET /sessions/<unknown>` still answers 404. `curl GET /docs/json` documents `phases`.
-- [ ] 9.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/view-progress-by-phase/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
+  - a paused session with one submitted scene (held at the image stage): the `scenes` entry has `heldCount` 1 and every other entry 0. A held decomposition cannot be produced on a real server yet, because only the image, video and assembly stages register a launcher (`launchGate.ts`); it stays covered by the `phase-progress` unit tests until the decomposition launcher exists.
+- [x] 9.4 Error case: `curl GET /sessions/<unknown>` still answers 404. `curl GET /docs/json` documents `phases`.
+- [x] 9.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/view-progress-by-phase/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
@@ -118,7 +118,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 - [ ] 10.2 Run backend (scratch store) and frontend; open a session page and confirm the four sections by accessible name, in order.
 - [ ] 10.3 Advance the session on the backend (for example, register scenes) and confirm the sections update without a reload.
 - [ ] 10.4 Record a decomposition failure on a second session: the Decomposition section shows `Failed`, the cause and no retry button. Then record an in-flight `timestamps` attempt: the section shows `In progress` without a reload.
-- [ ] 10.5 Pause a session with held work and confirm the held text in the right section, alongside the header's paused marker.
+- [ ] 10.5 Pause a session with one submitted scene (held at the image stage, the only held work a real server can produce today) and confirm the held text in the Scenes section, alongside the header's paused marker.
 - [ ] 10.6 Restore the environment and save `openspec/changes/view-progress-by-phase/reports/YYYY-MM-DD-step-10-e2e.md`.
 
 ## 11. Update Technical Documentation (MANDATORY)
