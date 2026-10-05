@@ -30,6 +30,17 @@ describe("StubVideoProvider (Decision 3 — covers all outcome modes)", () => {
       expect((await createStubVideoProvider("transient-failure").poll("sent-before-restart")).kind).toBe("failed_transient");
     });
 
+    it("never hands out a request id that an earlier process lifetime already used", async () => {
+      const params = { imageBytes: VALID_IMAGE, instruction: "animate", durationSeconds: 8 };
+      const beforeRestart = await createStubVideoProvider("pending").submit(params);
+      const afterRestart = await createStubVideoProvider("pending").submit(params);
+
+      expect(beforeRestart.kind === "submitted" && afterRestart.kind === "submitted").toBe(true);
+      if (beforeRestart.kind === "submitted" && afterRestart.kind === "submitted") {
+        expect(afterRestart.requestId).not.toBe(beforeRestart.requestId);
+      }
+    });
+
     it("stays not_found in request-lost mode", async () => {
       expect(await createStubVideoProvider("request-lost").poll("sent-before-restart")).toEqual({ kind: "not_found" });
     });

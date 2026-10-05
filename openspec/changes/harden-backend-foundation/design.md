@@ -80,7 +80,7 @@ Both limits are set before `reconcileOnBoot`, and no HTTP request can launch wor
 
 ### Decision 7: Two small test aids so a restart can be observed by hand
 
-- The stub video provider answers a poll for an id it never saw with its configured mode (`request-lost` still answers `not_found`). Its in-memory map is empty after a restart, so today every resumed stub clip turns into a lost attempt, and the curl step could never show one resuming or settling. Stub only; the RunningHub adapter is untouched.
+- The stub video provider answers a poll for an id it never saw with its configured mode (`request-lost` still answers `not_found`). Its in-memory map is empty after a restart, so today every resumed stub clip turns into a lost attempt, and the curl step could never show one resuming or settling. Its request ids are also unique across restarts (they were numbered from 1 in each process, so after a restart a new request collided with a stored `provider_requests.id` and crashed the server, found in the curl step). Stub only; the RunningHub adapter is untouched.
 - `server.ts` accepts the stub video modes directly in `USE_STUB_VIDEO_PROVIDER` (`pending`, `success-bytes`, `request-lost`, besides the older `success` alias); before, every other value fell back to `transient-failure`, so the curl step's `pending` run was not possible.
 - `server.ts`'s boot log line adds each stage's `inFlight`/`limit` right after `reconcileOnBoot()`. This is the only observable place for the restart-time count, since no endpoint exposes semaphore stats, and adding one for a diagnostic is not worth an API change.
 
