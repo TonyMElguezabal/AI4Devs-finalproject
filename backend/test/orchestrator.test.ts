@@ -166,19 +166,19 @@ describe("shared per-stage concurrency cap (PRD §10.1, C3)", () => {
     concurrency.setLimit("TEST_STAGE", 2);
 
     const acquired: number[] = [];
-    concurrency.acquire("TEST_STAGE", () => acquired.push(1));
-    concurrency.acquire("TEST_STAGE", () => acquired.push(2));
-    concurrency.acquire("TEST_STAGE", () => acquired.push(3)); // queued
-    concurrency.acquire("TEST_STAGE", () => acquired.push(4)); // queued
+    concurrency.acquire("TEST_STAGE", "h1", () => acquired.push(1));
+    concurrency.acquire("TEST_STAGE", "h2", () => acquired.push(2));
+    concurrency.acquire("TEST_STAGE", "h3", () => acquired.push(3)); // queued
+    concurrency.acquire("TEST_STAGE", "h4", () => acquired.push(4)); // queued
 
     expect(acquired).toEqual([1, 2]);
     expect(concurrency.stats("TEST_STAGE")).toEqual({ inFlight: 2, queued: 2, limit: 2 });
 
-    concurrency.release("TEST_STAGE");
+    concurrency.release("TEST_STAGE", "h1");
     expect(acquired).toEqual([1, 2, 3]);
     expect(concurrency.stats("TEST_STAGE")).toEqual({ inFlight: 2, queued: 1, limit: 2 });
 
-    concurrency.release("TEST_STAGE");
+    concurrency.release("TEST_STAGE", "h2");
     expect(acquired).toEqual([1, 2, 3, 4]);
     expect(concurrency.stats("TEST_STAGE")).toEqual({ inFlight: 2, queued: 0, limit: 2 });
   });

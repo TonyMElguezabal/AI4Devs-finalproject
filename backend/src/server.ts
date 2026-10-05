@@ -5,7 +5,7 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { routes } from "./routes.ts";
-import { reconcileOnBoot, setAssemblyTool } from "./orchestrator.ts";
+import { reconcileOnBoot, setAssemblyTool, VIDEO_STAGE } from "./orchestrator.ts";
 import * as concurrency from "./concurrency.ts";
 import { STAGE } from "./types.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
@@ -13,7 +13,7 @@ import { setVoiceOverLogger } from "./voiceOverPhase.ts";
 import { rebuildScheduler } from "./retry/retryScheduler.ts";
 import { setRetryDelayConfig } from "./retry/stageAttemptRecorder.ts";
 import { createStubVoiceProvider as createStubVoice, setVoiceProviderRegistry, type StubVoiceProviderMode } from "./voiceProvider.ts";
-import { setVideoProviderRegistry, createStubVideoProvider, STUB_VIDEO_PROVIDER_NAME } from "./videoProvider.ts";
+import { setVideoProviderRegistry, createStubVideoProvider, STUB_VIDEO_PROVIDER_NAME, type StubVideoProviderMode } from "./videoProvider.ts";
 import { createStubAssemblyTool } from "./stubAssemblyTool.ts";
 
 const PORT = Number(process.env.PORT ?? 3100);
@@ -69,18 +69,27 @@ export async function buildApp(): Promise<FastifyInstance> {
   return app;
 }
 
+/** The boot log fields: the reconciliation summary plus each stage's in-flight count and limit. */
+export function bootLogFields(summary: ReturnType<typeof reconcileOnBoot>) {
+  const stageUsage = (stage: string) => {
+    const { inFlight, limit } = concurrency.stats(stage);
+    return { inFlight, limit };
+  };
+  return { ...summary, concurrency: { [STAGE]: stageUsage(STAGE), [VIDEO_STAGE]: stageUsage(VIDEO_STAGE) } };
+}
+
 // Bootstrap only when this file is run directly (`node src/server.ts`), not
 // when imported by tests.
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
   concurrency.setLimit(STAGE, STAGE_CONCURRENCY_LIMIT);
-  // USE_STUB_VIDEO_PROVIDER=success|transient-failure|not-retryable-failure — manual endpoint testing only.
+  // USE_STUB_VIDEO_PROVIDER=success|success-bytes|pending|request-lost|transient-failure|not-retryable-failure — manual endpoint testing only.
+  // `pending` leaves every clip unfinished, so a restart can be watched resuming it; `success` is an alias of `success-bytes`.
   const stubVideoMode = process.env.USE_STUB_VIDEO_PROVIDER as string | undefined;
   if (stubVideoMode) {
     const bytes = Buffer.from("00000000667479706d703432", "hex"); // minimal ftyp mp4
-    const resolvedMode = stubVideoMode === "success" ? "success-bytes"
-      : stubVideoMode === "not-retryable-failure" ? "not-retryable-failure"
-      : "transient-failure";
+    const resolvedMode: StubVideoProviderMode = stubVideoMode === "success" ? "success-bytes"
+      : (["success-bytes", "pending", "request-lost", "not-retryable-failure"] as const).find((m) => m === stubVideoMode) ?? "transient-failure";
     const stub = createStubVideoProvider(resolvedMode, { bytes });
     setVideoProviderRegistry({ defaultIdentifier: STUB_VIDEO_PROVIDER_NAME, adapters: { [STUB_VIDEO_PROVIDER_NAME]: stub } });
   }
@@ -106,7 +115,7 @@ if (isMainModule) {
   const app = await buildApp();
   setVoiceOverLogger(app.log);
   const summary = reconcileOnBoot();
-  app.log.info(summary, "boot reconciliation complete");
+  app.log.info(bootLogFields(summary), "boot reconciliation complete");
   app.log.info({ scheduledRetries: rebuildScheduler() }, "scheduled retries re-armed");
   await app.listen({ port: PORT, host: "127.0.0.1" });
   app.log.info(`listening on http://127.0.0.1:${PORT} (docs at /docs) — stage concurrency limit ${STAGE_CONCURRENCY_LIMIT}, body limit ${BODY_LIMIT_BYTES} bytes`);

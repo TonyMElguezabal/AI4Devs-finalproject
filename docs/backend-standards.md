@@ -58,29 +58,33 @@ The stack decision, its rejected alternatives, and the live evidence behind it a
 
 ## Project Structure
 
+`backend/src/` is **flat**: one module per concern, with three small subfolders. The role of each module is described below instead of being encoded in folders (the `domain/` / `persistence/` / `http/` split this document used to show was never built; the product owner chose, on 2026-10-04, to make the document match the code rather than move every file while several stage branches were open).
+
 ```
 backend/
 ├── src/
-│   ├── domain/
-│   │   ├── orchestrator.ts     # stage state machine: launch, retry, idempotent result handling, boot reconciliation
-│   │   ├── concurrency.ts      # per-stage FIFO semaphore, shared across sessions
-│   │   ├── retryPolicy.ts      # pure function: outcome + attempt count → Complete | ScheduleNext | Fail
-│   │   └── providers/          # one adapter per stage (voice, alignment, image, video, assembly)
-│   ├── persistence/             # store-backed repositories (embedded SQLite via `node:sqlite`)
-│   ├── http/
-│   │   ├── routes/              # one file per resource, Fastify + Zod schemas colocated
-│   │   ├── events.ts            # SSE (or chosen transport, US-42e) live-push endpoint
-│   │   └── server.ts            # Fastify instance, plugin registration, boot reconciliation call
-│   ├── config/
-│   │   └── env.ts               # required-environment-variable validation at startup
-│   └── index.ts                 # entry point
-├── test/
+│   ├── server.ts, routes.ts                 # HTTP: Fastify instance, plugins, boot reconciliation call; every route with its Zod schemas
+│   ├── db.ts                                # persistence: embedded SQLite via `node:sqlite`, migrations, every repository function
+│   ├── orchestrator.ts                      # orchestration: launch, retry, idempotent result handling, boot reconciliation
+│   ├── concurrency.ts, launchGate.ts        # orchestration: per-stage FIFO semaphore; pause gate and held-work launchers
+│   ├── sessionStateMachine.ts, assemblyGate.ts, *Phase.ts, *Retry.ts, voiceLaunchGuard.ts, decompositionDependencies.ts
+│   │                                        # orchestration: derived session state and the per-phase flows (voice-over, timestamps, decomposition, assembly)
+│   ├── provider.ts, imageProvider.ts, videoProvider.ts, voiceProvider.ts, alignmentProvider.ts,
+│   │   visualInstructions.ts, assemblyTool.ts, ffmpegAssemblyTool.ts, stubAssemblyTool.ts, imageOutputCheck.ts
+│   │                                        # provider adapters and their ports, plus the stubs used by tests and manual runs
+│   ├── sentences.ts, sentenceTimings.ts, segmentation.ts, clauseSplitting.ts, clauseBoundaries.ts,
+│   │   narrationTimestamps.ts, sceneRegistration.ts, admittedDurations.ts, types.ts
+│   │                                        # pure domain helpers and shared types (no side effects)
+│   ├── retry/                               # retryPolicy.ts (pure), retryScheduler.ts, stageAttemptRecorder.ts
+│   ├── config/                              # providers.ts (every hardcoded PRD value), credentials.ts
+│   └── util/                                # ulid.ts
+├── test/                                    # vitest, one file per behaviour; setup.ts resets the voice provider stub
 ├── tsconfig.json
 ├── vitest.config.ts
 └── package.json
 ```
 
-**`backend/` now exists** — promoted from the throwaway skeleton (`start-video-project`, JOS-134, extending `docs/adr/0001-backend-stack.md` § Consequences' "kept as the project seed" decision), not a hypothetical target structure. It still models the PRD's five stages as one generic stage; the full five-stage model is future work, not yet done (see below).
+**`backend/` now exists** — promoted from the throwaway skeleton (`start-video-project`, JOS-134, extending `docs/adr/0001-backend-stack.md` § Consequences' "kept as the project seed" decision). Each stage's own change implements its slice of the five-stage model (voice-over, decomposition, image, video and assembly are real stages); `provider.ts`'s generic stub remains only for scenes registered without a decomposition (see [Not Yet Decided](#not-yet-decided)).
 
 ## Architecture
 
@@ -92,7 +96,7 @@ The previous version of this document prescribed a Presentation → Application 
 
 - **`RetryPolicy`** — a pure function: `(outcome, attemptsInCycle) → Complete | ScheduleNext | Fail`. No I/O, no side effects; fully unit-testable without a running server or database. This mirrors `bounded-retry-policy` (JOS-184)'s Decision 2, which owns the real policy (backoff, `stageInstanceKey` keying by `(sessionId, stage)` or `(sessionId, sceneId, stage)`); this document does not restate that design, only conforms to it.
 - **`orchestrator`** — everything with side effects sits here: launching a stage, applying `RetryPolicy`'s decision, handling a (possibly duplicate) provider result idempotently, and reconciling in-flight work on boot. Proven live in the walking skeleton (`docs/adr/0001-backend-stack.md` § Evidence) against all four PRD behaviours hardest to retrofit (bounded retries, shared concurrency, restart resumption, idempotency).
-- **`concurrency`** — a FIFO semaphore per stage, shared across all sessions (PRD §10.1). A queued request has not been sent: no attempt is consumed and no per-phase clock starts for it.
+- **`concurrency`** — a FIFO semaphore per stage, shared across all sessions (PRD §10.1). A queued request has not been sent: no attempt is consumed and no per-phase clock starts for it. **Every slot belongs to a holder** (the scene id): `acquire(stage, holder, onAcquired)` and `release(stage, holder)`, so a release by a holder with no slot, or a second release of the same slot, changes nothing, and a scene that already holds a slot or is queued in a stage is not queued twice. `occupy(stage, holder)` counts a request that was **already sent** (before a restart) against the cap even at or above the limit, and never queues; `reconcileOnBoot` calls it for every resumed request before processing any scene, so the in-flight count may sit **above** the cap after a restart and no new request is sent until it drains below it. The semaphore is in memory only: boot rebuilds the count from `provider_requests` and scene state, and then relaunches waiting work (`launchHeldWork`) for sessions that are not paused. (`harden-backend-foundation`, JOS-186; evidence in `openspec/changes/harden-backend-foundation/reports/`.)
 - **Provider adapters** — see below.
 - **`assemblyGate`** (`gate-assembly-on-complete-scenes`, JOS-150) — a pure function over the scenes: open only when every scene is `chunk-complete`, otherwise closed with the ascending `processingSceneIndexes` and `failedSceneIndexes`. It is the single launch condition for final assembly (PRD §7.3, AC12): anything that starts assembly calls it, and nothing re-derives the rule. A scene is *settled* when it is `chunk-complete` or `failed` (`isSceneSettled`); "still generating" is the complement, so a new non-final scene status counts as generating without editing a hand-written list. `deriveSessionState` is built on the same two functions, so the session state and the launch condition cannot disagree.
 
@@ -139,7 +143,7 @@ interface VideoProvider {
 
 `submit` returns `{ kind: "submitted"; requestId }` or a failure; `poll` returns `pending`, `success`, `not_found` or a failure. The RunningHub adapter uploads the image via `POST /openapi/v2/media/upload/binary`, submits a task (`POST /openapi/v2/task/openapi/create`) with `{ prompt, duration, resolution: "2K", firstFrameUrl }`, and polls status (`POST /openapi/v2/task/openapi/status`); the `taskId` becomes the `requestId`. HTTP 4xx (except 408/429) is not-retryable; everything else is transient — there is no distinguishable not-retryable signal from RunningHub (`JOS-165`). The registry follows the same pattern as `imageProvider.ts` (`getVideoProviderRegistry`/`setVideoProviderRegistry`/`resetVideoProviderRegistry`), and binding uses `bindSceneVideoProvider` with the same atomic sentinel pattern.
 
-**Per-stage concurrency key**: the video stage uses `"video"` (not `"image"`) as the key to `concurrency.acquire`/`release`, provisionally capped at 3 (`PROVISIONAL_VIDEO_CONCURRENCY`, `config/providers.ts`). The image stage uses `"image"`. A correct implementation never touches the other stage's semaphore slot — mixing the two keys would silently consume the wrong budget.
+**Per-stage concurrency key**: the video stage uses `"video"` (not `"image"`) as the stage key to `concurrency.acquire`/`release` (the holder is the scene id), provisionally capped at 3 (`PROVISIONAL_VIDEO_CONCURRENCY`, `config/providers.ts`). The image stage uses `"image"`. A correct implementation never touches the other stage's semaphore slot — mixing the two keys would silently consume the wrong budget.
 
 **Per-stage attempts**: the `scenes.attempts` counter resets to 0 at the start of the video stage (`resetAttemptsForVideoStart`), so a chunk that consumed 3 image-stage attempts starts the video stage fresh at 1. The full attempt history for both stages lives in `provider_requests` rows, distinguished by `provider_requests.stage` (`'image'` or `'video'`). Boot reconciliation (`reconcileOnBoot`) uses this column to decide which adapter to resume polling with.
 
@@ -325,7 +329,7 @@ Tracked here so this document is never mistaken for settling more than it has:
 - ~~Live-update transport~~ — **decided**: Server-Sent Events (`docs/adr/0003-live-updates.md`). See [Live Updates](#live-updates).
 - **Frontend stack and its interop contract with this backend** — `define-frontend-stack` (US-42b, JOS-180).
 - ~~Hardcoded values~~ (retry backoff base/cap, per-phase max execution times, concurrency caps, speed-factor limits) — **decided**: `backend/src/config/providers.ts` (`define-provider-configuration`, US-33, JOS-165, `docs/adr/0005-provider-selection.md`). The speed-factor limit (`2.0`) was fixed by `record-speed-adjustment-factor` (JOS-148) from `define-media-assembly` (JOS-182)'s measurement. **Still open**: assembly's per-phase max time, pending implementation of the assembly stage; voice/alignment/video's per-stage request caps, no real rate limit found yet for those three.
-- ~~Whether the walking skeleton becomes `backend/`'s seed~~ — **decided**: yes, promoted (`start-video-project`, JOS-134). The full five-stage model (voice, alignment, image, video, assembly as their own real stages, not one generic stand-in) remains future work — each stage's own change (`decompose-script-into-chunks`, `generate-chunk-image`, `generate-chunk-video`, `generate-voice-over`, `assemble-final-video`) implements its slice when it lands.
+- ~~Whether the walking skeleton becomes `backend/`'s seed~~ — **decided**: yes, promoted (`start-video-project`, JOS-134). The five-stage model is implemented stage by stage, each in its own change (`generate-voice-over`, `decompose-script-into-chunks`, `generate-chunk-image`, `generate-chunk-video`, `assemble-final-video`); `harden-backend-foundation` (JOS-186) closed the two checks the spikes left open (concurrency accounting after a restart, write capacity at 300 scenes) and made this document match the real layout.
 
 ## Media Assembly Pipeline
 
