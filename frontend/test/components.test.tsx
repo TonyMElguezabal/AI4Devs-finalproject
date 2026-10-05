@@ -363,6 +363,21 @@ describe("Session status class mapping (define-visual-design, Decision 2)", () =
   });
 });
 
+// retry-decomposition (JOS-156) task 7.3 — a retry held by a pause derives chunk-decomposing, which must offer Continue.
+describe("SessionHeader pause and continue while decomposing (JOS-156)", () => {
+  it("offers Continue session when paused in chunk-decomposing", () => {
+    render(<SessionHeader session={makeSession({ state: "chunk-decomposing", paused: true })} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.getByRole("button", { name: "Continue session" })).toBeInTheDocument();
+  });
+
+  it("offers Pause session when not paused in chunk-decomposing", () => {
+    render(<SessionHeader session={makeSession({ state: "chunk-decomposing" })} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.getByRole("button", { name: "Pause session" })).toBeInTheDocument();
+  });
+});
+
 // gate-assembly-on-complete-scenes (JOS-150) task 6 — the header names the
 // failed scenes beside the failed phase (PRD §8.1).
 describe("SessionHeader failed scenes (JOS-150)", () => {

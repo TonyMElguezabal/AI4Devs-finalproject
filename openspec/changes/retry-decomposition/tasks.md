@@ -95,6 +95,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
   - a 409 reason is shown as its sentence;
   - nothing changes before a snapshot arrives.
 - [x] 7.2 Implement `retryDecomposition` in `api/client.ts`, the action in `phaseActions.ts`, and the button in `PhaseSection.tsx` through the shared retry-button component, extracting it if JOS-155 has not; make 7.1 pass.
+- [x] 7.3 Write a failing test in `test/components.test.tsx`: the header shows `Continue session` when paused in `chunk-decomposing` and `Pause session` when not paused. Then add `chunk-decomposing` to the states that show the controls in `SessionHeader.tsx` (design Decision 8) and make it pass.
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 

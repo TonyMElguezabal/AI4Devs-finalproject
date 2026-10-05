@@ -153,13 +153,19 @@ From the moment a decomposition retry is accepted until its cycle ends, the sess
 
 ### Requirement: The page offers the retry on a failed decomposition phase
 
-`phaseActions` SHALL return a retry action for the decomposition phase when it is `failed` and its failure is retryable, and none otherwise. The Decomposition phase section SHALL show a `Retry decomposition` button for it. A click SHALL call the retry command, and the button SHALL be disabled while the request is outstanding. A 409 refusal SHALL be shown in the section as a readable sentence. The new state SHALL come from the live update.
+`phaseActions` SHALL return a retry action for the decomposition phase when it is `failed` and its failure is retryable, and none otherwise. The Decomposition phase section SHALL show a `Retry decomposition` button for it. A click SHALL call the retry command, and the button SHALL be disabled while the request is outstanding. A 409 refusal SHALL be shown in the section as a readable sentence. The new state SHALL come from the live update. The session header SHALL offer `Pause session` and `Continue session` while the session is `chunk-decomposing`, as it does while scenes or the final video are processing, so a retry held by a pause can be continued from the page.
 
 #### Scenario: Button on a failed decomposition
 
 - **GIVEN** a session read with the decomposition phase `failed`
 - **WHEN** the page renders
 - **THEN** the Decomposition phase section shows `Retry decomposition`
+
+#### Scenario: Continue a held retry from the page
+
+- **GIVEN** a session paused in `chunk-decomposing` with a held decomposition retry
+- **WHEN** the page renders
+- **THEN** the session header shows `Continue session`, and when the session is not paused it shows `Pause session`
 
 #### Scenario: No button otherwise
 

@@ -114,6 +114,8 @@ The product owner's answer to the shared open question is to follow JOS-184, as 
 **Decision 8 — The page action.**
 `phaseActions` (which returns `{ retry: boolean }`) returns `{ retry: true }` for the decomposition entry when it is `failed` and its `failure.retryable` is true. The Decomposition section renders `Retry decomposition`, with the same pending, disabled and refusal behavior as `retry-voice-over` Decision 8, through the same shared component. Whichever story lands second extracts it if the first did not. The live update brings the new state.
 
+The session header's pause and continue controls are shown for `chunks-processing` and `final-video-generating` only. A retry held by a pause derives `chunk-decomposing`, so the header adds that state: otherwise the User could hold a retry and have no control to release it.
+
 ## Risks / Trade-offs
 
 - **[The division attempt is new on a hot path]** → It is one extra row per division try, written before the provider call, like the timestamps step. Existing tests of `segmentStoredTimestamps` and `registerDecomposition` are reviewed in task 8.1.
