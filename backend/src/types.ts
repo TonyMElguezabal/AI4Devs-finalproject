@@ -108,7 +108,7 @@ export interface VoiceOverInput {
 export type VoiceOver = VoiceOverInput;
 
 /** The stages that record attempts at session level (`timestamps`: obtain-narration-timestamps, JOS-139). Later stories add their own. */
-export type AttemptStage = "voice-over" | "timestamps";
+export type AttemptStage = "voice-over" | "timestamps" | "image" | "video";
 
 /** How the narration timestamps were obtained (PRD §11.1). */
 export type TimestampMechanism = "native" | "alignment";
@@ -135,6 +135,8 @@ export interface StageAttempt {
   id: string;
   runId: string;
   stage: AttemptStage;
+  /** Set for the scene-level stages (image, video); null for the session-level ones. */
+  sceneId: string | null;
   /** The budget this attempt counts against (bounded-retry-policy, Decision 1). */
   stageInstanceKey: string;
   /** Starts at 1; a manual retry opens the next one. */
@@ -142,7 +144,8 @@ export interface StageAttempt {
   /** 1 to 4 within the cycle; the store rejects a fifth. */
   sequenceInCycle: number;
   trigger: AttemptTrigger;
-  providerId: string;
+  /** Null for a stage with no external provider (assembly, JOS-149). */
+  providerId: string | null;
   /** Sequence across the session's stage, from 1, continuing through cycles. */
   attemptNumber: number;
   queuedAt: string;

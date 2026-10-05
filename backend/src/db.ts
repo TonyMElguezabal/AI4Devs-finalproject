@@ -402,6 +402,7 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
             id TEXT PRIMARY KEY,
             run_id TEXT NOT NULL REFERENCES runs(id),
             stage TEXT NOT NULL,
+            scene_id TEXT,
             stage_instance_key TEXT NOT NULL,
             cycle INTEGER NOT NULL CHECK (cycle >= 1),
             sequence_in_cycle INTEGER NOT NULL CHECK (sequence_in_cycle BETWEEN 1 AND 4),
@@ -420,8 +421,8 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
             UNIQUE (stage_instance_key, cycle, sequence_in_cycle)
           );
           INSERT INTO stage_attempts_rebuilt
-            (id, run_id, stage, stage_instance_key, cycle, sequence_in_cycle, attempt_trigger, provider_id, attempt_number, queued_at, sent_at, outcome, finished_at, external_request_id, error_code, error_message)
-          SELECT id, run_id, stage, run_id || ':' || ${instance}, 1,
+            (id, run_id, stage, scene_id, stage_instance_key, cycle, sequence_in_cycle, attempt_trigger, provider_id, attempt_number, queued_at, sent_at, outcome, finished_at, external_request_id, error_code, error_message)
+          SELECT id, run_id, stage, NULL, run_id || ':' || ${instance}, 1,
                  ROW_NUMBER() OVER (PARTITION BY run_id, ${instance} ORDER BY sent_at, attempt_number),
                  CASE WHEN attempt_number = 1 THEN 'initial' ELSE 'manual' END,
                  provider_id, attempt_number, queued_at, sent_at, outcome, finished_at, external_request_id, error_code, error_message
@@ -894,6 +895,7 @@ function rowToStageAttempt(row: any): StageAttempt {
     id: row.id,
     runId: row.run_id,
     stage: row.stage,
+    sceneId: row.scene_id ?? null,
     stageInstanceKey: row.stage_instance_key,
     cycle: row.cycle,
     sequenceInCycle: row.sequence_in_cycle,
@@ -921,6 +923,8 @@ function rowToStageAttempt(row: any): StageAttempt {
 export function recordStageAttempt(input: {
   runId: string;
   stage: AttemptStage;
+  /** Required for the scene-level stages (image, video). */
+  sceneId?: string;
   providerId: string;
   queuedAt: string;
   sentAt: string;
@@ -928,20 +932,54 @@ export function recordStageAttempt(input: {
   cycle?: number;
   trigger?: AttemptTrigger;
 }): StageAttempt {
+  return insertStageAttempt({ ...input, outcome: "in-flight" });
+}
+
+/**
+ * Bounded-retry-policy Decision 9 — a retry that is persisted with the time it
+ * becomes due, before the gate is asked. Takes the next sequence like any
+ * attempt; `claimScheduledAttempt` is the only way it becomes in flight.
+ */
+export function scheduleStageAttempt(input: {
+  runId: string;
+  stage: AttemptStage;
+  sceneId?: string;
+  providerId: string | null;
+  queuedAt: string;
+  dueAt: string;
+  cycle?: number;
+  trigger: AttemptTrigger;
+}): StageAttempt {
+  return insertStageAttempt({ ...input, sentAt: null, outcome: "scheduled" });
+}
+
+function insertStageAttempt(input: {
+  runId: string;
+  stage: AttemptStage;
+  sceneId?: string;
+  providerId: string | null;
+  queuedAt: string;
+  sentAt: string | null;
+  dueAt?: string;
+  cycle?: number;
+  trigger?: AttemptTrigger;
+  outcome: "in-flight" | "scheduled";
+}): StageAttempt {
   const id = randomUUID();
-  const stageInstanceKey = stageInstanceKeyOf(input.runId, input.stage);
+  const stageInstanceKey = stageInstanceKeyOf(input.runId, input.stage, input.sceneId);
   // Bounded-retry-policy Decision 3 — both numbers are computed inside the INSERT; the cap is the table's CHECK.
   const cycle = input.cycle ?? ((db.prepare("SELECT MAX(cycle) c FROM stage_attempts WHERE stage_instance_key = ?").get(stageInstanceKey) as { c: number | null }).c ?? 1);
   db.prepare(
-    `INSERT INTO stage_attempts (id, run_id, stage, stage_instance_key, cycle, sequence_in_cycle, attempt_trigger, provider_id, attempt_number, queued_at, sent_at, outcome)
-     SELECT ?, ?, ?, ?, ?,
+    `INSERT INTO stage_attempts (id, run_id, stage, scene_id, stage_instance_key, cycle, sequence_in_cycle, attempt_trigger, provider_id, attempt_number, queued_at, sent_at, due_at, outcome)
+     SELECT ?, ?, ?, ?, ?, ?,
             (SELECT COALESCE(MAX(sequence_in_cycle), 0) + 1 FROM stage_attempts WHERE stage_instance_key = ? AND cycle = ?),
-            ?, ?, COALESCE(MAX(attempt_number), 0) + 1, ?, ?, 'in-flight'
+            ?, ?, COALESCE(MAX(attempt_number), 0) + 1, ?, ?, ?, ?
      FROM stage_attempts WHERE run_id = ? AND stage = ?`,
   ).run(
     id,
     input.runId,
     input.stage,
+    input.sceneId ?? null,
     stageInstanceKey,
     cycle,
     stageInstanceKey,
@@ -950,10 +988,60 @@ export function recordStageAttempt(input: {
     input.providerId,
     input.queuedAt,
     input.sentAt,
+    input.dueAt ?? null,
+    input.outcome,
     input.runId,
     input.stage,
   );
   return rowToStageAttempt(db.prepare("SELECT * FROM stage_attempts WHERE id = ?").get(id));
+}
+
+/**
+ * Decision 9 — moves a scheduled attempt to in flight in one conditional
+ * update, so only one of two racing paths (the timer, a launch on continue, a
+ * redelivered job) sends it. A due time in the future is not claimable unless
+ * `notBefore` is omitted.
+ */
+export function claimScheduledAttempt(attemptId: string, sentAt: string, notBefore?: string): boolean {
+  const result = db
+    .prepare(
+      "UPDATE stage_attempts SET outcome = 'in-flight', sent_at = ? WHERE id = ? AND outcome = 'scheduled' AND (? IS NULL OR due_at <= ?)",
+    )
+    .run(sentAt, attemptId, notBefore ?? null, notBefore ?? null);
+  return Number(result.changes) > 0;
+}
+
+export function getStageAttempt(attemptId: string): StageAttempt | undefined {
+  const row = db.prepare("SELECT * FROM stage_attempts WHERE id = ?").get(attemptId);
+  return row ? rowToStageAttempt(row) : undefined;
+}
+
+/** Every attempt of one stage instance, across cycles, in the order they were made. */
+export function getStageInstanceAttempts(stageInstanceKey: string): StageAttempt[] {
+  const rows = db
+    .prepare("SELECT * FROM stage_attempts WHERE stage_instance_key = ? ORDER BY cycle ASC, sequence_in_cycle ASC")
+    .all(stageInstanceKey) as any[];
+  return rows.map(rowToStageAttempt);
+}
+
+/** Every scheduled attempt, earliest due first — what the scheduler rebuilds from at startup. */
+export function getScheduledAttempts(): StageAttempt[] {
+  const rows = db.prepare("SELECT * FROM stage_attempts WHERE outcome = 'scheduled' ORDER BY due_at ASC, attempt_number ASC").all() as any[];
+  return rows.map(rowToStageAttempt);
+}
+
+/** Runs the writes together or not at all (nested calls join the outer transaction). */
+export function inTransaction<T>(work: () => T): T {
+  if (db.isTransaction) return work();
+  db.exec("BEGIN");
+  try {
+    const result = work();
+    db.exec("COMMIT");
+    return result;
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
 }
 
 function hasAttemptIn(stageInstanceKey: string, cycle: number): boolean {
@@ -961,8 +1049,8 @@ function hasAttemptIn(stageInstanceKey: string, cycle: number): boolean {
 }
 
 /** Decision 1 — the timestamps stage belongs to the single decomposition instance (§5: one state, one retry policy). */
-function stageInstanceKeyOf(runId: string, stage: AttemptStage): string {
-  return stageInstanceKey({ sessionId: runId, stage: stage === "timestamps" ? "decomposition" : stage });
+export function stageInstanceKeyOf(runId: string, stage: AttemptStage, sceneId?: string): string {
+  return stageInstanceKey({ sessionId: runId, ...(sceneId ? { sceneId } : {}), stage: stage === "timestamps" ? "decomposition" : stage });
 }
 
 /**

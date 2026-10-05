@@ -1,7 +1,8 @@
 import { beforeEach, afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { ulid } from "../src/util/ulid.ts";
-import { createRun, resetAll } from "../src/db.ts";
+import { createRun, getStageAttempts, resetAll } from "../src/db.ts";
+import { releaseAttempt } from "../src/retry/retryScheduler.ts";
 import { buildApp } from "../src/server.ts";
 import { generateVoiceOver } from "../src/voiceOverPhase.ts";
 import { createStubVoiceProvider, setVoiceProviderRegistry, type StubVoiceProviderMode } from "../src/voiceProvider.ts";
@@ -75,8 +76,24 @@ describe("A failed session's representation (6.2)", () => {
     expect(session.voiceOver).toBeUndefined();
   });
 
-  it("reports a transient failure as retryable", async () => {
+  it("reports no failure while a transient failure is still being retried", async () => {
     const { session } = await sessionAfterVoicePhase("transient-failure");
+
+    expect(session.failure).toBeUndefined();
+    expect(session.state).not.toBe("failed");
+  });
+
+  it("reports a transient failure as retryable once the retries are exhausted", async () => {
+    const { sessionId } = await sessionAfterVoicePhase("transient-failure");
+    for (let attempt = 2; attempt <= 4; attempt++) {
+      const scheduled = getStageAttempts(sessionId, "voice-over").find((candidate) => candidate.outcome === "scheduled");
+      releaseAttempt(scheduled?.id ?? "", () => new Date(Date.now() + 3_600_000));
+      for (let waited = 0; getStageAttempts(sessionId, "voice-over").some((candidate) => candidate.outcome === "in-flight") && waited < 200; waited++) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    }
+
+    const session = (await app.inject({ method: "GET", url: `/sessions/${sessionId}` })).json().session;
 
     expect((session.failure as { retryable: boolean }).retryable).toBe(true);
   });

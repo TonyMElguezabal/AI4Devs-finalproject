@@ -10,6 +10,7 @@ import * as concurrency from "./concurrency.ts";
 import { STAGE } from "./types.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
 import { setVoiceOverLogger } from "./voiceOverPhase.ts";
+import { rebuildScheduler } from "./retry/retryScheduler.ts";
 import { createStubVoiceProvider as createStubVoice, setVoiceProviderRegistry, type StubVoiceProviderMode } from "./voiceProvider.ts";
 import { setVideoProviderRegistry, createStubVideoProvider, STUB_VIDEO_PROVIDER_NAME } from "./videoProvider.ts";
 
@@ -87,6 +88,7 @@ if (isMainModule) {
   setVoiceOverLogger(app.log);
   const summary = reconcileOnBoot();
   app.log.info(summary, "boot reconciliation complete");
+  app.log.info({ scheduledRetries: rebuildScheduler() }, "scheduled retries re-armed");
   await app.listen({ port: PORT, host: "127.0.0.1" });
   app.log.info(`listening on http://127.0.0.1:${PORT} (docs at /docs) — stage concurrency limit ${STAGE_CONCURRENCY_LIMIT}, body limit ${BODY_LIMIT_BYTES} bytes`);
 }

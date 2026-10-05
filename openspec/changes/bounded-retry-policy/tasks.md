@@ -34,23 +34,24 @@ A cross-cutting backend change with no screen of its own. Group 1 is a hard gate
 
 ## 4. Application: recorder, scheduler, new cycle (TDD)
 
-- [ ] 4.1 Write a failing test that one transient failure schedules a second attempt with `dueAt` and leaves the session or scene in its in-progress state
-- [ ] 4.2 Write a failing test that three transient failures followed by a success complete the stage instance with no fifth attempt
-- [ ] 4.3 Write a failing test that four transient failures set `failed` with `retryable: true`, `manualRetryAvailable: true` and nothing scheduled
-- [ ] 4.4 Write a failing test that a not-retryable failure on the first attempt sets `failed` with `retryable: false` and nothing scheduled
-- [ ] 4.5 Write a failing test that two scenes failing at the same stage are budgeted separately
-- [ ] 4.6 Write a failing test that a due retry is released into the phase-launch gate, not sent directly (Decision 4)
-- [ ] 4.7 Write a failing test that a due retry is held while the session is paused and sent after continue (with the gate's pause check stubbed until US-20 lands)
-- [ ] 4.8 Write a failing test that a restart with a scheduled attempt sends it exactly once (Decision 9)
-- [ ] 4.9 Write a failing test that a redelivered send job makes no second provider call (Decision 6)
-- [ ] 4.10 Write a failing test that `startNewCycle` on a `failed` instance opens cycle 2 with up to four attempts and keeps cycle 1's attempts
-- [ ] 4.11 Write a failing test that `startNewCycle` on an instance that is not `failed` does nothing
-- [ ] 4.12 Write a failing test that a retry re-runs only its stage instance, with the bound provider, leaving other scenes' results untouched
-- [ ] 4.13 Implement `StageAttemptRecorder`, allocating the next sequence in the same transaction as the insert (Decision 3)
-- [ ] 4.14 Implement `RetryScheduler`: load scheduled attempts at startup; claim due attempts with a conditional `scheduled → in-flight` update; release them into the gate
-- [ ] 4.15 Implement `startNewCycle`
-- [ ] 4.16 Remove the placeholder retry hook from `generate-voice-over` and route the voice stage through the recorder
-- [ ] 4.17 Run the group 4 tests and confirm they pass
+- [x] 4.1 Write a failing test that one transient failure schedules a second attempt with `dueAt` and leaves the session or scene in its in-progress state
+- [x] 4.2 Write a failing test that three transient failures followed by a success complete the stage instance with no fifth attempt
+- [x] 4.3 Write a failing test that four transient failures set `failed` with `retryable: true`, `manualRetryAvailable: true` and nothing scheduled
+- [x] 4.4 Write a failing test that a not-retryable failure on the first attempt sets `failed` with `retryable: false` and nothing scheduled
+- [x] 4.5 Write a failing test that two scenes failing at the same stage are budgeted separately
+- [x] 4.6 Write a failing test that a due retry is released into the phase-launch gate, not sent directly (Decision 4)
+- [x] 4.7 Write a failing test that a due retry is held while the session is paused and sent after continue (with the gate's pause check stubbed until US-20 lands)
+- [x] 4.8 Write a failing test that a restart with a scheduled attempt sends it exactly once (Decision 9)
+- [x] 4.9 Write a failing test that a redelivered send job makes no second provider call (Decision 6)
+- [x] 4.10 Write a failing test that `startNewCycle` on a `failed` instance opens cycle 2 with up to four attempts and keeps cycle 1's attempts
+- [x] 4.11 Write a failing test that `startNewCycle` on an instance that is not `failed` does nothing
+- [x] 4.12 Write a failing test that a retry re-runs only its stage instance, with the bound provider, leaving other scenes' results untouched
+- [x] 4.13 Implement `StageAttemptRecorder`, allocating the next sequence in the same transaction as the insert (Decision 3)
+- [x] 4.14 Implement `RetryScheduler`: load scheduled attempts at startup; claim due attempts with a conditional `scheduled → in-flight` update; release them into the gate
+  - Done in `src/retry/retryScheduler.ts`; `server.ts` re-arms persisted retries after boot reconciliation. The voice launcher releases a session's due retries on continue. Scene-level stages (image, video) keep their existing orchestrator retry until their stories adopt the recorder.
+- [x] 4.15 Implement `startNewCycle`
+- [x] 4.16 Remove the placeholder retry hook from `generate-voice-over` and route the voice stage through the recorder
+- [x] 4.17 Run the group 4 tests and confirm they pass
 
 ## 5. Adapters: no hidden retries (TDD)
 
