@@ -1088,11 +1088,17 @@ export function claimScheduledAttempt(attemptId: string, sentAt: string, notBefo
 }
 
 /** JOS-185 Decision 3 — the one update that decides a timeout: only an in-flight attempt can time out, once. */
-export function timeOutAttempt(attemptId: string, finishedAt: string): boolean {
+export function timeOutAttempt(attemptId: string, finishedAt: string, errorMessage?: string): boolean {
   const result = db
-    .prepare("UPDATE stage_attempts SET outcome = 'timed-out', finished_at = ? WHERE id = ? AND outcome = 'in-flight'")
-    .run(finishedAt, attemptId);
+    .prepare("UPDATE stage_attempts SET outcome = 'timed-out', finished_at = ?, error_message = ? WHERE id = ? AND outcome = 'in-flight'")
+    .run(finishedAt, errorMessage ?? null, attemptId);
   return Number(result.changes) > 0;
+}
+
+/** Every attempt that has been sent and has no outcome yet — what the timeout watcher checks against each stage's deadline. */
+export function getInFlightAttempts(): StageAttempt[] {
+  const rows = db.prepare("SELECT * FROM stage_attempts WHERE outcome = 'in-flight' ORDER BY sent_at ASC, attempt_number ASC").all() as any[];
+  return rows.map(rowToStageAttempt);
 }
 
 /** JOS-185 Decision 4 — a timed-out attempt's result was accepted as the stage instance's result. Once. */

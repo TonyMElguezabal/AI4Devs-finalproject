@@ -18,7 +18,8 @@ import {
 import { VOICE_PROVIDER } from "./config/providers.ts";
 import { admitLaunch, registerStageLauncher, type StageLauncher } from "./launchGate.ts";
 import { broadcast } from "./orchestrator.ts";
-import { recordAttemptOutcome } from "./retry/stageAttemptRecorder.ts";
+import { recordAttemptOutcome, type RecordedOutcome } from "./retry/stageAttemptRecorder.ts";
+import { registerTimeoutHandler } from "./retry/attemptTimeoutWatcher.ts";
 import { hasScheduledAttempt, registerAttemptSender, releaseSessionAttempts } from "./retry/retryScheduler.ts";
 import { createVoiceOverFailure } from "./sessionStateMachine.ts";
 import { getVoiceProviderRegistry, type VoiceSynthesisResult } from "./voiceProvider.ts";
@@ -185,6 +186,66 @@ export async function generateVoiceOver(runId: string, now: () => Date = () => n
   return sendVoiceAttempt(attempt, now);
 }
 
+/** What a recorded failure (a failed call or a timeout) does to the session: log exhaustion, set the failure, publish the state. */
+function reportRecordedFailure(
+  attempt: StageAttempt,
+  recorded: RecordedOutcome,
+  outcome: string,
+  detail: string,
+  providerId: string,
+  occurredAt: Date,
+  startedAt: Date,
+): void {
+  if (recorded.action === "failed") {
+    logger.warn(
+      {
+        event: recorded.retryable ? "voice-over.retries.exhausted" : "voice-over.failure.not-retryable",
+        sessionId: attempt.runId,
+        stage: "voice-over",
+        provider: providerId,
+        outcome,
+        reason: detail,
+        ...attemptFields(attempt, startedAt),
+      },
+      recorded.retryable ? "the voice-over cycle used all its attempts" : "the voice-over failed and cannot be retried",
+    );
+    setRunFailure(
+      attempt.runId,
+      createVoiceOverFailure({
+        cause: `The voice-over could not be generated: ${detail}. The script is unchanged.`,
+        retryable: recorded.retryable,
+        occurredAt,
+        cycle: recorded.cycle,
+        attemptsInCycle: recorded.attemptsInCycle,
+      }),
+    );
+  }
+  broadcast(attempt.runId);
+}
+
+// stage-execution-time-limit (JOS-185) — the voice provider's call has no limit of its own, so the watcher
+// is what ends a hung attempt. The recorder has already scheduled the next attempt or declared exhaustion.
+registerTimeoutHandler("voice-over", (attempt, recorded, { now, limitSeconds }) => {
+  const detail = `the voice provider had no result after ${limitSeconds} s`;
+  const sentAt = new Date(attempt.sentAt ?? attempt.queuedAt);
+  const providerId = attempt.providerId ?? "unknown";
+  logger.warn(
+    {
+      event: "voice-over.attempt.timed-out",
+      sessionId: attempt.runId,
+      stage: "voice-over",
+      provider: providerId,
+      attemptNumber: attempt.attemptNumber,
+      outcome: "timed-out",
+      latencyMs: now.getTime() - sentAt.getTime(),
+      reason: detail,
+      ...attemptFields(attempt, sentAt),
+    },
+    "a voice-over attempt outlasted its maximum time",
+  );
+  reportRecordedFailure(attempt, recorded, "timed-out", detail, providerId, now, sentAt);
+});
+
 /** Sends one in-flight voice attempt (the first, or a claimed retry) and reports its classified outcome to the recorder. */
 export async function sendVoiceAttempt(attempt: StageAttempt, now: () => Date = () => new Date()): Promise<VoiceOverOutcome> {
   const runId = attempt.runId;
@@ -227,31 +288,7 @@ export async function sendVoiceAttempt(attempt: StageAttempt, now: () => Date = 
       ...attemptFields(attempt, startedAt),
       ...fingerprint,
     });
-    if (recorded.action === "failed") {
-      logger.warn(
-        {
-          event: recorded.retryable ? "voice-over.retries.exhausted" : "voice-over.failure.not-retryable",
-          sessionId: runId,
-          stage: "voice-over",
-          provider: providerId,
-          outcome,
-          reason: detail,
-          ...attemptFields(attempt, startedAt),
-        },
-        recorded.retryable ? "the voice-over cycle used all its attempts" : "the voice-over failed and cannot be retried",
-      );
-      setRunFailure(
-        runId,
-        createVoiceOverFailure({
-          cause: `The voice-over could not be generated: ${detail}. The script is unchanged.`,
-          retryable: recorded.retryable,
-          occurredAt,
-          cycle: recorded.cycle,
-          attemptsInCycle: recorded.attemptsInCycle,
-        }),
-      );
-    }
-    broadcast(runId);
+    reportRecordedFailure(attempt, recorded, outcome, detail, providerId, occurredAt, startedAt);
     return { ok: false, reason: recorded.action === "scheduled" ? "retry-scheduled" : "failed" };
   };
 
