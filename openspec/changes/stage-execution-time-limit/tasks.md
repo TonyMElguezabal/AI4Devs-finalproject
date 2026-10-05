@@ -17,11 +17,11 @@ A backend change with no screen of its own. Group 1 is a hard gate. Tests come f
 
 ## 2. Domain: deadlines (TDD)
 
-- [ ] 2.1 Write failing tests that the deadline is `sentAt + maxExecutionTime(stage)` and that an attempt without `sentAt` has no deadline
-- [ ] 2.2 Write a failing test that each stage uses its own maximum time from the constants module
-- [ ] 2.2a Write a failing test that a stage whose maximum time is `undetermined` has no deadline
-- [ ] 2.3 Implement the deadline computation with an injectable clock (a stage with an `undetermined` limit has no deadline)
-- [ ] 2.4 Run the group 2 tests and confirm they pass
+- [x] 2.1 Write failing tests that the deadline is `sentAt + maxExecutionTime(stage)` and that an attempt without `sentAt` has no deadline
+- [x] 2.2 Write a failing test that each stage uses its own maximum time from the constants module
+- [x] 2.2a Write a failing test that a stage whose maximum time is `undetermined` has no deadline
+- [x] 2.3 Implement the deadline computation with an injectable clock (a stage with an `undetermined` limit has no deadline)
+- [x] 2.4 Run the group 2 tests and confirm they pass
 
 ## 3. Persistence: outcomes (TDD)
 
