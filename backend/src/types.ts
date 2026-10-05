@@ -55,6 +55,8 @@ export interface Run {
   voiceProviderId: string | null;
   /** The phase failure the session carries when it is `failed` (generate-voice-over, JOS-136, Decision 9; assign-scene-identifiers, JOS-144, Decision 6). */
   failure: SessionFailure | null;
+  /** The relative path of the assembled MP4 in the project folder; null until assembly succeeds (assemble-final-video, JOS-149). */
+  finalVideoPath: string | null;
 }
 
 /** Design Decision 9 (generate-voice-over, JOS-136) — what the session carries when the voice-over failed. */
@@ -95,8 +97,8 @@ export interface VoiceOverInput {
 
 export type VoiceOver = VoiceOverInput;
 
-/** The stages that record attempts at session level (`timestamps`: obtain-narration-timestamps, JOS-139). Later stories add their own. */
-export type AttemptStage = "voice-over" | "timestamps";
+/** The stages that record attempts at session level (`timestamps`: obtain-narration-timestamps, JOS-139; `assembly`: assemble-final-video, JOS-149). */
+export type AttemptStage = "voice-over" | "timestamps" | "assembly";
 
 /** How the narration timestamps were obtained (PRD §11.1). */
 export type TimestampMechanism = "native" | "alignment";
@@ -120,7 +122,8 @@ export interface StageAttempt {
   id: string;
   runId: string;
   stage: AttemptStage;
-  providerId: string;
+  /** Null for the assembly stage, which has no external provider (JOS-149, design.md Decision 5). */
+  providerId: string | null;
   /** Sequence within the session's stage, from 1. */
   attemptNumber: number;
   queuedAt: string;
@@ -238,6 +241,8 @@ export interface SessionEventPayload {
    * consult-session (JOS-135) task 3.1 requires it in the session read. */
   createdAt: string;
   updatedAt: string;
+  /** Route to download the assembled MP4; present only when state is `final-video` (JOS-149). */
+  finalVideoUrl?: string;
 }
 
 /** Scene event / snapshot entry — carries CURRENT state, never a delta. */

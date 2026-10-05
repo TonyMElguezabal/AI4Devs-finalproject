@@ -305,6 +305,14 @@ Tracked here so this document is never mistaken for settling more than it has:
 
 The assembly design and measurements are recorded in [ADR 0005](adr/0005-media-assembly.md). The archived JOS-182 change contains the experimental reference script, fixture, and tests; it proves the pipeline choices but is not the production assembly implementation.
 
+**Production implementation** (`assemble-final-video`, JOS-149): `backend/src/ffmpegAssemblyTool.ts` implements the `AssemblyTool` port (`backend/src/assemblyTool.ts`). The orchestrator calls `AssemblyTool.assemble(input)` from `runAssemblyAttempt` after the assembly gate fires. The contract for any implementation:
+
+- **Clip ordering**: scenes sorted by ascending `index`; each clip's `cumulativeStartFrame` and `frameCount` come from persisted `narration_start_seconds` / `narration_end_seconds` (never recomputed from clip duration).
+- **Audio replacement**: clip audio excluded at input (`-map 0:v:0`); voice-over muxed as the only audio track via stream copy (`-c:a copy`).
+- **Output format**: H.264 video, AAC audio, hardcoded resolution/frame rate from `FINAL_OUTPUT` in `config/providers.ts`.
+- **Retry policy**: `RETRY_BUDGET = 3` (4 attempts total); transient failures retry, not-retryable failures stop. `provider_id` is NULL in `stage_attempts` for assembly (no external provider). On success, `runs.final_video_path` is set and the session transitions to `final-video`.
+- **Isolation**: assembly attempts never modify chunk records, voice-over records, or timestamps.
+
 The production stage must preserve these measured constraints:
 
 1. Retiming applies to video only; never alter the voice-over. Exclude each source clip's audio at input (`-map 0:v:0`) and mux the voice-over as the only audio stream using stream copy (`-c:a copy`) when its format is compatible. Re-encoding AAC was measured to shift reported duration through encoder priming.
