@@ -52,6 +52,8 @@ A new `occupy(stage, holder)` adds the holder to the stage's set unconditionally
 
 `occupy` runs in a pre-pass at the top of `reconcileOnBoot`, before any scene is processed, not inside each branch. `getAllInFlightScenes` returns scenes in table order, so a lost request's retry (which goes through `acquire`) could otherwise start before a later pending request had been counted, which is the gap this change closes. A restart test with the lost scene created first pins that.
 
+After reconciling in-flight requests, collect sessions with `submitted` or `image-complete` scenes and call `launchHeldWork` for admitted sessions. The existing stage launchers determine eligibility; holder deduplication prevents retries already queued during reconciliation from being queued twice. Paused sessions stay held.
+
 Branches that record a failed attempt (provider lost the request, no request id, bound image) call nothing. Their retries take a slot through `acquire` as usual.
 
 *Alternative:* a separate "legacy in-flight" counter added to the cap check. That means two counts to keep in step, and still no ownership. Rejected for the same reason as Decision 1's second alternative.

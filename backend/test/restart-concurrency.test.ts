@@ -9,6 +9,7 @@ import {
   getScene,
   resetAll,
   sceneCurrentRequestId,
+  setRunPaused,
   writeArtefactOnce,
 } from "../src/db.ts";
 import {
@@ -273,5 +274,66 @@ describe("the cap holds across a restart and a burst of new work", () => {
     expect(tracker.peak()).toBeLessThanOrEqual(2);
     for (const id of burstIds) expect(getScene(id)!.attempts).toBe(1);
     expect(concurrency.stats(STAGE)).toEqual({ inFlight: 0, queued: 0, limit: 2 });
+  });
+});
+
+describe("waiting work survives a restart", () => {
+  it("rebuilds the image queue and launches each waiting scene once", async () => {
+    const runId = newRun();
+    const scenes = [1, 2, 3].map((index) => newImageScene(runId, index, "success", 50));
+    concurrency.setLimit(STAGE, 1);
+    scenes.forEach(launchScene);
+    expect(concurrency.stats(STAGE).queued).toBe(2);
+
+    simulateRestart({ image: 1 });
+    reconcileOnBoot();
+    reconcileOnBoot();
+    expect(concurrency.stats(STAGE)).toEqual({ inFlight: 1, queued: 2, limit: 1 });
+    await waitFor(() => deliverDue(scenes) && scenes.every((id) => getScene(id)!.status === "image-complete"));
+    for (const id of scenes) expect(getScene(id)!.attempts).toBe(1);
+  });
+
+  it("launches waiting video scenes once as restored slots drain", async () => {
+    const provider = scriptedVideoProvider();
+    setVideoProviderRegistry({ defaultIdentifier: VIDEO_PROVIDER_ID, adapters: { [VIDEO_PROVIDER_ID]: provider } });
+    const runId = newRun();
+    const waiting = [1, 2].map((index) => imageCompleteScene(runId, index));
+    const pending = pendingVideoScene(runId, 3, "before-restart");
+
+    simulateRestart({ video: 1 });
+    reconcileOnBoot();
+    reconcileOnBoot();
+    expect(concurrency.stats(VIDEO_STAGE)).toEqual({ inFlight: 1, queued: 2, limit: 1 });
+    expect(provider.submits()).toBe(0);
+    provider.answers.set("before-restart", { kind: "failed_not_retryable", reason: "stub: settled" });
+    await waitFor(() => provider.submits() === 1);
+    expect(getScene(pending)!.status).toBe("failed");
+    provider.answers.set("new-request-1", { kind: "failed_not_retryable", reason: "stub: settled" });
+    await waitFor(() => provider.submits() === 2);
+    provider.answers.set("new-request-2", { kind: "failed_not_retryable", reason: "stub: settled" });
+    await waitFor(() => concurrency.stats(VIDEO_STAGE).inFlight === 0);
+    for (const id of waiting) expect(getScene(id)!.attempts).toBe(1);
+  });
+
+  it("launches both stages with free capacity while holding paused sessions", async () => {
+    const provider = scriptedVideoProvider();
+    setVideoProviderRegistry({ defaultIdentifier: VIDEO_PROVIDER_ID, adapters: { [VIDEO_PROVIDER_ID]: provider } });
+    const active = newRun();
+    const paused = newRun();
+    setRunPaused(paused, true);
+    const activeImage = newImageScene(active, 1, "success", 50);
+    const activeVideo = imageCompleteScene(active, 2);
+    const pausedImage = newImageScene(paused, 1, "success", 50);
+    const pausedVideo = imageCompleteScene(paused, 2);
+
+    simulateRestart({ image: 1, video: 1 });
+    reconcileOnBoot();
+    expect(getScene(activeImage)!.status).toBe("image-generating");
+    await waitFor(() => provider.submits() === 1);
+    expect(getScene(activeVideo)!.status).toBe("video-generating");
+    expect(getScene(pausedImage)!.status).toBe("submitted");
+    expect(getScene(pausedVideo)!.status).toBe("image-complete");
+    expect(concurrency.stats(STAGE).queued).toBe(0);
+    expect(concurrency.stats(VIDEO_STAGE).queued).toBe(0);
   });
 });

@@ -27,7 +27,8 @@ Every code change starts with a failing test (TDD). Every scenario in `specs/res
 - [x] 3.4 In `reconcileOnBoot`, call `occupy` in the stub-pending image branch (before re-arming the timer) and in the video branch (replacing `acquire`, so polling resumes right away)
 - [x] 3.5 Failing test, then fix: the stub video provider answers a poll for an id it never saw (one submitted before a restart) with its own configured mode, instead of always `not_found`. `request-lost` stays `not_found`. Today a restart can never be shown, by hand, resuming a pending clip or settling it afterwards
 - [x] 3.6 Failing test, then add: after `reconcileOnBoot()`, `server.ts`'s boot log line includes each stage's `inFlight`/`limit` from `concurrency.stats`, so the curl step can observe the restart-time count
-- [x] 3.7 Make the group 3 tests pass
+- [x] 3.7 Add failing restart tests for waiting image/video scenes and paused sessions; relaunch admitted held work after in-flight reconciliation, preserving cap accounting and holder deduplication
+- [x] 3.8 Make the group 3 tests pass
 
 ## 4. Write capacity at MVP scale (design Decision 4; spec: result recording holds at MVP session scale)
 

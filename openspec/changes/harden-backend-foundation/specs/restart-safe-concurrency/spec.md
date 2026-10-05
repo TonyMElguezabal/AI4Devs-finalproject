@@ -64,3 +64,18 @@ A scene SHALL hold or wait for at most one slot in a stage at a time. A launch r
 
 - **WHEN** a launch is requested for a scene whose request is already in flight in that stage
 - **THEN** no second slot is taken and the in-flight count stays the same
+
+### Requirement: Waiting scene work resumes at boot
+
+After occupying slots for requests already sent, reconciliation SHALL relaunch submitted scenes for the image stage and image-complete scenes eligible for the video stage through the existing launch gate. Paused sessions SHALL remain held. Repeated reconciliation SHALL NOT duplicate queued launches.
+
+#### Scenario: Waiting work survives loss of the in-memory queue
+
+- **WHEN** the backend restarts with submitted image scenes or image-complete video scenes waiting behind the concurrency cap
+- **THEN** waiting work is rebuilt and launches when capacity is available
+- **AND** every scene sends exactly one request without exceeding the cap
+
+#### Scenario: Paused waiting work stays held
+
+- **WHEN** the backend restarts with waiting scenes in a paused session
+- **THEN** no waiting request is sent or queued until the session continues

@@ -1210,5 +1210,15 @@ export function reconcileOnBoot(): { resumed: number; recordedFailedAttempt: num
     stillPending++;
   }
 
+  // Waiting callbacks were lost on restart. Rebuild them only after all sent
+  // requests have been counted and reconciled; launchers preserve eligibility
+  // and acquire ignores holders already queued by a retry above.
+  const waitingSessions = db.prepare(
+    "SELECT DISTINCT run_id AS runId FROM scenes WHERE status IN ('submitted', 'image-complete')",
+  ).all() as Array<{ runId: string }>;
+  for (const { runId } of waitingSessions) {
+    if (admitLaunch(runId).admitted) launchHeldWork(runId);
+  }
+
   return { resumed, recordedFailedAttempt, stillPending };
 }
