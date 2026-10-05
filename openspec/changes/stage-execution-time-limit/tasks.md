@@ -4,15 +4,15 @@ A backend change with no screen of its own. Group 1 is a hard gate. Tests come f
 
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Create feature branch `feature/jos-185-stage-execution-time-limit` from `main`
-- [ ] 0.2 Verify branch creation and current branch status
+- [x] 0.1 Create feature branch `feature/jos-185-stage-execution-time-limit` from `origin/feature/entrega-2-JAME` (the MVP integration branch; MVP changes do not target `main`), with no upstream set
+- [x] 0.2 Verify branch creation and current branch status
 
 ## 1. Gate: Confirm the foundations and the values
 
-- [ ] 1.1 Confirm `bounded-retry-policy` (JOS-184) has landed, with `StageAttemptRecorder`, `RetryScheduler` and the conditional claim on scheduled attempts
-- [ ] 1.2 Confirm `define-provider-configuration` (JOS-165) has recorded the per-phase maximum time for every stage in PRD §11 and the constants module
-- [ ] 1.3 Confirm the product decision on accepting late results (design open question 1); if it is "always discard", simplify Decisions 4–6 in these artifacts before coding
-- [ ] 1.4 Record, per existing provider adapter, whether a result can still be received after the client stopped waiting (design open question 2)
+- [x] 1.1 Confirm `bounded-retry-policy` (JOS-184) has landed, with `StageAttemptRecorder`, `RetryScheduler` and the conditional claim on scheduled attempts
+- [ ] 1.2 Confirm `define-provider-configuration` (JOS-165) has recorded the per-phase maximum time for every stage in PRD §11 and the constants module. **Open: recorded for decomposition, image, voice, alignment and video; assembly is `undetermined`**
+- [ ] 1.3 Confirm the product decision on accepting late results (design open question 1); if it is "always discard", simplify Decisions 4–6 in these artifacts before coding. **Open: no confirmation exists anywhere; waiting for the product owner**
+- [x] 1.4 Record, per existing provider adapter, whether a result can still be received after the client stopped waiting (design open question 2). Recorded in design.md § Pre-implementation findings
 - [ ] 1.5 If any of the above is missing, stop and record the blocker rather than building against a guess
 
 ## 2. Domain: deadlines (TDD)

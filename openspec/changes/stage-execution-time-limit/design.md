@@ -66,6 +66,27 @@ At startup it immediately times out every in-flight attempt whose deadline passe
 
 The migration adds the outcomes `timed-out`, `superseded`, `late-success` and `cancelled`, and the `lateResultAt` column. No existing rows change. Rollback removes the watcher; in-flight attempts then wait indefinitely, as before this change.
 
+## Pre-implementation findings (group 1 gate, 2026-10-05)
+
+**1.1 Foundations landed.** `bounded-retry-policy` (JOS-184, PR #27) is in the integration branch: `recordAttemptOutcome` (`retry/stageAttemptRecorder.ts`), `RetryScheduler` (`retry/retryScheduler.ts`) and the conditional `scheduled → in-flight` claim (`claimScheduledAttempt`, `db.ts`). The attempt table's outcome check allows only `scheduled`, `in-flight`, `success`, `transient`, `not-retryable`; group 3 adds the new outcomes.
+
+**1.2 Per-phase maximum times.** PRD §11.3 and `PER_PHASE_MAX_TIME_SECONDS` (`config/providers.ts`) record decomposition 20 s, image 25 s, voice 10 s, alignment 5 s and video 240 s. **Assembly is `"undetermined"`** (waiting on `define-media-assembly`'s measurement; JOS-185's own thread suggests a limit proportional to the video's duration, because 40 scenes took 44 s and 200 scenes 166 s). The watcher has no value to read for assembly.
+
+**1.4 Which adapters can receive a late result, and what already times out.** The premise that a hung request waits forever is only true for some stages today:
+
+| Stage / adapter | Client-side limit today | Late result possible after the limit? |
+| --- | --- | --- |
+| Decomposition, reasoning (`visualInstructions.ts`) | `AbortSignal.timeout(20 s)` by default | No: the call is aborted, the failure is transient |
+| Alignment (`alignmentProvider.ts`) | `AbortSignal.timeout(5 s)` by default | No: aborted |
+| Voice (ElevenLabs, `voiceProvider.ts`) | Only if `timeoutMs` is passed; the default registry passes none | Yes while the call is still awaited (nothing aborts it) |
+| Image (Fal.ai, `imageProvider.ts`) | Only if `timeoutMs` is passed; the default registry passes none | Yes while the call is still awaited |
+| Video (RunningHub) | Inline check in `pollVideoRequestOnce`: stops polling after 240 s and records a transient failure | A result could still be fetched by task id, but polling has stopped |
+| Assembly (local ffmpeg) | None; no maximum time defined | n/a |
+
+So the watcher is the only timeout for voice and image (and for any attempt whose process died), and it overlaps with the inline limits of decomposition, alignment and video. Recommended: leave those inline limits in place as the first line of defence (they abort a hung socket, which the watcher cannot), and let the watcher's conditional claim decide any race. A race between an adapter's own timeout failure and the watcher is already handled by Decision 3.
+
+**1.3 and the pause question are not confirmed.** No product confirmation on accepting late results exists in the repository or in Linear (JOS-154, JOS-185 threads). `pause-and-continue-session` Decision 9 (a pause does not freeze the clock of a sent request) is still marked as awaiting confirmation (its Open Question 1).
+
 ## Open Questions
 
 1. **Product confirmation for accepting late results** (JOS-154 open question 2), including lifting an exhausted `failed` stage instance (Decision 6).
