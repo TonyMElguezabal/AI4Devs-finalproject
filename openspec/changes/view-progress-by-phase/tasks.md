@@ -131,6 +131,6 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 ## 12. Close out
 
 - [ ] 12.1 Ask the user before commenting on JOS-149 (assembly failure at session level, design Open Questions) and on the US-23 to US-27 tickets (extend `phaseActions`).
-- [ ] 12.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-168.
+- [x] 12.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-168.
 - [ ] 12.3 Obtain review by at least one human, not only AI agents.
 - [ ] 12.4 Archive the OpenSpec change after merge.
