@@ -17,11 +17,11 @@ A cross-cutting backend change with no screen of its own. Group 1 is a hard gate
 
 ## 2. Domain: the policy (TDD)
 
-- [ ] 2.1 Write failing tests for `RetryPolicy.decide` over every outcome × attempts-in-cycle combination: success → complete; transient at 1–3 → schedule next; transient at 4 → fail retryable; not-retryable at any count → fail not retryable
-- [ ] 2.2 Write failing tests for the delay: exponential from the base, capped, and never earlier than a provider's retry-after
-- [ ] 2.3 Write failing tests for `StageInstanceKey`: session-level stages keyed without a scene, scene-level stages keyed with one, decomposition as a single instance
-- [ ] 2.4 Implement `RetryPolicy` and `StageInstanceKey` as pure code with no I/O, reading base, cap and `MAX_ATTEMPTS_PER_CYCLE = 4` from the constants module
-- [ ] 2.5 Run the group 2 tests and confirm they pass
+- [x] 2.1 Write failing tests for `RetryPolicy.decide` over every outcome × attempts-in-cycle combination: success → complete; transient at 1–3 → schedule next; transient at 4 → fail retryable; not-retryable at any count → fail not retryable
+- [x] 2.2 Write failing tests for the delay: exponential from the base, capped, and never earlier than a provider's retry-after
+- [x] 2.3 Write failing tests for `StageInstanceKey`: session-level stages keyed without a scene, scene-level stages keyed with one, decomposition as a single instance
+- [x] 2.4 Implement `RetryPolicy` and `StageInstanceKey` as pure code with no I/O, reading base, cap and `MAX_ATTEMPTS_PER_CYCLE = 4` from the constants module — done in `backend/src/retry/retryPolicy.ts`; `MAX_ATTEMPTS_PER_CYCLE` is in the constants module, the delays are injected through `RetryDelayConfig` and the only defaults are `PROVISIONAL_RETRY_DELAY_SECONDS` (see 1.4)
+- [x] 2.5 Run the group 2 tests and confirm they pass
 
 ## 3. Persistence: attempts, cycles and constraints (TDD)
 
