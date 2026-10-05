@@ -56,6 +56,9 @@ import {
 import {
   STAGE,
   STUB_PROVIDER_NAME,
+  type Phase,
+  type PhaseProgress,
+  type PhaseStatus,
   type ProviderOutcome,
   type Scene,
   type SceneEventPayload,
@@ -177,6 +180,62 @@ export function deriveSessionState(
   return { state: "failed", failedPhase: "scenes", failedSceneIndexes: gate.failedSceneIndexes };
 }
 
+const PHASES: readonly Phase[] = ["voice-over", "decomposition", "scenes", "assembly"];
+
+/** For each non-failed state: how many leading phases are complete, and whether the next one is in progress. */
+const PROGRESS_BY_STATE: Record<Exclude<SessionState, "failed">, { completePhases: number; nextInProgress: boolean }> = {
+  submitted: { completePhases: 0, nextInProgress: false },
+  "voice-over-generating": { completePhases: 0, nextInProgress: true },
+  "voice-over-complete": { completePhases: 1, nextInProgress: false },
+  "chunk-decomposing": { completePhases: 1, nextInProgress: true },
+  "chunks-processing": { completePhases: 2, nextInProgress: true },
+  "final-video-generating": { completePhases: 3, nextInProgress: true },
+  "final-video": { completePhases: 4, nextInProgress: false },
+};
+
+const STAGE_PHASE: Record<string, Phase> = {
+  "voice-over": "voice-over",
+  decomposition: "decomposition",
+  image: "scenes",
+  video: "scenes",
+  assembly: "assembly",
+};
+
+/** view-progress-by-phase (JOS-168), design Decisions 1-4 — the four phases in
+ * pipeline order, derived from the session state alone so the header and the
+ * sections cannot disagree. Throws when a failed session names no known phase,
+ * since PRD §8.1 requires one. */
+export function derivePhaseProgress(input: {
+  state: SessionState;
+  failedPhase?: string;
+  failure?: { phase: string; cause: string; retryable: boolean } | null;
+  held: ReadonlyArray<{ stage: string; count: number }>;
+}): PhaseProgress[] {
+  const { state, failedPhase, failure, held } = input;
+  let completePhases: number;
+  let activeStatus: PhaseStatus | undefined;
+  if (state === "failed") {
+    completePhases = PHASES.findIndex((phase) => phase === failedPhase);
+    if (completePhases === -1) throw new Error(`a failed session must carry a failedPhase naming one of ${PHASES.join(", ")}; got ${String(failedPhase)}`);
+    activeStatus = "failed";
+  } else {
+    const progress = PROGRESS_BY_STATE[state];
+    completePhases = progress.completePhases;
+    activeStatus = progress.nextInProgress ? "in-progress" : undefined;
+  }
+
+  return PHASES.map((phase, index): PhaseProgress => {
+    let status: PhaseStatus = "pending";
+    if (index < completePhases) status = "complete";
+    else if (index === completePhases && activeStatus) status = activeStatus;
+
+    const heldCount = held.reduce((sum, entry) => (STAGE_PHASE[entry.stage] === phase ? sum + entry.count : sum), 0);
+    const entry: PhaseProgress = { phase, status, heldCount };
+    if (status === "failed" && phase !== "scenes" && failure && failure.phase === phase) entry.failure = { cause: failure.cause, retryable: failure.retryable };
+    return entry;
+  });
+}
+
 export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const run = getRun(runId);
   if (!run) return undefined;
@@ -199,6 +258,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     held: heldWork.stages.map((s) => ({ stage: s.stage, count: s.count })),
     failedPhase,
     failedSceneIndexes,
+    phases: derivePhaseProgress({ state, failedPhase, failure: run.failure, held: heldWork.stages }),
     createdAt: run.createdAt,
     updatedAt: new Date().toISOString(),
     finalVideoUrl: run.finalVideoPath != null ? `/sessions/${run.id}/download/final-video` : undefined,

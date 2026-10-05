@@ -9,31 +9,37 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`, then confirm the base still matches design.md § Context:
+- [x] 1.1 `git fetch`, then confirm the base still matches design.md § Context:
   - `deriveSessionState` returns `failedPhase` only as `failure.phase` or `"scenes"`;
   - `toSnapshot` does not expose `run.failure`;
   - `obtainNarrationTimestamps` clears the failure only on success;
   - `SessionPage` renders header, scene list and download one after another.
 
   If another story changed any of these, update design.md before coding.
-- [ ] 1.2 Check whether PR #25 (JOS-149, `assemble-final-video`) has merged into `feature/entrega-2-JAME`. If it has, rebase, keep its `finalVideoUrl` and `hasFinalVideo`, and check whether it now derives `failedPhase: "assembly"`. If it does, add the `assembly` → `final-video-generating` row to design Decision 5 and the spec before coding. Record the result here.
-- [ ] 1.3 Check whether `feature/jos-136-generate-voice-over` has moved: whether it derives `voice-over-generating` or adds a top-level `failure` to the session read. Record any overlap with Decisions 2, 3 and 5.
+
+  Result (2026-10-05, base `99552f5`): all four hold. `deriveSessionState` returns `failedPhase` only as `failure.phase` or `"scenes"`; `toSnapshot` does not expose `run.failure`; `narrationTimestampsPhase.ts` clears the failure only in `succeed`; `SessionPage` renders header, scene list and download in sequence.
+- [x] 1.2 Check whether PR #25 (JOS-149, `assemble-final-video`) has merged into `feature/entrega-2-JAME`. If it has, rebase, keep its `finalVideoUrl` and `hasFinalVideo`, and check whether it now derives `failedPhase: "assembly"`. If it does, add the `assembly` → `final-video-generating` row to design Decision 5 and the spec before coding. Record the result here.
+
+  Result: PR #25 merged into `feature/entrega-2-JAME` at `99552f5`; this branch was rebased onto it (local, unpushed, one commit). `finalVideoUrl` and `hasFinalVideo` are in place. It does **not** derive `failedPhase: "assembly"`: `deriveSessionState` still returns only `failure.phase` or `"scenes"`. Decision 5 and the spec need no `assembly` row; the Open Question stands.
+- [x] 1.3 Check whether `feature/jos-136-generate-voice-over` has moved: whether it derives `voice-over-generating` or adds a top-level `failure` to the session read. Record any overlap with Decisions 2, 3 and 5.
+
+  Result: PR #26 (JOS-136) is still open, so its changes are not in this base. On its branch `deriveSessionState` already derives `voice-over-generating` from `progress.voiceAttemptInFlight`, but checks the recorded failure first, so a voice-over retry still reads `failed`; Decision 5's rule fixes that and must be applied there when #26 merges (the in-flight check goes before the failure check, gated on `queuedAt >= failure.occurredAt`). It adds a top-level `failure` (`state === "failed" && run.failure`), which must come from the same `run.failure` as the phase entry (Decision 3). Also, `bounded-retry-policy` (JOS-184, PR #27, open) records a retry wait as an attempt with outcome `scheduled`, not `in-flight`. A phase waiting for its next automatic attempt is then not retried-in-flight and keeps reading `failed` only if the session failure is still recorded; JOS-184 keeps the session failure unset until the budget is exhausted, so the session stays in its in-progress state. No change to this design is needed now; re-check the rule against both when they merge.
 
 ## 2. Backend: phase derivation (TDD; design Decisions 1-4)
 
-- [ ] 2.1 Write failing unit tests in a new `backend/test/phase-progress.test.ts` for `derivePhaseProgress`:
+- [x] 2.1 Write failing unit tests in a new `backend/test/phase-progress.test.ts` for `derivePhaseProgress`:
   - one test per non-failed session state, against design Decision 2's table;
   - `failed` with each of `voice-over`, `decomposition`, `scenes`, `assembly`;
   - `failed` with a missing or unknown `failedPhase` throws;
   - the order is always the four phases.
-- [ ] 2.2 Write failing tests for `failure`:
+- [x] 2.2 Write failing tests for `failure`:
   - it is carried (cause and retryable only) on the failed voice-over or decomposition entry, and on an assembly entry given an assembly failure;
   - it is absent on the `scenes` entry and on every entry that is not failed;
   - no `occurredAt` is ever present.
-- [ ] 2.3 Write failing tests for `heldCount`:
+- [x] 2.3 Write failing tests for `heldCount`:
   - stage-to-phase mapping, with image and video summed into scenes;
   - 0 everywhere when `held` is empty.
-- [ ] 2.4 Implement `derivePhaseProgress` and its types (`Phase`, `PhaseStatus`, `PhaseProgress`) in `orchestrator.ts` / `types.ts`; make 2.1-2.3 pass.
+- [x] 2.4 Implement `derivePhaseProgress` and its types (`Phase`, `PhaseStatus`, `PhaseProgress`) in `orchestrator.ts` / `types.ts`; make 2.1-2.3 pass.
 
 ## 3. Backend: retry in flight (TDD; design Decision 5)
 
