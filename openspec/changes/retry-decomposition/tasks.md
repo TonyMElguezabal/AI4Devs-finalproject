@@ -96,18 +96,18 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 8.1 Review the tests from JOS-139, JOS-140 and JOS-144 (decomposition phase), JOS-152 (launch gate and `NOT_YET_LAUNCHABLE` contents), JOS-168 and JOS-155 (phase actions, retry rule) for assumptions this change breaks; update them.
-- [ ] 8.2 Confirm every scenario in `specs/decomposition-manual-retry/spec.md` has at least one test, and map ticket AC1-AC3 to tests; list both in the step 8 report.
-- [ ] 8.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 8.1 Review the tests from JOS-139, JOS-140 and JOS-144 (decomposition phase), JOS-152 (launch gate and `NOT_YET_LAUNCHABLE` contents), JOS-168 and JOS-155 (phase actions, retry rule) for assumptions this change breaks; update them.
+- [x] 8.2 Confirm every scenario in `specs/decomposition-manual-retry/spec.md` has at least one test, and map ticket AC1-AC3 to tests; list both in the step 8 report.
+- [x] 8.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
 ## 9. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 9.1 Capture the pre-test baseline of the default store: row counts per table (`runs`, `stage_attempts`, `voice_overs`, `narration_timestamps`, `scenes`), applied migrations, trigger list, and `data/projects/` contents.
-- [ ] 9.2 Run the targeted tests: the group 2 attempt and sender tests, the existing decomposition-phase and timestamps tests, `decomposition-retry`, `launch-gate`, `phase-progress`, `session-api-surface`, `components`.
-- [ ] 9.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`. Run the backend suite once more in a fresh worktree without `backend/.secrets.json`, so local provider credentials cannot mask a failure.
-- [ ] 9.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 9.5 Create the report `openspec/changes/retry-decomposition/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`.
-- [ ] 9.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 9.1 Capture the pre-test baseline of the default store: row counts per table (`runs`, `stage_attempts`, `voice_overs`, `narration_timestamps`, `scenes`), applied migrations, trigger list, and `data/projects/` contents.
+- [x] 9.2 Run the targeted tests: the group 2 attempt and sender tests, the existing decomposition-phase and timestamps tests, `decomposition-retry`, `launch-gate`, `phase-progress`, `session-api-surface`, `components`.
+- [x] 9.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`. Run the backend suite once more in a fresh worktree without `backend/.secrets.json`, so local provider credentials cannot mask a failure.
+- [x] 9.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 9.5 Create the report `openspec/changes/retry-decomposition/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`.
+- [x] 9.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
