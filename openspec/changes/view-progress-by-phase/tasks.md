@@ -114,12 +114,12 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: the session page layout changes, so it applies.
-- [ ] 10.2 Run backend (scratch store) and frontend; open a session page and confirm the four sections by accessible name, in order.
-- [ ] 10.3 Advance the session on the backend (for example, register scenes) and confirm the sections update without a reload.
-- [ ] 10.4 Record a decomposition failure on a second session: the Decomposition section shows `Failed`, the cause and no retry button. Then record an in-flight `timestamps` attempt: the section shows `In progress` without a reload.
-- [ ] 10.5 Pause a session with one submitted scene (held at the image stage, the only held work a real server can produce today) and confirm the held text in the Scenes section, alongside the header's paused marker.
-- [ ] 10.6 Restore the environment and save `openspec/changes/view-progress-by-phase/reports/YYYY-MM-DD-step-10-e2e.md`.
+- [x] 10.1 Decide applicability: the session page layout changes, so it applies.
+- [x] 10.2 Run backend (scratch store) and frontend; open a session page and confirm the four sections by accessible name, in order.
+- [x] 10.3 Advance the session on the backend (for example, register scenes) and confirm the sections update without a reload.
+- [x] 10.4 Record a decomposition failure on a second session: the Decomposition section shows `Failed`, the cause and no retry button. Then record an in-flight `timestamps` attempt: the section shows `In progress` without a reload.
+- [x] 10.5 Pause a session with one submitted scene (held at the image stage, the only held work a real server can produce today) and confirm the held text in the Scenes section, alongside the header's paused marker.
+- [x] 10.6 Restore the environment and save `openspec/changes/view-progress-by-phase/reports/YYYY-MM-DD-step-10-e2e.md`.
 
 ## 11. Update Technical Documentation (MANDATORY)
 
