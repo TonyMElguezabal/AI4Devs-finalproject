@@ -89,17 +89,17 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 - [x] 7.1 Review backend tests that assert the exact session payload shape, and frontend tests that locate the scene list or the download by position, for assumptions this change breaks; update them.
   - Result: the backend exact-key assertion in `session-read.test.ts` now lists `phases` (done in group 4); the frontend `SessionPage` tests find rows by role and name, so the new sections broke none; `makeSession` and the `useLiveSession` snapshot fixture gained `phases`.
-- [ ] 7.2 Confirm every scenario in `specs/session-phase-progress/spec.md` has at least one test, and map each ticket AC (1-5) to its tests; list both mappings in the step 8 report.
-- [ ] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 7.2 Confirm every scenario in `specs/session-phase-progress/spec.md` has at least one test, and map each ticket AC (1-5) to its tests; list both mappings in the step 8 report.
+- [x] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents.
-- [ ] 8.2 Run the targeted tests (`phase-progress`, `narration-timestamps-session`, `session-api-surface`, `components`).
-- [ ] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`. Run the backend suite once more in a fresh worktree without `backend/.secrets.json`, so local provider credentials cannot mask a failure.
-- [ ] 8.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 8.5 Create the report `openspec/changes/view-progress-by-phase/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`.
-- [ ] 8.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 8.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents.
+- [x] 8.2 Run the targeted tests (`phase-progress`, `narration-timestamps-session`, `session-api-surface`, `components`).
+- [x] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`. Run the backend suite once more in a fresh worktree without `backend/.secrets.json`, so local provider credentials cannot mask a failure.
+- [x] 8.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 8.5 Create the report `openspec/changes/view-progress-by-phase/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`.
+- [x] 8.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
