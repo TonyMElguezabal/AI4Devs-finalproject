@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
+import { events } from "../src/orchestrator.ts";
 import { buildApp } from "../src/server.ts";
+import type { SessionSnapshot } from "../src/types.ts";
 import { createScene, getRun, markSceneFailed, resetAll, setRunPaused } from "../src/db.ts";
 
 // lock-script-and-narration (JOS-137), group 6 — PRD §4.2, D10: the API offers
@@ -166,5 +168,46 @@ describe("pause and continue endpoints (JOS-152, task 7.3)", () => {
     const res = await app.inject({ method: "POST", url: `/sessions/01AAAAAAAAAAAAAAAAAAAAAAAA/continue` });
     expect(res.statusCode).toBe(404);
     expect(res.json().ok).toBe(false);
+  });
+});
+
+// view-progress-by-phase (JOS-168), task 4.1 — the session representation lists
+// the four phases, in the read and in every live snapshot.
+describe("The session representation carries the phases (JOS-168)", () => {
+  it("lists the four phases in pipeline order on a newly registered session", async () => {
+    const sessionId = await startSession();
+
+    const session = (await app.inject({ method: "GET", url: `/sessions/${sessionId}` })).json().session;
+
+    expect(session.phases).toEqual([
+      { phase: "voice-over", status: "pending", heldCount: 0 },
+      { phase: "decomposition", status: "pending", heldCount: 0 },
+      { phase: "scenes", status: "pending", heldCount: 0 },
+      { phase: "assembly", status: "pending", heldCount: 0 },
+    ]);
+  });
+
+  it("carries the same phases in a live snapshot as in the read", async () => {
+    const sessionId = await startSession();
+    const received: SessionSnapshot[] = [];
+    const onState = (snapshot: SessionSnapshot) => received.push(snapshot);
+    events.on("state", onState);
+    try {
+      await app.inject({ method: "POST", url: `/sessions/${sessionId}/pause` });
+    } finally {
+      events.off("state", onState);
+    }
+
+    const read = (await app.inject({ method: "GET", url: `/sessions/${sessionId}` })).json().session;
+    const live = received.filter((snapshot) => snapshot.session.sessionId === sessionId).at(-1);
+
+    expect(live?.session.phases).toEqual(read.phases);
+  });
+
+  it("documents phases and its four statuses in the generated OpenAPI", async () => {
+    const document = JSON.stringify((await app.inject({ method: "GET", url: "/docs/json" })).json());
+
+    expect(document).toContain('"phases"');
+    for (const status of ["pending", "in-progress", "complete", "failed"]) expect(document).toContain(`"${status}"`);
   });
 });

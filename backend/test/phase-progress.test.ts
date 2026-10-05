@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { derivePhaseProgress } from "../src/orchestrator.ts";
+import { derivePhaseProgress, deriveSessionState } from "../src/orchestrator.ts";
 import type { PhaseProgress, SessionFailure, SessionState } from "../src/types.ts";
 
 // view-progress-by-phase (JOS-168), groups 2 and 3 — design Decisions 1-5: the
@@ -123,5 +123,31 @@ describe("derivePhaseProgress: held work (2.3)", () => {
 
   it("ignores a stage that belongs to no phase", () => {
     expect(derivePhaseProgress({ state: "chunks-processing", held: [{ stage: "timestamps", count: 4 }] }).map((entry) => entry.heldCount)).toEqual([0, 0, 0, 0]);
+  });
+});
+
+describe("deriveSessionState: a retry in flight (3.1, design Decision 5)", () => {
+  it("derives chunk-decomposing for a decomposition failure while its retry is in flight", () => {
+    expect(deriveSessionState([], decompositionFailure, { hasVoiceOver: true, timestampsStarted: true, retryInFlight: true })).toEqual({ state: "chunk-decomposing" });
+  });
+
+  it("derives voice-over-generating for a voice-over failure while its retry is in flight", () => {
+    expect(deriveSessionState([], voiceOverFailure, { retryInFlight: true })).toEqual({ state: "voice-over-generating" });
+  });
+
+  it("derives failed when no retry is in flight", () => {
+    expect(deriveSessionState([], decompositionFailure, { hasVoiceOver: true, timestampsStarted: true, retryInFlight: false })).toEqual({
+      state: "failed",
+      failedPhase: "decomposition",
+    });
+  });
+
+  it("marks the retried phase in progress, with no failure on its entry", () => {
+    const derived = deriveSessionState([], decompositionFailure, { hasVoiceOver: true, timestampsStarted: true, retryInFlight: true });
+
+    const phases = derivePhaseProgress({ ...derived, failure: decompositionFailure, held: [] });
+
+    expect(statuses(phases)).toEqual(["complete", "in-progress", "pending", "pending"]);
+    expect(phases.every((entry) => entry.failure === undefined)).toBe(true);
   });
 });

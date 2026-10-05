@@ -43,21 +43,23 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 3. Backend: retry in flight (TDD; design Decision 5)
 
-- [ ] 3.1 Write failing tests in `backend/test/phase-progress.test.ts` (pure, through `deriveSessionState` with `progress.retryInFlight`), then in `narration-timestamps-session.test.ts` (through the store). Cover:
+- [x] 3.1 Write failing tests in `backend/test/phase-progress.test.ts` (pure, through `deriveSessionState` with `progress.retryInFlight`), then in `narration-timestamps-session.test.ts` (through the store). Cover:
   - a decomposition failure plus a later in-flight `timestamps` attempt derives `chunk-decomposing`, with the failure still stored;
   - a voice-over failure plus a later in-flight `voice-over` attempt derives `voice-over-generating`;
   - an in-flight attempt queued before the failure still derives `failed`;
   - a retry that fails again derives `failed` with the new cause.
-- [ ] 3.2 Write a failing-or-pinning test that retrying a failed scene in a `failed` (scenes) session derives `chunks-processing`, through the existing retry endpoint. It may pass on first run; record that it pins existing behaviour.
-- [ ] 3.3 Implement the retry-in-flight rule in `deriveSessionState` and compute `retryInFlight` in `toSnapshot` from `getStageAttempts` and `run.failure`; make 3.1 pass.
+- [x] 3.2 Write a failing-or-pinning test that retrying a failed scene in a `failed` (scenes) session derives `chunks-processing`, through the existing retry endpoint. It may pass on first run; record that it pins existing behaviour.
+
+  Result: it passed on first run (the session is paused so the retry is held and no provider is called), so it pins existing behaviour. It lives in `test/phase-retry-in-flight.test.ts`, with the voice-over case.
+- [x] 3.3 Implement the retry-in-flight rule in `deriveSessionState` and compute `retryInFlight` in `toSnapshot` from `getStageAttempts` and `run.failure`; make 3.1 pass.
 
 ## 4. Backend: session representation (TDD)
 
-- [ ] 4.1 Write failing tests in `session-api-surface.test.ts`:
+- [x] 4.1 Write failing tests in `session-api-surface.test.ts`:
   - `GET /sessions/:id` carries `phases`, validated by the response schema;
   - a live snapshot carries the same `phases` as the read;
   - the generated OpenAPI (`/docs/json`) documents `phases` with its four status values.
-- [ ] 4.2 Attach `phases` in `toSnapshot`, from the one `sessionHeldWork` call already there; add `phases` to `sessionResponseSchema` with descriptions; make 4.1 pass.
+- [x] 4.2 Attach `phases` in `toSnapshot`, from the one `sessionHeldWork` call already there; add `phases` to `sessionResponseSchema` with descriptions; make 4.1 pass.
 
 ## 5. Frontend: types, status and actions (TDD; design Decisions 6 and 7)
 

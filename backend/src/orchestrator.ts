@@ -56,6 +56,7 @@ import {
 import {
   STAGE,
   STUB_PROVIDER_NAME,
+  type AttemptStage,
   type Phase,
   type PhaseProgress,
   type PhaseStatus,
@@ -146,6 +147,8 @@ export interface SessionProgress {
   timestampsStarted?: boolean;
   /** A final video exists (US-16b records it). Defaults to false: all scenes complete is `final-video-generating`, not `final-video`. */
   hasFinalVideo?: boolean;
+  /** view-progress-by-phase (JOS-168), Decision 5: the failed phase has an attempt in flight that was queued no earlier than the recorded failure. */
+  retryInFlight?: boolean;
 }
 
 export interface DerivedSessionState {
@@ -160,12 +163,31 @@ export interface DerivedSessionState {
  * decomposition, assign-scene-identifiers Decision 6) is `failed` in that phase;
  * without a failure, the timestamps stage means `chunk-decomposing` and a
  * completed narration `voice-over-complete`. */
+/** The in-progress state of a failed phase that is being retried (PRD §8.1). */
+const RETRY_STATE: Record<SessionFailure["phase"], SessionState> = {
+  "voice-over": "voice-over-generating",
+  decomposition: "chunk-decomposing",
+};
+
+/** The attempt stage whose in-flight attempt means the failed phase is being retried. */
+const RETRY_ATTEMPT_STAGE: Record<SessionFailure["phase"], AttemptStage> = {
+  "voice-over": "voice-over",
+  decomposition: "timestamps",
+};
+
+function isRetryInFlight(runId: string, failure: SessionFailure | null): boolean {
+  if (!failure) return false;
+  const latest = getStageAttempts(runId, RETRY_ATTEMPT_STAGE[failure.phase]).at(-1);
+  return latest !== undefined && latest.outcome === "in-flight" && latest.queuedAt >= failure.occurredAt;
+}
+
 export function deriveSessionState(
   scenes: Scene[],
   failure: SessionFailure | null = null,
   progress: SessionProgress = {},
 ): DerivedSessionState {
   if (scenes.length === 0) {
+    if (failure && progress.retryInFlight) return { state: RETRY_STATE[failure.phase] };
     if (failure) return { state: "failed", failedPhase: failure.phase };
     if (progress.timestampsStarted) return { state: "chunk-decomposing" };
     if (progress.hasVoiceOver) return { state: "voice-over-complete" };
@@ -244,6 +266,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     hasVoiceOver: getVoiceOver(runId) !== undefined,
     timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
     hasFinalVideo: run.finalVideoPath != null,
+    retryInFlight: isRetryInFlight(runId, run.failure),
   });
   const heldWork = sessionHeldWork(runId);
   const heldSceneIds = heldWork.sceneIds;

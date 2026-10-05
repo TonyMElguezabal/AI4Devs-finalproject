@@ -165,7 +165,7 @@ describe("One read serves consultation and resynchronisation (3.9, Decision 1)",
     const body = res.json();
     expect(body.session.type).toBe("session");
     expect(Object.keys(body.session).sort()).toEqual(
-      ["type", "sessionId", "title", "script", "language", "state", "paused", "held", "createdAt", "updatedAt"].sort(),
+      ["type", "sessionId", "title", "script", "language", "state", "paused", "held", "phases", "createdAt", "updatedAt"].sort(),
     );
     expect(body.scenes[0].type).toBe("scene");
     expect(body.scenes[0]).toHaveProperty("sceneId");

@@ -122,6 +122,20 @@ const sceneResponseSchema = z.object({
   updatedAt: z.string(),
 });
 
+const phaseResponseSchema = z.object({
+  phase: z.enum(["voice-over", "decomposition", "scenes", "assembly"]),
+  status: z
+    .enum(["pending", "in-progress", "complete", "failed"])
+    .describe("PRD §8.1, §8.3: derived from the session state on every read, never stored."),
+  heldCount: z.number().int().describe("Work units a pause is holding for this phase; 0 when not paused."),
+  failure: z
+    .object({ cause: z.string(), retryable: z.boolean() })
+    .optional()
+    .describe(
+      "Present only on a failed voice-over, decomposition or assembly entry. Never carries the failure time, provider detail, credentials or the script. Scene failures are per scene, so the scenes entry has none.",
+    ),
+});
+
 const sessionResponseSchema = z.object({
   type: z.literal("session"),
   sessionId: z.string(),
@@ -140,6 +154,9 @@ const sessionResponseSchema = z.object({
     .describe(
       "PRD §8.1: the indexes of the failed scenes, ascending. Present only when failedPhase is \"scenes\". Derived and read-only.",
     ),
+  phases: z
+    .array(phaseResponseSchema)
+    .describe("PRD §8.3: always the four phases in pipeline order (voice-over, decomposition, scenes, assembly). Derived and read-only."),
   createdAt: z.string(),
   updatedAt: z.string(),
   finalVideoUrl: z.string().optional().describe("Route to download the assembled MP4; present only when state is final-video (JOS-149)."),
