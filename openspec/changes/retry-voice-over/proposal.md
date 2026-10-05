@@ -11,6 +11,7 @@ When narration generation fails, the session stops in `failed` with `failedPhase
 - **A manual voice-over retry command**: `POST /sessions/:sessionId/voice-over/retry`, with no request body. It is accepted only when all of these hold:
   - the session is `failed` with `failedPhase: "voice-over"`;
   - `canLaunchVoiceOver` (JOS-137) allows a launch, meaning the session has no voice-over record;
+  - its failure is retryable (JOS-184: a not-retryable failure offers no manual retry);
   - no retry for it is already pending or running.
 
   Each refusal answers 409 with a reason the page can show. An unknown or malformed session id answers 404.
@@ -20,7 +21,7 @@ When narration generation fails, the session stops in `failed` with `failedPhase
 - **A new retry cycle**: the retry opens a new cycle on the session's voice-over stage instance through `startNewCycle` (JOS-184). That gives it up to four attempts, with automatic retries, before it can fail again (§10.2, D06).
 - **Through the launch gate**: the retry goes through the phase-launch gate like every other launch. During a pause it is accepted and recorded as pending, and nothing is sent until the User continues (§9, JOS-152).
 - **The session shows progress at once**: from the moment the retry is accepted, whether it is pending, held or running, the session derives `voice-over-generating` (§8.1). This extends `view-progress-by-phase`'s retry rule (JOS-168) from in-flight attempts to accepted retries, matching how a retried scene already returns its session to `chunks-processing`.
-- **A retry button on the page**: `phaseActions` (JOS-168) returns `retry` for a failed voice-over phase. The Voice-over phase section shows a "Retry voice-over" button that calls the command and shows any 409 reason.
+- **A retry button on the page**: `phaseActions` (JOS-168) returns `retry` for a failed, retryable voice-over phase. The Voice-over phase section shows a "Retry voice-over" button that calls the command and shows any 409 reason.
 
 ## Capabilities
 
@@ -54,11 +55,11 @@ None in `openspec/specs/`. This change builds on capabilities from unarchived ch
   - No new table: the pending retry is JOS-184's scheduled attempt.
 - **Frontend**: `phaseActions.ts` (retry for voice-over), `PhaseSection.tsx` (button and refusal message), `api/client.ts` (`retryVoiceOver`).
 - **API contract**: `docs/api-spec.yml` gains the route.
-- **Blocked on (hard gate before any code)**:
-  - **`generate-voice-over` (JOS-136), groups 4-6**: the voice provider port and adapter, the voice-over phase and its launch, and the session representation. None of it exists in code on any branch yet. Only its records and state machine are merged.
-  - **`bounded-retry-policy` (JOS-184)**: `startNewCycle`, cycles and scheduled attempts. Nothing implemented yet.
-  - **`view-progress-by-phase` (JOS-168)**: the phase sections and `phaseActions`. This branch stacks on it.
-- **Open product question**: should a manual retry be offered after a *not-retryable* voice failure, for example a 4xx rejection? This proposal says yes (design Decision 3). The product owner must confirm, together with JOS-184's open question 4 ("retried until it recovers").
+- **Built on (all merged into `feature/entrega-2-JAME`)**:
+  - **`generate-voice-over` (JOS-136)**: the voice provider port and adapter, the voice-over phase and its launch, and the session representation.
+  - **`bounded-retry-policy` (JOS-184)**: `startNewCycle`, cycles and scheduled attempts.
+  - **`view-progress-by-phase` (JOS-168)**: the phase sections and `phaseActions`.
+- **Product decision (answered)**: a manual retry is not offered after a *not-retryable* voice failure, for example a 4xx rejection. This follows JOS-184's merged `startNewCycle` and `manualRetryAvailable` (design Decision 3). Offering it would be a change to JOS-184.
 - **Out of scope**:
   - retrying any other phase (US-24 to US-27);
   - choosing or switching the voice provider (§11.2);

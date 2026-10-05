@@ -9,7 +9,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 1. Gate (hard: no code before every item passes)
 
-- [ ] 1.1 `git fetch`. Confirm `generate-voice-over` (JOS-136) groups 4-6 are merged into `feature/entrega-2-JAME`:
+- [x] 1.1 `git fetch`. Confirm `generate-voice-over` (JOS-136) groups 4-6 are merged into `feature/entrega-2-JAME`:
   - the `VoiceProvider` port, the stub and the real adapter;
   - the voice-over phase launched through the gate;
   - `voice-over-generating` derived from the records;
@@ -17,25 +17,28 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
   - `failure` on the session read.
 
   Record the function names for "launch the voice-over phase" and "resolve the adapter for a bound id".
-- [ ] 1.2 Confirm `bounded-retry-policy` (JOS-184) is merged. Record:
+
+  Recorded (PR #26 merged, `bc418ab`): launch is `voiceOverLauncher.launch` / `launchVoiceOverFor` / `generateVoiceOver` (first attempt) and `sendVoiceAttempt` (any attempt) in `voiceOverPhase.ts`. The adapter for a bound id is `getVoiceProviderRegistry().adapters[attempt.providerId ?? run.voiceProviderId ?? defaultIdentifier]`. `voice-over` is registered with the gate, `voice-over-generating` is derived in `deriveSessionState`, and `failure` is on the session read.
+- [x] 1.2 Confirm `bounded-retry-policy` (JOS-184) is merged. Record:
   - `startNewCycle`'s actual name, signature and refusal result;
   - how a scheduled (not yet sent) attempt is represented;
   - how the voice-over launcher's `heldWork` sees it.
 
   If any differs from design Decisions 2 and 7, update design.md and the spec first.
-- [ ] 1.3 Confirm `view-progress-by-phase` (JOS-168) is implemented: `phases`, the retry-in-flight rule, `PhaseSection` and `phaseActions`. Rebase this branch onto the latest of JOS-168's branch, or onto `feature/entrega-2-JAME` once JOS-168 has merged.
-- [ ] 1.4 Ask the product owner design Open Question 1 (manual retry after a not-retryable failure). If the answer is "no", update Decision 3, the spec's first requirement and `phaseActions` before coding.
+
+  Recorded (PR #27 merged through JOS-136): `startNewCycle(ref: { sessionId, sceneId?, stage }, options?)` in `retry/stageAttemptRecorder.ts` returns `{ started: true, attempt }` or `{ started: false, reason: "not-failed" | "not-retryable" }`. A scheduled attempt is a `stage_attempts` row with `outcome = "scheduled"` and `due_at`. `voiceOverLauncher.heldWork` counts 1 when there is no failure, voice-over, chunks or in-flight attempt, which a scheduled manual attempt satisfies. Three differences from the first draft, all folded into design Decisions 2, 3, 4 and 7, the spec and these tasks: `startNewCycle` refuses a not-retryable failure; it clears the session failure, so the retry needs `voiceAttemptInFlight` to count scheduled attempts; no failure exists before a first attempt, so the `voice-provider-not-bound` reason and the failed-before-first-attempt scenario are removed.
+- [x] 1.3 Confirm `view-progress-by-phase` (JOS-168) is implemented: `phases`, the retry-in-flight rule, `PhaseSection` and `phaseActions`. Rebase this branch onto the latest of JOS-168's branch, or onto `feature/entrega-2-JAME` once JOS-168 has merged.
+
+  Recorded: JOS-168 merged (PR #28). The branch was rebased onto `origin/feature/entrega-2-JAME` (`bc418ab`). `phases`, `retryInFlight`, `PhaseSection` and `phaseActions` (`{ retry: boolean }`, currently always false) are in place.
+- [x] 1.4 Ask the product owner design Open Question 1 (manual retry after a not-retryable failure). Answer: no, follow JOS-184. Decision 3, the spec's first and last requirements, the proposal and these tasks are updated.
 
 ## 2. Backend: retry service checks (TDD; design Decisions 2 and 4)
 
 - [ ] 2.1 Write failing tests in a new `backend/test/voice-over-retry.test.ts` for `retryVoiceOver(sessionId)`:
   - an unknown session is refused as not found;
-  - each refusal reason (`not-failed-in-voice-over`, `narration-complete`, `retry-already-pending`, `voice-provider-not-bound`), with the stub asserting that no request was received;
+  - each refusal reason (`not-failed-in-voice-over`, `narration-complete`, `not-retryable`, `retry-already-pending`), with the stub asserting that no request was received;
   - two concurrent calls open exactly one cycle.
-- [ ] 2.2 Write failing tests for acceptance:
-  - after an exhausted cycle;
-  - after a not-retryable failure;
-  - for a session that failed before any attempt (it binds the configured provider).
+- [ ] 2.2 Write failing tests for acceptance after an exhausted cycle (a retryable failure), and that no cycle is opened for a not-retryable one.
 - [ ] 2.3 Implement `backend/src/voiceOverRetry.ts` with the checks in Decision 2's order, then `startNewCycle`, then the gate; make 2.1-2.2 pass.
 
 ## 3. Backend: same script, same provider, nothing deleted (TDD; design Decisions 4-6)
@@ -55,7 +58,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
   - the voice-over phase has `heldCount` 1;
   - continue sends exactly one request.
 - [ ] 4.3 Write failing tests in `phase-progress.test.ts`: an accepted retry derives `voice-over-generating` while scheduled, held, or in flight, with the voice-over phase `in-progress` and no `failure`. JOS-168's existing in-flight tests must still pass.
-- [ ] 4.4 Extend the retry rule in `deriveSessionState` to count a scheduled-or-in-flight attempt of the current cycle newer than the failure. Make the voice-over launcher's `heldWork` count a held manual attempt. Make 4.1-4.3 pass.
+- [ ] 4.4 Make `voiceAttemptInFlight` count a `scheduled` or `in-flight` `voice-over` attempt, since `startNewCycle` clears the failure (design Decision 7). Confirm the voice-over launcher's `heldWork` already counts a held manual attempt, with a test. Make 4.1-4.3 pass.
 
 ## 5. Backend: route (TDD; design Decision 1)
 
@@ -70,7 +73,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 ## 6. Frontend: retry action (TDD; design Decision 8)
 
 - [ ] 6.1 Write failing tests in `test/components.test.tsx`:
-  - `phaseActions` returns retry for a failed voice-over phase whether `retryable` is true or false, and nothing for any other status or phase;
+  - `phaseActions` returns retry for a failed voice-over phase only when `retryable` is true, and nothing for any other status or phase;
   - the Voice-over section shows `Retry voice-over` only when failed;
   - a click calls `retryVoiceOver`, and the button is disabled until the answer;
   - a 409 reason is shown as its sentence and the button is enabled again;

@@ -6,12 +6,12 @@ Requirements for retrying a failed voice-over by hand (PRD §4.2, §10.2, §10.3
 
 ### Requirement: A failed voice-over can be retried by command
 
-The system SHALL accept `POST /sessions/:sessionId/voice-over/retry` for a session that derives `failed` with `failedPhase: "voice-over"`, whether its failure is retryable or not. An accepted retry SHALL answer 200 with `held` saying whether a pause holds it. The command SHALL refuse with 409 and a reason, and SHALL send no provider request, when:
+The system SHALL accept `POST /sessions/:sessionId/voice-over/retry` for a session that derives `failed` with `failedPhase: "voice-over"` and whose failure is retryable (`manualRetryAvailable`). An accepted retry SHALL answer 200 with `held` saying whether a pause holds it. The command SHALL refuse with 409 and a reason, and SHALL send no provider request, when:
 
 - the session is not failed in the voice-over phase (`not-failed-in-voice-over`);
 - `canLaunchVoiceOver` refuses (`narration-complete`);
-- a retry is already pending or running (`retry-already-pending`);
-- the session has recorded voice-over attempts but no bound provider (`voice-provider-not-bound`).
+- the failure is not retryable (`not-retryable`);
+- a retry is already pending or running (`retry-already-pending`).
 
 An unknown or malformed session identifier SHALL answer 404. A request body with any field SHALL answer 400.
 
@@ -21,11 +21,11 @@ An unknown or malformed session identifier SHALL answer 404. A request body with
 - **WHEN** the User retries the voice-over
 - **THEN** the command answers 200 with `held: false` and a new voice-over attempt is sent
 
-#### Scenario: Retry after a not-retryable failure
+#### Scenario: Retry refused after a not-retryable failure
 
 - **GIVEN** a session `failed` in voice-over with `retryable: false`
 - **WHEN** the User retries the voice-over
-- **THEN** the command answers 200 and a new attempt is sent
+- **THEN** the command answers 409 with `not-retryable`, no provider request is sent, and no cycle is opened
 
 #### Scenario: Session not failed in voice-over
 
@@ -68,7 +68,7 @@ The retried generation SHALL send the session's stored script, byte for byte, wi
 
 ### Requirement: The retry uses the session's bound voice provider
 
-The retry SHALL use the voice provider bound to the session on its first attempt, and SHALL NOT bind, change or switch it (§11.2). If the bound provider has no configured adapter, the new attempt SHALL fail as not retryable with a readable cause, and no request SHALL be sent. A session that failed before any attempt was made SHALL have its provider bound by the retry, as on a first launch.
+The retry SHALL use the voice provider bound to the session on its first attempt, and SHALL NOT bind, change or switch it (§11.2). If the bound provider has no configured adapter, the new attempt SHALL fail as not retryable with a readable cause, and no request SHALL be sent.
 
 #### Scenario: Bound provider reused
 
@@ -81,12 +81,6 @@ The retry SHALL use the voice provider bound to the session on its first attempt
 - **GIVEN** a session bound to a voice provider that has no configured adapter
 - **WHEN** the voice-over is retried
 - **THEN** no request is sent and the session is `failed` in voice-over with a cause naming the missing configuration, and no credential
-
-#### Scenario: Failure before the first attempt
-
-- **GIVEN** a session that failed in voice-over before any attempt, because a credential was missing, and has no bound provider
-- **WHEN** the credential is configured and the voice-over is retried
-- **THEN** the retry binds the configured provider and sends the first attempt
 
 ### Requirement: A retry deletes nothing
 
@@ -125,7 +119,7 @@ An accepted retry SHALL open a new cycle on the session's voice-over stage insta
 
 ### Requirement: An accepted retry shows the voice-over in progress
 
-From the moment a voice-over retry is accepted until its cycle ends, the session SHALL derive `voice-over-generating`, and the voice-over phase SHALL be `in-progress` with no `failure`. This SHALL hold whether the retry's attempt is scheduled, held by a pause, waiting for a request-cap slot, or in flight (§8.1).
+From the moment a voice-over retry is accepted until its cycle ends, the session SHALL derive `voice-over-generating`, and the voice-over phase SHALL be `in-progress` with no `failure`. This SHALL hold whether the retry's attempt is scheduled, held by a pause, waiting for a request-cap slot, or in flight (§8.1). If the cycle then fails, the session SHALL derive `failed` again with the new failure.
 
 #### Scenario: Accepted and running
 
@@ -140,7 +134,7 @@ From the moment a voice-over retry is accepted until its cycle ends, the session
 
 ### Requirement: The page offers the retry on a failed voice-over phase
 
-`phaseActions` SHALL return a retry action for the voice-over phase when it is `failed`, whatever its `retryable` value, and none otherwise. The Voice-over phase section SHALL show a `Retry voice-over` button for it. A click SHALL call the retry command, and the button SHALL be disabled while the request is outstanding. A 409 refusal SHALL be shown in the section as a readable sentence. The new state SHALL come from the live update, not from an optimistic change on the page.
+`phaseActions` SHALL return a retry action for the voice-over phase when it is `failed` and its failure is retryable, and none otherwise. The Voice-over phase section SHALL show a `Retry voice-over` button for it. A click SHALL call the retry command, and the button SHALL be disabled while the request is outstanding. A 409 refusal SHALL be shown in the section as a readable sentence. The new state SHALL come from the live update, not from an optimistic change on the page.
 
 #### Scenario: Button on a failed voice-over
 
@@ -150,7 +144,7 @@ From the moment a voice-over retry is accepted until its cycle ends, the session
 
 #### Scenario: No button otherwise
 
-- **GIVEN** a voice-over phase `in-progress` or `complete`
+- **GIVEN** a voice-over phase `in-progress` or `complete`, or `failed` with `retryable: false`
 - **WHEN** the page renders
 - **THEN** no `Retry voice-over` button is shown
 
