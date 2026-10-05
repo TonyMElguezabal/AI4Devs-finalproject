@@ -138,7 +138,7 @@ describe("Migration 14 backfills the existing attempts (design Migration Plan)",
       oldAttempt(fixture, "voice-over", 2);
       oldAttempt(fixture, "timestamps", 1);
 
-      expect(applyMigrationsTo(fixture)).toEqual([14]);
+      expect(applyMigrationsTo(fixture, 14)).toEqual([14]);
 
       const rows = fixture
         .prepare("SELECT stage, stage_instance_key, cycle, sequence_in_cycle, attempt_trigger, attempt_number FROM stage_attempts ORDER BY stage, attempt_number")

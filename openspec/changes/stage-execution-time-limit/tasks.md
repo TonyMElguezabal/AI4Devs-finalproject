@@ -25,9 +25,9 @@ A backend change with no screen of its own. Group 1 is a hard gate. Tests come f
 
 ## 3. Persistence: outcomes (TDD)
 
-- [ ] 3.1 Write failing tests for the conditional transitions `in-flight → timed-out`, `timed-out → late-success`, `timed-out → superseded` and `scheduled → cancelled`, each succeeding exactly once under concurrency
-- [ ] 3.2 Add the migration: outcomes `timed-out`, `superseded`, `late-success`, `cancelled`, and the `lateResultAt` column
-- [ ] 3.3 Run the group 3 tests and confirm they pass
+- [x] 3.1 Write failing tests for the conditional transitions `in-flight → timed-out`, `timed-out → late-success`, `timed-out → superseded` and `scheduled → cancelled`, each succeeding exactly once under concurrency
+- [x] 3.2 Add the migration: outcomes `timed-out`, `superseded`, `late-success`, `cancelled`, and the `lateResultAt` column
+- [x] 3.3 Run the group 3 tests and confirm they pass
 
 ## 4. Application: the watcher and late results (TDD)
 
