@@ -123,10 +123,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is the `phases` field.
-- [ ] 11.2 `docs/data-model.md`: record that `phases` and the retry-in-flight state are derived from existing records, never stored.
-- [ ] 11.3 `docs/frontend-standards.md`: add the four phase-section accessible names to the naming table, and record `phaseActions` as the one place phase actions are derived, extended by US-23 to US-27.
-- [ ] 11.4 `docs/backend-standards.md`: record that the in-progress state of a retried phase is derived from an in-flight attempt newer than the recorded failure.
+- [x] 11.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is the `phases` field.
+- [x] 11.2 `docs/data-model.md`: record that `phases` and the retry-in-flight state are derived from existing records, never stored.
+- [x] 11.3 `docs/frontend-standards.md`: add the four phase-section accessible names to the naming table, and record `phaseActions` as the one place phase actions are derived, extended by US-23 to US-27.
+- [x] 11.4 `docs/backend-standards.md`: record that the in-progress state of a retried phase is derived from an in-flight attempt newer than the recorded failure.
 
 ## 12. Close out
 
