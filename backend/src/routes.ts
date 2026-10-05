@@ -4,7 +4,17 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname } from "node:path";
 import { randomUUID } from "node:crypto";
-import { createRun, getRun, getSceneForRun, insertRegisteredScenes, commitSceneResult, markImageComplete, resolveArtefactPath, writeArtefactOnce, insertVoiceOver } from "./db.ts";
+import {
+  createRun,
+  getRun,
+  getSceneForRun,
+  insertRegisteredScenes,
+  commitSceneResult,
+  markImageComplete,
+  resolveArtefactPath,
+  writeArtefactOnce,
+  insertVoiceOver,
+} from "./db.ts";
 import {
   continueSession,
   correctAndRetry,

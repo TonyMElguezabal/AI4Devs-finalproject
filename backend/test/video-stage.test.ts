@@ -265,6 +265,7 @@ describe("Group 4 — Precondition and launch (Decisions 1, 2, 4)", () => {
     const scenes = getScenesForRun(runId);
     expect(scenes[0]?.status).toBe("image-complete");
     expect(provider.calls).toHaveLength(0);
+    expect(toSnapshot(runId)?.session.held).toEqual([{ stage: "video", count: 1 }]);
 
     continueSession(runId);
     await new Promise((resolve) => setTimeout(resolve, 100));

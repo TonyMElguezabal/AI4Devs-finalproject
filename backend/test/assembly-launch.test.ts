@@ -4,17 +4,22 @@ import * as concurrency from "../src/concurrency.ts";
 import {
   commitSceneResult,
   createRun,
+  createScene,
   getRun,
   getScene,
   getScenesForRun,
+  markChunkComplete,
   markImageComplete,
   PROJECTS_ROOT,
   resetAll,
   writeArtefactOnce,
 } from "../src/db.ts";
 import {
+  assemblyStageLauncher,
+  continueSession,
   launchVideoStageForRun,
   nextAssemblyLaunchCount,
+  pauseSession,
   resetAssemblyLaunchCount,
   resetVideoStageStartDelayMs,
 } from "../src/orchestrator.ts";
@@ -172,5 +177,24 @@ describe("Task 2.3 — gate check fires on each chunk-completion event, not a po
 
     // Each chunk-completion triggered a check; only the last one opened the gate.
     expect(nextAssemblyLaunchCount(runId)).toBe(1);
+  });
+});
+
+describe("assembly launcher resumes held assembly work", () => {
+  it("launches a ready assembly after a paused session is continued", () => {
+    const runId = randomUUID();
+    const sceneId = randomUUID();
+    createRun(runId, "Paused assembly", "A completed scene.", "en");
+    createScene(sceneId, runId, 1, "success", 0);
+    markChunkComplete(sceneId, "scene-1.mp4");
+    pauseSession(runId);
+
+    expect(assemblyStageLauncher.heldWork(runId).count).toBe(1);
+    expect(nextAssemblyLaunchCount(runId)).toBe(0);
+
+    continueSession(runId);
+
+    expect(nextAssemblyLaunchCount(runId)).toBe(1);
+    expect(getRun(runId)?.finalVideoPath).toBeNull();
   });
 });

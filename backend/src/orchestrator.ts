@@ -223,6 +223,12 @@ export function nextStageLaunchCount(sceneId: string): number {
   return nextStageLaunches.get(sceneId) ?? 0;
 }
 
+/** Same idempotency guard for the video stage (JOS-146). */
+const nextVideoStageLaunches = new Map<string, number>();
+export function nextVideoStageLaunchCount(sceneId: string): number {
+  return nextVideoStageLaunches.get(sceneId) ?? 0;
+}
+
 /** Dispatches to the real image stage or the stub stage depending on whether the scene has an IMAGE instruction. */
 function launchSceneStage(sceneId: string): void {
   const scene = getScene(sceneId);
@@ -231,12 +237,6 @@ function launchSceneStage(sceneId: string): void {
   } else {
     launchScene(sceneId);
   }
-}
-
-/** Same idempotency guard for the video stage (JOS-146). */
-const nextVideoStageLaunches = new Map<string, number>();
-export function nextVideoStageLaunchCount(sceneId: string): number {
-  return nextVideoStageLaunches.get(sceneId) ?? 0;
 }
 
 // ---- Assembly launch gate (assemble-final-video, JOS-149) ----
@@ -273,6 +273,7 @@ function getAssemblyTool(): AssemblyTool | undefined {
 async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise<void> {
   const run = getRun(runId);
   if (!run) return;
+  if (!admitLaunch(runId).admitted) return;
 
   const tool = getAssemblyTool();
   if (!tool) {
@@ -356,6 +357,7 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
 }
 
 function launchAssemblyPhase(runId: string): void {
+  if (!admitLaunch(runId).admitted) return;
   assemblyLaunches.set(runId, (assemblyLaunches.get(runId) ?? 0) + 1);
   void runAssemblyAttempt(runId, 1);
 }
@@ -612,7 +614,7 @@ async function runVideoAttempt(sceneId: string): Promise<void> {
     return;
   }
   const freshRun = getRun(fresh.runId);
-  if (!freshRun || freshRun.paused) {
+  if (!freshRun || !admitLaunch(fresh.runId).admitted) {
     concurrency.release(VIDEO_STAGE);
     return;
   }
@@ -706,8 +708,7 @@ async function runVideoAttempt(sceneId: string): Promise<void> {
 export function launchVideoStage(sceneId: string): void {
   const scene = getScene(sceneId);
   if (!scene || scene.status !== "image-complete") return;
-  const run = getRun(scene.runId);
-  if (run?.paused) return;
+  if (!admitLaunch(scene.runId).admitted) return;
 
   concurrency.acquire(VIDEO_STAGE, () => {
     void runVideoAttempt(sceneId);
@@ -715,10 +716,33 @@ export function launchVideoStage(sceneId: string): void {
 }
 
 export function launchVideoStageForRun(runId: string): void {
-  for (const scene of getImageCompleteScenesForRun(runId)) {
+  for (const scene of getImageCompleteScenesForRun(runId).filter((item) => item.requestedDurationSeconds !== null)) {
     launchVideoStage(scene.id);
   }
 }
+export const videoStageLauncher: StageLauncher = {
+  stage: "video",
+  heldWork: (sessionId: string) => {
+    const scenes = getImageCompleteScenesForRun(sessionId).filter((scene) => scene.requestedDurationSeconds !== null);
+    return { count: scenes.length, sceneIds: scenes.map((s) => s.id) };
+  },
+  launch: launchVideoStageForRun,
+};
+
+registerStageLauncher(videoStageLauncher);
+
+export const assemblyStageLauncher: StageLauncher = {
+  stage: "assembly",
+  heldWork: (sessionId: string) => {
+    const run = getRun(sessionId);
+    const gate = assemblyGate(getScenesForRun(sessionId));
+    const count = run && !run.finalVideoPath && gate.open ? 1 : 0;
+    return { count, sceneIds: [] };
+  },
+  launch: triggerAssemblyIfReady,
+};
+
+registerStageLauncher(assemblyStageLauncher);
 
 async function runImageAttempt(sceneId: string): Promise<void> {
   const fresh = getScene(sceneId);
@@ -845,9 +869,6 @@ export function continueSession(runId: string): { ok: boolean; reason?: string }
   const changed = setRunPaused(runId, false);
   broadcast(runId);
   if (changed) launchHeldWork(runId);
-  // generate-chunk-video (JOS-146) Decision 2 — also launch held image-complete chunks;
-  // remove once the video stage registers its own launcher in launchGate.ts.
-  if (changed) launchVideoStageForRun(runId);
   return { ok: true };
 }
 
