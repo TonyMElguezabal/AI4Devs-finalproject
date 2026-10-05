@@ -69,12 +69,12 @@ Every code change starts with a failing test (TDD). Every scenario in `specs/res
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [ ] 9.1 `docs/backend-standards.md` § Project Structure: describe the real flat `backend/src/` layout grouped by role (design Decision 6); fix the "still models one generic stage" sentence and § Not Yet Decided
-- [ ] 9.2 `docs/backend-standards.md` § Core components → `concurrency`: document holder-owned slots, `occupy` for requests already sent, and that the count may sit above the cap after a restart
-- [ ] 9.3 `docs/adr/0001-backend-stack.md` § Consequences: mark the concurrency-after-restart check resolved, with links to the step 6 and step 7 reports
-- [ ] 9.4 `docs/adr/0002-persistence.md` § Risks: mark the scale risk resolved with the 300-scene timings; add the artefact-modelling decision (design Decision 5)
-- [ ] 9.5 `docs/data-model.md`: one note on why per-scene artefacts are two columns, not a table
-- [ ] 9.6 Confirm `docs/api-spec.yml` needs no change (no API change)
+- [x] 9.1 `docs/backend-standards.md` § Project Structure: describe the real flat `backend/src/` layout grouped by role (design Decision 6); fix the "still models one generic stage" sentence and § Not Yet Decided
+- [x] 9.2 `docs/backend-standards.md` § Core components → `concurrency`: document holder-owned slots, `occupy` for requests already sent, and that the count may sit above the cap after a restart
+- [x] 9.3 `docs/adr/0001-backend-stack.md` § Consequences: mark the concurrency-after-restart check resolved, with links to the step 6 and step 7 reports
+- [x] 9.4 `docs/adr/0002-persistence.md` § Risks: mark the scale risk resolved with the 300-scene timings; add the artefact-modelling decision (design Decision 5)
+- [x] 9.5 `docs/data-model.md`: one note on why per-scene artefacts are two columns, not a table
+- [x] 9.6 Confirm `docs/api-spec.yml` needs no change (no API change). Confirmed: `routes.ts` and `api-spec.yml` are unchanged against the integration branch
 
 ## 10. Linear and delivery
 
