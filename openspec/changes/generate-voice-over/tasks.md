@@ -88,29 +88,29 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [x] 8.2 Run the targeted tests for this module and capture the pass/fail summary
 - [x] 8.3 Run the full suite and record totals, failures and runtime
 - [x] 8.4 Verify the post-test state matches the baseline, restoring the store and removing any test project folders or MP3 files left behind
-- [x] 8.5 Create the report `openspec/changes/generate-voice-over/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md` with commands executed, results, pre/post comparison and cleanup actions
+- [x] 8.5 Create the report `openspec/changes/generate-voice-over/reports/2026-10-04-step-8-unit-test-and-db-verification.md` with commands executed, results, pre/post comparison and cleanup actions
 - [x] 8.6 Mark this step complete only after the tests pass and the report file exists
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the backend wired to the stubbed voice provider and confirm it is reachable
-- [ ] 9.2 Capture the pre-test session, voice-over and attempt counts
-- [ ] 9.3 POST a valid project; GET the session and verify it passes through `voice-over-generating` and reaches `voice-over-complete` with the `voiceOver` fields populated
-- [ ] 9.4 With the stub set to reject as not retryable, POST a project; GET it and verify `failed`, phase `voice-over`, the cause and `retryable: false`
-- [ ] 9.5 With the stub set to fail transiently, POST a project; GET it and verify `failed` with `retryable: true`
-- [ ] 9.6 Start without the voice credential, POST a project; GET it and verify the cause names the credential and contains no secret
-- [ ] 9.7 Verify no route returns the MP3
-- [ ] 9.8 Verify on disk that each completed session has exactly one MP3 in its own project folder
-- [ ] 9.9 Delete the sessions, records and files created above and confirm the store and disk match the pre-test state
-- [ ] 9.10 Save the transcript as `openspec/changes/generate-voice-over/reports/YYYY-MM-DD-step-9-curl-endpoint-testing.md`
+- [x] 9.1 Start the backend wired to the stubbed voice provider and confirm it is reachable
+- [x] 9.2 Capture the pre-test session, voice-over and attempt counts
+- [x] 9.3 POST a valid project; GET the session and verify it passes through `voice-over-generating` and reaches `voice-over-complete` with the `voiceOver` fields populated
+- [x] 9.4 With the stub set to reject as not retryable, POST a project; GET it and verify `failed`, phase `voice-over`, the cause and `retryable: false`
+- [x] 9.5 With the stub set to fail transiently, POST a project; GET it and verify `failed` with `retryable: true`
+- [x] 9.6 Start without the voice credential, POST a project; GET it and verify the cause names the credential and contains no secret
+- [x] 9.7 Verify no route returns the MP3
+- [x] 9.8 Verify on disk that each completed session has exactly one MP3 in its own project folder
+- [x] 9.9 Delete the sessions, records and files created above and confirm the store and disk match the pre-test state
+- [x] 9.10 Save the transcript as `openspec/changes/generate-voice-over/reports/2026-10-04-step-9-curl-endpoint-testing.md`
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: this story adds no screen of its own; if the session page from US-02/US-18 exists, run the steps below, otherwise record in the report that E2E is not applicable and why
-- [ ] 10.2 Ensure backend (with the stubbed provider) and frontend are running
-- [ ] 10.3 Start a valid project through the form and assert the session page shows it progressing to `voice-over-complete` without reloading
-- [ ] 10.4 Start a project with the stub set to reject, and assert the failure and its cause are shown
-- [ ] 10.5 Restore the environment and save the report as `openspec/changes/generate-voice-over/reports/YYYY-MM-DD-step-10-e2e-playwright.md`
+- [x] 10.1 Decide applicability: this story adds no screen of its own; if the session page from US-02/US-18 exists, run the steps below, otherwise record in the report that E2E is not applicable and why
+- [x] 10.2 Ensure backend (with the stubbed provider) and frontend are running
+- [x] 10.3 Start a valid project through the form and assert the session page shows it progressing to `voice-over-complete` without reloading
+- [x] 10.4 Start a project with the stub set to reject, and assert the page shows the `failed` state and the failed phase `voice-over`. The failure cause is not asserted on the page: the existing page renders only the phase, and showing the cause belongs to the phase view (US-18, out of scope in `design.md`); the cause is verified through the session read in step 9
+- [x] 10.5 Restore the environment and save the report as `openspec/changes/generate-voice-over/reports/2026-10-04-step-10-e2e-playwright.md`
 
 ## 11. Update Technical Documentation (MANDATORY)
 
