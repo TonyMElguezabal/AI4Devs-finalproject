@@ -6,11 +6,12 @@ export interface PhaseActions {
 
 /**
  * view-progress-by-phase (JOS-168), Decision 7 — the one place phase actions
- * are derived, mirroring `sceneActions`. No manual-retry endpoint exists for the
- * voice-over, decomposition or assembly phase yet, and the scenes phase acts
- * per scene, so nothing is offered. US-23 to US-27 extend this when they add
- * their endpoints; the page must never offer an action the backend rejects.
+ * are derived, mirroring `sceneActions`. Retry is offered for a failed
+ * decomposition whose failure is retryable (retry-decomposition, JOS-156,
+ * Decision 8). The voice-over and assembly phases offer nothing until their
+ * stories add endpoints, and the scenes phase acts per scene; the page must
+ * never offer an action the backend rejects.
  */
-export function phaseActions(_phase: PhaseProgress): PhaseActions {
-  return { retry: false };
+export function phaseActions(phase: PhaseProgress): PhaseActions {
+  return { retry: phase.phase === "decomposition" && phase.status === "failed" && phase.failure?.retryable === true };
 }

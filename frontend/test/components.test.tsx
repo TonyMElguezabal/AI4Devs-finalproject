@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { SceneList } from "../src/components/SceneList";
@@ -461,6 +461,7 @@ describe("SessionPage", () => {
     onContinue: noop,
     onRetry: noop,
     onCorrect: noop,
+    onRetryPhase: () => Promise.resolve(),
   };
 
   it("shows title, script, state and available results for a session (4.1)", () => {
@@ -535,9 +536,16 @@ describe("held indicator in session header and scene rows (JOS-152, task 8.1)", 
 describe("Phase actions, status classes and labels (JOS-168)", () => {
   const statuses: PhaseStatus[] = ["pending", "in-progress", "complete", "failed"];
 
-  it("phaseActions offers no action for any phase and status, until US-23 to US-27 add endpoints", () => {
+  it("phaseActions offers retry for a failed decomposition phase only when its failure is retryable (JOS-156)", () => {
+    expect(phaseActions({ phase: "decomposition", status: "failed", heldCount: 0, failure: { cause: "x", retryable: true } })).toEqual({ retry: true });
+    expect(phaseActions({ phase: "decomposition", status: "failed", heldCount: 0, failure: { cause: "x", retryable: false } })).toEqual({ retry: false });
+    expect(phaseActions({ phase: "decomposition", status: "failed", heldCount: 0 })).toEqual({ retry: false });
+  });
+
+  it("phaseActions offers nothing for a decomposition phase that has not failed, or for any other phase, until their stories add endpoints", () => {
     for (const phase of PHASE_ORDER) {
       for (const status of statuses) {
+        if (phase === "decomposition" && status === "failed") continue;
         expect(phaseActions({ phase, status, heldCount: 0, failure: status === "failed" ? { cause: "x", retryable: true } : undefined })).toEqual({ retry: false });
       }
     }
@@ -559,7 +567,7 @@ describe("Phase actions, status classes and labels (JOS-168)", () => {
 // view-progress-by-phase (JOS-168), tasks 6.1-6.3 — design Decisions 6 and 8.
 describe("The session page shows one section per phase (JOS-168)", () => {
   const noop = () => {};
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: noop, onCorrect: noop };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: noop, onCorrect: noop, onRetryPhase: () => Promise.resolve() };
   const SECTION_NAMES = ["Voice-over phase", "Decomposition phase", "Scenes phase", "Final video phase"];
 
   it("lists the four sections in pipeline order, each with its status label (6.1)", () => {
@@ -595,9 +603,9 @@ describe("The session page shows one section per phase (JOS-168)", () => {
     expect(header.getByText("Failed scenes: 2")).toBeInTheDocument();
   });
 
-  it("shows the cause of a failed decomposition as an alert, with no retry button (6.2)", () => {
+  it("shows the cause of a failed decomposition that cannot be retried as an alert, with no retry button (6.2)", () => {
     const cause = "The narration's timestamps could not be obtained: alignment timed out.";
-    const session = makeSession({ state: "failed", failedPhase: "decomposition", phases: makePhases({ "voice-over": "complete", decomposition: "failed" }, { decomposition: { failure: { cause, retryable: true } } }) });
+    const session = makeSession({ state: "failed", failedPhase: "decomposition", phases: makePhases({ "voice-over": "complete", decomposition: "failed" }, { decomposition: { failure: { cause, retryable: false } } }) });
     render(<SessionPage {...baseProps} snapshot={{ session, scenes: [] }} />);
 
     const section = within(screen.getByRole("region", { name: "Decomposition phase" }));
@@ -667,5 +675,92 @@ describe("The session page shows one section per phase (JOS-168)", () => {
     );
 
     expect(within(screen.getByRole("region", { name: "Scenes phase" })).getByText("inside")).toBeInTheDocument();
+  });
+});
+
+// retry-decomposition (JOS-156), group 7 — design Decision 8.
+describe("The Decomposition section offers a retry (JOS-156)", () => {
+  const noop = () => {};
+  const cause = "The narration's timestamps could not be obtained: alignment answered HTTP 503.";
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: noop, onCorrect: noop };
+
+  function failedDecomposition(retryable: boolean) {
+    const session = makeSession({
+      state: "failed",
+      failedPhase: "decomposition",
+      phases: makePhases({ "voice-over": "complete", decomposition: "failed" }, { decomposition: { failure: { cause, retryable } } }),
+    });
+    return { session, scenes: [] };
+  }
+
+  const decompositionSection = () => within(screen.getByRole("region", { name: "Decomposition phase" }));
+
+  it("shows Retry decomposition when the phase failed and the failure is retryable", () => {
+    render(<SessionPage {...baseProps} onRetryPhase={vi.fn()} snapshot={failedDecomposition(true)} />);
+
+    expect(decompositionSection().getByRole("button", { name: "Retry decomposition" })).toBeEnabled();
+  });
+
+  it("shows no button for a failure that is not retryable, and no button in any other phase", () => {
+    render(<SessionPage {...baseProps} onRetryPhase={vi.fn()} snapshot={failedDecomposition(false)} />);
+
+    expect(screen.queryByRole("button", { name: /Retry decomposition/ })).not.toBeInTheDocument();
+    expect(decompositionSection().getByRole("alert")).toHaveTextContent(cause);
+  });
+
+  it("shows no button while the phase is in progress", () => {
+    const session = makeSession({ state: "chunk-decomposing", phases: makePhases({ "voice-over": "complete", decomposition: "in-progress" }) });
+    render(<SessionPage {...baseProps} onRetryPhase={vi.fn()} snapshot={{ session, scenes: [] }} />);
+
+    expect(screen.queryByRole("button", { name: /Retry decomposition/ })).not.toBeInTheDocument();
+  });
+
+  it("calls the retry for the decomposition phase on a click, and disables the button until the answer", async () => {
+    const user = userEvent.setup();
+    let answer: (value: { ok: true; held: boolean }) => void = () => {};
+    const onRetryPhase = vi.fn(() => new Promise<{ ok: true; held: boolean }>((resolve) => (answer = resolve)));
+    render(<SessionPage {...baseProps} onRetryPhase={onRetryPhase} snapshot={failedDecomposition(true)} />);
+
+    await user.click(decompositionSection().getByRole("button", { name: "Retry decomposition" }));
+
+    expect(onRetryPhase).toHaveBeenCalledExactlyOnceWith("decomposition");
+    expect(decompositionSection().getByRole("button", { name: "Retry decomposition" })).toBeDisabled();
+    answer({ ok: true, held: false });
+    await waitFor(() => expect(decompositionSection().getByRole("button", { name: "Retry decomposition" })).toBeEnabled());
+  });
+
+  it("changes nothing before a snapshot arrives: the failure and the status stay", async () => {
+    const user = userEvent.setup();
+    render(<SessionPage {...baseProps} onRetryPhase={vi.fn().mockResolvedValue({ ok: true, held: true })} snapshot={failedDecomposition(true)} />);
+
+    await user.click(decompositionSection().getByRole("button", { name: "Retry decomposition" }));
+
+    await waitFor(() => expect(decompositionSection().getByRole("button", { name: "Retry decomposition" })).toBeEnabled());
+    expect(decompositionSection().getByText("Failed")).toBeInTheDocument();
+    expect(decompositionSection().getByRole("alert")).toHaveTextContent(cause);
+  });
+
+  it.each([
+    ["retry-already-pending", "A retry is already waiting or running."],
+    ["already-registered", "The script was already divided into chunks, so there is nothing to retry."],
+    ["not-failed-in-decomposition", "The decomposition has not failed, so it cannot be retried."],
+    ["not-retryable", "This failure cannot be retried."],
+  ])("shows the sentence for the refusal %s", async (reason, sentence) => {
+    const user = userEvent.setup();
+    render(<SessionPage {...baseProps} onRetryPhase={vi.fn().mockRejectedValue(new Error(reason))} snapshot={failedDecomposition(true)} />);
+
+    await user.click(decompositionSection().getByRole("button", { name: "Retry decomposition" }));
+
+    expect(await decompositionSection().findByText(sentence)).toBeInTheDocument();
+    expect(decompositionSection().getByRole("button", { name: "Retry decomposition" })).toBeEnabled();
+  });
+
+  it("shows a generic sentence for a refusal it does not know", async () => {
+    const user = userEvent.setup();
+    render(<SessionPage {...baseProps} onRetryPhase={vi.fn().mockRejectedValue(new Error("a surprise"))} snapshot={failedDecomposition(true)} />);
+
+    await user.click(decompositionSection().getByRole("button", { name: "Retry decomposition" }));
+
+    expect(await decompositionSection().findByText("The retry could not be started.")).toBeInTheDocument();
   });
 });

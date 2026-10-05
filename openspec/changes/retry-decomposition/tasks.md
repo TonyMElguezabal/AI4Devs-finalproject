@@ -86,13 +86,13 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 7. Frontend: retry action (TDD; design Decision 8)
 
-- [ ] 7.1 Write failing tests in `test/components.test.tsx`:
+- [x] 7.1 Write failing tests in `test/components.test.tsx`:
   - `phaseActions` returns retry for a failed decomposition phase, only when `retryable` is true, and nothing otherwise;
   - the Decomposition section shows `Retry decomposition` only when failed and retryable;
   - a click calls `retryDecomposition` and disables the button until the answer;
   - a 409 reason is shown as its sentence;
   - nothing changes before a snapshot arrives.
-- [ ] 7.2 Implement `retryDecomposition` in `api/client.ts`, the action in `phaseActions.ts`, and the button in `PhaseSection.tsx` through the shared retry-button component, extracting it if JOS-155 has not; make 6.1 pass.
+- [x] 7.2 Implement `retryDecomposition` in `api/client.ts`, the action in `phaseActions.ts`, and the button in `PhaseSection.tsx` through the shared retry-button component, extracting it if JOS-155 has not; make 7.1 pass.
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 

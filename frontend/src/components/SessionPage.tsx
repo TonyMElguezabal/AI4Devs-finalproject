@@ -1,4 +1,4 @@
-import type { SessionSnapshot } from "../types";
+import type { Phase, SessionSnapshot } from "../types";
 import { SessionHeader } from "./SessionHeader";
 import { SceneList } from "./SceneList";
 import { FinalVideoDownload } from "./FinalVideoDownload";
@@ -17,6 +17,8 @@ interface Props {
   onContinue: () => void;
   onRetry: (sceneId: string) => void;
   onCorrect: (sceneId: string, instruction: string) => void;
+  /** Retries a failed phase; rejects with the refusal reason (retry-decomposition, JOS-156). */
+  onRetryPhase: (phase: Phase) => Promise<unknown>;
 }
 
 /**
@@ -38,6 +40,7 @@ export function SessionPage({
   onContinue,
   onRetry,
   onCorrect,
+  onRetryPhase,
 }: Props) {
   if (notFound) {
     return (
@@ -61,7 +64,7 @@ export function SessionPage({
           <p className="session-title">{snapshot.session.title}</p>
           <p className="session-script">{snapshot.session.script}</p>
           {snapshot.session.phases.map((progress) => (
-            <PhaseSection key={progress.phase} progress={progress}>
+            <PhaseSection key={progress.phase} progress={progress} onRetry={() => onRetryPhase(progress.phase)}>
               {progress.phase === "scenes" && (
                 <SceneList sessionId={sessionId} scenes={snapshot.scenes} onRetry={onRetry} onCorrect={onCorrect} />
               )}
