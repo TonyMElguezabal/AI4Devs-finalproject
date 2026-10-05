@@ -115,13 +115,13 @@ No decomposition retry SHALL call the voice provider, or write or delete the voi
 
 ### Requirement: A retry opens a new cycle on the failed step, through the launch gate
 
-An accepted retry SHALL open a new cycle on the stage instance of the failed step: `timestamps` when no timestamps are stored, `decomposition` otherwise. It SHALL keep earlier cycles recorded (§10.2, D06), and SHALL be launched through the phase-launch gate by the `decomposition` stage launcher. While the session is paused, the retry SHALL be accepted, counted as one held unit of the decomposition stage, and launched exactly once when the User continues (§9).
+An accepted retry SHALL open a new cycle on the session's decomposition stage instance (shared by both steps) with an attempt of the failed step's stage: `timestamps` when no timestamps are stored, `decomposition` otherwise. It SHALL keep earlier cycles recorded (§10.2, D06), and SHALL be launched through the phase-launch gate by the `decomposition` stage launcher. While the session is paused, the retry SHALL be accepted, counted as one held unit of the decomposition stage, and launched exactly once when the User continues (§9).
 
-#### Scenario: Cycle on the timestamps instance
+#### Scenario: Cycle for the timestamps step
 
 - **GIVEN** a session failed in its timestamps step
 - **WHEN** the decomposition is retried
-- **THEN** a new cycle is opened on the session's `timestamps` stage instance and not on its `decomposition` instance
+- **THEN** a new cycle is opened whose first attempt has stage `timestamps`, and the earlier attempts stay recorded
 
 #### Scenario: Retry during a pause
 

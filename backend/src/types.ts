@@ -110,7 +110,7 @@ export interface VoiceOverInput {
 export type VoiceOver = VoiceOverInput;
 
 /** Stages that record attempts, including session-level and scene-level stages. */
-export type AttemptStage = "voice-over" | "timestamps" | "image" | "video" | "assembly";
+export type AttemptStage = "voice-over" | "timestamps" | "decomposition" | "image" | "video" | "assembly";
 
 /** How the narration timestamps were obtained (PRD §11.1). */
 export type TimestampMechanism = "native" | "alignment";

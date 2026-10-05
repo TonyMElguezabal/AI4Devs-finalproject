@@ -11,12 +11,12 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 - [x] 1.1 `git fetch`. Confirm `bounded-retry-policy` (JOS-184) is merged. Record:
   - `startNewCycle`'s name and signature;
-  - its stage-instance keys for the decomposition phase (`timestamps` and `decomposition`, or otherwise);
+  - its stage-instance key for the decomposition phase (one instance shared by `timestamps` and `decomposition`, or two);
   - how a scheduled attempt is represented.
 
   If any differs from design Decisions 2, 4 and 5, update design.md and the spec first.
 
-  Recorded: `startNewCycle(ref: { sessionId, sceneId?, stage }, options?)` in `retry/stageAttemptRecorder.ts` returns `{ started: true, attempt }` or `{ started: false, reason: "not-failed" | "not-retryable" }`. The stage instance key is `<session>:<stage>`. A scheduled attempt is a `stage_attempts` row with `outcome = "scheduled"` and `due_at`; `releaseAttempt` claims it and calls the sender registered for its stage. Differences from the first draft, folded into design Decisions 2-7: it refuses a not-retryable failure; it clears the session failure; `AttemptStage` has `timestamps` but **no `decomposition` stage**, and the division step records no attempt; the timestamps step records its own attempt instead of claiming a scheduled one; nothing configures the alignment provider or instruction generator at runtime.
+  Recorded: `startNewCycle(ref: { sessionId, sceneId?, stage }, options?)` in `retry/stageAttemptRecorder.ts` returns `{ started: true, attempt }` or `{ started: false, reason: "not-failed" | "not-retryable" }`. The stage instance key is `<session>:<stage>`, except that `timestamps` maps to the `decomposition` instance (both steps share one instance and one four-attempt bound). A scheduled attempt is a `stage_attempts` row with `outcome = "scheduled"` and `due_at`; `releaseAttempt` claims it and calls the sender registered for its stage. Differences from the first draft, folded into design Decisions 2-7: it refuses a not-retryable failure; it clears the session failure; `AttemptStage` has `timestamps` but **no `decomposition` stage**, and the division step records no attempt; the timestamps step records its own attempt instead of claiming a scheduled one; nothing configures the alignment provider or instruction generator at runtime.
 - [x] 1.2 Confirm `view-progress-by-phase` (JOS-168) is implemented, then rebase onto it, or onto `feature/entrega-2-JAME` once it has merged. Then check:
   - whether `retry-voice-over` (JOS-155) or `see-provider-and-attempts` (JOS-166) have merged; if so, reuse their route schemas, reason table, retry button and retry-rule table instead of adding parallel ones;
   - whether JOS-136 or anything else already registers a `decomposition` launcher.
@@ -29,14 +29,14 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 2. Backend: attempts, senders and providers for the two steps (TDD; design Decisions 3 and 4)
 
-- [ ] 2.1 Write failing tests for the division step's attempts:
+- [x] 2.1 Write failing tests for the division step's attempts:
   - a division that fails retryably records one `decomposition` attempt as `transient`, and the failure names cycle 1 and one attempt;
   - a not-retryable failure records `not-retryable`, and a registered decomposition records `success`;
   - the attempt exists in flight before the instruction generator is called;
   - a failure raised through a claimed attempt of cycle 2 names cycle 2.
-- [ ] 2.2 Write failing tests for the claimed-attempt path of both steps: `obtainNarrationTimestamps` and `segmentStoredTimestamps` given a claimed attempt complete it and record no second one; called without, they behave as today.
-- [ ] 2.3 Write failing tests for `decompositionDependencies.ts` (`get`/`set`/`reset`, defaults are the real factories) and for the two attempt senders: releasing a scheduled `timestamps` or `decomposition` attempt runs that step with the configured providers on the claimed attempt, and a successful timestamps retry goes on to divide.
-- [ ] 2.4 Add `decomposition` to `AttemptStage`, record the division attempts, accept a claimed attempt in both steps, add `decompositionDependencies.ts`, and register the two senders. Make 2.1-2.3 pass. The existing decomposition tests must still pass.
+- [x] 2.2 Write failing tests for the claimed-attempt path of both steps: `obtainNarrationTimestamps` and `segmentStoredTimestamps` given a claimed attempt complete it and record no second one; called without, they behave as today.
+- [x] 2.3 Write failing tests for `decompositionDependencies.ts` (`get`/`set`/`reset`, defaults are the real factories) and for the two attempt senders: releasing a scheduled `timestamps` or `decomposition` attempt runs that step with the configured providers on the claimed attempt, and a successful timestamps retry goes on to divide.
+- [x] 2.4 Add `decomposition` to `AttemptStage`, record the division attempts, accept a claimed attempt in both steps, add `decompositionDependencies.ts`, and register the two senders. Make 2.1-2.3 pass. The existing decomposition tests must still pass.
 
 ## 3. Backend: retry service checks and step choice (TDD; design Decisions 1, 2 and 7)
 
@@ -45,7 +45,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
   - each 409 reason, with every provider stub asserting it received nothing;
   - concurrent calls open exactly one cycle;
   - acceptance after a retryable failure, and refusal with `not-retryable` after a not-retryable one.
-- [ ] 3.2 Write failing tests for the step choice: no stored timestamps opens a cycle on `timestamps`; stored timestamps open one on `decomposition`.
+- [ ] 3.2 Write failing tests for the step choice: no stored timestamps schedules an attempt of stage `timestamps`; stored timestamps schedule one of stage `decomposition`; both are in cycle 2 of the shared instance.
 - [ ] 3.3 Implement `backend/src/decompositionRetry.ts`: the checks, the step choice, `startNewCycle`, then the gate. Make 3.1-3.2 pass.
 
 ## 4. Backend: the two steps and the voice-over (TDD; design Decision 4)
@@ -140,7 +140,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 ## 12. Update Technical Documentation (MANDATORY)
 
 - [ ] 12.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is the new route.
-- [ ] 12.2 `docs/data-model.md`: record the new `decomposition` attempt stage (one attempt per division try, cycle and position carried into the failure), and that a decomposition retry opens a cycle on the `timestamps` or `decomposition` stage instance, chosen by whether timestamps are stored, and never writes voice-over records or files.
+- [ ] 12.2 `docs/data-model.md`: record the new `decomposition` attempt stage (one attempt per division try, cycle and position carried into the failure), and that a decomposition retry opens a cycle on the shared decomposition stage instance with an attempt of the `timestamps` or `decomposition` stage, chosen by whether timestamps are stored, and never writes voice-over records or files.
 - [ ] 12.3 `docs/backend-standards.md`: record the `decomposition` stage, its attempt senders, the providers registry and the `decomposition` launcher.
 - [ ] 12.4 `docs/frontend-standards.md`: add `Retry decomposition` to the naming table.
 

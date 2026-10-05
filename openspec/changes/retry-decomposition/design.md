@@ -19,7 +19,7 @@ On `feature/entrega-2-JAME` (`1d04777`), after the gate of task 1:
   - It records **no attempt**. Every failure only calls `setRunFailure`. `AttemptStage` is `"voice-over" | "timestamps" | "image" | "video" | "assembly"`: there is no `decomposition` stage.
   - Segmentation failures are recorded as not retryable. Validation failures and invalid output from the reasoning provider are retryable. A reasoning 4xx is not.
   - Success registers the chunks and clears the failure in one transaction. A session with chunks is refused with `already-registered`.
-- **Cycles** (JOS-184, merged): `startNewCycle(ref, options)` returns `{ started: true, attempt }` or `{ started: false, reason: "not-failed" | "not-retryable" }`. It needs a latest attempt on the stage instance that ended `transient` or `not-retryable`. It opens cycle + 1 with a `manual`, `scheduled`, due-now attempt, **clears the session failure**, and arms the scheduler. `releaseAttempt` checks the launch gate, claims the attempt (`in-flight`), and hands it to the sender registered for its stage with `registerAttemptSender`.
+- **Cycles** (JOS-184, merged): the `timestamps` and `decomposition` stages share **one stage instance**, `<session>:decomposition` (`stageInstanceKeyOf`: "one state, one retry policy"), so cycles and the four-attempt bound count both steps together. `startNewCycle(ref, options)` returns `{ started: true, attempt }` or `{ started: false, reason: "not-failed" | "not-retryable" }`. It needs a latest attempt on the stage instance that ended `transient` or `not-retryable`. It opens cycle + 1 with a `manual`, `scheduled`, due-now attempt, **clears the session failure**, and arms the scheduler. `releaseAttempt` checks the launch gate, claims the attempt (`in-flight`), and hands it to the sender registered for its stage with `registerAttemptSender`.
 - **Session state**: with no chunks and a failure, the session derives `failed` with `failedPhase: "decomposition"`. With no failure, `timestampsStarted` (a `timestamps` attempt recorded, or timestamps stored) derives `chunk-decomposing`.
 - **Launch gate**: `decomposition` is in `NOT_YET_LAUNCHABLE`, so nothing resumes it on continue.
 - **Script locking**: script, title and language are locked by store triggers (JOS-137).
@@ -62,10 +62,12 @@ Whichever of JOS-155 and this change adds the route schemas and the reason-to-se
 3. No retry is pending: the latest attempt of the `timestamps` or `decomposition` stage is `scheduled` or `in-flight` and was not an `initial` attempt. Otherwise 409 `retry-already-pending`. A session whose first attempt is running derives `chunk-decomposing`, not `failed`, and answers `not-failed-in-decomposition`.
 4. The session derives `failed` with `failedPhase: "decomposition"`, or 409 `not-failed-in-decomposition`.
 5. The failure is retryable (`failure.manualRetryAvailable`), or 409 `not-retryable` (Decision 7).
-6. The step is chosen:
-   - **no stored timestamps** → the `timestamps` stage instance;
-   - **stored timestamps** → the `decomposition` stage instance.
-7. `startNewCycle` on that instance. It is atomic, so a concurrent second request is refused. A `not-retryable` refusal maps to the same reason as step 5, and `not-failed` to `retry-already-pending`.
+6. The step is chosen from the records:
+   - **no stored timestamps** → `stage: "timestamps"`;
+   - **stored timestamps** → `stage: "decomposition"`.
+
+   Both refs name the same stage instance, so the choice sets the stage of the scheduled attempt, and so which sender runs it.
+7. `startNewCycle` with that stage. It is atomic, so a concurrent second request is refused. A `not-retryable` refusal maps to the same reason as step 5, and `not-failed` to `retry-already-pending`.
 8. `releaseSessionAttempts` hands the scheduled attempt to the gate: `held` is true when a pause keeps it.
 
 The service is synchronous over a synchronous store, so a second request after the first finds the failure already cleared and a pending retry, and answers at step 3. Steps 1-7 read and write the store only. No provider can be called before step 8.
@@ -73,9 +75,9 @@ The service is synchronous over a synchronous store, so a second request after t
 *Alternative rejected:* tagging the failure with its step when it is recorded. That would add a field to every failure already written, while the records answer the question exactly: stored timestamps mean the timestamps step succeeded, and `obtainNarrationTimestamps` refuses to run again once they exist.
 
 **Decision 3 — The division step becomes a recorded stage, `decomposition`.**
-`startNewCycle` needs a failed attempt on the stage instance, and the division step records none. This change adds `"decomposition"` to `AttemptStage` and makes `segmentStoredTimestamps` record one attempt per try, exactly as `obtainNarrationTimestamps` does:
+`startNewCycle` needs a failed attempt on the stage instance, and the division step records none. This change adds `"decomposition"` to `AttemptStage` and makes `segmentStoredTimestamps` record one attempt per try, exactly as `obtainNarrationTimestamps` does. The attempt joins the shared instance, so a first division after a successful timestamps attempt is attempt 2 of cycle 1 and carries `trigger: initial`, because it is the division's first try:
 
-- The attempt is recorded in flight after the guards (unknown session, held, no timestamps, `already-registered`) and before segmentation or any request, and holds the reasoning provider's identifier when the generator exposes one, otherwise `null`.
+- The attempt is recorded in flight after the guards (unknown session, held, no timestamps, `already-registered`) and before segmentation or any request, and holds the configured decomposition provider's identifier, `openai-decomposition`.
 - It completes as `success` when the chunks are registered, `transient` for a retryable failure and `not-retryable` for the others, with the failure's cause as the error message.
 - The failure it writes carries the attempt's `cycle` and `sequenceInCycle` as `cycle` and `attemptsInCycle` (the existing `createDecompositionFailure` already accepts them), so the page shows the right cycle after a retry.
 

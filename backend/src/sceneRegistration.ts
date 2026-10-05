@@ -107,15 +107,22 @@ function findInstructionProblem(pairs: readonly VisualInstructionPair[], expecte
 }
 
 /** Decision 6 — records the failure on the session, worded so it never blames the User's script. */
-function recordFailure(runId: string, detail: string, retryable: boolean, now: Date): RegistrationResult {
+function recordFailure(runId: string, detail: string, retryable: boolean, now: Date, retryState?: RetryPosition): RegistrationResult {
   const failure = createDecompositionFailure({
     cause: `The system's scene decomposition was invalid: ${detail}. This is not an error in your script, which is unchanged.`,
     retryable,
     occurredAt: now,
+    ...retryState,
   });
   setRunFailure(runId, failure);
   broadcast(runId);
   return { ok: false, reason: "decomposition-failed", failure };
+}
+
+/** Where the attempt running this registration sits, so a failure names its cycle (retry-decomposition, Decision 3). */
+export interface RetryPosition {
+  cycle: number;
+  attemptsInCycle: number;
 }
 
 export async function registerDecomposition(
@@ -124,6 +131,7 @@ export async function registerDecomposition(
   generator: VisualInstructionGenerator,
   voiceOverDurationSeconds: number,
   now: () => Date = () => new Date(),
+  retryState?: RetryPosition,
 ): Promise<RegistrationResult> {
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown-session" };
@@ -132,28 +140,28 @@ export async function registerDecomposition(
 
   const fragmentProblem = findFragmentProblem(run.script, fragments);
   // A validation failure is retryable: a new decomposition can come out valid.
-  if (fragmentProblem) return recordFailure(runId, fragmentProblem, true, now());
+  if (fragmentProblem) return recordFailure(runId, fragmentProblem, true, now(), retryState);
 
   // Without a usable duration the partition cannot be checked, and retrying the same input cannot change that.
   if (!Number.isFinite(voiceOverDurationSeconds) || voiceOverDurationSeconds <= 0) {
-    return recordFailure(runId, `the voice-over duration (${voiceOverDurationSeconds}) is not usable`, false, now());
+    return recordFailure(runId, `the voice-over duration (${voiceOverDurationSeconds}) is not usable`, false, now(), retryState);
   }
   const partitionProblem = findPartitionProblem(fragments, voiceOverDurationSeconds);
-  if (partitionProblem) return recordFailure(runId, partitionProblem, true, now());
+  if (partitionProblem) return recordFailure(runId, partitionProblem, true, now(), retryState);
 
   const instructions = await generator.generate(
     fragments.map((fragment) => fragment.text),
     run.language,
   );
   if (instructions.kind === "failed_transient" || instructions.kind === "invalid_output") {
-    return recordFailure(runId, instructions.reason, true, now());
+    return recordFailure(runId, instructions.reason, true, now(), retryState);
   }
   if (instructions.kind === "failed_not_retryable") {
-    return recordFailure(runId, instructions.reason, false, now());
+    return recordFailure(runId, instructions.reason, false, now(), retryState);
   }
 
   const instructionProblem = findInstructionProblem(instructions.pairs, fragments.length);
-  if (instructionProblem) return recordFailure(runId, instructionProblem, true, now());
+  if (instructionProblem) return recordFailure(runId, instructionProblem, true, now(), retryState);
 
   const scenes = fragments.map((fragment, position) => {
     // request-admitted-clip-duration (JOS-147), design Decision 2 — computed
