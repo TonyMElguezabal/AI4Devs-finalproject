@@ -8,43 +8,61 @@
  */
 
 const limits = new Map<string, number>();
-const inFlightCounts = new Map<string, number>();
-const queues = new Map<string, Array<() => void>>();
+/** The holders (scene ids) that own a slot, per stage; the in-flight count is the set's size. */
+const holders = new Map<string, Set<string>>();
+const queues = new Map<string, Array<{ holder: string; onAcquired: () => void }>>();
+
+function holdersOf(stage: string): Set<string> {
+  let set = holders.get(stage);
+  if (!set) {
+    set = new Set();
+    holders.set(stage, set);
+  }
+  return set;
+}
 
 export function setLimit(stage: string, limit: number): void {
   limits.set(stage, limit);
 }
 
-/** Calls `onAcquired` once a slot is available for `stage`, in FIFO order. */
-export function acquire(stage: string, onAcquired: () => void): void {
+/** Starts queued waiters, in FIFO order, while the stage has a free slot. */
+function startWaiters(stage: string): void {
   const limit = limits.get(stage) ?? Number.POSITIVE_INFINITY;
-  const inFlight = inFlightCounts.get(stage) ?? 0;
-  if (inFlight < limit) {
-    inFlightCounts.set(stage, inFlight + 1);
-    onAcquired();
-    return;
-  }
   const queue = queues.get(stage) ?? [];
-  queue.push(onAcquired);
-  queues.set(stage, queue);
+  const taken = holdersOf(stage);
+  while (queue.length > 0 && taken.size < limit) {
+    const next = queue.shift()!;
+    taken.add(next.holder);
+    next.onAcquired();
+  }
 }
 
-/** Releases a slot for `stage`, immediately handing it to the next FIFO waiter, if any. */
-export function release(stage: string): void {
+/**
+ * Calls `onAcquired` once a slot is available for `stage`, in FIFO order. The
+ * slot belongs to `holder`. A holder that already has a slot or a queue place
+ * in `stage` is ignored: the existing entry does the work.
+ */
+export function acquire(stage: string, holder: string, onAcquired: () => void): void {
   const queue = queues.get(stage) ?? [];
-  const next = queue.shift();
-  if (next) {
-    // Hand the slot directly to the next waiter; inFlight count is unchanged.
-    next();
-    return;
-  }
-  const inFlight = inFlightCounts.get(stage) ?? 0;
-  inFlightCounts.set(stage, Math.max(0, inFlight - 1));
+  if (holdersOf(stage).has(holder) || queue.some((waiter) => waiter.holder === holder)) return;
+  queue.push({ holder, onAcquired });
+  queues.set(stage, queue);
+  startWaiters(stage);
+}
+
+/**
+ * Releases the slot `holder` owns in `stage` and starts the next FIFO waiter,
+ * if any. A holder with no slot (never acquired, or already released) changes
+ * nothing.
+ */
+export function release(stage: string, holder: string): void {
+  if (!holdersOf(stage).delete(holder)) return;
+  startWaiters(stage);
 }
 
 export function stats(stage: string): { inFlight: number; queued: number; limit: number } {
   return {
-    inFlight: inFlightCounts.get(stage) ?? 0,
+    inFlight: holdersOf(stage).size,
     queued: (queues.get(stage) ?? []).length,
     limit: limits.get(stage) ?? Number.POSITIVE_INFINITY,
   };
@@ -53,6 +71,6 @@ export function stats(stage: string): { inFlight: number; queued: number; limit:
 /** Test-only: wipe all semaphore state between test cases. */
 export function resetAll(): void {
   limits.clear();
-  inFlightCounts.clear();
+  holders.clear();
   queues.clear();
 }
