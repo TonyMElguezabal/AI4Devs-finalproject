@@ -89,8 +89,8 @@ A backend change with no screen of its own. Group 1 is a hard gate. Tests come f
 
 ## 10. Close out
 
-- [ ] 10.1 Record for US-28 the startup ordering: resumption first, then the timeout watcher
-- [ ] 10.2 Record for US-29 that late results rely on its idempotent completion rule
+- [x] 10.1 Record for US-28 the startup ordering: resumption first, then the timeout watcher
+- [x] 10.2 Record for US-29 that late results rely on its idempotent completion rule
 - [ ] 10.3 Open the PR with a description linking to JOS-185
 - [ ] 10.4 Obtain review by at least one human, not only AI agents
 - [ ] 10.5 Archive the OpenSpec change after merge
