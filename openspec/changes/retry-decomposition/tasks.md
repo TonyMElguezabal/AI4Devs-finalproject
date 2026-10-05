@@ -142,10 +142,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 12. Update Technical Documentation (MANDATORY)
 
-- [ ] 12.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is the new route.
-- [ ] 12.2 `docs/data-model.md`: record the new `decomposition` attempt stage (one attempt per division try, cycle and position carried into the failure), and that a decomposition retry opens a cycle on the shared decomposition stage instance with an attempt of the `timestamps` or `decomposition` stage, chosen by whether timestamps are stored, and never writes voice-over records or files.
-- [ ] 12.3 `docs/backend-standards.md`: record the `decomposition` stage, its attempt senders, the providers registry and the `decomposition` launcher.
-- [ ] 12.4 `docs/frontend-standards.md`: add `Retry decomposition` to the naming table.
+- [x] 12.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is the new route.
+- [x] 12.2 `docs/data-model.md`: record the new `decomposition` attempt stage (one attempt per division try, cycle and position carried into the failure), and that a decomposition retry opens a cycle on the shared decomposition stage instance with an attempt of the `timestamps` or `decomposition` stage, chosen by whether timestamps are stored, and never writes voice-over records or files.
+- [x] 12.3 `docs/backend-standards.md`: record the `decomposition` stage, its attempt senders, the providers registry and the `decomposition` launcher.
+- [x] 12.4 `docs/frontend-standards.md`: add `Retry decomposition` to the naming table.
 
 ## 13. Close out
 

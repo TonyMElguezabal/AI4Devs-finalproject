@@ -117,6 +117,7 @@ Fixed here as a documented convention, not left to per-story judgement (`docs/ad
 | Expand/collapse a scene's details | `View scene {index} details` / `Hide scene {index} details` | `View scene 7 details` |
 | A phase section | `{Phase} phase` (`aria-label` on the `<section>`; phases `Voice-over`, `Decomposition`, `Scenes`, `Final video`) | `Decomposition phase` |
 | Retry a failed scene | `Retry scene {index}` | `Retry scene 7` |
+| Retry a failed decomposition | `Retry decomposition` (the shared `PhaseRetryButton`, rendered by `PhaseSection` from `phaseActions`) | `Retry decomposition` |
 | The correction form | `Correct scene {index} image instruction` (`aria-label` on the `<form>`) | `Correct scene 7 image instruction` |
 | The correction textarea | `Corrected image instruction for scene {index}` | — |
 | Per-scene downloads | `Download scene {index} image` / `Download scene {index} video` | `Download scene 7 image` |
