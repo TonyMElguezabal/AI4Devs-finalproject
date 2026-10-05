@@ -57,7 +57,8 @@ describe("No operation splits, merges, deletes or reorders chunks (AC4)", () => 
   it("offers no route whose path names such an action", () => {
     const routes = app.printRoutes({ commonPrefix: false });
     expect(routes).toContain("scenes"); // positive control: the listing sees the scene routes
-    expect(routes).not.toMatch(/split|merge|reorder|move|order|position|renumber/i);
+    // "decomposition" (the manual-retry route) contains "position" and is not a chunk operation.
+    expect(routes.replace(/decomposition/gi, "")).not.toMatch(/split|merge|reorder|move|order|position|renumber/i);
   });
 
   it.each([
