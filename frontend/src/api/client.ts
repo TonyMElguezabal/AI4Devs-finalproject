@@ -48,6 +48,10 @@ export function continueSession(sessionId: string): Promise<{ ok: boolean }> {
   return fetch(`${API_BASE}/sessions/${sessionId}/continue`, { method: "POST" }).then(asJson<{ ok: boolean }>);
 }
 
+export function retryDecomposition(sessionId: string): Promise<{ ok: true; held: boolean }> {
+  return fetch(`${API_BASE}/sessions/${sessionId}/decomposition/retry`, { method: "POST" }).then(asJson<{ ok: true; held: boolean }>);
+}
+
 export function retryScene(sessionId: string, sceneId: string): Promise<{ ok: boolean }> {
   return fetch(`${API_BASE}/sessions/${sessionId}/scenes/${sceneId}/retry`, { method: "POST" }).then(asJson<{ ok: boolean }>);
 }

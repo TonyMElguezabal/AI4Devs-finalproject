@@ -4,6 +4,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname } from "node:path";
 import { launchVoiceOverFor } from "./voiceOverPhase.ts";
+import { retryDecomposition } from "./decompositionRetry.ts";
 import { randomUUID } from "node:crypto";
 import {
   createRun,
@@ -197,6 +198,10 @@ const snapshotResponseSchema = z.object({
 
 const okSchema = z.object({ ok: z.boolean() });
 const conflictSchema = z.object({ ok: z.boolean(), reason: z.string() });
+const retryAcceptedSchema = z.object({ ok: z.literal(true), held: z.boolean().describe("True while the session is paused: the retry is accepted and waits for continue.") });
+const emptyBodySchema = z.object({}).strict().nullish();
+// A malformed id is answered 404 by the handler, as the session read does, so it is not rejected by the schema.
+const looseSessionParamsSchema = z.object({ sessionId: z.string() });
 
 export const routes: FastifyPluginAsync = async (app) => {
   const typed = app.withTypeProvider<ZodTypeProvider>();
@@ -295,6 +300,25 @@ export const routes: FastifyPluginAsync = async (app) => {
         return { ok: false, reason: result.reason ?? "unknown session" };
       }
       return { ok: true };
+    },
+  );
+
+  // retry-decomposition (JOS-156) — the manual retry of a failed decomposition (timestamps or division).
+  typed.post(
+    "/sessions/:sessionId/decomposition/retry",
+    {
+      schema: {
+        params: looseSessionParamsSchema,
+        body: emptyBodySchema,
+        response: { 200: retryAcceptedSchema, 404: conflictSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const { sessionId } = request.params;
+      const result = ulidPattern.test(sessionId) ? retryDecomposition(sessionId) : ({ ok: false, reason: "session-not-found" } as const);
+      if (result.ok) return result;
+      reply.code(result.reason === "session-not-found" ? 404 : 409);
+      return { ok: false, reason: result.reason };
     },
   );
 
