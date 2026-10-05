@@ -43,13 +43,13 @@ Every code change starts with a failing test (TDD). Every scenario in `specs/res
 
 ## 6. Backend: Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 6.1 Capture a pre-test baseline of the local database (`backend/data/`): row counts for `runs`, `scenes`, `provider_requests`, `scene_results`, `scene_video_results`
-- [ ] 6.2 Run the targeted tests (`concurrency`, `restart-concurrency`, `write-capacity`) and record the results
-- [ ] 6.3 Run the full suite (`npm test`) and record totals, runtime and any flaky behaviour
-- [ ] 6.4 Re-check the same row counts and restore the database if anything changed
-- [ ] 6.5 Also run the suite in a fresh worktree with no `backend/.secrets.json`, so local credentials cannot mask a failure
-- [ ] 6.6 Create report `specs/harden-backend-foundation/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`, including the 300-scene timings from 4.3
-- [ ] 6.7 Mark this step complete only after the tests pass and the report exists
+- [x] 6.1 Capture a pre-test baseline of the local database (`backend/data/`): row counts for `runs`, `scenes`, `provider_requests`, `scene_results`, `scene_video_results`
+- [x] 6.2 Run the targeted tests (`concurrency`, `restart-concurrency`, `write-capacity`) and record the results
+- [x] 6.3 Run the full suite (`npm test`) and record totals, runtime and any flaky behaviour
+- [x] 6.4 Re-check the same row counts and restore the database if anything changed
+- [x] 6.5 Also run the suite in a fresh worktree with no `backend/.secrets.json`, so local credentials cannot mask a failure
+- [x] 6.6 Create report `openspec/changes/harden-backend-foundation/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`, including the 300-scene timings from 4.3
+- [x] 6.7 Mark this step complete only after the tests pass and the report exists
 
 ## 7. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
@@ -59,7 +59,7 @@ Every code change starts with a failing test (TDD). Every scenario in `specs/res
 - [ ] 7.4 Restart once more with `USE_STUB_VIDEO_PROVIDER=success-bytes` so pending clips settle; confirm each scene ends with exactly one clip and every waiting launch ran exactly once
 - [ ] 7.5 Error cases: unknown session id → 404; repeated delivery has no visible effect on the scene
 - [ ] 7.6 Delete the created session data / project folder and confirm the database matches the 7.1 baseline
-- [ ] 7.7 Write report `specs/harden-backend-foundation/reports/YYYY-MM-DD-step-7-curl-restart-concurrency.md` with every command and response
+- [ ] 7.7 Write report `openspec/changes/harden-backend-foundation/reports/YYYY-MM-DD-step-7-curl-restart-concurrency.md` with every command and response
 
 ## 8. Frontend: E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
