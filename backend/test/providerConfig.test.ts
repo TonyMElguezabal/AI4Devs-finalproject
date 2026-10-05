@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   DECOMPOSITION_PROVIDER,
@@ -113,6 +115,23 @@ describe("Per-phase maximum times are set above the measured slow tail (Decision
 
   it("assembly is explicitly undetermined pending define-media-assembly (JOS-182)", () => {
     expect(PER_PHASE_MAX_TIME_SECONDS.assembly).toBe("undetermined");
+  });
+
+  // stage-execution-time-limit (JOS-185) task 9.3 — the timeout watcher reads these values, so they are compared with
+  // the PRD's own row: either side changing alone is caught here.
+  it("equal the per-phase maximum times recorded in PRD §11.3", () => {
+    const prd = readFileSync(resolve(import.meta.dirname, "../../docs/PRD-v1.4.md"), "utf8");
+    const row = prd.split("\n").find((line) => line.startsWith("| Per-phase maximum times"));
+    const match = row?.match(/Reasoning (\d+)s, Image (\d+)s, Voice (\d+)s, Alignment (\d+)s, Video (\d+)s, Assembly provisional/);
+
+    expect(match, "the §11.3 row for the per-phase maximum times was not found").not.toBeNull();
+    expect(match!.slice(1).map(Number)).toEqual([
+      PER_PHASE_MAX_TIME_SECONDS.decomposition,
+      PER_PHASE_MAX_TIME_SECONDS.image,
+      PER_PHASE_MAX_TIME_SECONDS.voice,
+      PER_PHASE_MAX_TIME_SECONDS.alignment,
+      PER_PHASE_MAX_TIME_SECONDS.video,
+    ]);
   });
 });
 

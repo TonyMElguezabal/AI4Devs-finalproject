@@ -465,6 +465,52 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       }
     },
   },
+  {
+    version: 15,
+    description:
+      "add the outcomes timed-out, late-success, superseded and cancelled and the late_result_at column to stage_attempts (stage-execution-time-limit, JOS-185)",
+    up: (target) => {
+      // Numbered 15 because the integration branch holds 14. SQLite cannot alter a CHECK, so the table is rebuilt in a transaction, as migration 14 did.
+      target.exec("BEGIN");
+      try {
+        target.exec(`
+          CREATE TABLE stage_attempts_rebuilt (
+            id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL REFERENCES runs(id),
+            stage TEXT NOT NULL,
+            scene_id TEXT,
+            stage_instance_key TEXT NOT NULL,
+            cycle INTEGER NOT NULL CHECK (cycle >= 1),
+            sequence_in_cycle INTEGER NOT NULL CHECK (sequence_in_cycle BETWEEN 1 AND 4),
+            attempt_trigger TEXT NOT NULL CHECK (attempt_trigger IN ('initial', 'automatic', 'manual')),
+            provider_id TEXT,
+            attempt_number INTEGER NOT NULL,
+            queued_at TEXT NOT NULL,
+            sent_at TEXT,
+            due_at TEXT,
+            outcome TEXT NOT NULL CHECK (outcome IN ('scheduled', 'in-flight', 'success', 'transient', 'not-retryable', 'timed-out', 'late-success', 'superseded', 'cancelled')),
+            finished_at TEXT,
+            external_request_id TEXT,
+            error_code TEXT,
+            error_message TEXT,
+            late_result_at TEXT,
+            UNIQUE (run_id, stage, attempt_number),
+            UNIQUE (stage_instance_key, cycle, sequence_in_cycle)
+          );
+          INSERT INTO stage_attempts_rebuilt
+            (id, run_id, stage, scene_id, stage_instance_key, cycle, sequence_in_cycle, attempt_trigger, provider_id, attempt_number, queued_at, sent_at, due_at, outcome, finished_at, external_request_id, error_code, error_message)
+          SELECT id, run_id, stage, scene_id, stage_instance_key, cycle, sequence_in_cycle, attempt_trigger, provider_id, attempt_number, queued_at, sent_at, due_at, outcome, finished_at, external_request_id, error_code, error_message
+          FROM stage_attempts;
+          DROP TABLE stage_attempts;
+          ALTER TABLE stage_attempts_rebuilt RENAME TO stage_attempts;
+        `);
+        target.exec("COMMIT");
+      } catch (err) {
+        target.exec("ROLLBACK");
+        throw err;
+      }
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -939,6 +985,7 @@ function rowToStageAttempt(row: any): StageAttempt {
     externalRequestId: row.external_request_id ?? null,
     errorCode: row.error_code ?? null,
     errorMessage: row.error_message ?? null,
+    lateResultAt: row.late_result_at ?? null,
   };
 }
 
@@ -1037,6 +1084,55 @@ export function claimScheduledAttempt(attemptId: string, sentAt: string, notBefo
       "UPDATE stage_attempts SET outcome = 'in-flight', sent_at = ? WHERE id = ? AND outcome = 'scheduled' AND (? IS NULL OR due_at <= ?)",
     )
     .run(sentAt, attemptId, notBefore ?? null, notBefore ?? null);
+  return Number(result.changes) > 0;
+}
+
+/** JOS-185 Decision 3 — the one update that decides a timeout: only an in-flight attempt can time out, once. */
+export function timeOutAttempt(attemptId: string, finishedAt: string, errorMessage?: string): boolean {
+  const result = db
+    .prepare("UPDATE stage_attempts SET outcome = 'timed-out', finished_at = ?, error_message = ? WHERE id = ? AND outcome = 'in-flight'")
+    .run(finishedAt, errorMessage ?? null, attemptId);
+  return Number(result.changes) > 0;
+}
+
+/** Every attempt that has been sent and has no outcome yet — what the timeout watcher checks against each stage's deadline. */
+export function getInFlightAttempts(): StageAttempt[] {
+  const rows = db.prepare("SELECT * FROM stage_attempts WHERE outcome = 'in-flight' ORDER BY sent_at ASC, attempt_number ASC").all() as any[];
+  return rows.map(rowToStageAttempt);
+}
+
+/** JOS-185 Decision 4 — a timed-out attempt's result was accepted as the stage instance's result. Once. */
+export function acceptLateResult(attemptId: string, lateResultAt: string): boolean {
+  return moveTimedOutAttempt(attemptId, "late-success", lateResultAt);
+}
+
+/** JOS-185 Decision 4 — a timed-out attempt's result collided with an existing one and was discarded. Once. */
+export function supersedeLateResult(attemptId: string, lateResultAt: string): boolean {
+  return moveTimedOutAttempt(attemptId, "superseded", lateResultAt);
+}
+
+function moveTimedOutAttempt(attemptId: string, outcome: "late-success" | "superseded", lateResultAt: string): boolean {
+  const result = db
+    .prepare("UPDATE stage_attempts SET outcome = ?, late_result_at = ? WHERE id = ? AND outcome = 'timed-out'")
+    .run(outcome, lateResultAt, attemptId);
+  return Number(result.changes) > 0;
+}
+
+/** JOS-185 Decision 7 — a failure that arrives for a timed-out attempt is kept on that attempt; its outcome and the budget are untouched. */
+export function recordLateFailure(attemptId: string, errorMessage: string): boolean {
+  const result = db.prepare("UPDATE stage_attempts SET error_message = ? WHERE id = ? AND outcome = 'timed-out'").run(errorMessage, attemptId);
+  return Number(result.changes) > 0;
+}
+
+/** JOS-185 Decision 5 — cancels every retry of a stage instance that has not been sent; returns how many were cancelled. */
+export function cancelScheduledAttemptsOfInstance(stageInstanceKey: string): number {
+  const result = db.prepare("UPDATE stage_attempts SET outcome = 'cancelled' WHERE stage_instance_key = ? AND outcome = 'scheduled'").run(stageInstanceKey);
+  return Number(result.changes);
+}
+
+/** JOS-185 Decision 5 — cancels a retry that has not been sent; the same condition `claimScheduledAttempt` uses, so exactly one of cancel and send wins. */
+export function cancelScheduledAttempt(attemptId: string): boolean {
+  const result = db.prepare("UPDATE stage_attempts SET outcome = 'cancelled' WHERE id = ? AND outcome = 'scheduled'").run(attemptId);
   return Number(result.changes) > 0;
 }
 

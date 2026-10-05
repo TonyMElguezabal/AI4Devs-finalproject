@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { loadCredential } from "./config/credentials.ts";
-import { IMAGE_GENERATION_SIZE, IMAGE_PROVIDER } from "./config/providers.ts";
+import { IMAGE_GENERATION_SIZE, IMAGE_PROVIDER, PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
 
 // generate-chunk-image (JOS-145) — the image stage's provider (PRD §7.1,
 // §11.3): Fal.ai `fal-ai/flux/dev`. The adapter makes exactly one request:
@@ -39,6 +39,9 @@ export function createFalAiImageProvider(
 ): ImageProvider {
   const fetchFn = options.fetchFn ?? fetch;
   const loadKey = options.loadKey ?? (() => loadCredential("FAL_API_KEY"));
+  // stage-execution-time-limit (JOS-185) Decision 9 — the image stage records no attempt row, so its
+  // maximum time is applied here, from the moment the call is made (after its request-cap slot was taken).
+  const timeoutMs = options.timeoutMs ?? PER_PHASE_MAX_TIME_SECONDS.image * 1000;
 
   return {
     async generate(instruction) {
@@ -56,7 +59,7 @@ export function createFalAiImageProvider(
           method: "POST",
           headers: { Authorization: `Key ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({ prompt: instruction, image_size: IMAGE_GENERATION_SIZE }),
-          signal: options.timeoutMs ? AbortSignal.timeout(options.timeoutMs) : undefined,
+          signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (err) {
         const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");

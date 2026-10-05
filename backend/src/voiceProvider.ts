@@ -1,5 +1,5 @@
 import { loadCredential } from "./config/credentials.ts";
-import { VOICE_PROVIDER } from "./config/providers.ts";
+import { PER_PHASE_MAX_TIME_SECONDS, VOICE_PROVIDER } from "./config/providers.ts";
 
 // generate-voice-over (JOS-136) Decision 4 — the voice stage's provider (PRD
 // §11): ElevenLabs text-to-speech with timestamps. The adapter makes exactly
@@ -119,7 +119,16 @@ export type StubVoiceProviderMode =
   | "transient-twice-then-success"
   | "undecodable-audio"
   | "empty-audio"
-  | "hang";
+  | "hang"
+  /** stage-execution-time-limit (JOS-185), manual testing: the first call never answers, later calls succeed. */
+  | "hang-once-then-success"
+  /** stage-execution-time-limit (JOS-185), manual testing: every call succeeds, but only after the maximum time has passed. */
+  | "success-after-limit";
+
+/** How long `success-after-limit` waits by default: the voice stage's maximum time plus two seconds. */
+export function lateAnswerDelayMs(): number {
+  return (PER_PHASE_MAX_TIME_SECONDS.voice + 2) * 1000;
+}
 
 const MP3_FRAME_BYTES = 417; // MPEG-1 Layer III, 44.1 kHz, 128 kbit/s, no padding: 1152 samples, about 26.1 ms
 const MP3_FRAME_SECONDS = 1152 / 44100;
@@ -145,7 +154,7 @@ function stubTimestamps(text: string): unknown {
 /** A deterministic stand-in for `VoiceProvider`, used by every test in this story instead of the real ElevenLabs adapter. */
 export function createStubVoiceProvider(
   mode: StubVoiceProviderMode,
-  options: { audioSeconds?: number } = {},
+  options: { audioSeconds?: number; lateAfterMs?: number } = {},
 ): VoiceProvider & { calls: VoiceSynthesisRequest[]; release: () => void } {
   const calls: VoiceSynthesisRequest[] = [];
   let transientFailuresLeft = 2;
@@ -163,6 +172,12 @@ export function createStubVoiceProvider(
         case "hang":
           await held;
           return { kind: "success", audio: createSilentMp3(options.audioSeconds ?? 1), providerRequestId: "stub-request-hang" };
+        case "hang-once-then-success":
+          if (calls.length === 1) return new Promise<never>(() => {}); // never settles
+          return { kind: "success", audio: createSilentMp3(options.audioSeconds ?? 1), providerRequestId: `stub-request-${calls.length}` };
+        case "success-after-limit":
+          await new Promise((resolve) => setTimeout(resolve, options.lateAfterMs ?? lateAnswerDelayMs()));
+          return { kind: "success", audio: createSilentMp3(options.audioSeconds ?? 1), providerRequestId: "stub-request-late" };
         case "success":
           return {
             kind: "success",

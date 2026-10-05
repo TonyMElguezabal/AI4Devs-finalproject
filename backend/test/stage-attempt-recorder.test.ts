@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { claimScheduledAttempt, createRun, getRun, getStageAttempts, recordStageAttempt, resetAll, setRunFailure } from "../src/db.ts";
 import type { RetryDelayConfig } from "../src/retry/retryPolicy.ts";
-import { recordAttemptOutcome, startNewCycle } from "../src/retry/stageAttemptRecorder.ts";
+import { recordAttemptOutcome, recordAttemptTimeout, startNewCycle } from "../src/retry/stageAttemptRecorder.ts";
 import { createVoiceOverFailure } from "../src/sessionStateMachine.ts";
 import type { AttemptStage } from "../src/types.ts";
 
@@ -139,6 +139,73 @@ describe("An outcome that was already recorded", () => {
     expect(first.action).toBe("failed");
     expect(second).toEqual({ action: "ignored" });
     expect(getStageAttempts(runId, "voice-over")).toHaveLength(4);
+  });
+});
+
+// stage-execution-time-limit (JOS-185), Decision 2 — a timeout is a transient failure through the same policy.
+describe("A timeout", () => {
+  it("is recorded timed-out and schedules the next attempt after the same backoff as a transient failure", () => {
+    const runId = newRunId();
+    const first = send(runId);
+
+    const result = recordAttemptTimeout(first.id, "no result after 10 s", options);
+
+    expect(result.action).toBe("scheduled");
+    const [timedOut, next] = getStageAttempts(runId, "voice-over");
+    expect(timedOut).toMatchObject({ outcome: "timed-out", errorMessage: "no result after 10 s", finishedAt: NOW.toISOString() });
+    expect(next).toMatchObject({ outcome: "scheduled", sequenceInCycle: 2, trigger: "automatic", dueAt: at(2) });
+  });
+
+  it("fails retryable, with a manual retry available and nothing scheduled, on the fourth attempt of the cycle", () => {
+    const runId = newRunId();
+    let last = send(runId);
+    for (let attempt = 1; attempt < 4; attempt++) {
+      recordAttemptTimeout(last.id, "no result", options);
+      const scheduled = getStageAttempts(runId, "voice-over").find((candidate) => candidate.outcome === "scheduled")!;
+      expect(claimScheduledAttempt(scheduled.id, at(attempt * 100))).toBe(true);
+      last = scheduled;
+    }
+
+    expect(recordAttemptTimeout(last.id, "no result", options)).toEqual({ action: "failed", retryable: true, manualRetryAvailable: true, cycle: 1, attemptsInCycle: 4 });
+    expect(getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "scheduled")).toBe(false);
+  });
+
+  it("is ignored when the attempt already has an outcome, and records nothing", () => {
+    const runId = newRunId();
+    const first = send(runId);
+    recordAttemptOutcome(first.id, { outcome: "success" }, options);
+
+    expect(recordAttemptTimeout(first.id, "no result", options)).toEqual({ action: "ignored" });
+
+    expect(getStageAttempts(runId, "voice-over")).toHaveLength(1);
+    expect(getStageAttempts(runId, "voice-over")[0]!.outcome).toBe("success");
+  });
+
+  it("is ignored for an attempt that does not exist", () => {
+    expect(recordAttemptTimeout(randomUUID(), "no result", options)).toEqual({ action: "ignored" });
+  });
+
+  it("makes a result reported afterwards ignored, so the attempt is never recorded twice", () => {
+    const runId = newRunId();
+    const first = send(runId);
+    recordAttemptTimeout(first.id, "no result", options);
+
+    expect(recordAttemptOutcome(first.id, { outcome: "success" }, options)).toEqual({ action: "ignored" });
+
+    expect(getStageAttempts(runId, "voice-over")).toHaveLength(2); // the timed-out attempt and its scheduled retry
+  });
+
+  it("leaves a stage instance a manual retry can start from after the cycle ends in timeouts", () => {
+    const runId = newRunId();
+    let last = send(runId);
+    for (let attempt = 1; attempt < 4; attempt++) {
+      recordAttemptTimeout(last.id, "no result", options);
+      last = getStageAttempts(runId, "voice-over").find((candidate) => candidate.outcome === "scheduled")!;
+      claimScheduledAttempt(last.id, at(attempt * 100));
+    }
+    recordAttemptTimeout(last.id, "no result", options);
+
+    expect(startNewCycle({ sessionId: runId, stage: "voice-over" }, options)).toMatchObject({ started: true });
   });
 });
 

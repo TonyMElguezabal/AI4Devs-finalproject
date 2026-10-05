@@ -127,7 +127,22 @@ export interface NarrationTimestampsInput {
 export type NarrationTimestamps = NarrationTimestampsInput;
 
 /** `scheduled`: an automatic retry that is persisted with its due time and not yet sent (bounded-retry-policy, Decision 9). */
-export const STAGE_ATTEMPT_OUTCOMES = ["scheduled", "in-flight", "success", "transient", "not-retryable"] as const;
+/**
+ * stage-execution-time-limit (JOS-185): `timed-out` is a sent attempt that outlasted its stage's maximum time; its
+ * result may still arrive and then becomes `late-success` (accepted) or `superseded` (discarded). `cancelled` is a
+ * scheduled retry that was never sent because a late result made it unnecessary.
+ */
+export const STAGE_ATTEMPT_OUTCOMES = [
+  "scheduled",
+  "in-flight",
+  "success",
+  "transient",
+  "not-retryable",
+  "timed-out",
+  "late-success",
+  "superseded",
+  "cancelled",
+] as const;
 export type StageAttemptOutcome = (typeof STAGE_ATTEMPT_OUTCOMES)[number];
 
 export type AttemptTrigger = "initial" | "automatic" | "manual";
@@ -160,6 +175,8 @@ export interface StageAttempt {
   externalRequestId: string | null;
   errorCode: string | null;
   errorMessage: string | null;
+  /** When a result arrived for an attempt that had already timed out; null otherwise. */
+  lateResultAt: string | null;
 }
 
 /** PRD §3 narration interval: where a chunk sits in the voice-over, in seconds. */

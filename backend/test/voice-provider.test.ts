@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createElevenLabsVoiceProvider, createStubVoiceProvider, type VoiceSynthesisRequest } from "../src/voiceProvider.ts";
+import { PER_PHASE_MAX_TIME_SECONDS } from "../src/config/providers.ts";
+import { createElevenLabsVoiceProvider, createStubVoiceProvider, lateAnswerDelayMs, type VoiceSynthesisRequest } from "../src/voiceProvider.ts";
 
 // generate-voice-over (JOS-136), group 4 — the voice port, its stub and the
 // ElevenLabs adapter: one synchronous HTTP request per attempt, the recorded
@@ -271,6 +272,34 @@ describe("The stub provider", () => {
     const result = await createStubVoiceProvider("empty-audio").synthesize(REQUEST);
 
     expect(result.kind === "success" && result.audio.byteLength).toBe(0);
+  });
+
+  // stage-execution-time-limit (JOS-185) — modes that let a timeout and a late result be shown by hand.
+  it("hangs its first call for good and succeeds on the next ones (hang-once-then-success)", async () => {
+    const stub = createStubVoiceProvider("hang-once-then-success");
+    let firstSettled = false;
+    void stub.synthesize(REQUEST).then(() => {
+      firstSettled = true;
+    });
+
+    const second = await stub.synthesize(REQUEST);
+    const third = await stub.synthesize(REQUEST);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(second.kind).toBe("success");
+    expect(third.kind).toBe("success");
+    expect(firstSettled).toBe(false);
+  });
+
+  it("answers successfully only after the given delay, which defaults to the voice stage's maximum time plus two seconds (success-after-limit)", async () => {
+    const stub = createStubVoiceProvider("success-after-limit", { lateAfterMs: 30 });
+    const startedAt = Date.now();
+
+    const result = await stub.synthesize(REQUEST);
+
+    expect(result.kind).toBe("success");
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(25);
+    expect(lateAnswerDelayMs()).toBe((PER_PHASE_MAX_TIME_SECONDS.voice + 2) * 1000);
   });
 
   it("holds the request until released, so a test can observe the in-flight state", async () => {
