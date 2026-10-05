@@ -25,12 +25,12 @@ A cross-cutting backend change with no screen of its own. Group 1 is a hard gate
 
 ## 3. Persistence: attempts, cycles and constraints (TDD)
 
-- [ ] 3.1 Write a failing test that the store rejects a fifth attempt in one cycle of a stage instance
-- [ ] 3.2 Write a failing test that two concurrent inserts for the same `(stageInstanceKey, cycle, sequenceInCycle)` leave exactly one row
-- [ ] 3.3 Write a failing test that a new cycle accepts sequence 1 again for the same stage instance
-- [ ] 3.4 Add the migration: `stageInstanceKey`, `cycle`, `sequenceInCycle`, `trigger`, `dueAt`, outcome `scheduled`; the unique constraint and the check `sequenceInCycle BETWEEN 1 AND 4`; the backfill rule from the migration plan
-- [ ] 3.5 Add `cycle`, `attemptsInCycle` and `manualRetryAvailable` to the failure object
-- [ ] 3.6 Run the group 3 tests and confirm they pass
+- [x] 3.1 Write a failing test that the store rejects a fifth attempt in one cycle of a stage instance
+- [x] 3.2 Write a failing test that two concurrent inserts for the same `(stageInstanceKey, cycle, sequenceInCycle)` leave exactly one row
+- [x] 3.3 Write a failing test that a new cycle accepts sequence 1 again for the same stage instance
+- [x] 3.4 Add the migration: `stageInstanceKey`, `cycle`, `sequenceInCycle`, `trigger`, `dueAt`, outcome `scheduled`; the unique constraint and the check `sequenceInCycle BETWEEN 1 AND 4`; the backfill rule from the migration plan — migration 14, not 13: `origin/feature/entrega-2-JAME` already holds a 13 (JOS-149) that also rebuilds `stage_attempts` (nullable `provider_id`), so this one keeps `provider_id` nullable and the two compose in either order. Backfilled rows after the first are marked `manual` (JOS-136 had no automatic retry). The column is `attempt_trigger` because `trigger` is an SQL keyword. `sent_at` becomes nullable for scheduled attempts. Run the suite with an isolated `DB_PATH`: the shared `data/skeleton.sqlite` already holds the other branch's 13 and masks this one
+- [x] 3.5 Add `cycle`, `attemptsInCycle` and `manualRetryAvailable` to the failure object — optional inputs defaulting to cycle 1, one attempt; `manualRetryAvailable` follows `retryable` (a not-retryable failure offers no manual retry); the API schema and live-update payload are 6.3
+- [x] 3.6 Run the group 3 tests and confirm they pass
 
 ## 4. Application: recorder, scheduler, new cycle (TDD)
 

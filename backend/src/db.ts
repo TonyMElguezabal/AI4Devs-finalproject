@@ -10,6 +10,7 @@
 // this is no longer a disposable stand-in, it is the decision.
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
+import { stageInstanceKey } from "./retry/retryPolicy.ts";
 import { existsSync, linkSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import type {
@@ -22,6 +23,7 @@ import type {
   Scene,
   SceneState,
   SpeedFactorWarning,
+  AttemptTrigger,
   StageAttempt,
   StageAttemptOutcome,
   VoiceOver,
@@ -385,9 +387,58 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       `);
     },
   },
+  {
+    version: 14,
+    description:
+      "add the retry budget to stage_attempts: stage instance key, cycle, sequence in cycle, trigger, due time, the scheduled outcome, and the cap of four per cycle (bounded-retry-policy, JOS-184)",
+    up: (target) => {
+      // Numbered 14 because the integration branch already holds 13 (JOS-149), which also rebuilds stage_attempts. provider_id is nullable here as it is there (the assembly stage has no provider).
+      // SQLite cannot alter a CHECK, so the table is rebuilt; a transaction keeps a failed backfill from leaving a half-built table.
+      target.exec("BEGIN");
+      try {
+        const instance = "CASE stage WHEN 'timestamps' THEN 'decomposition' ELSE stage END";
+        target.exec(`
+          CREATE TABLE stage_attempts_rebuilt (
+            id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL REFERENCES runs(id),
+            stage TEXT NOT NULL,
+            stage_instance_key TEXT NOT NULL,
+            cycle INTEGER NOT NULL CHECK (cycle >= 1),
+            sequence_in_cycle INTEGER NOT NULL CHECK (sequence_in_cycle BETWEEN 1 AND 4),
+            attempt_trigger TEXT NOT NULL CHECK (attempt_trigger IN ('initial', 'automatic', 'manual')),
+            provider_id TEXT,
+            attempt_number INTEGER NOT NULL,
+            queued_at TEXT NOT NULL,
+            sent_at TEXT,
+            due_at TEXT,
+            outcome TEXT NOT NULL CHECK (outcome IN ('scheduled', 'in-flight', 'success', 'transient', 'not-retryable')),
+            finished_at TEXT,
+            external_request_id TEXT,
+            error_code TEXT,
+            error_message TEXT,
+            UNIQUE (run_id, stage, attempt_number),
+            UNIQUE (stage_instance_key, cycle, sequence_in_cycle)
+          );
+          INSERT INTO stage_attempts_rebuilt
+            (id, run_id, stage, stage_instance_key, cycle, sequence_in_cycle, attempt_trigger, provider_id, attempt_number, queued_at, sent_at, outcome, finished_at, external_request_id, error_code, error_message)
+          SELECT id, run_id, stage, run_id || ':' || ${instance}, 1,
+                 ROW_NUMBER() OVER (PARTITION BY run_id, ${instance} ORDER BY sent_at, attempt_number),
+                 CASE WHEN attempt_number = 1 THEN 'initial' ELSE 'manual' END,
+                 provider_id, attempt_number, queued_at, sent_at, outcome, finished_at, external_request_id, error_code, error_message
+          FROM stage_attempts;
+          DROP TABLE stage_attempts;
+          ALTER TABLE stage_attempts_rebuilt RENAME TO stage_attempts;
+        `);
+        target.exec("COMMIT");
+      } catch (err) {
+        target.exec("ROLLBACK");
+        throw err;
+      }
+    },
+  },
 ];
 
-export function applyMigrationsTo(target: DatabaseSync): number[] {
+export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
   target.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version INTEGER PRIMARY KEY,
@@ -399,7 +450,7 @@ export function applyMigrationsTo(target: DatabaseSync): number[] {
   );
   const justApplied: number[] = [];
   for (const migration of MIGRATIONS) {
-    if (applied.has(migration.version)) continue;
+    if (applied.has(migration.version) || migration.version > upToVersion) continue;
     migration.up(target);
     target.prepare("INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)").run(
       migration.version,
@@ -843,10 +894,15 @@ function rowToStageAttempt(row: any): StageAttempt {
     id: row.id,
     runId: row.run_id,
     stage: row.stage,
+    stageInstanceKey: row.stage_instance_key,
+    cycle: row.cycle,
+    sequenceInCycle: row.sequence_in_cycle,
+    trigger: row.attempt_trigger,
     providerId: row.provider_id,
     attemptNumber: row.attempt_number,
     queuedAt: row.queued_at,
-    sentAt: row.sent_at,
+    sentAt: row.sent_at ?? null,
+    dueAt: row.due_at ?? null,
     outcome: row.outcome,
     finishedAt: row.finished_at ?? null,
     externalRequestId: row.external_request_id ?? null,
@@ -868,14 +924,45 @@ export function recordStageAttempt(input: {
   providerId: string;
   queuedAt: string;
   sentAt: string;
+  /** Defaults to the stage instance's latest cycle (1 for the first attempt). A manual retry passes the next one. */
+  cycle?: number;
+  trigger?: AttemptTrigger;
 }): StageAttempt {
   const id = randomUUID();
+  const stageInstanceKey = stageInstanceKeyOf(input.runId, input.stage);
+  // Bounded-retry-policy Decision 3 — both numbers are computed inside the INSERT; the cap is the table's CHECK.
+  const cycle = input.cycle ?? ((db.prepare("SELECT MAX(cycle) c FROM stage_attempts WHERE stage_instance_key = ?").get(stageInstanceKey) as { c: number | null }).c ?? 1);
   db.prepare(
-    `INSERT INTO stage_attempts (id, run_id, stage, provider_id, attempt_number, queued_at, sent_at, outcome)
-     SELECT ?, ?, ?, ?, COALESCE(MAX(attempt_number), 0) + 1, ?, ?, 'in-flight'
+    `INSERT INTO stage_attempts (id, run_id, stage, stage_instance_key, cycle, sequence_in_cycle, attempt_trigger, provider_id, attempt_number, queued_at, sent_at, outcome)
+     SELECT ?, ?, ?, ?, ?,
+            (SELECT COALESCE(MAX(sequence_in_cycle), 0) + 1 FROM stage_attempts WHERE stage_instance_key = ? AND cycle = ?),
+            ?, ?, COALESCE(MAX(attempt_number), 0) + 1, ?, ?, 'in-flight'
      FROM stage_attempts WHERE run_id = ? AND stage = ?`,
-  ).run(id, input.runId, input.stage, input.providerId, input.queuedAt, input.sentAt, input.runId, input.stage);
+  ).run(
+    id,
+    input.runId,
+    input.stage,
+    stageInstanceKey,
+    cycle,
+    stageInstanceKey,
+    cycle,
+    input.trigger ?? (cycle === 1 && !hasAttemptIn(stageInstanceKey, 1) ? "initial" : "automatic"),
+    input.providerId,
+    input.queuedAt,
+    input.sentAt,
+    input.runId,
+    input.stage,
+  );
   return rowToStageAttempt(db.prepare("SELECT * FROM stage_attempts WHERE id = ?").get(id));
+}
+
+function hasAttemptIn(stageInstanceKey: string, cycle: number): boolean {
+  return db.prepare("SELECT 1 FROM stage_attempts WHERE stage_instance_key = ? AND cycle = ? LIMIT 1").get(stageInstanceKey, cycle) !== undefined;
+}
+
+/** Decision 1 — the timestamps stage belongs to the single decomposition instance (§5: one state, one retry policy). */
+function stageInstanceKeyOf(runId: string, stage: AttemptStage): string {
+  return stageInstanceKey({ sessionId: runId, stage: stage === "timestamps" ? "decomposition" : stage });
 }
 
 /**

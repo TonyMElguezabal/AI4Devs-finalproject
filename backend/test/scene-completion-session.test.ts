@@ -91,7 +91,7 @@ describe("A session without scenes", () => {
   it("keeps a decomposition failure as is, without failed scene indexes", () => {
     const runId = randomUUID();
     createRun(runId, "No scenes", "Some script.", "en");
-    const failure = { phase: "decomposition", cause: "refused", retryable: false, occurredAt: new Date().toISOString() } as const;
+    const failure = { phase: "decomposition", cause: "refused", retryable: false, manualRetryAvailable: false, cycle: 1, attemptsInCycle: 1, occurredAt: new Date().toISOString() } as const;
     const derived = deriveSessionState([], failure);
     expect(derived).toEqual({ state: "failed", failedPhase: "decomposition" });
     expect(derived.failedSceneIndexes).toBeUndefined();

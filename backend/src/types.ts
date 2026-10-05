@@ -64,6 +64,12 @@ export interface DecompositionFailure {
   /** Written for a person; never blames the script, never contains credentials or raw provider payloads. */
   cause: string;
   retryable: boolean;
+  /** Whether the User can start a new cycle (bounded-retry-policy, JOS-184). */
+  manualRetryAvailable: boolean;
+  /** The cycle the failure ended, from 1. */
+  cycle: number;
+  /** Attempts the cycle held when it failed, 1 to 4. */
+  attemptsInCycle: number;
   /** ISO-8601 instant. */
   occurredAt: string;
 }
@@ -75,6 +81,12 @@ export interface VoiceOverFailure {
   /** Written for a person; never contains credentials or the script text. */
   cause: string;
   retryable: boolean;
+  /** Whether the User can start a new cycle (bounded-retry-policy, JOS-184). */
+  manualRetryAvailable: boolean;
+  /** The cycle the failure ended, from 1. */
+  cycle: number;
+  /** Attempts the cycle held when it failed, 1 to 4. */
+  attemptsInCycle: number;
   /** ISO-8601 instant. */
   occurredAt: string;
 }
@@ -112,19 +124,32 @@ export interface NarrationTimestampsInput {
 
 export type NarrationTimestamps = NarrationTimestampsInput;
 
-export const STAGE_ATTEMPT_OUTCOMES = ["in-flight", "success", "transient", "not-retryable"] as const;
+/** `scheduled`: an automatic retry that is persisted with its due time and not yet sent (bounded-retry-policy, Decision 9). */
+export const STAGE_ATTEMPT_OUTCOMES = ["scheduled", "in-flight", "success", "transient", "not-retryable"] as const;
 export type StageAttemptOutcome = (typeof STAGE_ATTEMPT_OUTCOMES)[number];
+
+export type AttemptTrigger = "initial" | "automatic" | "manual";
 
 /** One provider call, written before the request is sent (Decision 2) and never rewritten except to record its outcome. */
 export interface StageAttempt {
   id: string;
   runId: string;
   stage: AttemptStage;
+  /** The budget this attempt counts against (bounded-retry-policy, Decision 1). */
+  stageInstanceKey: string;
+  /** Starts at 1; a manual retry opens the next one. */
+  cycle: number;
+  /** 1 to 4 within the cycle; the store rejects a fifth. */
+  sequenceInCycle: number;
+  trigger: AttemptTrigger;
   providerId: string;
-  /** Sequence within the session's stage, from 1. */
+  /** Sequence across the session's stage, from 1, continuing through cycles. */
   attemptNumber: number;
   queuedAt: string;
-  sentAt: string;
+  /** Null while the attempt is only scheduled. */
+  sentAt: string | null;
+  /** When a scheduled attempt becomes due; null otherwise. */
+  dueAt: string | null;
   outcome: StageAttemptOutcome;
   finishedAt: string | null;
   externalRequestId: string | null;
