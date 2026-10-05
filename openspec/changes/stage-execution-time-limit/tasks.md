@@ -52,9 +52,9 @@ A backend change with no screen of its own. Group 1 is a hard gate. Tests come f
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Review `bounded-retry-policy` tests for assumptions that an in-flight attempt always ends in success or failure, and extend them with timeouts
-- [ ] 5.2 Confirm every scenario in `specs/stage-execution-time-limit/spec.md` has at least one functional test
-- [ ] 5.3 Confirm module test coverage has not decreased
+- [x] 5.1 Review `bounded-retry-policy` tests for assumptions that an in-flight attempt always ends in success or failure, and extend them with timeouts. Reviewed: only `startNewCycle` assumed it (a stage failed only after `transient` or `not-retryable`); fixed, and `stage-attempt-recorder.test.ts` now covers timeouts
+- [x] 5.2 Confirm every scenario in `specs/stage-execution-time-limit/spec.md` has at least one functional test
+- [x] 5.3 Confirm module test coverage has not decreased. Lines and functions rose; total branches moved 92.47% to 92.38% (see the step 6 report)
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 

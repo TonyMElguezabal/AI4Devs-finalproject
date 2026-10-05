@@ -34,18 +34,25 @@ export function successAnswer(): VoiceSynthesisResult {
 }
 
 /** A voice provider whose n-th call stays pending until the test answers it, in any order. */
-export function createGatedVoiceProvider(): VoiceProvider & { calls: number; answer: (call: number, result?: VoiceSynthesisResult) => void } {
-  const gates: Array<(result: VoiceSynthesisResult) => void> = [];
+export function createGatedVoiceProvider(): VoiceProvider & {
+  calls: number;
+  answer: (call: number, result?: VoiceSynthesisResult) => void;
+  /** Makes the n-th call throw, as a network failure would. */
+  reject: (call: number) => void;
+} {
+  const gates: Array<{ resolve: (result: VoiceSynthesisResult) => void; reject: (error: Error) => void }> = [];
+  const gate = (call: number) => {
+    const found = gates[call - 1];
+    if (!found) throw new Error(`call ${call} has not been made`);
+    return found;
+  };
   const provider = {
     calls: 0,
-    answer(call: number, result: VoiceSynthesisResult = successAnswer()) {
-      const gate = gates[call - 1];
-      if (!gate) throw new Error(`call ${call} has not been made`);
-      gate(result);
-    },
+    answer: (call: number, result: VoiceSynthesisResult = successAnswer()) => gate(call).resolve(result),
+    reject: (call: number) => gate(call).reject(new Error("stub: connection reset")),
     synthesize() {
       provider.calls++;
-      return new Promise<VoiceSynthesisResult>((resolve) => gates.push(resolve));
+      return new Promise<VoiceSynthesisResult>((resolve, reject) => gates.push({ resolve, reject }));
     },
   };
   return provider;

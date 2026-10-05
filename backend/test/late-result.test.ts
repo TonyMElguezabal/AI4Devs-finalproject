@@ -119,3 +119,24 @@ describe("a late failure", () => {
     expect(getRun(runId)!.failure).toBeNull();
   });
 });
+
+describe("a late result that cannot be used", () => {
+  it("is kept as a late failure on its attempt when the audio cannot be decoded, and stores nothing", async () => {
+    const { runId, provider } = await startAndTimeOut();
+
+    provider.answer(1, { kind: "success", audio: Buffer.from("this is not an mp3") });
+    await waitFor(() => (getStageAttempts(runId, "voice-over")[0]!.errorMessage ?? "").includes("decoded"));
+
+    expect(outcomes(runId)).toEqual(["timed-out", "scheduled"]); // nothing accepted, the retry still stands
+    expect(getVoiceOver(runId)).toBeFalsy();
+  });
+
+  it("is a late failure too when the provider call throws after the timeout", async () => {
+    const { runId, provider } = await startAndTimeOut();
+
+    provider.reject(1);
+    await waitFor(() => (getStageAttempts(runId, "voice-over")[0]!.errorMessage ?? "").includes("unexpectedly"));
+
+    expect(outcomes(runId)).toEqual(["timed-out", "scheduled"]);
+  });
+});

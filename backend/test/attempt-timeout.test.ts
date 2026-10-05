@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { getRun, getStageAttempt, getStageAttempts, resetAll, startVoiceAttempt } from "../src/db.ts";
+import { getRun, getStageAttempt, getStageAttempts, recordStageAttempt, resetAll, startVoiceAttempt } from "../src/db.ts";
 import { continueSession, pauseSession } from "../src/orchestrator.ts";
 import { setVoiceOverLogger, type VoiceOverLogEntry } from "../src/voiceOverPhase.ts";
 import { startAttemptTimeoutWatcher, sweepTimedOutAttempts } from "../src/retry/attemptTimeoutWatcher.ts";
@@ -85,6 +85,18 @@ describe("a result and a timeout racing on the same attempt", () => {
 
     expect(getStageAttempts(runId, "voice-over")).toHaveLength(1);
     expect(getStageAttempts(runId, "voice-over")[0]!.outcome).toBe("success");
+  });
+});
+
+describe("a stage that has not registered a timeout handler", () => {
+  it("is never timed out here, however long its attempt has been in flight", () => {
+    const runId = register();
+    // Timestamps close their own attempts and abort their own request at the limit; they have no handler yet.
+    const attempt = recordStageAttempt({ runId, stage: "timestamps", providerId: "stub-alignment", queuedAt: T0.toISOString(), sentAt: T0.toISOString() });
+
+    expect(sweepTimedOutAttempts(after(10 * 3_600_000))).toBe(0);
+
+    expect(getStageAttempt(attempt.id)!.outcome).toBe("in-flight");
   });
 });
 
