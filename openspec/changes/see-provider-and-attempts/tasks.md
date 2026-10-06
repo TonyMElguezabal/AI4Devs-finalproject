@@ -121,7 +121,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 12. Close out
 
-- [ ] 12.1 Ask the user before commenting on JOS-136 (the voice provider identifier that `stageDiagnostics.ts` maps is `ElevenLabs`) and JOS-184 (a per-cycle breakdown can extend `StageDiagnostic`).
-- [ ] 12.2 Ask before pushing. Open the PR with a description linking to JOS-166, targeting `feature/entrega-2-JAME` (JOS-168 is merged, so the change is no longer stacked).
+- [x] 12.1 Ask the user before commenting on JOS-136 (the voice provider identifier that `stageDiagnostics.ts` maps is `ElevenLabs`) and JOS-184 (a per-cycle breakdown can extend `StageDiagnostic`).
+- [x] 12.2 Ask before pushing. Open the PR with a description linking to JOS-166, targeting `feature/entrega-2-JAME` (JOS-168 is merged, so the change is no longer stacked).
 - [ ] 12.3 Obtain review by at least one human, not only AI agents.
 - [ ] 12.4 Archive the OpenSpec change after merge.
