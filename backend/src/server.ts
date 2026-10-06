@@ -5,7 +5,7 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { routes } from "./routes.ts";
-import { reconcileOnBoot, setAssemblyTool, VIDEO_STAGE } from "./orchestrator.ts";
+import { recoverOnBoot, setAssemblyTool, VIDEO_STAGE } from "./orchestrator.ts";
 import * as concurrency from "./concurrency.ts";
 import { STAGE } from "./types.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
@@ -71,7 +71,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 }
 
 /** The boot log fields: the reconciliation summary plus each stage's in-flight count and limit. */
-export function bootLogFields(summary: ReturnType<typeof reconcileOnBoot>) {
+export function bootLogFields(summary: ReturnType<typeof recoverOnBoot>) {
   const stageUsage = (stage: string) => {
     const { inFlight, limit } = concurrency.stats(stage);
     return { inFlight, limit };
@@ -115,7 +115,7 @@ if (isMainModule) {
   }
   const app = await buildApp();
   setVoiceOverLogger(app.log);
-  const summary = reconcileOnBoot();
+  const summary = recoverOnBoot();
   app.log.info(bootLogFields(summary), "boot reconciliation complete");
   app.log.info({ scheduledRetries: rebuildScheduler() }, "scheduled retries re-armed");
   // stage-execution-time-limit (JOS-185) Decision 8 — after resumption, so a result recovered at boot wins over a timeout.

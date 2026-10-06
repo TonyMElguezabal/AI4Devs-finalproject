@@ -31,10 +31,25 @@ export interface HeldWorkResult {
   sceneIds: readonly string[];
 }
 
+/** The cause every attempt settled at boot records (restart-recovery). */
+export const RESTART_CAUSE = "interrupted by a restart";
+
+/** What a stage's boot settle did with its in-flight units (restart-recovery, JOS-160). */
+export interface SettleSummary {
+  /** Results found and applied, or requests the provider still holds that were awaited again. */
+  resumed: number;
+  /** Attempts completed as failed because the provider no longer holds the request. */
+  recordedFailedAttempt: number;
+  /** Requests still pending at the provider that will be delivered later. */
+  stillPending: number;
+}
+
 export interface StageLauncher {
   stage: PipelineStage;
   heldWork: (sessionId: string) => HeldWorkResult;
   launch: (sessionId: string) => void;
+  /** Boot, before anything is relaunched: waits for or fails each in-flight unit of this stage. Never launches new work. */
+  settleInFlight: () => SettleSummary;
 }
 
 const launchers = new Map<PipelineStage, StageLauncher>();
@@ -94,6 +109,24 @@ export function launchHeldWork(sessionId: string): void {
       launcher.launch(sessionId);
     }
   }
+}
+
+/** Boot pass 1 (restart-recovery, Decision 1): every registered stage settles its in-flight units, in pipeline order. */
+export function settleAllInFlight(): SettleSummary {
+  const total: SettleSummary = { resumed: 0, recordedFailedAttempt: 0, stillPending: 0 };
+  for (const stage of PIPELINE_STAGES) {
+    const settled = launchers.get(stage)?.settleInFlight();
+    if (!settled) continue;
+    total.resumed += settled.resumed;
+    total.recordedFailedAttempt += settled.recordedFailedAttempt;
+    total.stillPending += settled.stillPending;
+  }
+  return total;
+}
+
+/** The stages with no registered launcher, hence no restart recovery; the boot log names them. */
+export function stagesWithoutRestartRecovery(): PipelineStage[] {
+  return PIPELINE_STAGES.filter((stage) => !launchers.has(stage));
 }
 
 export interface CompletenessResult {

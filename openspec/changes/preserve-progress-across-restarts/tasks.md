@@ -26,11 +26,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 3. Backend: settle pass (TDD; design Decisions 1-3)
 
-- [ ] 3.1 Write tests pinning the existing behaviour: an image scene in `image-generating` with a bound provider is settled as transient "interrupted by a restart" and sends exactly one new request within budget; an exhausted one becomes `failed`; a submitted clip task is polled again and its original result is applied; a missing request id is transient.
-- [ ] 3.2 Write a test pinning JOS-185: an `in-flight` `voice-over` attempt at boot ends `timed-out` and its retry is scheduled.
-- [ ] 3.3 Write failing tests: an `in-flight` `timestamps` attempt is completed as `transient` with the restart cause, through the phase's failure path. The session then records a retryable decomposition failure and stops deriving `chunk-decomposing`. The same for an `in-flight` `decomposition` attempt.
-- [ ] 3.4 Write a failing test: an `in-flight` `assembly` attempt is completed as `transient` with the restart cause.
-- [ ] 3.5 Add `settleInFlight` to `StageLauncher`. Move the image and clip settle code into their launchers; add the timestamps/decomposition settle (export and reuse the failure path from `narrationTimestampsPhase.ts` and the division failure path) and the assembly settle. Make 3.3 and 3.4 pass; 3.1 and 3.2 stay green.
+- [x] 3.1 Write tests pinning the existing behaviour: an image scene in `image-generating` with a bound provider is settled as transient "interrupted by a restart" and sends exactly one new request within budget; an exhausted one becomes `failed`; a submitted clip task is polled again and its original result is applied; a missing request id is transient. **Result:** passed on the first run. The image cases (including the exhausted one, `restart-settle.test.ts`) and the clip cases (`video-stage.test.ts`, `restart-concurrency.test.ts`) already held.
+- [x] 3.2 Write a test pinning JOS-185: an `in-flight` `voice-over` attempt at boot ends `timed-out` and its retry is scheduled. **Result:** passed once the test imported `voiceOverPhase.ts`, which registers the timeout handler as the running app does.
+- [x] 3.3 Write failing tests: an `in-flight` `timestamps` attempt is completed as `transient` with the restart cause, through the phase's failure path. The session then records a retryable decomposition failure and stops deriving `chunk-decomposing`. The same for an `in-flight` `decomposition` attempt.
+- [x] 3.4 Write a failing test: an `in-flight` `assembly` attempt is completed as `transient` with the restart cause.
+- [x] 3.5 Add `settleInFlight` to `StageLauncher`. Move the image and clip settle code into their launchers; add the timestamps/decomposition settle (export and reuse the failure path from `narrationTimestampsPhase.ts` and the division failure path) and the assembly settle. Make 3.3 and 3.4 pass; 3.1 and 3.2 stay green.
 
 ## 4. Backend: relaunch pass (TDD; design Decisions 1-3)
 

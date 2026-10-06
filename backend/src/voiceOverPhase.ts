@@ -442,6 +442,8 @@ export const voiceOverLauncher: StageLauncher = {
       !getStageAttempts(sessionId, "voice-over").some((attempt) => attempt.outcome === "in-flight");
     return { count: waiting ? 1 : 0, sceneIds: [] };
   },
+  // An attempt left in flight is timed out by the watcher's startup sweep (JOS-185), so there is nothing to settle here.
+  settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }),
   launch: (sessionId: string) => {
     if (!admitLaunch(sessionId).admitted) return;
     if (hasScheduledAttempt(sessionId)) {

@@ -1,5 +1,5 @@
 import * as concurrency from "../src/concurrency.ts";
-import { reconcileOnBoot, VIDEO_STAGE } from "../src/orchestrator.ts";
+import { recoverOnBoot, VIDEO_STAGE } from "../src/orchestrator.ts";
 import { rebuildScheduler, resetScheduler } from "../src/retry/retryScheduler.ts";
 import { sweepTimedOutAttempts } from "../src/retry/attemptTimeoutWatcher.ts";
 import { STAGE } from "../src/types.ts";
@@ -13,12 +13,12 @@ export interface SimulatedRestartOptions {
   limits?: { image?: number; video?: number };
 }
 
-export function simulateRestart(options: SimulatedRestartOptions = {}): ReturnType<typeof reconcileOnBoot> {
+export function simulateRestart(options: SimulatedRestartOptions = {}): ReturnType<typeof recoverOnBoot> {
   concurrency.resetAll();
   concurrency.setLimit(STAGE, options.limits?.image ?? 10);
   concurrency.setLimit(VIDEO_STAGE, options.limits?.video ?? 10);
   resetScheduler();
-  const summary = reconcileOnBoot();
+  const summary = recoverOnBoot();
   rebuildScheduler();
   sweepTimedOutAttempts();
   return summary;

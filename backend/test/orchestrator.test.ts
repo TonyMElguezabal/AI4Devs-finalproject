@@ -14,7 +14,7 @@ import {
   manualRetry,
   nextStageLaunchCount,
   pauseSession,
-  reconcileOnBoot,
+  recoverOnBoot,
   setPostAdmitHook,
 } from "../src/orchestrator.ts";
 import {
@@ -229,8 +229,8 @@ describe("admission-to-in-flight atomicity (JOS-152, task 3.4, design Decision 2
   });
 });
 
-// JOS-152 task 3.5 — reconcileOnBoot through the gate
-describe("reconcileOnBoot respects the pause gate (JOS-152, task 3.5)", () => {
+// JOS-152 task 3.5 — recoverOnBoot through the gate
+describe("recoverOnBoot respects the pause gate (JOS-152, task 3.5)", () => {
   it("applies a resolved request for a paused session but does not launch the retry", () => {
     const { runId, sceneId } = newRunWithScene("unrecoverable", 5);
     launchScene(sceneId);
@@ -240,10 +240,10 @@ describe("reconcileOnBoot respects the pause gate (JOS-152, task 3.5)", () => {
     concurrency.resetAll();
     concurrency.setLimit(STAGE, 10);
 
-    // Pause the session before reconcileOnBoot runs
+    // Pause the session before recoverOnBoot runs
     pauseSession(runId);
 
-    const summary = reconcileOnBoot();
+    const summary = recoverOnBoot();
     expect(summary.recordedFailedAttempt).toBe(1);
 
     // The failure is applied but no retry is sent (held by the gate)
@@ -282,7 +282,7 @@ describe("continueSession launches held work from registered launchers (JOS-152,
     const launcher = {
       stage,
       heldWork: (_sessionId: string) => held(),
-      launch: (_sessionId: string) => { launched = true; },
+      settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }), launch: (_sessionId: string) => { launched = true; },
     };
     return { launcher, wasLaunched: () => launched };
   }
@@ -307,8 +307,8 @@ describe("continueSession launches held work from registered launchers (JOS-152,
     resetRegistry();
     registerStageLauncher(imageStageLauncher);
     const launched: PipelineStage[] = [];
-    const decompLauncher = { stage: "decomposition" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), launch: () => { launched.push("decomposition"); } };
-    const videoLauncher = { stage: "video" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), launch: () => { launched.push("video"); } };
+    const decompLauncher = { stage: "decomposition" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }), launch: () => { launched.push("decomposition"); } };
+    const videoLauncher = { stage: "video" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }), launch: () => { launched.push("video"); } };
 
     NOT_YET_LAUNCHABLE.delete("decomposition");
     NOT_YET_LAUNCHABLE.delete("video");
@@ -355,7 +355,7 @@ describe("continueSession behavior (JOS-152, task 5.1)", () => {
     pauseSession(runId);
 
     const launched: string[] = [];
-    const launcher = { stage: "decomposition" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), launch: () => { launched.push("decomposition"); } };
+    const launcher = { stage: "decomposition" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }), launch: () => { launched.push("decomposition"); } };
     NOT_YET_LAUNCHABLE.delete("decomposition");
     registerStageLauncher(launcher);
 
@@ -370,7 +370,7 @@ describe("continueSession behavior (JOS-152, task 5.1)", () => {
     // Not paused
 
     let launched = false;
-    const launcher = { stage: "decomposition" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), launch: () => { launched = true; } };
+    const launcher = { stage: "decomposition" as PipelineStage, heldWork: () => ({ count: 1, sceneIds: [] }), settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }), launch: () => { launched = true; } };
     NOT_YET_LAUNCHABLE.delete("decomposition");
     registerStageLauncher(launcher);
 

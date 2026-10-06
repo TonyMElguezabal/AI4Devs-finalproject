@@ -81,7 +81,7 @@ describe("launcher registry", () => {
     const launcher = {
       stage: "image" as PipelineStage,
       heldWork: (_sessionId: string): HeldWorkResult => ({ count: 0, sceneIds: [] }),
-      launch: (_sessionId: string) => {},
+      settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }), launch: (_sessionId: string) => {},
     };
     registerStageLauncher(launcher);
     expect(() => registerStageLauncher(launcher)).toThrow("already has a registered launcher");
@@ -96,12 +96,12 @@ describe("launcher registry", () => {
     registerStageLauncher({
       stage: "video",
       heldWork: (sid) => sid === runId ? { count: 1, sceneIds: [] } : { count: 0, sceneIds: [] },
-      launch: () => {},
+      settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }), launch: () => {},
     });
     registerStageLauncher({
       stage: "decomposition",
       heldWork: (sid) => sid === runId ? { count: 1, sceneIds: [] } : { count: 0, sceneIds: [] },
-      launch: () => {},
+      settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }), launch: () => {},
     });
 
     const { stages } = sessionHeldWork(runId);
@@ -126,7 +126,7 @@ describe("launcher registry", () => {
     registerStageLauncher({
       stage: "image",
       heldWork: () => ({ count: 0, sceneIds: [] }),
-      launch: () => {},
+      settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }), launch: () => {},
     });
     // Manually add back to NOT_YET_LAUNCHABLE to create the bad state
     NOT_YET_LAUNCHABLE.add("image");
@@ -155,7 +155,7 @@ describe("sessionHeldWork", () => {
     registerStageLauncher({
       stage: "image",
       heldWork: () => ({ count: 1, sceneIds: ["scene-1"] }),
-      launch: () => {},
+      settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }), launch: () => {},
     });
 
     const result = sessionHeldWork(runId);
@@ -180,7 +180,7 @@ describe("sessionHeldWork", () => {
       stage: "image",
       heldWork: (sid) =>
         sid === runId ? { count: 2, sceneIds: [sceneId1, sceneId2] } : { count: 0, sceneIds: [] },
-      launch: () => {},
+      settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }), launch: () => {},
     });
 
     const result = sessionHeldWork(runId);
@@ -197,12 +197,12 @@ describe("sessionHeldWork", () => {
     registerStageLauncher({
       stage: "image",
       heldWork: () => ({ count: 0, sceneIds: [] }),
-      launch: () => {},
+      settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }), launch: () => {},
     });
     registerStageLauncher({
       stage: "video",
       heldWork: (sid) => sid === runId ? { count: 1, sceneIds: [] } : { count: 0, sceneIds: [] },
-      launch: () => {},
+      settleInFlight: () => ({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 }), launch: () => {},
     });
 
     const { stages } = sessionHeldWork(runId);
