@@ -91,15 +91,15 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the real server on a scratch store and scratch projects folder, with stub providers; confirm `GET /health`.
-- [ ] 9.2 Create a session and drive a scene through image and clip (stub). Then `curl GET /sessions/:id` and check:
+- [x] 9.1 Start the real server on a scratch store and scratch projects folder, with stub providers; confirm `GET /health`.
+- [x] 9.2 Create a session and drive a scene through image and clip (stub). Then `curl GET /sessions/:id` and check:
   - `stages.image` and `stages.video` show provider and attempts;
   - there is no top-level `provider` or `attempts`.
-- [ ] 9.3 Insert `timestamps`, `instructions` and `assembly` attempt rows with sentinel error text in the scratch store, then `curl GET /sessions/:id` and check:
+- [x] 9.3 Insert `timestamps`, `instructions` and `assembly` attempt rows with sentinel error text in the scratch store, then `curl GET /sessions/:id` and check:
   - the phase `stages` are correct;
   - `grep` finds no sentinel and no endpoint path in the body.
-- [ ] 9.4 Error case: `curl GET /sessions/<unknown>` still answers 404. `curl GET /docs/json` documents `stages` and no longer documents the scene's `provider` or `attempts`.
-- [ ] 9.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/see-provider-and-attempts/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
+- [x] 9.4 Error case: `curl GET /sessions/<unknown>` still answers 404. `curl GET /docs/json` documents `stages` and no longer documents the scene's `provider` or `attempts`.
+- [x] 9.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/see-provider-and-attempts/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
