@@ -76,10 +76,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 9. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Decide applicability: no UI change, but AC1-AC3 are user-visible across a restart, so it applies.
-- [ ] 9.2 Run backend (scratch store, slow stubs) and frontend. Open a session mid-processing and note its scene states.
-- [ ] 9.3 Kill and restart the backend. The page reconnects without a reload, shows the same session and scenes, and continues to progress to completion.
-- [ ] 9.4 Restore the environment and save `openspec/changes/preserve-progress-across-restarts/reports/YYYY-MM-DD-step-9-e2e.md`.
+- [x] 9.1 Decide applicability: no UI change, but AC1-AC3 are user-visible across a restart, so it applies.
+- [x] 9.2 Run backend (scratch store, slow stubs) and frontend. Open a session mid-processing and note its scene states.
+- [x] 9.3 Kill and restart the backend. The page reconnects without a reload, shows the same session and scenes, and continues to progress to completion.
+- [x] 9.4 Restore the environment and save `openspec/changes/preserve-progress-across-restarts/reports/YYYY-MM-DD-step-9-e2e.md`.
 
 ## 10. Update Technical Documentation (MANDATORY)
 
