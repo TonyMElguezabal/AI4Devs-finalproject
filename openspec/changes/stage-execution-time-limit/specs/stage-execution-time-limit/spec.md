@@ -19,6 +19,15 @@ The execution time of an attempt SHALL be measured from the moment its request i
 - **WHEN** an attempt is held by a pause for longer than its stage's maximum time and then sent after the User continues
 - **THEN** its execution time starts when it is sent
 
+### Requirement: A stage without a defined maximum time is not timed
+
+A stage whose maximum time is not yet defined in the constants module SHALL have no deadline, and its attempts SHALL NOT be timed out. Defining the value SHALL be enough to start timing that stage.
+
+#### Scenario: A stage with an undetermined limit
+
+- **WHEN** an attempt of a stage whose maximum time is undetermined has been in flight for any length of time
+- **THEN** no timeout is recorded for it
+
 ### Requirement: An attempt that exceeds the maximum time is a transient failure
 
 When a sent attempt has produced no result after its stage's hardcoded maximum time, the system SHALL record the attempt as timed out, SHALL classify it as a transient failure, and SHALL hand it to the retry policy, which schedules the next attempt or declares the cycle exhausted.
@@ -38,6 +47,21 @@ When a sent attempt has produced no result after its stage's hardcoded maximum t
 
 - **WHEN** attempts of two different stages are in flight
 - **THEN** each is timed against the maximum time of its own stage
+
+### Requirement: A scene-level image request is limited at the provider call
+
+The image stage, which records no attempt row, SHALL stop waiting for an image request once its stage's maximum time has passed since the request was made, and SHALL treat that as a transient failure of the scene's attempt.
+
+#### Scenario: The image provider never answers
+
+- **WHEN** an image request has had no answer after the image stage's maximum time
+- **THEN** the request is abandoned and the scene's attempt is a transient failure
+- **AND** the scene's own retry path decides the next attempt
+
+#### Scenario: A scene waited behind the request limit
+
+- **WHEN** a scene waited longer than the image stage's maximum time for a request slot and its request then answers promptly
+- **THEN** the image is accepted and no timeout is recorded
 
 ### Requirement: A late result is accepted once, or discarded
 

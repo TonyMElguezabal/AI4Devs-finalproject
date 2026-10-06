@@ -55,6 +55,8 @@ export interface Run {
   voiceProviderId: string | null;
   /** The phase failure the session carries when it is `failed` (generate-voice-over, JOS-136, Decision 9; assign-scene-identifiers, JOS-144, Decision 6). */
   failure: SessionFailure | null;
+  /** The relative path of the assembled MP4 in the project folder; null until assembly succeeds (assemble-final-video, JOS-149). */
+  finalVideoPath: string | null;
 }
 
 /** Design Decision 9 (generate-voice-over, JOS-136) — what the session carries when the voice-over failed. */
@@ -64,6 +66,12 @@ export interface DecompositionFailure {
   /** Written for a person; never blames the script, never contains credentials or raw provider payloads. */
   cause: string;
   retryable: boolean;
+  /** Whether the User can start a new cycle (bounded-retry-policy, JOS-184). */
+  manualRetryAvailable: boolean;
+  /** The cycle the failure ended, from 1. */
+  cycle: number;
+  /** Attempts the cycle held when it failed, 1 to 4. */
+  attemptsInCycle: number;
   /** ISO-8601 instant. */
   occurredAt: string;
 }
@@ -75,6 +83,12 @@ export interface VoiceOverFailure {
   /** Written for a person; never contains credentials or the script text. */
   cause: string;
   retryable: boolean;
+  /** Whether the User can start a new cycle (bounded-retry-policy, JOS-184). */
+  manualRetryAvailable: boolean;
+  /** The cycle the failure ended, from 1. */
+  cycle: number;
+  /** Attempts the cycle held when it failed, 1 to 4. */
+  attemptsInCycle: number;
   /** ISO-8601 instant. */
   occurredAt: string;
 }
@@ -95,8 +109,8 @@ export interface VoiceOverInput {
 
 export type VoiceOver = VoiceOverInput;
 
-/** The stages that record attempts at session level (`timestamps`: obtain-narration-timestamps, JOS-139). Later stories add their own. */
-export type AttemptStage = "voice-over" | "timestamps";
+/** Stages that record attempts, including session-level and scene-level stages. */
+export type AttemptStage = "voice-over" | "timestamps" | "decomposition" | "image" | "video" | "assembly";
 
 /** How the narration timestamps were obtained (PRD §11.1). */
 export type TimestampMechanism = "native" | "alignment";
@@ -112,24 +126,57 @@ export interface NarrationTimestampsInput {
 
 export type NarrationTimestamps = NarrationTimestampsInput;
 
-export const STAGE_ATTEMPT_OUTCOMES = ["in-flight", "success", "transient", "not-retryable"] as const;
+/** `scheduled`: an automatic retry that is persisted with its due time and not yet sent (bounded-retry-policy, Decision 9). */
+/**
+ * stage-execution-time-limit (JOS-185): `timed-out` is a sent attempt that outlasted its stage's maximum time; its
+ * result may still arrive and then becomes `late-success` (accepted) or `superseded` (discarded). `cancelled` is a
+ * scheduled retry that was never sent because a late result made it unnecessary.
+ */
+export const STAGE_ATTEMPT_OUTCOMES = [
+  "scheduled",
+  "in-flight",
+  "success",
+  "transient",
+  "not-retryable",
+  "timed-out",
+  "late-success",
+  "superseded",
+  "cancelled",
+] as const;
 export type StageAttemptOutcome = (typeof STAGE_ATTEMPT_OUTCOMES)[number];
+
+export type AttemptTrigger = "initial" | "automatic" | "manual";
 
 /** One provider call, written before the request is sent (Decision 2) and never rewritten except to record its outcome. */
 export interface StageAttempt {
   id: string;
   runId: string;
   stage: AttemptStage;
-  providerId: string;
-  /** Sequence within the session's stage, from 1. */
+  /** Set for the scene-level stages (image, video); null for the session-level ones. */
+  sceneId: string | null;
+  /** The budget this attempt counts against (bounded-retry-policy, Decision 1). */
+  stageInstanceKey: string;
+  /** Starts at 1; a manual retry opens the next one. */
+  cycle: number;
+  /** 1 to 4 within the cycle; the store rejects a fifth. */
+  sequenceInCycle: number;
+  trigger: AttemptTrigger;
+  /** Null for a stage with no external provider (assembly, JOS-149). */
+  providerId: string | null;
+  /** Sequence across the session's stage, from 1, continuing through cycles. */
   attemptNumber: number;
   queuedAt: string;
-  sentAt: string;
+  /** Null while the attempt is only scheduled. */
+  sentAt: string | null;
+  /** When a scheduled attempt becomes due; null otherwise. */
+  dueAt: string | null;
   outcome: StageAttemptOutcome;
   finishedAt: string | null;
   externalRequestId: string | null;
   errorCode: string | null;
   errorMessage: string | null;
+  /** When a result arrived for an attempt that had already timed out; null otherwise. */
+  lateResultAt: string | null;
 }
 
 /** PRD §3 narration interval: where a chunk sits in the voice-over, in seconds. */
@@ -217,6 +264,20 @@ export interface ProviderRequestRow {
 
 // ---- Wire contract (define-live-updates, JOS-183, Decisions 2/4/8) ----
 
+/** view-progress-by-phase (JOS-168) — the four processing phases, in pipeline order (PRD §8.1, §8.3). */
+export type Phase = "voice-over" | "decomposition" | "scenes" | "assembly";
+export type PhaseStatus = "pending" | "in-progress" | "complete" | "failed";
+
+/** One entry of the session's `phases`: derived on every read from the session state, never stored. */
+export interface PhaseProgress {
+  phase: Phase;
+  status: PhaseStatus;
+  /** Work units a pause is holding for this phase; 0 when not paused. */
+  heldCount: number;
+  /** Only on a failed voice-over, decomposition or assembly entry; never the failure time or provider detail. */
+  failure?: { cause: string; retryable: boolean };
+}
+
 /** Session event / snapshot field — carries CURRENT state, never a delta. */
 export interface SessionEventPayload {
   type: "session";
@@ -234,10 +295,18 @@ export interface SessionEventPayload {
   failedPhase?: string;
   /** gate-assembly-on-complete-scenes (JOS-150): the failed scenes' indexes, ascending; present only when `failedPhase` is `"scenes"`. Derived, never stored. */
   failedSceneIndexes?: number[];
+  /** generate-voice-over (JOS-136) Decision 11 — present once the narration exists; never its file paths or the provider's request id, and no download (PRD §12.3). */
+  voiceOver?: { provider: string; durationSeconds: number; nativeTimestampsAvailable: boolean; completedAt: string };
+  /** Present while the session is `failed` in a phase that records its failure (Decision 9): the phase, a cause written for a person, and whether a retry may help, whether the User can start a new cycle, and which cycle and how many attempts it held (bounded-retry-policy, JOS-184). */
+  failure?: { phase: string; cause: string; retryable: boolean; manualRetryAvailable: boolean; cycle: number; attemptsInCycle: number; occurredAt: string };
+  /** view-progress-by-phase (JOS-168): the four phases in pipeline order, each with its status. Derived, never stored. */
+  phases: PhaseProgress[];
   /** PRD §12.2 — the project-folder name derives from this instant, and
    * consult-session (JOS-135) task 3.1 requires it in the session read. */
   createdAt: string;
   updatedAt: string;
+  /** Route to download the assembled MP4; present only when state is `final-video` (JOS-149). */
+  finalVideoUrl?: string;
 }
 
 /** Scene event / snapshot entry — carries CURRENT state, never a delta. */

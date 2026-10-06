@@ -1,3 +1,4 @@
+import { MAX_ATTEMPTS_PER_CYCLE } from "./config/providers.ts";
 import type { DecompositionFailure, SessionState, VoiceOverFailure } from "./types.ts";
 
 export type { DecompositionFailure, VoiceOverFailure } from "./types.ts";
@@ -44,25 +45,43 @@ export function assertSessionTransition(from: SessionState, to: SessionState): v
   if (!canTransitionSession(from, to)) throw new InvalidSessionTransitionError(from, to);
 }
 
-export function createVoiceOverFailure(input: { cause: string; retryable: boolean; occurredAt: Date }): VoiceOverFailure {
+export function createVoiceOverFailure(input: RetryStateInput & { cause: string; retryable: boolean; occurredAt: Date }): VoiceOverFailure {
   const cause = input.cause.trim();
   if (cause === "") throw new Error("a voice-over failure needs a non-blank cause");
   return {
     phase: "voice-over",
     cause,
     retryable: input.retryable,
+    ...retryStateOf(input),
     occurredAt: input.occurredAt.toISOString(),
   };
 }
 
 /** assign-scene-identifiers (JOS-144) Decision 6 — the failure recorded when a system-generated decomposition is refused. */
-export function createDecompositionFailure(input: { cause: string; retryable: boolean; occurredAt: Date }): DecompositionFailure {
+export function createDecompositionFailure(input: RetryStateInput & { cause: string; retryable: boolean; occurredAt: Date }): DecompositionFailure {
   const cause = input.cause.trim();
   if (cause === "") throw new Error("a decomposition failure needs a non-blank cause");
   return {
     phase: "decomposition",
     cause,
     retryable: input.retryable,
+    ...retryStateOf(input),
     occurredAt: input.occurredAt.toISOString(),
   };
 }
+/** bounded-retry-policy (JOS-184) — which cycle failed and how many attempts it held; the first attempt of the first cycle when unknown. */
+interface RetryStateInput {
+  cycle?: number;
+  attemptsInCycle?: number;
+}
+
+function retryStateOf(input: RetryStateInput & { retryable: boolean }): { manualRetryAvailable: boolean; cycle: number; attemptsInCycle: number } {
+  const cycle = input.cycle ?? 1;
+  const attemptsInCycle = input.attemptsInCycle ?? 1;
+  if (!Number.isInteger(cycle) || cycle < 1) throw new Error("a failure's cycle starts at 1");
+  if (!Number.isInteger(attemptsInCycle) || attemptsInCycle < 1 || attemptsInCycle > MAX_ATTEMPTS_PER_CYCLE) {
+    throw new Error(`a failure's attempts in its cycle are between 1 and ${MAX_ATTEMPTS_PER_CYCLE}`);
+  }
+  return { manualRetryAvailable: input.retryable, cycle, attemptsInCycle };
+}
+

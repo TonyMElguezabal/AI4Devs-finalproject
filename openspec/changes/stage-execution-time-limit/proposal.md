@@ -16,6 +16,7 @@ A timeout also creates a case nothing else handles. The MVP cannot cancel a requ
 - When a sent attempt exceeds its stage's hardcoded maximum time, record it as **`timed-out`**, classified **transient**, and hand it to the retry policy (JOS-184), which schedules the next attempt or declares exhaustion.
 - Accept a **late result** from a timed-out attempt when the stage instance has no successful result yet, and cancel any retry not yet sent; record it as **`superseded`** and discard it when the stage instance already has one. The stage never completes twice (§12.1).
 - Measure elapsed time from the recorded `sentAt` across restarts, so a restart neither resets nor extends the clock (§12.1).
+- Cover the scene-level **image** stage, which records no attempt row, with the same limit at its adapter (the Fal.ai call aborts after the image maximum time, as the alignment and decomposition adapters already do). The **video** stage keeps its existing poll limit. Scene stages keep their own retry path; they are not moved onto the attempt record here.
 - Read each stage's maximum time from the constants module, where `define-provider-configuration` (JOS-165) records it from measured latency (§11).
 
 ## Capabilities
@@ -35,4 +36,4 @@ None. `openspec/specs/` is still empty. `stage-retry-policy` (from `bounded-retr
 - **Data model**: StageAttempt outcomes gain `timed-out`, `superseded` and `late-success`, plus `lateResultAt`; scheduled attempts gain a `cancelled` outcome.
 - **Every stage adapter** must deliver a late result through the same completion path as an on-time one, so the idempotent completion rule applies to both.
 - **Cost**: a timeout does not stop the provider's work; a late result that is accepted avoids paying for it twice.
-- **Not included**: the retry budget itself (JOS-184); resuming in-flight requests after restart (US-28); the general duplicate-confirmation rule (US-29), which this change relies on.
+- **Not included**: moving the image and video stages onto the attempt record (they retry through `scenes.attempts`, not the recorder); the retry budget itself (JOS-184); resuming in-flight requests after restart (US-28); the general duplicate-confirmation rule (US-29), which this change relies on.

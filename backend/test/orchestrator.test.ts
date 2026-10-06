@@ -166,19 +166,19 @@ describe("shared per-stage concurrency cap (PRD §10.1, C3)", () => {
     concurrency.setLimit("TEST_STAGE", 2);
 
     const acquired: number[] = [];
-    concurrency.acquire("TEST_STAGE", () => acquired.push(1));
-    concurrency.acquire("TEST_STAGE", () => acquired.push(2));
-    concurrency.acquire("TEST_STAGE", () => acquired.push(3)); // queued
-    concurrency.acquire("TEST_STAGE", () => acquired.push(4)); // queued
+    concurrency.acquire("TEST_STAGE", "h1", () => acquired.push(1));
+    concurrency.acquire("TEST_STAGE", "h2", () => acquired.push(2));
+    concurrency.acquire("TEST_STAGE", "h3", () => acquired.push(3)); // queued
+    concurrency.acquire("TEST_STAGE", "h4", () => acquired.push(4)); // queued
 
     expect(acquired).toEqual([1, 2]);
     expect(concurrency.stats("TEST_STAGE")).toEqual({ inFlight: 2, queued: 2, limit: 2 });
 
-    concurrency.release("TEST_STAGE");
+    concurrency.release("TEST_STAGE", "h1");
     expect(acquired).toEqual([1, 2, 3]);
     expect(concurrency.stats("TEST_STAGE")).toEqual({ inFlight: 2, queued: 1, limit: 2 });
 
-    concurrency.release("TEST_STAGE");
+    concurrency.release("TEST_STAGE", "h2");
     expect(acquired).toEqual([1, 2, 3, 4]);
     expect(concurrency.stats("TEST_STAGE")).toEqual({ inFlight: 2, queued: 0, limit: 2 });
   });
@@ -413,18 +413,19 @@ describe("continue racing a cap-queued waiter (JOS-152, task 5.4)", () => {
 // JOS-152 task 6.1 — pause never reverts work
 describe("pause never reverts work (JOS-152, task 6.1)", () => {
   it("a long pause leaves a completed result unchanged", async () => {
+    // JOS-149: continueSession now also launches the video stage for image-complete
+    // scenes (JOS-146). The video stage resets scene.attempts to 0 when it starts,
+    // so only the IMAGE result (result path) is checked for immutability here.
     const { runId, sceneId } = newRunWithScene("success", 5);
     launchScene(sceneId);
     await waitFor(() => getScene(sceneId)?.status === "image-complete");
 
     const resultBefore = getScene(sceneId)!.result;
-    const attemptsBefore = getScene(sceneId)!.attempts;
 
     pauseSession(runId);
     continueSession(runId);
 
     expect(getScene(sceneId)!.result).toBe(resultBefore);
-    expect(getScene(sceneId)!.attempts).toBe(attemptsBefore);
   });
 
   it("pause and continue write nothing but the paused marker", () => {

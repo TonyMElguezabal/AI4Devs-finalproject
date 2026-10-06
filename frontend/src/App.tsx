@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { StartProjectForm, type StartProjectValues, type SupportedLanguage } from "./components/StartProjectForm";
 import { SessionPage } from "./components/SessionPage";
 import { useLiveSession } from "./api/useLiveSession";
-import { correctScene, createSession, continueSession, fetchLanguages, pauseSession, retryScene } from "./api/client";
+import { correctScene, createSession, continueSession, fetchLanguages, pauseSession, retryDecomposition, retryScene } from "./api/client";
 
 /**
  * No project-list screen exists in the PRD or backlog (design.md § Open
@@ -79,6 +79,7 @@ export default function App() {
         onContinue={() => continueSession(sessionId)}
         onRetry={(sceneId) => retryScene(sessionId, sceneId)}
         onCorrect={(sceneId, instruction) => correctScene(sessionId, sceneId, instruction)}
+        onRetryPhase={(phase) => (phase === "decomposition" ? retryDecomposition(sessionId) : Promise.reject(new Error("not-retryable")))}
       />
     </main>
   );

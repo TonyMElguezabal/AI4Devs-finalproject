@@ -15,6 +15,7 @@ alwaysApply: true
   - [Why not classic DDD/CRUD layering](#why-not-classic-dddcrud-layering)
   - [Core components](#core-components)
   - [Provider adapters](#provider-adapters)
+  - [Retries and attempts](#retries-and-attempts)
 - [Coding Standards](#coding-standards)
   - [Naming Conventions](#naming-conventions)
   - [Error Handling](#error-handling)
@@ -57,29 +58,33 @@ The stack decision, its rejected alternatives, and the live evidence behind it a
 
 ## Project Structure
 
+`backend/src/` is **flat**: one module per concern, with three small subfolders. The role of each module is described below instead of being encoded in folders (the `domain/` / `persistence/` / `http/` split this document used to show was never built; the product owner chose, on 2026-10-04, to make the document match the code rather than move every file while several stage branches were open).
+
 ```
 backend/
 ├── src/
-│   ├── domain/
-│   │   ├── orchestrator.ts     # stage state machine: launch, retry, idempotent result handling, boot reconciliation
-│   │   ├── concurrency.ts      # per-stage FIFO semaphore, shared across sessions
-│   │   ├── retryPolicy.ts      # pure function: outcome + attempt count → Complete | ScheduleNext | Fail
-│   │   └── providers/          # one adapter per stage (voice, alignment, image, video, assembly)
-│   ├── persistence/             # store-backed repositories (embedded SQLite via `node:sqlite`)
-│   ├── http/
-│   │   ├── routes/              # one file per resource, Fastify + Zod schemas colocated
-│   │   ├── events.ts            # SSE (or chosen transport, US-42e) live-push endpoint
-│   │   └── server.ts            # Fastify instance, plugin registration, boot reconciliation call
-│   ├── config/
-│   │   └── env.ts               # required-environment-variable validation at startup
-│   └── index.ts                 # entry point
-├── test/
+│   ├── server.ts, routes.ts                 # HTTP: Fastify instance, plugins, boot reconciliation call; every route with its Zod schemas
+│   ├── db.ts                                # persistence: embedded SQLite via `node:sqlite`, migrations, every repository function
+│   ├── orchestrator.ts                      # orchestration: launch, retry, idempotent result handling, boot reconciliation
+│   ├── concurrency.ts, launchGate.ts        # orchestration: per-stage FIFO semaphore; pause gate and held-work launchers
+│   ├── sessionStateMachine.ts, assemblyGate.ts, *Phase.ts, *Retry.ts, voiceLaunchGuard.ts, decompositionDependencies.ts
+│   │                                        # orchestration: derived session state and the per-phase flows (voice-over, timestamps, decomposition, assembly)
+│   ├── provider.ts, imageProvider.ts, videoProvider.ts, voiceProvider.ts, alignmentProvider.ts,
+│   │   visualInstructions.ts, assemblyTool.ts, ffmpegAssemblyTool.ts, stubAssemblyTool.ts, imageOutputCheck.ts
+│   │                                        # provider adapters and their ports, plus the stubs used by tests and manual runs
+│   ├── sentences.ts, sentenceTimings.ts, segmentation.ts, clauseSplitting.ts, clauseBoundaries.ts,
+│   │   narrationTimestamps.ts, sceneRegistration.ts, admittedDurations.ts, types.ts
+│   │                                        # pure domain helpers and shared types (no side effects)
+│   ├── retry/                               # retryPolicy.ts (pure), retryScheduler.ts, stageAttemptRecorder.ts
+│   ├── config/                              # providers.ts (every hardcoded PRD value), credentials.ts
+│   └── util/                                # ulid.ts
+├── test/                                    # vitest, one file per behaviour; setup.ts resets the voice provider stub
 ├── tsconfig.json
 ├── vitest.config.ts
 └── package.json
 ```
 
-**`backend/` now exists** — promoted from the throwaway skeleton (`start-video-project`, JOS-134, extending `docs/adr/0001-backend-stack.md` § Consequences' "kept as the project seed" decision), not a hypothetical target structure. It still models the PRD's five stages as one generic stage; the full five-stage model is future work, not yet done (see below).
+**`backend/` now exists** — promoted from the throwaway skeleton (`start-video-project`, JOS-134, extending `docs/adr/0001-backend-stack.md` § Consequences' "kept as the project seed" decision). Each stage's own change implements its slice of the five-stage model (voice-over, decomposition, image, video and assembly are real stages); `provider.ts`'s generic stub remains only for scenes registered without a decomposition (see [Not Yet Decided](#not-yet-decided)).
 
 ## Architecture
 
@@ -91,7 +96,7 @@ The previous version of this document prescribed a Presentation → Application 
 
 - **`RetryPolicy`** — a pure function: `(outcome, attemptsInCycle) → Complete | ScheduleNext | Fail`. No I/O, no side effects; fully unit-testable without a running server or database. This mirrors `bounded-retry-policy` (JOS-184)'s Decision 2, which owns the real policy (backoff, `stageInstanceKey` keying by `(sessionId, stage)` or `(sessionId, sceneId, stage)`); this document does not restate that design, only conforms to it.
 - **`orchestrator`** — everything with side effects sits here: launching a stage, applying `RetryPolicy`'s decision, handling a (possibly duplicate) provider result idempotently, and reconciling in-flight work on boot. Proven live in the walking skeleton (`docs/adr/0001-backend-stack.md` § Evidence) against all four PRD behaviours hardest to retrofit (bounded retries, shared concurrency, restart resumption, idempotency).
-- **`concurrency`** — a FIFO semaphore per stage, shared across all sessions (PRD §10.1). A queued request has not been sent: no attempt is consumed and no per-phase clock starts for it.
+- **`concurrency`** — a FIFO semaphore per stage, shared across all sessions (PRD §10.1). A queued request has not been sent: no attempt is consumed and no per-phase clock starts for it. **Every slot belongs to a holder** (the scene id): `acquire(stage, holder, onAcquired)` and `release(stage, holder)`, so a release by a holder with no slot, or a second release of the same slot, changes nothing, and a scene that already holds a slot or is queued in a stage is not queued twice. `occupy(stage, holder)` counts a request that was **already sent** (before a restart) against the cap even at or above the limit, and never queues; `reconcileOnBoot` calls it for every resumed request before processing any scene, so the in-flight count may sit **above** the cap after a restart and no new request is sent until it drains below it. The semaphore is in memory only: boot rebuilds the count from `provider_requests` and scene state, and then relaunches waiting work (`launchHeldWork`) for sessions that are not paused. (`harden-backend-foundation`, JOS-186; evidence in `openspec/changes/harden-backend-foundation/reports/`.)
 - **Provider adapters** — see below.
 - **`assemblyGate`** (`gate-assembly-on-complete-scenes`, JOS-150) — a pure function over the scenes: open only when every scene is `chunk-complete`, otherwise closed with the ascending `processingSceneIndexes` and `failedSceneIndexes`. It is the single launch condition for final assembly (PRD §7.3, AC12): anything that starts assembly calls it, and nothing re-derives the rule. A scene is *settled* when it is `chunk-complete` or `failed` (`isSceneSettled`); "still generating" is the complement, so a new non-final scene status counts as generating without editing a hand-written list. `deriveSessionState` is built on the same two functions, so the session state and the launch condition cannot disagree.
 
@@ -101,9 +106,17 @@ Stage attempts are recorded **append-only**, written *before* the request is sen
 
 One adapter per stage (voice, alignment, image, video, assembly). Per `generate-voice-over` (JOS-136)'s Decision 4, an adapter returns an **already-classified** outcome (success, transient failure, or not-retryable failure) — classification is the adapter's job, not the orchestrator's, since only the adapter knows a given provider's error shapes. Per `bounded-retry-policy`'s Decision 6, every adapter disables its own HTTP client's/SDK's built-in retries; the bounded retry budget (§10.1) is the *only* retry mechanism, or an internal library retry loop would silently multiply it.
 
+**Rule for every new adapter (image, video, reasoning, alignment, assembly and any later one):** one provider request per call, made with `fetch` directly or an SDK client configured with automatic retries off (`maxRetries: 0` or the equivalent); no retry loop, no backoff, no `Retry-After` handling inside the adapter. A `Retry-After` is only reported upward so the retry policy can respect it. The guard is `backend/test/adapters-no-hidden-retries.test.ts`: add the new adapter to it, and the story is not done until a failing call is shown to be made exactly once.
+
 **The reasoning adapter** (`backend/src/visualInstructions.ts`, `assign-scene-identifiers`, JOS-144) follows the same rule: `VisualInstructionGenerator` is the port and the OpenAI adapter sends **one** chat-completions request for all fragments (`response_format: json_object`, the shape verified in JOS-165), validates the answer with Zod (exactly one non-empty `image` and `video` per fragment), and classifies failures by HTTP status the way the product owner set for voice (not retryable: 4xx except 408 and 429; transient: 408, 429, 5xx, network errors and the phase time limit). It uses `fetch` directly, with no SDK and no retry loop, reads `OPENAI_KEY` through `loadCredential`, and never puts the provider's raw body or the key in a reason. Real calls run only in the opt-in contract test (`RUN_PROVIDER_CONTRACT_TESTS=1`).
 
 **The alignment adapter and the timestamps step** (`backend/src/alignmentProvider.ts`, `narrationTimestampsPhase.ts`, `obtain-narration-timestamps`, JOS-139) follow the same rules. `AlignmentProvider` is the port; the ElevenLabs Forced Alignment adapter sends one multipart request (the stored MP3 as `file`, the locked script as `text`, unaltered), with the 5 s phase limit, no retry and the HTTP-status classification. `obtainNarrationTimestamps(runId, alignmentProvider)` takes only the alignment port, so the voice provider cannot be called again and the MP3 cannot be regenerated. **Usable** timestamps (`narrationTimestamps.ts`, pure) are those with at least one character, characters that reproduce the script (exactly for native, apart from whitespace for alignment), finite non-negative ordered times, and a last end within the narration's duration plus half a second; gaps are allowed. Native first, alignment in the same attempt when native are missing or unusable, and straight to alignment on every later attempt once native were judged unusable. Nothing in the running app calls it yet: the voice phase (JOS-136) calls it once a narration completes.
+
+**The voice stage and the voice-over phase** (`backend/src/voiceProvider.ts`, `voiceOverPhase.ts`, `generate-voice-over`, JOS-136) are the first session-level stage, launched once per session rather than once per scene, and follow the same rules. `VoiceProvider` is the port (`synthesize(request)`), and the ElevenLabs adapter sends **one** synchronous text-to-speech request with timestamps for the whole script, sent exactly as stored: no SDK, no retry loop, no default time limit (the per-phase limit is passed in by the time-limits story, JOS-185). It classifies by HTTP status (4xx except 408 and 429 is not retryable, everything else transient), reads its credential only through `loadCredential`, and never copies the provider's body into a failure reason. The registry (`getVoiceProviderRegistry`, `setVoiceProviderRegistry`, `resetVoiceProviderRegistry`) mirrors the video provider's, and the session binds its provider on the first attempt (`voice_provider_id`) so a later change of the default cannot split one narration across providers. `createStubVoiceProvider(mode)` is the stand-in every test uses, and `USE_STUB_VOICE_PROVIDER=<mode>` selects it at server start for manual and end-to-end runs; the real ElevenLabs is never called from tests.
+
+**The phase-launch gate for the voice stage.** The phase registers its own `StageLauncher` (`voiceOverLauncher`, stage `voice-over`) with `registerStageLauncher`, as the image and video stages do, and every start goes through `launchVoiceOverFor(sessionId)`, which asks `admitLaunch` before anything is claimed: a paused session keeps its voice-over as held work (count 1, no scenes) and `continueSession` launches it. `startVoiceAttempt` is the one write that moves a session to `voice-over-generating`: it binds the provider, clears an earlier failure and records the `in-flight` stage attempt in one transaction, before the request is sent. A confirmed result is stored through `confirmVoiceOver`, which measures the duration of the stored MP3 with `ffprobe` (a prerequisite of the backend), writes the MP3 and the raw timestamps once and inserts the locked record; a duplicate or concurrent confirmation changes nothing. The session state is derived from these records (`deriveSessionState`); no state column exists.
+
+**The retry hook** is `setTransientFailureHook` / `resetTransientFailureHook` in `voiceOverPhase.ts`: a transient failure is handed to the hook with `{ runId, attemptNumber, cause }`, and it answers `"handled"` (the policy took over: nothing is stored as a failure, and the policy starts the next attempt itself through `startVoiceAttempt`, which is what moves the session back to `voice-over-generating`) or `"fail"` (the phase stores the failure). Either way the failed attempt itself is already recorded as `transient`. The default hook answers `"fail"`, so until the bounded retry policy (JOS-184) installs its own, a transient failure fails the session with `retryable: true`. Manual retry (JOS-155), the pause and continue stories and the time limits (JOS-185) extend the launcher and this hook; they do not wrap the phase or re-derive its state.
 
 **Registering chunks** goes through one entry point, `registerDecomposition(runId, fragments, generator, voiceOverDurationSeconds)` (`backend/src/sceneRegistration.ts`). It validates the fragments first (non-empty, the 5-15 s bounds with the two §6.1.1 exceptions, script reconstruction), then checks that the fragments' narration intervals partition the voice-over (`assign-narration-intervals`, JOS-143; see below), then asks the generator, then inserts every chunk in one transaction; an invalid result records a `decomposition` failure and writes no chunk. Nothing in the running app calls it yet: the segmentation story (JOS-140) wires it in.
 
@@ -130,13 +143,29 @@ interface VideoProvider {
 
 `submit` returns `{ kind: "submitted"; requestId }` or a failure; `poll` returns `pending`, `success`, `not_found` or a failure. The RunningHub adapter uploads the image via `POST /openapi/v2/media/upload/binary`, submits a task (`POST /openapi/v2/task/openapi/create`) with `{ prompt, duration, resolution: "2K", firstFrameUrl }`, and polls status (`POST /openapi/v2/task/openapi/status`); the `taskId` becomes the `requestId`. HTTP 4xx (except 408/429) is not-retryable; everything else is transient — there is no distinguishable not-retryable signal from RunningHub (`JOS-165`). The registry follows the same pattern as `imageProvider.ts` (`getVideoProviderRegistry`/`setVideoProviderRegistry`/`resetVideoProviderRegistry`), and binding uses `bindSceneVideoProvider` with the same atomic sentinel pattern.
 
-**Per-stage concurrency key**: the video stage uses `"video"` (not `"image"`) as the key to `concurrency.acquire`/`release`, provisionally capped at 3 (`PROVISIONAL_VIDEO_CONCURRENCY`, `config/providers.ts`). The image stage uses `"image"`. A correct implementation never touches the other stage's semaphore slot — mixing the two keys would silently consume the wrong budget.
+**Per-stage concurrency key**: the video stage uses `"video"` (not `"image"`) as the stage key to `concurrency.acquire`/`release` (the holder is the scene id), provisionally capped at 3 (`PROVISIONAL_VIDEO_CONCURRENCY`, `config/providers.ts`). The image stage uses `"image"`. A correct implementation never touches the other stage's semaphore slot — mixing the two keys would silently consume the wrong budget.
 
 **Per-stage attempts**: the `scenes.attempts` counter resets to 0 at the start of the video stage (`resetAttemptsForVideoStart`), so a chunk that consumed 3 image-stage attempts starts the video stage fresh at 1. The full attempt history for both stages lives in `provider_requests` rows, distinguished by `provider_requests.stage` (`'image'` or `'video'`). Boot reconciliation (`reconcileOnBoot`) uses this column to decide which adapter to resume polling with.
 
 **Clip-retry refusal**: `manualRetry` and `correctAndRetry` refuse a video-stage failure (`scene.result !== null`) with `{ ok: false, reason: "retrying a failed clip is not available yet" }` (HTTP 409). The clip retry path is deferred to JOS-150 (`gate-assembly-on-complete-scenes`) or later. Callers must check `affectedStage` on a failed scene to distinguish image-stage failures (retryable via these endpoints) from video-stage failures (not yet retryable). This refusal is tested in Group 6.3 of `test/video-stage.test.ts`.
 
 **MP4 validation**: `completeVideoStage` checks the first 8 bytes of the downloaded clip for the `ftyp` box before writing it to disk — `bytes[4..7] === 'ftyp'` — and rejects non-MP4 data as a transient failure.
+
+### Retries and attempts
+
+`bounded-retry-policy` (JOS-184, PRD §10.1) owns every retry: a stage instance (`stageInstanceKey`) gets at most four attempts per cycle, and nothing but a new cycle started by the User adds more.
+
+- **Record every outcome through `recordAttemptOutcome`** (`src/retry/stageAttemptRecorder.ts`). It completes the attempt, decides with the pure `decideRetry`, and schedules the next one in a single transaction. A stage never sets its own failure on a transient error and never decides whether to retry.
+- **Fail the stage instance only on the recorder's `failed` result** (cap spent, or not retryable). Until then the session stays in progress and shows no failure.
+- **Never enable client or SDK retries**; see the checklist under *Provider adapters*. `test/adapters-no-hidden-retries.test.ts` is the guard.
+- **Retries go through the launch gate.** A scheduled attempt is released by `releaseAttempt` (`src/retry/retryScheduler.ts`), which asks `admitLaunch` first, so a paused session holds its retries and `continue` releases them.
+- **A new cycle is opened only by `startNewCycle`**, which refuses an instance that has not failed or whose failure is not retryable.
+- **A stage that wants retries registers a sender** with `registerAttemptSender(stage, sender)`; the scheduler calls it when an attempt is due and after a restart (`rebuildScheduler`). The sender must not make its own scheduling decisions.
+- **The execution clock starts at `sent_at`** (`stage-execution-time-limit`, JOS-185, PRD §10.1). Time an attempt spends queued behind the request cap, held by a pause or waiting as a scheduled retry is never counted, and an unsent attempt has no deadline. The deadline is `sent_at` plus the stage's `PER_PHASE_MAX_TIME_SECONDS` (`src/retry/attemptDeadline.ts`, pure); a stage whose limit is `"undetermined"` has none. There are no per-attempt timers: `AttemptTimeoutWatcher` (`src/retry/attemptTimeoutWatcher.ts`) sweeps stored `in-flight` attempts at startup, after resumption, and then every second.
+- **A stage opts into the watcher with `registerTimeoutHandler(stage, handler)`.** The recorder (`recordAttemptTimeout`) has already moved the attempt to `timed-out` and applied the policy; the handler only presents the stage's failure and logs. A stage with no handler is never timed out there. Today only `voice-over` registers; the image stage records no attempt row, so its limit is the Fal.ai adapter's default `timeoutMs`, and alignment and decomposition adapters abort at their own limit.
+- **A late result goes through the same completion path as an on-time one.** After `await`ing the provider, a stage checks whether its attempt is now `timed-out` and, if so, lets the store decide (`handleLateResult` in `voiceOverPhase.ts`): accepted as `late-success` (cancelling any scheduled retry and lifting an exhaustion failure), or `superseded`; a late failure is only recorded. Never write a second completion path.
+- **Each adapter records whether a result can arrive late.** A call that is aborted at the limit (decomposition, alignment, image) cannot; a call that keeps running (voice) or a job polled by id (video) can. See the table in `openspec/changes/stage-execution-time-limit/design.md` § Pre-implementation findings.
+- **Delays are injected**, never read from a constant inside the policy. The defaults are `PROVISIONAL_RETRY_DELAY_SECONDS` until US-33 records the PRD values; tests call `setRetryDelayConfig`, and `RETRY_BASE_DELAY_SECONDS` / `RETRY_CAP_DELAY_SECONDS` shorten them for manual runs.
 
 ## Coding Standards
 
@@ -146,6 +175,7 @@ Naming, typing, TDD and English-only rules are inherited from `docs/base-standar
 
 - **Files**: camelCase (`orchestrator.ts`, `retryPolicy.ts`)
 - **Types/interfaces/Zod schemas**: PascalCase (`SceneStatus`, `CreateRunBody`)
+- **The decomposition stage has two senders and one launcher.** (`retry-decomposition`, JOS-156; `backend/src/decompositionPhase.ts`, `decompositionRetry.ts`, `decompositionDependencies.ts`.) `timestamps` and `decomposition` both register `sendDecompositionAttempt`, which runs the step the attempt names with the providers from `getDecompositionDependencies()` (the alignment and visual-instruction providers, installed by `setDecompositionDependencies` in tests, the way `voiceProvider.ts` holds its registry); a scheduled attempt is claimed first and passed to the step as `claimedAttempt`, so the step completes it instead of recording a second one. `decompositionLauncher` (stage `decomposition`) reports a scheduled attempt of either stage, for a session with no chunks, as held work (count 1) and launches by releasing the session's attempts through the gate. `retryDecomposition(sessionId)` is the one service behind `POST /sessions/:sessionId/decomposition/retry`: it checks, in order, that the session exists, has no chunks, has no pending retry, failed in decomposition and that the failure is retryable; opens the cycle with `startNewCycle`; releases the attempt; and **publishes the session state with `broadcast`**, because a held retry runs no step and nothing else would tell live subscribers the failure was cleared. Any new retry path must publish after it records its attempt.
 - **Stage identifiers**: the PRD's own stage names, not invented synonyms (`voice`, `alignment`, `decomposition`, `image`, `video`, `assembly`)
 - **Constants**: UPPER_SNAKE_CASE, and every hardcoded PRD value (retry budget, concurrency caps, per-phase timeouts) lives in one constants module, **`backend/src/config/providers.ts`**, sourced from `define-provider-configuration` (JOS-165, `docs/adr/0005-provider-selection.md`) — never inlined at the call site. Values are read from it, never redefined; a value still pending another change is marked `"undetermined"` there rather than guessed (the speed-factor limit was marked this way pending `define-media-assembly`'s measurement; `record-speed-adjustment-factor`, JOS-148, set it to `2.0` once that measurement was available).
 
@@ -236,6 +266,8 @@ What's fixed, because it comes directly from the PRD and is proven against the r
 - **An artefact that must never be replaced is written with `writeArtefactOnce`.** (`lock-script-and-narration`, JOS-137, Decision 3.) It writes to a temporary file beside the target and hard-links it to the final name; the link is atomic and fails when the target exists (`ArtefactAlreadyExistsError`), where `rename` would silently replace it and an `existsSync` check would be a read-then-write race. It keeps the same project-folder scoping as `writeArtefact`. Use it for the voice-over MP3; artefacts that a retry may legitimately overwrite keep using `writeArtefact`.
 - **Every provider launch asks `admitLaunch` before sending and has no `await` between the second gate check and the in-flight mark.** (`pause-and-continue-session`, JOS-152, Design Decision 2; `backend/src/launchGate.ts`.) `admitLaunch(runId)` returns `{ admitted: true }` if the session exists and is not paused, or `{ admitted: false, reason }` otherwise. The gate is checked **twice** — once on entry (before reserving a concurrency slot) and once inside the slot callback immediately before `markSceneInFlight`, with no `await` between the second check and the mark. This ensures a pause landing between the two checks is still acted on. A launch that returns `{ admitted: false }` must not call `provider.send` or claim an attempt; the scene stays in `submitted` and is re-launched when the session is continued. Automatic and manual retries also ask `admitLaunch`; a retry that is held records the pending-retry state before it asks (so the scheduler's record exists and `continueSession` will find it). Each stage registers a launcher with `registerStageLauncher` (a `{ stage, heldWork, launch }` object) and removes itself from `NOT_YET_LAUNCHABLE`; `continueSession` calls every launcher's `launch` after clearing the pause marker.
 
+- **The in-progress state of a retried phase is derived from an in-flight attempt newer than the recorded failure.** (`view-progress-by-phase`, JOS-168, Decision 5; `deriveSessionState` and `isRetryInFlight` in `orchestrator.ts`.) A session with no scenes and a recorded failure reads `voice-over-generating` or `chunk-decomposing` when the latest attempt of the failed phase's stage (`voice-over`, or `timestamps` for decomposition) is `in-flight` and was queued at or after the failure's `occurredAt`. The failure is not cleared to make this work (a retry that fails again must still carry its cause). Any new retry path must record its attempt before it launches, or the session will keep reading `failed` while it runs. `session.phases` is derived from the resulting state by `derivePhaseProgress`, never stored, and carries only a failure's `cause` and `retryable`.
+
 - **Voice generation asks `canLaunchVoiceOver` before it launches.** (`lock-script-and-narration`, JOS-137, Decision 4; `backend/src/voiceLaunchGuard.ts`.) Every caller (the first launch and the automatic and manual retries) uses it. It decides from whether the session has a voice-over record, not from the derived session state, so a session that failed before producing valid audio can be retried while one that already has a narration cannot be regenerated.
 
 **Test isolation:** tests that touch persisted state run against an **isolated** database path and an isolated project-folder root (`DB_PATH=data/test.sqlite PROJECTS_ROOT=data/test-projects npx vitest run`), never the same paths used for manual/E2E testing or real use. The test-reset helper wipes **both** the database rows and the real project-folder directory — a store that also writes real files needs its filesystem state reset alongside its rows, or a second test run collides with the first's leftovers (a real gap found and fixed while verifying this, `openspec/changes/define-persistence/reports/2026-09-25-step-7-unit-test-and-db-verification.md`).
@@ -272,11 +304,13 @@ Structured JSON logging (Fastify's built-in Pino logger), one event per line, ne
 - `sessionId`, `sceneId` (when the stage is per-scene), `stage`
 - `stageInstanceKey` (per `bounded-retry-policy`'s Decision 1: `(sessionId, stage)` or `(sessionId, sceneId, stage)`)
 - `cycle` and `sequenceInCycle` (which automatic-retry cycle, and which of the 1 + 3 attempts within it — `bounded-retry-policy` Decision 7)
-- `trigger` (`automatic` | `manual`)
+- `trigger` (`initial` | `automatic` | `manual`), and `queuedMs` (time from the attempt being queued or scheduled to it being sent) next to `latencyMs`
 - `providerRequestId` (the external request identifier, recorded before the request is sent)
 - `outcome` (`success` | `failed_transient` | `failed_not_retryable`) once known
 
 **Never log a provider credential or secret value**, even at debug level — this is a hard requirement of `backend-foundation`'s "Provider credentials outside source control" (`specs/backend-foundation/spec.md`), not just good practice. A missing required credential at startup must report *which* credential is missing without ever printing its value.
+
+**Script text is never logged.** The script is the User's content and may be long or private, so neither the voice-over phase nor any adapter writes it, a prefix of it, or the provider's response body to a log line or to a failure cause. The voice-over phase logs only `scriptLength` and `scriptSha256` (a fingerprint that identifies a script without revealing it) beside `sessionId`, `stage`, `provider`, `attemptNumber`, `providerRequestId`, `outcome`, `latencyMs` and a `reason` written for a person (`VoiceOverLogEntry`, `setVoiceOverLogger`). The same rule holds for the failure cause the API returns. A new phase that sends the script to a provider follows it.
 
 ## Security and Configuration
 
@@ -299,11 +333,19 @@ Tracked here so this document is never mistaken for settling more than it has:
 - ~~Live-update transport~~ — **decided**: Server-Sent Events (`docs/adr/0003-live-updates.md`). See [Live Updates](#live-updates).
 - **Frontend stack and its interop contract with this backend** — `define-frontend-stack` (US-42b, JOS-180).
 - ~~Hardcoded values~~ (retry backoff base/cap, per-phase max execution times, concurrency caps, speed-factor limits) — **decided**: `backend/src/config/providers.ts` (`define-provider-configuration`, US-33, JOS-165, `docs/adr/0005-provider-selection.md`). The speed-factor limit (`2.0`) was fixed by `record-speed-adjustment-factor` (JOS-148) from `define-media-assembly` (JOS-182)'s measurement. **Still open**: assembly's per-phase max time, pending implementation of the assembly stage; voice/alignment/video's per-stage request caps, no real rate limit found yet for those three.
-- ~~Whether the walking skeleton becomes `backend/`'s seed~~ — **decided**: yes, promoted (`start-video-project`, JOS-134). The full five-stage model (voice, alignment, image, video, assembly as their own real stages, not one generic stand-in) remains future work — each stage's own change (`decompose-script-into-chunks`, `generate-chunk-image`, `generate-chunk-video`, `generate-voice-over`, `assemble-final-video`) implements its slice when it lands.
+- ~~Whether the walking skeleton becomes `backend/`'s seed~~ — **decided**: yes, promoted (`start-video-project`, JOS-134). The five-stage model is implemented stage by stage, each in its own change (`generate-voice-over`, `decompose-script-into-chunks`, `generate-chunk-image`, `generate-chunk-video`, `assemble-final-video`); `harden-backend-foundation` (JOS-186) closed the two checks the spikes left open (concurrency accounting after a restart, write capacity at 300 scenes) and made this document match the real layout.
 
 ## Media Assembly Pipeline
 
 The assembly design and measurements are recorded in [ADR 0005](adr/0005-media-assembly.md). The archived JOS-182 change contains the experimental reference script, fixture, and tests; it proves the pipeline choices but is not the production assembly implementation.
+
+**Production implementation** (`assemble-final-video`, JOS-149): `backend/src/ffmpegAssemblyTool.ts` implements the `AssemblyTool` port (`backend/src/assemblyTool.ts`). The orchestrator calls `AssemblyTool.assemble(input)` from `runAssemblyAttempt` after the assembly gate fires. The contract for any implementation:
+
+- **Clip ordering**: scenes sorted by ascending `index`; each clip's `cumulativeStartFrame` and `frameCount` come from persisted `narration_start_seconds` / `narration_end_seconds` (never recomputed from clip duration).
+- **Audio replacement**: clip audio excluded at input (`-map 0:v:0`); voice-over muxed as the only audio track via stream copy (`-c:a copy`).
+- **Output format**: H.264 video, AAC audio, hardcoded resolution/frame rate from `FINAL_OUTPUT` in `config/providers.ts`.
+- **Retry policy**: `RETRY_BUDGET = 3` (4 attempts total); transient failures retry, not-retryable failures stop. `provider_id` is NULL in `stage_attempts` for assembly (no external provider). On success, `runs.final_video_path` is set and the session transitions to `final-video`.
+- **Isolation**: assembly attempts never modify chunk records, voice-over records, or timestamps.
 
 The production stage must preserve these measured constraints:
 

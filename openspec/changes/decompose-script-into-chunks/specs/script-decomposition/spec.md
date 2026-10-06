@@ -27,22 +27,11 @@ The system SHALL track `timestamps` and `decomposition` as two distinct stage in
 - **WHEN** the `timestamps` stage instance fails transiently and later succeeds within its own retry budget
 - **THEN** the `decomposition` stage instance starts with a full retry budget of its own
 
-### Requirement: A manual retry of timestamps stays on the same audio and mechanism-appropriate provider
+### Requirement: Manual retries of the two steps are owned by `retry-decomposition`
 
-When the User manually retries a failed `timestamps` stage instance, the system SHALL retry against the same MP3. If native timestamps were returned but judged unusable, the retry SHALL go directly to the alignment provider without calling the voice provider again.
+The manual retry of a failed `timestamps` stage instance (same MP3, straight to alignment after unusable native timestamps, never the voice provider) and of a failed `decomposition` stage instance (the same locked script and timestamps, never the voice-over) is specified once, in the change `retry-decomposition` (JOS-156, US-24, capability `decomposition-manual-retry`). This change SHALL NOT specify or implement the manual retry.
 
-#### Scenario: A manual retry follows an unusable-native-timestamps failure
+#### Scenario: The manual retry is specified elsewhere
 
-- **WHEN** the User manually retries a `timestamps` stage instance that failed because native timestamps were unusable
-- **THEN** the retry is sent to the alignment provider
-- **AND** the voice provider is not called
-
-### Requirement: A manual retry of decomposition re-splits the same script
-
-When the User manually retries a failed `decomposition` stage instance, the system SHALL re-run segmentation on the same locked script and the same timestamps, without rewriting the script or regenerating the voice-over.
-
-#### Scenario: Decomposition is retried manually
-
-- **WHEN** the User manually retries a failed `decomposition` stage instance
-- **THEN** the script and the voice-over are unchanged
-- **AND** segmentation is re-run to produce a new set of chunks
+- **WHEN** a reader looks for the behavior of a manual retry of `timestamps` or `decomposition`
+- **THEN** it is found in `retry-decomposition`'s `decomposition-manual-retry` capability, not in this change

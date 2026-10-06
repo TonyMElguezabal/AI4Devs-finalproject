@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
+import { events } from "../src/orchestrator.ts";
 import { buildApp } from "../src/server.ts";
-import { createScene, getRun, markSceneFailed, resetAll, setRunPaused } from "../src/db.ts";
+import type { SessionSnapshot } from "../src/types.ts";
+import { completeStageAttempt, createScene, getRun, markSceneFailed, recordStageAttempt, resetAll, setRunFailure, setRunPaused } from "../src/db.ts";
+import { createDecompositionFailure } from "../src/sessionStateMachine.ts";
 
 // lock-script-and-narration (JOS-137), group 6 — PRD §4.2, D10: the API offers
 // no way to modify a session's script, title or language, or to regenerate,
@@ -166,5 +169,132 @@ describe("pause and continue endpoints (JOS-152, task 7.3)", () => {
     const res = await app.inject({ method: "POST", url: `/sessions/01AAAAAAAAAAAAAAAAAAAAAAAA/continue` });
     expect(res.statusCode).toBe(404);
     expect(res.json().ok).toBe(false);
+  });
+});
+
+// view-progress-by-phase (JOS-168), task 4.1 — the session representation lists
+// the four phases, in the read and in every live snapshot.
+describe("The session representation carries the phases (JOS-168)", () => {
+  it("lists the four phases in pipeline order on a newly registered session", async () => {
+    const sessionId = await startSession();
+
+    const session = (await app.inject({ method: "GET", url: `/sessions/${sessionId}` })).json().session;
+
+    expect(session.phases).toEqual([
+      { phase: "voice-over", status: "pending", heldCount: 0 },
+      { phase: "decomposition", status: "pending", heldCount: 0 },
+      { phase: "scenes", status: "pending", heldCount: 0 },
+      { phase: "assembly", status: "pending", heldCount: 0 },
+    ]);
+  });
+
+  it("carries the same phases in a live snapshot as in the read", async () => {
+    const sessionId = await startSession();
+    const received: SessionSnapshot[] = [];
+    const onState = (snapshot: SessionSnapshot) => received.push(snapshot);
+    events.on("state", onState);
+    try {
+      await app.inject({ method: "POST", url: `/sessions/${sessionId}/pause` });
+    } finally {
+      events.off("state", onState);
+    }
+
+    const read = (await app.inject({ method: "GET", url: `/sessions/${sessionId}` })).json().session;
+    const live = received.filter((snapshot) => snapshot.session.sessionId === sessionId).at(-1);
+
+    expect(live?.session.phases).toEqual(read.phases);
+  });
+
+  it("documents phases and its four statuses in the generated OpenAPI", async () => {
+    const document = JSON.stringify((await app.inject({ method: "GET", url: "/docs/json" })).json());
+
+    expect(document).toContain('"phases"');
+    for (const status of ["pending", "in-progress", "complete", "failed"]) expect(document).toContain(`"${status}"`);
+  });
+});
+
+// retry-decomposition (JOS-156), group 6 — design Decision 1: the retry route.
+describe("POST /sessions/:sessionId/decomposition/retry (JOS-156)", () => {
+  const retryUrl = (sessionId: string) => `/sessions/${sessionId}/decomposition/retry`;
+
+  /** A paused session that failed in decomposition, so an accepted retry is held and no provider is reached. */
+  async function failedPausedSession(retryable = true): Promise<string> {
+    const sessionId = await startSession();
+    const now = new Date().toISOString();
+    const attempt = recordStageAttempt({ runId: sessionId, stage: "timestamps", providerId: "elevenlabs-forced-alignment", queuedAt: now, sentAt: now });
+    completeStageAttempt(attempt.id, { outcome: retryable ? "transient" : "not-retryable", finishedAt: now, errorMessage: "alignment answered HTTP 503" });
+    setRunFailure(sessionId, createDecompositionFailure({ cause: "the narration's timestamps could not be obtained", retryable, occurredAt: new Date(), cycle: attempt.cycle, attemptsInCycle: attempt.sequenceInCycle }));
+    setRunPaused(sessionId, true);
+    return sessionId;
+  }
+
+  it("answers 200 { ok: true, held: true } for an accepted retry on a paused session", async () => {
+    const sessionId = await failedPausedSession();
+
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId) });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true, held: true });
+  });
+
+  it.each(["01AAAAAAAAAAAAAAAAAAAAAAAA", "not-a-session-id"])("answers 404 for the session id %s", async (sessionId) => {
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId) });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toMatchObject({ ok: false });
+  });
+
+  it("answers 409 not-failed-in-decomposition for a session that has not failed", async () => {
+    const sessionId = await startSession();
+
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId) });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ ok: false, reason: "not-failed-in-decomposition" });
+  });
+
+  it("answers 409 not-retryable for a failure that is not retryable", async () => {
+    const sessionId = await failedPausedSession(false);
+
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId) });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ ok: false, reason: "not-retryable" });
+  });
+
+  it("answers 409 already-registered for a session that has chunks", async () => {
+    const sessionId = await failedPausedSession();
+    createScene(randomUUID(), sessionId, 1, "success", 100, "an instruction");
+
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId) });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ ok: false, reason: "already-registered" });
+  });
+
+  it("answers 409 retry-already-pending for a second retry", async () => {
+    const sessionId = await failedPausedSession();
+    await app.inject({ method: "POST", url: retryUrl(sessionId) });
+
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId) });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ ok: false, reason: "retry-already-pending" });
+  });
+
+  it.each([{ script: "hacked script" }, { anything: true }])("answers 400 for a body that names %j, and changes nothing", async (payload) => {
+    const sessionId = await failedPausedSession();
+
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId), payload });
+
+    expect(res.statusCode).toBe(400);
+    expect(getRun(sessionId)).toMatchObject(ORIGINAL);
+    expect(getRun(sessionId)?.failure).not.toBeNull();
+  });
+
+  it("is documented in the generated OpenAPI", async () => {
+    const document = (await app.inject({ method: "GET", url: "/docs/json" })).json();
+
+    expect(Object.keys(document.paths)).toContain("/sessions/{sessionId}/decomposition/retry");
   });
 });

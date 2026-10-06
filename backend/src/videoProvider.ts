@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { loadCredential } from "./config/credentials.ts";
 import { VIDEO_PROVIDER, VIDEO_GENERATION_SETTING } from "./config/providers.ts";
@@ -189,13 +190,14 @@ export function createStubVideoProvider(
     calls,
     async submit({ instruction }) {
       calls.push(instruction);
-      const requestId = `stub-video-req-${calls.length}`;
+      // Unique across restarts, like a real provider task id: `provider_requests.id` is a primary key and survives a restart.
+      const requestId = `stub-video-req-${randomUUID()}`;
       submitted.set(requestId, mode);
       return { kind: "submitted", requestId };
     },
     async poll(requestId) {
-      const m = submitted.get(requestId);
-      if (!m) return { kind: "not_found" };
+      // An id from before a restart is unknown to this in-memory map; answer it from the mode.
+      const m = submitted.get(requestId) ?? mode;
       switch (m) {
         case "success-bytes":
           return { kind: "success", clip: { source: "bytes", bytes: options.bytes ?? Buffer.alloc(0) } };

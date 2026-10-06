@@ -3,6 +3,7 @@ import { buildApp } from "../src/server.ts";
 import { getRun, resetAll } from "../src/db.ts";
 import { SUPPORTED_LANGUAGE_CODES } from "../src/config/providers.ts";
 import type { FastifyInstance } from "fastify";
+import { createStubVoiceProvider, setVoiceProviderRegistry } from "../src/voiceProvider.ts";
 
 // start-video-project (JOS-134) — session registration. HTTP-level tests via
 // Fastify's own `.inject()` (no real port bound), since this is the first
@@ -158,16 +159,25 @@ describe("The stored script is exactly what was submitted (Decision 1)", () => {
   });
 });
 
-describe("No provider is called and nothing leaves submitted (Decision 8)", () => {
-  it("creates zero scenes and leaves the session in submitted", async () => {
+describe("Registration calls no provider itself (Decision 8; generate-voice-over, JOS-136, Decision 1)", () => {
+  it("answers in submitted with zero scenes, before the provider is called; the launch follows the response", async () => {
+    const stub = createStubVoiceProvider("hang");
+    setVoiceProviderRegistry({ defaultIdentifier: "stub-voice", adapters: { "stub-voice": stub } });
+
     const res = await app.inject({
       method: "POST",
       url: "/sessions",
       payload: { title: "No Scenes", script: "some script", language: "en" },
     });
     const body = res.json();
+
     expect(body.session.state).toBe("submitted");
     expect(body.scenes).toEqual([]);
+    expect(stub.calls).toHaveLength(0);
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(stub.calls).toHaveLength(1);
+    expect(stub.calls[0]?.text).toBe("some script");
   });
 });
 
