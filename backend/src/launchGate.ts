@@ -47,6 +47,8 @@ export interface SettleSummary {
 export interface StageLauncher {
   stage: PipelineStage;
   heldWork: (sessionId: string) => HeldWorkResult;
+  /** Boot pass 2 only: the pending work to relaunch when it is narrower than `heldWork` (a spent retry budget must stay spent). */
+  pendingAtBoot?: (sessionId: string) => HeldWorkResult;
   launch: (sessionId: string) => void;
   /** Boot, before anything is relaunched: waits for or fails each in-flight unit of this stage. Never launches new work. */
   settleInFlight: () => SettleSummary;
@@ -127,6 +129,20 @@ export function settleAllInFlight(): SettleSummary {
 /** The stages with no registered launcher, hence no restart recovery; the boot log names them. */
 export function stagesWithoutRestartRecovery(): PipelineStage[] {
   return PIPELINE_STAGES.filter((stage) => !launchers.has(stage));
+}
+
+/** Boot pass 2 (restart-recovery, Decision 1): launches each stage's pending work for a session; returns how many stages launched. */
+export function relaunchPendingWork(sessionId: string): number {
+  let launched = 0;
+  for (const stage of PIPELINE_STAGES) {
+    const launcher = launchers.get(stage);
+    if (!launcher) continue;
+    if ((launcher.pendingAtBoot ?? launcher.heldWork)(sessionId).count > 0) {
+      launcher.launch(sessionId);
+      launched++;
+    }
+  }
+  return launched;
 }
 
 export interface CompletenessResult {

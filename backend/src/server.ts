@@ -6,6 +6,7 @@ import swaggerUi from "@fastify/swagger-ui";
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { routes } from "./routes.ts";
 import { recoverOnBoot, setAssemblyTool, VIDEO_STAGE } from "./orchestrator.ts";
+import { stagesWithoutRestartRecovery } from "./launchGate.ts";
 import * as concurrency from "./concurrency.ts";
 import { STAGE } from "./types.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
@@ -70,13 +71,17 @@ export async function buildApp(): Promise<FastifyInstance> {
   return app;
 }
 
-/** The boot log fields: the reconciliation summary plus each stage's in-flight count and limit. */
+/** The boot log fields: the settle summary, each stage's in-flight count and limit, and the stages with no restart recovery. */
 export function bootLogFields(summary: ReturnType<typeof recoverOnBoot>) {
   const stageUsage = (stage: string) => {
     const { inFlight, limit } = concurrency.stats(stage);
     return { inFlight, limit };
   };
-  return { ...summary, concurrency: { [STAGE]: stageUsage(STAGE), [VIDEO_STAGE]: stageUsage(VIDEO_STAGE) } };
+  return {
+    ...summary,
+    concurrency: { [STAGE]: stageUsage(STAGE), [VIDEO_STAGE]: stageUsage(VIDEO_STAGE) },
+    noRestartRecovery: stagesWithoutRestartRecovery(),
+  };
 }
 
 // Bootstrap only when this file is run directly (`node src/server.ts`), not
@@ -116,7 +121,7 @@ if (isMainModule) {
   const app = await buildApp();
   setVoiceOverLogger(app.log);
   const summary = recoverOnBoot();
-  app.log.info(bootLogFields(summary), "boot reconciliation complete");
+  app.log.info(bootLogFields(summary), "boot recovery complete");
   app.log.info({ scheduledRetries: rebuildScheduler() }, "scheduled retries re-armed");
   // stage-execution-time-limit (JOS-185) Decision 8 — after resumption, so a result recovered at boot wins over a timeout.
   startAttemptTimeoutWatcher();

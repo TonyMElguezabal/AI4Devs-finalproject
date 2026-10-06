@@ -43,7 +43,7 @@ import {
 } from "./db.ts";
 import type { AssemblyTool } from "./assemblyTool.ts";
 import * as concurrency from "./concurrency.ts";
-import { admitLaunch, launchHeldWork, registerStageLauncher, RESTART_CAUSE, sessionHeldWork, settleAllInFlight, type SettleSummary, type StageLauncher } from "./launchGate.ts";
+import { admitLaunch, launchHeldWork, registerStageLauncher, relaunchPendingWork, RESTART_CAUSE, sessionHeldWork, settleAllInFlight, type SettleSummary, type StageLauncher } from "./launchGate.ts";
 import { describeProvider, diagnosticStageOf, type StageDiagnostic } from "./stageDiagnostics.ts";
 import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
@@ -70,6 +70,7 @@ import {
   type SessionEventPayload,
   type SessionSnapshot,
   type SessionState,
+  type StageAttempt,
 } from "./types.ts";
 
 /** 1 initial attempt + this many automatic retries, per PRD §10.1 (C2). */
@@ -492,10 +493,17 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
   void runAssemblyAttempt(runId, attemptNumber + 1);
 }
 
+/** The attempt that was lost with the process, when the latest assembly attempt was settled by a restart; null otherwise. */
+function restartSettledAssemblyAttempt(runId: string): StageAttempt | null {
+  const latest = getStageAttempts(runId, "assembly").at(-1);
+  return latest?.outcome === "transient" && latest.errorMessage === RESTART_CAUSE ? latest : null;
+}
+
 function launchAssemblyPhase(runId: string): void {
   if (!admitLaunch(runId).admitted) return;
   assemblyLaunches.set(runId, (assemblyLaunches.get(runId) ?? 0) + 1);
-  void runAssemblyAttempt(runId, 1);
+  // A launch after a restart continues the attempt sequence the lost attempt belonged to, so its budget is not reset.
+  void runAssemblyAttempt(runId, (restartSettledAssemblyAttempt(runId)?.sequenceInCycle ?? 0) + 1);
 }
 
 /** Called after every chunk reaches chunk-complete or failed; launches assembly
@@ -876,6 +884,17 @@ export const assemblyStageLauncher: StageLauncher = {
     const gate = assemblyGate(getScenesForRun(sessionId));
     const count = run && !run.finalVideoPath && gate.open ? 1 : 0;
     return { count, sceneIds: [] };
+  },
+  // Stricter than `heldWork` (restart-recovery, Decision 3): boot must not relaunch an assembly whose budget is spent
+  // or that failed for good, which `heldWork` still counts as waiting.
+  pendingAtBoot: (sessionId: string) => {
+    const run = getRun(sessionId);
+    const attempts = getStageAttempts(sessionId, "assembly");
+    const settled = restartSettledAssemblyAttempt(sessionId);
+    const due =
+      run && !run.finalVideoPath && assemblyGate(getScenesForRun(sessionId)).open &&
+      (attempts.length === 0 || (settled !== null && settled.sequenceInCycle < 1 + RETRY_BUDGET));
+    return { count: due ? 1 : 0, sceneIds: [] };
   },
   settleInFlight: settleAssemblyInFlight,
   launch: triggerAssemblyIfReady,
@@ -1280,11 +1299,14 @@ export function recoverOnBoot(): SettleSummary {
   // Waiting callbacks were lost on restart. Rebuild them only after all sent
   // requests have been counted and reconciled; launchers preserve eligibility
   // and acquire ignores holders already queued by a retry above.
-  const waitingSessions = db.prepare(
-    "SELECT DISTINCT run_id AS runId FROM scenes WHERE status IN ('submitted', 'image-complete')",
+  // ponytail: every unfinished session with scenes is a candidate and the launchers filter; add an index-backed
+  // query if boot time on a large store matters.
+  const candidateSessions = db.prepare(
+    `SELECT DISTINCT s.run_id AS runId FROM scenes s JOIN runs r ON r.id = s.run_id
+     WHERE s.status IN ('submitted', 'image-complete') OR r.final_video_path IS NULL`,
   ).all() as Array<{ runId: string }>;
-  for (const { runId } of waitingSessions) {
-    if (admitLaunch(runId).admitted) launchHeldWork(runId);
+  for (const { runId } of candidateSessions) {
+    if (admitLaunch(runId).admitted) relaunchPendingWork(runId);
   }
   return summary;
 }

@@ -34,18 +34,18 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 4. Backend: relaunch pass (TDD; design Decisions 1-3)
 
-- [ ] 4.1 Write tests pinning the existing behaviour: `submitted` scenes queued behind the cap are launched once after restart; `image-complete` scenes with a requested duration have their clip launched once; paused sessions launch nothing.
-- [ ] 4.2 Write failing tests for assembly:
+- [x] 4.1 Write tests pinning the existing behaviour: `submitted` scenes queued behind the cap are launched once after restart; `image-complete` scenes with a requested duration have their clip launched once; paused sessions launch nothing. **Result:** already held and pinned by `restart-concurrency.test.ts` ("waiting work survives a restart"); no new test needed.
+- [x] 4.2 Write failing tests for assembly:
   - all scenes complete, no final video, attempt settled by the restart with budget left: one new attempt, numbered next in the sequence;
   - budget spent, or latest attempt not retryable: nothing launched;
   - gate closed, or session paused: nothing launched.
-- [ ] 4.3 Write a failing test: the units `heldWork` reports while paused, the units `continueSession` launches, and the units boot relaunches when unpaused are the same set, for image and clip.
-- [ ] 4.4 Implement the assembly boot pending rule, `recoverOnBoot()` (settle, relaunch over the extended candidate sessions, then log the stages with no launcher) and replace `reconcileOnBoot` in `server.ts`. Make 4.2 and 4.3 pass.
+- [x] 4.3 Write a failing test: the units `heldWork` reports while paused, the units `continueSession` launches, and the units boot relaunches when unpaused are the same set, for image and clip.
+- [x] 4.4 Implement the assembly boot pending rule, `recoverOnBoot()` (settle, relaunch over the extended candidate sessions, then log the stages with no launcher) and replace `reconcileOnBoot` in `server.ts`. Make 4.2 and 4.3 pass.
 
 ## 5. Backend: no duplicates (TDD; design Decision 1)
 
-- [ ] 5.1 Write tests: an image attempt settled with budget left is relaunched exactly once across settle and relaunch; an assembly attempt settled at boot is run exactly once; a live chunk event during boot does not cause a second send.
-- [ ] 5.2 Fix whatever 5.1 shows, if anything; record the result.
+- [x] 5.1 Write tests: an image attempt settled with budget left is relaunched exactly once across settle and relaunch; an assembly attempt settled at boot is run exactly once; a live chunk event during boot does not cause a second send.
+- [x] 5.2 Fix whatever 5.1 shows, if anything; record the result. **Result:** 5.1 passed as written (image and live-event cases; the assembly case is in `restart-assembly.test.ts`), so nothing needed fixing.
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 

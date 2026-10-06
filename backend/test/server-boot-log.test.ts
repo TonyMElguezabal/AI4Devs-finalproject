@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import * as concurrency from "../src/concurrency.ts";
+import { PIPELINE_STAGES, resetRegistry } from "../src/launchGate.ts";
 import { bootLogFields } from "../src/server.ts";
 import { STAGE } from "../src/types.ts";
 
@@ -23,6 +24,16 @@ describe("the boot log line", () => {
       recordedFailedAttempt: 1,
       stillPending: 3,
       concurrency: { image: { inFlight: 1, limit: 2 }, video: { inFlight: 2, limit: 3 } },
+      noRestartRecovery: [],
     });
+  });
+
+  // restart-recovery (JOS-160) — a stage with no registered launcher has no restart recovery, and the log says so.
+  it("names the stages that have no restart recovery", () => {
+    resetRegistry();
+
+    const fields = bootLogFields({ resumed: 0, recordedFailedAttempt: 0, stillPending: 0 });
+
+    expect(fields.noRestartRecovery).toEqual([...PIPELINE_STAGES]);
   });
 });

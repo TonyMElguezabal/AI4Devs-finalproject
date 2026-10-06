@@ -4,16 +4,23 @@ import type { FastifyInstance } from "fastify";
 import {
   createRun,
   createScene,
+  db,
+  getRun,
   getScene,
   markChunkComplete,
   markImageComplete,
   markSceneFailed,
   resetAll,
+  setRunPaused,
+  writeArtefactOnce,
 } from "../src/db.ts";
-import { pauseSession } from "../src/orchestrator.ts";
+import { continueSession, pauseSession, resetVideoStageStartDelayMs } from "../src/orchestrator.ts";
+import { sessionHeldWork } from "../src/launchGate.ts";
+import { createStubVideoProvider, resetVideoProviderRegistry, setVideoProviderRegistry } from "../src/videoProvider.ts";
 import { buildApp } from "../src/server.ts";
 import { ulid } from "../src/util/ulid.ts";
 import { simulateRestart } from "./restartHelpers.ts";
+import * as concurrency from "../src/concurrency.ts";
 
 // preserve-progress-across-restarts (JOS-160), spec restart-recovery — a session reads the same after a restart.
 
@@ -81,5 +88,41 @@ describe("A session reads the same after a restart (AC1, AC3)", () => {
     expect(await readSession(sessionId)).toEqual(before);
     expect(getScene(sceneIds[0]!)!.status).toBe("submitted"); // held, not launched
     expect(getScene(sceneIds[0]!)!.attempts).toBe(0);
+  });
+});
+
+describe("Held work, continue and boot agree (4.3)", () => {
+  /** A paused session with one scene waiting for its image and one waiting for its clip. */
+  function pausedSessionWithPendingWork(): { sessionId: string; imageSceneId: string; clipSceneId: string } {
+    const sessionId = ulid();
+    createRun(sessionId, "Agreement", "A script.", "en");
+    const imageSceneId = randomUUID();
+    createScene(imageSceneId, sessionId, 1, "success", 5_000, "scene 1");
+    const clipSceneId = randomUUID();
+    const imagePath = writeArtefactOnce(getRun(sessionId)!.projectFolder, "scene-2.png", Buffer.from([137, 80, 78, 71]));
+    db.prepare(
+      "INSERT INTO scenes (id, run_id, idx, status, result, requested_duration_seconds, updated_at) VALUES (?, ?, 2, 'image-complete', ?, 8, ?)",
+    ).run(clipSceneId, sessionId, imagePath, new Date().toISOString());
+    pauseSession(sessionId);
+    return { sessionId, imageSceneId, clipSceneId };
+  }
+
+  it("launches the scenes it reports held, whether the session is continued or restarted unpaused", () => {
+    resetVideoStageStartDelayMs();
+    resetVideoProviderRegistry();
+    setVideoProviderRegistry({ defaultIdentifier: "pending-video", adapters: { "pending-video": createStubVideoProvider("pending", { bytes: Buffer.alloc(12) }) } });
+
+    const continued = pausedSessionWithPendingWork();
+    expect([...sessionHeldWork(continued.sessionId).sceneIds].sort()).toEqual([continued.imageSceneId, continued.clipSceneId].sort());
+    continueSession(continued.sessionId);
+
+    const restarted = pausedSessionWithPendingWork();
+    setRunPaused(restarted.sessionId, false); // unpaused, but nothing launched yet
+    concurrency.resetAll();
+    simulateRestart();
+
+    const statuses = (ids: { imageSceneId: string; clipSceneId: string }) => [getScene(ids.imageSceneId)!.status, getScene(ids.clipSceneId)!.status];
+    expect(statuses(continued)).toEqual(["image-generating", "video-generating"]);
+    expect(statuses(restarted)).toEqual(statuses(continued));
   });
 });
