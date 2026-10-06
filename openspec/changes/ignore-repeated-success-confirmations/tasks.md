@@ -9,39 +9,50 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm the base still matches design.md § Context: `completeImageStage` calls `markImageComplete` before checking the commit; `setFinalVideoPath` is unconditional; `runAssemblyAttempt` has no final-video or in-flight check. Record whether JOS-159 has merged, and if it has, check its assembly start against Decision 3 and update the artifacts first.
+- [x] 1.1 `git fetch`. Confirm the base still matches design.md § Context: `completeImageStage` calls `markImageComplete` before checking the commit; `setFinalVideoPath` is unconditional; `runAssemblyAttempt` has no final-video or in-flight check. Record whether JOS-159 has merged, and if it has, check its assembly start against Decision 3 and update the artifacts first.
+  **Result:** the base matches on all three points. JOS-159 has not merged (no `jos-159` branch on origin, and its ticket is In Progress), so no artifact update is needed.
 
 ## 2. Backend: pin the stages that already hold (design Decision 4)
 
-- [ ] 2.1 Voice-over: a second confirmation of the same session's voice-over stores no second `voice_overs` row and launches nothing. Reuse an existing test if one already proves it; otherwise add one.
-- [ ] 2.2 Timestamps: a second stored set is refused as `already-obtained`, and division runs at most once.
-- [ ] 2.3 Decomposition: registering chunks twice adds no scene and launches each scene's image once.
-- [ ] 2.4 Clip: a clip confirmed twice stores one `scene_video_results` row, leaves the scene `chunk-complete`, and triggers assembly at most once.
+- [x] 2.1 Voice-over: a second confirmation of the same session's voice-over stores no second `voice_overs` row and launches nothing. Reuse an existing test if one already proves it; otherwise add one.
+  **Result:** already held. `voice-over-phase.test.ts` "a repeated success confirmation stores one voice-over…" and "two concurrent success confirmations store exactly one voice-over". Reused, nothing added.
+- [x] 2.2 Timestamps: a second stored set is refused as `already-obtained`, and division runs at most once.
+  **Result:** the refusal is already held by `obtain-narration-timestamps.test.ts` ("already-obtained"). "Division runs at most once" is covered by `decomposition-phase.test.ts` ("already-registered", no second registration). Reused.
+- [x] 2.3 Decomposition: registering chunks twice adds no scene and launches each scene's image once.
+  **Result:** `decomposition-phase.test.ts` (`already-registered`, three cases) and `scene-registration.test.ts` cover no second scene. The once-per-image launch is pinned by `video-stage.test.ts` ("a duplicate image delivery does not launch the clip a second time"). Reused.
+- [x] 2.4 Clip: a clip confirmed twice stores one `scene_video_results` row, leaves the scene `chunk-complete`, and triggers assembly at most once.
+  **Result:** no existing test drove a second clip through the stage's success path, only the store refusal (`video-persistence.test.ts`). Added in `test/repeated-confirmations.test.ts` ("stores one clip, keeps its reference, and does not trigger assembly again"). It passed on first run, so it is a pin.
 
 Record which tests already existed.
 
 ## 3. Backend: image confirmations (TDD; design Decision 1)
 
-- [ ] 3.1 Write failing tests through the test-only export of `completeImageStage`:
+- [x] 3.1 Write failing tests through the test-only export of `completeImageStage`:
   - a second image confirmation for a scene in `video-generating` leaves its state, `result` and `current_request_id` unchanged, and sends no clip request;
   - the same for a scene in `chunk-complete`;
   - the first confirmation still stores the result, sets `image-complete` and launches the clip once.
-- [ ] 3.2 Make `completeImageStage` return before any state write when `commitSceneResult` refuses the result. Make 3.1 pass.
+  **Result:** two failing as written (the bug: the scene went back to `image-complete`), the first-confirmation case passed. Seam: `deliverImageSuccessForTests` in `orchestrator.ts`. Tests in `test/repeated-confirmations.test.ts`. The clip launch is observed through the video stage's queue, because the clip-success counter only counts completed clips.
+- [x] 3.2 Make `completeImageStage` return before any state write when `commitSceneResult` refuses the result. Make 3.1 pass.
+  **Result:** done. All four tests in the file pass.
 
 ## 4. Backend: final assembly (TDD; design Decisions 2 and 3)
 
-- [ ] 4.1 Write failing tests:
+- [x] 4.1 Write failing tests:
   - `setFinalVideoPath` records the path once and reports a refused second write; the stored path is unchanged;
   - an assembly success whose write is refused ends its attempt as `superseded`;
   - an assembly launch for a session with a final video records no attempt and does not run the tool;
   - an assembly launch while an `assembly` attempt is in flight records no attempt and does not run the tool, whether it comes from a scene completion or from continue;
   - the assembly launcher's `heldWork` reports nothing while an attempt is in flight.
-- [ ] 4.2 Write a failing-or-pinning test for AC3: a scene whose clip was confirmed twice contributes exactly one clip to the assembly tool's captured input.
-- [ ] 4.3 Implement Decisions 2 and 3: the set-once `setFinalVideoPath`, the `superseded` outcome on a refused write, and the start check in `runAssemblyAttempt` and in `heldWork`. Make 4.1 and 4.2 pass.
+  **Result:** five failing as written. Two of the launch tests first passed for the wrong reason (the gate was closed, so nothing launched). They were corrected to open the gate and then fail for the real reason.
+- [x] 4.2 Write a failing-or-pinning test for AC3: a scene whose clip was confirmed twice contributes exactly one clip to the assembly tool's captured input.
+  **Result:** passed as written, so it is a pin. The assembly input is built per scene from the store, and the store already refuses the second clip.
+- [x] 4.3 Implement Decisions 2 and 3: the set-once `setFinalVideoPath`, the `superseded` outcome on a refused write, and the start check in `runAssemblyAttempt` and in `heldWork`. Make 4.1 and 4.2 pass.
+  **Result:** done. `setFinalVideoPath` returns whether it recorded the path; a refused success ends `superseded`; `runAssemblyAttempt` refuses with a final video or an in-flight attempt before recording; `heldWork` agrees. All 10 tests in the file pass, and the 15 existing assembly, stage and persistence files (176 tests) still pass.
 
 ## 5. Backend: manual-testing aid
 
-- [ ] 5.1 Add a `slow-success` mode to `USE_STUB_ASSEMBLY_TOOL` (manual endpoint testing only), with a delay long enough to pause and continue during an assembly. Document it next to the other modes in `server.ts`.
+- [x] 5.1 Add a `slow-success` mode to `USE_STUB_ASSEMBLY_TOOL` (manual endpoint testing only), with a delay long enough to pause and continue during an assembly. Document it next to the other modes in `server.ts`.
+  **Result:** done. The delay is `ASSEMBLY_STUB_DELAY_MS` (default 15000). Its unit test is `test/stub-assembly-slow.test.ts`, which passes.
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 

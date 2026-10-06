@@ -110,11 +110,13 @@ if (isMainModule) {
   if (stubVoiceMode) {
     setVoiceProviderRegistry({ defaultIdentifier: "stub-voice", adapters: { "stub-voice": createStubVoice(stubVoiceMode) } });
   }
-  // USE_STUB_ASSEMBLY_TOOL=success|transient-failure|not-retryable-failure — manual endpoint testing only (JOS-149).
+  // USE_STUB_ASSEMBLY_TOOL=success|transient-failure|not-retryable-failure|slow-success — manual endpoint testing only (JOS-149).
+  // `slow-success` (JOS-161) answers success after ASSEMBLY_STUB_DELAY_MS (default 15000), so a pause can land during assembly.
   const stubAssemblyMode = process.env.USE_STUB_ASSEMBLY_TOOL as string | undefined;
   if (stubAssemblyMode) {
     const mode = stubAssemblyMode === "success" ? { kind: "success" as const }
       : stubAssemblyMode === "not-retryable-failure" ? { kind: "not-retryable-failure" as const }
+      : stubAssemblyMode === "slow-success" ? { kind: "slow-success" as const, delayMs: Number(process.env.ASSEMBLY_STUB_DELAY_MS ?? 15000) }
       : { kind: "transient-failure" as const };
     setAssemblyTool(createStubAssemblyTool(mode));
   }
