@@ -57,26 +57,26 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. Frontend: types and rendering (TDD; design Decision 6)
 
-- [ ] 6.1 Update `frontend/src/types.ts`:
+- [x] 6.1 Update `frontend/src/types.ts`:
   - add `StageDiagnostic`;
   - add `stages` to `SceneEventPayload` and drop its `provider` and `attempts`;
   - add `stages` to the phase entry.
 
   Update every test fixture.
-- [ ] 6.2 Write failing tests in `test/components.test.tsx`:
+- [x] 6.2 Write failing tests in `test/components.test.tsx`:
   - expanded scene details show `Image: Fal.ai (fal-ai/flux/dev), 2 attempts` and `Clip: RunningHub (minimax/hailuo-h3), 1 attempt` under the names `Scene {n} image diagnostics` and `Scene {n} clip diagnostics`;
   - "1 attempt" is singular;
   - an absent stage is not listed.
-- [ ] 6.3 Write failing tests for the phase sections:
+- [x] 6.3 Write failing tests for the phase sections:
   - the Decomposition section lists `Timestamps` then `Scene instructions`;
   - the Final video section lists `Assembly: Local assembly (ffmpeg), 1 attempt`;
   - an empty list renders nothing;
   - a new snapshot updates a count without a reload.
-- [ ] 6.4 Implement the shared formatter (`formatStageDiagnostic`, one place for the label and the pluralization), the `SceneRow.tsx` rows and the `PhaseSection.tsx` list; make 6.2-6.3 pass.
+- [x] 6.4 Implement the shared formatter (`formatStageDiagnostic`, one place for the label and the pluralization), the `SceneRow.tsx` rows and the `PhaseSection.tsx` list; make 6.2-6.3 pass.
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review backend and frontend tests that read or set the scene's `provider` or `attempts` on the payload (for example, the `components.test.tsx` fixture), and update them to `stages`. Tests that read `scenes.attempts` in the store are unaffected, because the column stays.
+- [x] 7.1 Review backend and frontend tests that read or set the scene's `provider` or `attempts` on the payload (for example, the `components.test.tsx` fixture), and update them to `stages`. Tests that read `scenes.attempts` in the store are unaffected, because the column stays.
 - [ ] 7.2 Confirm every scenario in `specs/stage-diagnostics/spec.md` has at least one test, and map ticket AC1-AC4 to tests; list both in the step 8 report.
 - [ ] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 

@@ -22,8 +22,7 @@ function makeScene(overrides: Partial<SceneEventPayload>): SceneEventPayload {
     sceneId: overrides.sceneId ?? "scene-x",
     index: overrides.index ?? 1,
     state: "submitted",
-    provider: "stub-image-provider",
-    attempts: 0,
+    stages: {},
     instruction: "",
     updatedAt: "2026-09-25T00:00:00.000Z",
     ...overrides,
@@ -34,7 +33,7 @@ const PHASE_ORDER: Phase[] = ["voice-over", "decomposition", "scenes", "assembly
 
 /** The four phases in pipeline order; every phase is pending unless `statuses` says otherwise. */
 function makePhases(statuses: Partial<Record<Phase, PhaseStatus>> = {}, extras: Partial<Record<Phase, Partial<PhaseProgress>>> = {}): PhaseProgress[] {
-  return PHASE_ORDER.map((phase) => ({ phase, status: statuses[phase] ?? "pending", heldCount: 0, ...extras[phase] }));
+  return PHASE_ORDER.map((phase) => ({ phase, status: statuses[phase] ?? "pending", heldCount: 0, stages: [], ...extras[phase] }));
 }
 
 function makeSession(overrides: Partial<SessionEventPayload>): SessionEventPayload {
@@ -552,16 +551,16 @@ describe("Phase actions, status classes and labels (JOS-168)", () => {
   const statuses: PhaseStatus[] = ["pending", "in-progress", "complete", "failed"];
 
   it("phaseActions offers retry for a failed decomposition phase only when its failure is retryable (JOS-156)", () => {
-    expect(phaseActions({ phase: "decomposition", status: "failed", heldCount: 0, failure: { cause: "x", retryable: true } })).toEqual({ retry: true });
-    expect(phaseActions({ phase: "decomposition", status: "failed", heldCount: 0, failure: { cause: "x", retryable: false } })).toEqual({ retry: false });
-    expect(phaseActions({ phase: "decomposition", status: "failed", heldCount: 0 })).toEqual({ retry: false });
+    expect(phaseActions({ phase: "decomposition", status: "failed", heldCount: 0, stages: [], failure: { cause: "x", retryable: true } })).toEqual({ retry: true });
+    expect(phaseActions({ phase: "decomposition", status: "failed", heldCount: 0, stages: [], failure: { cause: "x", retryable: false } })).toEqual({ retry: false });
+    expect(phaseActions({ phase: "decomposition", status: "failed", heldCount: 0, stages: [] })).toEqual({ retry: false });
   });
 
   it("phaseActions offers nothing for a decomposition phase that has not failed, or for any other phase, until their stories add endpoints", () => {
     for (const phase of PHASE_ORDER) {
       for (const status of statuses) {
         if (phase === "decomposition" && status === "failed") continue;
-        expect(phaseActions({ phase, status, heldCount: 0, failure: status === "failed" ? { cause: "x", retryable: true } : undefined })).toEqual({ retry: false });
+        expect(phaseActions({ phase, status, heldCount: 0, stages: [], failure: status === "failed" ? { cause: "x", retryable: true } : undefined })).toEqual({ retry: false });
       }
     }
   });
@@ -684,7 +683,7 @@ describe("The session page shows one section per phase (JOS-168)", () => {
 
   it("renders a PhaseSection on its own with its children", () => {
     render(
-      <PhaseSection progress={{ phase: "scenes", status: "pending", heldCount: 0 }}>
+      <PhaseSection progress={{ phase: "scenes", status: "pending", heldCount: 0, stages: [] }}>
         <p>inside</p>
       </PhaseSection>,
     );
@@ -777,5 +776,105 @@ describe("The Decomposition section offers a retry (JOS-156)", () => {
     await user.click(decompositionSection().getByRole("button", { name: "Retry decomposition" }));
 
     expect(await decompositionSection().findByText("The retry could not be started.")).toBeInTheDocument();
+  });
+});
+
+// see-provider-and-attempts (JOS-166), design Decision 6 — diagnostics are read-only lines in the views the User already uses.
+describe("Scene details show the provider and attempts of each stage that ran (JOS-166)", () => {
+  const image = { stage: "image", provider: { name: "Fal.ai", model: "fal-ai/flux/dev" }, attempts: 2 } as const;
+  const clip = { stage: "video", provider: { name: "RunningHub", model: "minimax/hailuo-h3" }, attempts: 1 } as const;
+
+  async function openDetails(scene: SceneEventPayload) {
+    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    await userEvent.setup().click(screen.getByRole("button", { name: `View scene ${scene.index} details` }));
+  }
+
+  it("lists the image and the clip under their accessible names (6.2)", async () => {
+    await openDetails(makeScene({ index: 3, state: "video-generating", stages: { image, video: clip } }));
+
+    expect(screen.getByRole("group", { name: "Scene 3 image diagnostics" })).toHaveTextContent("Image: Fal.ai (fal-ai/flux/dev), 2 attempts");
+    expect(screen.getByRole("group", { name: "Scene 3 clip diagnostics" })).toHaveTextContent("Clip: RunningHub (minimax/hailuo-h3), 1 attempt");
+  });
+
+  it("writes '1 attempt' in the singular (6.2)", async () => {
+    await openDetails(makeScene({ index: 1, stages: { image: { ...image, attempts: 1 } } }));
+
+    expect(screen.getByRole("group", { name: "Scene 1 image diagnostics" }).textContent).toMatch(/1 attempt$/);
+  });
+
+  it("lists only a stage that is present, and nothing for a scene that has not run (6.2)", async () => {
+    await openDetails(makeScene({ index: 2, stages: { image } }));
+
+    expect(screen.getByRole("group", { name: "Scene 2 image diagnostics" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Scene 2 clip diagnostics" })).not.toBeInTheDocument();
+  });
+
+  it("shows no diagnostics for a scene with no stage, and no stale Provider or Attempts rows (6.2)", async () => {
+    await openDetails(makeScene({ index: 4, stages: {} }));
+
+    expect(screen.queryByRole("group", { name: /diagnostics/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("Provider")).not.toBeInTheDocument();
+    expect(screen.queryByText("Attempts")).not.toBeInTheDocument();
+  });
+
+  it("shows an unknown provider without a model in parentheses (6.2)", async () => {
+    await openDetails(makeScene({ index: 5, stages: { image: { stage: "image", provider: { name: "Unknown provider", model: null }, attempts: 3 } } }));
+
+    expect(screen.getByRole("group", { name: "Scene 5 image diagnostics" })).toHaveTextContent("Image: Unknown provider, 3 attempts");
+  });
+
+  it("offers no action inside the diagnostics (6.2)", async () => {
+    await openDetails(makeScene({ index: 6, stages: { image, video: clip } }));
+
+    expect(within(screen.getByRole("group", { name: "Scene 6 image diagnostics" })).queryByRole("button")).not.toBeInTheDocument();
+  });
+});
+
+describe("Phase sections list the session-level stages that ran (JOS-166)", () => {
+  const noop = () => {};
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: noop, onCorrect: noop, onRetryPhase: () => Promise.resolve() };
+
+  const timestamps = { stage: "timestamps", provider: { name: "ElevenLabs", model: "forced alignment" }, attempts: 2 } as const;
+  const instructions = { stage: "instructions", provider: { name: "OpenAI", model: "gpt-6-astra" }, attempts: 1 } as const;
+  const assembly = { stage: "assembly", provider: { name: "Local assembly", model: "ffmpeg" }, attempts: 1 } as const;
+
+  it("lists Timestamps then Scene instructions in the Decomposition section (6.3)", () => {
+    const session = makeSession({ state: "chunks-processing", phases: makePhases({ "voice-over": "complete", decomposition: "complete" }, { decomposition: { stages: [timestamps, instructions] } }) });
+    render(<SessionPage {...baseProps} snapshot={{ session, scenes: [] }} />);
+
+    const items = within(within(screen.getByRole("region", { name: "Decomposition phase" })).getByRole("list", { name: "Decomposition stages" })).getAllByRole("listitem");
+
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Timestamps: ElevenLabs (forced alignment), 2 attempts",
+      "Scene instructions: OpenAI (gpt-6-astra), 1 attempt",
+    ]);
+  });
+
+  it("lists the voice-over stage and the assembly stage in their own sections (6.3)", () => {
+    const voice = { stage: "voice-over", provider: { name: "ElevenLabs", model: "eleven_multilingual_v2" }, attempts: 1 } as const;
+    const session = makeSession({ state: "final-video", phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "complete", assembly: "complete" }, { "voice-over": { stages: [voice] }, assembly: { stages: [assembly] } }) });
+    render(<SessionPage {...baseProps} snapshot={{ session, scenes: [] }} />);
+
+    expect(within(screen.getByRole("region", { name: "Voice-over phase" })).getByRole("listitem")).toHaveTextContent("Voice-over: ElevenLabs (eleven_multilingual_v2), 1 attempt");
+    expect(within(screen.getByRole("region", { name: "Final video phase" })).getByRole("listitem")).toHaveTextContent("Assembly: Local assembly (ffmpeg), 1 attempt");
+  });
+
+  it("renders nothing for a phase with no stage that ran, not an empty list or a placeholder (6.3)", () => {
+    const session = makeSession({ state: "voice-over-generating", phases: makePhases({ "voice-over": "in-progress" }) });
+    render(<SessionPage {...baseProps} snapshot={{ session, scenes: [] }} />);
+
+    expect(screen.queryByRole("list", { name: /stages$/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/no data|no attempts/i)).not.toBeInTheDocument();
+  });
+
+  it("updates a count from a new snapshot without a reload (6.3)", () => {
+    const first = makeSession({ phases: makePhases({}, { decomposition: { stages: [{ ...instructions, attempts: 1 }] } }) });
+    const { rerender } = render(<SessionPage {...baseProps} snapshot={{ session: first, scenes: [] }} />);
+    expect(screen.getByRole("listitem")).toHaveTextContent("1 attempt");
+
+    const second = makeSession({ phases: makePhases({}, { decomposition: { stages: [{ ...instructions, attempts: 2 }] } }) });
+    rerender(<SessionPage {...baseProps} snapshot={{ session: second, scenes: [] }} />);
+
+    expect(screen.getByRole("listitem")).toHaveTextContent("Scene instructions: OpenAI (gpt-6-astra), 2 attempts");
   });
 });
