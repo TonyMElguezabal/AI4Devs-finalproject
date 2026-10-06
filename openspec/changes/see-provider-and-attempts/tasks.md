@@ -9,32 +9,27 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 1. Gate
 
-- [ ] 1.1 Confirm `view-progress-by-phase` (JOS-168) is implemented on its branch (its tasks 2-6 done), then rebase this branch onto it. If its `phases` entry shape or `PhaseSection` differs from what design.md assumes, update design.md and the spec before coding. **Do not start task 2 before this passes.**
-- [ ] 1.2 `git fetch`; check whether PR #25 (JOS-149) has merged into `feature/entrega-2-JAME`. If it has:
+- [x] 1.1 Confirm `view-progress-by-phase` (JOS-168) is implemented and that its `phases` entry shape and `PhaseSection` match design.md. Confirmed 2026-10-05: JOS-168 is merged on `feature/entrega-2-JAME`; entries are `{ phase, status, heldCount, failure? }`; `PhaseSection.tsx` exists. This branch merged the integration branch (the only conflict was JOS-168's stale propose-time `tasks.md`, resolved with the integration version).
+- [x] 1.2 `git fetch`; check whether PR #25 (JOS-149) has merged into `feature/entrega-2-JAME`. If it has:
   - confirm `stage_attempts.provider_id` accepts `null` for assembly;
   - confirm the `assembly` stage name.
 
-  Record the result here.
-- [ ] 1.3 Check `feature/jos-136-generate-voice-over` for the voice provider identifier it records on `voice-over` attempts. Add it to Decision 2's table if it differs from the assumed value.
-- [ ] 1.4 List every identifier the code can bind or record per stage (`imageProvider.ts`, `videoProvider.ts`, `narrationTimestampsPhase.ts`, `config/providers.ts`, the stubs), as the input to task 2.1.
+  Result: merged. Assembly records `stage = 'assembly'` with `providerId: null` (the column is nullable since migration 13).
+- [x] 1.3 Check the voice provider identifier recorded on `voice-over` attempts. It is `run.voiceProviderId ?? registry.defaultIdentifier`, and the default registry's identifier is `VOICE_PROVIDER.name`, `ElevenLabs` (`stub-voice` in tests and manual runs). Added to Decision 2's table.
+- [x] 1.4 List every identifier the code can bind or record per stage, as the input to task 2.1. Image: `fal-ai/flux/dev` (`IMAGE_PROVIDER.model`), the placeholder `stub-image-provider`, and test adapter ids. Clip: `VIDEO_PROVIDER.endpoint`, `stub-video-provider`. Voice-over: `ElevenLabs`, `stub-voice`. Timestamps: `elevenlabs-native`, `elevenlabs-forced-alignment`. Decomposition (instructions): `openai-decomposition`. Assembly: `null`.
+- [x] 1.5 Reconcile the artifacts with the merged base (2026-10-05): `retry-decomposition` (JOS-156) already records the instruction call as attempts of stage `decomposition`, so the planned `instructions` attempt stage, its recording and the retry-in-flight extension are dropped (design Decision 3, proposal, spec, group 3).
 
 ## 2. Backend: display values and allow-list (TDD; design Decisions 2 and 4)
 
-- [ ] 2.1 Write failing tests in a new `backend/test/stage-diagnostics.test.ts` for `describeProvider(stage, identifier)`:
+- [ ] 2.1 Write failing tests in a new `backend/test/stage-diagnostics.test.ts` for `describeProvider(stage, identifier)`, and for the mapping of the stored stage `decomposition` to the wire stage `instructions`:
   - each row of Decision 2's table;
   - an unknown identifier gives `Unknown provider` with `model: null`, logs once, and never returns the identifier;
   - every identifier from task 1.4 has an entry.
 - [ ] 2.2 Implement `backend/src/stageDiagnostics.ts` (`describeProvider`, the `StageDiagnostic` type); make 2.1 pass.
 
-## 3. Backend: record instruction attempts (TDD; design Decision 3)
+## 3. Backend: instruction attempts (design Decision 3)
 
-- [ ] 3.1 Write failing tests in `scene-registration-session.test.ts`:
-  - a successful instruction call records one `instructions` attempt, outcome `success`, with provider `DECOMPOSITION_PROVIDER.model`;
-  - transient failure gives `transient`, and invalid JSON gives `transient`;
-  - not-retryable gives `not-retryable`, with the reason in `error_message`;
-  - a partition or duration refusal records no attempt.
-- [ ] 3.2 Write a failing test in `phase-progress.test.ts` (from JOS-168): a decomposition failure plus a later in-flight `instructions` attempt derives `chunk-decomposing`.
-- [ ] 3.3 Add `instructions` to `AttemptStage`. Record and complete the attempt around `generator.generate` in `sceneRegistration.ts`. Extend JOS-168's retry-in-flight check to the latest attempt of `timestamps` or `instructions`. Make 3.1-3.2 pass.
+- [x] 3.1 Confirm that nothing needs recording: `retry-decomposition` (JOS-156) already writes one `stage_attempts` row of stage `decomposition`, provider `openai-decomposition`, per division attempt, around the reasoning call (`decompositionPhase.ts`). The instruction diagnostic counts those rows (tests in task 4.2). The earlier plan to add an `instructions` attempt stage and to extend JOS-168's retry-in-flight rule is dropped.
 
 ## 4. Backend: scene and phase diagnostics (TDD; design Decisions 1 and 5)
 
@@ -46,7 +41,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
   - the scene has no top-level `provider` or `attempts`.
 - [ ] 4.2 Write failing tests in `session-api-surface.test.ts` for phase `stages`:
   - voice-over;
-  - timestamps (latest provider, total count) then instructions;
+  - timestamps (latest provider, total count) then instructions, counted from the stored stage `decomposition` rows and named `instructions` on the wire;
   - assembly as local assembly;
   - empty lists for stages that have not run and for the scenes phase;
   - the live snapshot equals the read.
@@ -126,7 +121,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 12. Close out
 
-- [ ] 12.1 Ask the user before commenting on JOS-136 (record the voice provider identifier that `stageDiagnostics.ts` maps) and JOS-184 (a per-cycle breakdown can extend `StageDiagnostic`).
-- [ ] 12.2 Ask before pushing. Open the PR with a description linking to JOS-166. While JOS-168's PR is open, target `feature/jos-168-view-progress-by-phase`. After it merges, retarget to `feature/entrega-2-JAME`, or open the follow-up PR there, so the work reaches the integration branch.
+- [ ] 12.1 Ask the user before commenting on JOS-136 (the voice provider identifier that `stageDiagnostics.ts` maps is `ElevenLabs`) and JOS-184 (a per-cycle breakdown can extend `StageDiagnostic`).
+- [ ] 12.2 Ask before pushing. Open the PR with a description linking to JOS-166, targeting `feature/entrega-2-JAME` (JOS-168 is merged, so the change is no longer stacked).
 - [ ] 12.3 Obtain review by at least one human, not only AI agents.
 - [ ] 12.4 Archive the OpenSpec change after merge.

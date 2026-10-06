@@ -2,7 +2,7 @@
 
 ## Context
 
-What is stored today, on `feature/entrega-2-JAME` plus this branch's parent, `view-progress-by-phase` (JOS-168, proposed):
+What is stored today, on `feature/entrega-2-JAME` (which now holds `view-progress-by-phase` JOS-168, `generate-voice-over` JOS-136, `assemble-final-video` JOS-149, `bounded-retry-policy` JOS-184 and `retry-decomposition` JOS-156):
 
 | Stage | Provider recorded in | Attempts recorded in | Reaches the page |
 |---|---|---|---|
@@ -10,7 +10,7 @@ What is stored today, on `feature/entrega-2-JAME` plus this branch's parent, `vi
 | Clip | `scenes.video_provider`, bound once. The value is `VIDEO_PROVIDER.endpoint`. | One `provider_requests` row per attempt, `stage = 'video'`. `scenes.attempts` is reset to 0 at clip start. | no |
 | Voice-over | `runs.voice_provider_id`, plus `stage_attempts.provider_id` | `stage_attempts`, `stage = 'voice-over'`. JOS-136 records these; its phase code is not on the integration branch yet. | no |
 | Timestamps | `stage_attempts.provider_id`: `elevenlabs-native` or `elevenlabs-forced-alignment` | `stage_attempts`, `stage = 'timestamps'` | no |
-| Instructions (decomposition) | — | **nothing**. `registerDecomposition` calls `generator.generate` without a record. | no |
+| Instructions (decomposition) | `stage_attempts.provider_id = openai-decomposition` (`DECOMPOSITION_ATTEMPT_PROVIDER`) | `stage_attempts`, `stage = 'decomposition'`: one row per division attempt, recorded since `retry-decomposition` (JOS-156). The reasoning call runs inside it. | no |
 | Assembly | `stage_attempts.provider_id = null`: no external provider (JOS-149, PR #25) | `stage_attempts`, `stage = 'assembly'` | no |
 
 `stage_attempts` rows also hold `external_request_id`, `error_code` and `error_message`, and `provider_requests` rows hold the provider mode and latency. The configuration (`config/providers.ts`) holds display names and models. Credentials live only in `backend/.secrets.json` and the environment, never in a record.
@@ -44,11 +44,11 @@ In-flight attempts count, because a request was sent. Both stores are append-onl
 |---|---|---|---|
 | image | `fal-ai/flux/dev` | Fal.ai | fal-ai/flux/dev |
 | clip | `VIDEO_PROVIDER.endpoint` | RunningHub | minimax/hailuo-h3 |
-| voice-over | voice provider id | ElevenLabs | eleven_multilingual_v2 |
 | timestamps, native | `elevenlabs-native` | ElevenLabs | native timestamps |
 | timestamps, alignment | `elevenlabs-forced-alignment` | ElevenLabs | forced alignment |
-| instructions | `DECOMPOSITION_PROVIDER.model` | OpenAI | gpt-6-astra |
 | assembly | `null` | Local assembly | ffmpeg |
+| decomposition (instructions) | `openai-decomposition` | OpenAI | gpt-6-astra |
+| voice-over | `ElevenLabs` (`VOICE_PROVIDER.name`, the registry default and what attempts record) | ElevenLabs | eleven_multilingual_v2 |
 | any stage | the stub identifiers | Stub provider | the identifier |
 
 The clip's model is a fixed label in the module, because the endpoint path is not shown (Decision 4).
@@ -61,17 +61,12 @@ For the timestamps stage, the provider shown is the latest attempt's. If an earl
 
 *Alternative rejected:* showing the stored identifier as is. The values mix a model id, an endpoint path and internal ids. They are not readable, and the endpoint path is configuration detail the User does not need.
 
-**Decision 3 — Record the instruction call as a `stage_attempts` row with stage `instructions`.**
-`registerDecomposition` takes these steps:
+**Decision 3 — The instruction diagnostic reads the decomposition attempts that already exist.**
+`retry-decomposition` (JOS-156) records every division attempt as a `stage_attempts` row with stage `decomposition` and provider `openai-decomposition`, around the reasoning call, with its outcome and a person-readable reason. So the diagnostic needs no new recording: its `attempts` is the count of `decomposition` rows for the session, and its provider is the latest row's. On the wire the stage is named `instructions`, because the decomposition *phase* also holds the `timestamps` stage and a phase name would make the two ambiguous; `stageDiagnostics.ts` is the one place that maps the stored stage `decomposition` to the wire name.
 
-1. Before calling `generator.generate`, it records an in-flight attempt: provider `DECOMPOSITION_PROVIDER.model`, `queuedAt` = `sentAt` = now.
-2. After the call, it completes the attempt with `success`, `transient` or `not-retryable`. An `invalid_output` result counts as `transient`, because that is how its failure is already classified as retryable.
+This replaces the earlier plan to add an `instructions` attempt stage and to record the call in `registerDecomposition`. That plan was written when decomposition recorded nothing; reconciled on 2026-10-05, when the gate found the rows already there. JOS-168's retry-in-flight rule is likewise JOS-156's to own now, so it is not extended here.
 
-The person-readable reason goes in `error_message`, as the timestamps stage does. The stage is named `instructions`, not `decomposition`, because the decomposition phase has two provider stages: timestamps and instructions. A phase name would make the two ambiguous.
-
-This new in-flight record also completes JOS-168's retry rule. While a decomposition failure is being retried, the in-flight attempt may be an `instructions` attempt rather than a `timestamps` attempt. So the decomposition row of JOS-168's Decision 5 checks the latest attempt of *either* stage. That is stated as a requirement here and tested (task 3).
-
-*Alternative rejected:* a new table. `stage_attempts` already has the right shape, the store-enforced attempt numbering, and the outcome check.
+*Alternative rejected:* a second record for the same call. It would double-count every attempt.
 
 **Decision 4 — A closed allow-list, enforced by a test.**
 A stage diagnostic is exactly `{ stage, provider: { name, model }, attempts }`. The Zod response schemas declare those fields and use `.strict()` for them, so a field added by mistake fails validation in tests.
@@ -106,8 +101,8 @@ No action is attached. A stage with no attempt is not listed, and an empty list 
 
 ## Risks / Trade-offs
 
-- **[The stacked parent is not implemented yet]** → AC3 renders inside JOS-168's phase sections and extends its phase entries. Task 1 blocks implementation until JOS-168's tasks are done on the parent branch. If JOS-168's payload shape changes, this design is updated first.
-- **[Stacked PR merge gap]** → Merging this PR folds it only into `feature/jos-168-view-progress-by-phase`. The close-out asks the user to retarget this PR to `feature/entrega-2-JAME` after #168 merges, or to open a follow-up PR.
+- **[JOS-168's phase entries must match]** → AC3 renders inside JOS-168's phase sections and extends its phase entries. Checked at the gate on 2026-10-05: they are merged on the integration branch with the shape this design assumes (`phase`, `status`, `heldCount`, optional `failure`).
+- **[Stacked PR merge gap]** → No longer applies: JOS-168 is merged, so this change targets `feature/entrega-2-JAME` directly.
 - **[Overlap with JOS-149 (PR #25) and JOS-136]** → Both add attempt stages (`assembly`, `voice-over`). This change reads any stage generically. Task 1 re-checks whether JOS-149's migration made `provider_id` nullable, which assembly's `null` provider depends on.
 - **[A counted in-flight attempt that never completes]** → Boot reconciliation completes orphaned attempts (JOS-145, JOS-152). The count is "requests sent", which stays true either way.
 - **[Configuration renames a model]** → The display reads the stored identifier, so old sessions keep their own provider. A renamed identifier with no entry shows "Unknown provider" and is logged, never echoed. The coverage test catches a missing entry for the current configuration.

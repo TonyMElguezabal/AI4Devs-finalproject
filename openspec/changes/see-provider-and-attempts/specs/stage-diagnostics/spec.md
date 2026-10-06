@@ -38,7 +38,7 @@ The scene representation SHALL include `stages`. It SHALL have an `image` key on
 Each phase entry SHALL include `stages`, a list of the session-level stages of that phase that have at least one recorded attempt, in pipeline order:
 
 - `voice-over` for the voice-over phase;
-- `timestamps`, then `instructions`, for the decomposition phase;
+- `timestamps`, then `instructions` (the reasoning provider's call that writes the `IMAGE` and `VIDEO` instructions, stored as attempts of stage `decomposition` by `retry-decomposition`), for the decomposition phase;
 - none for the scenes phase;
 - `assembly` for the assembly phase.
 
@@ -73,41 +73,6 @@ Each item SHALL carry `stage`, `provider` (`name` and `model`) and `attempts`, t
 - **GIVEN** a session in `voice-over-complete` with no `timestamps` attempt
 - **WHEN** it is read
 - **THEN** the decomposition phase's `stages` is empty and the scenes phase's `stages` is empty
-
-### Requirement: The instruction call is recorded as an attempt
-
-Before the decomposition sends its request to the reasoning provider for the `IMAGE` and `VIDEO` instructions, it SHALL record an in-flight attempt with stage `instructions` and the configured reasoning provider. When the call returns, it SHALL complete that attempt:
-
-- `success` on a usable answer;
-- `transient` on a transient failure or an invalid answer;
-- `not-retryable` on a not-retryable failure.
-
-A person-readable reason SHALL be kept on a failed attempt. A decomposition that fails before the call (an invalid partition or an unusable duration) SHALL record no `instructions` attempt.
-
-#### Scenario: Successful call
-
-- **WHEN** a decomposition calls the reasoning provider and receives valid instructions
-- **THEN** one `instructions` attempt is recorded with outcome `success`
-
-#### Scenario: Invalid answer
-
-- **WHEN** the reasoning provider returns instructions that are not valid JSON
-- **THEN** one `instructions` attempt is recorded with outcome `transient` and the session records a retryable decomposition failure
-
-#### Scenario: Failure before the call
-
-- **WHEN** a decomposition is refused because its fragments do not partition the narration
-- **THEN** no `instructions` attempt is recorded
-
-### Requirement: An instruction retry in flight counts as a decomposition retry
-
-When the session's recorded failure is in the decomposition phase, an in-flight `instructions` attempt queued no earlier than the failure SHALL derive `chunk-decomposing`, in the same way as an in-flight `timestamps` attempt (`session-phase-progress`, "A retried phase shows its in-progress state").
-
-#### Scenario: Instruction retry in flight
-
-- **GIVEN** a session failed in decomposition because the reasoning provider timed out
-- **WHEN** a new `instructions` attempt is recorded in flight after the failure
-- **THEN** the session derives `chunk-decomposing`
 
 ### Requirement: Diagnostics expose no credentials or confidential data
 

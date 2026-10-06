@@ -12,7 +12,7 @@ PRD §3 requires every stage to keep the provider it used and the attempts it ma
   - The clip's provider (`videoProvider`) is stored but never exposed.
 - **Session-level stages show nothing (AC3).**
   - Voice-over, timestamps (native or forced alignment) and assembly record one attempt row per call in `stage_attempts`, but none of it reaches the session read.
-  - The decomposition's call to the reasoning provider, which writes the `IMAGE` and `VIDEO` instructions, records no attempt at all.
+  - The decomposition's call to the reasoning provider, which writes the `IMAGE` and `VIDEO` instructions, is recorded by `retry-decomposition` as attempts of stage `decomposition`, but those do not reach the page either.
 - **No rule says what may be shown (AC4).** The attempt records hold provider error messages, external request ids and raw error codes. Nothing yet says which of those may reach the page.
 
 ## What Changes
@@ -29,7 +29,6 @@ PRD §3 requires every stage to keep the provider it used and the attempts it ma
   - Final video phase: `assembly`, shown as local assembly with no external provider.
 
   Each stage carries the same `provider` and `attempts`. The Scenes phase has no session-level stage.
-- **Record decomposition instruction attempts**: the call to the reasoning provider records an attempt row (stage `instructions`) before it is sent, and records its outcome. This is the same append-only record the other session-level stages already use.
 - **A closed allow-list for diagnostics**: the only fields that leave the backend are the provider's display name, its model, and an attempt count. Credentials, API keys, request headers, external request ids, raw provider error codes and messages, and endpoint URLs are never part of the representation. Tests check every diagnostic field against that list.
 - **The page shows them**:
   - Scene details list the provider and attempts per stage, `Image` and `Clip`.
@@ -41,7 +40,6 @@ PRD §3 requires every stage to keep the provider it used and the attempts it ma
 
 - `stage-diagnostics`: which provider each stage used and how many attempts it made, for scene stages and session-level stages. It covers:
   - how both values are derived from the stored records;
-  - the recording of the decomposition instruction attempts;
   - the allow-list that keeps credentials and confidential data out;
   - where the page shows the diagnostics.
 
@@ -55,17 +53,16 @@ None. The scene and phase representations this change extends belong to `scene-d
   - `orchestrator.ts`: `sceneToPayload` builds `stages`; `toSnapshot` adds stage diagnostics to each phase entry.
   - A new pure module `stageDiagnostics.ts` maps stored provider identifiers to display names and holds the allow-list.
   - `db.ts`: one read that counts `provider_requests` per scene and stage, and the existing `getStageAttempts`.
-  - `sceneRegistration.ts`: records the `instructions` attempt.
-  - `types.ts`: `AttemptStage` gains `instructions`.
   - `routes.ts`: response schemas.
   - No migration: `stage_attempts.stage` is free text.
 - **Frontend**: `types.ts`, `SceneRow.tsx` (per-stage rows instead of the single provider and attempts) and `PhaseSection.tsx` (from JOS-168).
 - **API contract**: `docs/api-spec.yml`. Scene `provider` and `attempts` are removed and `stages` is added; phase entries gain `stages`.
-- **Depends on**:
-  - **`view-progress-by-phase` (JOS-168)**: implemented first. This branch stacks on it, because AC3 renders inside its phase sections.
-  - **`generate-voice-over` (JOS-136)**: voice-over attempts appear once JOS-136 records them; until then the Voice-over phase shows no stage.
-  - **`assemble-final-video` (JOS-149, PR #25)**: assembly attempts appear once it merges.
-  - **`bounded-retry-policy` (JOS-184, US-22)**: adds retry cycles. The count shown here is total attempts across cycles, so it stays correct when cycles arrive. A per-cycle breakdown is left to that change.
+- **Depends on** (all merged on `feature/entrega-2-JAME`, confirmed at the gate on 2026-10-05):
+  - **`view-progress-by-phase` (JOS-168)**: AC3 renders inside its phase sections.
+  - **`generate-voice-over` (JOS-136)**: records the voice-over attempts, with the provider identifier `ElevenLabs`.
+  - **`assemble-final-video` (JOS-149)**: records assembly attempts with no provider (`provider_id` is nullable).
+  - **`retry-decomposition` (JOS-156)**: records the decomposition (instructions) attempts.
+  - **`bounded-retry-policy` (JOS-184, US-22)**: adds retry cycles. The count shown here is total attempts across cycles, so it stays correct. A per-cycle breakdown is left to that change.
 - **Out of scope**:
   - attempt timelines, timestamps and outcomes per attempt;
   - per-cycle counts;
