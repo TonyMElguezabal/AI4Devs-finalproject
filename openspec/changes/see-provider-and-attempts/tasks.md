@@ -103,11 +103,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: scene details and phase sections change, so it applies.
-- [ ] 10.2 Run backend (scratch store, stub providers) and frontend. Open a session and expand a scene: the image and clip diagnostics appear under their accessible names.
-- [ ] 10.3 Trigger a transient image failure followed by a success; confirm the image attempt count rises without a reload.
-- [ ] 10.4 With session-level attempt rows prepared, confirm the Decomposition and Final video sections list their stages. Confirm that no error text, request id or endpoint path is visible anywhere on the page.
-- [ ] 10.5 Restore the environment and save `openspec/changes/see-provider-and-attempts/reports/YYYY-MM-DD-step-10-e2e.md`.
+- [x] 10.1 Decide applicability: scene details and phase sections change, so it applies.
+- [x] 10.2 Run backend (scratch store, stub providers) and frontend. Open a session and expand a scene: the image and clip diagnostics appear under their accessible names.
+- [x] 10.3 Trigger a transient image failure followed by a success; confirm the image attempt count rises without a reload. Done with an attempt record added to the store and a broadcast, because the image stage cannot be driven offline (see the step 10 report).
+- [x] 10.4 With session-level attempt rows prepared, confirm the Decomposition and Final video sections list their stages. Confirm that no error text, request id or endpoint path is visible anywhere on the page.
+- [x] 10.5 Restore the environment and save `openspec/changes/see-provider-and-attempts/reports/YYYY-MM-DD-step-10-e2e.md`.
 
 ## 11. Update Technical Documentation (MANDATORY)
 
