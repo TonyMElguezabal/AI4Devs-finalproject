@@ -16,7 +16,7 @@ import {
   handleProviderResult,
   launchScene,
   launchVideoStage,
-  reconcileOnBoot,
+  recoverOnBoot,
   resetVideoPollIntervalMs,
   resetVideoStageStartDelayMs,
   setVideoPollIntervalMs,
@@ -153,7 +153,7 @@ describe("image stage: stub requests pending at boot (spec: Requests in flight a
     launchScene(second);
 
     simulateRestart({ image: 2 });
-    reconcileOnBoot();
+    recoverOnBoot();
 
     expect(concurrency.stats(STAGE)).toEqual({ inFlight: 2, queued: 0, limit: 2 });
 
@@ -174,7 +174,7 @@ describe("image stage: stub requests pending at boot (spec: Requests in flight a
     launchScene(second);
 
     simulateRestart({ image: 2 });
-    reconcileOnBoot();
+    recoverOnBoot();
     const third = newImageScene(runId, 3, "success", 10);
     launchScene(third);
 
@@ -196,7 +196,7 @@ describe("image stage: stub requests pending at boot (spec: Requests in flight a
     launchScene(pending);
 
     simulateRestart({ image: 1 });
-    reconcileOnBoot();
+    recoverOnBoot();
 
     expect(getScene(pending)!.status).toBe("image-generating");
     expect(getScene(lost)!.attempts).toBe(1); // one failed attempt recorded, no retry sent yet
@@ -214,7 +214,7 @@ describe("video stage: requests pending at boot", () => {
     requestIds.forEach((requestId, i) => pendingVideoScene(runId, i + 1, requestId));
 
     simulateRestart({ video: 3 });
-    reconcileOnBoot();
+    recoverOnBoot();
 
     expect(concurrency.stats(VIDEO_STAGE)).toEqual({ inFlight: 5, queued: 0, limit: 3 });
 
@@ -236,7 +236,7 @@ describe("video stage: requests pending at boot", () => {
     requestIds.forEach((requestId, i) => pendingVideoScene(runId, i + 1, requestId));
 
     simulateRestart({ video: 3 });
-    reconcileOnBoot();
+    recoverOnBoot();
     const fresh = imageCompleteScene(runId, 5);
     launchVideoStage(fresh);
 
@@ -261,7 +261,7 @@ describe("the cap holds across a restart and a burst of new work", () => {
     pendingIds.forEach(launchScene);
 
     simulateRestart({ image: 2 });
-    reconcileOnBoot();
+    recoverOnBoot();
 
     const burstIds = [3, 4, 5, 6].map((n) => newImageScene(runId, n, "success", 20));
     burstIds.forEach(launchScene);
@@ -286,8 +286,8 @@ describe("waiting work survives a restart", () => {
     expect(concurrency.stats(STAGE).queued).toBe(2);
 
     simulateRestart({ image: 1 });
-    reconcileOnBoot();
-    reconcileOnBoot();
+    recoverOnBoot();
+    recoverOnBoot();
     expect(concurrency.stats(STAGE)).toEqual({ inFlight: 1, queued: 2, limit: 1 });
     await waitFor(() => deliverDue(scenes) && scenes.every((id) => getScene(id)!.status === "image-complete"));
     for (const id of scenes) expect(getScene(id)!.attempts).toBe(1);
@@ -301,8 +301,8 @@ describe("waiting work survives a restart", () => {
     const pending = pendingVideoScene(runId, 3, "before-restart");
 
     simulateRestart({ video: 1 });
-    reconcileOnBoot();
-    reconcileOnBoot();
+    recoverOnBoot();
+    recoverOnBoot();
     expect(concurrency.stats(VIDEO_STAGE)).toEqual({ inFlight: 1, queued: 2, limit: 1 });
     expect(provider.submits()).toBe(0);
     provider.answers.set("before-restart", { kind: "failed_not_retryable", reason: "stub: settled" });
@@ -327,7 +327,7 @@ describe("waiting work survives a restart", () => {
     const pausedVideo = imageCompleteScene(paused, 2);
 
     simulateRestart({ image: 1, video: 1 });
-    reconcileOnBoot();
+    recoverOnBoot();
     expect(getScene(activeImage)!.status).toBe("image-generating");
     await waitFor(() => provider.submits() === 1);
     expect(getScene(activeVideo)!.status).toBe("video-generating");

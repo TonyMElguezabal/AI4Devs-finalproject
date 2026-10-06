@@ -4,6 +4,7 @@ import { getDecompositionDependencies } from "./decompositionDependencies.ts";
 import {
   completeStageAttempt,
   countScenesForRun,
+  getInFlightAttempts,
   getNarrationTimestamps,
   getRun,
   getStageAttempts,
@@ -12,7 +13,7 @@ import {
   resolveArtefactPath,
   setRunFailure,
 } from "./db.ts";
-import { admitLaunch, registerStageLauncher, type StageLauncher } from "./launchGate.ts";
+import { admitLaunch, registerStageLauncher, RESTART_CAUSE, type SettleSummary, type StageLauncher } from "./launchGate.ts";
 import { obtainNarrationTimestamps, storedFileSchema } from "./narrationTimestampsPhase.ts";
 import { broadcast, launchImageStageForRun } from "./orchestrator.ts";
 import { registerAttemptSender, releaseSessionAttempts } from "./retry/retryScheduler.ts";
@@ -195,6 +196,35 @@ registerAttemptSender("timestamps", sendDecompositionAttempt);
 registerAttemptSender("decomposition", sendDecompositionAttempt);
 
 /**
+ * Boot settle (restart-recovery, JOS-160): a `timestamps` or `decomposition` attempt left in flight was lost with its
+ * process. It ends as transient, and the session records the retryable decomposition failure the step's own live
+ * transient failure records (`obtainNarrationTimestamps`, `recordSegmentationFailure`), so the manual retry is offered.
+ */
+function settleInterruptedDecompositionAttempts(): SettleSummary {
+  let recordedFailedAttempt = 0;
+  for (const attempt of getInFlightAttempts()) {
+    if (attempt.stage !== "timestamps" && attempt.stage !== "decomposition") continue;
+    const occurredAt = new Date();
+    completeStageAttempt(attempt.id, { outcome: "transient", finishedAt: occurredAt.toISOString(), errorMessage: RESTART_CAUSE });
+    recordedFailedAttempt++;
+    if (countScenesForRun(attempt.runId) > 0 || getRun(attempt.runId)?.failure) continue; // already decomposed, or already failed
+    const step = attempt.stage === "timestamps" ? "The narration's timestamps could not be obtained" : "The system could not divide the script into scenes";
+    setRunFailure(
+      attempt.runId,
+      createDecompositionFailure({
+        cause: `${step}: the request was ${RESTART_CAUSE}. The script and the narration are unchanged.`,
+        retryable: true,
+        occurredAt,
+        cycle: attempt.cycle,
+        attemptsInCycle: attempt.sequenceInCycle,
+      }),
+    );
+    broadcast(attempt.runId);
+  }
+  return { resumed: 0, recordedFailedAttempt, stillPending: 0 };
+}
+
+/**
  * The stage's entry in the phase-launch gate (retry-decomposition, Decision 5). Held work is a retry's scheduled
  * attempt for a session with no chunks. JOS-136's "directly after the narration" start joins the held-work and launch
  * terms here, when it launches this phase itself.
@@ -209,6 +239,7 @@ export const decompositionLauncher: StageLauncher = {
       );
     return { count: retryScheduled ? 1 : 0, sceneIds: [] };
   },
+  settleInFlight: settleInterruptedDecompositionAttempts,
   launch: (sessionId: string) => {
     if (!admitLaunch(sessionId).admitted) return;
     releaseSessionAttempts(sessionId);

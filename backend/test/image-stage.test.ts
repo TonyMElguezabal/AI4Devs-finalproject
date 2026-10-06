@@ -21,7 +21,7 @@ import {
   launchImageStage,
   manualRetry,
   pauseSession,
-  reconcileOnBoot,
+  recoverOnBoot,
   setVideoStageStartDelayMs,
   resetVideoStageStartDelayMs,
 } from "../src/orchestrator.ts";
@@ -674,12 +674,12 @@ describe("Restart reconciliation (design Decision 6)", () => {
     );
     expect(getAllInFlightScenes().map((s) => s.id)).toContain(sceneId);
 
-    const summary = reconcileOnBoot();
+    const summary = recoverOnBoot();
 
     expect(summary.recordedFailedAttempt).toBe(1);
     expect(summary.stillPending).toBe(0);
     // The retry rule's automatic relaunch runs synchronously up to its own
-    // first `await` (design Decision 6), so by the time `reconcileOnBoot`
+    // first `await` (design Decision 6), so by the time `recoverOnBoot`
     // returns the scene is already back in `image-generating`, mid-retry —
     // not left `submitted` waiting for something to poll.
     expect(getScene(sceneId)!.status).toBe("image-generating");

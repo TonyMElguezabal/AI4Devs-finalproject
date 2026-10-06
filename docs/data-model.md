@@ -152,6 +152,19 @@ The file holds `{ mechanism, characters: [{ text, start, end }] }`, one entry pe
 
 **Relationships:** one session has at most one narration-timestamps record, and only after its voice-over exists.
 
+## What a restart keeps and what it loses
+
+`preserve-progress-across-restarts` (JOS-160, PRD §12.1, AC14). Every record in the tables above is in the store and survives a restart, so a session reads the same afterwards (`test/restart-recovery.test.ts` compares the read before and after).
+
+**Held in memory only, lost on restart:** the per-stage request-cap queues and in-flight counts (`concurrency.ts`), poll and scheduler timers, launch counters used by tests, the clip poll loop, and the stub provider's simulated jobs.
+
+**Recomputed from the store at boot, never persisted:** which work is pending. The queue order is not kept; `recoverOnBoot()` settles every attempt left `in-flight` and then relaunches pending work in the order it meets it (sessions by creation time, scenes by index). Pending work is derived from scene states and attempt outcomes:
+
+- `submitted` scenes (image) and `image-complete` scenes with a requested duration (clip);
+- the final assembly, when all scenes are complete, there is no `final_video_path`, nothing is in flight, and the latest `assembly` attempt was settled by the restart (`error_message = 'interrupted by a restart'`) with fewer than four attempts in its cycle.
+
+An attempt left `in-flight` by a restart ends as `transient` with the message "interrupted by a restart", unless its stage resumes it (a clip task the provider still holds) or the timeout watcher ends it (`voice-over`).
+
 ## Store-enforced locks
 
 What must never change is refused by the store itself (`lock-script-and-narration`, JOS-137; PRD §4.2, D10), so the rule holds for every caller, present or future, and not only for the repository functions in `backend/src/db.ts`. Each trigger aborts the statement with a message that names what was touched.

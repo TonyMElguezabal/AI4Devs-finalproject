@@ -27,7 +27,7 @@ import {
   manualRetry,
   nextVideoStageLaunchCount,
   pauseSession,
-  reconcileOnBoot,
+  recoverOnBoot,
   resetVideoStageStartDelayMs,
   toSnapshot,
 } from "../src/orchestrator.ts";
@@ -606,7 +606,7 @@ describe("Reconciliation on boot (Decision 9)", () => {
     const provider = createStubVideoProvider("success-bytes", { bytes: MP4_BYTES });
     setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
 
-    const result = reconcileOnBoot();
+    const result = recoverOnBoot();
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Either retried successfully or marked failed, but not still video-generating
