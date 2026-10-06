@@ -90,12 +90,12 @@ Record which tests already existed.
 ## 9. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
 - [x] 9.1 Decide applicability: no UI change, but AC2 is visible on the session page as the final video's attempt count, so it applies.
-- [ ] 9.2 Run backend (scratch store, `slow-success` assembly) and frontend. Open a session whose assembly is running; pause and continue from the page.
-  **Status: BLOCKED.** Backend and frontend ran. The browser extension stopped responding (page text timed out twice, then tab close timed out), so the page was not driven. The scratch session `01M49NG1K0NP67X7RSV0KB7H81` read `final-video` with one attempt.
-- [ ] 9.3 The page shows one assembly attempt and one final video download once complete.
-  **Status: BLOCKED** with 9.2.
-- [ ] 9.4 Restore the environment and save `openspec/changes/ignore-repeated-success-confirmations/reports/YYYY-MM-DD-step-9-e2e.md`.
-  **Status:** the environment is restored (no servers running). The E2E report is not written, because the browser check did not run.
+- [x] 9.2 Run backend (scratch store, `slow-success` assembly) and frontend. Open a session whose assembly is running; pause and continue from the page.
+  **Result:** done on the second attempt. The first attempt was blocked by the browser extension, which then recovered. The pause and continue were clicked during a 60-second assembly; the store showed no second attempt.
+- [x] 9.3 The page shows one assembly attempt and one final video download once complete.
+  **Result:** done. The page changed by itself to "Final video Complete", "1 attempt" and "Download final video", with no reload.
+- [x] 9.4 Restore the environment and save `openspec/changes/ignore-repeated-success-confirmations/reports/YYYY-MM-DD-step-9-e2e.md`.
+  **Result:** report saved as `reports/2026-10-06-step-9-e2e.md`. Both servers stopped; the default store unchanged.
 
 ## 10. Update Technical Documentation (MANDATORY)
 
@@ -106,7 +106,8 @@ Record which tests already existed.
 
 ## 11. Close out
 
-- [ ] 11.1 Ask the user before commenting on JOS-159 (its manual assembly retry must respect "no final video, nothing in flight").
+- [x] 11.1 Ask the user before commenting on JOS-159 (its manual assembly retry must respect "no final video, nothing in flight").
+  **Result:** the user approved. The comment is posted on JOS-159 (`bb690329`): the start rule, `superseded` as a non-failure, and the boot-recovery rule it must keep in step with.
 - [ ] 11.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-161.
 - [ ] 11.3 Obtain review by at least one human, not only AI agents.
 - [ ] 11.4 Archive the OpenSpec change after merge.
