@@ -72,6 +72,16 @@ const sceneParamsSchema = z.object({ sessionId: sessionIdSchema, sceneId: z.stri
 const providerCallbackParamsSchema = z.object({ requestId: z.string().uuid() });
 const correctBodySchema = z.object({ instruction: z.string().min(1) });
 
+// see-provider-and-attempts (JOS-166) Decision 4 — the closed list of what a stage diagnostic may carry. `.strict()` makes
+// a field added by mistake fail validation, so nothing else of an attempt record can reach the page by default.
+const stageDiagnosticSchema = z
+  .object({
+    stage: z.enum(["image", "video", "voice-over", "timestamps", "instructions", "assembly"]),
+    provider: z.object({ name: z.string(), model: z.string().nullable() }).strict(),
+    attempts: z.number().int().min(1).describe("Attempts recorded for this stage across every retry cycle, including one still in flight."),
+  })
+  .strict();
+
 const sceneResponseSchema = z.object({
   type: z.literal("scene"),
   sessionId: z.string(),
@@ -80,8 +90,10 @@ const sceneResponseSchema = z.object({
   state: z.string(),
   affectedStage: z.enum(["image", "video"]).optional(),
   errorCause: z.string().nullable().optional(),
-  provider: z.string().optional(),
-  attempts: z.number().optional(),
+  stages: z
+    .object({ image: stageDiagnosticSchema.optional(), video: stageDiagnosticSchema.optional() })
+    .strict()
+    .describe("PRD §3: which provider each stage used and how many attempts it made. A key is present once that stage has at least one attempt. Derived from the stored attempt records, never stored."),
   result: z.object({ imageUrl: z.string().optional(), videoUrl: z.string().optional() }).optional(),
   instruction: z.string().optional(),
   prompt: z
@@ -130,6 +142,9 @@ const phaseResponseSchema = z.object({
     .enum(["pending", "in-progress", "complete", "failed"])
     .describe("PRD §8.1, §8.3: derived from the session state on every read, never stored."),
   heldCount: z.number().int().describe("Work units a pause is holding for this phase; 0 when not paused."),
+  stages: z
+    .array(stageDiagnosticSchema)
+    .describe("PRD §3: the session-level stages of this phase that have run, in pipeline order, each with its provider and attempt count. Empty for the scenes phase."),
   failure: z
     .object({ cause: z.string(), retryable: z.boolean() })
     .optional()

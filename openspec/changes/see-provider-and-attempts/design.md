@@ -33,7 +33,7 @@ What is stored today, on `feature/entrega-2-JAME` (which now holds `view-progres
 - An image or clip `attempts` value is the count of that scene's `provider_requests` rows for that stage.
 - A session-level `attempts` value is the count of `stage_attempts` rows for the session and stage.
 
-In-flight attempts count, because a request was sent. Both stores are append-only, so the count only grows and survives restarts and manual retries.
+The scene counts are read for the whole session in one grouped query, not per scene: a snapshot is built on every change, and the 300-scene write-capacity test showed a query per scene taking that scenario from about 0.7 s to 7.6 s. In-flight attempts count, because a request was sent. Both stores are append-only, so the count only grows and survives restarts and manual retries.
 
 *Alternative rejected:* `scenes.attempts`. It is the current cycle's attempt number, and it resets when the clip stage starts and again on each manual retry. It answers "which attempt is this", not "how many attempts were made".
 

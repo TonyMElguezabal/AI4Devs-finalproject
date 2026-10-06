@@ -262,6 +262,8 @@ export interface ProviderRequestRow {
   stage: "image" | "video";
 }
 
+import type { StageDiagnostic } from "./stageDiagnostics.ts";
+
 // ---- Wire contract (define-live-updates, JOS-183, Decisions 2/4/8) ----
 
 /** view-progress-by-phase (JOS-168) — the four processing phases, in pipeline order (PRD §8.1, §8.3). */
@@ -276,6 +278,8 @@ export interface PhaseProgress {
   heldCount: number;
   /** Only on a failed voice-over, decomposition or assembly entry; never the failure time or provider detail. */
   failure?: { cause: string; retryable: boolean };
+  /** see-provider-and-attempts (JOS-166) — the session-level stages of this phase that have run, in pipeline order. */
+  stages: StageDiagnostic[];
 }
 
 /** Session event / snapshot field — carries CURRENT state, never a delta. */
@@ -318,8 +322,8 @@ export interface SceneEventPayload {
   state: SceneState;
   affectedStage?: "image" | "video";
   errorCause?: string | null;
-  provider?: string;
-  attempts?: number;
+  /** see-provider-and-attempts (JOS-166) — which provider each stage used and how many attempts it made; a key is present once that stage has at least one attempt. */
+  stages: { image?: StageDiagnostic; video?: StageDiagnostic };
   result?: { imageUrl?: string; videoUrl?: string };
   instruction?: string;
   /** PRD §3 `PROMPT` (assign-scene-identifiers, JOS-144). */

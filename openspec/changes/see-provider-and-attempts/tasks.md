@@ -33,19 +33,19 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 4. Backend: scene and phase diagnostics (TDD; design Decisions 1 and 5)
 
-- [ ] 4.1 Write failing tests in `scene-api-surface.test.ts`:
+- [x] 4.1 Write failing tests (in the new `stage-diagnostics-surface.test.ts`, which holds all of group 4 and 5):
   - `stages.image` and `stages.video` counts come from `provider_requests` per stage;
   - image attempts are kept after the clip starts;
   - a manual retry adds to the count;
   - a `submitted` scene with the placeholder provider has no `stages.image`;
   - the scene has no top-level `provider` or `attempts`.
-- [ ] 4.2 Write failing tests in `session-api-surface.test.ts` for phase `stages`:
+- [x] 4.2 Write failing tests for phase `stages` (same file):
   - voice-over;
   - timestamps (latest provider, total count) then instructions, counted from the stored stage `decomposition` rows and named `instructions` on the wire;
   - assembly as local assembly;
   - empty lists for stages that have not run and for the scenes phase;
   - the live snapshot equals the read.
-- [ ] 4.3 Add a `countProviderRequests(sceneId, stage)` read in `db.ts`. Build `stages` in `sceneToPayload` and the phase `stages` in `toSnapshot`. Remove the scene's `provider` and `attempts` from the payload. Update the Zod response schemas, with `.strict()` on the diagnostic objects. Make 4.1-4.2 pass.
+- [x] 4.3 Add a `countProviderRequestsByScene(runId)` read in `db.ts` (one grouped query per session, see design Decision 1). Build `stages` in `sceneToPayload` and the phase `stages` in `toSnapshot`. Remove the scene's `provider` and `attempts` from the payload. Update the Zod response schemas, with `.strict()` on the diagnostic objects. Make 4.1-4.2 pass.
 
 ## 5. Backend: no confidential data (TDD; design Decision 4)
 

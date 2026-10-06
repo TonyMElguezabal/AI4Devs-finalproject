@@ -7,7 +7,7 @@ import type { PhaseProgress, SessionFailure, SessionState } from "../src/types.t
 
 const PHASES = ["voice-over", "decomposition", "scenes", "assembly"] as const;
 
-function statuses(phases: PhaseProgress[]): string[] {
+function statuses(phases: Array<Omit<PhaseProgress, "stages">>): string[] {
   return phases.map((entry) => entry.status);
 }
 

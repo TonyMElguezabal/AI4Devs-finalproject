@@ -1210,6 +1210,28 @@ export function completeStageAttempt(
   return Number(result.changes) > 0;
 }
 
+/**
+ * see-provider-and-attempts (JOS-166) Decision 1 — how many requests each scene's image and clip stages have sent,
+ * across every retry cycle and counting one still in flight, for a whole session in one query (a snapshot is built
+ * on every change, so a query per scene would grow with the number of scenes). Derived from the append-only
+ * attempt records, never a counter: `scenes.attempts` is the current cycle's attempt number and restarts for the
+ * clip stage. A scene with no request has no entry.
+ */
+export function countProviderRequestsByScene(runId: string): Map<string, { image: number; video: number }> {
+  const rows = db
+    .prepare(
+      "SELECT p.scene_id AS scene_id, p.stage AS stage, COUNT(*) AS c FROM provider_requests p JOIN scenes s ON s.id = p.scene_id WHERE s.run_id = ? GROUP BY p.scene_id, p.stage",
+    )
+    .all(runId) as Array<{ scene_id: string; stage: string; c: number }>;
+  const counts = new Map<string, { image: number; video: number }>();
+  for (const row of rows) {
+    const entry = counts.get(row.scene_id) ?? { image: 0, video: 0 };
+    if (row.stage === "image" || row.stage === "video") entry[row.stage] = row.c;
+    counts.set(row.scene_id, entry);
+  }
+  return counts;
+}
+
 export function getStageAttempts(runId: string, stage: AttemptStage): StageAttempt[] {
   const rows = db
     .prepare("SELECT * FROM stage_attempts WHERE run_id = ? AND stage = ? ORDER BY attempt_number ASC")
