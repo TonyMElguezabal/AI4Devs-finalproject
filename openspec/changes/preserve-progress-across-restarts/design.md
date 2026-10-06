@@ -2,119 +2,87 @@
 
 ## Context
 
-On `feature/entrega-2-JAME` (`ecfe430`):
+On `feature/entrega-2-JAME` (`9bb4059`), after JOS-136, 149, 156, 166, 184, 185 and 186 merged:
 
-- **Store**: SQLite through `db.ts`. It holds sessions (`runs`, with `paused` and `failure`), scenes (state, attempts, results, bindings, instructions, interval, duration, factor), `provider_requests` (image and clip, one row per attempt), `stage_attempts` (session-level, recorded `in-flight` before sending), `voice_overs`, `narration_timestamps`, `scene_results` and `scene_video_results`. Files live in the project folder.
-- **In memory only, lost on restart**:
-  - the request-cap queues and in-flight counts (`concurrency.ts`);
-  - poll timers;
-  - launch counters for tests;
-  - the clip poll loop;
-  - the stub provider's simulated jobs.
-- **`server.ts`** calls `reconcileOnBoot()` before `listen()`.
-- **`reconcileOnBoot`**:
-  - **Image scenes in `image-generating`**:
-    - a real bound provider goes through `applyFailureOutcome(transient, "interrupted by a restart")`, with a relaunch callback;
-    - a stub scene is polled through `provider.pollResult`.
-  - **Clip scenes in `video-generating`**: a missing binding or request id is a transient failure; otherwise it re-acquires a slot and resumes `pollVideoRequestOnce`.
-  - Nothing else is reconciled, and nothing pending is relaunched.
-- **Launch registry** (JOS-152): `registerStageLauncher({ stage, heldWork, launch })`. Image and video are registered. Voice-over, decomposition and assembly are in `NOT_YET_LAUNCHABLE`. `continueSession` calls `launchHeldWork`, which launches every stage whose `heldWork` count is positive.
-- **Decomposition**: `runDecompositionPhase` obtains the timestamps only when they are missing, then divides the script. Nothing in the running app calls it yet, and no production instance of its alignment and instruction dependencies is wired up. A `timestamps` failure records a retryable decomposition failure.
+- **Store**: SQLite through `db.ts`. It holds sessions, scenes, `provider_requests`, `stage_attempts` (session-level and scene-level, recorded `in-flight` before sending), `voice_overs`, `narration_timestamps` and results. Files live in the project folder.
+- **In memory only, lost on restart**: request-cap queues and counts, poll timers, launch counters, the clip poll loop, stub provider jobs.
+- **`server.ts` boot order**: `reconcileOnBoot()`, then `rebuildScheduler()` (JOS-184), then `startAttemptTimeoutWatcher()` (JOS-185, which sweeps once at start), then `listen()`.
+- **`reconcileOnBoot`** (`orchestrator.ts`):
+  - occupies cap slots for resumed image-stub and clip requests (JOS-186);
+  - settles `image-generating` scenes (real provider: transient failure through `applyFailureOutcome` with a relaunch callback; stub: poll) and `video-generating` scenes (missing binding or request id: transient; otherwise resume polling);
+  - relaunches queued work through `launchHeldWork`, but only for sessions with scenes in `submitted` or `image-complete`.
+- **Launch registry** (`launchGate.ts`): `registerStageLauncher({ stage, heldWork, launch })`. Image, video, voice-over, decomposition and assembly are all registered.
+- **Timeout watcher** (`attemptTimeoutWatcher.ts`): times out only in-flight attempts whose stage registered a handler and has a limit. Voice-over has both (10 s). `timestamps` and `decomposition` have no handler; `assembly` has neither a handler nor a limit.
+- **Assembly** (`orchestrator.ts`): records an `assembly` attempt, runs the tool, completes the attempt, and retries inside the same function while `attemptNumber < 1 + RETRY_BUDGET`. It is launched from `triggerAssemblyIfReady` when the last scene settles.
+- **Decomposition**: `decompositionDependencies.ts` holds production instances of the alignment provider and instruction generator. Nothing in the running app calls `runDecompositionPhase`; the decomposition launcher only releases scheduled retries (`releaseSessionAttempts`).
 
 ## Goals / Non-Goals
 
 **Goals:**
 - After a restart, every session reads exactly as before (AC1, AC3).
-- Progress reached before the restart is kept, and pending work continues without User action (AC2).
-- Each interrupted request is either awaited, if the provider holds it, or recorded as a failed attempt under the retry policy (AC4).
+- Pending work continues without User action (AC2).
+- Each interrupted request is either awaited, if the provider holds it, or recorded as a failed attempt under the retry policy (AC4), for every stage that records attempts.
 - A restart never sends the same unit of work twice, and never sends anything for a paused session.
 
 **Non-Goals:**
 - Persisting the cap queue order.
 - Time limits (JOS-185).
-- Implementing the voice-over and assembly stages.
+- Starting decomposition after the voice-over, and its boot relaunch rule.
 - Store backups.
 
 ## Decisions
 
 **Decision 1 — Two passes at boot: settle, then relaunch.**
-`recoverOnBoot()` replaces `reconcileOnBoot()` and runs in `server.ts` before `listen()`:
+`recoverOnBoot()` replaces `reconcileOnBoot()` and runs at the same place in `server.ts`:
 
-1. **Settle.** For each registered stage, call its `settleInFlight()`. It finds the stage's in-flight units and, for each one:
-   - if the provider still holds the request, resumes waiting for it;
-   - if not, completes the attempt as failed, transient, "interrupted by a restart", through the stage's **own live failure path**.
+1. **Settle.** For each registered stage, call `settleInFlight()`. It completes or resumes the stage's in-flight units. Settling never launches. (The image settle keeps the relaunch callback it has today: JOS-186's `acquire` ignores holders already queued, and a test pins that one request results.)
+2. **Relaunch.** For each session that is not paused and has pending work, call `launchHeldWork`. The candidate sessions are those with scenes in `submitted` / `image-complete` (as today) **plus** sessions whose assembly is pending (Decision 3).
 
-   Settling never launches.
-2. **Relaunch.** For each session that is not paused, for each registered stage, call `launch(sessionId)`, which launches that stage's pending work through the gate.
-
-The order matters. Settling can turn an in-flight unit into pending work, for example a scene back to `submitted` within its budget, and the relaunch pass then picks it up. Running the relaunch pass once, last, is what keeps a boot from launching a unit twice.
-
-*Alternative rejected:* each reconcile branch launching its own retry, as the image branch does today. Two code paths could then both launch the same scene at boot.
+*Alternative rejected:* leaving the existing relaunch loop as is. It never visits a session whose scenes are all complete, so an interrupted assembly is never resumed.
 
 **Decision 2 — The recovery interface sits next to the launcher.**
-`StageLauncher` gains `settleInFlight(): SettleSummary`. `launch(sessionId)` already exists. Its contract is tightened to "launch every due, unsent, unfailed unit of this stage for this session, through the gate". That is the same set `heldWork` counts when paused.
+`StageLauncher` gains `settleInFlight(): SettleSummary` (`{ resumed, recordedFailedAttempt }`). Image and video implement it by moving their existing `reconcileOnBoot` blocks unchanged. Voice-over's settle is a no-op that documents the JOS-185 sweep. Timestamps and decomposition settle through the decomposition launcher. A stage in `NOT_YET_LAUNCHABLE` has no recovery, and the boot log lists it.
 
-One definition of pending work then serves continue (JOS-152), boot relaunch (this change) and held reporting. `relaunchPendingWork(sessionId)` in `launchGate.ts` loops over the registered stages and returns how many units it handed to the gate. A stage in `NOT_YET_LAUNCHABLE` has no recovery. The boot log lists those stages, so the gap is visible.
+`launchHeldWork` already launches every stage whose `heldWork` is positive, so boot, continue and held reporting share one definition of pending work.
 
 **Decision 3 — Per-stage rules.**
 
-| Stage | `settleInFlight` | Pending work for `launch` |
+| Stage | `settleInFlight` | Pending work |
 |---|---|---|
-| image (real) | Scenes in `image-generating` with a bound provider: transient failure through `applyFailureOutcome`, **without** the launch callback. Fal.ai is synchronous and keeps nothing to poll. | `submitted` scenes (unchanged) |
-| image (stub) | Poll `provider.pollResult`: resolved → apply; not found → transient; pending → re-arm the timer (unchanged) | same |
-| clip | Missing binding or request id → transient. Otherwise re-acquire a slot and resume polling the original task (unchanged). | `image-complete` scenes with a requested duration (unchanged) |
-| timestamps | `timestamps` attempts with outcome `in-flight` → complete as `transient`, "interrupted by a restart", through the timestamps phase's exported failure path. Today that records a retryable decomposition failure; under JOS-184 it follows its policy. | — (timestamps are pending only as part of decomposition) |
-| decomposition | — (no attempt of its own before JOS-166; an in-flight `instructions` attempt, once JOS-166 lands, is settled like `timestamps`) | Voice-over stored, no chunks, no session failure, no in-flight `timestamps` or `instructions` attempt → `runDecompositionPhase`, which resumes at the step reached (Decision 4) |
-| voice-over | Requirement for JOS-136: in-flight `voice-over` attempts → transient (ElevenLabs is synchronous) | Requirement for JOS-136: a registered session with no voice-over, no failure and no in-flight attempt |
-| assembly | Requirement for JOS-149/159: in-flight `assembly` attempts → transient (a local process) | Requirement for JOS-149/159: gate open, no final video, no failure, no in-flight attempt |
+| image | unchanged (move) | `submitted` scenes (unchanged) |
+| clip | unchanged (move) | `image-complete` scenes with a requested duration (unchanged) |
+| voice-over | none: an `in-flight` attempt is timed out by the startup sweep (10 s limit). A test pins that it ends `timed-out` and schedules its retry. | unchanged |
+| timestamps | `in-flight` `timestamps` attempts → `transient`, "interrupted by a restart", through `narrationTimestampsPhase`'s failure path (retryable decomposition failure) | — |
+| decomposition | `in-flight` `decomposition` attempts → same failure path | rule deferred (see Decision 4) |
+| assembly | `in-flight` `assembly` attempts → `transient`, "interrupted by a restart" | all scenes complete (gate open), no final video, no `in-flight` attempt, and the latest `assembly` attempt is a restart-settled `transient` with fewer than `1 + RETRY_BUDGET` attempts (or there is none) |
 
-**Decision 4 — Decomposition resumes at the step it reached; no new record is needed.**
-`runDecompositionPhase` already skips the timestamps step when they are stored. So the relaunch rule "voice-over stored, no chunks, no failure, nothing in flight" resumes correctly in every case:
+The assembly pending rule is narrower than its `heldWork`, which counts any open-gate session without a final video. That would relaunch an exhausted or not-retryable assembly at boot, and so reset its budget. Boot therefore adds the "latest attempt" conditions. The relaunch must continue the live attempt count, so the next attempt number is the number of recorded `assembly` attempts plus one.
 
-- interrupted before timestamps: it obtains them;
-- interrupted after them: it divides;
-- interrupted during the instruction call, which is synchronous and so has nothing to wait for: it divides again, sending the instruction request again.
+**Decision 4 — The decomposition pending rule is deferred.**
+Nothing in the running app starts decomposition, so a relaunch rule would be its first live launch. It would also change `heldWork`, so continue would start decompositions the live flow never starts. That is a product change for the story that adds the live start. This change ships the timestamps and instruction settles, which close the "stuck `chunk-decomposing` forever" case, and leaves `decompositionLauncher.launch` as it is. The spec scenario for it is dropped.
 
-The re-sent instruction request has no attempt record of its own until JOS-166, so it does not count against a budget. That is acceptable, because the reasoning stage has no automatic retries today. JOS-166 settles its orphan first, so it is counted.
-
-This change registers the `decomposition` launcher with this pending rule if `retry-decomposition` (JOS-156) has not. If it has, this change adds the rule to JOS-156's `launch`. The launcher needs production instances of the alignment provider and the instruction generator. If no production wiring exists when this is implemented (none does today), task 1.3 records it as a blocker and only the timestamps settle is shipped for this row.
-
-**Decision 5 — A launch that finds nothing to do releases its slot.**
-`launchScene` (the skeleton stub stage), `runImageAttempt` and `runVideoAttempt` re-check the state inside the `concurrency.acquire` callback. The real image and clip stages release their slot when the state no longer matches. The stub stage's `launchScene` returns without releasing, which leaks a slot whenever a stub scene is queued twice. This change makes that early return release too, and adds a test that queues the same scene twice and checks one request and no leaked slot. This is what makes Decision 1's single relaunch safe against a unit that was also queued by a live event during boot.
-
-**Decision 6 — Prove consultation with a simulated restart and with a real one.**
-A test helper, `simulateRestart()`, discards all in-memory state while keeping the store file:
+**Decision 5 — Prove consultation with a simulated restart and with a real one.**
+A test helper, `simulateRestart()`, discards in-memory state while keeping the store file:
 
 - cap queues and counts;
 - timers;
 - launch counters;
 - stub jobs;
-- the launcher registry, which is re-registered by re-importing.
+- the launcher registry, re-registered by re-importing.
 
-It then runs `recoverOnBoot()`.
-
-For each session state and scene state, the test compares `GET /sessions/:id` before and after the restart. Everything must match except `updatedAt` and the fields the recovery legitimately changed: an interrupted attempt now failed, a queued scene now launched. That covers results, errors, `paused`, `held`, `failedPhase` and `failedSceneIndexes`.
-
-One E2E run kills and restarts the real server process with a page open. The page reconnects, resyncs, and shows the same session.
+It then runs `recoverOnBoot()`. For each session state and scene state, the test compares `GET /sessions/:id` before and after. Everything must match except `updatedAt` and the fields recovery legitimately changed. One E2E run kills and restarts the real server with a page open.
 
 ## Risks / Trade-offs
 
-- **[Cap queue order is not kept]** → After a restart, pending work is queued again in the order the relaunch pass meets it: sessions by creation time, scenes by index. That is first come first served from boot. It is acceptable, because waiting is neither an attempt nor execution time (§10.1).
-- **[A resumed clip poll restarts its time window]** → This is existing behaviour, left for JOS-185 to decide.
-- **[Overlap with JOS-156, JOS-136, JOS-149/159, JOS-166 and JOS-184]** → They all touch launchers or failure paths. The interface in Decision 2 is the meeting point. Task 1 checks each against the merged code first.
-- **[A large store makes boot slower]** → The relaunch pass reads only sessions that have pending work, through indexed reads. It does not consult every session.
-- **[Decomposition has no production wiring]** → See Decision 4. The settle for `timestamps` ships regardless.
+- **[Cap queue order is not kept]** → Pending work is queued again in the order the relaunch pass meets it. Acceptable, because waiting is neither an attempt nor execution time (§10.1).
+- **[Assembly relaunch overlaps JOS-159's retry state]** → The pending rule reads only attempt outcomes and counts, which JOS-159 also writes. Task 1 re-checks the merged code, and the coordination note tells JOS-159.
+- **[Moving the image and clip settle code]** → Pure moves under existing tests; any behaviour change fails them.
+- **[A large store makes boot slower]** → The relaunch pass reads only sessions with pending work, through indexed reads.
 
 ## Migration Plan
 
-No migration. On the first boot with this change, sessions already stuck by the gaps above recover:
-
-- orphaned `timestamps` attempts are settled;
-- lost queued scenes are relaunched;
-- interrupted decompositions resume, once the decomposition dependencies are wired.
-
-Rolling back means restoring `reconcileOnBoot`.
+No migration. On the first boot with this change, sessions already stuck with an orphaned `timestamps`, `decomposition` or `assembly` attempt recover. Rolling back means restoring `reconcileOnBoot`.
 
 ## Open Questions
 
-None blocking. Production wiring of the decomposition dependencies is tracked as a gate item, not a question.
+None blocking. The decomposition pending rule is tracked as out of scope, not a question.
