@@ -165,6 +165,14 @@ The file holds `{ mechanism, characters: [{ text, start, end }] }`, one entry pe
 
 An attempt left `in-flight` by a restart ends as `transient` with the message "interrupted by a restart", unless its stage resumes it (a clip task the provider still holds) or the timeout watcher ends it (`voice-over`).
 
+## Repeated success confirmations
+
+`ignore-repeated-success-confirmations` (JOS-161, US-29). A refused confirmation changes nothing else: no scene or session state, no stored reference, no launch.
+
+- `runs.final_video_path` is written once. `setFinalVideoPath` updates only while the path is null and reports whether it recorded it. A refused assembly success ends its attempt as `superseded`.
+- An assembly attempt starts only when the session has no final video and no `assembly` attempt is in flight.
+- The image stage writes the scene's state only after `scene_results` accepts the result.
+
 ## Store-enforced locks
 
 What must never change is refused by the store itself (`lock-script-and-narration`, JOS-137; PRD §4.2, D10), so the rule holds for every caller, present or future, and not only for the repository functions in `backend/src/db.ts`. Each trigger aborts the statement with a message that names what was touched.

@@ -56,38 +56,53 @@ Record which tests already existed.
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 6.1 Review the tests that call `setFinalVideoPath`, `completeImageStage` (indirectly), and the assembly launch (`assembly-launch`, `assembly-phase`, `assembly-api`, `restart-assembly`, `launch-gate`) and update any that relied on an overwrite or a second launch.
-- [ ] 6.2 Confirm every scenario of the modified requirement in `specs/persistence-foundation/spec.md` has at least one test, and map AC1-AC3 to tests; list both in the step 7 report.
-- [ ] 6.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 6.1 Review the tests that call `setFinalVideoPath`, `completeImageStage` (indirectly), and the assembly launch (`assembly-launch`, `assembly-phase`, `assembly-api`, `restart-assembly`, `launch-gate`) and update any that relied on an overwrite or a second launch.
+  **Result:** none needed updating. The 15 existing assembly, stage and persistence files (176 tests) passed unchanged.
+- [x] 6.2 Confirm every scenario of the modified requirement in `specs/persistence-foundation/spec.md` has at least one test, and map AC1-AC3 to tests; list both in the step 7 report.
+  **Result:** every scenario has a test; the map is in the step 7 report.
+- [x] 6.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+  **Result:** no module decreased against `417563b` (statements 92.19 → 92.27, branches 92.79 → 92.99).
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 7.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents.
-- [ ] 7.2 Run the targeted tests: the files touched in groups 2-4 plus `orchestrator`, `image-stage`, `video-stage`, `assembly-*`, `restart-assembly`, `launch-gate`.
-- [ ] 7.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` in the checkout.
-- [ ] 7.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 7.5 Create the report `openspec/changes/ignore-repeated-success-confirmations/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`.
-- [ ] 7.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 7.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents.
+  **Result:** the baseline values are the ones recorded for JOS-160 (2 runs, 0 scenes, 13 migrations, 17 triggers, 2 projects), taken before this change's runs. This worktree had no default store, and every run used an isolated store.
+- [x] 7.2 Run the targeted tests: the files touched in groups 2-4 plus `orchestrator`, `image-stage`, `video-stage`, `assembly-*`, `restart-assembly`, `launch-gate`.
+  **Result:** run as part of the full suite, which passed.
+- [x] 7.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` in the checkout.
+  **Result:** backend 1325 passed, frontend 101 passed; both typechecks clean; no `.secrets.json` present.
+- [x] 7.4 Verify the post-test state matches the baseline; restore it if not.
+  **Result:** the default store is unchanged.
+- [x] 7.5 Create the report `openspec/changes/ignore-repeated-success-confirmations/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`.
+  **Result:** created as `reports/2026-10-06-step-7-unit-test-and-db-verification.md`.
+- [x] 7.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Start the real server on a scratch store and scratch projects folder with stub providers (`USE_STUB_VIDEO_PROVIDER=success-bytes`, `USE_STUB_ASSEMBLY_TOOL=slow-success`, `ALLOW_TEST_ENDPOINTS=1`); confirm `GET /health`.
-- [ ] 8.2 Create a session with scenes through `quick-scene` so assembly starts. While it runs, `POST /pause` then `POST /continue`. `GET /sessions/:id` shows one assembly attempt and, once done, one final video.
-- [ ] 8.3 `POST /continue` again after the final video exists: no new assembly attempt, final video unchanged.
-- [ ] 8.4 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/ignore-repeated-success-confirmations/reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`.
+- [x] 8.1 Start the real server on a scratch store and scratch projects folder with stub providers (`USE_STUB_VIDEO_PROVIDER=success-bytes`, `USE_STUB_ASSEMBLY_TOOL=slow-success`, `ALLOW_TEST_ENDPOINTS=1`); confirm `GET /health`.
+- [x] 8.2 Create a session with scenes through `quick-scene` so assembly starts. While it runs, `POST /pause` then `POST /continue`. `GET /sessions/:id` shows one assembly attempt and, once done, one final video.
+  **Result:** done. Pause and continue during the assembly held nothing, and the store recorded one attempt.
+- [x] 8.3 `POST /continue` again after the final video exists: no new assembly attempt, final video unchanged.
+  **Result:** done.
+- [x] 8.4 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/ignore-repeated-success-confirmations/reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`.
+  **Result:** report saved as `reports/2026-10-06-step-8-manual-endpoint-testing.md`. Six concurrent continues produced one attempt. Findings are in the report: the stub assembly does not write the file, so the final-video download 404s, and `quick-voice-over` returns 500 when a voice-over exists.
 
 ## 9. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Decide applicability: no UI change, but AC2 is visible on the session page as the final video's attempt count, so it applies.
+- [x] 9.1 Decide applicability: no UI change, but AC2 is visible on the session page as the final video's attempt count, so it applies.
 - [ ] 9.2 Run backend (scratch store, `slow-success` assembly) and frontend. Open a session whose assembly is running; pause and continue from the page.
+  **Status: BLOCKED.** Backend and frontend ran. The browser extension stopped responding (page text timed out twice, then tab close timed out), so the page was not driven. The scratch session `01M49NG1K0NP67X7RSV0KB7H81` read `final-video` with one attempt.
 - [ ] 9.3 The page shows one assembly attempt and one final video download once complete.
+  **Status: BLOCKED** with 9.2.
 - [ ] 9.4 Restore the environment and save `openspec/changes/ignore-repeated-success-confirmations/reports/YYYY-MM-DD-step-9-e2e.md`.
+  **Status:** the environment is restored (no servers running). The E2E report is not written, because the browser check did not run.
 
 ## 10. Update Technical Documentation (MANDATORY)
 
-- [ ] 10.1 `docs/api-spec.yml`: confirm no change is needed (no route or schema changes); record that in the step 7 report.
-- [ ] 10.2 `docs/data-model.md`: record that `runs.final_video_path` is written once, by a conditional update, and that a refused assembly result ends `superseded`.
-- [ ] 10.3 `docs/backend-standards.md`: state the rule that a stage writes state and launches the next stage only after the store accepts its result, with the per-stage guard table from design § Context.
+- [x] 10.1 `docs/api-spec.yml`: confirm no change is needed (no route or schema changes); record that in the step 7 report.
+  **Result:** no route or schema changed, so the contract is unchanged. Recorded in the step 7 report.
+- [x] 10.2 `docs/data-model.md`: record that `runs.final_video_path` is written once, by a conditional update, and that a refused assembly result ends `superseded`.
+- [x] 10.3 `docs/backend-standards.md`: state the rule that a stage writes state and launches the next stage only after the store accepts its result, with the per-stage guard table from design § Context.
 
 ## 11. Close out
 

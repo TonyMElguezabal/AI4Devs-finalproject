@@ -176,6 +176,10 @@ interface VideoProvider {
 - **Each adapter records whether a result can arrive late.** A call that is aborted at the limit (decomposition, alignment, image) cannot; a call that keeps running (voice) or a job polled by id (video) can. See the table in `openspec/changes/stage-execution-time-limit/design.md` § Pre-implementation findings.
 - **Delays are injected**, never read from a constant inside the policy. The defaults are `PROVISIONAL_RETRY_DELAY_SECONDS` until US-33 records the PRD values; tests call `setRetryDelayConfig`, and `RETRY_BASE_DELAY_SECONDS` / `RETRY_CAP_DELAY_SECONDS` shorten them for manual runs.
 
+### Repeated success confirmations
+
+`ignore-repeated-success-confirmations` (JOS-161, PRD §12.1, AC14). A stage writes a scene's or session's state, and launches the next stage, only after the store accepts its result. A refused commit returns before any write. The guards in use are `commitSceneResult` and `commitSceneVideoResult` (scene results), `setFinalVideoPath` (the final video, set once), `insertVoiceOver` and `storeTimestamps` (once per session), and `registerDecomposition` (chunks, once per session). Tests that prove this drive the stage's own success path through a test-only seam (`deliverImageSuccessForTests`, `deliverClipSuccessForTests`).
+
 ### Restart recovery
 
 `preserve-progress-across-restarts` (JOS-160, PRD §12.1, AC14). `recoverOnBoot()` (`orchestrator.ts`) replaces the old `reconcileOnBoot` and runs in `server.ts` before `listen()`, in two passes:
