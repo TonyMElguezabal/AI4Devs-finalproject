@@ -27,6 +27,15 @@ export type SessionState =
 export type Phase = "voice-over" | "decomposition" | "scenes" | "assembly";
 export type PhaseStatus = "pending" | "in-progress" | "complete" | "failed";
 
+/** see-provider-and-attempts (JOS-166) — what one stage used and how often it ran; nothing else of an attempt reaches the page. */
+export type DiagnosticStage = "image" | "video" | "voice-over" | "timestamps" | "instructions" | "assembly";
+export interface StageDiagnostic {
+  stage: DiagnosticStage;
+  provider: { name: string; model: string | null };
+  /** Attempts across every retry cycle, including one still in flight. */
+  attempts: number;
+}
+
 export interface PhaseProgress {
   phase: Phase;
   status: PhaseStatus;
@@ -34,6 +43,8 @@ export interface PhaseProgress {
   heldCount: number;
   /** Only on a failed voice-over, decomposition or assembly entry. */
   failure?: { cause: string; retryable: boolean };
+  /** JOS-166 — the session-level stages of this phase that have run, in pipeline order. */
+  stages: StageDiagnostic[];
 }
 
 export interface SessionEventPayload {
@@ -62,8 +73,8 @@ export interface SceneEventPayload {
   state: SceneState;
   affectedStage?: "image" | "video";
   errorCause?: string | null;
-  provider?: string;
-  attempts?: number;
+  /** JOS-166 — per stage; a key is present once that stage has at least one attempt. */
+  stages: { image?: StageDiagnostic; video?: StageDiagnostic };
   result?: { imageUrl?: string; videoUrl?: string };
   instruction?: string;
   /** PRD §7.2: the admitted clip duration requested for this chunk; absent for a scene created without a decomposition (request-admitted-clip-duration, JOS-147). */

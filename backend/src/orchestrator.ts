@@ -17,6 +17,7 @@ import {
   getRun,
   getScene,
   getScenesForRun,
+  countProviderRequestsByScene,
   getStageAttempts,
   getSubmittedScenesForRun,
   getVoiceOver,
@@ -42,6 +43,7 @@ import {
 import type { AssemblyTool } from "./assemblyTool.ts";
 import * as concurrency from "./concurrency.ts";
 import { admitLaunch, launchHeldWork, registerStageLauncher, sessionHeldWork, type StageLauncher } from "./launchGate.ts";
+import { describeProvider, diagnosticStageOf, type StageDiagnostic } from "./stageDiagnostics.ts";
 import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
 import { FINAL_OUTPUT, PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
@@ -110,7 +112,7 @@ export function setPostAdmitHook(hook: ((runId: string) => void) | undefined): v
 
 // ---- Wire contract helpers (define-live-updates, JOS-183 Decisions 2/4/8) ----
 
-function sceneToPayload(scene: Scene): SceneEventPayload {
+function sceneToPayload(scene: Scene, requestCounts: { image: number; video: number } | undefined): SceneEventPayload {
   return {
     type: "scene",
     sessionId: scene.runId,
@@ -120,8 +122,7 @@ function sceneToPayload(scene: Scene): SceneEventPayload {
     // Decision 6 (JOS-146) — derived: a failed scene with a stored image path failed at the video stage.
     affectedStage: scene.status === "failed" ? (scene.result ? "video" : "image") : undefined,
     errorCause: scene.status === "failed" ? scene.lastError : undefined,
-    provider: scene.provider,
-    attempts: scene.attempts,
+    stages: sceneStageDiagnostics(scene, requestCounts),
     // show-scene-results-and-actions (JOS-151), Decision 3 — the route path,
     // relative to the API base; the stored file path stays internal.
     result: scene.result ? { imageUrl: `/sessions/${scene.runId}/scenes/${scene.id}/image` } : undefined,
@@ -227,6 +228,38 @@ const STAGE_PHASE: Record<string, Phase> = {
   assembly: "assembly",
 };
 
+/**
+ * see-provider-and-attempts (JOS-166) Decisions 1 and 5 — a scene's stages that have run. A stage is listed once it has
+ * at least one recorded attempt, so a scene holding the placeholder provider and no request lists nothing.
+ */
+function sceneStageDiagnostics(scene: Scene, requestCounts: { image: number; video: number } | undefined): { image?: StageDiagnostic; video?: StageDiagnostic } {
+  const stages: { image?: StageDiagnostic; video?: StageDiagnostic } = {};
+  if (requestCounts && requestCounts.image > 0) stages.image = { stage: "image", provider: describeProvider("image", scene.provider), attempts: requestCounts.image };
+  if (requestCounts && requestCounts.video > 0) stages.video = { stage: "video", provider: describeProvider("video", scene.videoProvider), attempts: requestCounts.video };
+  return stages;
+}
+
+/** The stored attempt stages each phase shows, in pipeline order (the scenes phase has no session-level stage). */
+const SESSION_STAGES_OF_PHASE: Record<Phase, AttemptStage[]> = {
+  "voice-over": ["voice-over"],
+  decomposition: ["timestamps", "decomposition"],
+  scenes: [],
+  assembly: ["assembly"],
+};
+
+/** A phase's session-level stages that have run: all their attempts counted, the provider of the latest one shown. */
+function phaseStageDiagnostics(runId: string, phase: Phase): StageDiagnostic[] {
+  const diagnostics: StageDiagnostic[] = [];
+  for (const stage of SESSION_STAGES_OF_PHASE[phase]) {
+    const attempts = getStageAttempts(runId, stage);
+    const latest = attempts.at(-1);
+    if (!latest) continue;
+    const shown = diagnosticStageOf(stage);
+    diagnostics.push({ stage: shown, provider: describeProvider(shown, latest.providerId), attempts: attempts.length });
+  }
+  return diagnostics;
+}
+
 /** view-progress-by-phase (JOS-168), design Decisions 1-4 — the four phases in
  * pipeline order, derived from the session state alone so the header and the
  * sections cannot disagree. Throws when a failed session names no known phase,
@@ -236,7 +269,7 @@ export function derivePhaseProgress(input: {
   failedPhase?: string;
   failure?: { phase: string; cause: string; retryable: boolean } | null;
   held: ReadonlyArray<{ stage: string; count: number }>;
-}): PhaseProgress[] {
+}): Array<Omit<PhaseProgress, "stages">> {
   const { state, failedPhase, failure, held } = input;
   let completePhases: number;
   let activeStatus: PhaseStatus | undefined;
@@ -250,13 +283,13 @@ export function derivePhaseProgress(input: {
     activeStatus = progress.nextInProgress ? "in-progress" : undefined;
   }
 
-  return PHASES.map((phase, index): PhaseProgress => {
+  return PHASES.map((phase, index): Omit<PhaseProgress, "stages"> => {
     let status: PhaseStatus = "pending";
     if (index < completePhases) status = "complete";
     else if (index === completePhases && activeStatus) status = activeStatus;
 
     const heldCount = held.reduce((sum, entry) => (STAGE_PHASE[entry.stage] === phase ? sum + entry.count : sum), 0);
-    const entry: PhaseProgress = { phase, status, heldCount };
+    const entry: Omit<PhaseProgress, "stages"> = { phase, status, heldCount };
     if (status === "failed" && phase !== "scenes" && failure && failure.phase === phase) entry.failure = { cause: failure.cause, retryable: failure.retryable };
     return entry;
   });
@@ -276,6 +309,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const voiceOver = getVoiceOver(runId);
   const heldWork = sessionHeldWork(runId);
   const heldSceneIds = heldWork.sceneIds;
+  const requestCounts = countProviderRequestsByScene(runId);
   const session: SessionEventPayload = {
     type: "session",
     sessionId: run.id,
@@ -296,14 +330,17 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
         }
       : undefined,
     failure: state === "failed" && run.failure ? { ...run.failure } : undefined,
-    phases: derivePhaseProgress({ state, failedPhase, failure: run.failure, held: heldWork.stages }),
+    phases: derivePhaseProgress({ state, failedPhase, failure: run.failure, held: heldWork.stages }).map((entry) => ({
+      ...entry,
+      stages: phaseStageDiagnostics(runId, entry.phase),
+    })),
     createdAt: run.createdAt,
     updatedAt: new Date().toISOString(),
     finalVideoUrl: run.finalVideoPath != null ? `/sessions/${run.id}/download/final-video` : undefined,
   };
   return {
     session,
-    scenes: scenes.map((s) => ({ ...sceneToPayload(s), held: heldSceneIds.has(s.id) || undefined })),
+    scenes: scenes.map((s) => ({ ...sceneToPayload(s, requestCounts.get(s.id)), held: heldSceneIds.has(s.id) || undefined })),
   };
 }
 

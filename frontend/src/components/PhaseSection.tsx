@@ -4,6 +4,7 @@ import { phaseActions } from "../phaseActions";
 import { PHASE_LABEL, PHASE_STATUS_LABEL } from "../phaseLabels";
 import { phaseStatusClass } from "../styles/status";
 import { PhaseRetryButton } from "./PhaseRetryButton";
+import { formatStageDiagnostic } from "../stageDiagnostics";
 
 interface Props {
   progress: PhaseProgress;
@@ -28,6 +29,13 @@ export function PhaseSection({ progress, onRetry, children }: Props) {
       </h2>
       {progress.heldCount > 0 && <p className="phase-held">Waiting for you to continue ({progress.heldCount} held)</p>}
       {progress.failure && <p role="alert">{progress.failure.cause}</p>}
+      {progress.stages.length > 0 && (
+        <ul aria-label={`${label} stages`} className="phase-stages">
+          {progress.stages.map((diagnostic) => (
+            <li key={diagnostic.stage}>{formatStageDiagnostic(diagnostic)}</li>
+          ))}
+        </ul>
+      )}
       {actions.retry && onRetry && <PhaseRetryButton label={`Retry ${label.toLowerCase()}`} onRetry={onRetry} />}
       {children}
     </section>

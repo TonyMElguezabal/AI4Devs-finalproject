@@ -181,10 +181,10 @@ describe("The session representation carries the phases (JOS-168)", () => {
     const session = (await app.inject({ method: "GET", url: `/sessions/${sessionId}` })).json().session;
 
     expect(session.phases).toEqual([
-      { phase: "voice-over", status: "pending", heldCount: 0 },
-      { phase: "decomposition", status: "pending", heldCount: 0 },
-      { phase: "scenes", status: "pending", heldCount: 0 },
-      { phase: "assembly", status: "pending", heldCount: 0 },
+      { phase: "voice-over", status: "pending", heldCount: 0, stages: [] },
+      { phase: "decomposition", status: "pending", heldCount: 0, stages: [] },
+      { phase: "scenes", status: "pending", heldCount: 0, stages: [] },
+      { phase: "assembly", status: "pending", heldCount: 0, stages: [] },
     ]);
   });
 

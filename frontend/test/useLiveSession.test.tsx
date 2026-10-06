@@ -68,6 +68,7 @@ function scene(sceneId: string, state: string, updatedAt = "2026-09-25T00:00:00.
     type: "scene" as const,
     sessionId: "s1",
     sceneId,
+    stages: {},
     index: 1,
     state: state as SessionSnapshot["scenes"][number]["state"],
     updatedAt,

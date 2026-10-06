@@ -1,0 +1,243 @@
+import { randomUUID } from "node:crypto";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { FastifyInstance } from "fastify";
+import {
+  bindSceneImageProvider,
+  completeStageAttempt,
+  bindSceneVideoProvider,
+  createRun,
+  createScene,
+  insertProviderRequest,
+  recordStageAttempt,
+  resetAll,
+} from "../src/db.ts";
+import { toSnapshot } from "../src/orchestrator.ts";
+import { IMAGE_PROVIDER, VIDEO_PROVIDER, VOICE_PROVIDER } from "../src/config/providers.ts";
+import { buildApp } from "../src/server.ts";
+import { ulid } from "../src/util/ulid.ts";
+import type { AttemptStage } from "../src/types.ts";
+
+// see-provider-and-attempts (JOS-166), groups 4 and 5 — the session read carries, per scene and per phase,
+// which provider each stage used and how many attempts it made, derived from the stored attempt records.
+
+let app: FastifyInstance;
+
+beforeEach(async () => {
+  resetAll();
+  app = await buildApp();
+  await app.ready();
+});
+
+afterEach(async () => {
+  await app.close();
+});
+
+const NOW = "2026-10-05T12:00:00.000Z";
+
+async function read(sessionId: string) {
+  const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}` });
+  expect(res.statusCode).toBe(200);
+  return res.json() as { session: { phases: Array<{ phase: string; stages: unknown[] }> }; scenes: Array<Record<string, any>> };
+}
+
+function newSession(): string {
+  const runId = ulid();
+  createRun(runId, "Diagnostics test", "A short script.", "en");
+  return runId;
+}
+
+/** One scene with `imageAttempts` image requests and `clipAttempts` clip requests recorded, as the stages record them. */
+function sceneWithAttempts(runId: string, input: { imageAttempts?: number; clipAttempts?: number; imageProvider?: string; clipProvider?: string }) {
+  const sceneId = randomUUID();
+  createScene(sceneId, runId, 1, "success", 0);
+  if (input.imageProvider) bindSceneImageProvider(sceneId, input.imageProvider);
+  if (input.clipProvider) bindSceneVideoProvider(sceneId, input.clipProvider);
+  for (let n = 1; n <= (input.imageAttempts ?? 0); n++) insertProviderRequest(randomUUID(), sceneId, 0, "success", n, "image");
+  for (let n = 1; n <= (input.clipAttempts ?? 0); n++) insertProviderRequest(randomUUID(), sceneId, 0, "success", n, "video");
+  return sceneId;
+}
+
+function sessionAttempts(runId: string, stage: AttemptStage, providers: Array<string | null>) {
+  for (const providerId of providers) recordStageAttempt({ runId, stage, providerId, queuedAt: NOW, sentAt: NOW });
+}
+
+describe("A scene reports provider and attempts per stage", () => {
+  it("shows the image provider and its attempts once the image stage ran twice, and no clip stage", async () => {
+    const runId = newSession();
+    sceneWithAttempts(runId, { imageAttempts: 2, imageProvider: IMAGE_PROVIDER.model });
+
+    const { scenes } = await read(runId);
+
+    expect(scenes[0]!.stages).toEqual({ image: { stage: "image", provider: { name: "Fal.ai", model: "fal-ai/flux/dev" }, attempts: 2 } });
+  });
+
+  it("keeps the image attempts once the clip stage has started", async () => {
+    const runId = newSession();
+    sceneWithAttempts(runId, { imageAttempts: 2, clipAttempts: 1, imageProvider: IMAGE_PROVIDER.model, clipProvider: VIDEO_PROVIDER.endpoint });
+
+    const { scenes } = await read(runId);
+
+    expect(scenes[0]!.stages.image.attempts).toBe(2);
+    expect(scenes[0]!.stages.video).toEqual({ stage: "video", provider: { name: "RunningHub", model: "minimax/hailuo-h3" }, attempts: 1 });
+  });
+
+  it("counts every attempt across a manual retry", async () => {
+    const runId = newSession();
+    sceneWithAttempts(runId, { imageAttempts: 5, imageProvider: IMAGE_PROVIDER.model }); // four, then one after a manual retry
+
+    expect((await read(runId)).scenes[0]!.stages.image.attempts).toBe(5);
+  });
+
+  it("lists no stage for a scene that has not started, even though it holds the placeholder provider", async () => {
+    const runId = newSession();
+    sceneWithAttempts(runId, {});
+
+    expect((await read(runId)).scenes[0]!.stages).toEqual({});
+  });
+
+  it("no longer carries a top-level provider or attempts", async () => {
+    const runId = newSession();
+    sceneWithAttempts(runId, { imageAttempts: 1, imageProvider: IMAGE_PROVIDER.model });
+
+    const scene = (await read(runId)).scenes[0]!;
+
+    expect(scene).not.toHaveProperty("provider");
+    expect(scene).not.toHaveProperty("attempts");
+  });
+});
+
+describe("A phase reports provider and attempts of its session-level stages", () => {
+  it("lists no stage when none has run", async () => {
+    const { session } = await read(newSession());
+
+    expect(session.phases.map((phase) => phase.stages)).toEqual([[], [], [], []]);
+  });
+
+  it("shows the voice-over stage with its provider and two attempts", async () => {
+    const runId = newSession();
+    sessionAttempts(runId, "voice-over", [VOICE_PROVIDER.name, VOICE_PROVIDER.name]);
+
+    const phase = (await read(runId)).session.phases.find((entry) => entry.phase === "voice-over")!;
+
+    expect(phase.stages).toEqual([{ stage: "voice-over", provider: { name: "ElevenLabs", model: VOICE_PROVIDER.model }, attempts: 2 }]);
+  });
+
+  it("shows timestamps (the latest mechanism, all attempts) and then the instructions stage", async () => {
+    const runId = newSession();
+    sessionAttempts(runId, "timestamps", ["elevenlabs-native", "elevenlabs-forced-alignment"]);
+    sessionAttempts(runId, "decomposition", ["openai-decomposition"]);
+
+    const phase = (await read(runId)).session.phases.find((entry) => entry.phase === "decomposition")!;
+
+    expect(phase.stages).toEqual([
+      { stage: "timestamps", provider: { name: "ElevenLabs", model: "forced alignment" }, attempts: 2 },
+      { stage: "instructions", provider: { name: "OpenAI", model: "gpt-6-astra" }, attempts: 1 },
+    ]);
+  });
+
+  it("shows assembly as local assembly with no external provider", async () => {
+    const runId = newSession();
+    sessionAttempts(runId, "assembly", [null]);
+
+    const phase = (await read(runId)).session.phases.find((entry) => entry.phase === "assembly")!;
+
+    expect(phase.stages).toEqual([{ stage: "assembly", provider: { name: "Local assembly", model: "ffmpeg" }, attempts: 1 }]);
+  });
+
+  it("never lists a stage under the scenes phase", async () => {
+    const runId = newSession();
+    sessionAttempts(runId, "voice-over", [VOICE_PROVIDER.name]);
+    sceneWithAttempts(runId, { imageAttempts: 1, imageProvider: IMAGE_PROVIDER.model });
+
+    expect((await read(runId)).session.phases.find((entry) => entry.phase === "scenes")!.stages).toEqual([]);
+  });
+
+  it("carries the same stages in a live snapshot as in the read", async () => {
+    const runId = newSession();
+    sessionAttempts(runId, "voice-over", [VOICE_PROVIDER.name]);
+    sceneWithAttempts(runId, { imageAttempts: 1, imageProvider: IMAGE_PROVIDER.model });
+
+    const snapshot = toSnapshot(runId)!;
+    const body = await read(runId);
+
+    expect(snapshot.session.phases.map((phase) => phase.stages)).toEqual(body.session.phases.map((phase) => phase.stages));
+    expect(body.scenes[0]!.stages.image.attempts).toBe(1); // not an empty comparison
+    expect(snapshot.scenes[0]!.stages).toEqual(body.scenes[0]!.stages);
+  });
+});
+
+// Decision 4 — the allow-list: only a provider's name and model and an attempt count leave the backend.
+describe("The diagnostics expose no credentials or confidential data", () => {
+  const SENTINELS = ["SENTINEL-REQUEST-ID", "SENTINEL-ERROR-CODE", "SENTINEL-ERROR-TEXT", "SENTINEL-MODE", "SENTINEL-API-KEY"];
+  const CREDENTIALS = ["FAL_API_KEY", "RUNNINGHUB_API_KEY", "ELEVENLABS_API_KEY", "OPENAI_API_KEY"] as const;
+  const saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const name of CREDENTIALS) {
+      saved[name] = process.env[name];
+      process.env[name] = "SENTINEL-API-KEY";
+    }
+  });
+  afterEach(() => {
+    for (const name of CREDENTIALS) {
+      if (saved[name] === undefined) delete process.env[name];
+      else process.env[name] = saved[name];
+    }
+  });
+
+  /** A session whose every attempt record carries sentinel text in each free-text column. */
+  function sessionFullOfSentinels(): string {
+    const runId = newSession();
+    const sceneId = sceneWithAttempts(runId, { imageProvider: IMAGE_PROVIDER.model, clipProvider: VIDEO_PROVIDER.endpoint });
+    insertProviderRequest(randomUUID(), sceneId, 0, "SENTINEL-MODE" as never, 1, "image");
+    insertProviderRequest(randomUUID(), sceneId, 0, "SENTINEL-MODE" as never, 1, "video");
+    for (const [stage, providerId] of [
+      ["voice-over", VOICE_PROVIDER.name],
+      ["timestamps", "elevenlabs-native"],
+      ["decomposition", "openai-decomposition"],
+      ["assembly", null],
+    ] as const) {
+      const attempt = recordStageAttempt({ runId, stage, providerId, queuedAt: NOW, sentAt: NOW });
+      completeStageAttempt(attempt.id, {
+        outcome: "transient",
+        finishedAt: NOW,
+        externalRequestId: "SENTINEL-REQUEST-ID",
+        errorCode: "SENTINEL-ERROR-CODE",
+        errorMessage: "SENTINEL-ERROR-TEXT",
+      });
+    }
+    return runId;
+  }
+
+  it("keeps every sentinel, the credential values and the clip endpoint out of the session read", async () => {
+    const runId = sessionFullOfSentinels();
+
+    const res = await app.inject({ method: "GET", url: `/sessions/${runId}` });
+
+    expect(res.statusCode).toBe(200);
+    for (const sentinel of [...SENTINELS, VIDEO_PROVIDER.endpoint]) expect(res.body, `the read leaks ${sentinel}`).not.toContain(sentinel);
+    expect(res.body).toContain("Fal.ai"); // positive control: the diagnostics themselves are there
+  });
+
+  it("keeps them out of a live snapshot too", () => {
+    const runId = sessionFullOfSentinels();
+
+    const published = JSON.stringify(toSnapshot(runId));
+
+    for (const sentinel of [...SENTINELS, VIDEO_PROVIDER.endpoint]) expect(published, `the snapshot leaks ${sentinel}`).not.toContain(sentinel);
+    expect(published).toContain("RunningHub");
+  });
+
+  it("shows only a name, a model and a count for each stage", async () => {
+    const runId = sessionFullOfSentinels();
+
+    const { session, scenes } = await read(runId);
+    const diagnostics = [...session.phases.flatMap((phase) => phase.stages), scenes[0]!.stages.image, scenes[0]!.stages.video] as Array<Record<string, any>>;
+
+    expect(diagnostics.length).toBe(6);
+    for (const diagnostic of diagnostics) {
+      expect(Object.keys(diagnostic).sort()).toEqual(["attempts", "provider", "stage"]);
+      expect(Object.keys(diagnostic.provider).sort()).toEqual(["model", "name"]);
+    }
+  });
+});

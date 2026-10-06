@@ -55,6 +55,16 @@
 # position and description, `additionalProperties: false` on `held` items); no
 # other field or type changed.
 #
+# JOS-166 (see-provider-and-attempts) - 2026-10-05: regenerated. Two changes:
+# each scene gained `stages` (an object with optional `image` and `video`, each
+# a `stage`, a `provider` of `name` and `model`, and `attempts`) and lost its
+# top-level `provider` and `attempts`, which described only the image stage and
+# were reset when the clip started; and each `session.phases` entry gained
+# `stages` (the session-level stages that have run, same shape, required). Every
+# diagnostic object is closed (`additionalProperties: false`): nothing else of an
+# attempt record can reach the page. No new path; one long description is folded
+# differently by the generator.
+#
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -215,8 +225,8 @@ paths:
                             type: boolean
                           manualRetryAvailable:
                             type: boolean
-                            description: Whether the User can start a new cycle of up to four
-                              attempts. True only for a retryable failure whose cycle is
+                            description: Whether the User can start a new cycle of up to four attempts. True
+                              only for a retryable failure whose cycle is
                               exhausted.
                           cycle:
                             type: integer
@@ -264,6 +274,45 @@ paths:
                             heldCount:
                               type: integer
                               description: Work units a pause is holding for this phase; 0 when not paused.
+                            stages:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  stage:
+                                    type: string
+                                    enum:
+                                      - image
+                                      - video
+                                      - voice-over
+                                      - timestamps
+                                      - instructions
+                                      - assembly
+                                  provider:
+                                    type: object
+                                    properties:
+                                      name:
+                                        type: string
+                                      model:
+                                        type: string
+                                        nullable: true
+                                    required:
+                                      - name
+                                      - model
+                                    additionalProperties: false
+                                  attempts:
+                                    type: integer
+                                    minimum: 1
+                                    description: Attempts recorded for this stage across every retry cycle,
+                                      including one still in flight.
+                                required:
+                                  - stage
+                                  - provider
+                                  - attempts
+                                additionalProperties: false
+                              description: "PRD §3: the session-level stages of this phase that have run, in
+                                pipeline order, each with its provider and
+                                attempt count. Empty for the scenes phase."
                             failure:
                               type: object
                               properties:
@@ -284,6 +333,7 @@ paths:
                             - phase
                             - status
                             - heldCount
+                            - stages
                           additionalProperties: false
                         description: "PRD §8.3: always the four phases in pipeline order (voice-over,
                           decomposition, scenes, assembly). Derived and
@@ -334,10 +384,82 @@ paths:
                         errorCause:
                           type: string
                           nullable: true
-                        provider:
-                          type: string
-                        attempts:
-                          type: number
+                        stages:
+                          type: object
+                          properties:
+                            image:
+                              type: object
+                              properties:
+                                stage:
+                                  type: string
+                                  enum:
+                                    - image
+                                    - video
+                                    - voice-over
+                                    - timestamps
+                                    - instructions
+                                    - assembly
+                                provider:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                    model:
+                                      type: string
+                                      nullable: true
+                                  required:
+                                    - name
+                                    - model
+                                  additionalProperties: false
+                                attempts:
+                                  type: integer
+                                  minimum: 1
+                                  description: Attempts recorded for this stage across every retry cycle,
+                                    including one still in flight.
+                              required:
+                                - stage
+                                - provider
+                                - attempts
+                              additionalProperties: false
+                            video:
+                              type: object
+                              properties:
+                                stage:
+                                  type: string
+                                  enum:
+                                    - image
+                                    - video
+                                    - voice-over
+                                    - timestamps
+                                    - instructions
+                                    - assembly
+                                provider:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                    model:
+                                      type: string
+                                      nullable: true
+                                  required:
+                                    - name
+                                    - model
+                                  additionalProperties: false
+                                attempts:
+                                  type: integer
+                                  minimum: 1
+                                  description: Attempts recorded for this stage across every retry cycle,
+                                    including one still in flight.
+                              required:
+                                - stage
+                                - provider
+                                - attempts
+                              additionalProperties: false
+                          additionalProperties: false
+                          description: "PRD §3: which provider each stage used and how many attempts it
+                            made. A key is present once that stage has at least
+                            one attempt. Derived from the stored attempt
+                            records, never stored."
                         result:
                           type: object
                           properties:
@@ -420,6 +542,7 @@ paths:
                         - sceneId
                         - index
                         - state
+                        - stages
                         - updatedAt
                       additionalProperties: false
                 required:
@@ -520,8 +643,8 @@ paths:
                             type: boolean
                           manualRetryAvailable:
                             type: boolean
-                            description: Whether the User can start a new cycle of up to four
-                              attempts. True only for a retryable failure whose cycle is
+                            description: Whether the User can start a new cycle of up to four attempts. True
+                              only for a retryable failure whose cycle is
                               exhausted.
                           cycle:
                             type: integer
@@ -569,6 +692,45 @@ paths:
                             heldCount:
                               type: integer
                               description: Work units a pause is holding for this phase; 0 when not paused.
+                            stages:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  stage:
+                                    type: string
+                                    enum:
+                                      - image
+                                      - video
+                                      - voice-over
+                                      - timestamps
+                                      - instructions
+                                      - assembly
+                                  provider:
+                                    type: object
+                                    properties:
+                                      name:
+                                        type: string
+                                      model:
+                                        type: string
+                                        nullable: true
+                                    required:
+                                      - name
+                                      - model
+                                    additionalProperties: false
+                                  attempts:
+                                    type: integer
+                                    minimum: 1
+                                    description: Attempts recorded for this stage across every retry cycle,
+                                      including one still in flight.
+                                required:
+                                  - stage
+                                  - provider
+                                  - attempts
+                                additionalProperties: false
+                              description: "PRD §3: the session-level stages of this phase that have run, in
+                                pipeline order, each with its provider and
+                                attempt count. Empty for the scenes phase."
                             failure:
                               type: object
                               properties:
@@ -589,6 +751,7 @@ paths:
                             - phase
                             - status
                             - heldCount
+                            - stages
                           additionalProperties: false
                         description: "PRD §8.3: always the four phases in pipeline order (voice-over,
                           decomposition, scenes, assembly). Derived and
@@ -639,10 +802,82 @@ paths:
                         errorCause:
                           type: string
                           nullable: true
-                        provider:
-                          type: string
-                        attempts:
-                          type: number
+                        stages:
+                          type: object
+                          properties:
+                            image:
+                              type: object
+                              properties:
+                                stage:
+                                  type: string
+                                  enum:
+                                    - image
+                                    - video
+                                    - voice-over
+                                    - timestamps
+                                    - instructions
+                                    - assembly
+                                provider:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                    model:
+                                      type: string
+                                      nullable: true
+                                  required:
+                                    - name
+                                    - model
+                                  additionalProperties: false
+                                attempts:
+                                  type: integer
+                                  minimum: 1
+                                  description: Attempts recorded for this stage across every retry cycle,
+                                    including one still in flight.
+                              required:
+                                - stage
+                                - provider
+                                - attempts
+                              additionalProperties: false
+                            video:
+                              type: object
+                              properties:
+                                stage:
+                                  type: string
+                                  enum:
+                                    - image
+                                    - video
+                                    - voice-over
+                                    - timestamps
+                                    - instructions
+                                    - assembly
+                                provider:
+                                  type: object
+                                  properties:
+                                    name:
+                                      type: string
+                                    model:
+                                      type: string
+                                      nullable: true
+                                  required:
+                                    - name
+                                    - model
+                                  additionalProperties: false
+                                attempts:
+                                  type: integer
+                                  minimum: 1
+                                  description: Attempts recorded for this stage across every retry cycle,
+                                    including one still in flight.
+                              required:
+                                - stage
+                                - provider
+                                - attempts
+                              additionalProperties: false
+                          additionalProperties: false
+                          description: "PRD §3: which provider each stage used and how many attempts it
+                            made. A key is present once that stage has at least
+                            one attempt. Derived from the stored attempt
+                            records, never stored."
                         result:
                           type: object
                           properties:
@@ -725,6 +960,7 @@ paths:
                         - sceneId
                         - index
                         - state
+                        - stages
                         - updatedAt
                       additionalProperties: false
                 required:

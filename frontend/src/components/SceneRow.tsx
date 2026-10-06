@@ -3,6 +3,7 @@ import type { SceneEventPayload } from "../types";
 import { sceneStatusClass } from "../styles/status";
 import { sceneActions } from "../sceneActions";
 import { resolveResultUrl } from "../api/client";
+import { formatStageDiagnostic } from "../stageDiagnostics";
 
 interface Props {
   scene: SceneEventPayload;
@@ -50,10 +51,6 @@ export function SceneRow({ scene, onRetry, onCorrect, imageDownloadUrl, videoDow
           <dl>
             <dt>Instruction</dt>
             <dd>{scene.instruction}</dd>
-            <dt>Provider</dt>
-            <dd>{scene.provider}</dd>
-            <dt>Attempts</dt>
-            <dd>{scene.attempts}</dd>
             {isFailed && scene.affectedStage && (
               <>
                 <dt>Affected stage</dt>
@@ -79,6 +76,18 @@ export function SceneRow({ scene, onRetry, onCorrect, imageDownloadUrl, videoDow
               </>
             )}
           </dl>
+
+          {/* JOS-166 — which provider each stage that has run used, and how many attempts it made. Read-only. */}
+          {scene.stages.image && (
+            <div role="group" aria-label={`Scene ${scene.index} image diagnostics`} className="stage-diagnostic">
+              {formatStageDiagnostic(scene.stages.image)}
+            </div>
+          )}
+          {scene.stages.video && (
+            <div role="group" aria-label={`Scene ${scene.index} clip diagnostics`} className="stage-diagnostic">
+              {formatStageDiagnostic(scene.stages.video)}
+            </div>
+          )}
 
           {scene.result?.imageUrl && (
             <img className="scene-image" src={resolveResultUrl(scene.result.imageUrl)} alt={`Scene ${scene.index} image`} />
