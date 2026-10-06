@@ -39,6 +39,10 @@ Voice-over generation needs `ffprobe` on the `PATH` (it measures the returned MP
 
 Data lives in `data/skeleton.sqlite`, gitignored. Delete it to reset.
 
+## Restarting
+
+A restart is safe mid-processing (`preserve-progress-across-restarts`, JOS-160): the store keeps every session, scene, result and error, interrupted requests are awaited or recorded as failed attempts, and pending work continues without User action. The boot log line `boot recovery complete` reports `resumed`, `recordedFailedAttempt` (attempts settled as "interrupted by a restart"), `stillPending` (requests the provider still holds), each stage's in-flight count against its cap, and `noRestartRecovery` (stages with no launcher; empty when every stage is registered). Paused sessions stay paused and send nothing. See `docs/backend-standards.md`, *Restart recovery*.
+
 ## Environment
 
 - `PORT` — HTTP port (default `3100`)

@@ -84,9 +84,9 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 ## 10. Update Technical Documentation (MANDATORY)
 
 - [x] 10.1 `docs/api-spec.yml`: confirm no change is needed (no route or schema changes); record that in the step 7 report.
-- [ ] 10.2 `docs/data-model.md`: record what is persisted and what is in memory only (cap queues, timers), and that pending work is recomputed from the store at boot.
-- [ ] 10.3 `docs/backend-standards.md`: document the boot sequence (settle, then relaunch), the `StageLauncher` recovery contract each new stage must implement, the per-stage table.
-- [ ] 10.4 `docs/development_guide.md`: note that a backend restart is safe mid-processing, and what the boot log reports.
+- [x] 10.2 `docs/data-model.md`: record what is persisted and what is in memory only (cap queues, timers), and that pending work is recomputed from the store at boot.
+- [x] 10.3 `docs/backend-standards.md`: document the boot sequence (settle, then relaunch), the `StageLauncher` recovery contract each new stage must implement, the per-stage table.
+- [x] 10.4 Note that a backend restart is safe mid-processing, and what the boot log reports. Written in `backend/README.md` (*Restarting*), not `docs/development_guide.md`: that file is a leftover from another project (Prisma and PostgreSQL setup, no Vid4You content), and the README is the developer-facing run guide of this backend.
 
 ## 11. Close out
 
