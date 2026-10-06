@@ -11,9 +11,11 @@ import {
   markSceneInFlight,
   recordStageAttempt,
   resetAll,
+  setRunFailure,
   writeArtefactOnce,
 } from "../src/db.ts";
 import { RETRY_BUDGET, toSnapshot } from "../src/orchestrator.ts";
+import { createDecompositionFailure } from "../src/sessionStateMachine.ts";
 import "../src/voiceOverPhase.ts"; // registers the voice-over timeout handler and launcher, as the running app does
 import "../src/decompositionPhase.ts"; // registers the decomposition launcher
 import type { AttemptStage } from "../src/types.ts";
@@ -96,6 +98,31 @@ describe("Timestamps and instruction attempts lost at a restart (3.3)", () => {
     expect(session.state).toBe("failed");
     expect(session.state === "failed" && session.failedPhase).toBe("decomposition");
     expect(getRun(runId)!.failure).toMatchObject({ phase: "decomposition", retryable: true });
+  });
+});
+
+describe("An interrupted decomposition attempt that no longer matters (3.3)", () => {
+  it("keeps the failure the session already records, and still completes the attempt", () => {
+    const runId = narratedSession();
+    const existing = createDecompositionFailure({ cause: "The narration's timestamps could not be obtained: alignment answered HTTP 401.", retryable: false, occurredAt: new Date() });
+    setRunFailure(runId, existing);
+    leaveInFlight(runId, "timestamps");
+
+    simulateRestart();
+
+    expect(getStageAttempts(runId, "timestamps")[0]!.outcome).toBe("transient");
+    expect(getRun(runId)!.failure).toEqual(existing);
+  });
+
+  it("records no failure for a session whose chunks are already registered", () => {
+    const runId = narratedSession();
+    createScene(randomUUID(), runId, 1, "success", 100, "scene 1");
+    leaveInFlight(runId, "decomposition");
+
+    simulateRestart();
+
+    expect(getStageAttempts(runId, "decomposition")[0]!.outcome).toBe("transient");
+    expect(getRun(runId)!.failure).toBeNull();
   });
 });
 

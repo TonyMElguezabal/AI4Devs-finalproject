@@ -49,18 +49,18 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 6.1 Review the tests that call `reconcileOnBoot` (`orchestrator.test.ts`, `image-stage.test.ts`, `video-stage.test.ts`, server boot tests) and the launch-gate tests (`StageLauncher` shape, `NOT_YET_LAUNCHABLE` contents); move them to `recoverOnBoot` and the new interface.
-- [ ] 6.2 Confirm every scenario in `specs/restart-recovery/spec.md` has at least one test, and map ticket AC1-AC4 to tests; list both in the step 7 report.
-- [ ] 6.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 6.1 Review the tests that call `reconcileOnBoot` (`orchestrator.test.ts`, `image-stage.test.ts`, `video-stage.test.ts`, server boot tests) and the launch-gate tests (`StageLauncher` shape, `NOT_YET_LAUNCHABLE` contents); move them to `recoverOnBoot` and the new interface.
+- [x] 6.2 Confirm every scenario in `specs/restart-recovery/spec.md` has at least one test, and map ticket AC1-AC4 to tests; list both in the step 7 report.
+- [x] 6.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 7.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents.
-- [ ] 7.2 Run the targeted tests: `restart-recovery`, `orchestrator`, `image-stage`, `video-stage`, `launch-gate`, `obtain-narration-timestamps`, `assembly`.
-- [ ] 7.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`. Run the backend suite once more in a fresh worktree without `backend/.secrets.json`.
-- [ ] 7.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 7.5 Create the report `openspec/changes/preserve-progress-across-restarts/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`.
-- [ ] 7.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 7.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents.
+- [x] 7.2 Run the targeted tests: `restart-recovery`, `orchestrator`, `image-stage`, `video-stage`, `launch-gate`, `obtain-narration-timestamps`, `assembly`.
+- [x] 7.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`. Run the backend suite once more in a fresh worktree without `backend/.secrets.json`.
+- [x] 7.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 7.5 Create the report `openspec/changes/preserve-progress-across-restarts/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`.
+- [x] 7.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
@@ -83,7 +83,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 10. Update Technical Documentation (MANDATORY)
 
-- [ ] 10.1 `docs/api-spec.yml`: confirm no change is needed (no route or schema changes); record that in the step 7 report.
+- [x] 10.1 `docs/api-spec.yml`: confirm no change is needed (no route or schema changes); record that in the step 7 report.
 - [ ] 10.2 `docs/data-model.md`: record what is persisted and what is in memory only (cap queues, timers), and that pending work is recomputed from the store at boot.
 - [ ] 10.3 `docs/backend-standards.md`: document the boot sequence (settle, then relaunch), the `StageLauncher` recovery contract each new stage must implement, the per-stage table.
 - [ ] 10.4 `docs/development_guide.md`: note that a backend restart is safe mid-processing, and what the boot log reports.
