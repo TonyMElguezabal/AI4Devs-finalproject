@@ -90,7 +90,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. Close out
 
-- [ ] 11.1 Ask the user before commenting on JOS-159 (assembly boot rule consistent with its retry state) and on the story that launches decomposition after the voice-over (it adds the decomposition pending rule).
-- [ ] 11.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-160.
+- [x] 11.1 Ask the user before commenting on JOS-159 (assembly boot rule consistent with its retry state) and on the story that launches decomposition after the voice-over (it adds the decomposition pending rule). **Done:** the user approved; commented on JOS-159. No ticket owns starting decomposition after the voice-over (JOS-136 and JOS-140 are Done), so that comment is not posted; raised with the user instead.
+- [x] 11.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-160. **Done:** the user approved; pushed, PR #36.
 - [ ] 11.3 Obtain review by at least one human, not only AI agents.
 - [ ] 11.4 Archive the OpenSpec change after merge.
