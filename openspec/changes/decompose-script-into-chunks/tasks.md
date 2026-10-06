@@ -67,8 +67,8 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [ ] 7.4 ~~Interval partition test~~ moved to `assign-narration-intervals` (JOS-143)
 - [ ] 7.5 ~~Gap or overlap as a system defect~~ moved to `assign-narration-intervals` (JOS-143); the incomplete-chunk check moved to `assign-scene-identifiers` (JOS-144)
 - [ ] 7.6 ~~Post-condition checks~~ both halves moved to `assign-scene-identifiers` (JOS-144) and `assign-narration-intervals` (JOS-143)
-- [ ] 7.7 Write failing tests for the two manual-retry routes: `timestamps` retry with unusable-native-timestamps history goes straight to alignment; `decomposition` retry re-splits the same script and timestamps without touching the voice-over
-- [ ] 7.8 Implement both manual-retry routes, reusing `stage-retry-policy`'s manual-retry mechanism
+- [ ] 7.7 Write failing tests for the two manual-retry routes: `timestamps` retry with unusable-native-timestamps history goes straight to alignment; `decomposition` retry re-splits the same script and timestamps without touching the voice-over _(Covered by `retry-decomposition` (JOS-156); not done here.)_
+- [ ] 7.8 Implement both manual-retry routes, reusing `stage-retry-policy`'s manual-retry mechanism _(Covered by `retry-decomposition` (JOS-156); not done here.)_
 - [ ] 7.9 Publish each state change to the live-update mechanism, matching the shape `consult-session`'s resynchronisation read expects
 - [ ] 7.10 Run the group 7 tests and confirm they pass
 
@@ -100,7 +100,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [ ] 11.2 POST a valid project with a script exercising a normal segmentation; GET the session and verify it passes through `chunk-decomposing` and reaches the chunk list with correct `sequence_number`, `PROMPT`, `IMAGE`, `VIDEO` and intervals
 - [ ] 11.3 Repeat with a script engineered to trigger each of the three §6.1.1 edge cases; verify the expected chunking and, for the no-clause-boundary case, the recorded speed-factor warning
 - [ ] 11.4 With the alignment stub set to fail, and native timestamps unavailable, verify the session reaches `failed` with phase `timestamps` (not `voice-over`)
-- [ ] 11.5 Verify a manual retry of a failed `timestamps` instance whose native timestamps were unusable calls only the alignment provider
+- [ ] 11.5 Verify a manual retry of a failed `timestamps` instance whose native timestamps were unusable calls only the alignment provider _(Covered by `retry-decomposition` (JOS-156); not done here.)_
 - [ ] 11.6 Delete the sessions and records created above and confirm the store matches the pre-test state
 - [ ] 11.7 Save the transcript as `openspec/changes/decompose-script-into-chunks/reports/YYYY-MM-DD-step-11-curl-endpoint-testing.md`
 

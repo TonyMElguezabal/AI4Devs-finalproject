@@ -75,6 +75,9 @@ describe("A voice-over failure", () => {
       phase: "voice-over",
       cause: "The voice provider rejected the request.",
       retryable: false,
+      manualRetryAvailable: false,
+      cycle: 1,
+      attemptsInCycle: 1,
       occurredAt: "2026-09-28T10:00:00.000Z",
     });
   });

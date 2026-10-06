@@ -25,7 +25,7 @@ Two couplings mattered: `define-backend-stack` (JOS-179) already proved restart 
 3. **File references:** relative to a recorded project-folder root (Decision 4 below).
 4. **Idempotency mechanism:** a `PRIMARY KEY` uniqueness constraint on a `scene_results` table (Decision 3 below) — enforced by the store, not by a prior application-level read.
 5. **Resume data:** the external request id, stage-equivalent (provider), sent time and latency, written *before* the request is sent (Decision 2, already implemented by `define-backend-stack`).
-6. **Concurrency and transactions:** proven at 20 concurrently-completing scenes with no lost updates (§ Evidence).
+6. **Concurrency and transactions:** proven at 20 concurrently-completing scenes with no lost updates (§ Evidence), and later at 300 scenes in one session (§ Risks, resolved).
 7. **Schema versioning:** a version-tracked migration runner from this change's first commit (Decision 6 below).
 8. **Queue and pause state:** the readiness queue is rebuilt at startup from persisted scene status; only the paused marker is itself persisted (Decision 5, already implemented by `define-backend-stack`, confirmed unaffected by this change's schema additions).
 
@@ -89,7 +89,8 @@ All required experiments were run **live** against the real, decided store (not 
 
 ## Risks left unproven within the timebox
 
-- **Scale beyond ~20 concurrent scene writes** was not exercised; the mechanism (SQLite WAL mode serializing writers) is expected to hold at the hundreds-of-scenes scale the MVP targets, but this change did not stress-test that specific ceiling.
+- ~~**Scale beyond ~20 concurrent scene writes**~~ — **resolved** by `harden-backend-foundation` (JOS-186): one session of 300 scenes, every result delivered twice (600 deliveries, shuffled and interleaved on the event loop) recorded exactly one result per scene, ignored all 300 duplicates, raised no store error, reached the same derived session state as at small scale and read back identically through a second connection. Measured 537.5 / 541.2 / 578.1 ms (min / median / max over 5 runs) on the default store. Report: [`openspec/changes/harden-backend-foundation/reports/2026-10-05-step-6-unit-test-and-db-verification.md`](../../openspec/changes/harden-backend-foundation/reports/2026-10-05-step-6-unit-test-and-db-verification.md) § 300-scene write capacity. The test is single-process (the only concurrency this backend has), so it does not claim multi-process contention.
+- **Per-scene artefacts stay two columns, not a table** (`harden-backend-foundation`, Decision 5): `scenes.result` (image) and `scenes.video_result` (clip), each with its own uniqueness-guarded commit table (`scene_results`, `scene_video_results`). The PRD fixes one image and one clip per scene, and the final video is a session-level artefact, so a generic artefacts table would only add ceremony; revisit only if a scene can ever hold a variable number of artefacts.
 - **The artefact model (relative-path columns instead of a dedicated table)** is a deliberate simplification for this skeleton's single-stage model; a real multi-stage implementation (separate image and video artefacts per scene) should revisit whether a dedicated table earns its ceremony once there is more than one artefact per scene.
 
 ## Consequences

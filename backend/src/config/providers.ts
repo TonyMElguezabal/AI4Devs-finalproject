@@ -202,3 +202,16 @@ export const SPEED_FACTOR_LIMIT: number = 2.0;
  * owner, not resolved by this module.
  */
 export const NOT_RETRYABLE_FAILURE_SIGNAL_CONFIRMED = false;
+
+// ---- Retry policy (§10.1, bounded-retry-policy JOS-184) ----
+
+/** §10.1: the initial attempt plus three automatic retries. */
+export const MAX_ATTEMPTS_PER_CYCLE = 4;
+
+/**
+ * PROVISIONAL — PRD §11 records no retry delay base or cap for any stage
+ * (JOS-184 task 1.4 is open; US-33 must record them). Replace these with the
+ * PRD values, and drop the PROVISIONAL_ prefix, once they exist. Tests inject
+ * their own values and never depend on these.
+ */
+export const PROVISIONAL_RETRY_DELAY_SECONDS = { base: 2, cap: 30 } as const;

@@ -22,7 +22,7 @@ import {
 } from "./narrationTimestamps.ts";
 import { broadcast } from "./orchestrator.ts";
 import { createDecompositionFailure } from "./sessionStateMachine.ts";
-import type { DecompositionFailure, Run, TimestampMechanism, VoiceOver } from "./types.ts";
+import type { DecompositionFailure, Run, StageAttempt, TimestampMechanism, VoiceOver } from "./types.ts";
 
 // obtain-narration-timestamps (JOS-139) — PRD §5 step 3, §10.3, §11.1: where
 // each character of the script sits in the narration. Native timestamps first;
@@ -110,6 +110,8 @@ export async function obtainNarrationTimestamps(
   runId: string,
   alignmentProvider: AlignmentProvider,
   now: () => Date = () => new Date(),
+  /** A retry's scheduled attempt, already claimed in flight: completed instead of recording a new one (retry-decomposition, Decision 4). */
+  claimedAttempt?: StageAttempt,
 ): Promise<ObtainResult> {
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown-session" };
@@ -123,13 +125,15 @@ export async function obtainNarrationTimestamps(
 
   // Decision 2 — recorded in flight before anything is read or sent.
   const startedAt = now().toISOString();
-  const attempt = recordStageAttempt({
-    runId,
-    stage: "timestamps",
-    providerId: nativePath ? NATIVE_PROVIDER : ALIGNMENT_PROVIDER,
-    queuedAt: startedAt,
-    sentAt: startedAt,
-  });
+  const attempt =
+    claimedAttempt ??
+    recordStageAttempt({
+      runId,
+      stage: "timestamps",
+      providerId: nativePath ? NATIVE_PROVIDER : ALIGNMENT_PROVIDER,
+      queuedAt: startedAt,
+      sentAt: startedAt,
+    });
 
   let nativeFinding: string | null = nativeAlreadyUnusable ? "native timestamps were already judged unusable" : null;
 
@@ -157,6 +161,8 @@ export async function obtainNarrationTimestamps(
       cause: `The narration's timestamps could not be obtained: ${detail}. The script and the narration are unchanged.`,
       retryable,
       occurredAt,
+      cycle: attempt.cycle,
+      attemptsInCycle: attempt.sequenceInCycle,
     });
     setRunFailure(runId, failure);
     broadcast(runId);

@@ -1,7 +1,8 @@
-import type { SessionSnapshot } from "../types";
+import type { Phase, SessionSnapshot } from "../types";
 import { SessionHeader } from "./SessionHeader";
 import { SceneList } from "./SceneList";
 import { FinalVideoDownload } from "./FinalVideoDownload";
+import { PhaseSection } from "./PhaseSection";
 import { downloadFinalVideoUrl } from "../api/client";
 
 interface Props {
@@ -16,12 +17,14 @@ interface Props {
   onContinue: () => void;
   onRetry: (sceneId: string) => void;
   onCorrect: (sceneId: string, instruction: string) => void;
+  /** Retries a failed phase; rejects with the refusal reason (retry-decomposition, JOS-156). */
+  onRetryPhase: (phase: Phase) => Promise<unknown>;
 }
 
 /**
  * consult-session (JOS-135) — the session page, reached by identifier
  * (Decision 5). Shows only what the session read returns (Decision 6): no
- * state is derived here, and absent sections (no scenes yet) render as
+ * state or phase status is derived here, and absent sections (no scenes yet) render as
  * "not yet available" rather than as an error or as silence. Live updates
  * on this page belong to US-18 (JOS-183's seam, `useLiveSession`, already
  * owns the one subscription — this component only renders what it hands
@@ -37,6 +40,7 @@ export function SessionPage({
   onContinue,
   onRetry,
   onCorrect,
+  onRetryPhase,
 }: Props) {
   if (notFound) {
     return (
@@ -59,8 +63,16 @@ export function SessionPage({
           <SessionHeader session={snapshot.session} onPause={onPause} onContinue={onContinue} />
           <p className="session-title">{snapshot.session.title}</p>
           <p className="session-script">{snapshot.session.script}</p>
-          <SceneList sessionId={sessionId} scenes={snapshot.scenes} onRetry={onRetry} onCorrect={onCorrect} />
-          <FinalVideoDownload state={snapshot.session.state} url={downloadFinalVideoUrl(sessionId)} />
+          {snapshot.session.phases.map((progress) => (
+            <PhaseSection key={progress.phase} progress={progress} onRetry={() => onRetryPhase(progress.phase)}>
+              {progress.phase === "scenes" && (
+                <SceneList sessionId={sessionId} scenes={snapshot.scenes} onRetry={onRetry} onCorrect={onCorrect} />
+              )}
+              {progress.phase === "assembly" && (
+                <FinalVideoDownload state={snapshot.session.state} url={downloadFinalVideoUrl(sessionId)} />
+              )}
+            </PhaseSection>
+          ))}
         </>
       )}
     </section>

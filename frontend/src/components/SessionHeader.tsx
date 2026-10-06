@@ -12,7 +12,7 @@ interface Props {
  * generation that is still running (Decision 8: `paused` is never folded
  * into `state`). */
 export function SessionHeader({ session, onPause, onContinue }: Props) {
-  const isRunning = session.state === "chunks-processing" || session.state === "final-video-generating";
+  const isRunning = session.state === "chunk-decomposing" || session.state === "chunks-processing" || session.state === "final-video-generating";
 
   return (
     <section aria-label="Session status" className={`session-header ${sessionStatusClass(session.state)}`}>

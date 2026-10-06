@@ -3,9 +3,20 @@ import { z } from "zod";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname } from "node:path";
-import { createRun, getRun, getSceneForRun, insertRegisteredScenes, commitSceneResult, markImageComplete, writeArtefactOnce } from "./db.ts";
+import { launchVoiceOverFor } from "./voiceOverPhase.ts";
+import { retryDecomposition } from "./decompositionRetry.ts";
 import { randomUUID } from "node:crypto";
-import { resolveArtefactPath } from "./db.ts";
+import {
+  createRun,
+  getRun,
+  getSceneForRun,
+  insertRegisteredScenes,
+  commitSceneResult,
+  markImageComplete,
+  resolveArtefactPath,
+  writeArtefactOnce,
+  insertVoiceOver,
+} from "./db.ts";
 import {
   continueSession,
   correctAndRetry,
@@ -61,6 +72,16 @@ const sceneParamsSchema = z.object({ sessionId: sessionIdSchema, sceneId: z.stri
 const providerCallbackParamsSchema = z.object({ requestId: z.string().uuid() });
 const correctBodySchema = z.object({ instruction: z.string().min(1) });
 
+// see-provider-and-attempts (JOS-166) Decision 4 — the closed list of what a stage diagnostic may carry. `.strict()` makes
+// a field added by mistake fail validation, so nothing else of an attempt record can reach the page by default.
+const stageDiagnosticSchema = z
+  .object({
+    stage: z.enum(["image", "video", "voice-over", "timestamps", "instructions", "assembly"]),
+    provider: z.object({ name: z.string(), model: z.string().nullable() }).strict(),
+    attempts: z.number().int().min(1).describe("Attempts recorded for this stage across every retry cycle, including one still in flight."),
+  })
+  .strict();
+
 const sceneResponseSchema = z.object({
   type: z.literal("scene"),
   sessionId: z.string(),
@@ -69,8 +90,10 @@ const sceneResponseSchema = z.object({
   state: z.string(),
   affectedStage: z.enum(["image", "video"]).optional(),
   errorCause: z.string().nullable().optional(),
-  provider: z.string().optional(),
-  attempts: z.number().optional(),
+  stages: z
+    .object({ image: stageDiagnosticSchema.optional(), video: stageDiagnosticSchema.optional() })
+    .strict()
+    .describe("PRD §3: which provider each stage used and how many attempts it made. A key is present once that stage has at least one attempt. Derived from the stored attempt records, never stored."),
   result: z.object({ imageUrl: z.string().optional(), videoUrl: z.string().optional() }).optional(),
   instruction: z.string().optional(),
   prompt: z
@@ -113,6 +136,23 @@ const sceneResponseSchema = z.object({
   updatedAt: z.string(),
 });
 
+const phaseResponseSchema = z.object({
+  phase: z.enum(["voice-over", "decomposition", "scenes", "assembly"]),
+  status: z
+    .enum(["pending", "in-progress", "complete", "failed"])
+    .describe("PRD §8.1, §8.3: derived from the session state on every read, never stored."),
+  heldCount: z.number().int().describe("Work units a pause is holding for this phase; 0 when not paused."),
+  stages: z
+    .array(stageDiagnosticSchema)
+    .describe("PRD §3: the session-level stages of this phase that have run, in pipeline order, each with its provider and attempt count. Empty for the scenes phase."),
+  failure: z
+    .object({ cause: z.string(), retryable: z.boolean() })
+    .optional()
+    .describe(
+      "Present only on a failed voice-over, decomposition or assembly entry. Never carries the failure time, provider detail, credentials or the script. Scene failures are per scene, so the scenes entry has none.",
+    ),
+});
+
 const sessionResponseSchema = z.object({
   type: z.literal("session"),
   sessionId: z.string(),
@@ -131,8 +171,37 @@ const sessionResponseSchema = z.object({
     .describe(
       "PRD §8.1: the indexes of the failed scenes, ascending. Present only when failedPhase is \"scenes\". Derived and read-only.",
     ),
+  voiceOver: z
+    .object({
+      provider: z.string(),
+      durationSeconds: z.number(),
+      nativeTimestampsAvailable: z.boolean(),
+      completedAt: z.string(),
+    })
+    .optional()
+    .describe(
+      "Present once the narration exists (PRD §5 step 2). Derived and read-only; the MP3 itself is never offered for download (PRD §12.3).",
+    ),
+  failure: z
+    .object({
+      phase: z.string(),
+      cause: z.string(),
+      retryable: z.boolean(),
+      manualRetryAvailable: z
+        .boolean()
+        .describe("Whether the User can start a new cycle of up to four attempts. True only for a retryable failure whose cycle is exhausted."),
+      cycle: z.number().int().min(1).describe("The cycle that ended in this failure, from 1."),
+      attemptsInCycle: z.number().int().min(1).max(4).describe("Attempts the cycle held when it failed."),
+      occurredAt: z.string(),
+    })
+    .optional()
+    .describe("Present while the session is failed in a phase that records its failure (PRD §8.1); the cause is written for a person."),
+  phases: z
+    .array(phaseResponseSchema)
+    .describe("PRD §8.3: always the four phases in pipeline order (voice-over, decomposition, scenes, assembly). Derived and read-only."),
   createdAt: z.string(),
   updatedAt: z.string(),
+  finalVideoUrl: z.string().optional().describe("Route to download the assembled MP4; present only when state is final-video (JOS-149)."),
 });
 
 const languageResponseSchema = z.array(z.object({ code: z.string(), label: z.string() }));
@@ -144,6 +213,10 @@ const snapshotResponseSchema = z.object({
 
 const okSchema = z.object({ ok: z.boolean() });
 const conflictSchema = z.object({ ok: z.boolean(), reason: z.string() });
+const retryAcceptedSchema = z.object({ ok: z.literal(true), held: z.boolean().describe("True while the session is paused: the retry is accepted and waits for continue.") });
+const emptyBodySchema = z.object({}).strict().nullish();
+// A malformed id is answered 404 by the handler, as the session read does, so it is not rejected by the schema.
+const looseSessionParamsSchema = z.object({ sessionId: z.string() });
 
 export const routes: FastifyPluginAsync = async (app) => {
   const typed = app.withTypeProvider<ZodTypeProvider>();
@@ -176,7 +249,11 @@ export const routes: FastifyPluginAsync = async (app) => {
       const sessionId = ulid();
       createRun(sessionId, request.body.title, request.body.script, request.body.language);
       reply.code(201);
-      return toSnapshot(sessionId);
+      const snapshot = toSnapshot(sessionId);
+      // generate-voice-over (JOS-136) Decision 1 — the session is committed; the
+      // response above still says `submitted`, and the launch follows it.
+      setImmediate(() => launchVoiceOverFor(sessionId));
+      return snapshot;
     },
   );
 
@@ -238,6 +315,25 @@ export const routes: FastifyPluginAsync = async (app) => {
         return { ok: false, reason: result.reason ?? "unknown session" };
       }
       return { ok: true };
+    },
+  );
+
+  // retry-decomposition (JOS-156) — the manual retry of a failed decomposition (timestamps or division).
+  typed.post(
+    "/sessions/:sessionId/decomposition/retry",
+    {
+      schema: {
+        params: looseSessionParamsSchema,
+        body: emptyBodySchema,
+        response: { 200: retryAcceptedSchema, 404: conflictSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const { sessionId } = request.params;
+      const result = ulidPattern.test(sessionId) ? retryDecomposition(sessionId) : ({ ok: false, reason: "session-not-found" } as const);
+      if (result.ok) return result;
+      reply.code(result.reason === "session-not-found" ? 404 : 409);
+      return { ok: false, reason: result.reason };
     },
   );
 
@@ -356,21 +452,29 @@ export const routes: FastifyPluginAsync = async (app) => {
     {
       schema: {
         params: sessionParamsSchema,
-        response: { 200: z.string(), 409: conflictSchema, 404: conflictSchema },
+        response: { 200: z.any().describe("The assembled MP4 file (video/mp4)"), 409: conflictSchema, 404: conflictSchema },
       },
     },
     async (request, reply) => {
-      const snapshot = toSnapshot(request.params.sessionId);
-      if (!snapshot) {
+      const run = getRun(request.params.sessionId);
+      if (!run) {
         reply.code(404);
         return { ok: false, reason: "unknown session" };
       }
-      if (snapshot.session.state !== "final-video") {
+      if (!run.finalVideoPath) {
         reply.code(409);
-        return { ok: false, reason: `final video is not available in state '${snapshot.session.state}'` };
+        return { ok: false, reason: "final video is not yet available" };
       }
-      reply.type("text/plain");
-      return `stub final MP4 content for session ${request.params.sessionId}`;
+      const fullPath = resolveArtefactPath(run.projectFolder, run.finalVideoPath);
+      if (!existsSync(fullPath)) {
+        reply.code(404);
+        return { ok: false, reason: "final video file not found on disk" };
+      }
+      const { size } = statSync(fullPath);
+      reply.header("Content-Disposition", `attachment; filename="final-video.mp4"`);
+      reply.header("Content-Length", size);
+      reply.type("video/mp4");
+      return reply.send(createReadStream(fullPath));
     },
   );
 
@@ -432,15 +536,53 @@ export const routes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  // Test-only endpoint for manual endpoint testing (task 10). Guarded by
+  // Test-only endpoints for manual endpoint testing (task 9). Guarded by
   // ALLOW_TEST_ENDPOINTS env var; never available in production.
   if (process.env.ALLOW_TEST_ENDPOINTS) {
+    typed.post(
+      "/internal/test/quick-voice-over",
+      {
+        schema: {
+          body: z.object({
+            sessionId: z.string(),
+            durationSeconds: z.number().positive(),
+          }),
+          response: {
+            200: z.object({ ok: z.boolean() }),
+            404: z.object({ error: z.string() }),
+            409: z.object({ error: z.string() }),
+          },
+        },
+      },
+      async (request, reply) => {
+        const { sessionId, durationSeconds } = request.body;
+        const run = getRun(sessionId);
+        if (!run) { reply.code(404); return { error: "session not found" }; }
+        const audioPath = `voice-over.mp3`;
+        writeArtefactOnce(run.projectFolder, audioPath, Buffer.alloc(0));
+        const ok = insertVoiceOver({
+          runId: sessionId,
+          audioPath,
+          timestampsPath: null,
+          durationSeconds,
+          sizeBytes: 0,
+          nativeTimestampsAvailable: false,
+          providerRequestId: null,
+          completedAt: new Date().toISOString(),
+        });
+        if (!ok) { reply.code(409); return { error: "voice-over already exists" }; }
+        return { ok: true };
+      },
+    );
+
     typed.post(
       "/internal/test/quick-scene",
       {
         schema: {
           body: z.object({
             sessionId: z.string(),
+            sceneIndex: z.number().int().min(0).optional(),
+            narrationStartSeconds: z.number().min(0).optional(),
             videoInstruction: z.string().min(1),
             requestedDurationSeconds: z.number().positive(),
             imageBytesBase64: z.string().optional(),
@@ -452,14 +594,16 @@ export const routes: FastifyPluginAsync = async (app) => {
         },
       },
       async (request, reply) => {
-        const { sessionId, videoInstruction, requestedDurationSeconds, imageBytesBase64 } = request.body;
+        const { sessionId, videoInstruction, requestedDurationSeconds, imageBytesBase64, sceneIndex, narrationStartSeconds } = request.body;
         const run = getRun(sessionId);
         if (!run) {
           reply.code(404);
           return { error: "session not found" };
         }
+        const idx = sceneIndex ?? 0;
+        const startSec = narrationStartSeconds ?? 0;
         const sceneId = randomUUID();
-        const imagePath = `scene-0.png`;
+        const imagePath = `scene-${idx}.png`;
         // minimal 1×1 PNG bytes (overrideable for real-call tests)
         const pngBytes = imageBytesBase64
           ? Buffer.from(imageBytesBase64, "base64")
@@ -471,11 +615,11 @@ export const routes: FastifyPluginAsync = async (app) => {
             );
         insertRegisteredScenes(sessionId, [{
           id: sceneId,
-          index: 0,
+          index: idx,
           prompt: videoInstruction,
           imageInstruction: videoInstruction,
           videoInstruction,
-          narrationInterval: { startSeconds: 0, endSeconds: requestedDurationSeconds },
+          narrationInterval: { startSeconds: startSec, endSeconds: startSec + requestedDurationSeconds },
           requestedDurationSeconds,
           durationWarning: null,
           speedFactor: 1,
