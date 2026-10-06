@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import {
   bindSceneImageProvider,
+  completeStageAttempt,
   bindSceneVideoProvider,
   createRun,
   createScene,
@@ -162,5 +163,81 @@ describe("A phase reports provider and attempts of its session-level stages", ()
     expect(snapshot.session.phases.map((phase) => phase.stages)).toEqual(body.session.phases.map((phase) => phase.stages));
     expect(body.scenes[0]!.stages.image.attempts).toBe(1); // not an empty comparison
     expect(snapshot.scenes[0]!.stages).toEqual(body.scenes[0]!.stages);
+  });
+});
+
+// Decision 4 — the allow-list: only a provider's name and model and an attempt count leave the backend.
+describe("The diagnostics expose no credentials or confidential data", () => {
+  const SENTINELS = ["SENTINEL-REQUEST-ID", "SENTINEL-ERROR-CODE", "SENTINEL-ERROR-TEXT", "SENTINEL-MODE", "SENTINEL-API-KEY"];
+  const CREDENTIALS = ["FAL_API_KEY", "RUNNINGHUB_API_KEY", "ELEVENLABS_API_KEY", "OPENAI_API_KEY"] as const;
+  const saved: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const name of CREDENTIALS) {
+      saved[name] = process.env[name];
+      process.env[name] = "SENTINEL-API-KEY";
+    }
+  });
+  afterEach(() => {
+    for (const name of CREDENTIALS) {
+      if (saved[name] === undefined) delete process.env[name];
+      else process.env[name] = saved[name];
+    }
+  });
+
+  /** A session whose every attempt record carries sentinel text in each free-text column. */
+  function sessionFullOfSentinels(): string {
+    const runId = newSession();
+    const sceneId = sceneWithAttempts(runId, { imageProvider: IMAGE_PROVIDER.model, clipProvider: VIDEO_PROVIDER.endpoint });
+    insertProviderRequest(randomUUID(), sceneId, 0, "SENTINEL-MODE" as never, 1, "image");
+    insertProviderRequest(randomUUID(), sceneId, 0, "SENTINEL-MODE" as never, 1, "video");
+    for (const [stage, providerId] of [
+      ["voice-over", VOICE_PROVIDER.name],
+      ["timestamps", "elevenlabs-native"],
+      ["decomposition", "openai-decomposition"],
+      ["assembly", null],
+    ] as const) {
+      const attempt = recordStageAttempt({ runId, stage, providerId, queuedAt: NOW, sentAt: NOW });
+      completeStageAttempt(attempt.id, {
+        outcome: "transient",
+        finishedAt: NOW,
+        externalRequestId: "SENTINEL-REQUEST-ID",
+        errorCode: "SENTINEL-ERROR-CODE",
+        errorMessage: "SENTINEL-ERROR-TEXT",
+      });
+    }
+    return runId;
+  }
+
+  it("keeps every sentinel, the credential values and the clip endpoint out of the session read", async () => {
+    const runId = sessionFullOfSentinels();
+
+    const res = await app.inject({ method: "GET", url: `/sessions/${runId}` });
+
+    expect(res.statusCode).toBe(200);
+    for (const sentinel of [...SENTINELS, VIDEO_PROVIDER.endpoint]) expect(res.body, `the read leaks ${sentinel}`).not.toContain(sentinel);
+    expect(res.body).toContain("Fal.ai"); // positive control: the diagnostics themselves are there
+  });
+
+  it("keeps them out of a live snapshot too", () => {
+    const runId = sessionFullOfSentinels();
+
+    const published = JSON.stringify(toSnapshot(runId));
+
+    for (const sentinel of [...SENTINELS, VIDEO_PROVIDER.endpoint]) expect(published, `the snapshot leaks ${sentinel}`).not.toContain(sentinel);
+    expect(published).toContain("RunningHub");
+  });
+
+  it("shows only a name, a model and a count for each stage", async () => {
+    const runId = sessionFullOfSentinels();
+
+    const { session, scenes } = await read(runId);
+    const diagnostics = [...session.phases.flatMap((phase) => phase.stages), scenes[0]!.stages.image, scenes[0]!.stages.video] as Array<Record<string, any>>;
+
+    expect(diagnostics.length).toBe(6);
+    for (const diagnostic of diagnostics) {
+      expect(Object.keys(diagnostic).sort()).toEqual(["attempts", "provider", "stage"]);
+      expect(Object.keys(diagnostic.provider).sort()).toEqual(["model", "name"]);
+    }
   });
 });

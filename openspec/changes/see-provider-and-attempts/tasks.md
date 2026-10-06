@@ -49,11 +49,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 5. Backend: no confidential data (TDD; design Decision 4)
 
-- [ ] 5.1 Write a failing test:
+- [x] 5.1 Write a failing test:
   - set sentinel values in `external_request_id`, `error_code`, `error_message` and `provider_requests.mode`;
   - load a test credentials fixture with a sentinel key;
   - assert that no sentinel and no `VIDEO_PROVIDER.endpoint` appears in the serialized `GET /sessions/:id` body or in a published snapshot.
-- [ ] 5.2 Make 5.1 pass. It should pass once task 4 is complete; if it does not, fix the leak at its source rather than filtering the output.
+- [x] 5.2 Make 5.1 pass. It should pass once task 4 is complete; if it does not, fix the leak at its source rather than filtering the output.
 
 ## 6. Frontend: types and rendering (TDD; design Decision 6)
 
