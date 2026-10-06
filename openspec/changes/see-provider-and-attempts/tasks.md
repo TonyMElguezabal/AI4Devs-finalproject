@@ -111,13 +111,13 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`. Confirm the changes are exactly: scene `stages` added, scene `provider` and `attempts` removed, and phase `stages` added.
-- [ ] 11.2 `docs/data-model.md`:
-  - add `instructions` to the `stage_attempts.stage` values;
+- [x] 11.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`. Confirm the changes are exactly: scene `stages` added, scene `provider` and `attempts` removed, and phase `stages` added.
+- [x] 11.2 `docs/data-model.md`:
+  - record that the decomposition's reasoning call is stored as stage `decomposition` and shown as `instructions` (no new stored stage value, see design Decision 3);
   - record that diagnostics are derived from `stage_attempts` and `provider_requests` and never stored;
   - note that `scenes.attempts` is the current-cycle attempt number, not a total.
-- [ ] 11.3 `docs/backend-standards.md`: record the diagnostics allow-list rule (closed schema with `.strict()`, plus a sentinel leak test for any new diagnostic field), and that every provider identifier needs a display entry in `stageDiagnostics.ts`.
-- [ ] 11.4 `docs/frontend-standards.md`: add the `Scene {n} image diagnostics` and `Scene {n} clip diagnostics` names to the naming table, and record `formatStageDiagnostic` as the one place the diagnostic line is formatted.
+- [x] 11.3 `docs/backend-standards.md`: record the diagnostics allow-list rule (closed schema with `.strict()`, plus a sentinel leak test for any new diagnostic field), and that every provider identifier needs a display entry in `stageDiagnostics.ts`.
+- [x] 11.4 `docs/frontend-standards.md`: add the `Scene {n} image diagnostics` and `Scene {n} clip diagnostics` names to the naming table, and record `formatStageDiagnostic` as the one place the diagnostic line is formatted.
 
 ## 12. Close out
 

@@ -151,6 +151,15 @@ interface VideoProvider {
 
 **MP4 validation**: `completeVideoStage` checks the first 8 bytes of the downloaded clip for the `ftyp` box before writing it to disk — `bytes[4..7] === 'ftyp'` — and rejects non-MP4 data as a transient failure.
 
+### Stage diagnostics: what may reach the page
+
+`see-provider-and-attempts` (JOS-166, PRD §3) shows, per scene stage and per phase, which provider was used and how many attempts were made. The rule for anything an attempt record could add to that:
+
+- **A stage diagnostic is exactly `{ stage, provider: { name, model }, attempts }`**, declared as a closed object in the response schema (`.strict()`, `additionalProperties: false` in the generated spec). A field added by mistake fails validation; nothing is filtered out after the fact (an allow-list, not a deny-list, so a new column cannot leak by default).
+- **Never** put a credential, an endpoint path, an external request id, a raw error code or message, or the script in a diagnostic. `test/stage-diagnostics-surface.test.ts` seeds sentinel values in every free-text column and in the credential environment and asserts none of them, nor `VIDEO_PROVIDER.endpoint`, appears in the read or the live snapshot. A new diagnostic field needs a sentinel in that test.
+- **Every provider identifier a stage can bind or record needs a display entry** in `src/stageDiagnostics.ts` (`describeProvider`). An identifier with no entry is shown as `Unknown provider` and logged once, never echoed; `test/stage-diagnostics.test.ts` lists every known identifier.
+- **Derive the counts from the append-only records on read** (`provider_requests`, `stage_attempts`), never from `scenes.attempts`, and read them for the whole session in one query: a snapshot is built on every change.
+
 ### Retries and attempts
 
 `bounded-retry-policy` (JOS-184, PRD §10.1) owns every retry: a stage instance (`stageInstanceKey`) gets at most four attempts per cycle, and nothing but a new cycle started by the User adds more.
