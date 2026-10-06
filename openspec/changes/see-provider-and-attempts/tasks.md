@@ -21,11 +21,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 2. Backend: display values and allow-list (TDD; design Decisions 2 and 4)
 
-- [ ] 2.1 Write failing tests in a new `backend/test/stage-diagnostics.test.ts` for `describeProvider(stage, identifier)`, and for the mapping of the stored stage `decomposition` to the wire stage `instructions`:
+- [x] 2.1 Write failing tests in a new `backend/test/stage-diagnostics.test.ts` for `describeProvider(stage, identifier)`, and for the mapping of the stored stage `decomposition` to the wire stage `instructions`:
   - each row of Decision 2's table;
   - an unknown identifier gives `Unknown provider` with `model: null`, logs once, and never returns the identifier;
   - every identifier from task 1.4 has an entry.
-- [ ] 2.2 Implement `backend/src/stageDiagnostics.ts` (`describeProvider`, the `StageDiagnostic` type); make 2.1 pass.
+- [x] 2.2 Implement `backend/src/stageDiagnostics.ts` (`describeProvider`, the `StageDiagnostic` type); make 2.1 pass.
 
 ## 3. Backend: instruction attempts (design Decision 3)
 
