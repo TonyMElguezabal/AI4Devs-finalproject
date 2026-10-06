@@ -64,15 +64,15 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Start the real server on a scratch store and scratch projects folder, with stub providers, the image stub slow and the request cap at 1; confirm `GET /health`.
-- [ ] 8.2 Create a decomposed session with several scenes, so one is in flight and the others are queued. `curl GET /sessions/:id` and save the body. Kill the process (`kill -9`). Then:
+- [x] 8.1 Start the real server on a scratch store and scratch projects folder, with stub providers, the image stub slow and the request cap at 1; confirm `GET /health`.
+- [x] 8.2 Create a decomposed session with several scenes, so one is in flight and the others are queued. `curl GET /sessions/:id` and save the body. Kill the process (`kill -9`). Then:
   - restart it;
   - `curl GET /sessions/:id` matches the saved body apart from the recovery changes;
   - the boot log shows the settle and relaunch counts;
   - every scene eventually completes.
-- [ ] 8.3 Insert an `in-flight` `timestamps` attempt, and an `in-flight` `assembly` attempt on a session with all scenes complete, in the scratch store, then restart (the assembly one is relaunched once). `curl GET /sessions/:id` shows `failed` with `failedPhase: "decomposition"` and a restart cause, no longer `chunk-decomposing`.
-- [ ] 8.4 Pause a session with held work, then restart. `curl` shows it still paused with the same held work, and the stub log shows no request for it. `POST /continue` then launches it.
-- [ ] 8.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/preserve-progress-across-restarts/reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`.
+- [x] 8.3 Insert an `in-flight` `timestamps` attempt, and an `in-flight` `assembly` attempt on a session with all scenes complete, in the scratch store, then restart (the assembly one is relaunched once). `curl GET /sessions/:id` shows `failed` with `failedPhase: "decomposition"` and a restart cause, no longer `chunk-decomposing`.
+- [x] 8.4 Pause a session with held work, then restart. `curl` shows it still paused with the same held work, and the stub log shows no request for it. `POST /continue` then launches it.
+- [x] 8.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/preserve-progress-across-restarts/reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`.
 
 ## 9. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
