@@ -1,3 +1,4 @@
+import { simulateRestart } from "./restartHelpers.ts";
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import * as concurrency from "../src/concurrency.ts";
@@ -125,10 +126,7 @@ describe("restart-safe resumption (PRD §12.1, C6)", () => {
     expect(getScene(sceneId)!.status).toBe("image-generating");
 
     // Simulate the process dying: only in-memory state is lost.
-    concurrency.resetAll();
-    concurrency.setLimit(STAGE, 10);
-
-    const summary = reconcileOnBoot();
+    const summary = simulateRestart();
     expect(summary.stillPending).toBe(1);
 
     // The provider still holds the result; reconciliation re-armed delivery.
@@ -141,10 +139,7 @@ describe("restart-safe resumption (PRD §12.1, C6)", () => {
     expect(getScene(sceneId)!.status).toBe("image-generating");
     expect(getScene(sceneId)!.attempts).toBe(1);
 
-    concurrency.resetAll();
-    concurrency.setLimit(STAGE, 10);
-
-    const summary = reconcileOnBoot();
+    const summary = simulateRestart();
     expect(summary.recordedFailedAttempt).toBe(1);
 
     // Within budget (1 < 1 + RETRY_BUDGET): the failed attempt is recorded

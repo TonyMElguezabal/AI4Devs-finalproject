@@ -15,14 +15,14 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 2. Backend: restart harness and consultation (TDD; design Decision 5)
 
-- [ ] 2.1 Add `simulateRestart()` to the test helpers. Extend the existing restart test in `orchestrator.test.ts` to use it.
-- [ ] 2.2 Write a failing-or-pinning test in a new `restart-recovery.test.ts`:
+- [x] 2.1 Add `simulateRestart()` to the test helpers. Extend the existing restart test in `orchestrator.test.ts` to use it.
+- [x] 2.2 Write a failing-or-pinning test in a new `restart-recovery.test.ts`:
   - build sessions in each session state, with scenes in each scene state, stored results, errors, a paused session with held work, and `failedSceneIndexes`;
   - restart;
   - `GET /sessions/:id` equals the pre-restart read, apart from update times and recovery changes.
 
-  Record which parts already passed.
-- [ ] 2.3 Write a test: a paused session sends nothing at boot, and its held work is unchanged.
+  Record which parts already passed. **Result:** all of it passed on the first run (a pinning test): scenes in `submitted`, `image-complete`, `chunk-complete` and `failed` with their results and errors, a paused session with held work, and a session with no scenes read the same after `simulateRestart()`. In-flight scene states are covered by group 3.
+- [x] 2.3 Write a test: a paused session sends nothing at boot, and its held work is unchanged.
 
 ## 3. Backend: settle pass (TDD; design Decisions 1-3)
 
