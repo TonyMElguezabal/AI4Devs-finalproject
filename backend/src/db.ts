@@ -1240,8 +1240,13 @@ export function getStageAttempts(runId: string, stage: AttemptStage): StageAttem
 }
 
 /** Sets `runs.final_video_path` once after a successful assembly (JOS-149). */
-export function setFinalVideoPath(runId: string, relativePath: string): void {
-  db.prepare("UPDATE runs SET final_video_path = ? WHERE id = ?").run(relativePath, runId);
+/**
+ * ignore-repeated-success-confirmations (JOS-161), design Decision 2 — the final video is recorded once: the update
+ * writes only while no path is recorded. Returns whether this call recorded it.
+ */
+export function setFinalVideoPath(runId: string, relativePath: string): boolean {
+  const result = db.prepare("UPDATE runs SET final_video_path = ? WHERE id = ? AND final_video_path IS NULL").run(relativePath, runId);
+  return Number(result.changes) > 0;
 }
 
 export function getAllInFlightScenes(): Scene[] {

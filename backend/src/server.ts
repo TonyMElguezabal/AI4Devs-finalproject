@@ -16,7 +16,7 @@ import { startAttemptTimeoutWatcher } from "./retry/attemptTimeoutWatcher.ts";
 import { setRetryDelayConfig } from "./retry/stageAttemptRecorder.ts";
 import { createStubVoiceProvider as createStubVoice, setVoiceProviderRegistry, type StubVoiceProviderMode } from "./voiceProvider.ts";
 import { setVideoProviderRegistry, createStubVideoProvider, STUB_VIDEO_PROVIDER_NAME, type StubVideoProviderMode } from "./videoProvider.ts";
-import { createStubAssemblyTool } from "./stubAssemblyTool.ts";
+import { createStubAssemblyTool, type StubAssemblyMode } from "./stubAssemblyTool.ts";
 
 const PORT = Number(process.env.PORT ?? 3100);
 // define-provider-configuration (JOS-165) task 17.2 — this skeleton's one
@@ -84,6 +84,14 @@ export function bootLogFields(summary: ReturnType<typeof recoverOnBoot>) {
   };
 }
 
+/** The manual-testing assembly stub for a `USE_STUB_ASSEMBLY_TOOL` value (JOS-149, JOS-161). Unknown values fall back to a transient failure. */
+export function assemblyStubModeFor(name: string, delayMsValue: string | undefined): StubAssemblyMode {
+  if (name === "success") return { kind: "success" };
+  if (name === "not-retryable-failure") return { kind: "not-retryable-failure" };
+  if (name === "slow-success") return { kind: "slow-success", delayMs: Number(delayMsValue ?? 15000) };
+  return { kind: "transient-failure" };
+}
+
 // Bootstrap only when this file is run directly (`node src/server.ts`), not
 // when imported by tests.
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
@@ -110,13 +118,11 @@ if (isMainModule) {
   if (stubVoiceMode) {
     setVoiceProviderRegistry({ defaultIdentifier: "stub-voice", adapters: { "stub-voice": createStubVoice(stubVoiceMode) } });
   }
-  // USE_STUB_ASSEMBLY_TOOL=success|transient-failure|not-retryable-failure — manual endpoint testing only (JOS-149).
+  // USE_STUB_ASSEMBLY_TOOL=success|transient-failure|not-retryable-failure|slow-success — manual endpoint testing only (JOS-149).
+  // `slow-success` (JOS-161) answers success after ASSEMBLY_STUB_DELAY_MS (default 15000), so a pause can land during assembly.
   const stubAssemblyMode = process.env.USE_STUB_ASSEMBLY_TOOL as string | undefined;
   if (stubAssemblyMode) {
-    const mode = stubAssemblyMode === "success" ? { kind: "success" as const }
-      : stubAssemblyMode === "not-retryable-failure" ? { kind: "not-retryable-failure" as const }
-      : { kind: "transient-failure" as const };
-    setAssemblyTool(createStubAssemblyTool(mode));
+    setAssemblyTool(createStubAssemblyTool(assemblyStubModeFor(stubAssemblyMode, process.env.ASSEMBLY_STUB_DELAY_MS)));
   }
   const app = await buildApp();
   setVoiceOverLogger(app.log);

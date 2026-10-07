@@ -411,6 +411,10 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
   const run = getRun(runId);
   if (!run) return;
   if (!admitLaunch(runId).admitted) return;
+  // ignore-repeated-success-confirmations (JOS-161), design Decision 3 — no assembly for a session that already has its
+  // final video, or while one is in flight. No await precedes the attempt record below, so this check and the record
+  // cannot interleave with another launch.
+  if (run.finalVideoPath || getStageAttempts(runId, "assembly").some((attempt) => attempt.outcome === "in-flight")) return;
 
   const tool = getAssemblyTool();
   if (!tool) {
@@ -471,9 +475,9 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
   const finishedAt = new Date().toISOString();
 
   if (result.kind === "success") {
-    const relativePath = "final-video.mp4";
-    completeStageAttempt(attemptId, { outcome: "success", finishedAt });
-    setFinalVideoPath(runId, relativePath);
+    // A refused write means another assembly recorded the final video first: this result is discarded (JOS-161, Decision 2).
+    const recorded = setFinalVideoPath(runId, "final-video.mp4");
+    completeStageAttempt(attemptId, recorded ? { outcome: "success", finishedAt } : { outcome: "superseded", finishedAt });
     broadcast(runId);
     return;
   }
@@ -622,6 +626,11 @@ function completeVideoStage(sceneId: string, relativePath: string): void {
     const scene = getScene(sceneId);
     if (scene) triggerAssemblyIfReady(scene.runId);
   }
+}
+
+/** Test-only (repeated-success-confirmations, design Decision 4): delivers a clip success to the stage's own success path. */
+export function deliverClipSuccessForTests(sceneId: string, relativePath: string): void {
+  completeVideoStage(sceneId, relativePath);
 }
 
 async function pollVideoRequestOnce(
@@ -882,7 +891,8 @@ export const assemblyStageLauncher: StageLauncher = {
   heldWork: (sessionId: string) => {
     const run = getRun(sessionId);
     const gate = assemblyGate(getScenesForRun(sessionId));
-    const count = run && !run.finalVideoPath && gate.open ? 1 : 0;
+    const inFlight = getStageAttempts(sessionId, "assembly").some((attempt) => attempt.outcome === "in-flight");
+    const count = run && !run.finalVideoPath && gate.open && !inFlight ? 1 : 0;
     return { count, sceneIds: [] };
   },
   // Stricter than `heldWork` (restart-recovery, Decision 3): boot must not relaunch an assembly whose budget is spent
@@ -1070,16 +1080,24 @@ function completeImageStage(sceneId: string, relativePath: string): void {
   // the next-stage launch is gated on that store-level uniqueness, not on
   // any flag this code checked beforehand — that is what makes it correct
   // even if two deliveries for the same scene ever raced each other.
-  const committed = commitSceneResult(sceneId, relativePath);
+  // ignore-repeated-success-confirmations (JOS-161), design Decision 1 — a refused commit is a repeated confirmation:
+  // it changes no state, stores no reference and launches nothing.
+  if (!commitSceneResult(sceneId, relativePath)) return;
   markImageComplete(sceneId, relativePath);
-  if (committed) {
-    nextStageLaunches.set(sceneId, (nextStageLaunches.get(sceneId) ?? 0) + 1);
-    // Only launch video stage for real registered chunks (not createScene skeletons).
-    const scene = getScene(sceneId);
-    if (scene?.requestedDurationSeconds != null) {
-      launchVideoStage(sceneId); // JOS-146 Decision 2 — launch video stage after image complete
-    }
+  nextStageLaunches.set(sceneId, (nextStageLaunches.get(sceneId) ?? 0) + 1);
+  // Only launch video stage for real registered chunks (not createScene skeletons).
+  const scene = getScene(sceneId);
+  if (scene?.requestedDurationSeconds != null) {
+    launchVideoStage(sceneId); // JOS-146 Decision 2 — launch video stage after image complete
   }
+}
+
+/**
+ * Test-only (repeated-success-confirmations, design Decision 4): delivers an image success to the stage's own success
+ * path, the way a provider delivery reaches it, so a repeated confirmation can be sent without a real provider.
+ */
+export function deliverImageSuccessForTests(sceneId: string, relativePath: string): void {
+  completeImageStage(sceneId, relativePath);
 }
 
 /** The retry/budget rule shared by every stage's failure handling (PRD §10.1) — not the success path, which each stage owns itself. */
