@@ -3,9 +3,7 @@
 ## Purpose
 
 Requirements established by choosing how session state is stored. These govern the project's persistence foundation, not user-facing product behaviour — the behaviours built on it are specified by their own stories: US-28 (restart survival), US-29 (idempotent confirmations), US-30 (local files and folder naming).
-
 ## Requirements
-
 ### Requirement: Documented data model for this product
 
 The project SHALL document its data model in `docs/data-model.md`, covering sessions, chunks and stage attempts with the fields the PRD requires, together with their relationships. The document SHALL contain no entities inherited from another application's domain.
@@ -39,7 +37,7 @@ The system SHALL persist a provider request's stage, provider and external ident
 
 ### Requirement: Repeated confirmations rejected by the store
 
-The store SHALL enforce uniqueness for a completed generation, so that a repeated success confirmation cannot create a second result, launch the next stage twice, or add a scene to the assembly set more than once. Uniqueness SHALL be enforced by the store itself rather than by a prior read in application code.
+The store SHALL enforce uniqueness for a completed generation, so that a repeated success confirmation cannot create a second result, launch the next stage twice, or add a scene to the assembly set more than once. Uniqueness SHALL be enforced by the store itself rather than by a prior read in application code. A confirmation the store refuses SHALL change nothing else: no scene or session state, no stored result reference, and no launch. This applies to every generation stage: voice-over, narration timestamps, decomposition, scene image, scene clip and final assembly (§12.1, AC14).
 
 #### Scenario: The same confirmation arrives twice
 
@@ -51,6 +49,31 @@ The store SHALL enforce uniqueness for a completed generation, so that a repeate
 
 - **WHEN** two confirmations for the same generation are processed at the same time
 - **THEN** exactly one succeeds and the other is rejected by the store
+
+#### Scenario: A refused image confirmation leaves the scene as it is
+
+- **GIVEN** a scene whose image was confirmed and whose clip stage has started or completed
+- **WHEN** another success confirmation for its image arrives
+- **THEN** the scene keeps its state and its stored image reference
+- **AND** no clip request is sent for it
+
+#### Scenario: The final video is recorded once
+
+- **GIVEN** a session whose final video is already recorded
+- **WHEN** another assembly success is confirmed for it
+- **THEN** the recorded final video is not replaced
+
+#### Scenario: Assembly is not started twice
+
+- **GIVEN** a session that already has a final video, or an assembly attempt in flight
+- **WHEN** an assembly launch is requested for it, by a scene completion or by continue
+- **THEN** no assembly attempt is recorded and the assembly tool is not run
+
+#### Scenario: A scene is assembled once
+
+- **GIVEN** a scene whose clip was confirmed more than once
+- **WHEN** the final assembly runs
+- **THEN** that scene contributes exactly one clip to the assembly input
 
 ### Requirement: File references bound to the owning project folder
 
@@ -75,3 +98,4 @@ The project SHALL record whether the mandatory pre- and post-test state verifica
 - **WHEN** the selected store cannot satisfy the step as written
 - **THEN** an amendment to the mandatory steps document is proposed
 - **AND** the reason is recorded in the ADR
+
