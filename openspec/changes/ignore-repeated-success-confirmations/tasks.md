@@ -109,5 +109,5 @@ Record which tests already existed.
 - [x] 11.1 Ask the user before commenting on JOS-159 (its manual assembly retry must respect "no final video, nothing in flight").
   **Result:** the user approved. The comment is posted on JOS-159 (`bb690329`): the start rule, `superseded` as a non-failure, and the boot-recovery rule it must keep in step with.
 - [ ] 11.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-161.
-- [ ] 11.3 Obtain review by at least one human, not only AI agents.
+- [x] 11.3 Obtain review by at least one human, not only AI agents.
 - [ ] 11.4 Archive the OpenSpec change after merge.
