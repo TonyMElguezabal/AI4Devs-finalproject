@@ -5,6 +5,7 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname } from "node:path";
 import { launchVoiceOverFor } from "./voiceOverPhase.ts";
 import { retryDecomposition } from "./decompositionRetry.ts";
+import { retryAssembly } from "./assemblyRetry.ts";
 import { randomUUID } from "node:crypto";
 import {
   createRun,
@@ -338,6 +339,26 @@ export const routes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const { sessionId } = request.params;
       const result = ulidPattern.test(sessionId) ? retryDecomposition(sessionId) : ({ ok: false, reason: "session-not-found" } as const);
+      if (result.ok) return result;
+      reply.code(result.reason === "session-not-found" ? 404 : 409);
+      return { ok: false, reason: result.reason };
+    },
+  );
+
+  // retry-final-assembly (JOS-159) — the manual retry of a failed final assembly. Design Decision 7 — assembly
+  // always offers a retry, whatever `retryable` is, so there is no `not-retryable` 409 reason here.
+  typed.post(
+    "/sessions/:sessionId/assembly/retry",
+    {
+      schema: {
+        params: looseSessionParamsSchema,
+        body: emptyBodySchema,
+        response: { 200: retryAcceptedSchema, 404: conflictSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const { sessionId } = request.params;
+      const result = ulidPattern.test(sessionId) ? retryAssembly(sessionId) : ({ ok: false, reason: "session-not-found" } as const);
       if (result.ok) return result;
       reply.code(result.reason === "session-not-found" ? 404 : 409);
       return { ok: false, reason: result.reason };
