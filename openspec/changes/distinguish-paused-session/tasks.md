@@ -89,10 +89,10 @@ Tests come first throughout: every behaviour gets a failing test before the code
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 Add the derived, response-only `running` field to the Session section of `docs/data-model.md`, next to `held`, with its derivation
-- [ ] 11.2 Add `running` to the session schema in `docs/api-spec.yml` (every response that carries a session)
-- [ ] 11.3 Add to `docs/backend-standards.md`: any stage's in-flight work must be visible to `sessionRunningWork` (an `in-flight` stage attempt or a `*-generating` scene status)
-- [ ] 11.4 Add to `docs/frontend-standards.md`: the page renders `held` and `running` as sent and never derives either; the paused marker is a status line, never an alert
+- [x] 11.1 Add the derived, response-only `running` field to the Session section of `docs/data-model.md`, next to `held`, with its derivation
+- [x] 11.2 Add `running` to the session schema in `docs/api-spec.yml` (every response that carries a session)
+- [x] 11.3 Add to `docs/backend-standards.md`: any stage's in-flight work must be visible to `sessionRunningWork` (an `in-flight` stage attempt or a `*-generating` scene status)
+- [x] 11.4 Add to `docs/frontend-standards.md`: the page renders `held` and `running` as sent and never derives either; the paused marker is a status line, never an alert
 
 ## 12. Close out
 
