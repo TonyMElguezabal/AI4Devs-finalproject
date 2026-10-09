@@ -9,18 +9,18 @@ Tests come first throughout: every behaviour gets a failing test before the code
 
 ## 1. Gate: Confirm the foundations this change stands on
 
-- [ ] 1.1 Confirm US-20 (JOS-152) is on the branch: `paused`, `held` on session and scenes, `sessionHeldWork`, image and video launchers registered
-- [ ] 1.2 Confirm `markSceneInFlight` and the video in-flight mark are the only writers of `image-generating` / `video-generating`, and that both run after `admitLaunch` (US-20 Decision 2), so those states mean "request sent"
-- [ ] 1.3 List the `AttemptStage` values present on the branch and confirm each records an `in-flight` row before its request; if one does not, stop and record it rather than mapping it
+- [x] 1.1 Confirm US-20 (JOS-152) is on the branch: `paused`, `held` on session and scenes, `sessionHeldWork`, image and video launchers registered
+- [x] 1.2 Confirm `markSceneInFlight` and the video in-flight mark are the only writers of `image-generating` / `video-generating`, and that both run after `admitLaunch` (US-20 Decision 2), so those states mean "request sent"
+- [x] 1.3 List the `AttemptStage` values present on the branch and confirm each records an `in-flight` row before its request; if one does not, stop and record it rather than mapping it
 
 ## 2. Backend: running-work derivation (TDD)
 
-- [ ] 2.1 Write failing tests for `sessionRunningWork`: scenes `image-generating` count under `image`, `video-generating` under `video`; `in-flight` attempts map `voice-over` → `voice-over` and `timestamps` → `decomposition`; stages in pipeline order, zero counts omitted; empty when nothing is in flight
-- [ ] 2.2 Write a failing test that, for a paused session with running and held scenes, no scene is in both `running` and `held`
-- [ ] 2.3 Write a failing test that every `AttemptStage` value has a pipeline-stage mapping, so a new attempt stage without one fails the suite (design Decision 2)
-- [ ] 2.4 Write a failing test that `running` is reported for a session that is not paused while `held` stays empty (design Decision 3)
-- [ ] 2.5 Implement `sessionRunningWork` beside `sessionHeldWork`, reading scene statuses and in-flight stage attempts; no new table or column
-- [ ] 2.6 Run the group 2 tests and confirm they pass
+- [x] 2.1 Write failing tests for `sessionRunningWork`: scenes `image-generating` count under `image`, `video-generating` under `video`; `in-flight` attempts map `voice-over` → `voice-over` and `timestamps` → `decomposition`; stages in pipeline order, zero counts omitted; empty when nothing is in flight
+- [x] 2.2 Write a failing test that, for a paused session with running and held scenes, no scene is in both `running` and `held`
+- [x] 2.3 Write a failing test that every `AttemptStage` value has a pipeline-stage mapping, so a new attempt stage without one fails the suite (design Decision 2)
+- [x] 2.4 Write a failing test that `running` is reported for a session that is not paused while `held` stays empty (design Decision 3)
+- [x] 2.5 Implement `sessionRunningWork` beside `sessionHeldWork`, reading scene statuses and in-flight stage attempts; no new table or column
+- [x] 2.6 Run the group 2 tests and confirm they pass
 
 ## 3. Backend: payload and API schema (TDD)
 

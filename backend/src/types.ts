@@ -109,8 +109,13 @@ export interface VoiceOverInput {
 
 export type VoiceOver = VoiceOverInput;
 
-/** Stages that record attempts, including session-level and scene-level stages. */
-export type AttemptStage = "voice-over" | "timestamps" | "decomposition" | "image" | "video" | "assembly";
+/**
+ * Stages that record attempts, including session-level and scene-level stages. Exported as an array (not only a
+ * union) so `sessionRunningWork` (distinguish-paused-session, JOS-153) can map every value to a pipeline stage and
+ * a test can assert the mapping is total, instead of relying on a compile-time check alone.
+ */
+export const ATTEMPT_STAGES = ["voice-over", "timestamps", "decomposition", "image", "video", "assembly"] as const;
+export type AttemptStage = (typeof ATTEMPT_STAGES)[number];
 
 /** How the narration timestamps were obtained (PRD §11.1). */
 export type TimestampMechanism = "native" | "alignment";
