@@ -107,4 +107,4 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 - [x] 12.1 Ask the user before commenting on JOS-158 (US-26) that the scoped, conditional recovery pattern is ready to mirror for `VIDEO`, and on JOS-184 that the attempt reset in `manualRetry` is the one place `startNewCycle` replaces.
 - [x] 12.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-157.
 - [x] 12.3 Obtain review by at least one human, not only AI agents.
-- [ ] 12.4 Archive the OpenSpec change after merge.
+- [x] 12.4 Archive the OpenSpec change after merge.
