@@ -64,9 +64,9 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 8.1 Review JOS-149's assembly tests (attempt recording, output path, the launch trigger), JOS-152's launch-gate tests (`NOT_YET_LAUNCHABLE` contents), and JOS-168's phase-progress tests for assumptions this change breaks; update them.
-- [ ] 8.2 Confirm every scenario in `specs/assembly-failure-recovery/spec.md` has at least one test, and map ticket AC1-AC3 to tests; list both in the step 9 report.
-- [ ] 8.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 8.1 Reviewed `assembly-persistence.test.ts` and `assembly-launch.test.ts` (JOS-149), `launch-gate.test.ts` (JOS-152, `NOT_YET_LAUNCHABLE`'s contents and `registerStageLauncher`'s own removal of a stage from it), and `phase-progress.test.ts` (JOS-168) — none carried an assumption this change breaks (the "no tool: nothing recorded" comments live in *this* change's own test files, already fixed in groups 2-4's commits, not in these pre-existing ones). No updates needed beyond what groups 2-6 already made.
+- [x] 8.2 Every scenario in `specs/assembly-failure-recovery/spec.md` has at least one test (mapping below); AC1-AC3 mapped. Also found and corrected two stale spec.md statements left over from the original design (a clip-file pre-check and a separate `retry-already-pending` reason, both dropped during implementation — see design.md's "found during implementation" notes) and the matching lines in `proposal.md`. Full mapping recorded in the step 9 report (9.5).
+- [x] 8.3 Compared backend coverage of `db.ts`, `orchestrator.ts`, `routes.ts` (plus the new `assemblyRetry.ts`) against the propose commit (`cba78c3`, a disposable detached worktree, `@vitest/coverage-v8` installed with `--no-save`): `orchestrator.ts` 88.55% → 89.84%, `routes.ts` 74.56% → 75.42%, `db.ts` 98.16% → 98.11% (two new lines this change added — `moveAssemblyOutput`'s `EEXIST` branch and `isReadableMp4`'s catch branch — were briefly uncovered; added two direct unit tests for them in `assembly-failure-recovery.test.ts`, closing the gap). No module decreased in any way that isn't fully accounted for.
 
 ## 9. Run Unit Tests and Verify Database State (MANDATORY)
 
