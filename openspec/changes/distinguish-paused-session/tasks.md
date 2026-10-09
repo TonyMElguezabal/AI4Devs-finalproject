@@ -37,13 +37,13 @@ Tests come first throughout: every behaviour gets a failing test before the code
 
 ## 5. Frontend: session header (TDD)
 
-- [ ] 5.1 Write failing tests: a paused session shows its state and "Paused — waiting for you to continue" as separate text; the marker is not `role="alert"` and does not carry the complete or failed class
-- [ ] 5.2 Write failing tests: while paused, "Still generating: 1 image" from `running`, "Nothing is generating" when `running` is empty, and "Waiting for continue: 2 image" from `held` (absent when `held` is empty), as separate lines in the order of design Decision 5
-- [ ] 5.3 Write failing tests: when not paused, none of the marker, running, held or "nothing is generating" lines are shown
-- [ ] 5.4 Write failing tests: a paused `failed` session still shows its failed phase and failed scenes with the marker as its own line; a paused `final-video` session keeps its state styling
-- [ ] 5.5 Write failing tests for the controls: Continue is offered whenever paused in each of the eight states; Pause whenever not paused except `final-video`; never both
-- [ ] 5.6 Update `SessionHeader.tsx` and the marker style (`session-paused-marker`, queued token, design Decision 7) to make 5.1–5.5 pass; adjust the existing JOS-152 header tests whose text changes, without weakening what they assert
-- [ ] 5.7 Run the group 5 tests and confirm they pass
+- [x] 5.1 Write failing tests: a paused session shows its state and "Paused — waiting for you to continue" as separate text; the marker is not `role="alert"` and does not carry the complete or failed class
+- [x] 5.2 Write failing tests: while paused, "Still generating: 1 image" from `running`, "Nothing is generating" when `running` is empty, and "Waiting for continue: 2 image" from `held` (absent when `held` is empty), as separate lines in the order of design Decision 5
+- [x] 5.3 Write failing tests: when not paused, none of the marker, running, held or "nothing is generating" lines are shown
+- [x] 5.4 Write failing tests: a paused `failed` session still shows its failed phase and failed scenes with the marker as its own line; a paused `final-video` session keeps its state styling
+- [x] 5.5 Write failing tests for the controls: Continue is offered whenever paused in each of the eight states; Pause whenever not paused except `final-video`; never both
+- [x] 5.6 Update `SessionHeader.tsx` and the marker style (`session-paused-marker`, queued token, design Decision 7) to make 5.1–5.5 pass; adjust the existing JOS-152 header tests whose text changes, without weakening what they assert
+- [x] 5.7 Run the group 5 tests and confirm they pass
 
 ## 6. Frontend: scene rows (TDD)
 
