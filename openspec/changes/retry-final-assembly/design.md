@@ -61,9 +61,13 @@
 |---|---|---|
 | The last attempt of a cycle fails transiently (budget exhausted) | `true` | from the completed attempt row (`recordStageAttempt`'s return already carries `cycle`/`sequenceInCycle`) |
 | An attempt fails not-retryably | `false` | from the completed attempt row |
-| Before any attempt: no assembly tool configured, no voice-over stored, or a chunk's clip path missing or its file unreadable | `false`; nothing is sent to the tool | `cycle: 1, attemptsInCycle: 0` — no row exists yet |
+| Before any attempt: no assembly tool configured, or no voice-over stored | `false`; nothing is sent to the tool | `cycle: 1, attemptsInCycle: 0` — no row exists yet |
+
+A missing or unreadable clip file is **not** a separate pre-check (a simplification from the original design — see "Found during implementation" below): it surfaces through the ordinary attempt path instead, the same as any other tool failure.
 
 The cause is written for a person. It names what failed, never contains a filesystem path outside the project-relative name, and ends with "Your narration, images and clips are kept." A success clears the failure (`clearRunFailure`).
+
+**Found during implementation — no eager `existsSync` check for a missing clip file.** The original design's table listed "a chunk's clip path missing or its file unreadable" as a third pre-attempt, not-retryable case, checked with `existsSync` before building the clip list. Implementing it broke several already-passing tests across the suite (`repeated-confirmations.test.ts`'s `deliverClipSuccessForTests`/`completeVideoStage`, and others) that complete a scene's clip at the store level only, by design, with no real file on disk — exactly the same tension `retry-or-correct-image` (JOS-157) hit and resolved the same way with its `.strict()` body schema. Dropped the pre-check: a missing/unreadable file now surfaces through the real ffmpeg adapter throwing (`probeVideoDuration`/`execFileSync`), caught by the existing generic `try/catch` around `tool.assemble()` as a transient failure, exhausting the normal retry budget before being recorded — one fewer special case, and every existing store-level test fixture keeps working unmodified.
 
 `deriveSessionState`'s gate-open branch (where scenes exist and every one is `chunk-complete`) changes to check the failure first, mirroring the zero-scenes branch's existing `if (failure && progress.retryInFlight) … else if (failure) …` pattern one-for-one:
 
@@ -79,14 +83,14 @@ if (gate.open) {
 *Alternative rejected:* deriving the failure from the latest `assembly` attempt row. It cannot represent a failure before any attempt (no tool, missing clip). It is the same reason JOS-136 Decision 9 rejected that approach for the voice-over.
 
 **Decision 2 — The final video appears in the project folder only on success, and never replaces a file.**
-`runAssemblyAttempt` passes the tool an `outputPath` inside a per-attempt temporary directory outside the project folder. On `success` it:
+`runAssemblyAttempt` passes the tool an `outputPath` inside a per-attempt temporary directory **created under `PROJECTS_ROOT`** (`mkdtempSync(join(PROJECTS_ROOT, ".assembly-tmp-"))`), not `os.tmpdir()`. This app's project folders and `PROJECTS_ROOT` are always one local, single-root filesystem (`db.ts`'s own layout, unconditionally), so a hard link from the temp path to `<project>/final-video.mp4` can never cross a device boundary — no copy-then-unlink fallback is needed. *(Simplification from the original design, which put the temp directory in `os.tmpdir()` and planned a cross-device copy fallback for it; dropped as unneeded complexity for a single-root local app, not a correctness gap — `ponytail: if PROJECTS_ROOT ever moves to a different filesystem than a session's project folder, add the EXDEV → copyFileSync fallback back into `adoptAssemblyOutput`.)* On `success`:
 
-1. moves the file to `<project>/final-video.mp4` with a link-then-unlink that refuses an existing target, copying first when the temp directory is on another device;
-2. then sets `final_video_path`.
+1. moves the file with `linkSync(tempPath, finalPath)` + `unlinkSync(tempPath)` — `linkSync` is atomic and fails with `EEXIST` when the target exists, mirroring `writeArtefactOnce`'s established idiom (`db.ts`) exactly; **if the tool wrote nothing to `tempPath`** (every stub in this test suite — `createStubAssemblyTool`'s `"success"` case returns `{kind:"success", outputPath}` without writing bytes), the move is skipped (nothing to move) and only the store write happens, so existing stub-driven tests are unaffected;
+2. then sets `final_video_path` (unchanged — `setFinalVideoPath`'s existing conditional write).
 
-On failure, the temporary directory is removed. A failed attempt therefore leaves nothing in the project folder, and a retry never overwrites a file there (AC15).
+On failure, the temporary directory (and anything the tool wrote into it before failing) is removed with one `rmSync(work, { recursive: true, force: true })`. A failed attempt therefore leaves nothing in the project folder, and a retry never overwrites a file there (AC15).
 
-If `final-video.mp4` already exists without `final_video_path`, for example after a crash between the move and the database write, the attempt adopts it. It checks the file is a readable MP4, then sets the path. It does not overwrite it.
+If `final-video.mp4` already exists without `final_video_path` recorded, for example after a crash between the move and the database write, the **next** attempt adopts it before calling the tool at all: checks the file is a non-empty, readable MP4 (`ftyp` box present — the same check `buildMp4()` in tests constructs), then calls `setFinalVideoPath` and returns, without building clips or touching the tool. It does not overwrite it.
 
 *Alternative rejected:* letting the retry overwrite the partial file. "Local files are not deleted automatically" (§12.2, AC15), and a partial MP4 next to a "failed" state misleads anyone opening the folder.
 
@@ -151,7 +155,7 @@ A retry rebuilds the clip list exactly as a first run does: from the persisted c
 - **[PR #25 is behind the integration branch]** → Its merge must reconcile the video launcher and other integration changes first. This change rebases after that.
 - **[Moving a large MP4 across devices]** → The copy-then-rename fallback costs time and disk once per success. The temp directory is created on the same volume as the projects folder when one is configured.
 - **[A crash between the move and the database write]** → Covered by the adopt rule in Decision 2.
-- **[Retrying a deterministic failure (a missing clip file)]** → It fails again at once, with no tool call and the same cause, as JOS-158 Decision 5 does for clips.
+- **[Retrying a deterministic failure (a missing clip file)]** → No longer a zero-attempt refusal (Decision 1's "found during implementation" note) — it goes through the normal 4-attempt budget and fails the same way every time, costing one wasted cycle before the User sees the (accurate) cause and can fix the file outside the app.
 
 ## Migration Plan
 

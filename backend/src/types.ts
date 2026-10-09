@@ -76,7 +76,27 @@ export interface DecompositionFailure {
   occurredAt: string;
 }
 
-export type SessionFailure = VoiceOverFailure | DecompositionFailure;
+export type SessionFailure = VoiceOverFailure | DecompositionFailure | AssemblyFailure;
+
+/** retry-final-assembly (JOS-159), design Decision 1 — the voice-over, images and clips a failed assembly keeps
+ * are never regenerated; the cause always says so. */
+export interface AssemblyFailure {
+  phase: "assembly";
+  /** Written for a person; never a filesystem path outside the project-relative name. Always ends with "Your
+   * narration, images and clips are kept." */
+  cause: string;
+  retryable: boolean;
+  /** Always `true` (design Decision 7) — nothing generated is at risk, so retry is offered whatever `retryable`
+   * is, unlike the voice-over and decomposition failures below. */
+  manualRetryAvailable: boolean;
+  /** The cycle the failure ended, from 1. `1` with `attemptsInCycle: 0` for a failure recorded before any attempt
+   * (no tool, no voice-over, a missing clip file). */
+  cycle: number;
+  /** Attempts the cycle held when it failed, 0 to 4. */
+  attemptsInCycle: number;
+  /** ISO-8601 instant. */
+  occurredAt: string;
+}
 
 export interface VoiceOverFailure {
   phase: "voice-over";

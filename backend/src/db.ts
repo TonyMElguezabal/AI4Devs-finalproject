@@ -11,7 +11,7 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
-import { existsSync, linkSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import type {
   AttemptStage,
@@ -632,6 +632,41 @@ export function writeArtefactOnce(projectFolder: string, relativePath: string, c
 
 export function resolveArtefactPath(projectFolder: string, relativePath: string): string {
   return assertWithinProjectFolder(projectFolder, relativePath);
+}
+
+/**
+ * retry-final-assembly (JOS-159), design Decision 2 — moves an assembly attempt's output from its per-attempt
+ * temporary path into the project folder, atomically and only once: `linkSync` is EEXIST-safe, the same idiom
+ * `writeArtefactOnce` uses above. `PROJECTS_ROOT` and every project folder are one local filesystem (this app's
+ * layout, unconditionally), so no cross-device fallback is needed — ponytail: if that ever stops being true, add
+ * an EXDEV -> copyFileSync fallback here. Returns `true` when the file now exists at `relativePath` (moved, or
+ * there was nothing at `tempPath` to move — a stub assembly tool in tests writes nothing, and only the caller's
+ * own store write matters then) and `false` only when something is already there (`EEXIST`): the caller treats
+ * that as superseded, the same as a refused `setFinalVideoPath`.
+ */
+export function moveAssemblyOutput(projectFolder: string, tempPath: string, relativePath: string): boolean {
+  if (!existsSync(tempPath)) return true;
+  const fullPath = assertWithinProjectFolder(projectFolder, relativePath);
+  try {
+    linkSync(tempPath, fullPath);
+  } catch (err: any) {
+    if (err?.code === "EEXIST") return false;
+    throw err;
+  } finally {
+    rmSync(tempPath, { force: true });
+  }
+  return true;
+}
+
+/** A loose but good-enough "is this a real MP4" check for the Decision 2 adopt rule: non-empty, with the `ftyp`
+ * box signature at offset 4 every MP4 (including this test suite's `buildMp4` fixture) carries. */
+export function isReadableMp4(fullPath: string): boolean {
+  try {
+    const fd = readFileSync(fullPath);
+    return fd.length >= 8 && fd.subarray(4, 8).toString("ascii") === "ftyp";
+  } catch {
+    return false;
+  }
 }
 
 export function createRun(id: string, title: string, script: string, language: string): Run {

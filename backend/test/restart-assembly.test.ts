@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import * as concurrency from "../src/concurrency.ts";
 import {
+  clearRunFailure,
   commitSceneResult,
   completeStageAttempt,
   createRun,
@@ -93,6 +94,10 @@ async function sessionReadyToAssemble(): Promise<string> {
   }
   launchVideoStageForRun(runId);
   await waitFor(() => getScenesForRun(runId).every((scene) => scene.status === "chunk-complete"));
+  // retry-final-assembly (JOS-159) — the last chunk completing auto-triggers assembly, and with no tool set
+  // (`beforeEach`) it now records a "no tool configured" failure instead of silently doing nothing. Every test
+  // in this file wants a clean slate to insert its own attempts into, not this stray one.
+  clearRunFailure(runId);
   return runId;
 }
 

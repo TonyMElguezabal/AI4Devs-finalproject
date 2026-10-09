@@ -20,25 +20,16 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 2. Backend: assembly failure on the session (TDD; design Decision 1)
 
-- [ ] 2.1 Write failing tests in the assembly test file. Each of the following records `{ phase: "assembly", cause, retryable, occurredAt }` and makes the session derive `failed` with `failedPhase: "assembly"`:
-  - an exhausted cycle;
-  - a not-retryable failure;
-  - no tool configured, with the tool never called;
-  - no voice-over;
-  - a missing clip file.
+- [x] 2.1 Wrote failing tests in a new `assembly-failure-recovery.test.ts`. Each of the following records `{ phase: "assembly", cause, retryable, manualRetryAvailable: true, cycle, attemptsInCycle, occurredAt }` and makes the session derive `failed` with `failedPhase: "assembly"`: an exhausted cycle; a not-retryable failure; no tool configured, with the tool never called; no voice-over, with the tool never called. (A missing clip file is covered by its own test, but not as a pre-check — see 2.3's note.) Also: a later success clears it, and the cause contains no absolute path. Every `readySession(...)`/fixture call had to set the assembly tool **before** bringing scenes to `chunk-complete` (the last scene completing auto-triggers assembly, racing a `setAssemblyTool` call made afterward) — the same ordering `assembly-phase.test.ts`'s own fixtures already use.
+- [x] 2.2 The exact test task 2.2 asks for already existed in `phase-progress.test.ts` ("carries the failure on an assembly entry given an assembly failure") — `derivePhaseProgress` is already fully generic over `SessionFailure["phase"]` and needed no change. Added one assertion to it confirming the earlier three phases are `complete`.
+- [x] 2.3 Added `AssemblyFailure` to `SessionFailure` (`types.ts`). Recorded the failure in `runAssemblyAttempt`'s three outcome paths (exhausted, not-retryable, and the restart-settle path in `settleAssemblyInFlight` for a cycle's last attempt interrupted by a restart — a gap task 1.1 found) and its two pre-checks (no tool, no voice-over). Extended `deriveSessionState`'s gate-open branch. Makes 2.1-2.2 pass.
 
-  Also: a later success clears it, and the cause contains no absolute path.
-- [ ] 2.2 Write failing tests in `phase-progress.test.ts` (from JOS-168): the assembly phase is `failed` and carries the cause, and the earlier phases are `complete`.
-- [ ] 2.3 Add `AssemblyFailure` to `SessionFailure`. Record the failure in `runAssemblyAttempt`'s three outcome paths and its pre-checks. Extend `deriveSessionState`. Make 2.1-2.2 pass.
+  **Found during implementation, corrected in design.md Decision 1**: dropped the originally-planned third pre-check (`existsSync` on each scene's clip file before calling the tool) — it broke several already-passing tests elsewhere in the suite (`repeated-confirmations.test.ts` and others) that complete a scene's clip at the store level only, with no real file, by design — the exact tension `retry-or-correct-image` (JOS-157) hit with its own `.strict()` schema. A missing/unreadable clip file now surfaces through the ordinary attempt path (the real adapter throws, the generic catch classifies it transient) instead of a special zero-attempt case.
 
 ## 3. Backend: output only on success (TDD; design Decision 2)
 
-- [ ] 3.1 Write failing tests:
-  - a failed attempt, including one where the stub tool writes a partial output before failing, leaves the project folder listing unchanged;
-  - a successful attempt adds exactly `final-video.mp4`;
-  - a pre-existing `final-video.mp4` with no recorded path is adopted, not overwritten, when it is a readable MP4;
-  - an existing final video is never replaced.
-- [ ] 3.2 Pass a per-attempt temporary `outputPath` to the tool, move it into the project folder on success without replacing a file (with the cross-device copy fallback), and remove the temp directory on failure; make 3.1 pass.
+- [x] 3.1 Wrote failing tests (a `fileWritingStub` helper that actually writes bytes to `outputPath`, since the project's `createStubAssemblyTool` doesn't, by design — a real adapter is what writes bytes): a failed attempt that wrote a partial output leaves the project folder listing unchanged; a successful attempt adds exactly `final-video.mp4`; a pre-existing readable `final-video.mp4` with no recorded path is adopted, not overwritten, and the tool is never called; an existing final video is never replaced by a further launch attempt.
+- [x] 3.2 Passed a per-attempt temporary `outputPath` to the tool (`mkdtempSync(join(PROJECTS_ROOT, ".assembly-tmp-"))`, not `os.tmpdir()` — design.md Decision 2's "Found during implementation" note drops the cross-device copy fallback as unneeded for this app's single-root layout); moved it into the project folder on success without replacing a file (`moveAssemblyOutput`, `db.ts`, mirrors `writeArtefactOnce`'s `linkSync`+EEXIST idiom); removed the temp directory on every outcome. Makes 3.1 pass.
 
 ## 4. Backend: launcher, retry service and derived state (TDD; design Decisions 3-5)
 

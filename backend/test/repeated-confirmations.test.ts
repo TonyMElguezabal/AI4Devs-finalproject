@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import * as concurrency from "../src/concurrency.ts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  clearRunFailure,
   commitSceneResult,
   countSceneVideoResults,
   createRun,
@@ -161,11 +162,14 @@ function completeSessionWithVoiceOver(): { runId: string; sceneId: string } {
   return { runId, sceneId };
 }
 
-/** A session with its voice-over stored and its only clip complete, so the assembly gate is open. No tool is set, so
- * the completing clip starts no assembly attempt. */
+/** A session with its voice-over stored and its only clip complete, so the assembly gate is open. No tool is set,
+ * so the completing clip's automatic trigger records a "no tool configured" failure (retry-final-assembly,
+ * JOS-159) instead of starting an attempt; cleared here so callers get the clean "gate open, nothing tried yet"
+ * state their own names describe. */
 function openGateSession(): { runId: string } {
   const { runId, sceneId } = completeSessionWithVoiceOver();
   deliverClipSuccessForTests(sceneId, "scene-1.mp4");
+  clearRunFailure(runId);
   return { runId };
 }
 
