@@ -24,10 +24,10 @@ Tests come first throughout: every behaviour gets a failing test before the code
 
 ## 3. Backend: payload and API schema (TDD)
 
-- [ ] 3.1 Write failing tests that `toSnapshot`, `GET /sessions/:id` and `POST /sessions` include `running` (always an array), matching the spec scenarios "Running and held beside each other", "Nothing running" and "A session-level phase in flight"
-- [ ] 3.2 Write a failing test that a live session event carries `running` and that a scene leaving `image-generating` updates it in the next event
-- [ ] 3.3 Add `running` to `SessionEventPayload` in `types.ts`, to `toSnapshot`, and to the Zod response schema in `routes.ts` (response only, described)
-- [ ] 3.4 Run the group 3 tests and confirm they pass
+- [x] 3.1 Write failing tests that `toSnapshot`, `GET /sessions/:id` and `POST /sessions` include `running` (always an array), matching the spec scenarios "Running and held beside each other", "Nothing running" and "A session-level phase in flight"
+- [x] 3.2 Write a failing test that a live session event carries `running` and that a scene leaving `image-generating` updates it in the next event
+- [x] 3.3 Add `running` to `SessionEventPayload` in `types.ts`, to `toSnapshot`, and to the Zod response schema in `routes.ts` (response only, described)
+- [x] 3.4 Run the group 3 tests and confirm they pass
 
 ## 4. Frontend: types and status mapping (TDD)
 

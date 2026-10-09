@@ -301,6 +301,9 @@ export interface SessionEventPayload {
   state: SessionState;
   paused: boolean; // Decision 8 — always its own field, never folded into `state`
   held: Array<{ stage: string; count: number }>; // only non-empty while paused; derived from registry
+  /** distinguish-paused-session (JOS-153), design Decisions 2-3 — stages with work actually in flight, derived from
+   * scene status and in-flight stage attempts. Computed whether or not the session is paused, unlike `held`. */
+  running: Array<{ stage: string; count: number }>;
   failedPhase?: string;
   /** gate-assembly-on-complete-scenes (JOS-150): the failed scenes' indexes, ascending; present only when `failedPhase` is `"scenes"`. Derived, never stored. */
   failedSceneIndexes?: number[];
