@@ -70,12 +70,12 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 9. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 9.1 Capture the pre-test baseline of the default store: row counts per table (`runs`, `stage_attempts`, `scenes`, `scene_video_results`), applied migrations, trigger list, and `data/projects/` contents.
-- [ ] 9.2 Run the targeted tests: the assembly tests, `assembly-retry`, `launch-gate`, `phase-progress`, `session-api-surface`, `components`.
-- [ ] 9.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`. Run the backend suite once more in a fresh worktree without `backend/.secrets.json`. Run the opt-in ffmpeg adapter test, if ffmpeg is installed, to cover the temp-then-move path with real files.
-- [ ] 9.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 9.5 Create the report `openspec/changes/retry-final-assembly/reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`.
-- [ ] 9.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 9.1 Captured the pre-test baseline: every data table at 0 rows, `schema_migrations` at 14, 17 triggers, `data/projects/` empty (one leftover empty directory from earlier ad-hoc runs this session was found and removed to reach this baseline).
+- [x] 9.2 Ran the targeted tests: 163/163 pass.
+- [x] 9.3 `npm run typecheck` clean in both. Full `npm test`: backend and frontend pass (one pre-existing, unrelated flake under full-suite load — see report). Reran the full backend+frontend suite in a fresh, disposable detached worktree with no `.secrets.json` — identical results. No automated ffmpeg-adapter test exists in this codebase to run (a pre-existing gap from JOS-149, out of scope — flagged to the user in the report).
+- [x] 9.4 Post-test state matched the baseline except two test runs' leftover rows/folders (from manually re-running one flaky test file in isolation); restored with `resetAll()` and removing the leftover project folder.
+- [x] 9.5 Report created: `openspec/changes/retry-final-assembly/reports/2026-10-09-step-9-unit-test-and-db-verification.md`.
+- [x] 9.6 Tests pass and the report exists.
 
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
