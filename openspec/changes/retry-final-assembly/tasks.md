@@ -59,12 +59,8 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 7. Frontend: retry action (TDD; design Decision 7)
 
-- [ ] 7.1 Write failing tests in `test/components.test.tsx`:
-  - `phaseActions` returns retry for a failed assembly phase and nothing otherwise;
-  - the Final video section shows the cause, `Retry final video` and no download when failed;
-  - a click calls `retryAssembly` and disables the button until the answer;
-  - a 409 reason is shown as its sentence.
-- [ ] 7.2 Implement `retryAssembly` in `api/client.ts`, the action in `phaseActions.ts`, and the button through the shared retry-button component; make 7.1 pass.
+- [x] 7.1 Wrote failing tests in `test/components.test.tsx`: `phaseActions` returns retry for a failed assembly phase whatever `retryable` is, and nothing otherwise (new "Final video section offers a retry" describe block, plus extended the two existing `phaseActions` tests covering the blanket "nothing for any other phase" case, which assembly's new retry makes partly false); the Final video section shows the cause, `Retry final video` and no download link when failed, for both a retryable and a not-retryable failure; a click calls `onRetryPhase("assembly")` and disables the button until the promise settles; each of the three 409 reasons shows its sentence, and an unknown one shows the generic sentence.
+- [x] 7.2 Implemented `retryAssembly` in `api/client.ts` (mirrors `retryDecomposition`), the `"assembly"` branch of `phaseActions` (`retry: true` whenever `status === "failed"`, independent of `retryable` — Decision 7), three new entries in `retryRefusals.ts`'s sentence table, and wired `App.tsx`'s `onRetryPhase` to call it for the `"assembly"` phase. No change needed to `PhaseSection`/`PhaseRetryButton`/`SessionPage` — Decision 7's whole point is that they are already phase-generic (`onRetry={() => onRetryPhase(progress.phase)}`), so the button and its refusal handling appeared automatically once `phaseActions` and `onRetryPhase` covered assembly. Makes 7.1 pass.
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
