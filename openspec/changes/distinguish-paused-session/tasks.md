@@ -71,13 +71,13 @@ Tests come first throughout: every behaviour gets a failing test before the code
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the backend on an isolated `DB_PATH` with the stub video provider and test endpoints enabled, and confirm it is reachable
-- [ ] 9.2 GET a session with nothing in flight and confirm `running: []`; POST a session and confirm the 201 body carries `running`
-- [ ] 9.3 Drive a session to have a scene in flight and others held while paused (pause, then launch via the test endpoints); GET it and confirm `running` and `held` are disjoint and match the scene states
-- [ ] 9.4 Continue the session; GET it and confirm `held` is empty and `running` reflects what was launched; then confirm `running` empties once the stub completes
-- [ ] 9.5 Error cases: GET an unknown and a malformed session id and confirm both answer 404 as before
-- [ ] 9.6 Delete the isolated DB and the project folders created, and confirm `data/skeleton.sqlite` and `data/projects/` match the pre-test state
-- [ ] 9.7 Save the transcript as `openspec/changes/distinguish-paused-session/reports/YYYY-MM-DD-step-9-curl-endpoint-testing.md`
+- [x] 9.1 Start the backend on an isolated `DB_PATH` with the stub video provider and test endpoints enabled, and confirm it is reachable
+- [x] 9.2 GET a session with nothing in flight and confirm `running: []`; POST a session and confirm the 201 body carries `running`
+- [x] 9.3 Drive a session to have a scene in flight and others held while paused (pause, then launch via the test endpoints); GET it and confirm `running` and `held` are disjoint and match the scene states
+- [x] 9.4 Continue the session; GET it and confirm `held` is empty and `running` reflects what was launched; then confirm `running` empties once the stub completes
+- [x] 9.5 Error cases: GET an unknown and a malformed session id and confirm both answer 404 as before
+- [x] 9.6 Delete the isolated DB and the project folders created, and confirm `data/skeleton.sqlite` and `data/projects/` match the pre-test state
+- [x] 9.7 Save the transcript as `openspec/changes/distinguish-paused-session/reports/YYYY-MM-DD-step-9-curl-endpoint-testing.md`
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
