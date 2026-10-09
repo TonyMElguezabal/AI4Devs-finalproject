@@ -66,7 +66,7 @@ export function SessionPage({
           {snapshot.session.phases.map((progress) => (
             <PhaseSection key={progress.phase} progress={progress} onRetry={() => onRetryPhase(progress.phase)}>
               {progress.phase === "scenes" && (
-                <SceneList sessionId={sessionId} scenes={snapshot.scenes} onRetry={onRetry} onCorrect={onCorrect} />
+                <SceneList sessionId={sessionId} scenes={snapshot.scenes} paused={snapshot.session.paused} onRetry={onRetry} onCorrect={onCorrect} />
               )}
               {progress.phase === "assembly" && (
                 <FinalVideoDownload state={snapshot.session.state} url={downloadFinalVideoUrl(sessionId)} />

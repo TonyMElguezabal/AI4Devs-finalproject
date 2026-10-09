@@ -141,6 +141,22 @@ describe("paused marker (Decision 8)", () => {
   });
 });
 
+// distinguish-paused-session (JOS-153), spec "Running reaches an open page live".
+describe("running reaches an open page live (JOS-153)", () => {
+  it("updates without a reload when a scene's work completes", async () => {
+    const { result } = renderHook(() => useLiveSession("s1"));
+    const source = FakeEventSource.instances[0]!;
+    act(() => source.emitOpen());
+    await waitFor(() => expect(result.current.snapshot).toBeDefined());
+
+    act(() => source.emitMessage(snapshot({ paused: true, running: [{ stage: "image", count: 1 }] })));
+    expect(result.current.snapshot!.session.running).toEqual([{ stage: "image", count: 1 }]);
+
+    act(() => source.emitMessage(snapshot({ paused: true, running: [] })));
+    expect(result.current.snapshot!.session.running).toEqual([]);
+  });
+});
+
 // task 8.5 — reconnection applies the catch-up rule (resync, not replay).
 describe("reconnection resync (Decision 3/4)", () => {
   it("re-fetches the full snapshot on every open, including reconnects", async () => {

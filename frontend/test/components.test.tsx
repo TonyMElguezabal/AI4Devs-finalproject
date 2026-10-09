@@ -673,6 +673,48 @@ describe("held indicator in session header and scene rows (JOS-152, task 8.1)", 
   });
 });
 
+// distinguish-paused-session (JOS-153), design Decision 6 — a generating, non-held scene says it is still
+// generating while the session is paused; a held scene says it is waiting for continue; neither label appears
+// when the session is not paused.
+describe("Scene rows: still generating vs waiting for continue (JOS-153)", () => {
+  it("a generating scene not held says it is still generating while paused", () => {
+    const scene = makeScene({ sceneId: "g1", index: 1, state: "image-generating" });
+    render(<SceneRow scene={scene} paused onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    expect(screen.getByText(/still generating/i)).toBeInTheDocument();
+    expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
+  });
+
+  it("a held scene says waiting for continue, not still generating, while paused, and is styled as waiting", () => {
+    const scene = makeScene({ sceneId: "h1", index: 1, state: "image-complete", held: true });
+    render(<SceneRow scene={scene} paused onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    expect(screen.getByText(/waiting for continue/i)).toBeInTheDocument();
+    expect(screen.queryByText(/still generating/i)).not.toBeInTheDocument();
+    const row = screen.getByRole("listitem", { name: "Scene 1" });
+    expect(row.className.split(/\s+/)).toContain("status-queued");
+    expect(row.className.split(/\s+/)).not.toContain(sceneStatusClass("image-complete"));
+  });
+
+  it("neither label appears when the session is not paused", () => {
+    const scene = makeScene({ sceneId: "g2", index: 1, state: "image-generating" });
+    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    expect(screen.queryByText(/still generating/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
+  });
+
+  it("a paused session still renders every scene row with its current state (spec: Progress stays visible while paused)", () => {
+    const scenes = [
+      makeScene({ sceneId: "c1", index: 1, state: "chunk-complete" }),
+      makeScene({ sceneId: "c2", index: 2, state: "image-generating" }),
+      makeScene({ sceneId: "c3", index: 3, state: "submitted", held: true }),
+    ];
+    render(<SceneList sessionId="s1" scenes={scenes} paused onRetry={() => {}} onCorrect={() => {}} />);
+
+    expect(screen.getByRole("listitem", { name: "Scene 1" })).toHaveTextContent("chunk-complete");
+    expect(screen.getByRole("listitem", { name: "Scene 2" })).toHaveTextContent("image-generating");
+    expect(screen.getByRole("listitem", { name: "Scene 3" })).toHaveTextContent("submitted");
+  });
+});
+
 // view-progress-by-phase (JOS-168), task 5.2 — design Decisions 6 and 7.
 describe("Phase actions, status classes and labels (JOS-168)", () => {
   const statuses: PhaseStatus[] = ["pending", "in-progress", "complete", "failed"];

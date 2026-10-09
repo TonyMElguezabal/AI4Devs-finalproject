@@ -7,6 +7,9 @@ import { formatStageDiagnostic } from "../stageDiagnostics";
 
 interface Props {
   scene: SceneEventPayload;
+  /** distinguish-paused-session (JOS-153), design Decision 6 — whether the session is paused; decides between
+   * "waiting for continue" (held) and "still generating" (sent before the pause, not held). */
+  paused?: boolean;
   onRetry: (sceneId: string) => void;
   onCorrect: (sceneId: string, instruction: string) => void;
   imageDownloadUrl: string;
@@ -27,20 +30,22 @@ interface Props {
  * show-scene-results-and-actions (JOS-151) — the details also show the
  * stored image and clip, and a failed scene's affected stage.
  */
-export function SceneRow({ scene, onRetry, onCorrect, imageDownloadUrl, videoDownloadUrl }: Props) {
+export function SceneRow({ scene, paused, onRetry, onCorrect, imageDownloadUrl, videoDownloadUrl }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [draftInstruction, setDraftInstruction] = useState(scene.instruction ?? "");
 
   const isFailed = scene.state === "failed";
   const actions = sceneActions(scene);
   const isComplete = scene.state === "chunk-complete";
+  const isGenerating = scene.state === "image-generating" || scene.state === "video-generating";
 
   return (
-    <li aria-label={`Scene ${scene.index}`} className={`scene-row ${sceneStatusClass(scene.state)}`}>
+    <li aria-label={`Scene ${scene.index}`} className={`scene-row ${sceneStatusClass(scene.state, scene.held)}`}>
       <span className="scene-summary">
         #{scene.index} — {scene.state}
       </span>
       {scene.held && <span className="scene-held"> — waiting for continue</span>}
+      {paused && !scene.held && isGenerating && <span className="scene-generating"> — still generating</span>}
       {isFailed && <span role="alert"> {scene.errorCause}</span>}
       <button type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
         {expanded ? `Hide scene ${scene.index} details` : `View scene ${scene.index} details`}

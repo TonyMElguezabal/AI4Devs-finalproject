@@ -47,11 +47,11 @@ Tests come first throughout: every behaviour gets a failing test before the code
 
 ## 6. Frontend: scene rows (TDD)
 
-- [ ] 6.1 Write failing tests: with the session paused, a held scene says "waiting for continue" and uses the waiting style; a scene in `image-generating` or `video-generating` that is not held says "still generating"; neither label appears when the session is not paused
-- [ ] 6.2 Write a failing test that a paused session still renders every scene row with its state (spec "Progress stays visible while paused")
-- [ ] 6.3 Pass `paused` from `SessionPage` → `SceneList` → `SceneRow` and update `SceneRow.tsx` to make 6.1–6.2 pass
-- [ ] 6.4 Write a failing test then change in `frontend/test/useLiveSession.test.tsx`: a live event that clears `paused` and changes `running` re-renders without reload (spec "The marker disappears on continue without a reload", "Running reaches an open page live")
-- [ ] 6.5 Run the group 6 tests and confirm they pass
+- [x] 6.1 Write failing tests: with the session paused, a held scene says "waiting for continue" and uses the waiting style; a scene in `image-generating` or `video-generating` that is not held says "still generating"; neither label appears when the session is not paused
+- [x] 6.2 Write a failing test that a paused session still renders every scene row with its state (spec "Progress stays visible while paused")
+- [x] 6.3 Pass `paused` from `SessionPage` → `SceneList` → `SceneRow` and update `SceneRow.tsx` to make 6.1–6.2 pass
+- [x] 6.4 Write a failing test then change in `frontend/test/useLiveSession.test.tsx`: a live event that clears `paused` and changes `running` re-renders without reload (spec "The marker disappears on continue without a reload", "Running reaches an open page live")
+- [x] 6.5 Run the group 6 tests and confirm they pass
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
