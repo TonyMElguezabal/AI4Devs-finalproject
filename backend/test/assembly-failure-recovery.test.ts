@@ -9,6 +9,7 @@ import {
   getRun,
   getScenesForRun,
   getStageAttempts,
+  getVoiceOver,
   insertVoiceOver,
   markImageComplete,
   resetAll,
@@ -27,13 +28,14 @@ import {
   setAssemblyTool,
   toSnapshot,
 } from "../src/orchestrator.ts";
+import { retryAssembly } from "../src/assemblyRetry.ts";
 import {
   createStubVideoProvider,
   resetVideoDownloadFetch,
   resetVideoProviderRegistry,
   setVideoProviderRegistry,
 } from "../src/videoProvider.ts";
-import { createStubAssemblyTool, type StubAssemblyMode } from "../src/stubAssemblyTool.ts";
+import { createCapturingAssemblyTool, createStubAssemblyTool, type CapturedAssemblyInput, type StubAssemblyMode } from "../src/stubAssemblyTool.ts";
 import type { AssemblyTool } from "../src/assemblyTool.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
@@ -341,19 +343,56 @@ describe("The final video appears in the project folder only on success (JOS-159
 
 // ---- Group 5 — a failure or a retry touches nothing generated (design Decision 6) ----
 
-describe("Nothing generated is touched by an assembly failure (JOS-159, design Decision 6)", () => {
-  it("leaves the voice-over, scenes and their stored results unchanged after a failed cycle", async () => {
+describe("Nothing generated is touched by an assembly failure or retry (JOS-159, design Decision 6)", () => {
+  /** A full session with its own tracked video provider, so "the provider received nothing" is checkable. */
+  async function sessionWithTrackedProvider(): Promise<{ runId: string; videoProvider: ReturnType<typeof createStubVideoProvider> }> {
     const runId = randomUUID();
     createRun(runId, "Assembly recovery test", makeScript(2), "en");
     addFakeVoiceOver(runId, 2);
+    const videoProvider = createStubVideoProvider("success-bytes", { bytes: MP4_BYTES });
+    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER, adapters: { [TEST_VIDEO_PROVIDER]: videoProvider } });
     setAssemblyTool(createStubAssemblyTool({ kind: "not-retryable-failure" }));
     await bringToChunkComplete(runId, 2);
-    const beforeScenes = getScenesForRun(runId);
-    const beforeVoiceOver = getRun(runId);
-
     await waitFor(() => getRun(runId)?.failure?.phase === "assembly", 5000);
+    return { runId, videoProvider };
+  }
+
+  it("leaves the voice-over, scenes, their stored results and files unchanged across a failed first run, a failed retry and a successful retry", async () => {
+    const { runId, videoProvider } = await sessionWithTrackedProvider();
+    const run = getRun(runId)!;
+    const beforeScenes = getScenesForRun(runId);
+    const beforeVoiceOver = getVoiceOver(runId);
+    const beforeVoiceOverBytes = readFileSync(resolveArtefactPath(run.projectFolder, beforeVoiceOver!.audioPath));
+    const beforeImageBytes = beforeScenes.map((s) => readFileSync(resolveArtefactPath(run.projectFolder, s.result!)));
+    const videoCallsAfterFirstRun = videoProvider.calls.length;
+
+    // A failed retry.
+    setAssemblyTool(createStubAssemblyTool({ kind: "not-retryable-failure", reason: "still failing" }));
+    expect(retryAssembly(runId)).toEqual({ ok: true, held: false });
+    await waitFor(() => getRun(runId)?.failure?.cause.includes("still failing") ?? false, 5000);
 
     expect(getScenesForRun(runId)).toEqual(beforeScenes);
-    expect(getRun(runId)?.title).toBe(beforeVoiceOver?.title);
+    expect(getVoiceOver(runId)).toEqual(beforeVoiceOver);
+    expect(readFileSync(resolveArtefactPath(run.projectFolder, beforeVoiceOver!.audioPath))).toEqual(beforeVoiceOverBytes);
+    expect(videoProvider.calls.length).toBe(videoCallsAfterFirstRun);
+
+    // A successful retry.
+    const captured: CapturedAssemblyInput[] = [];
+    setAssemblyTool(createCapturingAssemblyTool(captured));
+    expect(retryAssembly(runId)).toEqual({ ok: true, held: false });
+    await waitFor(() => getRun(runId)?.finalVideoPath != null, 5000);
+
+    expect(getScenesForRun(runId)).toEqual(beforeScenes);
+    expect(getVoiceOver(runId)).toEqual(beforeVoiceOver);
+    expect(readFileSync(resolveArtefactPath(run.projectFolder, beforeVoiceOver!.audioPath))).toEqual(beforeVoiceOverBytes);
+    beforeScenes.forEach((s, i) => expect(readFileSync(resolveArtefactPath(run.projectFolder, s.result!))).toEqual(beforeImageBytes[i]));
+    expect(videoProvider.calls.length).toBe(videoCallsAfterFirstRun);
+
+    // The tool receives the clips in scene order with their stored intervals.
+    expect(captured).toHaveLength(1);
+    expect(captured[0]!.clips.map((c) => c.narrationStartSeconds)).toEqual(beforeScenes.map((s) => s.narrationInterval!.startSeconds));
+    expect(captured[0]!.clips.map((c) => c.narrationDurationSeconds)).toEqual(
+      beforeScenes.map((s) => s.narrationInterval!.endSeconds - s.narrationInterval!.startSeconds),
+    );
   });
 });

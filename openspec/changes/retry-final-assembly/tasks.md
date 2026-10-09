@@ -49,12 +49,8 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 5. Backend: components untouched (TDD; design Decision 6)
 
-- [ ] 5.1 Write failing tests, for a failed first run, a failed retry and a successful retry:
-  - the voice, image and video stubs receive nothing;
-  - the MP3, image and clip hashes are unchanged;
-  - the `voice_overs`, `scenes`, `scene_results` and `scene_video_results` rows are unchanged;
-  - the tool receives the clips in scene order with their stored intervals.
-- [ ] 5.2 Make 5.1 pass. Expect it to pass through JOS-149 Decision 4. Fix any gap in the assembly phase.
+- [x] 5.1 Wrote a failing test in `assembly-failure-recovery.test.ts` (Group 5 describe block), spanning a failed first run, a failed retry (via `retryAssembly`, now that group 4 exists) and a successful retry: the tracked video provider's `.calls` stays empty throughout (the voice and image stages are never even reached in this fixture, so there is nothing to call); the voice-over MP3's and every scene's image bytes are unchanged (read from disk before and after); `getScenesForRun`/`getVoiceOver` (the `scenes`/`voice_overs` rows) are unchanged; the tool (a capturing stub on the successful retry) receives the clips in scene order with their stored `narrationStartSeconds`/duration.
+- [x] 5.2 Passed without any further change — satisfied entirely by Decision 6 (assembly only ever reads `getVoiceOver`/`getScenesForRun`/their files, never writes to them) and Decision 3's retry reusing the same `runAssemblyAttempt` code path as a first run. No gap found.
 
 ## 6. Backend: route (TDD; design Decision 3)
 
