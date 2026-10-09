@@ -859,10 +859,17 @@ describe("Phase actions, status classes and labels (JOS-168)", () => {
     expect(phaseActions({ phase: "decomposition", status: "failed", heldCount: 0, stages: [] })).toEqual({ retry: false });
   });
 
-  it("phaseActions offers nothing for a decomposition phase that has not failed, or for any other phase, until their stories add endpoints", () => {
+  it("phaseActions offers retry for a failed assembly phase whatever retryable is, and nothing otherwise (JOS-159)", () => {
+    expect(phaseActions({ phase: "assembly", status: "failed", heldCount: 0, stages: [], failure: { cause: "x", retryable: true } })).toEqual({ retry: true });
+    expect(phaseActions({ phase: "assembly", status: "failed", heldCount: 0, stages: [], failure: { cause: "x", retryable: false } })).toEqual({ retry: true });
+    expect(phaseActions({ phase: "assembly", status: "complete", heldCount: 0, stages: [] })).toEqual({ retry: false });
+    expect(phaseActions({ phase: "voice-over", status: "failed", heldCount: 0, stages: [], failure: { cause: "x", retryable: true } })).toEqual({ retry: false });
+  });
+
+  it("phaseActions offers nothing for a decomposition or assembly phase that has not failed, or for any other phase at all (voice-over and scenes have no phase-level retry)", () => {
     for (const phase of PHASE_ORDER) {
       for (const status of statuses) {
-        if (phase === "decomposition" && status === "failed") continue;
+        if ((phase === "decomposition" || phase === "assembly") && status === "failed") continue;
         expect(phaseActions({ phase, status, heldCount: 0, stages: [], failure: status === "failed" ? { cause: "x", retryable: true } : undefined })).toEqual({ retry: false });
       }
     }
@@ -1079,6 +1086,73 @@ describe("The Decomposition section offers a retry (JOS-156)", () => {
     await user.click(decompositionSection().getByRole("button", { name: "Retry decomposition" }));
 
     expect(await decompositionSection().findByText("The retry could not be started.")).toBeInTheDocument();
+  });
+});
+
+// retry-final-assembly (JOS-159), group 7 — design Decision 7: assembly always offers a retry, whatever retryable is.
+describe("The Final video section offers a retry (JOS-159)", () => {
+  const noop = () => {};
+  const cause = "The final video could not be assembled: stub failure. Your narration, images and clips are kept.";
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {} };
+
+  function failedAssembly(retryable: boolean) {
+    const session = makeSession({
+      state: "failed",
+      failedPhase: "assembly",
+      phases: makePhases(
+        { "voice-over": "complete", decomposition: "complete", scenes: "complete", assembly: "failed" },
+        { assembly: { failure: { cause, retryable } } },
+      ),
+    });
+    return { session, scenes: [] };
+  }
+
+  const finalVideoSection = () => within(screen.getByRole("region", { name: "Final video phase" }));
+
+  it("shows the cause, Retry final video, and no download, whether or not the failure is retryable", () => {
+    for (const retryable of [true, false]) {
+      const { unmount } = render(<SessionPage {...baseProps} onRetryPhase={vi.fn()} snapshot={failedAssembly(retryable)} />);
+
+      expect(finalVideoSection().getByRole("alert")).toHaveTextContent(cause);
+      expect(finalVideoSection().getByRole("button", { name: "Retry final video" })).toBeEnabled();
+      expect(finalVideoSection().queryByRole("link", { name: /download/i })).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it("shows no button while the phase has not failed", () => {
+    const session = makeSession({ state: "final-video-generating", phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "complete", assembly: "in-progress" }) });
+    render(<SessionPage {...baseProps} onRetryPhase={vi.fn()} snapshot={{ session, scenes: [] }} />);
+
+    expect(screen.queryByRole("button", { name: /Retry final video/ })).not.toBeInTheDocument();
+  });
+
+  it("calls the retry for the assembly phase on a click, and disables the button until the answer", async () => {
+    const user = userEvent.setup();
+    let answer: (value: { ok: true; held: boolean }) => void = () => {};
+    const onRetryPhase = vi.fn(() => new Promise<{ ok: true; held: boolean }>((resolve) => (answer = resolve)));
+    render(<SessionPage {...baseProps} onRetryPhase={onRetryPhase} snapshot={failedAssembly(true)} />);
+
+    await user.click(finalVideoSection().getByRole("button", { name: "Retry final video" }));
+
+    expect(onRetryPhase).toHaveBeenCalledExactlyOnceWith("assembly");
+    expect(finalVideoSection().getByRole("button", { name: "Retry final video" })).toBeDisabled();
+    answer({ ok: true, held: false });
+    await waitFor(() => expect(finalVideoSection().getByRole("button", { name: "Retry final video" })).toBeEnabled());
+  });
+
+  it.each([
+    ["not-failed-in-assembly", "The final video has not failed, so it cannot be retried."],
+    ["scenes-not-complete", "Not every scene is ready yet, so the final video cannot be retried."],
+    ["final-video-already-generated", "The final video was already generated."],
+  ])("shows the sentence for the refusal %s", async (reason, sentence) => {
+    const user = userEvent.setup();
+    render(<SessionPage {...baseProps} onRetryPhase={vi.fn().mockRejectedValue(new Error(reason))} snapshot={failedAssembly(true)} />);
+
+    await user.click(finalVideoSection().getByRole("button", { name: "Retry final video" }));
+
+    expect(await finalVideoSection().findByText(sentence)).toBeInTheDocument();
+    expect(finalVideoSection().getByRole("button", { name: "Retry final video" })).toBeEnabled();
   });
 });
 
