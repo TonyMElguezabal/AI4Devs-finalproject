@@ -167,8 +167,16 @@ button:hover:not(:disabled) {
   margin: 0;
 }
 
-.session-state-line.paused {
-  color: var(--color-muted);
+/* distinguish-paused-session (JOS-153), design Decision 7 — its own class, coloured with the queued token;
+ * never the complete or failed colour, so the header's own border (the state's class, above) carries that. */
+.session-paused-marker {
+  margin: 0;
+  color: var(--color-status-queued);
+}
+
+.session-running-line,
+.held-stages {
+  margin: 0;
 }
 
 /* Phase sections (view-progress-by-phase, JOS-168) */

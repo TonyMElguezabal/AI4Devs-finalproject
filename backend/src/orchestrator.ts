@@ -43,7 +43,7 @@ import {
 } from "./db.ts";
 import type { AssemblyTool } from "./assemblyTool.ts";
 import * as concurrency from "./concurrency.ts";
-import { admitLaunch, launchHeldWork, registerStageLauncher, relaunchPendingWork, RESTART_CAUSE, sessionHeldWork, settleAllInFlight, type SettleSummary, type StageLauncher } from "./launchGate.ts";
+import { admitLaunch, launchHeldWork, registerStageLauncher, relaunchPendingWork, RESTART_CAUSE, sessionHeldWork, sessionRunningWork, settleAllInFlight, type SettleSummary, type StageLauncher } from "./launchGate.ts";
 import { describeProvider, diagnosticStageOf, type StageDiagnostic } from "./stageDiagnostics.ts";
 import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
@@ -311,6 +311,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const voiceOver = getVoiceOver(runId);
   const heldWork = sessionHeldWork(runId);
   const heldSceneIds = heldWork.sceneIds;
+  const runningWork = sessionRunningWork(runId);
   const requestCounts = countProviderRequestsByScene(runId);
   const session: SessionEventPayload = {
     type: "session",
@@ -321,6 +322,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     state,
     paused: run.paused,
     held: heldWork.stages.map((s) => ({ stage: s.stage, count: s.count })),
+    running: runningWork.map((s) => ({ stage: s.stage, count: s.count })),
     failedPhase,
     failedSceneIndexes,
     voiceOver: voiceOver

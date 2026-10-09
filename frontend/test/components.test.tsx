@@ -46,6 +46,7 @@ function makeSession(overrides: Partial<SessionEventPayload>): SessionEventPaylo
     state: "submitted",
     paused: false,
     held: [],
+    running: [],
     phases: makePhases(),
     updatedAt: "2026-09-25T00:00:00.000Z",
     ...overrides,
@@ -326,6 +327,18 @@ describe("Scene status class mapping (define-visual-design, Decision 2)", () => 
       expect(screen.getByText(new RegExp(`— ${state}$`))).toBeInTheDocument();
     });
   }
+
+  // distinguish-paused-session (JOS-153), design Decision 6 — a held scene maps to status-queued whatever its
+  // state; a non-held scene keeps its current mapping.
+  for (const state of ALL_SCENE_STATES) {
+    it(`maps held scene state "${state}" to status-queued`, () => {
+      expect(sceneStatusClass(state, true)).toBe("status-queued");
+    });
+
+    it(`keeps the unheld mapping for scene state "${state}"`, () => {
+      expect(sceneStatusClass(state, false)).toBe(sceneStatusClass(state));
+    });
+  }
 });
 
 // define-visual-design tasks 1.2/1.3 — same guarantee for the 8 session
@@ -359,6 +372,120 @@ describe("Session status class mapping (define-visual-design, Decision 2)", () =
 
     expect(screen.getByText(/paused/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue session" })).toBeInTheDocument();
+  });
+});
+
+// distinguish-paused-session (JOS-153), design Decision 5 — the marker, the running line and the held line as
+// separate statements, in order, beside the state; none of them shown unpaused.
+describe("SessionHeader paused and running display (JOS-153)", () => {
+  it("shows the state and the paused marker as separate statements, the marker not an alert", () => {
+    const session = makeSession({ state: "chunks-processing", paused: true });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.getByText("chunks-processing")).toBeInTheDocument();
+    const marker = screen.getByText("Paused — waiting for you to continue");
+    expect(marker).toBeInTheDocument();
+    expect(marker.closest('[role="alert"]')).toBeNull();
+  });
+
+  it("shows what is still generating from running", () => {
+    const session = makeSession({ state: "chunks-processing", paused: true, running: [{ stage: "image", count: 1 }] });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.getByText(/still generating: 1 image/i)).toBeInTheDocument();
+  });
+
+  it("shows nothing is generating when running is empty", () => {
+    const session = makeSession({ state: "chunks-processing", paused: true, running: [] });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.getByText(/nothing is generating/i)).toBeInTheDocument();
+  });
+
+  it("shows waiting for continue from held, and omits it when held is empty", () => {
+    const withHeld = makeSession({ state: "chunks-processing", paused: true, held: [{ stage: "image", count: 2 }] });
+    const { rerender } = render(<SessionHeader session={withHeld} onPause={() => {}} onContinue={() => {}} />);
+    expect(screen.getByText(/waiting for continue: 2 image/i)).toBeInTheDocument();
+
+    rerender(<SessionHeader session={makeSession({ state: "chunks-processing", paused: true, held: [] })} onPause={() => {}} onContinue={() => {}} />);
+    expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
+  });
+
+  it("shows none of the marker, running or held line when not paused", () => {
+    const session = makeSession({ state: "chunks-processing", paused: false, running: [{ stage: "image", count: 1 }], held: [] });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.queryByText(/paused/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/still generating/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/nothing is generating/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps the failed phase and failed scenes visible, with the marker as its own statement, when paused and failed", () => {
+    const session = makeSession({ state: "failed", paused: true, failedPhase: "scenes", failedSceneIndexes: [2, 5] });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.getByText(/Failed phase: scenes/)).toBeInTheDocument();
+    expect(screen.getByText(/Failed scenes: 2, 5/)).toBeInTheDocument();
+    expect(screen.getByText("Paused — waiting for you to continue")).toBeInTheDocument();
+  });
+
+  it("keeps the header's state styling (not complete or failed) when paused in chunks-processing", () => {
+    const session = makeSession({ state: "chunks-processing", paused: true });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+    const section = screen.getByRole("region", { name: "Session status" });
+    expect(section.className.split(/\s+/)).toContain(sessionStatusClass("chunks-processing"));
+    expect(section.className).not.toContain("status-complete");
+    expect(section.className).not.toContain("status-failed");
+  });
+
+  it("keeps the header's final-video styling when paused in final-video", () => {
+    const session = makeSession({ state: "final-video", paused: true });
+    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+
+    const section = screen.getByRole("region", { name: "Session status" });
+    expect(section.className.split(/\s+/)).toContain(sessionStatusClass("final-video"));
+  });
+});
+
+// distinguish-paused-session (JOS-153), design Decision 8 — Continue whenever paused, in every state; Pause
+// whenever not paused and not final-video; never both.
+describe("SessionHeader Continue/Pause availability (JOS-153, design Decision 8)", () => {
+  const ALL_SESSION_STATES: SessionState[] = [
+    "submitted",
+    "voice-over-generating",
+    "voice-over-complete",
+    "chunk-decomposing",
+    "chunks-processing",
+    "final-video-generating",
+    "final-video",
+    "failed",
+  ];
+
+  for (const state of ALL_SESSION_STATES) {
+    it(`offers Continue and not Pause when paused in ${state}`, () => {
+      render(<SessionHeader session={makeSession({ state, paused: true })} onPause={() => {}} onContinue={() => {}} />);
+
+      expect(screen.getByRole("button", { name: "Continue session" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Pause session" })).not.toBeInTheDocument();
+    });
+  }
+
+  for (const state of ALL_SESSION_STATES.filter((s) => s !== "final-video")) {
+    it(`offers Pause and not Continue when not paused in ${state}`, () => {
+      render(<SessionHeader session={makeSession({ state, paused: false })} onPause={() => {}} onContinue={() => {}} />);
+
+      expect(screen.getByRole("button", { name: "Pause session" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Continue session" })).not.toBeInTheDocument();
+    });
+  }
+
+  it("offers neither control when not paused in final-video", () => {
+    render(<SessionHeader session={makeSession({ state: "final-video", paused: false })} onPause={() => {}} onContinue={() => {}} />);
+
+    expect(screen.queryByRole("button", { name: "Pause session" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Continue session" })).not.toBeInTheDocument();
   });
 });
 
@@ -518,13 +645,13 @@ describe("SessionPage", () => {
   });
 });
 
-// JOS-152 task 8.1 — held indicator in header and scene rows
+// JOS-152 task 8.1 — held indicator in header and scene rows (wording updated by JOS-153, design Decision 5)
 describe("held indicator in session header and scene rows (JOS-152, task 8.1)", () => {
   it("shows held stages and count in header when paused with held work", () => {
     const session = makeSession({ state: "chunks-processing", paused: true, held: [{ stage: "image", count: 2 }] });
     render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
     expect(screen.getByText(/paused/i)).toBeInTheDocument();
-    expect(screen.getByText(/2 image held/i)).toBeInTheDocument();
+    expect(screen.getByText(/waiting for continue: 2 image/i)).toBeInTheDocument();
   });
 
   it("does not show held stages when not paused", () => {
@@ -543,6 +670,48 @@ describe("held indicator in session header and scene rows (JOS-152, task 8.1)", 
     const scene = makeScene({ sceneId: "g1", index: 1, state: "image-generating" });
     render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
+  });
+});
+
+// distinguish-paused-session (JOS-153), design Decision 6 — a generating, non-held scene says it is still
+// generating while the session is paused; a held scene says it is waiting for continue; neither label appears
+// when the session is not paused.
+describe("Scene rows: still generating vs waiting for continue (JOS-153)", () => {
+  it("a generating scene not held says it is still generating while paused", () => {
+    const scene = makeScene({ sceneId: "g1", index: 1, state: "image-generating" });
+    render(<SceneRow scene={scene} paused onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    expect(screen.getByText(/still generating/i)).toBeInTheDocument();
+    expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
+  });
+
+  it("a held scene says waiting for continue, not still generating, while paused, and is styled as waiting", () => {
+    const scene = makeScene({ sceneId: "h1", index: 1, state: "image-complete", held: true });
+    render(<SceneRow scene={scene} paused onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    expect(screen.getByText(/waiting for continue/i)).toBeInTheDocument();
+    expect(screen.queryByText(/still generating/i)).not.toBeInTheDocument();
+    const row = screen.getByRole("listitem", { name: "Scene 1" });
+    expect(row.className.split(/\s+/)).toContain("status-queued");
+    expect(row.className.split(/\s+/)).not.toContain(sceneStatusClass("image-complete"));
+  });
+
+  it("neither label appears when the session is not paused", () => {
+    const scene = makeScene({ sceneId: "g2", index: 1, state: "image-generating" });
+    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    expect(screen.queryByText(/still generating/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
+  });
+
+  it("a paused session still renders every scene row with its current state (spec: Progress stays visible while paused)", () => {
+    const scenes = [
+      makeScene({ sceneId: "c1", index: 1, state: "chunk-complete" }),
+      makeScene({ sceneId: "c2", index: 2, state: "image-generating" }),
+      makeScene({ sceneId: "c3", index: 3, state: "submitted", held: true }),
+    ];
+    render(<SceneList sessionId="s1" scenes={scenes} paused onRetry={() => {}} onCorrect={() => {}} />);
+
+    expect(screen.getByRole("listitem", { name: "Scene 1" })).toHaveTextContent("chunk-complete");
+    expect(screen.getByRole("listitem", { name: "Scene 2" })).toHaveTextContent("image-generating");
+    expect(screen.getByRole("listitem", { name: "Scene 3" })).toHaveTextContent("submitted");
   });
 });
 

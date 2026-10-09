@@ -185,6 +185,21 @@ paths:
                             - count
                           additionalProperties: false
                         description: Stages with held work; empty when not paused.
+                      running:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            stage:
+                              type: string
+                            count:
+                              type: number
+                          required:
+                            - stage
+                            - count
+                          additionalProperties: false
+                        description: Stages with work actually in flight, computed whether or not
+                          the session is paused (JOS-153).
                       failedPhase:
                         type: string
                       failedSceneIndexes:
@@ -355,6 +370,7 @@ paths:
                       - state
                       - paused
                       - held
+                      - running
                       - phases
                       - createdAt
                       - updatedAt
@@ -603,6 +619,21 @@ paths:
                             - count
                           additionalProperties: false
                         description: Stages with held work; empty when not paused.
+                      running:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            stage:
+                              type: string
+                            count:
+                              type: number
+                          required:
+                            - stage
+                            - count
+                          additionalProperties: false
+                        description: Stages with work actually in flight, computed whether or not
+                          the session is paused (JOS-153).
                       failedPhase:
                         type: string
                       failedSceneIndexes:
@@ -773,6 +804,7 @@ paths:
                       - state
                       - paused
                       - held
+                      - running
                       - phases
                       - createdAt
                       - updatedAt

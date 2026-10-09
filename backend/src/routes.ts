@@ -164,6 +164,9 @@ const sessionResponseSchema = z.object({
   state: z.string(),
   paused: z.boolean(),
   held: z.array(z.object({ stage: z.string(), count: z.number() })).describe("Stages with held work; empty when not paused."),
+  running: z
+    .array(z.object({ stage: z.string(), count: z.number() }))
+    .describe("Stages with work actually in flight, computed whether or not the session is paused (JOS-153)."),
   failedPhase: z.string().optional(),
   failedSceneIndexes: z
     .array(z.number().int())

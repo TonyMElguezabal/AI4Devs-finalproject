@@ -1,4 +1,5 @@
-import { getRun } from "./db.ts";
+import { getRun, getScenesForRun, getStageAttempts } from "./db.ts";
+import { ATTEMPT_STAGES, type AttemptStage } from "./types.ts";
 
 // pause-and-continue-session (JOS-152) — the single gate every provider
 // launch asks before sending. Design Decisions 1, 3, 10.
@@ -100,6 +101,41 @@ export function sessionHeldWork(sessionId: string): SessionHeldWork {
   }
 
   return { stages, sceneIds };
+}
+
+// distinguish-paused-session (JOS-153), design Decision 2 — every `AttemptStage` maps to the pipeline stage it
+// counts under. A `Record` over the full union, not a partial lookup, so a new `AttemptStage` with no mapping is a
+// compile error; the "every AttemptStage value maps to a pipeline stage" test in launch-gate.test.ts covers the
+// same thing at runtime for anyone editing this file directly.
+const ATTEMPT_STAGE_TO_PIPELINE_STAGE: Record<AttemptStage, PipelineStage> = {
+  "voice-over": "voice-over",
+  timestamps: "decomposition",
+  decomposition: "decomposition",
+  image: "image",
+  video: "video",
+  assembly: "assembly",
+};
+
+/**
+ * distinguish-paused-session (JOS-153), design Decision 2 — the counterpart of `sessionHeldWork`: what is actually
+ * in flight right now, read directly from scene status and in-flight stage attempts, never from the launcher
+ * registry (image and video have no in-flight stage-attempt rows; voice-over, decomposition and assembly do).
+ * Computed whether or not the session is paused (Decision 3) — the page shows it only beside the paused marker.
+ */
+export function sessionRunningWork(sessionId: string): ReadonlyArray<{ stage: PipelineStage; count: number }> {
+  const counts = new Map<PipelineStage, number>();
+  const bump = (stage: PipelineStage) => counts.set(stage, (counts.get(stage) ?? 0) + 1);
+
+  for (const scene of getScenesForRun(sessionId)) {
+    if (scene.status === "image-generating") bump("image");
+    if (scene.status === "video-generating") bump("video");
+  }
+  for (const attemptStage of ATTEMPT_STAGES) {
+    const inFlightCount = getStageAttempts(sessionId, attemptStage).filter((a) => a.outcome === "in-flight").length;
+    for (let i = 0; i < inFlightCount; i++) bump(ATTEMPT_STAGE_TO_PIPELINE_STAGE[attemptStage]);
+  }
+
+  return PIPELINE_STAGES.filter((stage) => (counts.get(stage) ?? 0) > 0).map((stage) => ({ stage, count: counts.get(stage)! }));
 }
 
 export function launchHeldWork(sessionId: string): void {

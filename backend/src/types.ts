@@ -109,8 +109,13 @@ export interface VoiceOverInput {
 
 export type VoiceOver = VoiceOverInput;
 
-/** Stages that record attempts, including session-level and scene-level stages. */
-export type AttemptStage = "voice-over" | "timestamps" | "decomposition" | "image" | "video" | "assembly";
+/**
+ * Stages that record attempts, including session-level and scene-level stages. Exported as an array (not only a
+ * union) so `sessionRunningWork` (distinguish-paused-session, JOS-153) can map every value to a pipeline stage and
+ * a test can assert the mapping is total, instead of relying on a compile-time check alone.
+ */
+export const ATTEMPT_STAGES = ["voice-over", "timestamps", "decomposition", "image", "video", "assembly"] as const;
+export type AttemptStage = (typeof ATTEMPT_STAGES)[number];
 
 /** How the narration timestamps were obtained (PRD §11.1). */
 export type TimestampMechanism = "native" | "alignment";
@@ -296,6 +301,9 @@ export interface SessionEventPayload {
   state: SessionState;
   paused: boolean; // Decision 8 — always its own field, never folded into `state`
   held: Array<{ stage: string; count: number }>; // only non-empty while paused; derived from registry
+  /** distinguish-paused-session (JOS-153), design Decisions 2-3 — stages with work actually in flight, derived from
+   * scene status and in-flight stage attempts. Computed whether or not the session is paused, unlike `held`. */
+  running: Array<{ stage: string; count: number }>;
   failedPhase?: string;
   /** gate-assembly-on-complete-scenes (JOS-150): the failed scenes' indexes, ascending; present only when `failedPhase` is `"scenes"`. Derived, never stored. */
   failedSceneIndexes?: number[];
