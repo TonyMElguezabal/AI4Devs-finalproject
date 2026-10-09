@@ -15,19 +15,18 @@ Assembly is the last step, run once every scene is complete. When it fails, §10
 
 ## What Changes
 
-- **An assembly failure is recorded on the session (AC1)**: when assembly runs out of attempts, fails not-retryably, or cannot start (no assembly tool, no voice-over, a clip file missing or unreadable), the session records `{ phase: "assembly", cause, retryable, occurredAt }`. The cause is readable and says the narration, images and clips are kept. The session then derives `failed` with `failedPhase: "assembly"`. Success clears the failure.
+- **An assembly failure is recorded on the session (AC1)**: when assembly runs out of attempts, fails not-retryably, or cannot start (no assembly tool, no voice-over), the session records `{ phase: "assembly", cause, retryable, occurredAt }`. A missing or unreadable clip file is not a separate "cannot start" case — it surfaces through the ordinary attempt, like any other tool failure. The cause is readable and says the narration, images and clips are kept. The session then derives `failed` with `failedPhase: "assembly"`. Success clears the failure.
 - **Nothing generated is touched by a failure or a retry (AC1, AC3)**:
   - Assembly reads the voice-over, the chunks and the clip files, and writes none of them.
   - Each attempt writes its output to a temporary file outside the project folder. On success, it moves the file to `final-video.mp4` without replacing an existing file.
   - A failed attempt leaves nothing in the project folder.
 - **A manual assembly retry command (AC2)**: `POST /sessions/:sessionId/assembly/retry`, with no request body, following the per-phase retry pattern from `retry-voice-over` (JOS-155) and `retry-decomposition` (JOS-156). It is accepted only when:
-  - the session is `failed` with `failedPhase: "assembly"`;
+  - the session is `failed` with `failedPhase: "assembly"` (this one check also covers "no retry is already pending or running" — claiming the retry clears the failure atomically, so a second, losing concurrent request lands on this same reason, not a separate one);
   - every scene is still `chunk-complete`;
-  - no final video exists;
-  - no retry is already pending or running.
+  - no final video exists.
 
   Refusals answer 409 with a reason code, an unknown session answers 404, and any body field answers 400.
-- **A new cycle, through the gate**: the retry opens a new cycle on the session's `assembly` stage instance (JOS-184 `startNewCycle`), giving up to four attempts. It is launched through the phase-launch gate, by a newly registered `assembly` stage launcher. The same launcher resumes an assembly held by a pause, whether it is a first run or a retry. `assembly` comes off `NOT_YET_LAUNCHABLE`.
+- **A new cycle, through the gate**: the retry opens a new cycle on the session's `assembly` stage instance, giving up to four attempts, by re-launching through the same `assembly` stage launcher a first run uses (not JOS-184's `startNewCycle` — that primitive can't represent a failure with no attempt row yet, such as "no tool configured"). The same launcher resumes an assembly held by a pause, whether it is a first run or a retry. `assembly` comes off `NOT_YET_LAUNCHABLE`.
 - **The session shows progress at once**: an accepted retry derives `final-video-generating` until its cycle ends. This adds the `assembly` row to the shared retry-rule table from JOS-168, JOS-155 and JOS-156.
 - **A retry button on the page**: `phaseActions` returns `retry` for a failed assembly phase. The Final video phase section shows "Retry final video" and the cause.
 

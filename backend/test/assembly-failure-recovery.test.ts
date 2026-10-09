@@ -11,7 +11,9 @@ import {
   getStageAttempts,
   getVoiceOver,
   insertVoiceOver,
+  isReadableMp4,
   markImageComplete,
+  moveAssemblyOutput,
   resetAll,
   resolveArtefactPath,
   writeArtefactOnce,
@@ -338,6 +340,23 @@ describe("The final video appears in the project folder only on success (JOS-159
 
     expect(readFileSync(finalPath)).toEqual(originalBytes);
     expect(existsSync(finalPath)).toBe(true);
+  });
+
+  it("moveAssemblyOutput itself refuses a second move into an already-occupied path (the EEXIST branch runAssemblyAttempt's own early finalVideoPath guard never lets a real attempt reach)", () => {
+    const runId = randomUUID();
+    const run = createRun(runId, "moveAssemblyOutput unit test", "A script.", "en");
+    const firstTemp = writeArtefactOnce(run.projectFolder, "first.tmp", MP4_BYTES);
+    const secondTemp = writeArtefactOnce(run.projectFolder, "second.tmp", MP4_BYTES);
+
+    expect(moveAssemblyOutput(run.projectFolder, resolveArtefactPath(run.projectFolder, firstTemp), "final-video.mp4")).toBe(true);
+    expect(moveAssemblyOutput(run.projectFolder, resolveArtefactPath(run.projectFolder, secondTemp), "final-video.mp4")).toBe(false);
+    // Both temp files are gone either way (the `finally` always removes them).
+    expect(existsSync(resolveArtefactPath(run.projectFolder, firstTemp))).toBe(false);
+    expect(existsSync(resolveArtefactPath(run.projectFolder, secondTemp))).toBe(false);
+  });
+
+  it("isReadableMp4 is false for a path that cannot be read, not just a bad file", () => {
+    expect(isReadableMp4("/nonexistent/path/final-video.mp4")).toBe(false);
   });
 });
 

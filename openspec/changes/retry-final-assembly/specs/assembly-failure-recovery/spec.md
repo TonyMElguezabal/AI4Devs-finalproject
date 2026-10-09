@@ -6,7 +6,7 @@ Requirements for what a failed final assembly records and keeps, and how the Use
 
 ### Requirement: A failed assembly is recorded on the session
 
-When assembly exhausts its attempts, fails not-retryably, or cannot start, the session SHALL record an assembly failure with a readable cause, its retryability and the time. Cannot start means: no assembly tool, no stored voice-over, or a chunk's clip missing or unreadable. The session SHALL then derive `failed` with `failedPhase: "assembly"`. A failure before any attempt SHALL send nothing to the assembly tool. A successful assembly SHALL clear the failure (§8.1, §10.1).
+When assembly exhausts its attempts, fails not-retryably, or cannot start, the session SHALL record an assembly failure with a readable cause, its retryability and the time. Cannot start means: no assembly tool, or no stored voice-over. The session SHALL then derive `failed` with `failedPhase: "assembly"`. A failure before any attempt SHALL send nothing to the assembly tool. A missing or unreadable clip file is not a separate "cannot start" case: it surfaces through the ordinary attempt (the tool itself fails on it), the same as any other tool failure. A successful assembly SHALL clear the failure (§8.1, §10.1).
 
 #### Scenario: Attempts exhausted
 
@@ -22,8 +22,8 @@ When assembly exhausts its attempts, fails not-retryably, or cannot start, the s
 #### Scenario: A clip file is missing
 
 - **GIVEN** a session whose scenes are all `chunk-complete` but one clip file cannot be read
-- **WHEN** assembly is launched
-- **THEN** the assembly tool is not called and the session is `failed` in assembly with a cause naming the scene
+- **WHEN** assembly is launched and the tool fails on it
+- **THEN** the attempt is recorded like any other tool failure, and — once the cycle's attempts are exhausted or the tool reports it as not-retryable — the session is `failed` in assembly with that cause
 
 ### Requirement: A failed assembly keeps everything generated
 
@@ -54,10 +54,9 @@ An assembly attempt SHALL write its output outside the project folder, and SHALL
 
 The system SHALL accept `POST /sessions/:sessionId/assembly/retry` for a session that is `failed` with `failedPhase: "assembly"`, whether its failure is retryable or not. An accepted retry SHALL answer 200 with `held` saying whether a pause holds it. The command SHALL refuse with 409 and a reason, and SHALL call no tool, when:
 
-- the session is not failed in assembly (`not-failed-in-assembly`);
+- the session is not failed in assembly, including when a retry is already pending or running (`not-failed-in-assembly` — a retry claims and clears the failure in one atomic step, so a second, losing concurrent request never sees anything "pending"; there is no separate `retry-already-pending` reason);
 - a scene is not `chunk-complete` (`scenes-not-complete`);
-- a final video exists (`final-video-already-generated`);
-- a retry is already pending or running (`retry-already-pending`).
+- a final video exists (`final-video-already-generated`).
 
 An unknown or malformed session SHALL answer 404. A body with any field SHALL answer 400.
 
@@ -76,7 +75,7 @@ An unknown or malformed session SHALL answer 404. A body with any field SHALL an
 #### Scenario: Two retries at once
 
 - **WHEN** two assembly retry requests arrive concurrently for a session `failed` in assembly
-- **THEN** exactly one answers 200, the other answers 409 with `retry-already-pending`, and one cycle is opened
+- **THEN** exactly one answers 200, the other answers 409 with `not-failed-in-assembly`, and one cycle is opened
 
 ### Requirement: An assembly retry uses only the components already generated
 
