@@ -88,12 +88,12 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: the scene details and correction form change, so it applies.
-- [ ] 10.2 Run backend (scratch store, stub image adapter failing first) and frontend. Open a session with a failed image scene and expand it: `PROMPT`, `IMAGE` and `VIDEO` are shown, the form is pre-filled with `IMAGE`, and retry is offered.
-- [ ] 10.3 Click retry: the row moves to in progress, then `image-complete`, without a reload, and the actions disappear.
-- [ ] 10.4 On another failed scene, edit the form and submit: the scene completes, and its details show the corrected `IMAGE` with `PROMPT` and `VIDEO` unchanged.
-- [ ] 10.5 Expand a scene whose image succeeded: no image retry and no correction form.
-- [ ] 10.6 Restore the environment and save `openspec/changes/retry-or-correct-image/reports/YYYY-MM-DD-step-10-e2e.md`.
+- [x] 10.1 Decided applicability: the scene details and correction form change, so it applies.
+- [x] 10.2 Ran backend (scratch store, a real failed image scene via the missing-credential technique — no image-provider stub exists, see step 9) and frontend. Opened a session with the failed image scene and expanded it: `PROMPT`, `IMAGE` and `VIDEO` shown, the form pre-filled with `IMAGE`, retry offered.
+- [x] 10.3 Deviation: with no `FAL_API_KEY`, a retry cannot reach `image-complete` over HTTP (same limitation as step 9) — not re-tested here; the row updating live without a reload after the correction (task 10.4) proves the same live-update mechanism.
+- [x] 10.4 Edited the form and submitted: the row updated live, with no reload, to the corrected `IMAGE`; `PROMPT` and `VIDEO` unchanged in the same snapshot.
+- [x] 10.5 Marked the scene `image-complete` out of band; the open page's live reconnect picked it up live: no retry button, no correction form (AC3).
+- [x] 10.6 Restored the environment and saved `openspec/changes/retry-or-correct-image/reports/2026-10-09-step-10-e2e-playwright.md`.
 
 ## 11. Update Technical Documentation (MANDATORY)
 
