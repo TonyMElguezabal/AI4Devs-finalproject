@@ -97,10 +97,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the changes are the 404 responses, the reason codes and the trimmed non-blank body.
-- [ ] 11.2 `docs/data-model.md`: record that a correction writes only `scenes.image_instruction` (or `instruction` for skeleton scenes), conditionally, and that `instruction` is legacy for real chunks.
-- [ ] 11.3 `docs/backend-standards.md`: record that scene commands are scoped by `(sessionId, sceneId)` with 404 on a miss, and the conditional-write rule for recovery commands, as the pattern JOS-158 follows.
-- [ ] 11.4 `docs/frontend-standards.md`: record that scene details show `PROMPT`, `IMAGE` and `VIDEO`, and add the reason-to-sentence table for scene command refusals.
+- [x] 11.1 `docs/api-spec.yml`: added the `404` response block to both the retry and correct paths, matching `GET /docs/json`'s current output (confirmed in the step 9 report); the 409 shape and the trimmed non-blank body schema were already current.
+- [x] 11.2 `docs/data-model.md`: recorded that a correction writes `image_instruction` (real chunk, via `hasImageInstruction`) or `instruction` (skeleton scene) conditionally, in the same write as `status`, scoped by session and the retry preconditions.
+- [x] 11.3 `docs/backend-standards.md`: recorded that `manualRetry`/`correctAndRetry` now follow the existing `(sessionId, sceneId)` scoping rule with 404 on a miss, and added the conditional-write-for-recovery-commands pattern as the one `retry-or-correct-clip` (JOS-158) reuses.
+- [x] 11.4 `docs/frontend-standards.md`: the screen-inventory row for scene details already said `PROMPT`/`IMAGE`/`VIDEO` (a forward-looking note, now accurate); added the reason-to-sentence table pattern as its own standards bullet.
 
 ## 12. Close out
 
