@@ -57,6 +57,8 @@ export interface SessionEventPayload {
   state: SessionState;
   paused: boolean;
   held: Array<{ stage: string; count: number }>;
+  /** JOS-153 — stages with work actually in flight, computed whether or not the session is paused. */
+  running: Array<{ stage: string; count: number }>;
   failedPhase?: string;
   /** JOS-150 — the failed scenes' indexes, ascending; present only when `failedPhase` is "scenes". */
   failedSceneIndexes?: number[];

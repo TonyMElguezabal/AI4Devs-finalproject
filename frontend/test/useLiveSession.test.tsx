@@ -55,6 +55,7 @@ function snapshot(overrides: Partial<SessionSnapshot["session"]> = {}, scenes: S
       state: "chunks-processing",
       paused: false,
       held: [],
+      running: [],
       phases: [],
       updatedAt: "2026-09-25T00:00:00.000Z",
       ...overrides,

@@ -31,9 +31,9 @@ Tests come first throughout: every behaviour gets a failing test before the code
 
 ## 4. Frontend: types and status mapping (TDD)
 
-- [ ] 4.1 Write failing tests in `frontend/test/components.test.tsx`: `sceneStatusClass` maps a held scene to `status-queued` for every scene state; a non-held scene keeps its current mapping
-- [ ] 4.2 Add `running` to `SessionEventPayload` in `frontend/src/types.ts`; give `sceneStatusClass` the optional `held` argument (design Decision 6)
-- [ ] 4.3 Run the group 4 tests and confirm they pass
+- [x] 4.1 Write failing tests in `frontend/test/components.test.tsx`: `sceneStatusClass` maps a held scene to `status-queued` for every scene state; a non-held scene keeps its current mapping
+- [x] 4.2 Add `running` to `SessionEventPayload` in `frontend/src/types.ts`; give `sceneStatusClass` the optional `held` argument (design Decision 6)
+- [x] 4.3 Run the group 4 tests and confirm they pass
 
 ## 5. Frontend: session header (TDD)
 

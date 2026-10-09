@@ -46,6 +46,7 @@ function makeSession(overrides: Partial<SessionEventPayload>): SessionEventPaylo
     state: "submitted",
     paused: false,
     held: [],
+    running: [],
     phases: makePhases(),
     updatedAt: "2026-09-25T00:00:00.000Z",
     ...overrides,
@@ -324,6 +325,18 @@ describe("Scene status class mapping (define-visual-design, Decision 2)", () => 
       const row = screen.getByRole("listitem", { name: "Scene 1" });
       expect(row.className.split(/\s+/)).toContain(sceneStatusClass(state));
       expect(screen.getByText(new RegExp(`— ${state}$`))).toBeInTheDocument();
+    });
+  }
+
+  // distinguish-paused-session (JOS-153), design Decision 6 — a held scene maps to status-queued whatever its
+  // state; a non-held scene keeps its current mapping.
+  for (const state of ALL_SCENE_STATES) {
+    it(`maps held scene state "${state}" to status-queued`, () => {
+      expect(sceneStatusClass(state, true)).toBe("status-queued");
+    });
+
+    it(`keeps the unheld mapping for scene state "${state}"`, () => {
+      expect(sceneStatusClass(state, false)).toBe(sceneStatusClass(state));
     });
   }
 });
