@@ -12,6 +12,7 @@ import {
   getRun,
   getScene,
   getScenesForRun,
+  insertVoiceOver,
   markImageComplete,
   PROJECTS_ROOT,
   resetAll,
@@ -28,7 +29,9 @@ import {
   nextVideoStageLaunchCount,
   pauseSession,
   recoverOnBoot,
+  resetAssemblyTool,
   resetVideoStageStartDelayMs,
+  setAssemblyTool,
   toSnapshot,
 } from "../src/orchestrator.ts";
 import {
@@ -40,6 +43,7 @@ import {
   STUB_VIDEO_PROVIDER_NAME,
 } from "../src/videoProvider.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
+import { createStubAssemblyTool } from "../src/stubAssemblyTool.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
 
 // generate-chunk-video (JOS-146), groups 4-7: launch, completion, failures/retries, restart.
@@ -119,6 +123,7 @@ beforeEach(() => {
   resetVideoProviderRegistry();
   resetVideoDownloadFetch();
   concurrency.resetAll();
+  resetAssemblyTool();
 });
 
 // ---- Group 4: Precondition and launch ----
@@ -565,8 +570,21 @@ describe("Group 7 — Session state after video stage", () => {
     // JOS-149: chunks reaching chunk-complete moves the session to
     // `final-video-generating`, NOT `final-video`. `final-video` requires
     // assembly to succeed (run.finalVideoPath set by assemble-final-video).
+    // retry-final-assembly (JOS-159) — "not yet done" now means genuinely still running: a slow assembly tool,
+    // so the 100ms check below lands while it is still in flight, not after it has already failed or succeeded.
     const runId = randomUUID();
     createRun(runId, "final video test", "script", "en");
+    insertVoiceOver({
+      runId,
+      audioPath: "voice-over.mp3",
+      timestampsPath: null,
+      durationSeconds: 8,
+      sizeBytes: 1,
+      nativeTimestampsAvailable: false,
+      providerRequestId: null,
+      completedAt: new Date().toISOString(),
+    });
+    setAssemblyTool(createStubAssemblyTool({ kind: "slow-success", delayMs: 10_000 }));
 
     const provider = createStubVideoProvider("success-bytes", { bytes: MP4_BYTES });
     setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
@@ -576,6 +594,7 @@ describe("Group 7 — Session state after video stage", () => {
 
     const snapshot = toSnapshot(runId);
     expect(snapshot?.session.state).toBe("final-video-generating");
+    expect(snapshot?.session.failedPhase).toBeUndefined();
   });
 
   it("deriveSessionState: 'video-generating' scenes still count as processing", () => {
