@@ -9,20 +9,14 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 1. Gate (no code before every item passes)
 
-- [ ] 1.1 `git fetch`. Confirm PR #25 (JOS-149) has merged into `feature/entrega-2-JAME`, then rebase this branch onto it. Re-read the merged assembly code and confirm design.md § Context still holds:
-  - no session failure is recorded for assembly;
-  - the output is written directly to `final-video.mp4`;
-  - there is no `assembly` launcher;
-  - `continueSession` does not resume assembly.
-
-  Update design.md for anything that changed.
-- [ ] 1.2 Confirm `bounded-retry-policy` (JOS-184) is merged. Record:
-  - `startNewCycle`'s name and signature;
-  - the `assembly` stage-instance key;
-  - the scheduled-attempt representation;
-  - whether it already replaced `runAssemblyAttempt`'s in-memory attempt counter.
-- [ ] 1.3 Confirm `view-progress-by-phase` (JOS-168) is implemented, then rebase onto it. Check whether `retry-voice-over` (JOS-155) or `retry-decomposition` (JOS-156) have merged; if so, reuse their route schemas, reason table, retry-rule table and retry button. If `assemble-final-video` was archived, express the assembly-failure requirements as deltas against its archived spec.
-- [ ] 1.4 Use the product owner's answer to JOS-155 Open Question 1 (retry after a not-retryable failure) for Decision 7.
+- [x] 1.1 `git fetch`. Confirmed PR #25 (JOS-149) merged into `feature/entrega-2-JAME` long ago (154 commits ahead of the propose commit); rebased this branch onto it (clean, no conflicts). Re-read the merged assembly code — design.md § Context updated for what changed:
+  - no session failure is recorded for assembly — **still true**, confirmed (`setRunFailure`/`clearRunFailure` never called from `orchestrator.ts`, and `SessionFailure` has no `AssemblyFailure` variant);
+  - the output is written directly to `final-video.mp4` — **still true**, confirmed (`outputPath = resolveArtefactPath(run.projectFolder, "final-video.mp4")`, no temp directory);
+  - there is no `assembly` launcher — **now false**: `assemblyStageLauncher` exists and is registered (`preserve-progress-across-restarts`, JOS-160), off `NOT_YET_LAUNCHABLE`;
+  - `continueSession` does not resume assembly — **now false**, for the same reason; but found a related real gap — `heldWork` doesn't check `run.failure`, so continue would silently relaunch an exhausted/failed assembly with no explicit retry (closed by the revised Decision 4).
+- [x] 1.2 Confirmed `bounded-retry-policy` (JOS-184) is merged. Recorded: `startNewCycle(ref, options?)` in `backend/src/retry/stageAttemptRecorder.ts`, returns `{started:true, attempt}` (a `scheduled` row) or `{started:false, reason}`; the assembly stage-instance key needs no `sceneId` (session-level); it does **not** replace `runAssemblyAttempt`'s in-memory `attemptNumber` — assembly was never routed through the recorder/scheduler. Calling it and then separately letting `runAssemblyAttempt` record its own row would double-book the new cycle's first slot and orphan the scheduled row — closed by claiming it synchronously (revised Decision 3).
+- [x] 1.3 Confirmed `view-progress-by-phase` (JOS-168) is merged (`phaseActions`, `PhaseSection`, `PhaseRetryButton` already exist). `retry-decomposition` (JOS-156) is merged — reused its route schemas (`looseSessionParamsSchema`, `emptyBodySchema`), its reason-code pattern and `retryRefusalSentence`/`PhaseRetryButton` on the frontend. `retry-voice-over` (JOS-155) is **not** merged (no branch exists) — nothing to reuse from it yet. `assemble-final-video` (JOS-149) is not archived, so the assembly-failure requirements stay referenced, not delta-specced, as the proposal already allowed.
+- [x] 1.4 JOS-155's Open Question 1 is unanswered (no branch, no comment record) — treated as a decision for *this* story alone, not blocked on JOS-155: design.md Decision 7 keeps its original choice (offer retry whatever `retryable` is) with the reasoning written out, since nothing generated is at risk either way (§10.3/AC13). JOS-155 answers its own open question separately when it starts.
 
 ## 2. Backend: assembly failure on the session (TDD; design Decision 1)
 
