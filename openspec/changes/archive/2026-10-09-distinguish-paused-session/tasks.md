@@ -98,5 +98,5 @@ Tests come first throughout: every behaviour gets a failing test before the code
 
 - [x] 12.1 Post a Linear comment on JOS-153 summarising the change and linking the reports
 - [x] 12.2 Open the PR against `feature/entrega-2-JAME` with a description linking to JOS-153 and this change
-- [ ] 12.3 Obtain review by at least one human, not only AI agents
-- [ ] 12.4 Archive the OpenSpec change after merge
+- [x] 12.3 Obtain review by at least one human, not only AI agents
+- [x] 12.4 Archive the OpenSpec change after merge
