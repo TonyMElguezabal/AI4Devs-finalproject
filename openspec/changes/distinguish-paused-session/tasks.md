@@ -81,11 +81,11 @@ Tests come first throughout: every behaviour gets a failing test before the code
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Start the backend (isolated `DB_PATH`, stubs, test endpoints) and the frontend
-- [ ] 10.2 Open a session page (`/?sessionId=<id>`), pause it from the page, and assert the state, "Paused — waiting for you to continue", the running/nothing-generating line and the held line are all shown, with no reload
-- [ ] 10.3 Assert a held scene row reads "waiting for continue" and a sent scene reads "still generating"; take screenshots
-- [ ] 10.4 Pause a session in `voice-over-complete` and assert Continue is offered; click Continue and assert the marker disappears live
-- [ ] 10.5 Restore the environment (stop servers, delete the isolated DB and project folders) and save the report as `openspec/changes/distinguish-paused-session/reports/YYYY-MM-DD-step-10-e2e-playwright.md`
+- [x] 10.1 Start the backend (isolated `DB_PATH`, stubs, test endpoints) and the frontend
+- [x] 10.2 Open a session page (`/?sessionId=<id>`), pause it from the page, and assert the state, "Paused — waiting for you to continue", the running/nothing-generating line and the held line are all shown, with no reload
+- [x] 10.3 Assert a held scene row reads "waiting for continue" and a sent scene reads "still generating"; take screenshots
+- [x] 10.4 Pause a session in `voice-over-complete` and assert Continue is offered; click Continue and assert the marker disappears live
+- [x] 10.5 Restore the environment (stop servers, delete the isolated DB and project folders) and save the report as `openspec/changes/distinguish-paused-session/reports/YYYY-MM-DD-step-10-e2e-playwright.md`
 
 ## 11. Update Technical Documentation (MANDATORY)
 
