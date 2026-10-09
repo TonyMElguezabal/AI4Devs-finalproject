@@ -54,13 +54,8 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. Backend: route (TDD; design Decision 3)
 
-- [ ] 6.1 Write failing tests in `session-api-surface.test.ts` for `POST /sessions/:sessionId/assembly/retry`:
-  - 200 `{ ok: true, held }`;
-  - 404 for an unknown session and for a malformed id;
-  - 409 for each reason;
-  - 400 for any body field;
-  - documented in `/docs/json`, together with the `assembly` failure phase.
-- [ ] 6.2 Add the route and its Zod schemas; make 6.1 pass.
+- [x] 6.1 Wrote failing tests in `session-api-surface.test.ts` (new "POST /sessions/:sessionId/assembly/retry" describe block, mirroring the decomposition one): 200 `{ ok: true, held: true }` on a paused, failed session, and also for a not-retryable failure (design Decision 7 — assembly always offers a retry, so there is no `not-retryable` 409 reason here, unlike decomposition); 404 for an unknown and a malformed session id; 409 for each of the three reasons (`not-failed-in-assembly`, `scenes-not-complete`, `final-video-already-generated` — the latter two reconstructed directly, same as the unit tests, since a real failed session can't naturally reach them); 400 for a body naming any field, with the session's failure left untouched; documented in `/docs/json`.
+- [x] 6.2 Added the route (`routes.ts`, right after the decomposition retry route) reusing `looseSessionParamsSchema`/`emptyBodySchema`/`retryAcceptedSchema`/`conflictSchema` verbatim — no new schema needed, since `AssemblyRetryRefusal` is already a plain string union the existing `conflictSchema` accepts. Makes 6.1 pass.
 
 ## 7. Frontend: retry action (TDD; design Decision 7)
 
