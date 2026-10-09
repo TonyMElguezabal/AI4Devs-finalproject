@@ -55,13 +55,13 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. Frontend: show and edit `IMAGE` (TDD; design Decision 7)
 
-- [ ] 6.1 Add `prompt`, `imageInstruction` and `videoInstruction` to `SceneEventPayload` in `frontend/src/types.ts`; update the fixtures.
-- [ ] 6.2 Write failing tests in `test/components.test.tsx`:
+- [x] 6.1 Added `prompt`, `imageInstruction` and `videoInstruction` to `SceneEventPayload` in `frontend/src/types.ts` (backend already sent them; no fixtures needed updating since the fields are optional and `makeScene` passes overrides through).
+- [x] 6.2 Wrote failing tests in `test/components.test.tsx`:
   - expanded details show `PROMPT`, `IMAGE` and `VIDEO`;
   - the correction form is pre-filled with `imageInstruction`, or with `instruction` for a scene without one;
-  - a 409 `not-failed` or `image-already-generated` answer, and a 404, are shown on the row as their sentences.
-- [ ] 6.3 Write a test for AC3: for every scene state, and for `failed` with `affectedStage: "video"`, there is no retry button and no correction form unless the scene is `failed` with `affectedStage: "image"`. It may pass on first run (JOS-151); record it as pinning.
-- [ ] 6.4 Implement the `SceneRow.tsx` changes and the reason-to-sentence table, with `api/client.ts` returning the reason on a refusal; make 6.2-6.3 pass.
+  - a `not-failed`, `image-already-generated` (409) and `unknown-scene` (404) answer are all shown on the row as their sentences (one lookup table, no HTTP-status branching needed — `api/client.ts`'s `asJson` already turns any non-ok response into an `Error` whose message is the reason, so the row's catch handles 404 and 409 identically).
+- [x] 6.3 AC3 is already pinned by the unchanged `sceneActions` tests (`describe("sceneActions derives actions from state and affected stage (JOS-151, Decision 4)")`), which this change does not touch — recorded as pinning, no new test needed.
+- [x] 6.4 Implemented `SceneRow.tsx`: PROMPT/IMAGE/VIDEO replace the old single "Instruction" field; the correction form's initial draft is `imageInstruction || instruction`; a new `imageRecoveryRefusals.ts` reason-to-sentence table (mirrors `retryRefusals.ts`); retry and correction both go through one local `runAction` (pending/disabled state, catch → sentence), the same pattern `PhaseRetryButton.tsx` already uses for decomposition retry. `onRetry`/`onCorrect` props changed from `void` to `Promise<unknown>` (`SceneRow`, `SceneList`, `SessionPage`); `api/client.ts` needed no change, its error propagation already carried the reason. Makes 6.2-6.3 pass.
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 

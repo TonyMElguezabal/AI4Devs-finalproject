@@ -15,8 +15,10 @@ interface Props {
   onStartNew: () => void;
   onPause: () => void;
   onContinue: () => void;
-  onRetry: (sceneId: string) => void;
-  onCorrect: (sceneId: string, instruction: string) => void;
+  /** Starts a scene retry; rejects with the refusal reason (retry-or-correct-image, JOS-157). */
+  onRetry: (sceneId: string) => Promise<unknown>;
+  /** Corrects IMAGE and retries; rejects with the refusal reason. */
+  onCorrect: (sceneId: string, instruction: string) => Promise<unknown>;
   /** Retries a failed phase; rejects with the refusal reason (retry-decomposition, JOS-156). */
   onRetryPhase: (phase: Phase) => Promise<unknown>;
 }

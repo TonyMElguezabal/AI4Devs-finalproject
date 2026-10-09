@@ -4,14 +4,17 @@ import { sceneStatusClass } from "../styles/status";
 import { sceneActions } from "../sceneActions";
 import { resolveResultUrl } from "../api/client";
 import { formatStageDiagnostic } from "../stageDiagnostics";
+import { imageRecoveryRefusalSentence } from "../imageRecoveryRefusals";
 
 interface Props {
   scene: SceneEventPayload;
   /** distinguish-paused-session (JOS-153), design Decision 6 — whether the session is paused; decides between
    * "waiting for continue" (held) and "still generating" (sent before the pause, not held). */
   paused?: boolean;
-  onRetry: (sceneId: string) => void;
-  onCorrect: (sceneId: string, instruction: string) => void;
+  /** Starts a scene retry; rejects with the refusal reason (retry-or-correct-image, JOS-157). */
+  onRetry: (sceneId: string) => Promise<unknown>;
+  /** Corrects IMAGE and retries; rejects with the refusal reason. */
+  onCorrect: (sceneId: string, instruction: string) => Promise<unknown>;
   imageDownloadUrl: string;
   videoDownloadUrl: string;
 }
@@ -32,12 +35,28 @@ interface Props {
  */
 export function SceneRow({ scene, paused, onRetry, onCorrect, imageDownloadUrl, videoDownloadUrl }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const [draftInstruction, setDraftInstruction] = useState(scene.instruction ?? "");
+  // retry-or-correct-image (JOS-157), design Decision 7 — pre-fills from IMAGE; a skeleton scene with none
+  // falls back to the legacy `instruction` field, the same signal the backend corrects (design Decision 4).
+  const [draftInstruction, setDraftInstruction] = useState(scene.imageInstruction || scene.instruction || "");
+  const [pending, setPending] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
 
   const isFailed = scene.state === "failed";
   const actions = sceneActions(scene);
   const isComplete = scene.state === "chunk-complete";
   const isGenerating = scene.state === "image-generating" || scene.state === "video-generating";
+
+  async function runAction(action: () => Promise<unknown>) {
+    setPending(true);
+    setRefusal(null);
+    try {
+      await action();
+    } catch (error) {
+      setRefusal(imageRecoveryRefusalSentence(error instanceof Error ? error.message : ""));
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <li aria-label={`Scene ${scene.index}`} className={`scene-row ${sceneStatusClass(scene.state, scene.held)}`}>
@@ -54,8 +73,12 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, imageDownloadUrl, 
       {expanded && (
         <div className="scene-details">
           <dl>
-            <dt>Instruction</dt>
-            <dd>{scene.instruction}</dd>
+            <dt>PROMPT</dt>
+            <dd>{scene.prompt}</dd>
+            <dt>IMAGE</dt>
+            <dd>{scene.imageInstruction}</dd>
+            <dt>VIDEO</dt>
+            <dd>{scene.videoInstruction}</dd>
             {isFailed && scene.affectedStage && (
               <>
                 <dt>Affected stage</dt>
@@ -102,7 +125,7 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, imageDownloadUrl, 
           )}
 
           {actions.retry && (
-            <button type="button" onClick={() => onRetry(scene.sceneId)}>
+            <button type="button" disabled={pending} onClick={() => runAction(() => onRetry(scene.sceneId))}>
               Retry scene {scene.index}
             </button>
           )}
@@ -112,7 +135,7 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, imageDownloadUrl, 
               className="correction-form"
               onSubmit={(e) => {
                 e.preventDefault();
-                onCorrect(scene.sceneId, draftInstruction);
+                runAction(() => onCorrect(scene.sceneId, draftInstruction));
               }}
             >
               <label htmlFor={`correction-${scene.sceneId}`}>Corrected image instruction for scene {scene.index}</label>
@@ -121,9 +144,14 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, imageDownloadUrl, 
                 value={draftInstruction}
                 onChange={(e) => setDraftInstruction(e.target.value)}
               />
-              <button type="submit">Save correction and retry</button>
+              <button type="submit" disabled={pending}>
+                Save correction and retry
+              </button>
             </form>
           )}
+          {/* retry-or-correct-image (JOS-157), design Decision 7 — a 404/409 refusal shown as its sentence;
+           * the scene's new state, on a success, arrives through the live update, not from here. */}
+          {refusal && <p role="status">{refusal}</p>}
 
           {isComplete && (
             <p className="download-links">

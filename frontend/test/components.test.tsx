@@ -29,6 +29,11 @@ function makeScene(overrides: Partial<SceneEventPayload>): SceneEventPayload {
   };
 }
 
+/** Expands a rendered SceneRow's details, by its scene index (the accessible name uses it, not the scene id). */
+async function expandScene(index: number) {
+  await userEvent.setup().click(screen.getByRole("button", { name: `View scene ${index} details` }));
+}
+
 const PHASE_ORDER: Phase[] = ["voice-over", "decomposition", "scenes", "assembly"];
 
 /** The four phases in pipeline order; every phase is pending unless `statuses` says otherwise. */
@@ -61,7 +66,7 @@ describe("SceneList ordering (Decision 6)", () => {
       makeScene({ sceneId: "a", index: 1 }),
       makeScene({ sceneId: "b", index: 2 }),
     ];
-    render(<SceneList sessionId="s1" scenes={scenes} onRetry={() => {}} onCorrect={() => {}} />);
+    render(<SceneList sessionId="s1" scenes={scenes} onRetry={async () => {}} onCorrect={async () => {}} />);
 
     const rows = screen.getAllByRole("listitem");
     expect(rows.map((r) => r.getAttribute("aria-label"))).toEqual(["Scene 1", "Scene 2", "Scene 3"]);
@@ -72,7 +77,7 @@ describe("SceneList ordering (Decision 6)", () => {
 // shows a newly delivered state without a reload.
 describe("A live state change reaches the row (JOS-151)", () => {
   it("shows image-complete once a new snapshot reports it, without a remount", () => {
-    const props = { sessionId: "s1", onRetry: () => {}, onCorrect: () => {} };
+    const props = { sessionId: "s1", onRetry: async () => {}, onCorrect: async () => {} };
     const { rerender } = render(<SceneList {...props} scenes={[makeScene({ sceneId: "b", index: 2, state: "image-generating" })]} />);
     expect(screen.getByRole("listitem", { name: "Scene 2" })).toHaveTextContent("image-generating");
 
@@ -94,7 +99,7 @@ describe("Conditional editing (Decision 4)", () => {
 
   it("shows the correction form on a failed scene", async () => {
     const scene = makeScene({ sceneId: "f1", index: 1, state: "failed", affectedStage: "image", errorCause: "stub: content-filter rejection" });
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     await expandRow("f1");
 
     expect(screen.getByRole("form", { name: "Correct scene 1 image instruction" })).toBeInTheDocument();
@@ -103,7 +108,7 @@ describe("Conditional editing (Decision 4)", () => {
 
   it("does not render the correction form on a successful scene", async () => {
     const scene = makeScene({ sceneId: "ok1", index: 1, state: "chunk-complete", result: { imageUrl: "/sessions/s1/scenes/ok1/image" } });
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     await expandRow("ok1");
 
     expect(screen.queryByRole("form", { name: "Correct scene 1 image instruction" })).not.toBeInTheDocument();
@@ -112,7 +117,7 @@ describe("Conditional editing (Decision 4)", () => {
 
   it("never renders an editable identifier, prompt-as-narration, or order field", async () => {
     const scene = makeScene({ sceneId: "f2", index: 1, state: "failed", affectedStage: "image" });
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     await expandRow("f2");
 
     // The only editable field is the image instruction textarea; scene id and
@@ -120,6 +125,135 @@ describe("Conditional editing (Decision 4)", () => {
     const textboxes = screen.getAllByRole("textbox");
     expect(textboxes).toHaveLength(1);
     expect(textboxes[0]).toHaveAccessibleName("Corrected image instruction for scene 1");
+  });
+});
+
+// retry-or-correct-image (JOS-157), design Decision 7 — scene details show PROMPT, IMAGE and VIDEO; the
+// correction form edits IMAGE (falling back to the legacy `instruction` for a scene without one).
+describe("Scene details show PROMPT, IMAGE and VIDEO (JOS-157, design Decision 7)", () => {
+  it("shows PROMPT, IMAGE and VIDEO for a real chunk", async () => {
+    const scene = makeScene({
+      sceneId: "r1",
+      index: 1,
+      prompt: "A lighthouse at dusk.",
+      imageInstruction: "A lighthouse silhouette against an orange sky",
+      videoInstruction: "Slow pan across the horizon",
+    });
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    await expandScene(1);
+
+    expect(screen.getByText("PROMPT").nextElementSibling).toHaveTextContent("A lighthouse at dusk.");
+    expect(screen.getByText("IMAGE").nextElementSibling).toHaveTextContent("A lighthouse silhouette against an orange sky");
+    expect(screen.getByText("VIDEO").nextElementSibling).toHaveTextContent("Slow pan across the horizon");
+  });
+
+  it("pre-fills the correction form with IMAGE on a real chunk", async () => {
+    const scene = makeScene({
+      sceneId: "r2",
+      index: 1,
+      state: "failed",
+      affectedStage: "image",
+      imageInstruction: "the stored IMAGE instruction",
+      instruction: "a stale legacy value",
+    });
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    await expandScene(1);
+
+    expect(screen.getByRole("textbox", { name: "Corrected image instruction for scene 1" })).toHaveValue(
+      "the stored IMAGE instruction",
+    );
+  });
+
+  it("falls back to the legacy instruction when the scene has no IMAGE", async () => {
+    const scene = makeScene({
+      sceneId: "r3",
+      index: 1,
+      state: "failed",
+      affectedStage: "image",
+      instruction: "the legacy skeleton instruction",
+    });
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    await expandScene(1);
+
+    expect(screen.getByRole("textbox", { name: "Corrected image instruction for scene 1" })).toHaveValue(
+      "the legacy skeleton instruction",
+    );
+  });
+});
+
+describe("Scene retry and correction refusals show a sentence (JOS-157, design Decision 7)", () => {
+  it("disables the retry button while pending and re-enables after the answer", async () => {
+    const user = userEvent.setup();
+    let resolveRetry: () => void = () => {};
+    const onRetry = vi.fn(() => new Promise<void>((resolve) => (resolveRetry = resolve)));
+    const scene = makeScene({ sceneId: "p1", index: 1, state: "failed", affectedStage: "image" });
+    render(<SceneRow scene={scene} onRetry={onRetry} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    await expandScene(1);
+
+    await user.click(screen.getByRole("button", { name: "Retry scene 1" }));
+    expect(onRetry).toHaveBeenCalledExactlyOnceWith("p1");
+    expect(screen.getByRole("button", { name: "Retry scene 1" })).toBeDisabled();
+
+    resolveRetry();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Retry scene 1" })).toBeEnabled());
+  });
+
+  it.each([
+    ["unknown-scene", "This scene could not be found."],
+    ["not-failed", "This scene is not currently failed."],
+    ["image-already-generated", "This scene's image already succeeded; only its clip failed."],
+  ])("shows the sentence for a retry refusal %s", async (reason, sentence) => {
+    const user = userEvent.setup();
+    const scene = makeScene({ sceneId: "f3", index: 1, state: "failed", affectedStage: "image" });
+    render(
+      <SceneRow
+        scene={scene}
+        onRetry={() => Promise.reject(new Error(reason))}
+        onCorrect={async () => {}}
+        imageDownloadUrl="#"
+        videoDownloadUrl="#"
+      />,
+    );
+    await expandScene(1);
+
+    await user.click(screen.getByRole("button", { name: "Retry scene 1" }));
+
+    expect(await screen.findByText(sentence)).toBeInTheDocument();
+  });
+
+  it("shows a generic sentence for a retry refusal it does not know", async () => {
+    const user = userEvent.setup();
+    const scene = makeScene({ sceneId: "f4", index: 1, state: "failed", affectedStage: "image" });
+    render(
+      <SceneRow
+        scene={scene}
+        onRetry={() => Promise.reject(new Error("a surprise"))}
+        onCorrect={async () => {}}
+        imageDownloadUrl="#"
+        videoDownloadUrl="#"
+      />,
+    );
+    await expandScene(1);
+
+    await user.click(screen.getByRole("button", { name: "Retry scene 1" }));
+
+    expect(await screen.findByText("The action could not be completed.")).toBeInTheDocument();
+  });
+
+  it("shows the sentence for a correction refusal, submitted with the current draft", async () => {
+    const user = userEvent.setup();
+    const scene = makeScene({ sceneId: "c1", index: 1, state: "failed", affectedStage: "image" });
+    const onCorrect = vi.fn(() => Promise.reject(new Error("image-already-generated")));
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={onCorrect} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    await expandScene(1);
+
+    const textarea = screen.getByRole("textbox", { name: "Corrected image instruction for scene 1" });
+    await user.clear(textarea);
+    await user.type(textarea, "a new instruction");
+    await user.click(screen.getByRole("button", { name: "Save correction and retry" }));
+
+    expect(onCorrect).toHaveBeenCalledExactlyOnceWith("c1", "a new instruction");
+    expect(await screen.findByText("This scene's image already succeeded; only its clip failed.")).toBeInTheDocument();
   });
 });
 
@@ -147,7 +281,7 @@ describe("sceneActions derives actions from state and affected stage (JOS-151, D
 
 describe("Scene details show the available results (JOS-151, Decision 5)", () => {
   async function expand(scene: SceneEventPayload) {
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     await userEvent.setup().click(screen.getByRole("button", { name: `View scene ${scene.index} details` }));
   }
 
@@ -185,7 +319,7 @@ describe("Scene details show the available results (JOS-151, Decision 5)", () =>
 
 describe("A failed scene shows its error, affected stage and only the actions for that stage (JOS-151)", () => {
   async function expand(scene: SceneEventPayload) {
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     await userEvent.setup().click(screen.getByRole("button", { name: `View scene ${scene.index} details` }));
   }
 
@@ -219,7 +353,7 @@ describe("Download gating", () => {
   it("offers per-scene downloads only once the scene is chunk-complete", async () => {
     const user = userEvent.setup();
     const pending = makeScene({ sceneId: "p1", index: 1, state: "image-generating" });
-    render(<SceneRow scene={pending} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="/img" videoDownloadUrl="/vid" />);
+    render(<SceneRow scene={pending} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="/img" videoDownloadUrl="/vid" />);
     await user.click(screen.getByRole("button", { name: "View scene 1 details" }));
     expect(screen.queryByRole("link", { name: /Download scene 1 image/ })).not.toBeInTheDocument();
   });
@@ -227,7 +361,7 @@ describe("Download gating", () => {
   it("offers per-scene downloads once complete", async () => {
     const user = userEvent.setup();
     const done = makeScene({ sceneId: "d1", index: 1, state: "chunk-complete", result: { imageUrl: "/sessions/s1/scenes/d1/image" } });
-    render(<SceneRow scene={done} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="/img" videoDownloadUrl="/vid" />);
+    render(<SceneRow scene={done} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="/img" videoDownloadUrl="/vid" />);
     await user.click(screen.getByRole("button", { name: "View scene 1 details" }));
     expect(screen.getByRole("link", { name: "Download scene 1 image" })).toHaveAttribute("href", "/img");
     expect(screen.getByRole("link", { name: "Download scene 1 video" })).toHaveAttribute("href", "/vid");
@@ -252,7 +386,7 @@ describe("Speed-adjustment factor in scene details (JOS-148)", () => {
   it("shows the requested duration and speed factor when present", async () => {
     const user = userEvent.setup();
     const scene = makeScene({ sceneId: "sf1", index: 1, state: "chunk-complete", requestedDurationSeconds: 15, speedFactor: 1.16 });
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     await user.click(screen.getByRole("button", { name: "View scene 1 details" }));
 
     expect(screen.getByText("15")).toBeInTheDocument();
@@ -270,7 +404,7 @@ describe("Speed-adjustment factor in scene details (JOS-148)", () => {
       speedFactor: 2.33,
       speedFactorWarning: "exceeds-limit",
     });
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     await user.click(screen.getByRole("button", { name: "View scene 1 details" }));
 
     const durationWarning = screen.getByText(/exceeds-maximum/);
@@ -283,7 +417,7 @@ describe("Speed-adjustment factor in scene details (JOS-148)", () => {
   it("shows neither the requested duration nor the speed factor for a skeleton scene", async () => {
     const user = userEvent.setup();
     const scene = makeScene({ sceneId: "sf3", index: 1, state: "submitted" });
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     await user.click(screen.getByRole("button", { name: "View scene 1 details" }));
 
     expect(screen.queryByText("Requested duration")).not.toBeInTheDocument();
@@ -296,7 +430,7 @@ describe("Speed-adjustment factor in scene details (JOS-148)", () => {
 describe("Accessible naming convention (Decision 5)", () => {
   it("gives every scene row and its actions stable, predictable names", () => {
     const scene = makeScene({ sceneId: "n1", index: 7, state: "failed" });
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
 
     expect(screen.getByRole("listitem", { name: "Scene 7" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View scene 7 details" })).toBeInTheDocument();
@@ -320,7 +454,7 @@ describe("Scene status class mapping (define-visual-design, Decision 2)", () => 
   for (const state of ALL_SCENE_STATES) {
     it(`renders scene state "${state}" with its mapped status class and unchanged text label`, () => {
       const scene = makeScene({ sceneId: `st-${state}`, index: 1, state });
-      render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+      render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
 
       const row = screen.getByRole("listitem", { name: "Scene 1" });
       expect(row.className.split(/\s+/)).toContain(sceneStatusClass(state));
@@ -529,7 +663,7 @@ describe("SessionHeader failed scenes (JOS-150)", () => {
 describe("Styling does not regress accessible names (define-visual-design)", () => {
   it("keeps SceneRow's accessible names exactly as documented once status classes are applied", () => {
     const scene = makeScene({ sceneId: "acc1", index: 9, state: "failed" });
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
 
     expect(screen.getByRole("listitem", { name: "Scene 9" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "View scene 9 details" })).toBeInTheDocument();
@@ -600,8 +734,8 @@ describe("SessionPage", () => {
     onStartNew: noop,
     onPause: noop,
     onContinue: noop,
-    onRetry: noop,
-    onCorrect: noop,
+    onRetry: async () => {},
+    onCorrect: async () => {},
     onRetryPhase: () => Promise.resolve(),
   };
 
@@ -662,13 +796,13 @@ describe("held indicator in session header and scene rows (JOS-152, task 8.1)", 
 
   it("a held scene row says it is waiting for continue", () => {
     const scene = makeScene({ sceneId: "h1", index: 1, state: "submitted", held: true });
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     expect(screen.getByText(/waiting for continue/i)).toBeInTheDocument();
   });
 
   it("a generating scene in the same session does not show waiting for continue", () => {
     const scene = makeScene({ sceneId: "g1", index: 1, state: "image-generating" });
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
   });
 });
@@ -679,14 +813,14 @@ describe("held indicator in session header and scene rows (JOS-152, task 8.1)", 
 describe("Scene rows: still generating vs waiting for continue (JOS-153)", () => {
   it("a generating scene not held says it is still generating while paused", () => {
     const scene = makeScene({ sceneId: "g1", index: 1, state: "image-generating" });
-    render(<SceneRow scene={scene} paused onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} paused onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     expect(screen.getByText(/still generating/i)).toBeInTheDocument();
     expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
   });
 
   it("a held scene says waiting for continue, not still generating, while paused, and is styled as waiting", () => {
     const scene = makeScene({ sceneId: "h1", index: 1, state: "image-complete", held: true });
-    render(<SceneRow scene={scene} paused onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} paused onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     expect(screen.getByText(/waiting for continue/i)).toBeInTheDocument();
     expect(screen.queryByText(/still generating/i)).not.toBeInTheDocument();
     const row = screen.getByRole("listitem", { name: "Scene 1" });
@@ -696,7 +830,7 @@ describe("Scene rows: still generating vs waiting for continue (JOS-153)", () =>
 
   it("neither label appears when the session is not paused", () => {
     const scene = makeScene({ sceneId: "g2", index: 1, state: "image-generating" });
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     expect(screen.queryByText(/still generating/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
   });
@@ -707,7 +841,7 @@ describe("Scene rows: still generating vs waiting for continue (JOS-153)", () =>
       makeScene({ sceneId: "c2", index: 2, state: "image-generating" }),
       makeScene({ sceneId: "c3", index: 3, state: "submitted", held: true }),
     ];
-    render(<SceneList sessionId="s1" scenes={scenes} paused onRetry={() => {}} onCorrect={() => {}} />);
+    render(<SceneList sessionId="s1" scenes={scenes} paused onRetry={async () => {}} onCorrect={async () => {}} />);
 
     expect(screen.getByRole("listitem", { name: "Scene 1" })).toHaveTextContent("chunk-complete");
     expect(screen.getByRole("listitem", { name: "Scene 2" })).toHaveTextContent("image-generating");
@@ -750,7 +884,7 @@ describe("Phase actions, status classes and labels (JOS-168)", () => {
 // view-progress-by-phase (JOS-168), tasks 6.1-6.3 — design Decisions 6 and 8.
 describe("The session page shows one section per phase (JOS-168)", () => {
   const noop = () => {};
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: noop, onCorrect: noop, onRetryPhase: () => Promise.resolve() };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {}, onRetryPhase: () => Promise.resolve() };
   const SECTION_NAMES = ["Voice-over phase", "Decomposition phase", "Scenes phase", "Final video phase"];
 
   it("lists the four sections in pipeline order, each with its status label (6.1)", () => {
@@ -865,7 +999,7 @@ describe("The session page shows one section per phase (JOS-168)", () => {
 describe("The Decomposition section offers a retry (JOS-156)", () => {
   const noop = () => {};
   const cause = "The narration's timestamps could not be obtained: alignment answered HTTP 503.";
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: noop, onCorrect: noop };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {} };
 
   function failedDecomposition(retryable: boolean) {
     const session = makeSession({
@@ -954,7 +1088,7 @@ describe("Scene details show the provider and attempts of each stage that ran (J
   const clip = { stage: "video", provider: { name: "RunningHub", model: "minimax/hailuo-h3" }, attempts: 1 } as const;
 
   async function openDetails(scene: SceneEventPayload) {
-    render(<SceneRow scene={scene} onRetry={() => {}} onCorrect={() => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} imageDownloadUrl="#" videoDownloadUrl="#" />);
     await userEvent.setup().click(screen.getByRole("button", { name: `View scene ${scene.index} details` }));
   }
 
@@ -1001,7 +1135,7 @@ describe("Scene details show the provider and attempts of each stage that ran (J
 
 describe("Phase sections list the session-level stages that ran (JOS-166)", () => {
   const noop = () => {};
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: noop, onCorrect: noop, onRetryPhase: () => Promise.resolve() };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {}, onRetryPhase: () => Promise.resolve() };
 
   const timestamps = { stage: "timestamps", provider: { name: "ElevenLabs", model: "forced alignment" }, attempts: 2 } as const;
   const instructions = { stage: "instructions", provider: { name: "OpenAI", model: "gpt-6-astra" }, attempts: 1 } as const;
