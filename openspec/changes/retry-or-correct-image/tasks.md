@@ -80,23 +80,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the real server on a scratch store and scratch projects folder, with the stub image adapter configured to fail first; confirm `GET /health`.
-- [ ] 9.2 Register a decomposed session in the scratch store and let one scene fail at the image stage. Then:
-  - `curl -X POST …/retry` → 200;
-  - `curl GET /sessions/:id` shows the scene back in progress, then `image-complete`;
-  - the stub log shows the same `IMAGE`.
-- [ ] 9.3 Fail another scene, then:
-  - `curl -X POST …/correct -d '{"instruction":"  new text  "}'` → 200;
-  - the store shows `image_instruction = "new text"` and `video_instruction` and `prompt` unchanged;
-  - the stub received "new text".
-- [ ] 9.4 Error cases, each with `curl`:
-  - the scene under another session's id → 404;
-  - a correction with `{"instruction":"   "}` → 400;
-  - retry on an `image-complete` scene → 409 `not-failed`;
-  - retry on a scene whose clip failed → 409 `image-already-generated`.
-
-  `curl GET /docs/json` documents the 404 and the body constraint.
-- [ ] 9.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/retry-or-correct-image/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
+- [x] 9.1 Started the real server on a scratch store and scratch projects folder. Deviation: there is no `USE_STUB_IMAGE_PROVIDER` toggle (unlike voice/video) — confirmed `GET /health`, then used the missing-`FAL_API_KEY`-credential not-retryable failure (free, no network call) to drive a real scene through the real image stage into `failed`, inserted via `insertRegisteredScenes` through a one-off script against the scratch `DB_PATH` (the same store-function technique JOS-166's reports use for the same gap). Recorded in the step 9 report.
+- [x] 9.2 `curl -X POST …/retry` → 200; `GET` shows the scene back at `failed` with the same credential-missing cause, confirming the real image path was used again. The exact-`IMAGE`-forwarded and stays-bound guarantees are proven at the unit level (step 8, `image-stage.test.ts`), which curl cannot reach without a stub registry.
+- [x] 9.3 `curl -X POST …/correct -d '{"instruction":"  a corrected lighthouse scene, warmer light  "}'` → 200; the store shows `imageInstruction` set to the trimmed text and `prompt`/`videoInstruction` unchanged.
+- [x] 9.4 Error cases, each with `curl`: the scene under another session's id → 404; a correction with `{"instruction":"   "}` → 400; retry on an `image-complete` scene → 409 `not-failed`; retry and correct on a clip-failed scene → 409 `image-already-generated`. `GET /docs/json` documents 200/404/409 and the body's `minLength: 1`.
+- [x] 9.5 Cleaned up the scratch store and folder; confirmed the default store untouched; saved `openspec/changes/retry-or-correct-image/reports/2026-10-09-step-9-manual-endpoint-testing.md`.
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
