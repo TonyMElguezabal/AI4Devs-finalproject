@@ -1298,6 +1298,53 @@ export function markScenePendingRetry(sceneId: string, error: string): void {
   ).run(error, nowIso(), sceneId);
 }
 
+/**
+ * retry-or-correct-image (JOS-157), design Decision 3 — the manual-retry command's one conditional write,
+ * scoped by session and the two preconditions a retry needs (`failed`, no stored image). Distinct from
+ * `markScenePendingRetry` above, which `applyFailureOutcome` still uses unconditionally for the automatic-retry
+ * path, where the scene is known to be `image-generating`/`video-generating`, not `failed`, at the moment of the
+ * write. Returns whether a row changed, so a lost race (a concurrent retry or correction already moved the scene
+ * out of `failed`) is reported the same way as "scene is not failed": `false`, never a thrown error.
+ */
+export function markSceneForManualRetry(sessionId: string, sceneId: string, error: string): boolean {
+  const result = db
+    .prepare(
+      "UPDATE scenes SET status = 'submitted', last_error = ?, current_request_id = NULL, updated_at = ? WHERE id = ? AND run_id = ? AND status = 'failed' AND result IS NULL",
+    )
+    .run(error, nowIso(), sceneId, sessionId);
+  return Number(result.changes) > 0;
+}
+
+/**
+ * retry-or-correct-image (JOS-157), design Decisions 3-4 — the correction command's one conditional write for a
+ * real chunk: `image_instruction` and `status` change together, so a refused write (scene not failed, or a lost
+ * race) never leaves IMAGE corrected on a scene that is not being retried. `last_error` and `current_request_id`
+ * are left alone on purpose (task 4.2's column list): a failed scene already has `current_request_id = NULL`, and
+ * the stale cause is harmless once the scene is `submitted` again.
+ */
+export function correctImageInstruction(sessionId: string, sceneId: string, instruction: string): boolean {
+  const result = db
+    .prepare(
+      "UPDATE scenes SET image_instruction = ?, status = 'submitted', updated_at = ? WHERE id = ? AND run_id = ? AND status = 'failed' AND result IS NULL",
+    )
+    .run(instruction, nowIso(), sceneId, sessionId);
+  return Number(result.changes) > 0;
+}
+
+/**
+ * retry-or-correct-image (JOS-157), design Decision 4 — the same conditional write as `correctImageInstruction`,
+ * but for a skeleton scene (empty `image_instruction`), which corrects the legacy `instruction` column instead —
+ * the field the stub stage (`launchScene`, via `hasImageInstruction`'s own dispatch rule) actually reads.
+ */
+export function correctLegacyInstruction(sessionId: string, sceneId: string, instruction: string): boolean {
+  const result = db
+    .prepare(
+      "UPDATE scenes SET instruction = ?, status = 'submitted', updated_at = ? WHERE id = ? AND run_id = ? AND status = 'failed' AND result IS NULL",
+    )
+    .run(instruction, nowIso(), sceneId, sessionId);
+  return Number(result.changes) > 0;
+}
+
 export function markSceneFailed(sceneId: string, error: string): void {
   db.prepare(
     "UPDATE scenes SET status = 'failed', last_error = ?, current_request_id = NULL, updated_at = ? WHERE id = ?",
@@ -1342,10 +1389,6 @@ export function getImageCompleteScenesForRun(runId: string): Scene[] {
 export function getAllVideoGeneratingScenes(): Scene[] {
   const rows = db.prepare("SELECT * FROM scenes WHERE status = 'video-generating'").all() as any[];
   return rows.map(rowToScene);
-}
-
-export function setSceneInstruction(sceneId: string, instruction: string): void {
-  db.prepare("UPDATE scenes SET instruction = ?, updated_at = ? WHERE id = ?").run(instruction, nowIso(), sceneId);
 }
 
 /**

@@ -16,8 +16,11 @@ import {
   getNarrationTimestamps,
   getRun,
   getScene,
+  getSceneForRun,
   getScenesForRun,
   countProviderRequestsByScene,
+  correctImageInstruction,
+  correctLegacyInstruction,
   getInFlightAttempts,
   getStageAttempts,
   getSubmittedScenesForRun,
@@ -27,6 +30,7 @@ import {
   markImageComplete,
   markProviderRequestResolved,
   markSceneFailed,
+  markSceneForManualRetry,
   markSceneInFlight,
   markScenePendingRetry,
   markSceneVideoRetry,
@@ -37,7 +41,6 @@ import {
   sceneCurrentRequestId,
   setFinalVideoPath,
   setRunPaused,
-  setSceneInstruction,
   writeArtefact,
   writeArtefactOnce,
 } from "./db.ts";
@@ -368,10 +371,20 @@ export function nextVideoStageLaunchCount(sceneId: string): number {
   return nextVideoStageLaunches.get(sceneId) ?? 0;
 }
 
+/**
+ * retry-or-correct-image (JOS-157), design Decision 4 — the one predicate `launchSceneStage`'s dispatch and a
+ * correction's target-column choice both read, so the two can never disagree about which scenes are "real"
+ * chunks (routed through the image provider) versus skeleton scenes (routed through the stub, with their
+ * legacy `instruction` as the correctable field).
+ */
+function hasImageInstruction(scene: Pick<Scene, "imageInstruction">): boolean {
+  return Boolean(scene.imageInstruction);
+}
+
 /** Dispatches to the real image stage or the stub stage depending on whether the scene has an IMAGE instruction. */
 function launchSceneStage(sceneId: string): void {
   const scene = getScene(sceneId);
-  if (scene?.imageInstruction) {
+  if (scene && hasImageInstruction(scene)) {
     launchImageStage(sceneId);
   } else {
     launchScene(sceneId);
@@ -1138,15 +1151,25 @@ function applyOutcome(scene: Scene, outcome: ProviderOutcome, attemptNumber: num
  * A manual retry, per PRD §10.2: only valid from `failed`, starts a fresh
  * cycle of up to RETRY_BUDGET automatic retries.
  */
-export function manualRetry(sceneId: string): { ok: boolean; reason?: string } {
-  const scene = getScene(sceneId);
-  if (!scene) return { ok: false, reason: "unknown scene" };
-  if (scene.status !== "failed") return { ok: false, reason: `cannot retry a scene in status '${scene.status}'` };
+/**
+ * retry-or-correct-image (JOS-157), design Decision 2 — the closed set of reasons a retry or correction can be
+ * refused. `unknown-scene` covers an unknown session, an unknown scene and a scene of another session alike
+ * (the route maps it to 404; the other two reasons map to 409).
+ */
+export type ImageRecoveryRefusal = "unknown-scene" | "not-failed" | "image-already-generated";
+export type ImageRecoveryResult = { ok: true } | { ok: false; reason: ImageRecoveryRefusal };
+
+export function manualRetry(sessionId: string, sceneId: string): ImageRecoveryResult {
+  const scene = getSceneForRun(sessionId, sceneId);
+  if (!scene) return { ok: false, reason: "unknown-scene" };
+  if (scene.status !== "failed") return { ok: false, reason: "not-failed" };
   // Decision 7 (JOS-146) — video-stage failures are not retryable manually until JOS-158.
-  if (scene.result !== null) {
-    return { ok: false, reason: "retrying a failed clip is not available yet" };
+  if (scene.result !== null) return { ok: false, reason: "image-already-generated" };
+  // design Decision 3 — the store decides: a lost race (a concurrent retry or correction that already moved
+  // the scene out of `failed`) is reported the same as "not failed", not as a 5th, special reason.
+  if (!markSceneForManualRetry(sessionId, sceneId, scene.lastError ?? "manual retry")) {
+    return { ok: false, reason: "not-failed" };
   }
-  markScenePendingRetry(sceneId, scene.lastError ?? "manual retry");
   // A manual retry starts a fresh cycle: reset the attempt counter so the
   // scene gets a full 1 + RETRY_BUDGET budget again, per PRD §10.2.
   resetAttemptsForManualRetry(sceneId);
@@ -1159,18 +1182,21 @@ export function manualRetry(sceneId: string): { ok: boolean; reason?: string } {
  * stage, and it is a retry with a corrected instruction, never a rewrite of
  * `ID`, `PROMPT`-as-narration or scene order.
  */
-export function correctAndRetry(sceneId: string, instruction: string): { ok: boolean; reason?: string } {
-  const scene = getScene(sceneId);
-  if (!scene) return { ok: false, reason: "unknown scene" };
-  if (scene.status !== "failed") {
-    return { ok: false, reason: `correction is only offered on a failed stage, not '${scene.status}'` };
-  }
+export function correctAndRetry(sessionId: string, sceneId: string, instruction: string): ImageRecoveryResult {
+  const scene = getSceneForRun(sessionId, sceneId);
+  if (!scene) return { ok: false, reason: "unknown-scene" };
+  if (scene.status !== "failed") return { ok: false, reason: "not-failed" };
   // Decision 7 (JOS-146) — video-stage failures are not correctable until JOS-158.
-  if (scene.result !== null) {
-    return { ok: false, reason: "retrying a failed clip is not available yet" };
-  }
-  setSceneInstruction(sceneId, instruction);
-  return manualRetry(sceneId);
+  if (scene.result !== null) return { ok: false, reason: "image-already-generated" };
+  // design Decision 4 — the signal `launchSceneStage` dispatches on decides which column is corrected; the
+  // write itself is the same conditional guarantee as a plain retry's, so the two never disagree.
+  const changed = hasImageInstruction(scene)
+    ? correctImageInstruction(sessionId, sceneId, instruction)
+    : correctLegacyInstruction(sessionId, sceneId, instruction);
+  if (!changed) return { ok: false, reason: "not-failed" };
+  resetAttemptsForManualRetry(sceneId);
+  launchSceneStage(sceneId);
+  return { ok: true };
 }
 
 // Kept local and explicit (rather than a generic db setter) so it is obvious

@@ -1182,6 +1182,21 @@ paths:
                 required:
                   - ok
                 additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
         "409":
           description: Default Response
           content:
@@ -1237,6 +1252,21 @@ paths:
                     type: boolean
                 required:
                   - ok
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
                 additionalProperties: false
         "409":
           description: Default Response
