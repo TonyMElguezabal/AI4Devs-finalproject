@@ -55,19 +55,19 @@ Tests come first throughout: every behaviour gets a failing test before the code
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review the JOS-152 header and scene-row tests (`components.test.tsx` "held indicator…", "paused marker…") and update them to the new wording, keeping each original assertion's intent
-- [ ] 7.2 Review backend snapshot and route tests that assert the session payload shape exactly, and add `running` where they compare whole objects
-- [ ] 7.3 Confirm every scenario in `specs/paused-session-display/spec.md` has at least one functional test, and list the mapping in the step 8 report
-- [ ] 7.4 Confirm module test coverage has not decreased (backend and frontend)
+- [x] 7.1 Review the JOS-152 header and scene-row tests (`components.test.tsx` "held indicator…", "paused marker…") and update them to the new wording, keeping each original assertion's intent
+- [x] 7.2 Review backend snapshot and route tests that assert the session payload shape exactly, and add `running` where they compare whole objects
+- [x] 7.3 Confirm every scenario in `specs/paused-session-display/spec.md` has at least one functional test, and list the mapping in the step 8 report
+- [x] 7.4 Confirm module test coverage has not decreased (backend and frontend)
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test state of `data/skeleton.sqlite` (run, scene and stage-attempt counts) and the list of project folders
-- [ ] 8.2 Run the targeted backend and frontend tests for this change and capture the pass/fail summary
-- [ ] 8.3 Run both full suites (`cd backend && npm test`, `cd frontend && npm test`) and record totals, failures and runtime
-- [ ] 8.4 Verify the post-test state matches the baseline; restore it and document the restoration if not
-- [ ] 8.5 Create the report `openspec/changes/distinguish-paused-session/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
-- [ ] 8.6 Mark this step complete only after the tests pass and the report file exists
+- [x] 8.1 Capture the pre-test state of `data/skeleton.sqlite` (run, scene and stage-attempt counts) and the list of project folders
+- [x] 8.2 Run the targeted backend and frontend tests for this change and capture the pass/fail summary
+- [x] 8.3 Run both full suites (`cd backend && npm test`, `cd frontend && npm test`) and record totals, failures and runtime
+- [x] 8.4 Verify the post-test state matches the baseline; restore it and document the restoration if not
+- [x] 8.5 Create the report `openspec/changes/distinguish-paused-session/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
+- [x] 8.6 Mark this step complete only after the tests pass and the report file exists
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
