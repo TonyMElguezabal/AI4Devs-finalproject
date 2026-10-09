@@ -2,24 +2,41 @@
 
 ## Context
 
-On `feature/jos-149-assemble-final-video` (PR #25, open; this branch's base, `600e4b1`):
+**Re-read against `feature/entrega-2-JAME` at task 1 (154 commits ahead of the propose commit; this branch rebased onto it).** PR #25 (JOS-149) merged long ago, and several things the original Context assumed were still missing are not:
 
-- **Trigger**: every time a chunk reaches `chunk-complete` or `failed`, `triggerAssemblyIfReady(runId)` runs. If `admitLaunch` admits and `assemblyGate` is open (every scene `chunk-complete`), it calls `launchAssemblyPhase`, which runs `runAssemblyAttempt(runId, 1)`.
-- **An attempt**:
-  1. It returns silently, with no record, when no assembly tool is set or the session has no voice-over.
-  2. It builds the clip list from the persisted chunks, in index order, using their `narrationInterval` and `videoResult`.
-  3. It records an `assembly` stage attempt (`providerId: null`).
-  4. It calls `tool.assemble({ clips, voiceOverPath, outputPath: <project>/final-video.mp4, … })`.
-  5. On success, it completes the attempt and sets `runs.final_video_path`.
-  6. On a not-retryable failure, it completes the attempt and stops.
-  7. On a transient failure, it recurses with `attemptNumber + 1`, up to `1 + RETRY_BUDGET`, then stops.
+- **Trigger**: unchanged in spirit. `triggerAssemblyIfReady(runId)` runs after every chunk reaches `chunk-complete` or `failed`; if `admitLaunch` admits and `assemblyGate` is open, it calls `launchAssemblyPhase`, which calls `runAssemblyAttempt(runId, attemptNumber)`.
+- **An attempt** (`runAssemblyAttempt`), still accurate in shape:
+  1. Returns silently, with no record, when no assembly tool is set, the session has no voice-over, **or `run.finalVideoPath` is already set, or an `assembly` attempt is already `in-flight`** (`ignore-repeated-success-confirmations`, JOS-161, added after the original Context was written).
+  2. Builds the clip list from the persisted chunks, in index order.
+  3. Records an `assembly` stage attempt via `recordStageAttempt` (`providerId: null`) — this already writes to `stage_attempts`, with `cycle`/`sequence_in_cycle` computed by the store itself (defaults to the stage instance's current `MAX(cycle)`, next `sequence_in_cycle`; see Decision 3 — **`runAssemblyAttempt`'s own `attemptNumber` parameter is a separate, redundant in-memory budget counter that never reads or writes `cycle`**).
+  4. Calls `tool.assemble({ clips, voiceOverPath, outputPath: <project>/final-video.mp4, … })` — **still writes directly into the project folder**, not a temp path. Decision 2's gap is real and unaddressed.
+  5. On success, `setFinalVideoPath` (a conditional write since JOS-161 — `WHERE final_video_path IS NULL`) and completes the attempt `success` or `superseded`.
+  6. On a not-retryable failure, completes the attempt and stops.
+  7. On a transient failure, completes the attempt `transient` and recurses with `attemptNumber + 1`, up to `1 + RETRY_BUDGET`, then stops.
 
-  The attempt number lives only in the call chain.
-- **Session state**: `deriveSessionState` returns `final-video-generating` when the gate is open and there is no final video. It reads `run.failure` only when there are no scenes. So a failed assembly is never `failed`.
-- **ffmpeg adapter**: it normalizes the clips in a `mkdtemp` work directory, removed afterwards, but writes the final concat-and-mux directly to `outputPath` with ffmpeg. A failure during that step can leave a partial `final-video.mp4`.
-- **Pause**: `launchGate` lists `assembly` in `NOT_YET_LAUNCHABLE`. `continueSession` relaunches held stages through the launchers (plus the video stage explicitly), never assembly. An assembly held by a pause is resumed only if a later chunk event fires, and with every scene already complete, none will.
-- **JOS-149 Decision 4** (isolation): no assembly code path writes a chunk or voice-over row. A retry re-reads the persisted results.
-- **This branch is behind `feature/entrega-2-JAME`** (for example, the integration branch already registers a video launcher). PR #25 is expected to be reconciled when it merges.
+  **None of these paths call `setRunFailure`.** Decision 1's core gap — a failed assembly is invisible — is confirmed still real.
+- **Session state** (`deriveSessionState`): confirmed still true — once scenes exist and the gate is open, it unconditionally returns `final-video-generating`/`final-video`; `run.failure` is read only in the zero-scenes branch. `SessionFailure = VoiceOverFailure | DecompositionFailure` — no `AssemblyFailure` variant exists. Decision 1's derivation change is still needed, exactly as designed.
+- **The `assembly` stage launcher already exists and is registered** (`preserve-progress-across-restarts`, JOS-160, added after the original Context) — this invalidates the original Context's "no launcher" and "`continueSession` does not resume assembly" claims:
+  ```ts
+  export const assemblyStageLauncher: StageLauncher = {
+    stage: "assembly",
+    heldWork: (sessionId) => {
+      const run = getRun(sessionId);
+      const gate = assemblyGate(getScenesForRun(sessionId));
+      const inFlight = getStageAttempts(sessionId, "assembly").some((a) => a.outcome === "in-flight");
+      return { count: run && !run.finalVideoPath && gate.open && !inFlight ? 1 : 0, sceneIds: [] };
+    },
+    pendingAtBoot: (sessionId) => { /* restart-recovery, stricter than heldWork */ },
+    settleInFlight: settleAssemblyInFlight,
+    launch: triggerAssemblyIfReady,
+  };
+  ```
+  `assembly` is off `NOT_YET_LAUNCHABLE`. **A newly-found gap this surfaces**: `heldWork` does not check `run.failure` at all. A session paused after assembly exhausts its budget still reports `heldWork` count 1 (finalVideoPath null, gate open, nothing in-flight), so `continueSession` → `launchHeldWork` → `triggerAssemblyIfReady` would silently relaunch a fresh cycle today, bypassing any explicit retry command. Decision 4 below closes this.
+- **ffmpeg adapter**: unchanged — normalizes clips in a `mkdtemp` work directory it removes afterwards, but still writes the final mux directly to `outputPath` (`<project>/final-video.mp4`). Decision 2's gap is real.
+- **JOS-149 Decision 4** (isolation): confirmed unchanged — no assembly code path writes a chunk or voice-over row.
+- **`bounded-retry-policy` (JOS-184) is merged.** `startNewCycle(ref: StageInstanceRef, options?)` in `backend/src/retry/stageAttemptRecorder.ts` returns `{ started: true, attempt }` (a **`scheduled`** row, `cycle: latest.cycle + 1`, `sequenceInCycle: 1`, due now) or `{ started: false, reason: "not-failed" | "not-retryable" }`. **It does not replace `runAssemblyAttempt`'s attempt-number parameter** — assembly was never routed through the recorder/scheduler (`registerAttemptSender`), unlike voice-over and decomposition. Calling `startNewCycle` and then separately calling `launchAssemblyPhase` (which makes its own `recordStageAttempt` call) would insert two rows for the new cycle's first slot and leave the `scheduled` row from `startNewCycle` permanently unclaimed — Decision 3 below closes this by claiming it explicitly.
+- **`view-progress-by-phase` (JOS-168) is merged.** `phaseActions(phase)` and `PhaseSection`/`PhaseRetryButton` exist; `phaseActions` currently returns `retry` only for decomposition (`phase.status === "failed" && phase.failure?.retryable === true`).
+- **`retry-decomposition` (JOS-156) is merged; `retry-voice-over` (JOS-155) is not** (no branch exists). The decomposition retry route (`POST /sessions/:sessionId/decomposition/retry`, `decompositionRetry.ts`) is the only merged per-phase retry pattern to reuse: `looseSessionParamsSchema` (so a malformed id is checked and 404'd in the handler, not 400'd by the schema), `emptyBodySchema`, `retryAcceptedSchema` (`{ok: true, held}`), and the `retryRefusalSentence` table/`PhaseRetryButton` on the frontend.
 
 ## Goals / Non-Goals
 
@@ -38,17 +55,26 @@ On `feature/jos-149-assemble-final-video` (PR #25, open; this branch's base, `60
 ## Decisions
 
 **Decision 1 — Record an assembly failure on the session, exactly like the voice-over and decomposition failures.**
-`AssemblyFailure = { phase: "assembly", cause, retryable, occurredAt }` joins `SessionFailure`. It is written with `setRunFailure` in these cases:
+`AssemblyFailure = { phase: "assembly", cause, retryable, manualRetryAvailable: true, cycle, attemptsInCycle, occurredAt }` joins `SessionFailure` (the same shape as `VoiceOverFailure`/`DecompositionFailure`, so `runs.failure` stays one column and every reader that already handles `SessionFailure` generically needs no change). `manualRetryAvailable` is always `true` for assembly — see Decision 7. It is written with `setRunFailure` in these cases:
 
-| Case | `retryable` |
-|---|---|
-| The last attempt of a cycle fails transiently (budget exhausted) | `true` |
-| An attempt fails not-retryably | `false` |
-| Before any attempt: no assembly tool configured, no voice-over stored, or a chunk's clip path missing or its file unreadable | `false`; nothing is sent to the tool |
+| Case | `retryable` | `cycle`/`attemptsInCycle` |
+|---|---|---|
+| The last attempt of a cycle fails transiently (budget exhausted) | `true` | from the completed attempt row (`recordStageAttempt`'s return already carries `cycle`/`sequenceInCycle`) |
+| An attempt fails not-retryably | `false` | from the completed attempt row |
+| Before any attempt: no assembly tool configured, no voice-over stored, or a chunk's clip path missing or its file unreadable | `false`; nothing is sent to the tool | `cycle: 1, attemptsInCycle: 0` — no row exists yet |
 
 The cause is written for a person. It names what failed, never contains a filesystem path outside the project-relative name, and ends with "Your narration, images and clips are kept." A success clears the failure (`clearRunFailure`).
 
-`deriveSessionState` changes in one place. When the gate is open and there is no final video, the session is `failed` with `failedPhase: "assembly"` if `run.failure?.phase === "assembly"` and no retry is in progress (Decision 5). Otherwise it is `final-video-generating`.
+`deriveSessionState`'s gate-open branch (where scenes exist and every one is `chunk-complete`) changes to check the failure first, mirroring the zero-scenes branch's existing `if (failure && progress.retryInFlight) … else if (failure) …` pattern one-for-one:
+
+```ts
+if (gate.open) {
+  if (failure?.phase === "assembly" && !progress.retryInFlight) return { state: "failed", failedPhase: "assembly" };
+  return { state: progress.hasFinalVideo ? "final-video" : "final-video-generating" };
+}
+```
+
+`progress.retryInFlight` is computed by the existing, already stage-generic `isRetryInFlight(runId, failure)` (`toSnapshot`'s caller), which needs only `RETRY_ATTEMPT_STAGE.assembly = "assembly"` added (and `RETRY_STATE.assembly = "final-video-generating"` for the `Record`'s type completeness, even though the zero-scenes branch that reads it never actually reaches an assembly failure).
 
 *Alternative rejected:* deriving the failure from the latest `assembly` attempt row. It cannot represent a failure before any attempt (no tool, missing clip). It is the same reason JOS-136 Decision 9 rejected that approach for the voice-over.
 
@@ -64,37 +90,50 @@ If `final-video.mp4` already exists without `final_video_path`, for example afte
 
 *Alternative rejected:* letting the retry overwrite the partial file. "Local files are not deleted automatically" (§12.2, AC15), and a partial MP4 next to a "failed" state misleads anyone opening the folder.
 
-**Decision 3 — The retry route follows the per-phase pattern.**
-`POST /sessions/:sessionId/assembly/retry` takes a strict empty body (any field answers 400). The responses are:
+**Decision 3 — The retry route follows the per-phase pattern. The cycle is opened with `startNewCycle`, then claimed and run synchronously in the same request — not left for the scheduler.**
+`POST /sessions/:sessionId/assembly/retry` takes an empty body (`emptyBodySchema`, same as decomposition's route — `z.object({}).strict().nullish()`), with `looseSessionParamsSchema` so a malformed id answers 404 in the handler, not 400 from the schema. The responses are:
 
 - **200** `{ ok: true, held }`.
-- **404** for an unknown or malformed session.
+- **404** for an unknown or malformed session (`session-not-found`).
 - **409** `{ ok: false, reason }`, where `reason` is one of:
   - `not-failed-in-assembly`
   - `scenes-not-complete`: a guard; a failed assembly implies an open gate, and chunks cannot revert.
   - `final-video-already-generated`: a guard.
   - `retry-already-pending`
 
-`retryAssembly(sessionId)` in `assemblyRetry.ts` runs the checks in that order, then `startNewCycle({ sessionId, stage: "assembly" })` (JOS-184, atomic, so a concurrent second request gets `retry-already-pending`), then hands the session to the `assembly` launcher through the gate. No tool is called before that last step.
+`retryAssembly(sessionId)` in `assemblyRetry.ts` runs the checks in that order, then calls `startNewCycle({ sessionId, stage: "assembly" })`. Unlike `retryDecomposition`, it does not stop there — assembly has no registered attempt sender for the scheduler to release later (Context), so the same call:
 
-**Decision 4 — Register the `assembly` stage launcher; it serves first runs and retries.**
-`{ stage: "assembly", heldWork, launch }`:
+1. On `{started: false}`, maps the reason (`"not-retryable"` can't happen here — Decision 7 never leaves a not-retryable assembly failure unretryable — so this is always a lost race against another request already past `startNewCycle`, and maps to `retry-already-pending`).
+2. On `{started: true, attempt}`, claims that exact scheduled row at once: `claimScheduledAttempt(attempt.id, nowIso())` (always succeeds — nothing else could have claimed a row this request just created). This is what gives the concurrent-request guarantee: `startNewCycle`'s own read-then-insert is wrapped in one transaction, so of two racing calls only one gets `{started: true}`.
+3. Calls a small adapted entry point — `runAssemblyAttempt`'s body unchanged, but invoked with the claimed attempt's id and `sequenceInCycle` instead of calling `recordStageAttempt` again, so it **completes** that row (via `completeStageAttempt`) rather than inserting a second one for the same slot. Automatic retries within this new cycle (on a transient failure) continue exactly as today, through `recordStageAttempt`'s own cycle/sequence defaulting, which now correctly continues from the cycle `startNewCycle` opened.
+4. `clearRunFailure(sessionId)` before launching, so a live view does not show `failed` for even one broadcast.
 
-- **`heldWork(sessionId)` counts 1** when the session is paused, the gate is open, there is no final video, no assembly attempt is in flight, and either of these holds:
-  - there is no assembly failure: a first run held at launch;
-  - there is a scheduled manual attempt newer than the failure: a held retry.
-- **`launch(sessionId)` calls `launchAssemblyPhase`**, which starts the cycle's attempt numbering at 1, a fresh budget.
+No tool is called before step 2 succeeds.
 
-`triggerAssemblyIfReady` keeps calling the gate. `assembly` comes off `NOT_YET_LAUNCHABLE`, so `continueSession` resumes it through `launchHeldWork`.
+**Decision 4 — Register the `assembly` stage launcher.** It already exists (Context) and already serves first runs correctly (`launch: triggerAssemblyIfReady`, already off `NOT_YET_LAUNCHABLE`, already resumed by `continueSession` through `launchHeldWork`). The one change: **`heldWork` must not count a failed, non-retrying assembly as held work**, or `continueSession` silently relaunches it with no explicit retry (Context).
+
+```ts
+heldWork: (sessionId) => {
+  const run = getRun(sessionId);
+  const gate = assemblyGate(getScenesForRun(sessionId));
+  const inFlight = getStageAttempts(sessionId, "assembly").some((a) => a.outcome === "in-flight");
+  const blockedByFailure = run?.failure?.phase === "assembly";
+  return { count: run && !run.finalVideoPath && gate.open && !inFlight && !blockedByFailure ? 1 : 0, sceneIds: [] };
+},
+```
+
+A session paused while a retry's own attempt is in-flight is still correctly held (the `inFlight` check already covers it — `completeStageAttempt` on that row clears `in-flight` either way, independent of `run.failure`). A session paused *before* any assembly has ever run is unaffected (`run.failure` is `null`, same as today).
+
+*Alternative rejected:* "a scheduled manual attempt newer than the failure" as a second, held-retry case in `heldWork`, per the original design. Dropped because Decision 3 claims the `startNewCycle` row synchronously, in the same request — it is never left `scheduled` for `heldWork`/`continueSession` to find later. (If the retry route itself runs while the session is paused, `admitLaunch` inside `runAssemblyAttempt` holds the actual provider-equivalent call exactly as a first run would — the attempt sits `in-flight` with nothing sent, and `continueSession`'s normal `in-flight` handling resumes it; no special case needed.)
 
 **Decision 5 — The retry-in-progress rule gains its assembly row.**
-This is the shared table from JOS-168 Decision 5, JOS-155 Decision 7 and JOS-156 Decision 5:
+This is the shared table from JOS-168 Decision 5 and JOS-156 Decision 5 (JOS-155 is not merged; its row is for whoever adds it):
 
-| Failed phase | Attempt stages | In-progress state |
+| Failed phase | Attempt stage (`RETRY_ATTEMPT_STAGE`) | In-progress state (`RETRY_STATE`) |
 |---|---|---|
 | assembly | `assembly` | `final-video-generating` |
 
-A scheduled or in-flight `assembly` attempt of the current cycle, newer than the failure, derives `final-video-generating`, and the assembly phase is `in-progress` with no `failure`.
+An `in-flight` `assembly` attempt queued at or after the failure's `occurredAt` (the existing, stage-generic `isRetryInFlight`) derives `final-video-generating` instead of `failed` (Decision 1); the assembly phase (JOS-168's `derivePhaseProgress`) is `in-progress` with no `failure` shown for it.
 
 **Decision 6 — Retries read only persisted components.**
 A retry rebuilds the clip list exactly as a first run does: from the persisted chunks in index order, their `narrationInterval` and `videoResult`, and the stored voice-over path. It calls no voice, image or video provider, and launches no scene stage. Tests prove AC3 by checking that:
@@ -104,7 +143,7 @@ A retry rebuilds the clip list exactly as a first run does: from the persisted c
 - the `voice_overs`, `scenes`, `scene_results` and `scene_video_results` rows are unchanged.
 
 **Decision 7 — The page action.**
-`phaseActions` returns `[{ kind: "retry" }]` for the assembly entry when it is `failed`, whatever `retryable` is. This matches JOS-155 Decision 3 and is subject to the same product-owner answer. The Final video section shows the cause and a `Retry final video` button through the shared retry-button component. The final-video download stays hidden until `final-video`.
+`phaseActions(phase): { retry: boolean }` (its real current shape — Context) returns `retry: true` for the assembly entry whenever it is `failed`, whatever `retryable` is — unlike decomposition's `phase.failure?.retryable === true` gate. This is a deliberate difference, not an oversight: §10.3/AC13's promise is that nothing generated is lost, so a retry costs nothing extra to offer even after a not-retryable failure (a missing clip file, for instance, is worth letting the User try again after fixing the filesystem issue outside the app). JOS-155's own open question (whether a not-retryable voice-over failure should still offer retry) is the same question for a different phase and remains open there; this change does not block on it; it makes the explicit, reasoned choice for assembly. The Final video section shows the cause and a `Retry final video` button through `PhaseRetryButton`. The final-video download stays hidden until `final-video`.
 
 ## Risks / Trade-offs
 
