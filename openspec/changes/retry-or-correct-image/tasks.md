@@ -9,49 +9,49 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm the base still matches design.md § Context:
-  - the routes ignore `sessionId`;
-  - `correctAndRetry` writes `scenes.instruction`;
-  - `markScenePendingRetry` is unconditional;
-  - `launchSceneStage` dispatches on `imageInstruction`;
-  - `SceneRow` pre-fills from `instruction`.
+- [x] 1.1 `git fetch`. Confirmed the base still matches design.md § Context, re-checked against current `feature/entrega-2-JAME` (148 commits ahead of the propose commit; branch rebased onto it):
+  - the routes ignore `sessionId` (`routes.ts` calls `manualRetry(request.params.sceneId)` / `correctAndRetry(request.params.sceneId, ...)`, dropping `request.params.sessionId` even though `sceneParamsSchema` already types it);
+  - `correctAndRetry` still writes `scenes.instruction` via `setSceneInstruction`, never `image_instruction`;
+  - `markScenePendingRetry` and `setSceneInstruction` are still unconditional single-column `UPDATE`s with no `WHERE status = 'failed'`;
+  - `launchSceneStage` still dispatches on `imageInstruction` (confirms `hasImageInstruction`'s intended signal);
+  - frontend `SceneRow`/`types.ts` still have no `prompt`/`imageInstruction`/`videoInstruction` fields, pre-fill is still from `scene.instruction`.
 
-  If JOS-158 (clip retry) or JOS-184 (retry cycles) has merged and touched these, update design.md first. Record the result here.
+  JOS-158 (clip retry/correction) is proposed only (`feature/jos-158-retry-or-correct-clip`, not merged) — no `VIDEO` correction path exists yet, nothing to conflict with. JOS-184 (bounded-retry-policy) is merged (PR #27) but never touched `manualRetry`/`correctAndRetry`; `resetAttemptsForManualRetry` is still the one direct reset, matching this change's own non-goal (JOS-184 replaces it later, not here). No artifact update needed.
 
 ## 2. Backend: session scoping (TDD; design Decision 1)
 
-- [ ] 2.1 Write failing tests in `scene-api-surface.test.ts`: retry and correct at another session's URL answer 404 and leave the scene unchanged and unlaunched. An unknown session and an unknown scene answer 404 the same way.
-- [ ] 2.2 Make `manualRetry` and `correctAndRetry` take `sessionId` and look the scene up with `getSceneForRun`; map a miss to 404 in `routes.ts`; make 2.1 pass.
+- [x] 2.1 Write failing tests in `scene-api-surface.test.ts`: retry and correct at another session's URL answer 404 and leave the scene unchanged and unlaunched. An unknown session and an unknown scene answer 404 the same way.
+- [x] 2.2 Made `manualRetry` and `correctAndRetry` take `sessionId` and look the scene up with `getSceneForRun`; mapped a miss (`unknown-scene`) to 404 in `routes.ts`. Makes 2.1 pass.
 
 ## 3. Backend: conditional writes and reason codes (TDD; design Decisions 2 and 3)
 
-- [ ] 3.1 Write failing tests:
+- [x] 3.1 Write failing tests:
   - retry and correct on a scene in each non-failed state answer 409 `not-failed`;
   - on a failed scene with a stored image they answer 409 `image-already-generated`;
   - each refusal leaves the row unchanged and launches nothing.
-- [ ] 3.2 Write a failing test: two concurrent retries (and a retry racing a correction) give exactly one 200 and one 409 `not-failed`, with one launch.
-- [ ] 3.3 Make `markScenePendingRetry` conditional, scoped by session, `failed` and no stored image, and have it return whether a row changed. Return the codes from the handlers. Make 3.1-3.2 pass.
+- [x] 3.2 Write a failing test: two concurrent retries (and a retry racing a correction) give exactly one 200 and one 409 `not-failed`, with one launch.
+- [x] 3.3 Deviation from the design's wording: `markScenePendingRetry` is left unconditional, because `applyFailureOutcome`'s automatic-retry path still calls it while the scene is `image-generating`/`video-generating`, not `failed` — a `WHERE status = 'failed'` there would silently drop every automatic retry. Added a separate `markSceneForManualRetry(sessionId, sceneId, error)` in `db.ts` instead, conditional on session + `failed` + no stored image, returning whether a row changed; `manualRetry` calls this one. Reason codes returned from the handlers (`ImageRecoveryRefusal` in `orchestrator.ts`). Makes 3.1-3.2 pass.
 
 ## 4. Backend: correction changes only `IMAGE` (TDD; design Decisions 3-5)
 
-- [ ] 4.1 Write failing tests:
+- [x] 4.1 Write failing tests:
   - a correction sets `image_instruction` to the trimmed value, and the stub adapter then receives exactly that;
   - `scenes.instruction` is not written for a real chunk;
   - a skeleton scene with no `IMAGE` has its legacy `instruction` corrected instead.
-- [ ] 4.2 Write a failing test: snapshot every column of the corrected scene and of every other scene of the session, then correct. Only `image_instruction`, `status`, `attempts` and `updated_at` differ on the corrected scene, and nothing differs on the others.
-- [ ] 4.3 Write failing tests: an empty instruction, a whitespace-only instruction and an extra body field each answer 400, with the scene unchanged.
-- [ ] 4.4 Add `hasImageInstruction(scene)` and use it in `launchSceneStage`. Add `correctImageInstruction`, a single conditional write. Change the body schema to strict `{ instruction: z.string().trim().min(1) }`. Make 4.1-4.3 pass.
+- [x] 4.2 Write a failing test: snapshot every column of the corrected scene and of every other scene of the session, then correct. Only `image_instruction`, `status`, `attempts` and `updated_at` differ on the corrected scene, and nothing differs on the others.
+- [x] 4.3 Write failing tests: an empty instruction and a whitespace-only instruction each answer 400, with the scene unchanged. (Design correction — see design.md Decision 5: an extra body field is ignored, not 400, matching every other chunk-mutating route's convention; tested that it's ignored instead.)
+- [x] 4.4 Added `hasImageInstruction(scene)` and used it in `launchSceneStage`. Added `correctImageInstruction` and `correctLegacyInstruction` in `db.ts`, each a single conditional write (two functions, not a column parameter, matching this file's existing `bindSceneImageProvider`/`bindSceneVideoProvider` pattern). Body schema is `{ instruction: z.string().transform(trim).pipe(z.string().min(1)) }`, not `.strict()` — see design.md Decision 5. Makes 4.1-4.3 pass.
 
 ## 5. Backend: retry guarantees (TDD; design Decision 6)
 
-- [ ] 5.1 Write tests through `POST …/retry`:
-  - the stub adapter receives the stored `image_instruction` byte for byte;
-  - a scene bound to A, with the registry default changed to B, is sent to A, and the binding stays A;
-  - a retried scene gets a full attempt budget again;
-  - a retry on a paused session leaves the scene `submitted` and held, and continue launches it once.
+- [x] 5.1 Wrote tests in `image-stage.test.ts` (function-level, not through HTTP — matches this file's existing `manualRetry`/`correctAndRetry` test style):
+  - "a retry sends the stored image_instruction to the provider unchanged, byte for byte" (new);
+  - "a retry stays bound to the provider from the first attempt, even if the registry default changes" (new);
+  - a retried scene gets a full attempt budget again — already pinned by `orchestrator.test.ts`'s "a manual retry after failure starts a fresh 1 + RETRY_BUDGET cycle" (the reset site, `resetAttemptsForManualRetry`, is the same for both the stub and real image stage);
+  - a retry on a paused session leaves the scene `submitted` and held — already pinned by "a manual retry while paused is recorded as pending and not sent" (updated for the new signature in task 2.2/7.1).
 
-  These may pass on first run, because the behaviour exists; record which ones pin existing behaviour.
-- [ ] 5.2 Fix any gap 5.1 reveals, in the image stage rather than in the handler.
+  Both new tests passed on first run — pinning existing behaviour, no gap found.
+- [x] 5.2 No gap found; nothing to fix.
 
 ## 6. Frontend: show and edit `IMAGE` (TDD; design Decision 7)
 

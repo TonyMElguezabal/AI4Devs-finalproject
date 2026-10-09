@@ -70,7 +70,11 @@ const IMAGE_CONTENT_TYPES: Record<string, string> = {
 const sessionParamsSchema = z.object({ sessionId: sessionIdSchema });
 const sceneParamsSchema = z.object({ sessionId: sessionIdSchema, sceneId: z.string().uuid() });
 const providerCallbackParamsSchema = z.object({ requestId: z.string().uuid() });
-const correctBodySchema = z.object({ instruction: z.string().min(1) });
+// retry-or-correct-image (JOS-157), design Decision 5 — trimmed, non-blank. Not `.strict()`: this endpoint
+// follows the same "an operation that accepts a body ignores locked fields" convention every other
+// chunk-mutating route in this project uses (consult-session AC1) — an extra field in the body is read nowhere
+// and so changes nothing, the same guarantee `.strict()` would give, without breaking that shared convention.
+const correctBodySchema = z.object({ instruction: z.string().transform((value) => value.trim()).pipe(z.string().min(1)) });
 
 // see-provider-and-attempts (JOS-166) Decision 4 — the closed list of what a stage diagnostic may carry. `.strict()` makes
 // a field added by mistake fail validation, so nothing else of an attempt record can reach the page by default.
@@ -340,19 +344,21 @@ export const routes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  // retry-or-correct-image (JOS-157), design Decision 1 — scoped by (sessionId, sceneId); an unknown session,
+  // an unknown scene and a scene of another session all answer 404 identically, as `unknown-scene`.
   typed.post(
     "/sessions/:sessionId/scenes/:sceneId/retry",
     {
       schema: {
         params: sceneParamsSchema,
-        response: { 200: okSchema, 409: conflictSchema },
+        response: { 200: okSchema, 404: conflictSchema, 409: conflictSchema },
       },
     },
     async (request, reply) => {
-      const result = manualRetry(request.params.sceneId);
+      const result = manualRetry(request.params.sessionId, request.params.sceneId);
       if (!result.ok) {
-        reply.code(409);
-        return { ok: false, reason: result.reason ?? "cannot retry" };
+        reply.code(result.reason === "unknown-scene" ? 404 : 409);
+        return { ok: false, reason: result.reason };
       }
       return { ok: true };
     },
@@ -366,14 +372,14 @@ export const routes: FastifyPluginAsync = async (app) => {
       schema: {
         params: sceneParamsSchema,
         body: correctBodySchema,
-        response: { 200: okSchema, 409: conflictSchema },
+        response: { 200: okSchema, 404: conflictSchema, 409: conflictSchema },
       },
     },
     async (request, reply) => {
-      const result = correctAndRetry(request.params.sceneId, request.body.instruction);
+      const result = correctAndRetry(request.params.sessionId, request.params.sceneId, request.body.instruction);
       if (!result.ok) {
-        reply.code(409);
-        return { ok: false, reason: result.reason ?? "cannot correct" };
+        reply.code(result.reason === "unknown-scene" ? 404 : 409);
+        return { ok: false, reason: result.reason };
       }
       return { ok: true };
     },

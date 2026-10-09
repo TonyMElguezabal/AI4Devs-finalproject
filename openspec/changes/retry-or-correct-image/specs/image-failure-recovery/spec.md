@@ -61,8 +61,13 @@ A correction SHALL be accepted only for a scene that is `failed` with no stored 
 
 #### Scenario: Blank instruction
 
-- **WHEN** a correction is requested with an instruction that is empty or only whitespace, or with an extra body field
+- **WHEN** a correction is requested with an instruction that is empty or only whitespace
 - **THEN** the command answers 400 and the scene is unchanged
+
+#### Scenario: Extra field in the correction body
+
+- **WHEN** a correction is requested with a body field other than `instruction`
+- **THEN** the extra field is ignored and the command proceeds as if it were absent, following the same "an operation ignores locked fields" rule every other chunk-mutating route uses
 
 ### Requirement: No image action once the image succeeded
 

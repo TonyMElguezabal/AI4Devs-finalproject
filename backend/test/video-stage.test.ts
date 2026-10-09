@@ -480,7 +480,7 @@ describe("Group 6 — Failures, retries, binding (Decisions 5, 6, 7)", () => {
     expect(firstAttemptNumber).toBe(1); // video stage starts at attempt 1
   });
 
-  it("manualRetry on a video-stage failure answers {ok:false} with 'retrying a failed clip is not available yet' and leaves everything unchanged", async () => {
+  it("manualRetry on a video-stage failure answers {ok:false} with image-already-generated and leaves everything unchanged", async () => {
     const runId = randomUUID();
     createRun(runId, "manual retry video test", "script", "en");
 
@@ -495,16 +495,16 @@ describe("Group 6 — Failures, retries, binding (Decisions 5, 6, 7)", () => {
     expect(before.status).toBe("failed");
     expect(before.result).not.toBeNull(); // image path still present
 
-    const result = manualRetry(sceneId);
+    const result = manualRetry(runId, sceneId);
 
-    expect(result).toEqual({ ok: false, reason: "retrying a failed clip is not available yet" });
+    expect(result).toEqual({ ok: false, reason: "image-already-generated" });
     const after = getScene(sceneId)!;
     expect(after.status).toBe("failed");
     expect(after.attempts).toBe(before.attempts); // unchanged
     expect(after.result).toBe(before.result); // image path unchanged
   });
 
-  it("correctAndRetry on a video-stage failure answers {ok:false} with 'retrying a failed clip is not available yet' and leaves everything unchanged", async () => {
+  it("correctAndRetry on a video-stage failure answers {ok:false} with image-already-generated and leaves everything unchanged", async () => {
     const runId = randomUUID();
     createRun(runId, "correct retry video test", "script", "en");
 
@@ -518,9 +518,9 @@ describe("Group 6 — Failures, retries, binding (Decisions 5, 6, 7)", () => {
     const before = getScene(sceneId)!;
     expect(before.status).toBe("failed");
 
-    const result = correctAndRetry(sceneId, "a new instruction");
+    const result = correctAndRetry(runId, sceneId, "a new instruction");
 
-    expect(result).toEqual({ ok: false, reason: "retrying a failed clip is not available yet" });
+    expect(result).toEqual({ ok: false, reason: "image-already-generated" });
     const after = getScene(sceneId)!;
     expect(after.status).toBe("failed");
     expect(after.instruction).toBe(before.instruction); // instruction unchanged
@@ -536,7 +536,7 @@ describe("Group 6 — Failures, retries, binding (Decisions 5, 6, 7)", () => {
       "INSERT INTO scenes (id, run_id, idx, status, instruction, image_instruction, video_instruction, attempts, updated_at) VALUES (?, ?, 1, 'failed', 'i', 'i', 'v', 1, ?)",
     ).run(sceneId, runId, new Date().toISOString());
 
-    const result = manualRetry(sceneId);
+    const result = manualRetry(runId, sceneId);
 
     // manualRetry succeeds (not refused with the 409 video-stage guard)
     expect(result.ok).toBe(true);
