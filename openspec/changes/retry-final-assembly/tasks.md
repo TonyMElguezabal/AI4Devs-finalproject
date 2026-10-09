@@ -33,19 +33,19 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 4. Backend: launcher, retry service and derived state (TDD; design Decisions 3-5)
 
-- [ ] 4.1 Write failing tests in `launch-gate.test.ts`:
-  - `assembly` has a registered launcher and is not in `NOT_YET_LAUNCHABLE`;
-  - a first assembly held by a pause runs exactly once on continue;
-  - a held retry is counted as one held unit and runs once on continue.
-- [ ] 4.2 Write failing tests in a new `assembly-retry.test.ts` for `retryAssembly`:
-  - an unknown session;
-  - each 409 reason, with the tool never called;
-  - concurrent calls open one cycle;
-  - acceptance after a retryable failure and after a not-retryable one;
-  - a new cycle allows four attempts.
-- [ ] 4.3 Write failing tests: an accepted retry derives `final-video-generating`, with the assembly phase `in-progress` and no `failure`, while scheduled, held or running. A retry that fails again derives `failed` with the new cause.
-- [ ] 4.4 Write a failing test for the migration step: a session with a failed last `assembly` attempt, no final video and no recorded failure gets its failure recorded at boot, once.
-- [ ] 4.5 Implement the `assembly` launcher, `backend/src/assemblyRetry.ts`, the assembly row of the retry-rule table, and the boot step; make 4.1-4.4 pass.
+- [x] 4.1 `assembly` having a registered launcher off `NOT_YET_LAUNCHABLE` and a first assembly held by a pause running exactly once on continue were already covered by pre-existing JOS-160 tests (`assembly-launch.test.ts`'s "assembly launcher resumes held assembly work" describe block) — confirmed still passing, no new test needed for those two. Added the third bullet, a held *retry* counted as one held unit and run once on continue, to the new `assembly-retry.test.ts` instead of `launch-gate.test.ts` (it needs `retryAssembly`, group 4's own new code, so it belongs with that file's other new tests).
+- [x] 4.2 Wrote failing tests in a new `assembly-retry.test.ts` for `retryAssembly`: an unknown session; each 409 reason, with the tool never called; concurrent calls (one accepted, the other refused); acceptance after a retryable failure and after a not-retryable one; a new cycle allows its own full `1 + RETRY_BUDGET` attempts.
+- [x] 4.3 Wrote failing tests (same file): an accepted retry derives `final-video-generating`, with the assembly phase `in-progress` and no `failure`, while held (paused) and while running. A retry that fails again derives `failed` with the new cause.
+- [x] 4.4 Wrote failing tests in `restart-assembly.test.ts` ("Boot migration" describe block) for the migration step: a session with a budget-exhausted or not-retryable last `assembly` attempt, no final video and no recorded failure gets its failure recorded at boot, once (a second boot is a no-op); a session with no attempts, or whose final video is already recorded, is untouched.
+- [x] 4.5 Implemented `backend/src/assemblyRetry.ts` (`retryAssembly`), `beginAssemblyRetry` (`db.ts`, the one atomic claim), the assembly row of the retry-rule table (done in group 2's commit), and `recordMissingAssemblyFailuresOnBoot` (`orchestrator.ts`, called from `recoverOnBoot` right after `settleAllInFlight`). Makes 4.1-4.4 pass.
+
+  **Found during implementation, corrected in design.md Decision 3**: `startNewCycle` (the generic manual-retry primitive decomposition/voice-over use) cannot represent assembly's two pre-attempt failures (no tool, no voice-over — zero `stage_attempts` rows), so it was dropped in favour of a small custom claim. There is no separate `retry-already-pending` refusal reason either — the whole `retryAssembly` function has no `await`, so a losing concurrent call always lands on the same, accurate `not-failed-in-assembly`.
+
+  **Found during implementation, corrected in design.md Decision 3**: a retried attempt needs an *explicit* `cycle` (`(latest?.cycle ?? 0) + 1`, passed only when `attemptNumber === 1`) — without it, `recordStageAttempt`'s default (`MAX(cycle)`, i.e. the same, already-exhausted cycle) overflows the table's `sequence_in_cycle BETWEEN 1 AND 4` `CHECK` constraint on the very next retried attempt. Caught by `assembly-retry.test.ts`'s "a new cycle allows four attempts" test throwing instead of failing an assertion.
+
+  **Found during implementation**: the migration boot step must skip a `transient` latest attempt whose budget is **not** yet spent (`sequenceInCycle < 1 + RETRY_BUDGET`) — that is a cycle genuinely still in progress (interrupted by the very restart calling this step, with no failure yet because `settleAssemblyInFlight` only records one on exhaustion); recording a failure for it would incorrectly block the relaunch pass that continues it (Decision 4's `blockedByFailure` guard). Caught by a regression in `restart-assembly.test.ts`'s pre-existing "is launched once as the next attempt" test.
+
+  As a consequence of these two cycle-number findings, `runAssemblyAttempt`'s now-unused `claimedAttempt` parameter (from Decision 3's original `startNewCycle`-based plan) was removed along with its in-flight-guard exclusion and its stale doc comment.
 
 ## 5. Backend: components untouched (TDD; design Decision 6)
 

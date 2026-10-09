@@ -464,20 +464,19 @@ function recordAssemblyFailure(
 }
 
 /**
- * Runs one assembly attempt; retries on transient failure up to RETRY_BUDGET. `claimedAttempt`, when given (a
- * manual retry — `assemblyRetry.ts`), is a `stage_attempts` row already claimed `in-flight` by `startNewCycle` +
- * `claimScheduledAttempt`; this attempt is *completed*, not recorded again, so the new cycle's first slot is used
- * exactly once. Every later attempt within the same cycle (on a transient failure) records its own row as before —
- * `recordStageAttempt`'s own cycle/sequence defaulting continues correctly from the cycle the claimed row opened.
+ * Runs one assembly attempt; retries on transient failure up to RETRY_BUDGET. A manual retry (`assemblyRetry.ts`)
+ * goes through this same function via `assemblyStageLauncher.launch`/`launchAssemblyPhase`, exactly like a first
+ * run — it records its own fresh `stage_attempts` row and gets a full new budget (`attemptNumber` starts at 1
+ * again), rather than resuming any earlier attempt.
  */
-async function runAssemblyAttempt(runId: string, attemptNumber: number, claimedAttempt?: StageAttempt): Promise<void> {
+async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise<void> {
   const run = getRun(runId);
   if (!run) return;
   if (!admitLaunch(runId).admitted) return;
   // ignore-repeated-success-confirmations (JOS-161), design Decision 3 — no assembly for a session that already has its
   // final video, or while one is in flight. No await precedes the attempt record below, so this check and the record
   // cannot interleave with another launch.
-  if (run.finalVideoPath || getStageAttempts(runId, "assembly").some((attempt) => attempt.outcome === "in-flight" && attempt.id !== claimedAttempt?.id)) {
+  if (run.finalVideoPath || getStageAttempts(runId, "assembly").some((attempt) => attempt.outcome === "in-flight")) {
     return;
   }
 
@@ -537,15 +536,18 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number, claimedA
   const tempOutputPath = join(work, "final-video.mp4");
   const now = new Date().toISOString();
 
-  const attempt =
-    claimedAttempt ??
-    recordStageAttempt({
-      runId,
-      stage: "assembly",
-      providerId: null,
-      queuedAt: now,
-      sentAt: now,
-    });
+  // attemptNumber === 1 means a fresh cycle is starting (a first run, or a manual retry — design Decision 3):
+  // give it the next cycle number explicitly, since `recordStageAttempt`'s own default (no cycle given) reuses
+  // the stage instance's current MAX(cycle), which would overflow the just-exhausted cycle's own attempt cap.
+  // Every later attempt within the same cycle (attemptNumber > 1, automatic or restart-continued) keeps the default.
+  const attempt = recordStageAttempt({
+    runId,
+    stage: "assembly",
+    providerId: null,
+    queuedAt: now,
+    sentAt: now,
+    ...(attemptNumber === 1 ? { cycle: (getStageAttempts(runId, "assembly").at(-1)?.cycle ?? 0) + 1 } : {}),
+  });
   const attemptId = attempt.id;
 
   let result;
@@ -1435,9 +1437,32 @@ function settleAssemblyInFlight(): SettleSummary {
  * restart, so the relaunch pass rebuilds them last; launchers preserve eligibility and acquire ignores holders already
  * queued by a retry above.
  */
+/**
+ * retry-final-assembly (JOS-159), task 4.4, design.md Migration Plan — a session stuck in `final-video-generating`
+ * from before this change (PR #25's code never called `setRunFailure` on an assembly failure). Its last assembly
+ * attempt already settled `transient` (budget exhausted) or `not-retryable`, with no final video and no failure
+ * recorded; `settleAllInFlight` (called just before this, in `recoverOnBoot`) has already recorded a failure for
+ * any attempt genuinely interrupted by *this* restart, so this only ever finds older, already-settled attempts.
+ */
+function recordMissingAssemblyFailuresOnBoot(): void {
+  const stuck = db.prepare(`SELECT id AS runId FROM runs WHERE final_video_path IS NULL AND failure IS NULL`).all() as Array<{ runId: string }>;
+  for (const { runId } of stuck) {
+    const latest = getStageAttempts(runId, "assembly").at(-1);
+    if (!latest) continue;
+    // A transient attempt with budget remaining is mid-cycle, not stuck — `relaunchPendingWork` (called right
+    // after this in `recoverOnBoot`) continues it normally, the same as `settleAssemblyInFlight` only recording a
+    // failure once a cycle's budget is actually exhausted.
+    if (latest.outcome === "transient" && latest.sequenceInCycle < 1 + RETRY_BUDGET) continue;
+    if (latest.outcome !== "transient" && latest.outcome !== "not-retryable") continue;
+    recordAssemblyFailure(runId, latest.errorMessage ?? "the final video could not be assembled", latest.outcome === "transient", latest);
+    broadcast(runId);
+  }
+}
+
 export function recoverOnBoot(): SettleSummary {
   occupyResumedRequestSlots();
   const summary = settleAllInFlight();
+  recordMissingAssemblyFailuresOnBoot();
   // Waiting callbacks were lost on restart. Rebuild them only after all sent
   // requests have been counted and reconciled; launchers preserve eligibility
   // and acquire ignores holders already queued by a retry above.

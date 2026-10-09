@@ -13,6 +13,7 @@ import {
   markImageComplete,
   recordStageAttempt,
   resetAll,
+  setFinalVideoPath,
   writeArtefactOnce,
 } from "../src/db.ts";
 import {
@@ -110,6 +111,19 @@ function interruptAssemblyAfter(runId: string, count: number): void {
   }
 }
 
+/**
+ * retry-final-assembly (JOS-159), task 4.4 — a cycle already fully settled with no failure recorded: the state
+ * the pre-JOS-159 code could leave a session in (PR #25 never called `setRunFailure`). `outcome` is the last
+ * attempt's own outcome, never "in-flight" — that is `interruptAssemblyAfter`'s scenario, not this one.
+ */
+function settleExhaustedAssemblyCycleWithNoFailure(runId: string, count: number, outcome: "transient" | "not-retryable"): void {
+  for (let attempt = 1; attempt <= count; attempt++) {
+    const sentAt = new Date().toISOString();
+    const recorded = recordStageAttempt({ runId, stage: "assembly", providerId: null, queuedAt: sentAt, sentAt });
+    completeStageAttempt(recorded.id, { outcome: attempt < count ? "transient" : outcome, finishedAt: sentAt, errorMessage: "stub failure from before JOS-159" });
+  }
+}
+
 describe("Assembly interrupted by a restart (4.2)", () => {
   it("is launched once as the next attempt of the same sequence when attempts are left", async () => {
     const runId = await sessionReadyToAssemble();
@@ -161,5 +175,51 @@ describe("Assembly interrupted by a restart (4.2)", () => {
 
     expect(getStageAttempts(runId, "assembly").map((a) => a.outcome)).toEqual(["transient"]);
     expect(getRun(runId)!.finalVideoPath).toBeNull();
+  });
+});
+
+describe("Boot migration — a pre-JOS-159 session stuck with no recorded failure (task 4.4)", () => {
+  it("gets its failure recorded at boot, once, from a budget-exhausted cycle", async () => {
+    const runId = await sessionReadyToAssemble();
+    settleExhaustedAssemblyCycleWithNoFailure(runId, 1 + RETRY_BUDGET, "transient");
+    expect(getRun(runId)!.failure).toBeNull();
+
+    simulateRestart();
+
+    expect(getRun(runId)!.failure).toMatchObject({ phase: "assembly", retryable: true });
+    expect(getStageAttempts(runId, "assembly")).toHaveLength(1 + RETRY_BUDGET); // unchanged — no attempt recorded by the boot step itself
+
+    simulateRestart(); // a second boot must not re-broadcast or alter an already-recorded failure
+    expect(getRun(runId)!.failure).toMatchObject({ phase: "assembly", retryable: true });
+  });
+
+  it("gets its failure recorded at boot from a not-retryable last attempt", async () => {
+    const runId = await sessionReadyToAssemble();
+    settleExhaustedAssemblyCycleWithNoFailure(runId, 1, "not-retryable");
+
+    simulateRestart();
+
+    expect(getRun(runId)!.failure).toMatchObject({ phase: "assembly", retryable: false });
+  });
+
+  it("leaves a session with no assembly attempts at all untouched", async () => {
+    // Paused so the unrelated relaunch-on-boot pass (`relaunchPendingWork`) does not itself trigger a fresh
+    // "no tool configured" attempt and failure — isolating the migration step's own behaviour.
+    const runId = await sessionReadyToAssemble();
+    pauseSession(runId);
+
+    simulateRestart();
+
+    expect(getRun(runId)!.failure).toBeNull();
+  });
+
+  it("leaves a session whose final video is already recorded untouched, even with a stale transient attempt", async () => {
+    const runId = await sessionReadyToAssemble();
+    settleExhaustedAssemblyCycleWithNoFailure(runId, 1 + RETRY_BUDGET, "transient");
+    setFinalVideoPath(runId, "final-video.mp4");
+
+    simulateRestart();
+
+    expect(getRun(runId)!.failure).toBeNull();
   });
 });

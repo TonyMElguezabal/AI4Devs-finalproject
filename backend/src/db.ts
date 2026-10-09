@@ -907,6 +907,21 @@ export function clearRunFailure(runId: string): void {
   db.prepare("UPDATE runs SET failure = NULL WHERE id = ?").run(runId);
 }
 
+/**
+ * retry-final-assembly (JOS-159), design Decision 3 — the one atomic step a manual assembly retry needs: clear a
+ * recorded assembly failure exactly once, so of two racing requests only one proceeds to actually launch
+ * (`assemblyRetry.ts` reads `false` as "already pending"). No `stage_attempts` row is touched here — assembly's
+ * two pre-attempt failures (no tool, no voice-over) have none to touch, and the launcher records its own on launch.
+ */
+export function beginAssemblyRetry(runId: string): boolean {
+  return inTransaction((): boolean => {
+    const run = getRun(runId);
+    if (!run || run.failure?.phase !== "assembly") return false;
+    clearRunFailure(runId);
+    return true;
+  });
+}
+
 /** Decision 9 — the session's failure, so a failure with no attempt behind it (a missing credential) is still reported. */
 export function setRunFailure(runId: string, failure: SessionFailure): void {
   db.prepare("UPDATE runs SET failure = ? WHERE id = ?").run(JSON.stringify(failure), runId);
