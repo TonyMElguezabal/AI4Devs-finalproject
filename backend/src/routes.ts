@@ -5,6 +5,7 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname } from "node:path";
 import { launchVoiceOverFor } from "./voiceOverPhase.ts";
 import { retryDecomposition } from "./decompositionRetry.ts";
+import { retryAssembly } from "./assemblyRetry.ts";
 import { randomUUID } from "node:crypto";
 import {
   createRun,
@@ -70,7 +71,11 @@ const IMAGE_CONTENT_TYPES: Record<string, string> = {
 const sessionParamsSchema = z.object({ sessionId: sessionIdSchema });
 const sceneParamsSchema = z.object({ sessionId: sessionIdSchema, sceneId: z.string().uuid() });
 const providerCallbackParamsSchema = z.object({ requestId: z.string().uuid() });
-const correctBodySchema = z.object({ instruction: z.string().min(1) });
+// retry-or-correct-image (JOS-157), design Decision 5 — trimmed, non-blank. Not `.strict()`: this endpoint
+// follows the same "an operation that accepts a body ignores locked fields" convention every other
+// chunk-mutating route in this project uses (consult-session AC1) — an extra field in the body is read nowhere
+// and so changes nothing, the same guarantee `.strict()` would give, without breaking that shared convention.
+const correctBodySchema = z.object({ instruction: z.string().transform((value) => value.trim()).pipe(z.string().min(1)) });
 
 // see-provider-and-attempts (JOS-166) Decision 4 — the closed list of what a stage diagnostic may carry. `.strict()` makes
 // a field added by mistake fail validation, so nothing else of an attempt record can reach the page by default.
@@ -95,6 +100,10 @@ const sceneResponseSchema = z.object({
     .strict()
     .describe("PRD §3: which provider each stage used and how many attempts it made. A key is present once that stage has at least one attempt. Derived from the stored attempt records, never stored."),
   result: z.object({ imageUrl: z.string().optional(), videoUrl: z.string().optional() }).optional(),
+  downloads: z
+    .object({ imageUrl: z.string().optional(), clipUrl: z.string().optional() })
+    .optional()
+    .describe("download-scene-results (JOS-163): present only for the files that actually exist. The page offers a download link for exactly these."),
   instruction: z.string().optional(),
   prompt: z
     .string()
@@ -164,6 +173,9 @@ const sessionResponseSchema = z.object({
   state: z.string(),
   paused: z.boolean(),
   held: z.array(z.object({ stage: z.string(), count: z.number() })).describe("Stages with held work; empty when not paused."),
+  running: z
+    .array(z.object({ stage: z.string(), count: z.number() }))
+    .describe("Stages with work actually in flight, computed whether or not the session is paused (JOS-153)."),
   failedPhase: z.string().optional(),
   failedSceneIndexes: z
     .array(z.number().int())
@@ -337,76 +349,122 @@ export const routes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  // retry-final-assembly (JOS-159) — the manual retry of a failed final assembly. Design Decision 7 — assembly
+  // always offers a retry, whatever `retryable` is, so there is no `not-retryable` 409 reason here.
+  typed.post(
+    "/sessions/:sessionId/assembly/retry",
+    {
+      schema: {
+        params: looseSessionParamsSchema,
+        body: emptyBodySchema,
+        response: { 200: retryAcceptedSchema, 404: conflictSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const { sessionId } = request.params;
+      const result = ulidPattern.test(sessionId) ? retryAssembly(sessionId) : ({ ok: false, reason: "session-not-found" } as const);
+      if (result.ok) return result;
+      reply.code(result.reason === "session-not-found" ? 404 : 409);
+      return { ok: false, reason: result.reason };
+    },
+  );
+
+  // retry-or-correct-image (JOS-157) / retry-or-correct-clip (JOS-158) — scoped by (sessionId, sceneId);
+  // the orchestrator dispatches by the stored failed stage. Unknown/cross-session scenes all answer 404 as `unknown-scene`.
   typed.post(
     "/sessions/:sessionId/scenes/:sceneId/retry",
     {
       schema: {
         params: sceneParamsSchema,
-        response: { 200: okSchema, 409: conflictSchema },
+        response: { 200: okSchema, 404: conflictSchema, 409: conflictSchema },
       },
     },
     async (request, reply) => {
-      const result = manualRetry(request.params.sceneId);
+      const result = manualRetry(request.params.sessionId, request.params.sceneId);
       if (!result.ok) {
-        reply.code(409);
-        return { ok: false, reason: result.reason ?? "cannot retry" };
+        reply.code(result.reason === "unknown-scene" ? 404 : 409);
+        return { ok: false, reason: result.reason };
       }
       return { ok: true };
     },
   );
 
-  // PRD §10.3 — the one visual-correction exception: offered only on a
-  // failed stage, and only for the affected instruction.
+  // PRD §10.3 — the one visual-correction exception: the orchestrator dispatches this shared route
+  // to IMAGE or VIDEO according to the persisted failed stage, and changes only that instruction.
   typed.post(
     "/sessions/:sessionId/scenes/:sceneId/correct",
     {
       schema: {
         params: sceneParamsSchema,
         body: correctBodySchema,
-        response: { 200: okSchema, 409: conflictSchema },
+        response: { 200: okSchema, 404: conflictSchema, 409: conflictSchema },
       },
     },
     async (request, reply) => {
-      const result = correctAndRetry(request.params.sceneId, request.body.instruction);
+      const result = correctAndRetry(request.params.sessionId, request.params.sceneId, request.body.instruction);
       if (!result.ok) {
-        reply.code(409);
-        return { ok: false, reason: result.reason ?? "cannot correct" };
+        reply.code(result.reason === "unknown-scene" ? 404 : 409);
+        return { ok: false, reason: result.reason };
       }
       return { ok: true };
     },
   );
 
-  // PRD §12.3 — per-scene downloads while other scenes still process.
-  // Simplification: this skeleton models one combined stage, so "image" and
-  // "video" availability are not distinguished; both are available together
-  // once the scene reaches `chunk-complete`. A real two-stage backend would
-  // gate these independently.
+  // download-scene-results (JOS-163), design Decisions 1-2, 4 — availability
+  // is "the file exists" (`scenes.result` for image, `scenes.video_result`
+  // for video), not a scene state, so each is downloadable independently of
+  // the other and of every other scene's state (AC1-AC3). `kind` stays
+  // `image | video` — `voice-over`/`timestamps`/`texts` answer 400 by
+  // construction (AC4, §12.3).
   typed.get(
     "/sessions/:sessionId/scenes/:sceneId/download/:kind",
     {
       schema: {
         params: z.object({ sessionId: sessionIdSchema, sceneId: z.string().uuid(), kind: z.enum(["image", "video"]) }),
-        response: { 200: z.string(), 409: conflictSchema, 404: conflictSchema },
+        response: { 200: z.any().describe("The stored file (image/png, image/jpeg or video/mp4)"), 409: conflictSchema, 404: conflictSchema },
       },
     },
     async (request, reply) => {
       // consult-session (JOS-135) Decision 2 — scoped by (sessionId,
       // sceneId) at the data-access boundary, not a manual check the
-      // handler has to remember. This inline schema was also a real,
-      // pre-existing bug from start-video-project: it validated `sessionId`
-      // as a UUID, which rejects every real ULID session id with a 400
-      // before the handler even runs — fixed here alongside the scoping.
+      // handler has to remember.
+      const { kind } = request.params;
       const scene = getSceneForRun(request.params.sessionId, request.params.sceneId);
       if (!scene) {
         reply.code(404);
         return { ok: false, reason: "unknown scene" };
       }
-      if (scene.status !== "chunk-complete") {
+      const storedPath = kind === "image" ? scene.result : scene.videoResult;
+      if (!storedPath) {
         reply.code(409);
-        return { ok: false, reason: `scene ${request.params.kind} is not available in status '${scene.status}'` };
+        return { ok: false, reason: `scene ${kind} is not available yet` };
       }
-      reply.type("text/plain");
-      return `stub ${request.params.kind} content for scene ${scene.index} (${scene.result})`;
+      const contentType = kind === "video" ? "video/mp4" : IMAGE_CONTENT_TYPES[extname(storedPath).toLowerCase()];
+      if (!contentType) {
+        reply.code(404);
+        return { ok: false, reason: `scene has no stored ${kind}` };
+      }
+      const run = getRun(request.params.sessionId);
+      if (!run) {
+        reply.code(404);
+        return { ok: false, reason: "unknown scene" };
+      }
+      let fullPath: string;
+      try {
+        fullPath = resolveArtefactPath(run.projectFolder, storedPath);
+      } catch {
+        reply.code(404);
+        return { ok: false, reason: `scene has no stored ${kind}` };
+      }
+      if (!existsSync(fullPath) || !statSync(fullPath).isFile()) {
+        reply.code(404);
+        return { ok: false, reason: `scene has no stored ${kind}` };
+      }
+      const filename = kind === "image" ? `scene-${scene.index}-image${extname(storedPath)}` : `scene-${scene.index}-clip.mp4`;
+      reply.header("Content-Disposition", `attachment; filename="${filename}"`);
+      reply.header("Content-Length", statSync(fullPath).size);
+      reply.type(contentType);
+      return reply.send(createReadStream(fullPath));
     },
   );
 

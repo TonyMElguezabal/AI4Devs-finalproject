@@ -76,7 +76,27 @@ export interface DecompositionFailure {
   occurredAt: string;
 }
 
-export type SessionFailure = VoiceOverFailure | DecompositionFailure;
+export type SessionFailure = VoiceOverFailure | DecompositionFailure | AssemblyFailure;
+
+/** retry-final-assembly (JOS-159), design Decision 1 — the voice-over, images and clips a failed assembly keeps
+ * are never regenerated; the cause always says so. */
+export interface AssemblyFailure {
+  phase: "assembly";
+  /** Written for a person; never a filesystem path outside the project-relative name. Always ends with "Your
+   * narration, images and clips are kept." */
+  cause: string;
+  retryable: boolean;
+  /** Always `true` (design Decision 7) — nothing generated is at risk, so retry is offered whatever `retryable`
+   * is, unlike the voice-over and decomposition failures below. */
+  manualRetryAvailable: boolean;
+  /** The cycle the failure ended, from 1. `1` with `attemptsInCycle: 0` for a failure recorded before any attempt
+   * (no tool, no voice-over, a missing clip file). */
+  cycle: number;
+  /** Attempts the cycle held when it failed, 0 to 4. */
+  attemptsInCycle: number;
+  /** ISO-8601 instant. */
+  occurredAt: string;
+}
 
 export interface VoiceOverFailure {
   phase: "voice-over";
@@ -109,8 +129,13 @@ export interface VoiceOverInput {
 
 export type VoiceOver = VoiceOverInput;
 
-/** Stages that record attempts, including session-level and scene-level stages. */
-export type AttemptStage = "voice-over" | "timestamps" | "decomposition" | "image" | "video" | "assembly";
+/**
+ * Stages that record attempts, including session-level and scene-level stages. Exported as an array (not only a
+ * union) so `sessionRunningWork` (distinguish-paused-session, JOS-153) can map every value to a pipeline stage and
+ * a test can assert the mapping is total, instead of relying on a compile-time check alone.
+ */
+export const ATTEMPT_STAGES = ["voice-over", "timestamps", "decomposition", "image", "video", "assembly"] as const;
+export type AttemptStage = (typeof ATTEMPT_STAGES)[number];
 
 /** How the narration timestamps were obtained (PRD §11.1). */
 export type TimestampMechanism = "native" | "alignment";
@@ -296,6 +321,9 @@ export interface SessionEventPayload {
   state: SessionState;
   paused: boolean; // Decision 8 — always its own field, never folded into `state`
   held: Array<{ stage: string; count: number }>; // only non-empty while paused; derived from registry
+  /** distinguish-paused-session (JOS-153), design Decisions 2-3 — stages with work actually in flight, derived from
+   * scene status and in-flight stage attempts. Computed whether or not the session is paused, unlike `held`. */
+  running: Array<{ stage: string; count: number }>;
   failedPhase?: string;
   /** gate-assembly-on-complete-scenes (JOS-150): the failed scenes' indexes, ascending; present only when `failedPhase` is `"scenes"`. Derived, never stored. */
   failedSceneIndexes?: number[];
@@ -325,6 +353,8 @@ export interface SceneEventPayload {
   /** see-provider-and-attempts (JOS-166) — which provider each stage used and how many attempts it made; a key is present once that stage has at least one attempt. */
   stages: { image?: StageDiagnostic; video?: StageDiagnostic };
   result?: { imageUrl?: string; videoUrl?: string };
+  /** download-scene-results (JOS-163), design Decision 3 — present only for the files that actually exist; the page renders a link for exactly these, never deriving availability from `state`. */
+  downloads?: { imageUrl?: string; clipUrl?: string };
   instruction?: string;
   /** PRD §3 `PROMPT` (assign-scene-identifiers, JOS-144). */
   prompt?: string;

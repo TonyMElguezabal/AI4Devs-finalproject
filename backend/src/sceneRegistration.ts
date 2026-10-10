@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { intervalDurationSeconds, requestedClipDuration } from "./admittedDurations.ts";
 import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS, SPEED_FACTOR_LIMIT } from "./config/providers.ts";
-import { countScenesForRun, getRun, insertRegisteredScenes, setRunFailure } from "./db.ts";
+import { countScenesForRun, getRun, insertRegisteredScenes, setRunFailure, writeArtefactOnce } from "./db.ts";
 import { broadcast } from "./orchestrator.ts";
 import { createDecompositionFailure } from "./sessionStateMachine.ts";
 import type { DecompositionFailure, NarrationInterval, SpeedFactorWarning } from "./types.ts";
@@ -196,6 +196,22 @@ export async function registerDecomposition(
     if (/UNIQUE constraint failed/i.test(String(err?.message))) return { ok: false, reason: "already-registered" };
     throw err;
   }
+  // keep-project-files-locally (JOS-162), Decision 2 — the generated texts,
+  // one JSON file, written once the chunks are committed, from the same
+  // values just stored.
+  writeArtefactOnce(
+    run.projectFolder,
+    "generated-texts.json",
+    JSON.stringify({
+      chunks: scenes.map(({ id, prompt, imageInstruction, videoInstruction, narrationInterval }) => ({
+        id,
+        prompt,
+        imageInstruction,
+        videoInstruction,
+        narrationInterval,
+      })),
+    }),
+  );
   broadcast(runId);
   return { ok: true, sceneIds: scenes.map((scene) => scene.id) };
 }

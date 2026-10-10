@@ -52,6 +52,10 @@ export function retryDecomposition(sessionId: string): Promise<{ ok: true; held:
   return fetch(`${API_BASE}/sessions/${sessionId}/decomposition/retry`, { method: "POST" }).then(asJson<{ ok: true; held: boolean }>);
 }
 
+export function retryAssembly(sessionId: string): Promise<{ ok: true; held: boolean }> {
+  return fetch(`${API_BASE}/sessions/${sessionId}/assembly/retry`, { method: "POST" }).then(asJson<{ ok: true; held: boolean }>);
+}
+
 export function retryScene(sessionId: string, sceneId: string): Promise<{ ok: boolean }> {
   return fetch(`${API_BASE}/sessions/${sessionId}/scenes/${sceneId}/retry`, { method: "POST" }).then(asJson<{ ok: boolean }>);
 }
@@ -62,10 +66,6 @@ export function correctScene(sessionId: string, sceneId: string, instruction: st
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ instruction }),
   }).then(asJson<{ ok: boolean }>);
-}
-
-export function downloadSceneUrl(sessionId: string, sceneId: string, kind: "image" | "video"): string {
-  return `${API_BASE}/sessions/${sessionId}/scenes/${sceneId}/download/${kind}`;
 }
 
 /** A result URL in the session payload is a path relative to the API base. */

@@ -39,7 +39,10 @@ export function phaseStatusClass(status: PhaseStatus): StatusClass {
   return PHASE_STATUS_TO_CLASS[status];
 }
 
-export function sceneStatusClass(state: SceneState): StatusClass {
+/** distinguish-paused-session (JOS-153), design Decision 6 — a held scene maps to `status-queued` whatever its
+ * state; it is waiting for continue, never in progress. */
+export function sceneStatusClass(state: SceneState, held?: boolean): StatusClass {
+  if (held) return "status-queued";
   return SCENE_STATE_TO_CLASS[state];
 }
 

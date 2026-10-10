@@ -57,6 +57,8 @@ export interface SessionEventPayload {
   state: SessionState;
   paused: boolean;
   held: Array<{ stage: string; count: number }>;
+  /** JOS-153 — stages with work actually in flight, computed whether or not the session is paused. */
+  running: Array<{ stage: string; count: number }>;
   failedPhase?: string;
   /** JOS-150 — the failed scenes' indexes, ascending; present only when `failedPhase` is "scenes". */
   failedSceneIndexes?: number[];
@@ -76,7 +78,16 @@ export interface SceneEventPayload {
   /** JOS-166 — per stage; a key is present once that stage has at least one attempt. */
   stages: { image?: StageDiagnostic; video?: StageDiagnostic };
   result?: { imageUrl?: string; videoUrl?: string };
+  /** download-scene-results (JOS-163) — present only for the files that actually exist; render a download link for exactly these, never derived from `state`. */
+  downloads?: { imageUrl?: string; clipUrl?: string };
   instruction?: string;
+  /** PRD §3 `PROMPT`: the fragment of the script this scene narrates (retry-or-correct-image, JOS-157). */
+  prompt?: string;
+  /** PRD §3 `IMAGE`: the instruction to generate the scene's image. Absent for a skeleton scene created without
+   * a decomposition, which corrects the legacy `instruction` field instead. */
+  imageInstruction?: string;
+  /** PRD §3 `VIDEO`: the instruction to animate the image. */
+  videoInstruction?: string;
   /** PRD §7.2: the admitted clip duration requested for this chunk; absent for a scene created without a decomposition (request-admitted-clip-duration, JOS-147). */
   requestedDurationSeconds?: number;
   /** Set only when the interval was narrated longer than the largest admitted duration (§6.1.1). */

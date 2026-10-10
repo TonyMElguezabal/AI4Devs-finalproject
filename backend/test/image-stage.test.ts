@@ -238,7 +238,7 @@ describe("Output check and completion (AC2, §12.2)", () => {
   });
 
   it("downloads a temporary-link result to a local file before completing, and never stores the link itself", async () => {
-    const { sceneId } = await registeredScene();
+    const { sceneId, projectFolder } = await registeredScene();
     setDownloadFetch((async () => new Response(new Uint8Array(ACCEPTED_PNG), { status: 200, headers: { "content-type": "image/png" } })) as typeof fetch);
     useStubAdapter(createStubImageProvider("success-temporary-url", { url: "https://fal.media/files/example.png" }));
 
@@ -249,6 +249,8 @@ describe("Output check and completion (AC2, §12.2)", () => {
     expect(scene.status).toBe("image-complete");
     expect(scene.result).not.toContain("http");
     expect(scene.result).toMatch(/\.png$/);
+    // keep-project-files-locally (JOS-162), AC5 — the stored reference is the local relative path, resolvable in the project folder.
+    expect(existsSync(resolveArtefactPath(projectFolder, scene.result!))).toBe(true);
   });
 
   it("counts a failed download as one failed attempt, then completes on the next attempt", async () => {
@@ -557,7 +559,7 @@ describe("Pause gate scenarios (JOS-152, task 3.1)", () => {
     useStubAdapter(createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG }));
 
     // manual retry while NOT paused: should go through image adapter
-    const result = manualRetry(sceneId);
+    const result = manualRetry(runId, sceneId);
     expect(result.ok).toBe(true);
     await waitForSettled(sceneId);
 
@@ -577,7 +579,7 @@ describe("Pause gate scenarios (JOS-152, task 3.1)", () => {
     const successAdapter = createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG });
     useStubAdapter(successAdapter);
 
-    const result = manualRetry(sceneId);
+    const result = manualRetry(runId, sceneId);
     expect(result.ok).toBe(true);
 
     await new Promise((res) => setTimeout(res, 30));
@@ -597,13 +599,57 @@ describe("Pause gate scenarios (JOS-152, task 3.1)", () => {
     const successAdapter = createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG });
     useStubAdapter(successAdapter);
 
-    const result = correctAndRetry(sceneId, "a corrected instruction");
+    const result = correctAndRetry(runId, sceneId, "a corrected instruction");
     expect(result.ok).toBe(true);
-    expect(getScene(sceneId)?.instruction).toBe("a corrected instruction");
+    // retry-or-correct-image (JOS-157), design Decision 4 — a real chunk (registeredScene's
+    // generator sets IMAGE) has imageInstruction corrected, never the legacy instruction field.
+    expect(getScene(sceneId)?.imageInstruction).toBe("a corrected instruction");
 
     await new Promise((res) => setTimeout(res, 30));
     expect(getScene(sceneId)?.status).toBe("submitted"); // held
     expect(successAdapter.calls).toEqual([]);
+  });
+
+  // retry-or-correct-image (JOS-157), design Decision 6 — AC1/AC4: a retry sends the stored
+  // IMAGE, byte for byte, to the provider the scene was already bound to.
+  it("a retry sends the stored image_instruction to the provider unchanged, byte for byte", async () => {
+    const { runId, sceneId } = await registeredScene();
+    useStubAdapter(createStubImageProvider("not-retryable-failure"));
+    launchImageStage(sceneId);
+    await waitForSettled(sceneId);
+    expect(getScene(sceneId)?.status).toBe("failed");
+    const storedInstruction = getScene(sceneId)!.imageInstruction;
+
+    const successAdapter = createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG });
+    useStubAdapter(successAdapter);
+
+    expect(manualRetry(runId, sceneId).ok).toBe(true);
+    await waitForSettled(sceneId);
+
+    expect(successAdapter.calls).toEqual([storedInstruction]);
+  });
+
+  it("a retry stays bound to the provider from the first attempt, even if the registry default changes", async () => {
+    const { runId, sceneId } = await registeredScene();
+    const providerA = createStubImageProvider("not-retryable-failure");
+    setImageProviderRegistry({ defaultIdentifier: "provider-a", adapters: { "provider-a": providerA } });
+    launchImageStage(sceneId);
+    await waitForSettled(sceneId);
+    expect(getScene(sceneId)?.status).toBe("failed");
+    expect(getScene(sceneId)?.provider).toBe("provider-a");
+
+    const providerB = createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG });
+    setImageProviderRegistry({
+      defaultIdentifier: "provider-b",
+      adapters: { "provider-a": providerA, "provider-b": providerB },
+    });
+
+    expect(manualRetry(runId, sceneId).ok).toBe(true);
+    await waitForSettled(sceneId);
+
+    expect(getScene(sceneId)?.provider).toBe("provider-a"); // binding unchanged
+    expect(providerB.calls).toEqual([]); // never sent to the new default
+    expect(providerA.calls.length).toBe(2); // the original failing attempt plus the retry
   });
 
   it("a request that succeeds during the pause is applied and nothing new is launched", async () => {

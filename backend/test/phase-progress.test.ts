@@ -94,6 +94,9 @@ describe("derivePhaseProgress: the failure of a phase (2.2)", () => {
     const phases = derivePhaseProgress({ state: "failed", failedPhase: "assembly", failure: assemblyFailure, held: [] });
 
     expect(phases[3]?.failure).toEqual({ cause: assemblyFailure.cause, retryable: true });
+    // retry-final-assembly (JOS-159), task 2.2 — the earlier phases are complete, not just the assembly entry's own status.
+    expect(phases.slice(0, 3).map((p) => p.status)).toEqual(["complete", "complete", "complete"]);
+    expect(phases[3]?.status).toBe("failed");
   });
 
   it("carries no failure on a failed scenes entry, even when a failure is recorded", () => {

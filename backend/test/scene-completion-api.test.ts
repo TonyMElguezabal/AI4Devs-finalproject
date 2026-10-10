@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { db, getScenesForRun, markImageComplete, markSceneFailed, resetAll } from "../src/db.ts";
+import { db, getRun, getScenesForRun, markImageComplete, markSceneFailed, resetAll, writeArtefactOnce } from "../src/db.ts";
 import { broadcast, events } from "../src/orchestrator.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import { buildApp } from "../src/server.ts";
@@ -141,6 +141,12 @@ describe("Successful results stay available after a failure (JOS-150, AC10)", ()
   it("still serves a chunk-complete sibling's image and video in a failed session", async () => {
     const { sessionId, sceneIds } = await sessionWithScenes(["chunk-complete", "failed"]);
     const [completeSceneId = ""] = sceneIds;
+    // download-scene-results (JOS-163) — the route now streams the real
+    // file; `setStatuses` only sets the stored reference, so write it too.
+    const run = getRun(sessionId)!;
+    const imagePath = writeArtefactOnce(run.projectFolder, "scene-1.png", "fake-png-bytes");
+    const videoPath = writeArtefactOnce(run.projectFolder, "scene-1.mp4", "fake-mp4-bytes");
+    db.prepare("UPDATE scenes SET result = ?, video_result = ? WHERE id = ?").run(imagePath, videoPath, completeSceneId);
     expect((await read(sessionId)).session.state).toBe("failed");
 
     for (const kind of ["image", "video"]) {

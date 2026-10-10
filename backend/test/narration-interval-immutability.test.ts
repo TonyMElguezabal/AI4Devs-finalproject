@@ -98,13 +98,13 @@ describe("A chunk's interval survives processing and retries (AC4)", () => {
     expect(intervalsOf(runId)).toEqual(REGISTERED_INTERVALS);
 
     // manualRetry dispatches to launchImageStage; adapter still set to transient-failure
-    expect(manualRetry(sceneId).ok).toBe(true);
+    expect(manualRetry(runId, sceneId).ok).toBe(true);
     await waitFor(() => getScene(sceneId)?.status === "failed", 5000);
     expect(intervalsOf(runId)).toEqual(REGISTERED_INTERVALS);
 
     // correctAndRetry with a success adapter
     setImageProviderRegistry({ defaultIdentifier: STUB_PROVIDER_ID, adapters: { [STUB_PROVIDER_ID]: createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG }) } });
-    expect(correctAndRetry(sceneId, "a corrected image instruction").ok).toBe(true);
+    expect(correctAndRetry(runId, sceneId, "a corrected image instruction").ok).toBe(true);
     await waitFor(() => getScene(sceneId)?.status === "image-complete");
     expect(intervalsOf(runId)).toEqual(REGISTERED_INTERVALS);
   });
