@@ -23,8 +23,8 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 4. Frontend: render the offered URL (TDD; design Decision 2)
 
-- [ ] 4.1 Write failing component tests: `FinalVideoDownload` renders the link from the URL it is given and renders nothing when the URL is undefined; the session page offers the link for a snapshot carrying `finalVideoUrl` and offers none for snapshots without it at `chunks-processing`, `final-video-generating` and `failed`.
-- [ ] 4.2 Change `FinalVideoDownload` to take `url: string | undefined` and drop the `state` prop; pass `snapshot.session.finalVideoUrl` through `resolveResultUrl` in `SessionPage`; delete `downloadFinalVideoUrl` from `api/client.ts`. Add `finalVideoUrl` to the frontend session type if it is not there. Make 4.1 pass.
+- [x] 4.1 Write failing component tests: `FinalVideoDownload` renders the link from the URL it is given and renders nothing when the URL is undefined; the session page offers the link for a snapshot carrying `finalVideoUrl` and offers none for snapshots without it at `chunks-processing`, `final-video-generating` and `failed`.
+- [x] 4.2 Change `FinalVideoDownload` to take `url: string | undefined` and drop the `state` prop; pass `snapshot.session.finalVideoUrl` through `resolveResultUrl` in `SessionPage`; delete `downloadFinalVideoUrl` from `api/client.ts`. Add `finalVideoUrl` to the frontend session type if it is not there. Make 4.1 pass. `finalVideoUrl` was indeed missing from `types.ts`'s `SessionEventPayload` — added.
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
