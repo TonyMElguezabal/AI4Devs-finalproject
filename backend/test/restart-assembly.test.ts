@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import * as concurrency from "../src/concurrency.ts";
 import {
+  beginAssemblyRetry,
+  clearRunFailure,
   commitSceneResult,
   completeStageAttempt,
   createRun,
@@ -12,9 +14,13 @@ import {
   markImageComplete,
   recordStageAttempt,
   resetAll,
+  setFinalVideoPath,
+  setRunFailure,
   writeArtefactOnce,
 } from "../src/db.ts";
 import {
+  assemblyStageLauncher,
+  continueSession,
   launchVideoStageForRun,
   pauseSession,
   resetAssemblyLaunchCount,
@@ -93,6 +99,10 @@ async function sessionReadyToAssemble(): Promise<string> {
   }
   launchVideoStageForRun(runId);
   await waitFor(() => getScenesForRun(runId).every((scene) => scene.status === "chunk-complete"));
+  // retry-final-assembly (JOS-159) — the last chunk completing auto-triggers assembly, and with no tool set
+  // (`beforeEach`) it now records a "no tool configured" failure instead of silently doing nothing. Every test
+  // in this file wants a clean slate to insert its own attempts into, not this stray one.
+  clearRunFailure(runId);
   return runId;
 }
 
@@ -102,6 +112,19 @@ function interruptAssemblyAfter(runId: string, count: number): void {
     const sentAt = new Date().toISOString();
     const recorded = recordStageAttempt({ runId, stage: "assembly", providerId: null, queuedAt: sentAt, sentAt });
     if (attempt < count) completeStageAttempt(recorded.id, { outcome: "transient", finishedAt: sentAt, errorMessage: "stub transient failure" });
+  }
+}
+
+/**
+ * retry-final-assembly (JOS-159), task 4.4 — a cycle already fully settled with no failure recorded: the state
+ * the pre-JOS-159 code could leave a session in (PR #25 never called `setRunFailure`). `outcome` is the last
+ * attempt's own outcome, never "in-flight" — that is `interruptAssemblyAfter`'s scenario, not this one.
+ */
+function settleExhaustedAssemblyCycleWithNoFailure(runId: string, count: number, outcome: "transient" | "not-retryable"): void {
+  for (let attempt = 1; attempt <= count; attempt++) {
+    const sentAt = new Date().toISOString();
+    const recorded = recordStageAttempt({ runId, stage: "assembly", providerId: null, queuedAt: sentAt, sentAt });
+    completeStageAttempt(recorded.id, { outcome: attempt < count ? "transient" : outcome, finishedAt: sentAt, errorMessage: "stub failure from before JOS-159" });
   }
 }
 
@@ -156,5 +179,73 @@ describe("Assembly interrupted by a restart (4.2)", () => {
 
     expect(getStageAttempts(runId, "assembly").map((a) => a.outcome)).toEqual(["transient"]);
     expect(getRun(runId)!.finalVideoPath).toBeNull();
+  });
+});
+
+describe("Boot migration — a pre-JOS-159 session stuck with no recorded failure (task 4.4)", () => {
+  it("gets its failure recorded at boot, once, from a budget-exhausted cycle", async () => {
+    const runId = await sessionReadyToAssemble();
+    settleExhaustedAssemblyCycleWithNoFailure(runId, 1 + RETRY_BUDGET, "transient");
+    expect(getRun(runId)!.failure).toBeNull();
+
+    simulateRestart();
+
+    expect(getRun(runId)!.failure).toMatchObject({ phase: "assembly", retryable: true });
+    expect(getStageAttempts(runId, "assembly")).toHaveLength(1 + RETRY_BUDGET); // unchanged — no attempt recorded by the boot step itself
+
+    simulateRestart(); // a second boot must not re-broadcast or alter an already-recorded failure
+    expect(getRun(runId)!.failure).toMatchObject({ phase: "assembly", retryable: true });
+  });
+
+  it("gets its failure recorded at boot from a not-retryable last attempt", async () => {
+    const runId = await sessionReadyToAssemble();
+    settleExhaustedAssemblyCycleWithNoFailure(runId, 1, "not-retryable");
+
+    simulateRestart();
+
+    expect(getRun(runId)!.failure).toMatchObject({ phase: "assembly", retryable: false });
+  });
+
+  it("leaves a session with no assembly attempts at all untouched", async () => {
+    // Paused so the unrelated relaunch-on-boot pass (`relaunchPendingWork`) does not itself trigger a fresh
+    // "no tool configured" attempt and failure — isolating the migration step's own behaviour.
+    const runId = await sessionReadyToAssemble();
+    pauseSession(runId);
+
+    simulateRestart();
+
+    expect(getRun(runId)!.failure).toBeNull();
+  });
+
+  it("leaves a session whose final video is already recorded untouched, even with a stale transient attempt", async () => {
+    const runId = await sessionReadyToAssemble();
+    settleExhaustedAssemblyCycleWithNoFailure(runId, 1 + RETRY_BUDGET, "transient");
+    setFinalVideoPath(runId, "final-video.mp4");
+
+    simulateRestart();
+
+    expect(getRun(runId)!.failure).toBeNull();
+  });
+
+  it("does not undo a retry accepted and held by a pause, interrupted by a restart before continue (found manually testing 10.3/10.4)", async () => {
+    // The exact shape a boot migration can't tell apart from a genuinely stuck legacy session just from attempt
+    // rows alone: a not-retryable latest attempt, no failure (beginAssemblyRetry already cleared it), paused.
+    // Re-recording the old failure here would silently discard the User's already-accepted retry.
+    const runId = await sessionReadyToAssemble();
+    settleExhaustedAssemblyCycleWithNoFailure(runId, 1, "not-retryable");
+    setRunFailure(runId, { phase: "assembly", cause: "stub failure", retryable: false, manualRetryAvailable: true, cycle: 1, attemptsInCycle: 1, occurredAt: new Date().toISOString() });
+    pauseSession(runId);
+    expect(beginAssemblyRetry(runId)).toBe(true);
+    expect(getRun(runId)!.failure).toBeNull();
+
+    simulateRestart();
+
+    expect(getRun(runId)!.failure).toBeNull();
+    expect(assemblyStageLauncher.heldWork(runId).count).toBe(1);
+
+    setAssemblyTool(createStubAssemblyTool({ kind: "success" }));
+    continueSession(runId);
+    await waitFor(() => getRun(runId)!.finalVideoPath !== null);
+    expect(getRun(runId)!.failure).toBeNull();
   });
 });

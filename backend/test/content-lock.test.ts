@@ -374,21 +374,23 @@ describe("An artefact that must not be replaced is written once", () => {
   it("leaves no temporary file behind after a success", () => {
     const { projectFolder } = createRun(randomUUID(), "Once", "A script.", "en");
     writeArtefactOnce(projectFolder, "voice-over.mp3", "first");
-    expect(filesIn(projectFolder)).toEqual(["voice-over.mp3"]);
+    // createRun already wrote script.txt (keep-project-files-locally, JOS-162).
+    expect(filesIn(projectFolder)).toEqual(["script.txt", "voice-over.mp3"]);
   });
 
   it("leaves no temporary file behind after a refusal", () => {
     const { projectFolder } = createRun(randomUUID(), "Once", "A script.", "en");
     writeArtefactOnce(projectFolder, "voice-over.mp3", "first");
     expect(() => writeArtefactOnce(projectFolder, "voice-over.mp3", "second")).toThrow();
-    expect(filesIn(projectFolder)).toEqual(["voice-over.mp3"]);
+    expect(filesIn(projectFolder)).toEqual(["script.txt", "voice-over.mp3"]);
   });
 
   it("does not disturb another session's folder", () => {
     const first = createRun(randomUUID(), "Same Title", "A script.", "en");
     const second = createRun(randomUUID(), "Same Title", "A script.", "en");
     writeArtefactOnce(first.projectFolder, "voice-over.mp3", "first");
-    expect(filesIn(second.projectFolder)).toEqual([]);
+    // createRun already wrote second's own script.txt (JOS-162); first's voice-over must not appear here.
+    expect(filesIn(second.projectFolder)).toEqual(["script.txt"]);
     expect(() => writeArtefactOnce(second.projectFolder, "voice-over.mp3", "second")).not.toThrow();
   });
 });

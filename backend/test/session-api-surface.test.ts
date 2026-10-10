@@ -4,7 +4,19 @@ import type { FastifyInstance } from "fastify";
 import { events } from "../src/orchestrator.ts";
 import { buildApp } from "../src/server.ts";
 import type { SessionSnapshot } from "../src/types.ts";
-import { completeStageAttempt, createScene, getRun, markSceneFailed, recordStageAttempt, resetAll, setRunFailure, setRunPaused } from "../src/db.ts";
+import {
+  completeStageAttempt,
+  createScene,
+  getRun,
+  getScenesForRun,
+  markChunkComplete,
+  markSceneFailed,
+  recordStageAttempt,
+  resetAll,
+  setFinalVideoPath,
+  setRunFailure,
+  setRunPaused,
+} from "../src/db.ts";
 import { createDecompositionFailure } from "../src/sessionStateMachine.ts";
 
 // lock-script-and-narration (JOS-137), group 6 — PRD §4.2, D10: the API offers
@@ -296,5 +308,108 @@ describe("POST /sessions/:sessionId/decomposition/retry (JOS-156)", () => {
     const document = (await app.inject({ method: "GET", url: "/docs/json" })).json();
 
     expect(Object.keys(document.paths)).toContain("/sessions/{sessionId}/decomposition/retry");
+  });
+});
+
+describe("POST /sessions/:sessionId/assembly/retry (JOS-159)", () => {
+  const retryUrl = (sessionId: string) => `/sessions/${sessionId}/assembly/retry`;
+
+  /** A paused session whose only scene is chunk-complete and whose assembly has already failed, so an accepted
+   * retry is held and no tool is reached. A raw `createScene` + `markChunkComplete` (no video-stage completion
+   * event fired) and a directly-written failure, exactly like `failedPausedSession` above does for decomposition. */
+  async function failedPausedAssemblySession(retryable = true): Promise<string> {
+    const sessionId = await startSession();
+    createScene(randomUUID(), sessionId, 1, "success", 0);
+    markChunkComplete(getScenesForRun(sessionId)[0]!.id, "scene-1.mp4");
+    setRunFailure(sessionId, {
+      phase: "assembly",
+      cause: "the final video could not be assembled: stub failure. Your narration, images and clips are kept.",
+      retryable,
+      manualRetryAvailable: true,
+      cycle: 1,
+      attemptsInCycle: 1,
+      occurredAt: new Date().toISOString(),
+    });
+    setRunPaused(sessionId, true);
+    return sessionId;
+  }
+
+  it("answers 200 { ok: true, held: true } for an accepted retry on a paused session", async () => {
+    const sessionId = await failedPausedAssemblySession();
+
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId) });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true, held: true });
+  });
+
+  it.each(["01AAAAAAAAAAAAAAAAAAAAAAAA", "not-a-session-id"])("answers 404 for the session id %s", async (sessionId) => {
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId) });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toMatchObject({ ok: false });
+  });
+
+  it("answers 409 not-failed-in-assembly for a session that has not failed", async () => {
+    const sessionId = await startSession();
+
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId) });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ ok: false, reason: "not-failed-in-assembly" });
+  });
+
+  it("accepts a retry even for a not-retryable failure (assembly always offers one — design Decision 7)", async () => {
+    const sessionId = await failedPausedAssemblySession(false);
+
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId) });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true, held: true });
+  });
+
+  it("answers 409 scenes-not-complete for a reconstructed failure whose gate is not open", async () => {
+    const sessionId = await startSession();
+    createScene(randomUUID(), sessionId, 1, "success", 0); // left at "submitted", not chunk-complete
+    setRunFailure(sessionId, {
+      phase: "assembly",
+      cause: "the final video could not be assembled: stub failure. Your narration, images and clips are kept.",
+      retryable: true,
+      manualRetryAvailable: true,
+      cycle: 1,
+      attemptsInCycle: 1,
+      occurredAt: new Date().toISOString(),
+    });
+
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId) });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ ok: false, reason: "scenes-not-complete" });
+  });
+
+  it("answers 409 final-video-already-generated for a reconstructed failure whose final video is already recorded", async () => {
+    const sessionId = await failedPausedAssemblySession();
+    setFinalVideoPath(sessionId, "final-video.mp4");
+
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId) });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toEqual({ ok: false, reason: "final-video-already-generated" });
+  });
+
+  it.each([{ script: "hacked script" }, { anything: true }])("answers 400 for a body that names %j, and changes nothing", async (payload) => {
+    const sessionId = await failedPausedAssemblySession();
+
+    const res = await app.inject({ method: "POST", url: retryUrl(sessionId), payload });
+
+    expect(res.statusCode).toBe(400);
+    expect(getRun(sessionId)).toMatchObject(ORIGINAL);
+    expect(getRun(sessionId)?.failure).not.toBeNull();
+  });
+
+  it("is documented in the generated OpenAPI", async () => {
+    const document = (await app.inject({ method: "GET", url: "/docs/json" })).json();
+
+    expect(Object.keys(document.paths)).toContain("/sessions/{sessionId}/assembly/retry");
   });
 });

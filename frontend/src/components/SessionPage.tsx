@@ -15,8 +15,10 @@ interface Props {
   onStartNew: () => void;
   onPause: () => void;
   onContinue: () => void;
-  onRetry: (sceneId: string) => void;
-  onCorrect: (sceneId: string, instruction: string) => void;
+  /** Starts a scene retry; rejects with the refusal reason (retry-or-correct-image, JOS-157). */
+  onRetry: (sceneId: string) => Promise<unknown>;
+  /** Corrects IMAGE and retries; rejects with the refusal reason. */
+  onCorrect: (sceneId: string, instruction: string) => Promise<unknown>;
   /** Retries a failed phase; rejects with the refusal reason (retry-decomposition, JOS-156). */
   onRetryPhase: (phase: Phase) => Promise<unknown>;
 }
@@ -66,7 +68,7 @@ export function SessionPage({
           {snapshot.session.phases.map((progress) => (
             <PhaseSection key={progress.phase} progress={progress} onRetry={() => onRetryPhase(progress.phase)}>
               {progress.phase === "scenes" && (
-                <SceneList sessionId={sessionId} scenes={snapshot.scenes} onRetry={onRetry} onCorrect={onCorrect} />
+                <SceneList sessionId={sessionId} scenes={snapshot.scenes} paused={snapshot.session.paused} onRetry={onRetry} onCorrect={onCorrect} />
               )}
               {progress.phase === "assembly" && (
                 <FinalVideoDownload state={snapshot.session.state} url={downloadFinalVideoUrl(sessionId)} />
