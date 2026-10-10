@@ -1467,6 +1467,16 @@ function settleAssemblyInFlight(): SettleSummary {
 function recordMissingAssemblyFailuresOnBoot(): void {
   const stuck = db.prepare(`SELECT id AS runId FROM runs WHERE final_video_path IS NULL AND failure IS NULL`).all() as Array<{ runId: string }>;
   for (const { runId } of stuck) {
+    const run = getRun(runId);
+    // Found manually testing 10.3/10.4 (not caught by any unit test): an *unpaused* session with no failure and
+    // an exhausted/not-retryable latest attempt can only be truly stuck (nothing else will ever touch it — see
+    // below). A *paused* one is ambiguous from attempt-row state alone: `beginAssemblyRetry` clears the failure
+    // and leaves no other trace, so this same shape also matches a retry that was just accepted and is sitting
+    // held, waiting for continue, interrupted by this very restart. Re-recording the old failure there would
+    // silently undo an accepted retry. Skipping it here is safe either way: `continueSession` resumes a genuine
+    // held retry normally, and a genuinely stuck paused legacy session just gets one fresh attempt on continue,
+    // which records its failure correctly through the ordinary path if it fails again.
+    if (!run || run.paused) continue;
     const latest = getStageAttempts(runId, "assembly").at(-1);
     if (!latest) continue;
     // A transient attempt with budget remaining is mid-cycle, not stuck — `relaunchPendingWork` (called right

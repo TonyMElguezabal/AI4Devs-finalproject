@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import * as concurrency from "../src/concurrency.ts";
 import {
+  beginAssemblyRetry,
   clearRunFailure,
   commitSceneResult,
   completeStageAttempt,
@@ -14,9 +15,12 @@ import {
   recordStageAttempt,
   resetAll,
   setFinalVideoPath,
+  setRunFailure,
   writeArtefactOnce,
 } from "../src/db.ts";
 import {
+  assemblyStageLauncher,
+  continueSession,
   launchVideoStageForRun,
   pauseSession,
   resetAssemblyLaunchCount,
@@ -220,6 +224,28 @@ describe("Boot migration — a pre-JOS-159 session stuck with no recorded failur
 
     simulateRestart();
 
+    expect(getRun(runId)!.failure).toBeNull();
+  });
+
+  it("does not undo a retry accepted and held by a pause, interrupted by a restart before continue (found manually testing 10.3/10.4)", async () => {
+    // The exact shape a boot migration can't tell apart from a genuinely stuck legacy session just from attempt
+    // rows alone: a not-retryable latest attempt, no failure (beginAssemblyRetry already cleared it), paused.
+    // Re-recording the old failure here would silently discard the User's already-accepted retry.
+    const runId = await sessionReadyToAssemble();
+    settleExhaustedAssemblyCycleWithNoFailure(runId, 1, "not-retryable");
+    setRunFailure(runId, { phase: "assembly", cause: "stub failure", retryable: false, manualRetryAvailable: true, cycle: 1, attemptsInCycle: 1, occurredAt: new Date().toISOString() });
+    pauseSession(runId);
+    expect(beginAssemblyRetry(runId)).toBe(true);
+    expect(getRun(runId)!.failure).toBeNull();
+
+    simulateRestart();
+
+    expect(getRun(runId)!.failure).toBeNull();
+    expect(assemblyStageLauncher.heldWork(runId).count).toBe(1);
+
+    setAssemblyTool(createStubAssemblyTool({ kind: "success" }));
+    continueSession(runId);
+    await waitFor(() => getRun(runId)!.finalVideoPath !== null);
     expect(getRun(runId)!.failure).toBeNull();
   });
 });
