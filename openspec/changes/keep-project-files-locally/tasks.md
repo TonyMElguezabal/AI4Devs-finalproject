@@ -46,11 +46,11 @@ Tests that already existed: AC1 per-stage persistence (`voice-over-persistence.t
 
 ## 6. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 6.1 Start the real server on a scratch store and scratch projects folder with stub providers; confirm `GET /health`.
-- [ ] 6.2 `POST /sessions` twice with the same title within one minute; list the scratch projects folder: two folders, the second with ` (2)`, each with its own `script.txt`.
-- [ ] 6.3 Take one session to `final-video` with `quick-voice-over` and `quick-scene`; list its folder and confirm the MP3, images, clips and final MP4 are there and none is in the other folder.
-- [ ] 6.4 Restart the server; `GET /sessions/:id` for both still returns their results and the files are unchanged.
-- [ ] 6.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/keep-project-files-locally/reports/YYYY-MM-DD-step-6-manual-endpoint-testing.md`.
+- [x] 6.1 Start the real server on a scratch store and scratch projects folder with stub providers; confirm `GET /health`.
+- [x] 6.2 `POST /sessions` twice with the same title within one minute; list the scratch projects folder: two folders, the second with ` (2)`, each with its own `script.txt`.
+- [x] 6.3 Take one session to `final-video` with `quick-voice-over` and `quick-scene`; list its folder and confirm the MP3, images, clips and final MP4 are there and none is in the other folder. (`final-video.mp4` itself: see the report's note — the bare stub assembly tool doesn't write bytes, same as in the automated suite; proven on disk by the unit test instead.)
+- [x] 6.4 Restart the server; `GET /sessions/:id` for both still returns their results and the files are unchanged.
+- [x] 6.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/keep-project-files-locally/reports/2026-10-10-step-6-manual-endpoint-testing.md`.
 
 ## 7. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
