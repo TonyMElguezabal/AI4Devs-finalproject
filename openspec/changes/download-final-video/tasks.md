@@ -52,10 +52,10 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Run backend (scratch store, stub assembly) and frontend. Open a session while its scenes are still processing: no final-video link anywhere on the page.
-- [ ] 8.2 Let the session reach `final-video` without reloading: the link appears.
-- [ ] 8.3 Follow the link and confirm the browser receives the MP4 (response headers or the saved file), without accepting any browser prompt.
-- [ ] 8.4 Restore the environment and save `openspec/changes/download-final-video/reports/YYYY-MM-DD-step-8-e2e.md`.
+- [x] 8.1 Run backend (scratch store, stub assembly) and frontend. Open a session while its scenes are still processing: no final-video link anywhere on the page.
+- [x] 8.2 Let the session reach `final-video` without reloading: the link appears.
+- [x] 8.3 Follow the link and confirm the browser receives the MP4 (response headers or the saved file), without accepting any browser prompt.
+- [x] 8.4 Restore the environment and save `openspec/changes/download-final-video/reports/2026-10-10-step-8-e2e.md`.
 
 ## 9. Update Technical Documentation (MANDATORY)
 
