@@ -480,51 +480,64 @@ describe("Group 6 — Failures, retries, binding (Decisions 5, 6, 7)", () => {
     expect(firstAttemptNumber).toBe(1); // video stage starts at attempt 1
   });
 
-  it("manualRetry on a video-stage failure answers {ok:false} with image-already-generated and leaves everything unchanged", async () => {
+  it("manually retries a not-retryable clip with the stored VIDEO and its bound provider", async () => {
     const runId = randomUUID();
-    createRun(runId, "manual retry video test", "script", "en");
+    createRun(runId, "manual retry clip test", "script", "en");
 
-    const provider = createStubVideoProvider("not-retryable-failure");
-    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
+    const originalProvider = createStubVideoProvider("not-retryable-failure");
+    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: originalProvider } });
 
     const sceneIds = await bringToImageComplete(runId);
     await new Promise((resolve) => setTimeout(resolve, 100));
-
     const sceneId = sceneIds[0]!;
     const before = getScene(sceneId)!;
     expect(before.status).toBe("failed");
-    expect(before.result).not.toBeNull(); // image path still present
 
-    const result = manualRetry(runId, sceneId);
+    const boundProvider = createStubVideoProvider("success-bytes", { bytes: MP4_BYTES });
+    const newDefaultProvider = createStubVideoProvider("transient-failure");
+    setVideoProviderRegistry({
+      defaultIdentifier: "new-video-default",
+      adapters: { [TEST_VIDEO_PROVIDER_ID]: boundProvider, "new-video-default": newDefaultProvider },
+    });
 
-    expect(result).toEqual({ ok: false, reason: "image-already-generated" });
+    expect(manualRetry(runId, sceneId)).toEqual({ ok: true });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     const after = getScene(sceneId)!;
-    expect(after.status).toBe("failed");
-    expect(after.attempts).toBe(before.attempts); // unchanged
-    expect(after.result).toBe(before.result); // image path unchanged
+    expect(boundProvider.calls).toEqual([before.videoInstruction]);
+    expect(newDefaultProvider.calls).toEqual([]);
+    expect(after.status).toBe("chunk-complete");
+    expect(after.result).toBe(before.result);
+    expect(after.videoProvider).toBe(TEST_VIDEO_PROVIDER_ID);
   });
 
-  it("correctAndRetry on a video-stage failure answers {ok:false} with image-already-generated and leaves everything unchanged", async () => {
+  it("corrects only VIDEO and retries the clip using the corrected instruction", async () => {
     const runId = randomUUID();
-    createRun(runId, "correct retry video test", "script", "en");
+    createRun(runId, "correct retry clip test", "script", "en");
 
-    const provider = createStubVideoProvider("not-retryable-failure");
-    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
+    const originalProvider = createStubVideoProvider("not-retryable-failure");
+    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: originalProvider } });
 
     const sceneIds = await bringToImageComplete(runId);
     await new Promise((resolve) => setTimeout(resolve, 100));
-
     const sceneId = sceneIds[0]!;
     const before = getScene(sceneId)!;
     expect(before.status).toBe("failed");
 
-    const result = correctAndRetry(runId, sceneId, "a new instruction");
+    const retryProvider = createStubVideoProvider("success-bytes", { bytes: MP4_BYTES });
+    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: retryProvider } });
 
-    expect(result).toEqual({ ok: false, reason: "image-already-generated" });
+    expect(correctAndRetry(runId, sceneId, "a corrected video instruction")).toEqual({ ok: true });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     const after = getScene(sceneId)!;
-    expect(after.status).toBe("failed");
-    expect(after.instruction).toBe(before.instruction); // instruction unchanged
-    expect(after.result).toBe(before.result); // image path unchanged
+    expect(retryProvider.calls).toEqual(["a corrected video instruction"]);
+    expect(after.status).toBe("chunk-complete");
+    expect(after.videoInstruction).toBe("a corrected video instruction");
+    expect(after.imageInstruction).toBe(before.imageInstruction);
+    expect(after.result).toBe(before.result);
+    expect(after.prompt).toBe(before.prompt);
+    expect(after.videoProvider).toBe(TEST_VIDEO_PROVIDER_ID);
   });
 
   it("manualRetry on an image-stage failure works as before (unchanged behaviour)", () => {

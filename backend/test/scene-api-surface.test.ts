@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createScene, db, getScenesForRun, markImageComplete, markSceneFailed, resetAll } from "../src/db.ts";
-import { toSnapshot } from "../src/orchestrator.ts";
+import { events, toSnapshot } from "../src/orchestrator.ts";
 import { registerDecomposition } from "../src/sceneRegistration.ts";
 import { buildApp } from "../src/server.ts";
 import { ulid } from "../src/util/ulid.ts";
@@ -417,26 +417,35 @@ describe("Image recovery refusals carry reason codes (JOS-157, design Decision 2
     expect(correctRes.json()).toMatchObject({ reason: "not-failed" });
   });
 
-  it("answers 409 image-already-generated for retry and correct on a scene whose clip failed", async () => {
+  it("dispatches retry and correction on a failed clip instead of refusing after image success", async () => {
     const { sessionId, sceneIds } = await sessionWithChunks();
-    const target = sceneIds[0]!;
-    markImageComplete(target, "scene-image.png"); // image stage succeeded, result stored
-    markSceneFailed(target, "the clip provider failed");
-    const before = getScenesForRun(sessionId).find((s) => s.id === target);
+    const retryTarget = sceneIds[0]!;
+    const correctionTarget = sceneIds[1]!;
+    markImageComplete(retryTarget, "scene-image-1.png");
+    markSceneFailed(retryTarget, "the clip provider failed");
+    markImageComplete(correctionTarget, "scene-image-2.png");
+    markSceneFailed(correctionTarget, "the clip provider failed");
 
-    const retryRes = await app.inject({ method: "POST", url: `/sessions/${sessionId}/scenes/${target}/retry` });
-    expect(retryRes.statusCode).toBe(409);
-    expect(retryRes.json()).toMatchObject({ reason: "image-already-generated" });
+    const retryRes = await app.inject({ method: "POST", url: `/sessions/${sessionId}/scenes/${retryTarget}/retry` });
+    expect(retryRes.statusCode).toBe(200);
 
     const correctRes = await app.inject({
       method: "POST",
-      url: `/sessions/${sessionId}/scenes/${target}/correct`,
-      payload: { instruction: "too late" },
+      url: `/sessions/${sessionId}/scenes/${correctionTarget}/correct`,
+      payload: { instruction: "  a corrected VIDEO  " },
     });
-    expect(correctRes.statusCode).toBe(409);
-    expect(correctRes.json()).toMatchObject({ reason: "image-already-generated" });
+    expect(correctRes.statusCode).toBe(200);
 
-    expect(getScenesForRun(sessionId).find((s) => s.id === target)).toEqual(before);
+    expect(getScenesForRun(sessionId).find((scene) => scene.id === retryTarget)).toMatchObject({
+      status: "image-complete",
+      result: "scene-image-1.png",
+      videoInstruction: "video 1",
+    });
+    expect(getScenesForRun(sessionId).find((scene) => scene.id === correctionTarget)).toMatchObject({
+      status: "image-complete",
+      result: "scene-image-2.png",
+      videoInstruction: "a corrected VIDEO",
+    });
   });
 
   it("gives exactly one 200 and one 409 not-failed for two concurrent retries of the same scene", async () => {
@@ -471,6 +480,172 @@ describe("Image recovery refusals carry reason codes (JOS-157, design Decision 2
     expect(statuses).toEqual([200, 409]);
     const loser = retry.statusCode === 409 ? retry : correct;
     expect(loser.json()).toMatchObject({ reason: "not-failed" });
+  });
+});
+
+describe("Clip recovery through the existing scene routes (JOS-158)", () => {
+  it("accepts a failed clip retry and returns the scene to image-complete without changing its image", async () => {
+    const { sessionId, sceneIds } = await sessionWithChunks();
+    const target = sceneIds[0]!;
+    markImageComplete(target, "scene-image.png");
+    markSceneFailed(target, "the clip provider failed");
+    const before = getScenesForRun(sessionId).find((scene) => scene.id === target)!;
+
+    const res = await app.inject({ method: "POST", url: `/sessions/${sessionId}/scenes/${target}/retry` });
+
+    expect(res.statusCode).toBe(200);
+    expect(getScenesForRun(sessionId).find((scene) => scene.id === target)).toMatchObject({
+      status: "image-complete",
+      result: before.result,
+      imageInstruction: before.imageInstruction,
+      videoInstruction: before.videoInstruction,
+    });
+  });
+
+  it("trims a corrected VIDEO instruction and preserves image and scene content", async () => {
+    const { sessionId, sceneIds } = await sessionWithChunks();
+    const target = sceneIds[0]!;
+    markImageComplete(target, "scene-image.png");
+    markSceneFailed(target, "the clip provider failed");
+    const before = getScenesForRun(sessionId).find((scene) => scene.id === target)!;
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/scenes/${target}/correct`,
+      payload: { instruction: "  a corrected video instruction  " },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(getScenesForRun(sessionId).find((scene) => scene.id === target)).toMatchObject({
+      status: "image-complete",
+      result: before.result,
+      prompt: before.prompt,
+      imageInstruction: before.imageInstruction,
+      videoInstruction: "a corrected video instruction",
+      narrationInterval: before.narrationInterval,
+      requestedDurationSeconds: before.requestedDurationSeconds,
+      speedFactor: before.speedFactor,
+      videoProvider: before.videoProvider,
+    });
+  });
+
+  it("allows only one concurrent video retry to transition and launch", async () => {
+    const { sessionId, sceneIds } = await sessionWithChunks();
+    const target = sceneIds[0]!;
+    markImageComplete(target, "scene-image.png");
+    markSceneFailed(target, "the clip provider failed");
+
+    const [first, second] = await Promise.all([
+      app.inject({ method: "POST", url: `/sessions/${sessionId}/scenes/${target}/retry` }),
+      app.inject({ method: "POST", url: `/sessions/${sessionId}/scenes/${target}/retry` }),
+    ]);
+
+    expect([first.statusCode, second.statusCode].sort()).toEqual([200, 409]);
+    const loser = first.statusCode === 409 ? first : second;
+    expect(loser.json()).toMatchObject({ reason: "not-failed" });
+    expect(getScenesForRun(sessionId).find((scene) => scene.id === target)?.status).toBe("image-complete");
+  });
+
+  it("allows only one concurrent video retry or correction to transition", async () => {
+    const { sessionId, sceneIds } = await sessionWithChunks();
+    const target = sceneIds[0]!;
+    markImageComplete(target, "scene-image.png");
+    markSceneFailed(target, "the clip provider failed");
+
+    const [retry, correct] = await Promise.all([
+      app.inject({ method: "POST", url: `/sessions/${sessionId}/scenes/${target}/retry` }),
+      app.inject({
+        method: "POST",
+        url: `/sessions/${sessionId}/scenes/${target}/correct`,
+        payload: { instruction: "a racing VIDEO correction" },
+      }),
+    ]);
+
+    expect([retry.statusCode, correct.statusCode].sort()).toEqual([200, 409]);
+    const after = getScenesForRun(sessionId).find((scene) => scene.id === target)!;
+    expect(after.status).toBe("image-complete");
+    expect(after.videoInstruction).toMatch(/^(video 1|a racing VIDEO correction)$/);
+  });
+
+  it("refuses video recovery if a clip result has already been committed", async () => {
+    const { sessionId, sceneIds } = await sessionWithChunks();
+    const target = sceneIds[0]!;
+    markImageComplete(target, "scene-image.png");
+    markSceneFailed(target, "stale failure");
+    db.prepare("UPDATE scenes SET video_result = ? WHERE id = ?").run("scene-video.mp4", target);
+    const before = getScenesForRun(sessionId).find((scene) => scene.id === target);
+
+    const res = await app.inject({ method: "POST", url: `/sessions/${sessionId}/scenes/${target}/retry` });
+
+    expect(res.statusCode).toBe(409);
+    expect(getScenesForRun(sessionId).find((scene) => scene.id === target)).toEqual(before);
+  });
+
+  it.each(["", "   "])("rejects a blank VIDEO correction (%j) without changing the failed scene", async (instruction) => {
+    const { sessionId, sceneIds } = await sessionWithChunks();
+    const target = sceneIds[0]!;
+    markImageComplete(target, "scene-image.png");
+    markSceneFailed(target, "the clip provider failed");
+    const before = getScenesForRun(sessionId).find((scene) => scene.id === target);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${sessionId}/scenes/${target}/correct`,
+      payload: { instruction },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(getScenesForRun(sessionId).find((scene) => scene.id === target)).toEqual(before);
+  });
+
+  it("keeps a failed clip scoped to its owning session", async () => {
+    const owner = await sessionWithChunks();
+    const other = await sessionWithChunks();
+    const target = owner.sceneIds[0]!;
+    markImageComplete(target, "scene-image.png");
+    markSceneFailed(target, "the clip provider failed");
+    const before = getScenesForRun(owner.sessionId).find((scene) => scene.id === target);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/sessions/${other.sessionId}/scenes/${target}/correct`,
+      payload: { instruction: "cross-session VIDEO" },
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(getScenesForRun(owner.sessionId).find((scene) => scene.id === target)).toEqual(before);
+  });
+
+  it.each(["retry", "correct"] as const)("publishes held scene state after a paused clip %s", async (action) => {
+    const { sessionId, sceneIds } = await sessionWithChunks();
+    const target = sceneIds[0]!;
+    markImageComplete(target, "scene-image.png");
+    markSceneFailed(target, "the clip provider failed");
+    const snapshots: NonNullable<ReturnType<typeof toSnapshot>>[] = [];
+    const listener = (snapshot: NonNullable<ReturnType<typeof toSnapshot>>) => {
+      if (snapshot.session.sessionId === sessionId) snapshots.push(snapshot);
+    };
+    events.on("state", listener);
+
+    try {
+      const response = action === "retry"
+        ? await app.inject({ method: "POST", url: `/sessions/${sessionId}/scenes/${target}/retry` })
+        : await app.inject({
+            method: "POST",
+            url: `/sessions/${sessionId}/scenes/${target}/correct`,
+            payload: { instruction: "corrected VIDEO" },
+          });
+
+      expect(response.statusCode).toBe(200);
+      expect(snapshots).toHaveLength(1);
+      expect(snapshots[0]?.scenes.find((scene) => scene.sceneId === target)).toMatchObject({
+        state: "image-complete",
+        held: true,
+      });
+      expect(Number(db.prepare("SELECT count(*) AS count FROM provider_requests WHERE scene_id = ? AND stage = 'video'").get(target)?.count)).toBe(0);
+    } finally {
+      events.off("state", listener);
+    }
   });
 });
 
@@ -536,7 +711,10 @@ describe("A correction changes only IMAGE (JOS-157, design Decisions 3-5)", () =
       const changedKeys = (Object.keys(after) as Array<keyof typeof after>).filter(
         (key) => JSON.stringify(after[key]) !== JSON.stringify(before[key]),
       );
-      expect(changedKeys.sort()).toEqual(["attempts", "imageInstruction", "status", "updatedAt"].sort());
+      expect(changedKeys).toContain("attempts");
+      expect(changedKeys).toContain("imageInstruction");
+      expect(changedKeys).toContain("status");
+      expect(changedKeys.every((key) => ["attempts", "imageInstruction", "status", "updatedAt"].includes(key))).toBe(true);
     }
   });
 
