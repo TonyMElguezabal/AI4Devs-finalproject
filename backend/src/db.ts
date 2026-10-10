@@ -635,6 +635,30 @@ export function resolveArtefactPath(projectFolder: string, relativePath: string)
 }
 
 /**
+ * keep-project-files-locally (JOS-162), design Decision 5 — a correction
+ * can happen more than once, so unlike `script.txt` and `generated-texts.json`
+ * this file is a plain overwrite (`writeArtefact`), merging the new field
+ * into whatever the project folder already holds for that scene.
+ */
+function recordCorrectedInstruction(
+  projectFolder: string,
+  sceneId: string,
+  field: "instruction" | "imageInstruction" | "videoInstruction",
+  instruction: string,
+): void {
+  const relativePath = "corrected-instructions.json";
+  const fullPath = assertWithinProjectFolder(projectFolder, relativePath);
+  let parsed: { scenes: Record<string, Record<string, string>> } = { scenes: {} };
+  try {
+    parsed = JSON.parse(readFileSync(fullPath, "utf8"));
+  } catch (err: any) {
+    if (err?.code !== "ENOENT") throw err;
+  }
+  parsed.scenes[sceneId] = { ...parsed.scenes[sceneId], [field]: instruction, correctedAt: nowIso() };
+  writeArtefact(projectFolder, relativePath, JSON.stringify(parsed));
+}
+
+/**
  * retry-final-assembly (JOS-159), design Decision 2 — moves an assembly attempt's output from its per-attempt
  * temporary path into the project folder, atomically and only once: `linkSync` is EEXIST-safe, the same idiom
  * `writeArtefactOnce` uses above. `PROJECTS_ROOT` and every project folder are one local filesystem (this app's
@@ -672,6 +696,9 @@ export function isReadableMp4(fullPath: string): boolean {
 export function createRun(id: string, title: string, script: string, language: string): Run {
   const createdAt = nowIso();
   const projectFolder = deriveAndCreateProjectFolder(title, new Date(createdAt));
+  // keep-project-files-locally (JOS-162), Decision 1 — kept in the project
+  // folder as well as the `script` column, exactly as submitted.
+  writeArtefactOnce(projectFolder, "script.txt", script);
   db.prepare(
     "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script) VALUES (?, ?, ?, 0, ?, ?, ?)",
   ).run(id, title, createdAt, language, projectFolder, script);
@@ -1378,7 +1405,9 @@ export function correctImageInstruction(sessionId: string, sceneId: string, inst
       "UPDATE scenes SET image_instruction = ?, status = 'submitted', updated_at = ? WHERE id = ? AND run_id = ? AND status = 'failed' AND result IS NULL",
     )
     .run(instruction, nowIso(), sceneId, sessionId);
-  return Number(result.changes) > 0;
+  const changed = Number(result.changes) > 0;
+  if (changed) recordCorrectedInstruction(getRun(sessionId)!.projectFolder, sceneId, "imageInstruction", instruction);
+  return changed;
 }
 
 /**
@@ -1392,7 +1421,9 @@ export function correctLegacyInstruction(sessionId: string, sceneId: string, ins
       "UPDATE scenes SET instruction = ?, status = 'submitted', updated_at = ? WHERE id = ? AND run_id = ? AND status = 'failed' AND result IS NULL",
     )
     .run(instruction, nowIso(), sceneId, sessionId);
-  return Number(result.changes) > 0;
+  const changed = Number(result.changes) > 0;
+  if (changed) recordCorrectedInstruction(getRun(sessionId)!.projectFolder, sceneId, "instruction", instruction);
+  return changed;
 }
 
 /**
@@ -1419,7 +1450,9 @@ export function correctVideoInstruction(sessionId: string, sceneId: string, inst
       "UPDATE scenes SET video_instruction = ?, status = 'image-complete', updated_at = ? WHERE id = ? AND run_id = ? AND status = 'failed' AND result IS NOT NULL AND video_result IS NULL",
     )
     .run(instruction, nowIso(), sceneId, sessionId);
-  return Number(result.changes) > 0;
+  const changed = Number(result.changes) > 0;
+  if (changed) recordCorrectedInstruction(getRun(sessionId)!.projectFolder, sceneId, "videoInstruction", instruction);
+  return changed;
 }
 
 export function markSceneFailed(sceneId: string, error: string): void {
