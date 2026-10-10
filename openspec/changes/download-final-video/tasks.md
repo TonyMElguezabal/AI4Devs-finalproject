@@ -28,18 +28,18 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Review the tests that render `FinalVideoDownload` or assert on the final-video link (`components.test.tsx`, including the phase-section cases) and the backend tests touching the route (`assembly-api`, `scene-completion-api`), and update those that passed a `state` prop or relied on the client-built URL.
-- [ ] 5.2 Confirm every scenario in `specs/final-video-download/spec.md` has at least one test, and map AC1-AC2 to tests; list both in the step 6 report.
-- [ ] 5.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 5.1 Review the tests that render `FinalVideoDownload` or assert on the final-video link (`components.test.tsx`, including the phase-section cases) and the backend tests touching the route (`assembly-api`, `scene-completion-api`), and update those that passed a `state` prop or relied on the client-built URL. Fixed during group 4: two `SessionPage` fixtures (lines ~837, ~1023) now set `finalVideoUrl`; the `FinalVideoDownload` unit test rewritten to drop `state`. `assembly-api.test.ts`/`scene-completion-api.test.ts` needed no change (backend-only, unaffected by the frontend prop change or the swaggerTransform override).
+- [x] 5.2 Confirm every scenario in `specs/final-video-download/spec.md` has at least one test, and map AC1-AC2 to tests; list both in the step 6 report.
+- [x] 5.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 6.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents.
-- [ ] 6.2 Run the targeted tests: the files touched in groups 2-5.
-- [ ] 6.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` in the checkout.
-- [ ] 6.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 6.5 Create the report `openspec/changes/download-final-video/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`.
-- [ ] 6.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 6.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents. Baseline: `backend/data/` does not exist in this worktree.
+- [x] 6.2 Run the targeted tests: the files touched in groups 2-5.
+- [x] 6.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` in the checkout.
+- [x] 6.4 Verify the post-test state matches the baseline; restore it if not. `backend/data/` still does not exist.
+- [x] 6.5 Create the report `openspec/changes/download-final-video/reports/2026-10-10-step-6-unit-test-and-db-verification.md`.
+- [x] 6.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
