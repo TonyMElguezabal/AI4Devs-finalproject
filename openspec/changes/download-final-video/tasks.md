@@ -43,12 +43,12 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the real server on a scratch store and scratch projects folder with stub providers (`USE_STUB_VIDEO_PROVIDER=success-bytes`, `USE_STUB_ASSEMBLY_TOOL=success`, `ALLOW_TEST_ENDPOINTS=1`); confirm `GET /health`.
-- [ ] 7.2 Create a session, register scenes through `quick-scene`, and `curl -D -` the final-video download before assembly finishes: 409 with its reason.
-- [ ] 7.3 Once the session reads `final-video`, `curl -o` the download: 200, the three headers, and `cmp` the saved file against the project folder's `final-video.mp4`.
-- [ ] 7.4 `curl` the download for an unknown session id: 404. Delete the stored file and `curl` again: 404.
-- [ ] 7.5 `curl /docs/json` and confirm the final-video 200 is `video/mp4`.
-- [ ] 7.6 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/download-final-video/reports/YYYY-MM-DD-step-7-manual-endpoint-testing.md`.
+- [x] 7.1 Start the real server on a scratch store and scratch projects folder with stub providers (`USE_STUB_VIDEO_PROVIDER=success-bytes`, `USE_STUB_ASSEMBLY_TOOL=success`, `ALLOW_TEST_ENDPOINTS=1`); confirm `GET /health`.
+- [x] 7.2 Create a session, register scenes through `quick-scene`, and `curl -D -` the final-video download before assembly finishes: 409 with its reason.
+- [x] 7.3 Once the session reads `final-video`, `curl -o` the download: 200, the three headers, and `cmp` the saved file against the project folder's `final-video.mp4`. (The bare stub assembly tool doesn't write real bytes — see the report's note; the route itself was verified with a file placed at the recorded path, as a real `ffmpeg` run would have left it.)
+- [x] 7.4 `curl` the download for an unknown session id: 404. Delete the stored file and `curl` again: 404.
+- [x] 7.5 `curl /docs/json` and confirm the final-video 200 is `video/mp4`.
+- [x] 7.6 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/download-final-video/reports/2026-10-10-step-7-manual-endpoint-testing.md`.
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
