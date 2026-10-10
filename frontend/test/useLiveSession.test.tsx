@@ -55,6 +55,7 @@ function snapshot(overrides: Partial<SessionSnapshot["session"]> = {}, scenes: S
       state: "chunks-processing",
       paused: false,
       held: [],
+      running: [],
       phases: [],
       updatedAt: "2026-09-25T00:00:00.000Z",
       ...overrides,
@@ -137,6 +138,22 @@ describe("paused marker (Decision 8)", () => {
     act(() => source.emitMessage(snapshot({ state: "chunks-processing", paused: false })));
     expect(result.current.snapshot!.session.state).toBe("chunks-processing"); // unchanged by continuing
     expect(result.current.snapshot!.session.paused).toBe(false);
+  });
+});
+
+// distinguish-paused-session (JOS-153), spec "Running reaches an open page live".
+describe("running reaches an open page live (JOS-153)", () => {
+  it("updates without a reload when a scene's work completes", async () => {
+    const { result } = renderHook(() => useLiveSession("s1"));
+    const source = FakeEventSource.instances[0]!;
+    act(() => source.emitOpen());
+    await waitFor(() => expect(result.current.snapshot).toBeDefined());
+
+    act(() => source.emitMessage(snapshot({ paused: true, running: [{ stage: "image", count: 1 }] })));
+    expect(result.current.snapshot!.session.running).toEqual([{ stage: "image", count: 1 }]);
+
+    act(() => source.emitMessage(snapshot({ paused: true, running: [] })));
+    expect(result.current.snapshot!.session.running).toEqual([]);
   });
 });
 

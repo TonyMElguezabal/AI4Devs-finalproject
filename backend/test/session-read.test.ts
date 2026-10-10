@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/server.ts";
-import { createRun, createScene, db, resetAll, commitSceneResult } from "../src/db.ts";
+import { createRun, createScene, db, resetAll, commitSceneResult, markSceneInFlight, recordStageAttempt } from "../src/db.ts";
 import { pauseSession, continueSession } from "../src/orchestrator.ts";
 import type { FastifyInstance } from "fastify";
 
@@ -165,7 +165,7 @@ describe("One read serves consultation and resynchronisation (3.9, Decision 1)",
     const body = res.json();
     expect(body.session.type).toBe("session");
     expect(Object.keys(body.session).sort()).toEqual(
-      ["type", "sessionId", "title", "script", "language", "state", "paused", "held", "phases", "createdAt", "updatedAt"].sort(),
+      ["type", "sessionId", "title", "script", "language", "state", "paused", "held", "running", "phases", "createdAt", "updatedAt"].sort(),
     );
     expect(body.scenes[0].type).toBe("scene");
     expect(body.scenes[0]).toHaveProperty("sceneId");
@@ -215,5 +215,54 @@ describe("held field on session and scene payloads (JOS-152, task 7.1)", () => {
     expect(body.session.paused).toBe(false);
     expect(body.session.held).toEqual([]);
     expect(body.scenes.every((s: { held?: boolean }) => !s.held)).toBe(true);
+  });
+});
+
+// distinguish-paused-session (JOS-153), spec "The representation reports running work separately from held work"
+describe("running field on the session payload (JOS-153)", () => {
+  it("a session with nothing in flight reports an empty running array", async () => {
+    const sessionId = await startSession({ title: "Idle session", script: "Nothing yet." });
+    createScene(randomUUID(), sessionId, 1, "success", 100, "instruction");
+    const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}` });
+    expect(res.json().session.running).toEqual([]);
+  });
+
+  it("running and held are reported beside each other (spec: Running and held beside each other)", async () => {
+    const sessionId = await startSession({ title: "Mixed session", script: "Some running, some held." });
+    const runningSceneId = randomUUID();
+    createScene(runningSceneId, sessionId, 1, "success", 100, "instruction");
+    createScene(randomUUID(), sessionId, 2, "success", 100, "instruction");
+    markSceneInFlight(runningSceneId, "req-1", 1);
+    createScene(randomUUID(), sessionId, 3, "success", 100, "instruction");
+    pauseSession(sessionId);
+    const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}` });
+    const body = res.json();
+    expect(body.session.running).toEqual([{ stage: "image", count: 1 }]);
+    expect(body.session.held).toEqual([{ stage: "image", count: 2 }]);
+  });
+
+  it("a session-level attempt in flight is reported under the decomposition stage (spec: A session-level phase in flight)", async () => {
+    const sessionId = await startSession({ title: "Decomposing", script: "In timestamps." });
+    recordStageAttempt({
+      runId: sessionId,
+      stage: "timestamps",
+      providerId: "stub",
+      queuedAt: new Date().toISOString(),
+      sentAt: new Date().toISOString(),
+    });
+    const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}` });
+    expect(res.json().session.running).toEqual([{ stage: "decomposition", count: 1 }]);
+  });
+
+  it("running is reported the same whether or not the session is paused (spec: Running is reported when not paused)", async () => {
+    const sessionId = await startSession({ title: "Not paused", script: "Still generating." });
+    const sceneId = randomUUID();
+    createScene(sceneId, sessionId, 1, "success", 100, "instruction");
+    markSceneInFlight(sceneId, "req-1", 1);
+    const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}` });
+    const body = res.json();
+    expect(body.session.paused).toBe(false);
+    expect(body.session.running).toEqual([{ stage: "image", count: 1 }]);
+    expect(body.session.held).toEqual([]);
   });
 });

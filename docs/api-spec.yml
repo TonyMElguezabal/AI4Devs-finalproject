@@ -10,27 +10,26 @@
 # to drift from the actual validators." Task 5.3 confirmed this by generating
 # directly from the real running server, not transcribing intent.
 #
-# Scope note: this story (JOS-134) only implements `POST /sessions` and
+# Scope note: start-video-project (JOS-134) originally implemented only `POST /sessions` and
 # `GET /languages`. The other paths below (`GET /sessions/{sessionId}`,
 # pause/continue, scene retry/correct, downloads, the provider-callback
 # simulation, the SSE `/events` stream) already exist because they were
 # promoted from the `define-backend-stack` (JOS-179) skeleton this story
-# extends rather than replaces — they belong to their own future stories
-# (consult-session/JOS-135, US-20/US-21, US-25/US-26, US-31/US-32,
-# define-live-updates/JOS-183) and are documented here only because they are
-# real, not because this change built them. Regenerate this file (same
+# extended rather than replaced. Their owning stories include consult-session
+# (JOS-135), pause/continue (US-20/US-21), scene recovery (JOS-157/JOS-158),
+# downloads (US-31/US-32), and define-live-updates (JOS-183). Regenerate this
+# file (same
 # command) whenever a route changes, rather than hand-editing it out of sync.
 #
 # JOS-156 (retry-decomposition) — 2026-10-05: regenerated; the only change is the new
 # `POST /sessions/{sessionId}/decomposition/retry` (200 `{ ok, held }`, 404, 409
 # `{ ok, reason }`; a body field answers 400 from the strict empty body).
 #
-# JOS-146 (generate-chunk-video) verification — 2026-10-03: regenerated and
-# confirmed no structural schema changes. Behavioral additions only:
-# (1) scene.state now reaches 'video-generating' on the path to 'chunk-complete';
-# (2) POST .../retry and POST .../correct return 409 with reason
-#     "retrying a failed clip is not available yet" when affectedStage is 'video';
-# (3) affectedStage is now populated for both image-stage and video-stage failures.
+# JOS-158 (retry-or-correct-clip): the existing scene retry/correct routes now
+# dispatch by the persisted failed stage. A failed video stage retries the clip
+# or corrects only VIDEO; the completed image and provider binding are retained.
+# Request/response schemas are unchanged; the route's 404/409 reason shape is
+# unchanged and state conflicts use the same generic reason field.
 #
 # JOS-136 (generate-voice-over) - 2026-10-04: regenerated from the running
 # server. The session read (`GET /sessions/{sessionId}` and the SSE session
@@ -64,6 +63,13 @@
 # diagnostic object is closed (`additionalProperties: false`): nothing else of an
 # attempt record can reach the page. No new path; one long description is folded
 # differently by the generator.
+#
+# JOS-159 (retry-final-assembly) — 2026-10-10: regenerated; the only change is the new
+# `POST /sessions/{sessionId}/assembly/retry` (200 `{ ok, held }`, 404, 409
+# `{ ok, reason }`; a body field answers 400 from the strict empty body — the exact
+# same shape as JOS-156's decomposition retry route). The `assembly` entry in
+# `session.failure.phase` and `session.phases[].phase` was already a valid enum
+# value from JOS-168/184; this change is the first to actually produce it.
 #
 openapi: 3.0.3
 info:
@@ -185,6 +191,21 @@ paths:
                             - count
                           additionalProperties: false
                         description: Stages with held work; empty when not paused.
+                      running:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            stage:
+                              type: string
+                            count:
+                              type: number
+                          required:
+                            - stage
+                            - count
+                          additionalProperties: false
+                        description: Stages with work actually in flight, computed whether or not
+                          the session is paused (JOS-153).
                       failedPhase:
                         type: string
                       failedSceneIndexes:
@@ -355,6 +376,7 @@ paths:
                       - state
                       - paused
                       - held
+                      - running
                       - phases
                       - createdAt
                       - updatedAt
@@ -603,6 +625,21 @@ paths:
                             - count
                           additionalProperties: false
                         description: Stages with held work; empty when not paused.
+                      running:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            stage:
+                              type: string
+                            count:
+                              type: number
+                          required:
+                            - stage
+                            - count
+                          additionalProperties: false
+                        description: Stages with work actually in flight, computed whether or not
+                          the session is paused (JOS-153).
                       failedPhase:
                         type: string
                       failedSceneIndexes:
@@ -773,6 +810,7 @@ paths:
                       - state
                       - paused
                       - held
+                      - running
                       - phases
                       - createdAt
                       - updatedAt
@@ -1122,6 +1160,75 @@ paths:
                   - ok
                   - reason
                 additionalProperties: false
+  /sessions/{sessionId}/assembly/retry:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              anyOf:
+                - not: {}
+                - type: object
+                  properties: {}
+                  additionalProperties: false
+                  nullable: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: sessionId
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  held:
+                    type: boolean
+                    description: "True while the session is paused: the retry is accepted and waits
+                      for continue."
+                required:
+                  - ok
+                  - held
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
   /sessions/{sessionId}/scenes/{sceneId}/retry:
     post:
       parameters:
@@ -1149,6 +1256,21 @@ paths:
                     type: boolean
                 required:
                   - ok
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
                 additionalProperties: false
         "409":
           description: Default Response
@@ -1205,6 +1327,21 @@ paths:
                     type: boolean
                 required:
                   - ok
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
                 additionalProperties: false
         "409":
           description: Default Response

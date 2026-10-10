@@ -11,7 +11,7 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
-import { existsSync, linkSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import type {
   AttemptStage,
@@ -634,6 +634,41 @@ export function resolveArtefactPath(projectFolder: string, relativePath: string)
   return assertWithinProjectFolder(projectFolder, relativePath);
 }
 
+/**
+ * retry-final-assembly (JOS-159), design Decision 2 — moves an assembly attempt's output from its per-attempt
+ * temporary path into the project folder, atomically and only once: `linkSync` is EEXIST-safe, the same idiom
+ * `writeArtefactOnce` uses above. `PROJECTS_ROOT` and every project folder are one local filesystem (this app's
+ * layout, unconditionally), so no cross-device fallback is needed — ponytail: if that ever stops being true, add
+ * an EXDEV -> copyFileSync fallback here. Returns `true` when the file now exists at `relativePath` (moved, or
+ * there was nothing at `tempPath` to move — a stub assembly tool in tests writes nothing, and only the caller's
+ * own store write matters then) and `false` only when something is already there (`EEXIST`): the caller treats
+ * that as superseded, the same as a refused `setFinalVideoPath`.
+ */
+export function moveAssemblyOutput(projectFolder: string, tempPath: string, relativePath: string): boolean {
+  if (!existsSync(tempPath)) return true;
+  const fullPath = assertWithinProjectFolder(projectFolder, relativePath);
+  try {
+    linkSync(tempPath, fullPath);
+  } catch (err: any) {
+    if (err?.code === "EEXIST") return false;
+    throw err;
+  } finally {
+    rmSync(tempPath, { force: true });
+  }
+  return true;
+}
+
+/** A loose but good-enough "is this a real MP4" check for the Decision 2 adopt rule: non-empty, with the `ftyp`
+ * box signature at offset 4 every MP4 (including this test suite's `buildMp4` fixture) carries. */
+export function isReadableMp4(fullPath: string): boolean {
+  try {
+    const fd = readFileSync(fullPath);
+    return fd.length >= 8 && fd.subarray(4, 8).toString("ascii") === "ftyp";
+  } catch {
+    return false;
+  }
+}
+
 export function createRun(id: string, title: string, script: string, language: string): Run {
   const createdAt = nowIso();
   const projectFolder = deriveAndCreateProjectFolder(title, new Date(createdAt));
@@ -870,6 +905,21 @@ export function startVoiceAttempt(input: { runId: string; providerId: string; qu
 /** Clears the session's failure once the phase that failed has succeeded (a retry that worked). A no-op when there is none. */
 export function clearRunFailure(runId: string): void {
   db.prepare("UPDATE runs SET failure = NULL WHERE id = ?").run(runId);
+}
+
+/**
+ * retry-final-assembly (JOS-159), design Decision 3 — the one atomic step a manual assembly retry needs: clear a
+ * recorded assembly failure exactly once, so of two racing requests only one proceeds to actually launch
+ * (`assemblyRetry.ts` reads `false` as "already pending"). No `stage_attempts` row is touched here — assembly's
+ * two pre-attempt failures (no tool, no voice-over) have none to touch, and the launcher records its own on launch.
+ */
+export function beginAssemblyRetry(runId: string): boolean {
+  return inTransaction((): boolean => {
+    const run = getRun(runId);
+    if (!run || run.failure?.phase !== "assembly") return false;
+    clearRunFailure(runId);
+    return true;
+  });
 }
 
 /** Decision 9 — the session's failure, so a failure with no attempt behind it (a missing credential) is still reported. */
@@ -1240,8 +1290,13 @@ export function getStageAttempts(runId: string, stage: AttemptStage): StageAttem
 }
 
 /** Sets `runs.final_video_path` once after a successful assembly (JOS-149). */
-export function setFinalVideoPath(runId: string, relativePath: string): void {
-  db.prepare("UPDATE runs SET final_video_path = ? WHERE id = ?").run(relativePath, runId);
+/**
+ * ignore-repeated-success-confirmations (JOS-161), design Decision 2 — the final video is recorded once: the update
+ * writes only while no path is recorded. Returns whether this call recorded it.
+ */
+export function setFinalVideoPath(runId: string, relativePath: string): boolean {
+  const result = db.prepare("UPDATE runs SET final_video_path = ? WHERE id = ? AND final_video_path IS NULL").run(relativePath, runId);
+  return Number(result.changes) > 0;
 }
 
 export function getAllInFlightScenes(): Scene[] {
@@ -1293,6 +1348,80 @@ export function markScenePendingRetry(sceneId: string, error: string): void {
   ).run(error, nowIso(), sceneId);
 }
 
+/**
+ * retry-or-correct-image (JOS-157), design Decision 3 — the manual-retry command's one conditional write,
+ * scoped by session and the two preconditions a retry needs (`failed`, no stored image). Distinct from
+ * `markScenePendingRetry` above, which `applyFailureOutcome` still uses unconditionally for the automatic-retry
+ * path, where the scene is known to be `image-generating`/`video-generating`, not `failed`, at the moment of the
+ * write. Returns whether a row changed, so a lost race (a concurrent retry or correction already moved the scene
+ * out of `failed`) is reported the same way as "scene is not failed": `false`, never a thrown error.
+ */
+export function markSceneForManualRetry(sessionId: string, sceneId: string, error: string): boolean {
+  const result = db
+    .prepare(
+      "UPDATE scenes SET status = 'submitted', last_error = ?, current_request_id = NULL, updated_at = ? WHERE id = ? AND run_id = ? AND status = 'failed' AND result IS NULL",
+    )
+    .run(error, nowIso(), sceneId, sessionId);
+  return Number(result.changes) > 0;
+}
+
+/**
+ * retry-or-correct-image (JOS-157), design Decisions 3-4 — the correction command's one conditional write for a
+ * real chunk: `image_instruction` and `status` change together, so a refused write (scene not failed, or a lost
+ * race) never leaves IMAGE corrected on a scene that is not being retried. `last_error` and `current_request_id`
+ * are left alone on purpose (task 4.2's column list): a failed scene already has `current_request_id = NULL`, and
+ * the stale cause is harmless once the scene is `submitted` again.
+ */
+export function correctImageInstruction(sessionId: string, sceneId: string, instruction: string): boolean {
+  const result = db
+    .prepare(
+      "UPDATE scenes SET image_instruction = ?, status = 'submitted', updated_at = ? WHERE id = ? AND run_id = ? AND status = 'failed' AND result IS NULL",
+    )
+    .run(instruction, nowIso(), sceneId, sessionId);
+  return Number(result.changes) > 0;
+}
+
+/**
+ * retry-or-correct-image (JOS-157), design Decision 4 — the same conditional write as `correctImageInstruction`,
+ * but for a skeleton scene (empty `image_instruction`), which corrects the legacy `instruction` column instead —
+ * the field the stub stage (`launchScene`, via `hasImageInstruction`'s own dispatch rule) actually reads.
+ */
+export function correctLegacyInstruction(sessionId: string, sceneId: string, instruction: string): boolean {
+  const result = db
+    .prepare(
+      "UPDATE scenes SET instruction = ?, status = 'submitted', updated_at = ? WHERE id = ? AND run_id = ? AND status = 'failed' AND result IS NULL",
+    )
+    .run(instruction, nowIso(), sceneId, sessionId);
+  return Number(result.changes) > 0;
+}
+
+/**
+ * retry-or-correct-clip (JOS-158) — conditionally moves a failed clip back to the video launch state.
+ * The owning session, failed state, completed image and absent clip are all checked by this one write,
+ * so a competing retry/correction or a stale request cannot launch a duplicate attempt.
+ */
+export function markSceneForManualVideoRetry(sessionId: string, sceneId: string, error: string): boolean {
+  const result = db
+    .prepare(
+      "UPDATE scenes SET status = 'image-complete', last_error = ?, current_request_id = NULL, updated_at = ? WHERE id = ? AND run_id = ? AND status = 'failed' AND result IS NOT NULL AND video_result IS NULL",
+    )
+    .run(error, nowIso(), sceneId, sessionId);
+  return Number(result.changes) > 0;
+}
+
+/**
+ * retry-or-correct-clip (JOS-158) — the clip correction and transition to the video launch state are atomic.
+ * No image, narrative, timing, provider-binding or result field is written here.
+ */
+export function correctVideoInstruction(sessionId: string, sceneId: string, instruction: string): boolean {
+  const result = db
+    .prepare(
+      "UPDATE scenes SET video_instruction = ?, status = 'image-complete', updated_at = ? WHERE id = ? AND run_id = ? AND status = 'failed' AND result IS NOT NULL AND video_result IS NULL",
+    )
+    .run(instruction, nowIso(), sceneId, sessionId);
+  return Number(result.changes) > 0;
+}
+
 export function markSceneFailed(sceneId: string, error: string): void {
   db.prepare(
     "UPDATE scenes SET status = 'failed', last_error = ?, current_request_id = NULL, updated_at = ? WHERE id = ?",
@@ -1337,10 +1466,6 @@ export function getImageCompleteScenesForRun(runId: string): Scene[] {
 export function getAllVideoGeneratingScenes(): Scene[] {
   const rows = db.prepare("SELECT * FROM scenes WHERE status = 'video-generating'").all() as any[];
   return rows.map(rowToScene);
-}
-
-export function setSceneInstruction(sceneId: string, instruction: string): void {
-  db.prepare("UPDATE scenes SET instruction = ?, updated_at = ? WHERE id = ?").run(instruction, nowIso(), sceneId);
 }
 
 /**

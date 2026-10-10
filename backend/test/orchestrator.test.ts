@@ -82,12 +82,12 @@ describe("retry budget (PRD §10.1, C2)", () => {
   });
 
   it("a manual retry after failure starts a fresh 1 + RETRY_BUDGET cycle", async () => {
-    const { sceneId } = newRunWithScene("transient_failure", 5);
+    const { runId, sceneId } = newRunWithScene("transient_failure", 5);
     launchScene(sceneId);
     await waitFor(() => getScene(sceneId)?.status === "failed");
     expect(getScene(sceneId)!.attempts).toBe(1 + RETRY_BUDGET);
 
-    const result = manualRetry(sceneId);
+    const result = manualRetry(runId, sceneId);
     expect(result.ok).toBe(true);
 
     await waitFor(() => getScene(sceneId)?.status === "failed" && getScene(sceneId)!.attempts > 0);
@@ -256,20 +256,20 @@ describe("recoverOnBoot respects the pause gate (JOS-152, task 3.5)", () => {
 // PRD §10.3 — the one visual-correction exception.
 describe("visual correction on a failed stage (PRD §10.3)", () => {
   it("is rejected on a scene that has not failed", async () => {
-    const { sceneId } = newRunWithScene("success", 5);
+    const { runId, sceneId } = newRunWithScene("success", 5);
     launchScene(sceneId);
     await waitFor(() => getScene(sceneId)?.status === "image-complete");
 
-    const result = correctAndRetry(sceneId, "a new instruction");
+    const result = correctAndRetry(runId, sceneId, "a new instruction");
     expect(result.ok).toBe(false);
   });
 
   it("updates the instruction and retries when the stage has failed", async () => {
-    const { sceneId } = newRunWithScene("not_retryable_failure", 5);
+    const { runId, sceneId } = newRunWithScene("not_retryable_failure", 5);
     launchScene(sceneId);
     await waitFor(() => getScene(sceneId)?.status === "failed");
 
-    const result = correctAndRetry(sceneId, "a corrected instruction");
+    const result = correctAndRetry(runId, sceneId, "a corrected instruction");
     expect(result.ok).toBe(true);
     expect(getScene(sceneId)!.instruction).toBe("a corrected instruction");
   });

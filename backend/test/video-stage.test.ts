@@ -12,6 +12,7 @@ import {
   getRun,
   getScene,
   getScenesForRun,
+  insertVoiceOver,
   markImageComplete,
   PROJECTS_ROOT,
   resetAll,
@@ -28,7 +29,9 @@ import {
   nextVideoStageLaunchCount,
   pauseSession,
   recoverOnBoot,
+  resetAssemblyTool,
   resetVideoStageStartDelayMs,
+  setAssemblyTool,
   toSnapshot,
 } from "../src/orchestrator.ts";
 import {
@@ -40,6 +43,7 @@ import {
   STUB_VIDEO_PROVIDER_NAME,
 } from "../src/videoProvider.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
+import { createStubAssemblyTool } from "../src/stubAssemblyTool.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
 
 // generate-chunk-video (JOS-146), groups 4-7: launch, completion, failures/retries, restart.
@@ -119,6 +123,7 @@ beforeEach(() => {
   resetVideoProviderRegistry();
   resetVideoDownloadFetch();
   concurrency.resetAll();
+  resetAssemblyTool();
 });
 
 // ---- Group 4: Precondition and launch ----
@@ -480,51 +485,64 @@ describe("Group 6 — Failures, retries, binding (Decisions 5, 6, 7)", () => {
     expect(firstAttemptNumber).toBe(1); // video stage starts at attempt 1
   });
 
-  it("manualRetry on a video-stage failure answers {ok:false} with 'retrying a failed clip is not available yet' and leaves everything unchanged", async () => {
+  it("manually retries a not-retryable clip with the stored VIDEO and its bound provider", async () => {
     const runId = randomUUID();
-    createRun(runId, "manual retry video test", "script", "en");
+    createRun(runId, "manual retry clip test", "script", "en");
 
-    const provider = createStubVideoProvider("not-retryable-failure");
-    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
+    const originalProvider = createStubVideoProvider("not-retryable-failure");
+    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: originalProvider } });
 
     const sceneIds = await bringToImageComplete(runId);
     await new Promise((resolve) => setTimeout(resolve, 100));
-
     const sceneId = sceneIds[0]!;
     const before = getScene(sceneId)!;
     expect(before.status).toBe("failed");
-    expect(before.result).not.toBeNull(); // image path still present
 
-    const result = manualRetry(sceneId);
+    const boundProvider = createStubVideoProvider("success-bytes", { bytes: MP4_BYTES });
+    const newDefaultProvider = createStubVideoProvider("transient-failure");
+    setVideoProviderRegistry({
+      defaultIdentifier: "new-video-default",
+      adapters: { [TEST_VIDEO_PROVIDER_ID]: boundProvider, "new-video-default": newDefaultProvider },
+    });
 
-    expect(result).toEqual({ ok: false, reason: "retrying a failed clip is not available yet" });
+    expect(manualRetry(runId, sceneId)).toEqual({ ok: true });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     const after = getScene(sceneId)!;
-    expect(after.status).toBe("failed");
-    expect(after.attempts).toBe(before.attempts); // unchanged
-    expect(after.result).toBe(before.result); // image path unchanged
+    expect(boundProvider.calls).toEqual([before.videoInstruction]);
+    expect(newDefaultProvider.calls).toEqual([]);
+    expect(after.status).toBe("chunk-complete");
+    expect(after.result).toBe(before.result);
+    expect(after.videoProvider).toBe(TEST_VIDEO_PROVIDER_ID);
   });
 
-  it("correctAndRetry on a video-stage failure answers {ok:false} with 'retrying a failed clip is not available yet' and leaves everything unchanged", async () => {
+  it("corrects only VIDEO and retries the clip using the corrected instruction", async () => {
     const runId = randomUUID();
-    createRun(runId, "correct retry video test", "script", "en");
+    createRun(runId, "correct retry clip test", "script", "en");
 
-    const provider = createStubVideoProvider("not-retryable-failure");
-    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
+    const originalProvider = createStubVideoProvider("not-retryable-failure");
+    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: originalProvider } });
 
     const sceneIds = await bringToImageComplete(runId);
     await new Promise((resolve) => setTimeout(resolve, 100));
-
     const sceneId = sceneIds[0]!;
     const before = getScene(sceneId)!;
     expect(before.status).toBe("failed");
 
-    const result = correctAndRetry(sceneId, "a new instruction");
+    const retryProvider = createStubVideoProvider("success-bytes", { bytes: MP4_BYTES });
+    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: retryProvider } });
 
-    expect(result).toEqual({ ok: false, reason: "retrying a failed clip is not available yet" });
+    expect(correctAndRetry(runId, sceneId, "a corrected video instruction")).toEqual({ ok: true });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     const after = getScene(sceneId)!;
-    expect(after.status).toBe("failed");
-    expect(after.instruction).toBe(before.instruction); // instruction unchanged
-    expect(after.result).toBe(before.result); // image path unchanged
+    expect(retryProvider.calls).toEqual(["a corrected video instruction"]);
+    expect(after.status).toBe("chunk-complete");
+    expect(after.videoInstruction).toBe("a corrected video instruction");
+    expect(after.imageInstruction).toBe(before.imageInstruction);
+    expect(after.result).toBe(before.result);
+    expect(after.prompt).toBe(before.prompt);
+    expect(after.videoProvider).toBe(TEST_VIDEO_PROVIDER_ID);
   });
 
   it("manualRetry on an image-stage failure works as before (unchanged behaviour)", () => {
@@ -536,7 +554,7 @@ describe("Group 6 — Failures, retries, binding (Decisions 5, 6, 7)", () => {
       "INSERT INTO scenes (id, run_id, idx, status, instruction, image_instruction, video_instruction, attempts, updated_at) VALUES (?, ?, 1, 'failed', 'i', 'i', 'v', 1, ?)",
     ).run(sceneId, runId, new Date().toISOString());
 
-    const result = manualRetry(sceneId);
+    const result = manualRetry(runId, sceneId);
 
     // manualRetry succeeds (not refused with the 409 video-stage guard)
     expect(result.ok).toBe(true);
@@ -552,8 +570,21 @@ describe("Group 7 — Session state after video stage", () => {
     // JOS-149: chunks reaching chunk-complete moves the session to
     // `final-video-generating`, NOT `final-video`. `final-video` requires
     // assembly to succeed (run.finalVideoPath set by assemble-final-video).
+    // retry-final-assembly (JOS-159) — "not yet done" now means genuinely still running: a slow assembly tool,
+    // so the 100ms check below lands while it is still in flight, not after it has already failed or succeeded.
     const runId = randomUUID();
     createRun(runId, "final video test", "script", "en");
+    insertVoiceOver({
+      runId,
+      audioPath: "voice-over.mp3",
+      timestampsPath: null,
+      durationSeconds: 8,
+      sizeBytes: 1,
+      nativeTimestampsAvailable: false,
+      providerRequestId: null,
+      completedAt: new Date().toISOString(),
+    });
+    setAssemblyTool(createStubAssemblyTool({ kind: "slow-success", delayMs: 10_000 }));
 
     const provider = createStubVideoProvider("success-bytes", { bytes: MP4_BYTES });
     setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
@@ -563,6 +594,7 @@ describe("Group 7 — Session state after video stage", () => {
 
     const snapshot = toSnapshot(runId);
     expect(snapshot?.session.state).toBe("final-video-generating");
+    expect(snapshot?.session.failedPhase).toBeUndefined();
   });
 
   it("deriveSessionState: 'video-generating' scenes still count as processing", () => {
