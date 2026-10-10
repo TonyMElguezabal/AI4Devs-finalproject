@@ -50,11 +50,11 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the real server on a scratch store and scratch projects folder with stub providers (`USE_STUB_VIDEO_PROVIDER=pending`, `ALLOW_TEST_ENDPOINTS=1`); confirm `GET /health`.
-- [ ] 7.2 Create a session with two scenes through `quick-scene`, so both are `video-generating`. `curl -D -` the image download of one: 200, attachment headers, and the bytes match the stored file (`cmp`). The clip download answers 409.
-- [ ] 7.3 Restart with `USE_STUB_VIDEO_PROVIDER=success-bytes` so the clips complete; download a clip: 200, `video/mp4`, bytes match. Confirm `GET /sessions/:id` lists `downloads` per scene.
-- [ ] 7.4 `curl` the route with `kind` `voice-over` and `timestamps`: 400. A scene id from another session: 404.
-- [ ] 7.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/download-scene-results/reports/YYYY-MM-DD-step-7-manual-endpoint-testing.md`.
+- [x] 7.1 Start the real server on a scratch store and scratch projects folder with stub providers (`USE_STUB_VIDEO_PROVIDER=pending`, `ALLOW_TEST_ENDPOINTS=1`); confirm `GET /health`.
+- [x] 7.2 Create a session with two scenes through `quick-scene`, so both are `video-generating`. `curl -D -` the image download of one: 200, attachment headers, and the bytes match the stored file (`cmp`). The clip download answers 409.
+- [x] 7.3 Restart with `USE_STUB_VIDEO_PROVIDER=success-bytes` so the clips complete; download a clip: 200, `video/mp4`, bytes match. Confirm `GET /sessions/:id` lists `downloads` per scene.
+- [x] 7.4 `curl` the route with `kind` `voice-over` and `timestamps`: 400. A scene id from another session: 404.
+- [x] 7.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/download-scene-results/reports/2026-10-10-step-7-manual-endpoint-testing.md`. Found and documented an unrelated pre-existing bug (see report); not fixed, out of scope.
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
