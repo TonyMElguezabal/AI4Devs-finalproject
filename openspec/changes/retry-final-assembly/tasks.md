@@ -94,10 +94,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 12. Update Technical Documentation (MANDATORY)
 
-- [ ] 12.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the changes are the route and the `assembly` failure phase.
-- [ ] 12.2 `docs/data-model.md`: add `assembly` to `runs.failure.phase`, and record that `final-video.mp4` is placed only on success and never replaced.
-- [ ] 12.3 `docs/backend-standards.md`: record the assembly launcher, the temp-then-move output rule for generated artefacts written by a local tool, and the boot step for unrecorded assembly failures.
-- [ ] 12.4 `docs/frontend-standards.md`: add `Retry final video` to the naming table.
+- [x] 12.1 Regenerated against a real running server's `GET /docs/json`; confirmed path-for-path identical except the new `/sessions/{sessionId}/assembly/retry` entry (byte-identical shape to `decomposition/retry`'s). The `assembly` phase enum value was already present everywhere from JOS-168/184; added a changelog entry noting this change is the first to actually produce it.
+- [x] 12.2 Added `assembly` to the `runs.failure.phase` description, the `state` derivation bullet (the new gate-open-with-a-recorded-failure branch), and rewrote the assembly-stage paragraph to record the final-video.mp4-only-on-success-never-replaced rule and the boot migration step.
+- [x] 12.3 Added two new bullets to the conventions list: the temp-then-move output rule for a local tool's generated artefact (mirrors `writeArtefactOnce`'s `EEXIST`-safe idiom), and the boot-time catch-up step pattern for a failure that can predate the code recording it (including the paused-vs-unpaused distinction found in step 10). Added a third bullet documenting the "manual retry reuses the stage's own first-run launcher" pattern and why `startNewCycle` doesn't fit a stage with pre-attempt (zero-row) failures.
+- [x] 12.4 Added `Retry final video` to the naming table, next to `Retry decomposition`.
 
 ## 13. Close out
 
