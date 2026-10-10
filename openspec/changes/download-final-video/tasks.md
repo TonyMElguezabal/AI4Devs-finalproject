@@ -9,7 +9,7 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm the base still matches design.md § Context: the route streams the file with its attachment headers, its 200 schema is `z.any()`, the generated contract shows `application/json`, and the page gates on `state` with a client-built URL. Record whether `download-scene-results` (JOS-163) has merged; if it has, build on its `FinalVideoDownload` and `api/client.ts` state instead of the base's.
+- [x] 1.1 `git fetch`. Confirm the base still matches design.md § Context: the route streams the file with its attachment headers, its 200 schema is `z.any()`, the generated contract shows `application/json`, and the page gates on `state` with a client-built URL. Record whether `download-scene-results` (JOS-163) has merged; if it has, build on its `FinalVideoDownload` and `api/client.ts` state instead of the base's. **Result:** JOS-163 merged (`feature/entrega-2-JAME` now at `2fa63dc`). Verified it only touched the scene download route/`SceneRow`/`SceneList` — `FinalVideoDownload.tsx`, `downloadFinalVideoUrl` in `api/client.ts`, `SessionPage.tsx`'s final-video line, and the route's `z.any()` schema are all still exactly as design.md's Context describes. Merged the branch up to date, no conflicts. Proceeding as designed, no artifact updates needed.
 
 ## 2. Backend: the published contract (design Decision 1)
 
