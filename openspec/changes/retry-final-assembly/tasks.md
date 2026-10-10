@@ -87,10 +87,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 11.1 Decide applicability: a new failure display and button on the session page, so it applies.
-- [ ] 11.2 Run backend (scratch store, stub tool failing first) and frontend. Open the session after assembly fails: the Final video section shows `Failed`, the cause and `Retry final video`, and no download.
-- [ ] 11.3 Set the tool to succeed and click `Retry final video`. The section moves to `In progress`, then `Complete`, with the download shown, all without a reload. The scene rows are unchanged throughout.
-- [ ] 11.4 Restore the environment and save `openspec/changes/retry-final-assembly/reports/YYYY-MM-DD-step-11-e2e.md`.
+- [x] 11.1 Applies: a new failure display and button on the session page.
+- [x] 11.2 Backend (scratch store, `USE_STUB_ASSEMBLY_TOOL=not-retryable-failure`) + frontend, driven via `playwright-cli`. The Final video section showed `Failed`, the cause and `Retry final video`, no download.
+- [x] 11.3 Restarted with `USE_STUB_ASSEMBLY_TOOL=slow-success` and clicked `Retry final video`: In progress → Complete with the download link, all via the live update (no reload between the click and the final state). Scene rows stayed `chunk-complete` throughout.
+- [x] 11.4 Browser, backend and frontend processes stopped; scratch store/projects removed; `.playwright-cli/` artifacts removed. Report: `openspec/changes/retry-final-assembly/reports/2026-10-09-step-11-e2e.md`.
 
 ## 12. Update Technical Documentation (MANDATORY)
 
