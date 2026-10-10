@@ -59,8 +59,8 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [ ] 9.1 Regenerate `docs/api-spec.yml` from the running server and add a dated header note: the final-video download's 200 is now described as `video/mp4` binary, correcting a document that said `application/json` while the server always sent MP4 bytes.
-- [ ] 9.2 `docs/frontend-standards.md`: the page offers a download only when the session read publishes its route, and never derives availability from the session state.
+- [x] 9.1 Regenerate `docs/api-spec.yml` from the running server and add a dated header note: the final-video download's 200 is now described as `video/mp4` binary, correcting a document that said `application/json` while the server always sent MP4 bytes.
+- [x] 9.2 `docs/frontend-standards.md`: the page offers a download only when the session read publishes its route, and never derives availability from the session state.
 
 ## 10. Close out
 
