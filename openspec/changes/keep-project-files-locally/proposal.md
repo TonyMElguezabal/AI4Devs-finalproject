@@ -10,6 +10,7 @@ Linear-Issue: JOS-162 (US-30)
 
 - **Script file**: when a session is created, its script is written once to `script.txt` in the project folder, exactly as submitted.
 - **Generated texts file**: when a session's chunks are registered, their generated texts (each chunk's identifier, narrated fragment `PROMPT`, `IMAGE` and `VIDEO` instructions and narration interval) are written once to `generated-texts.json` in the project folder.
+- **Corrected instructions file**: when a User corrects a scene's `IMAGE` or `VIDEO` instruction (§10.3, now implemented by JOS-157/JOS-158, both merged since this change was proposed), the corrected text is also recorded in `corrected-instructions.json` in the project folder, keyed by scene identifier. The gate check (task 1.1) found both stories merged on `feature/entrega-2-JAME` and their corrections still only reach the store, not the project folder, so this is added to this change's scope rather than left to a coordination comment.
 - **Pinning tests** for what already holds, one per acceptance criterion:
   - the full MP3, its timestamps, images, clips and final MP4 land in the project folder;
   - nothing in the running app deletes a project file or expires a session;
@@ -32,9 +33,10 @@ None. `persistence-foundation`'s "File references bound to the owning project fo
 - **Backend**:
   - `db.ts` (`createRun`): writes `script.txt` with `writeArtefactOnce` after creating the folder.
   - `sceneRegistration.ts`: writes `generated-texts.json` with `writeArtefactOnce` after the chunks are stored.
+  - `db.ts` (`correctImageInstruction`, `correctLegacyInstruction`, `correctVideoInstruction`): each, after its `UPDATE` actually changes a row, writes the corrected instruction into `corrected-instructions.json` with `writeArtefact` (not write-once; a scene can be corrected more than once).
   - No migration, no new dependency.
 - **Frontend**: no change.
-- **API contract**: no change. §12.3 keeps the script and generated texts local and not downloadable, so no route is added.
+- **API contract**: no change. §12.3 keeps the script, generated texts and corrected instructions local and not downloadable, so no route is added.
 - **Depends on**: US-01 (JOS-134), merged.
-- **Coordination**: the stories that let the User correct an `IMAGE` or `VIDEO` instruction (§10.3, JOS-157/JOS-158) must also keep the corrected text in the project folder. Today's `correctAndRetry` only updates the skeleton's `instruction` column.
-- **Out of scope**: downloads of the script or texts (§12.3); backups; removing old projects.
+- **Coordination**: JOS-157 and JOS-158 have both merged into `feature/entrega-2-JAME`; this change now implements the corrected-instructions file itself (see design.md Decision 5) instead of leaving a coordination comment on those tickets.
+- **Out of scope**: downloads of the script, texts or corrections (§12.3); backups; removing old projects; a history of every correction (only the latest per scene/field is kept, matching the store).

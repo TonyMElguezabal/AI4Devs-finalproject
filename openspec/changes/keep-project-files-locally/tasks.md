@@ -9,13 +9,15 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm the base still matches design.md § Context: no `script.txt` or `generated-texts.json` is written; the only `rmSync` calls are the temporary-path ones; folder naming is unchanged. Record whether JOS-157 or JOS-158 has merged; if one has, add its corrected-instruction file to this change's scope and update the spec first.
+- [x] 1.1 `git fetch`. Confirm the base still matches design.md § Context: no `script.txt` or `generated-texts.json` is written; the only `rmSync` calls are the temporary-path ones; folder naming is unchanged. Record whether JOS-157 or JOS-158 has merged; if one has, add its corrected-instruction file to this change's scope and update the spec first. **Result:** both merged (`feature/entrega-2-JAME` now at `7144625`); everything else in the table still holds. Scope expanded — see design.md Decision 5, proposal.md, spec.md.
 
 ## 2. Backend: script and generated texts (TDD; design Decisions 1-3)
 
 - [ ] 2.1 Write failing tests: creating a session writes `script.txt` with the script byte for byte, including leading and trailing spaces and non-ASCII text.
 - [ ] 2.2 Write failing tests: registering chunks writes `generated-texts.json` with every chunk's `id`, `prompt`, `imageInstruction`, `videoInstruction` and `narrationInterval`, in identifier order; a refused second registration leaves the file unchanged.
 - [ ] 2.3 Write `script.txt` in `createRun` and `generated-texts.json` in `registerDecomposition`, both with `writeArtefactOnce`. Make 2.1 and 2.2 pass.
+- [ ] 2.4 Write failing tests: correcting a failed scene's `IMAGE`, `VIDEO` or legacy instruction writes/updates `corrected-instructions.json` with the corrected text and a `correctedAt` timestamp for that scene and field; a correction that the store refuses (not in `failed`, wrong field already filled) leaves the file unchanged; a second correction of the same scene updates in place rather than duplicating.
+- [ ] 2.5 In `correctImageInstruction`, `correctLegacyInstruction` and `correctVideoInstruction` (`db.ts`), after the `UPDATE` changes a row, write `corrected-instructions.json` with `writeArtefact` (design Decision 5). Make 2.4 pass.
 
 ## 3. Backend: pin the acceptance criteria that already hold (design Decision 4)
 
@@ -58,12 +60,12 @@ Record which tests already existed.
 ## 8. Update Technical Documentation (MANDATORY)
 
 - [ ] 8.1 `docs/api-spec.yml`: confirm no change is needed (no route or schema change); record that in the step 5 report.
-- [ ] 8.2 `docs/data-model.md`: list the files a project folder holds, with when each is written, including `script.txt` and `generated-texts.json` and their JSON shape.
-- [ ] 8.3 `docs/backend-standards.md`: state that every result goes into the project folder through `writeArtefactOnce`, that temporary links are downloaded before the result is accepted, and that nothing deletes project files.
+- [ ] 8.2 `docs/data-model.md`: list the files a project folder holds, with when each is written, including `script.txt`, `generated-texts.json` and `corrected-instructions.json`, and their JSON shape.
+- [ ] 8.3 `docs/backend-standards.md`: state that every result goes into the project folder through `writeArtefactOnce` (write-once artefacts) or `writeArtefact` (artefacts that can change, such as corrections), that temporary links are downloaded before the result is accepted, and that nothing deletes project files.
 
 ## 9. Close out
 
-- [ ] 9.1 Ask the user before commenting on JOS-157 and JOS-158 (a corrected instruction must also be kept in the project folder).
+- [ ] 9.1 No coordination comment needed: JOS-157 and JOS-158 are both merged and this change now implements the corrected-instructions file itself (task 1.1, design Decision 5).
 - [ ] 9.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-162.
 - [ ] 9.3 Obtain review by at least one human, not only AI agents.
 - [ ] 9.4 Archive the OpenSpec change after merge.

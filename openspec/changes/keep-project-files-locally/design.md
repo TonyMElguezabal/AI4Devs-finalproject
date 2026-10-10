@@ -4,6 +4,8 @@
 
 On `feature/entrega-2-JAME` (`5498360`), against each acceptance criterion:
 
+**Gate re-check (task 1.1, after fetch):** `feature/entrega-2-JAME` has since moved to `7144625`. JOS-157 (`retry-or-correct-image`) and JOS-158 (`retry-or-correct-clip`) have both merged. Re-reading `correctAndRetry` and `correctImageInstruction`/`correctLegacyInstruction`/`correctVideoInstruction` at that tip: they still only `UPDATE` the `scenes` table (`image_instruction`, `instruction` or `video_instruction` column) — none writes to the project folder. Everything else in the table below still holds: no `script.txt` or `generated-texts.json` is written, `rmSync` is still only on the temporary-path call sites, and folder naming is unchanged. Per task 1.1, the corrected-instruction file is added to this change's scope (Decision 5) rather than deferred.
+
 | AC | What exists | Where |
 |---|---|---|
 | AC1 files kept | full MP3 `voice-over.mp3`, native `voice-over-timestamps.json`, `narration-timestamps.json`, images `scene-N-attempt-K.<ext>`, clips `scene-N.mp4`, `final-video.mp4`, all written into the project folder through `writeArtefactOnce` or the assembly tool's output path | `voiceOverPhase.ts`, `narrationTimestampsPhase.ts`, `orchestrator.ts`, `ffmpegAssemblyTool.ts` |
@@ -17,11 +19,12 @@ On `feature/entrega-2-JAME` (`5498360`), against each acceptance criterion:
 
 **Goals:**
 - The script and the generated texts are in the project folder (AC1).
+- Corrected `IMAGE`/`VIDEO`/legacy instructions (JOS-157, JOS-158) are also in the project folder.
 - At least one test per acceptance criterion, pinning what already holds.
 
 **Non-Goals:**
-- Downloading the script or texts from the app (§12.3 keeps them local only).
-- Keeping corrected instructions; the correction stories own that (see Risks).
+- Downloading the script, texts or corrections from the app (§12.3 keeps them local only).
+- A history of corrections; only the latest per scene/field is kept, matching the store.
 - Backups, cleanup or archiving of old projects.
 
 ## Decisions
@@ -46,9 +49,15 @@ If writing either file throws, the creation or registration fails the way any ot
 - **AC4**: consult an old session through the API.
 - **AC5**: the existing download tests are referenced, plus one asserting that the stored reference is the local file, not the link.
 
+**Decision 5 — A correction writes `corrected-instructions.json` with `writeArtefact`, after the store update succeeds.**
+`correctImageInstruction`, `correctLegacyInstruction` and `correctVideoInstruction` (`db.ts`) each run an `UPDATE ... WHERE status = 'failed' AND ...` and return whether a row changed. When one does, it reads `corrected-instructions.json` (empty object if absent), sets `scenes[sceneId].imageInstruction` / `.instruction` / `.videoInstruction` to the new text with a `correctedAt` timestamp, and writes the whole object back with `writeArtefact` (plain overwrite — this file changes over time, unlike `script.txt` and `generated-texts.json`). Scoped to the field that function corrects; a scene corrected on both stages ends up with both fields set. No concurrency guard is needed: each correction is one synchronous HTTP request handled on Node's single thread, same as the surrounding `UPDATE`.
+
+*Alternative rejected:* folding corrections into `generated-texts.json`. That file is Decision 2's record of what chunk registration generated; overwriting an entry on correction would lose which text was the original one.
+
+*Alternative rejected:* a correction history (append-only log). The store itself only keeps the latest instruction per scene (the `UPDATE` replaces the column), so a history in the project folder would claim more than the system actually tracks.
+
 ## Risks / Trade-offs
 
-- **[Corrected instructions are not in the file]** → Today's correction writes only the skeleton's `instruction` column, so nothing visible changes. The stories that add real `IMAGE` and `VIDEO` corrections (JOS-157, JOS-158) must record the corrected text in the folder. That goes in the coordination comment.
 - **[The source check for `rmSync` is brittle]** → It is a guard against an accidental deletion path, and the test names the allowed call sites so a reviewer sees when one is added.
 - **[Sessions created before this change have no `script.txt` or `generated-texts.json`]** → Acceptable for the MVP's local data. A backfill would be a one-off script and is not planned.
 

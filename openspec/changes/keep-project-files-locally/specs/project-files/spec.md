@@ -19,6 +19,11 @@ Every session SHALL keep, inside its own project folder, the script and the gene
 - **WHEN** a session produces its voice-over, timestamps, images, clips and final video
 - **THEN** each file is inside that session's project folder
 
+#### Scenario: Corrected instruction stored
+
+- **WHEN** the User corrects a failed scene's `IMAGE`, `VIDEO` or legacy instruction (PRD §10.3)
+- **THEN** its project folder's `corrected-instructions.json` holds the corrected text for that scene and field, alongside the store's own record
+
 ### Requirement: Project files never expire and are never deleted automatically
 
 The system SHALL NOT delete a project file or expire a session on its own, whatever its age (PRD §12.2, D04). A session SHALL remain consultable with all its results indefinitely.
