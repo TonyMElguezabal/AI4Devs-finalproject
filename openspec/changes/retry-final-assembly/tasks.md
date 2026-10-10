@@ -79,24 +79,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Start the real server on a scratch store and scratch projects folder, with the stub assembly tool configured to fail first; confirm `GET /health`.
-- [ ] 10.2 Prepare a session with all scenes `chunk-complete`, real clip files and an MP3. Record their hashes and the folder listing. Trigger assembly and wait for the cycle to fail. Then check:
-  - `curl GET /sessions/:id` shows `failed`, `failedPhase: "assembly"` and the cause;
-  - the folder listing and the hashes are unchanged.
-- [ ] 10.3 Set the tool to succeed, then:
-  - `curl -X POST /sessions/:id/assembly/retry` → 200;
-  - the session reaches `final-video`;
-  - the folder gained only `final-video.mp4`;
-  - the hashes are unchanged;
-  - `GET /sessions/:id/download/final-video` serves it.
-- [ ] 10.4 Error cases, each with `curl`:
-  - the retry again → 409 `final-video-already-generated`;
-  - an unknown id → 404;
-  - a body → 400;
-  - a paused failed session → 200 `{ held: true }`, then `POST /continue` runs assembly once.
-
-  `curl GET /docs/json` documents the route.
-- [ ] 10.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/retry-final-assembly/reports/YYYY-MM-DD-step-10-manual-endpoint-testing.md`.
+- [x] 10.1 Started the real server on a scratch store/projects folder (`ALLOW_TEST_ENDPOINTS=1`, `USE_STUB_VIDEO_PROVIDER=success-bytes`, `USE_STUB_ASSEMBLY_TOOL=not-retryable-failure`); `GET /health` → 200.
+- [x] 10.2 Drove a session to `chunk-complete` via the existing `quick-voice-over`/`quick-scene` test-only routes (JOS-146). `GET /sessions/:id` showed `failed`/`failedPhase: "assembly"` with the cause; the folder listing (`scene-0.png`, `scene-0.mp4`, `voice-over.mp3`) and hashes were unchanged, including across a server restart before retrying.
+- [x] 10.3 Set the tool to succeed: retry → 200, session reached `final-video`. Found and documented a real limitation of the plain stub (never writes bytes, so no `final-video.mp4` ever appears and the download 404s correctly) — exercised the real ffmpeg adapter directly instead (no automated test exists for it — step 9) with real generated clip/audio files, confirming the temp-then-move path, `isReadableMp4` and the `EEXIST` refusal all work correctly with real bytes.
+- [x] 10.4 All four error cases checked: retry-again → 409 `not-failed-in-assembly` (the accurate reason once a retry succeeds and clears the failure — not a separate `final-video-already-generated`, matching Decision 3's documented check order); unknown id → 404; a body → 400; a paused failed session → 200 `{held:true}`. `GET /docs/json` documents the route. **Found and fixed a real bug** manually testing the paused case: restarting the server between an accepted-but-held retry and `continue` caused the boot migration step to re-record the old failure, undoing the accepted retry — fixed in a separate commit (`d8f548d`) with a new regression test; re-verified via curl after the fix.
+- [x] 10.5 Scratch stores and project folders removed; the default store confirmed untouched (0 rows, empty `data/projects/`) throughout. Report: `openspec/changes/retry-final-assembly/reports/2026-10-09-step-10-manual-endpoint-testing.md`.
 
 ## 11. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
