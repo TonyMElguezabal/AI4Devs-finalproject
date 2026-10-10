@@ -65,9 +65,9 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [ ] 9.1 Regenerate `docs/api-spec.yml` from the running server and add a dated header note: the download route's binary 200 response and the scene `downloads` object.
-- [ ] 9.2 `docs/data-model.md`: note that download availability is derived from `scenes.result` and `scenes.video_result`, with no stored flag.
-- [ ] 9.3 `docs/frontend-standards.md`: the page shows actions and downloads the session read offers, and does not derive availability from state.
+- [x] 9.1 Regenerate `docs/api-spec.yml` from the running server and add a dated header note: the download route's binary 200 response and the scene `downloads` object.
+- [x] 9.2 `docs/data-model.md`: note that download availability is derived from `scenes.result` and `scenes.video_result`, with no stored flag.
+- [x] 9.3 `docs/frontend-standards.md`: the page shows actions and downloads the session read offers, and does not derive availability from state.
 
 ## 10. Close out
 
