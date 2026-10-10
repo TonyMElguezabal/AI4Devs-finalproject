@@ -365,8 +365,8 @@ export const routes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  // retry-or-correct-image (JOS-157), design Decision 1 — scoped by (sessionId, sceneId); an unknown session,
-  // an unknown scene and a scene of another session all answer 404 identically, as `unknown-scene`.
+  // retry-or-correct-image (JOS-157) / retry-or-correct-clip (JOS-158) — scoped by (sessionId, sceneId);
+  // the orchestrator dispatches by the stored failed stage. Unknown/cross-session scenes all answer 404 as `unknown-scene`.
   typed.post(
     "/sessions/:sessionId/scenes/:sceneId/retry",
     {
@@ -385,8 +385,8 @@ export const routes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  // PRD §10.3 — the one visual-correction exception: offered only on a
-  // failed stage, and only for the affected instruction.
+  // PRD §10.3 — the one visual-correction exception: the orchestrator dispatches this shared route
+  // to IMAGE or VIDEO according to the persisted failed stage, and changes only that instruction.
   typed.post(
     "/sessions/:sessionId/scenes/:sceneId/correct",
     {

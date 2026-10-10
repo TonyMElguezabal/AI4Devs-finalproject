@@ -23,6 +23,7 @@ import {
   clearRunFailure,
   correctImageInstruction,
   correctLegacyInstruction,
+  correctVideoInstruction,
   getInFlightAttempts,
   getStageAttempts,
   getSubmittedScenesForRun,
@@ -34,6 +35,7 @@ import {
   markProviderRequestResolved,
   markSceneFailed,
   markSceneForManualRetry,
+  markSceneForManualVideoRetry,
   markSceneInFlight,
   markScenePendingRetry,
   markSceneVideoRetry,
@@ -1248,24 +1250,33 @@ function applyOutcome(scene: Scene, outcome: ProviderOutcome, attemptNumber: num
  * refused. `unknown-scene` covers an unknown session, an unknown scene and a scene of another session alike
  * (the route maps it to 404; the other two reasons map to 409).
  */
-export type ImageRecoveryRefusal = "unknown-scene" | "not-failed" | "image-already-generated";
-export type ImageRecoveryResult = { ok: true } | { ok: false; reason: ImageRecoveryRefusal };
+export type SceneRecoveryRefusal = "unknown-scene" | "not-failed";
+export type SceneRecoveryResult = { ok: true } | { ok: false; reason: SceneRecoveryRefusal };
 
-export function manualRetry(sessionId: string, sceneId: string): ImageRecoveryResult {
+export function manualRetry(sessionId: string, sceneId: string): SceneRecoveryResult {
   const scene = getSceneForRun(sessionId, sceneId);
   if (!scene) return { ok: false, reason: "unknown-scene" };
   if (scene.status !== "failed") return { ok: false, reason: "not-failed" };
-  // Decision 7 (JOS-146) — video-stage failures are not retryable manually until JOS-158.
-  if (scene.result !== null) return { ok: false, reason: "image-already-generated" };
-  // design Decision 3 — the store decides: a lost race (a concurrent retry or correction that already moved
-  // the scene out of `failed`) is reported the same as "not failed", not as a 5th, special reason.
-  if (!markSceneForManualRetry(sessionId, sceneId, scene.lastError ?? "manual retry")) {
+  if (scene.result === null) {
+    // retry-or-correct-image (JOS-157) — the image stage is the failed stage; its atomic transition returns to submitted.
+    if (!markSceneForManualRetry(sessionId, sceneId, scene.lastError ?? "manual retry")) {
+      return { ok: false, reason: "not-failed" };
+    }
+    resetAttemptsForManualRetry(sceneId);
+    launchSceneStage(sceneId);
+    return { ok: true };
+  }
+
+  // retry-or-correct-clip (JOS-158) — a stored image identifies video as the failed stage.
+  // A committed clip or a lost conditional-write race is a state conflict, never a second launch.
+  if (scene.videoResult !== null) return { ok: false, reason: "not-failed" };
+  if (!markSceneForManualVideoRetry(sessionId, sceneId, scene.lastError ?? "manual video retry")) {
     return { ok: false, reason: "not-failed" };
   }
-  // A manual retry starts a fresh cycle: reset the attempt counter so the
-  // scene gets a full 1 + RETRY_BUDGET budget again, per PRD §10.2.
   resetAttemptsForManualRetry(sceneId);
-  launchSceneStage(sceneId);
+  launchVideoStage(sceneId);
+  // retry-or-correct-clip (JOS-158) — publish the accepted transition even when the launch gate holds it.
+  broadcast(sessionId);
   return { ok: true };
 }
 
@@ -1274,20 +1285,29 @@ export function manualRetry(sessionId: string, sceneId: string): ImageRecoveryRe
  * stage, and it is a retry with a corrected instruction, never a rewrite of
  * `ID`, `PROMPT`-as-narration or scene order.
  */
-export function correctAndRetry(sessionId: string, sceneId: string, instruction: string): ImageRecoveryResult {
+export function correctAndRetry(sessionId: string, sceneId: string, instruction: string): SceneRecoveryResult {
   const scene = getSceneForRun(sessionId, sceneId);
   if (!scene) return { ok: false, reason: "unknown-scene" };
   if (scene.status !== "failed") return { ok: false, reason: "not-failed" };
-  // Decision 7 (JOS-146) — video-stage failures are not correctable until JOS-158.
-  if (scene.result !== null) return { ok: false, reason: "image-already-generated" };
-  // design Decision 4 — the signal `launchSceneStage` dispatches on decides which column is corrected; the
-  // write itself is the same conditional guarantee as a plain retry's, so the two never disagree.
-  const changed = hasImageInstruction(scene)
-    ? correctImageInstruction(sessionId, sceneId, instruction)
-    : correctLegacyInstruction(sessionId, sceneId, instruction);
-  if (!changed) return { ok: false, reason: "not-failed" };
+  if (scene.result === null) {
+    // retry-or-correct-image (JOS-157) — the image stage is the failed stage; update IMAGE only.
+    const changed = hasImageInstruction(scene)
+      ? correctImageInstruction(sessionId, sceneId, instruction)
+      : correctLegacyInstruction(sessionId, sceneId, instruction);
+    if (!changed) return { ok: false, reason: "not-failed" };
+    resetAttemptsForManualRetry(sceneId);
+    launchSceneStage(sceneId);
+    return { ok: true };
+  }
+
+  // retry-or-correct-clip (JOS-158) — update VIDEO and move directly to the video stage.
+  if (scene.videoResult !== null || !correctVideoInstruction(sessionId, sceneId, instruction.trim())) {
+    return { ok: false, reason: "not-failed" };
+  }
   resetAttemptsForManualRetry(sceneId);
-  launchSceneStage(sceneId);
+  launchVideoStage(sceneId);
+  // A paused session has no provider callback to publish this newly held state.
+  broadcast(sessionId);
   return { ok: true };
 }
 

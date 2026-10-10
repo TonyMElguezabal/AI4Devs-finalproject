@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SceneEventPayload } from "../types";
 import { sceneStatusClass } from "../styles/status";
 import { sceneActions } from "../sceneActions";
 import { resolveResultUrl } from "../api/client";
 import { formatStageDiagnostic } from "../stageDiagnostics";
-import { imageRecoveryRefusalSentence } from "../imageRecoveryRefusals";
+import { sceneRecoveryRefusalSentence } from "../sceneRecoveryRefusals";
 
 interface Props {
   scene: SceneEventPayload;
@@ -26,20 +26,26 @@ interface Props {
  * requested duration and speed factor (record-speed-adjustment-factor,
  * JOS-148) are rendered below, read-only, when the backend sends them.
  *
- * PRD §10.3, Decision 4 — the correction form exists ONLY for a failed image
- * stage (`sceneActions`); it is never rendered-and-disabled otherwise, and
- * its presence is derived from state, never from a stored flag.
+ * PRD §10.3 — the correction form exists only for the failed visual stage
+ * (`sceneActions`); it is never rendered-and-disabled otherwise, and its
+ * presence is derived from state, never from a stored flag.
  *
  * show-scene-results-and-actions (JOS-151) — the details also show the
  * stored image and clip, and a failed scene's affected stage.
  */
 export function SceneRow({ scene, paused, onRetry, onCorrect, imageDownloadUrl, videoDownloadUrl }: Props) {
   const [expanded, setExpanded] = useState(false);
-  // retry-or-correct-image (JOS-157), design Decision 7 — pre-fills from IMAGE; a skeleton scene with none
-  // falls back to the legacy `instruction` field, the same signal the backend corrects (design Decision 4).
-  const [draftInstruction, setDraftInstruction] = useState(scene.imageInstruction || scene.instruction || "");
+  const correctionStage = scene.affectedStage === "video" ? "video" : "image";
+  const currentInstruction = correctionStage === "video"
+    ? scene.videoInstruction ?? ""
+    : scene.imageInstruction || scene.instruction || "";
+  const [draftInstruction, setDraftInstruction] = useState(currentInstruction);
   const [pending, setPending] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDraftInstruction(currentInstruction);
+  }, [scene.sceneId, scene.state, scene.affectedStage, currentInstruction]);
 
   const isFailed = scene.state === "failed";
   const actions = sceneActions(scene);
@@ -52,7 +58,7 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, imageDownloadUrl, 
     try {
       await action();
     } catch (error) {
-      setRefusal(imageRecoveryRefusalSentence(error instanceof Error ? error.message : ""));
+      setRefusal(sceneRecoveryRefusalSentence(error instanceof Error ? error.message : ""));
     } finally {
       setPending(false);
     }
@@ -129,16 +135,16 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, imageDownloadUrl, 
               Retry scene {scene.index}
             </button>
           )}
-          {actions.correctImage && (
+          {(actions.correctImage || actions.correctVideo) && (
             <form
-              aria-label={`Correct scene ${scene.index} image instruction`}
+              aria-label={`Correct scene ${scene.index} ${correctionStage} instruction`}
               className="correction-form"
               onSubmit={(e) => {
                 e.preventDefault();
                 runAction(() => onCorrect(scene.sceneId, draftInstruction));
               }}
             >
-              <label htmlFor={`correction-${scene.sceneId}`}>Corrected image instruction for scene {scene.index}</label>
+              <label htmlFor={`correction-${scene.sceneId}`}>Corrected {correctionStage} instruction for scene {scene.index}</label>
               <textarea
                 id={`correction-${scene.sceneId}`}
                 value={draftInstruction}

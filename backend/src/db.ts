@@ -1395,6 +1395,33 @@ export function correctLegacyInstruction(sessionId: string, sceneId: string, ins
   return Number(result.changes) > 0;
 }
 
+/**
+ * retry-or-correct-clip (JOS-158) — conditionally moves a failed clip back to the video launch state.
+ * The owning session, failed state, completed image and absent clip are all checked by this one write,
+ * so a competing retry/correction or a stale request cannot launch a duplicate attempt.
+ */
+export function markSceneForManualVideoRetry(sessionId: string, sceneId: string, error: string): boolean {
+  const result = db
+    .prepare(
+      "UPDATE scenes SET status = 'image-complete', last_error = ?, current_request_id = NULL, updated_at = ? WHERE id = ? AND run_id = ? AND status = 'failed' AND result IS NOT NULL AND video_result IS NULL",
+    )
+    .run(error, nowIso(), sceneId, sessionId);
+  return Number(result.changes) > 0;
+}
+
+/**
+ * retry-or-correct-clip (JOS-158) — the clip correction and transition to the video launch state are atomic.
+ * No image, narrative, timing, provider-binding or result field is written here.
+ */
+export function correctVideoInstruction(sessionId: string, sceneId: string, instruction: string): boolean {
+  const result = db
+    .prepare(
+      "UPDATE scenes SET video_instruction = ?, status = 'image-complete', updated_at = ? WHERE id = ? AND run_id = ? AND status = 'failed' AND result IS NOT NULL AND video_result IS NULL",
+    )
+    .run(instruction, nowIso(), sceneId, sessionId);
+  return Number(result.changes) > 0;
+}
+
 export function markSceneFailed(sceneId: string, error: string): void {
   db.prepare(
     "UPDATE scenes SET status = 'failed', last_error = ?, current_request_id = NULL, updated_at = ? WHERE id = ?",
