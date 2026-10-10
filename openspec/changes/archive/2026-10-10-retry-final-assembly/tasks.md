@@ -101,7 +101,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 13. Close out
 
-- [ ] 13.1 Ask the user before commenting on JOS-168 that its open question (who derives `failedPhase: "assembly"`) is answered here, and on JOS-185 that the assembly launcher and failure recording are where the assembly time limit plugs in.
-- [ ] 13.2 Ask before pushing. Open the PR against `feature/entrega-2-JAME`, or against JOS-168's branch if it is still open, with a description linking to JOS-159.
-- [ ] 13.3 Obtain review by at least one human, not only AI agents.
-- [ ] 13.4 Archive the OpenSpec change after merge.
+- [x] 13.1 Asked; posted comments on JOS-168 and JOS-185 linking PR #43.
+- [x] 13.2 Asked; rebased onto the latest `feature/entrega-2-JAME` (resolved one routes.ts conflict with JOS-158), pushed, opened [PR #43](https://github.com/TonyMElguezabal/AI4Devs-finalproject/pull/43).
+- [x] 13.3 Reviewed and merged (merge commit `3bd3012`).
+- [x] 13.4 Archiving now.
