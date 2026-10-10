@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { jsonSchemaTransform, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname } from "node:path";
 import { launchVoiceOverFor } from "./voiceOverPhase.ts";
@@ -67,6 +67,29 @@ const IMAGE_CONTENT_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
 };
+
+/**
+ * download-final-video (JOS-164), design Decision 1 — `fastify-type-provider-zod`'s
+ * response schemas convert to JSON Schema only, so a zod schema can never produce
+ * `content: { "video/mp4": ... }` in the generated contract (confirmed by reading
+ * `fastify-type-provider-zod` and `@fastify/swagger`'s source: a zod response always
+ * resolves to a `application/json` media type). `@fastify/swagger` does support a
+ * route-level `config.swaggerTransform` override, applied in place of the global
+ * `transform` for that one route — used here to replace only the 200 entry's
+ * documentation with the real binary content type, after letting the normal zod
+ * transform produce every other status code. The route's runtime schema (and
+ * therefore its actual response) is unchanged; this affects only `/docs/json`.
+ */
+function binaryFileSwaggerTransform(contentType: string, description: string) {
+  return ({ schema, url }: { schema: any; url: string }) => {
+    const { schema: transformed, url: transformedUrl } = jsonSchemaTransform({ schema, url });
+    transformed.response["200"] = {
+      description,
+      content: { [contentType]: { schema: { type: "string", format: "binary" } } },
+    };
+    return { schema: transformed, url: transformedUrl };
+  };
+}
 
 const sessionParamsSchema = z.object({ sessionId: sessionIdSchema });
 const sceneParamsSchema = z.object({ sessionId: sessionIdSchema, sceneId: z.string().uuid() });
@@ -508,6 +531,7 @@ export const routes: FastifyPluginAsync = async (app) => {
   typed.get(
     "/sessions/:sessionId/download/final-video",
     {
+      config: { swaggerTransform: binaryFileSwaggerTransform("video/mp4", "The assembled MP4 file (video/mp4)") },
       schema: {
         params: sessionParamsSchema,
         response: { 200: z.any().describe("The assembled MP4 file (video/mp4)"), 409: conflictSchema, 404: conflictSchema },
