@@ -35,9 +35,9 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Review the tests that call the download route or assert on scene links (`session-read.test.ts`, `components.test.tsx`, API-surface tests) and update those that relied on the stub text or on `chunk-complete`-only links.
-- [ ] 5.2 Confirm every scenario in `specs/scene-result-downloads/spec.md` has at least one test, and map AC1-AC4 to tests; list both in the step 6 report.
-- [ ] 5.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 5.1 Review the tests that call the download route or assert on scene links (`session-read.test.ts`, `components.test.tsx`, API-surface tests) and update those that relied on the stub text or on `chunk-complete`-only links. Fixed `session-read.test.ts` (cross-session download test now writes a real file) and `scene-completion-api.test.ts` (AC10 test now writes real image/clip files and sets `video_result`); `assembly-api.test.ts`/`project-files-ac-pinning.test.ts` reference only the unrelated final-video route, no change needed.
+- [x] 5.2 Confirm every scenario in `specs/scene-result-downloads/spec.md` has at least one test, and map AC1-AC4 to tests; list both in the step 6 report.
+- [x] 5.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
