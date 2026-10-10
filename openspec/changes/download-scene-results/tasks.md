@@ -9,7 +9,7 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm the base still matches design.md § Context: the download route is the stub (`chunk-complete` only, `text/plain`); the page shows links only for complete scenes. Record whether JOS-158 (clip correction) or JOS-162 (project files) has merged and whether either touches the download route or `SceneRow`; update the artifacts first if so.
+- [x] 1.1 `git fetch`. Confirm the base still matches design.md § Context: the download route is the stub (`chunk-complete` only, `text/plain`); the page shows links only for complete scenes. Record whether JOS-158 (clip correction) or JOS-162 (project files) has merged and whether either touches the download route or `SceneRow`; update the artifacts first if so. **Result:** both merged (`feature/entrega-2-JAME` now at `65d2212`). Verified the current download route is byte-for-byte the same stub design.md describes. JOS-158's `routes.ts` diff touched only `/retry` and `/correct`; its `SceneRow.tsx` diff touched only the correction form/instruction logic, not the `imageDownloadUrl`/`videoDownloadUrl` props or link rendering. JOS-162 added project-folder files only (`script.txt`, `generated-texts.json`, `corrected-instructions.json`), no route or `SceneRow` change, and proposal.md already notes this change doesn't need its new files. No artifact updates needed — merged the branch up to date (no conflicts) and proceeding as designed.
 
 ## 2. Backend: the download route (TDD; design Decisions 1, 2 and 4)
 
