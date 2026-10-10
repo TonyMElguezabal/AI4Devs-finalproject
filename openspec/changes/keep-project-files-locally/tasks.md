@@ -37,12 +37,12 @@ Tests that already existed: AC1 per-stage persistence (`voice-over-persistence.t
 
 ## 5. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 5.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents.
-- [ ] 5.2 Run the targeted tests: the files touched in groups 2-4.
-- [ ] 5.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` in the checkout.
-- [ ] 5.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 5.5 Create the report `openspec/changes/keep-project-files-locally/reports/YYYY-MM-DD-step-5-unit-test-and-db-verification.md`.
-- [ ] 5.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 5.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, trigger list, and `data/projects/` contents. Baseline: `backend/data/` does not exist in this worktree.
+- [x] 5.2 Run the targeted tests: the files touched in groups 2-4.
+- [x] 5.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` in the checkout.
+- [x] 5.4 Verify the post-test state matches the baseline; restore it if not. `backend/data/` still does not exist — untouched.
+- [x] 5.5 Create the report `openspec/changes/keep-project-files-locally/reports/2026-10-10-step-5-unit-test-and-db-verification.md`.
+- [x] 5.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 6. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 

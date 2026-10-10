@@ -78,6 +78,17 @@ describe("project folder naming (PRD §12.2)", () => {
     expect(readFileSync(fullPath, "utf8")).toBe("hello");
   });
 
+  // keep-project-files-locally (JOS-162) — spec.md scenario "Same title, different minute".
+  it("gives two sessions with the same title in different minutes their own folder, no counter", () => {
+    const first = deriveAndCreateProjectFolder("My Trip", new Date("2026-09-25T10:42:00Z"));
+    const second = deriveAndCreateProjectFolder("My Trip", new Date("2026-09-25T10:43:00Z"));
+
+    expect(first).not.toBe(second);
+    expect(second).not.toMatch(/\(\d+\)$/); // no counter suffix
+    expect(existsSync(join(PROJECTS_ROOT, first))).toBe(true);
+    expect(existsSync(join(PROJECTS_ROOT, second))).toBe(true);
+  });
+
   it("keeps two same-title sessions' records pointed at their own folder only", () => {
     const runIdA = randomUUID();
     const runIdB = randomUUID();
