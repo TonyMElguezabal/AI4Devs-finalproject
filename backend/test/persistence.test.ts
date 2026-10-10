@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
@@ -77,6 +78,17 @@ describe("project folder naming (PRD §12.2)", () => {
     expect(readFileSync(fullPath, "utf8")).toBe("hello");
   });
 
+  // keep-project-files-locally (JOS-162) — spec.md scenario "Same title, different minute".
+  it("gives two sessions with the same title in different minutes their own folder, no counter", () => {
+    const first = deriveAndCreateProjectFolder("My Trip", new Date("2026-09-25T10:42:00Z"));
+    const second = deriveAndCreateProjectFolder("My Trip", new Date("2026-09-25T10:43:00Z"));
+
+    expect(first).not.toBe(second);
+    expect(second).not.toMatch(/\(\d+\)$/); // no counter suffix
+    expect(existsSync(join(PROJECTS_ROOT, first))).toBe(true);
+    expect(existsSync(join(PROJECTS_ROOT, second))).toBe(true);
+  });
+
   it("keeps two same-title sessions' records pointed at their own folder only", () => {
     const runIdA = randomUUID();
     const runIdB = randomUUID();
@@ -86,6 +98,57 @@ describe("project folder naming (PRD §12.2)", () => {
     expect(runA.projectFolder).not.toBe(runB.projectFolder);
     expect(getRun(runIdA)!.projectFolder).toBe(runA.projectFolder);
     expect(getRun(runIdB)!.projectFolder).toBe(runB.projectFolder);
+  });
+});
+
+// keep-project-files-locally (JOS-162), design Decision 1 — the script is
+// kept in the project folder, not only the store, and written exactly as
+// submitted, including leading/trailing whitespace and non-ASCII text.
+describe("Script file written at session creation (JOS-162, Decision 1)", () => {
+  it("writes script.txt in the project folder, byte for byte as submitted", () => {
+    const runId = randomUUID();
+    const script = "  Héllo wörld — ünïcödé.  \n";
+    const run = createRun(runId, "Script File Test", script, "en");
+
+    const fullPath = resolveArtefactPath(run.projectFolder, "script.txt");
+    expect(readFileSync(fullPath, "utf8")).toBe(script);
+  });
+});
+
+// keep-project-files-locally (JOS-162), AC2 / design Decision 4 — a guard
+// against an accidental deletion path: every `rmSync` call in `src` must
+// target one of the known temporary-work variables, never a project
+// folder's own content. A new call site that isn't on this list fails here
+// so a reviewer sees it, rather than silently deleting a project file.
+describe("The only rmSync calls remove temporary work, never a project file (JOS-162, AC2)", () => {
+  const srcDir = join(dirname(fileURLToPath(import.meta.url)), "..", "src");
+  const ALLOWED_TARGETS = new Set(["temporaryPath", "tempPath", "folder", "work", "PROJECTS_ROOT"]);
+
+  function findRmSyncCalls(): Array<{ file: string; line: number; target: string | null }> {
+    const calls: Array<{ file: string; line: number; target: string | null }> = [];
+    for (const entry of readdirSync(srcDir, { recursive: true } as any) as string[]) {
+      if (!entry.endsWith(".ts")) continue;
+      const text = readFileSync(join(srcDir, entry), "utf8");
+      text.split("\n").forEach((lineText, index) => {
+        const match = lineText.match(/\brmSync\(\s*(\w+)/);
+        if (match) calls.push({ file: entry, line: index + 1, target: match[1] ?? null });
+      });
+    }
+    return calls;
+  }
+
+  it("every rmSync call targets a known temporary-work variable", () => {
+    const calls = findRmSyncCalls();
+    expect(calls.length).toBeGreaterThan(0); // the guard itself must find something, or it proves nothing
+    for (const call of calls) {
+      expect(call.target, `${call.file}:${call.line}`).not.toBeNull();
+      expect(ALLOWED_TARGETS.has(call.target!), `${call.file}:${call.line} rmSync(${call.target}, ...) is not an allowed temporary-path target`).toBe(true);
+    }
+  });
+
+  it("finds exactly the call sites design.md's Context table lists (db.ts, voiceOverPhase.ts, orchestrator.ts, ffmpegAssemblyTool.ts)", () => {
+    const files = new Set(findRmSyncCalls().map((call) => call.file));
+    expect(files).toEqual(new Set(["db.ts", "voiceOverPhase.ts", "orchestrator.ts", "ffmpegAssemblyTool.ts"]));
   });
 });
 

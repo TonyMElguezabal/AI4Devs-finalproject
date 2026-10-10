@@ -238,7 +238,7 @@ describe("Output check and completion (AC2, §12.2)", () => {
   });
 
   it("downloads a temporary-link result to a local file before completing, and never stores the link itself", async () => {
-    const { sceneId } = await registeredScene();
+    const { sceneId, projectFolder } = await registeredScene();
     setDownloadFetch((async () => new Response(new Uint8Array(ACCEPTED_PNG), { status: 200, headers: { "content-type": "image/png" } })) as typeof fetch);
     useStubAdapter(createStubImageProvider("success-temporary-url", { url: "https://fal.media/files/example.png" }));
 
@@ -249,6 +249,8 @@ describe("Output check and completion (AC2, §12.2)", () => {
     expect(scene.status).toBe("image-complete");
     expect(scene.result).not.toContain("http");
     expect(scene.result).toMatch(/\.png$/);
+    // keep-project-files-locally (JOS-162), AC5 — the stored reference is the local relative path, resolvable in the project folder.
+    expect(existsSync(resolveArtefactPath(projectFolder, scene.result!))).toBe(true);
   });
 
   it("counts a failed download as one failed attempt, then completes on the next attempt", async () => {

@@ -346,6 +346,8 @@ describe("Group 5 — Completion (Decision 8)", () => {
     expect(scene?.status).toBe("chunk-complete");
     expect(scene?.videoResult).not.toContain("https://");
     expect(scene?.videoResult).toContain(".mp4");
+    // keep-project-files-locally (JOS-162), AC5 — the stored reference is the local relative path, resolvable in the project folder.
+    expect(existsSync(resolveArtefactPath(getRun(runId)!.projectFolder, scene!.videoResult!))).toBe(true);
   });
 
   it("a failed download counts as a failed transient attempt (no clip stored)", async () => {

@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import { requestedClipDuration } from "../src/admittedDurations.ts";
-import { createRun, createScene, getRun, getScenesForRun, resetAll } from "../src/db.ts";
+import { createRun, createScene, getRun, getScenesForRun, resetAll, resolveArtefactPath } from "../src/db.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
 import { contiguousFragments, voiceOverDurationOf, type FragmentSpec } from "./fragmentFixtures.ts";
@@ -416,5 +417,41 @@ describe("Registration is refused without a valid target (AC4)", () => {
     const { generator, calls } = stubGenerator();
     expect(await registerDecomposition("no-such-session", FRAGMENTS, generator, DURATION)).toEqual({ ok: false, reason: "unknown-session" });
     expect(calls).toHaveLength(0);
+  });
+});
+
+// keep-project-files-locally (JOS-162), design Decision 2 — the generated
+// texts are kept in the project folder, not only the store, as one JSON file.
+describe("Generated texts file written at chunk registration (JOS-162, Decision 2)", () => {
+  function readGeneratedTexts(runId: string): unknown {
+    const projectFolder = getRun(runId)!.projectFolder;
+    const fullPath = resolveArtefactPath(projectFolder, "generated-texts.json");
+    return JSON.parse(readFileSync(fullPath, "utf8"));
+  }
+
+  it("writes every chunk's id, prompt, image/video instructions and narration interval, in identifier order", async () => {
+    const runId = newRunId();
+    const result = await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator, DURATION);
+    expect(result.ok).toBe(true);
+    const sceneIds = (result as { ok: true; sceneIds: string[] }).sceneIds;
+
+    expect(readGeneratedTexts(runId)).toEqual({
+      chunks: [
+        { id: sceneIds[0], prompt: "The harbor is quiet at dusk.", imageInstruction: "image 1", videoInstruction: "video 1", narrationInterval: { startSeconds: 0, endSeconds: 6 } },
+        { id: sceneIds[1], prompt: "Fishing boats return with the tide.", imageInstruction: "image 2", videoInstruction: "video 2", narrationInterval: { startSeconds: 6, endSeconds: 15.5 } },
+        { id: sceneIds[2], prompt: "Gulls circle overhead.", imageInstruction: "image 3", videoInstruction: "video 3", narrationInterval: { startSeconds: 15.5, endSeconds: 20.5 } },
+      ],
+    });
+  });
+
+  it("leaves the file unchanged when a second registration is refused", async () => {
+    const runId = newRunId();
+    await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator, DURATION);
+    const before = readGeneratedTexts(runId);
+
+    const result = await registerDecomposition(runId, FRAGMENTS, stubGenerator().generator, DURATION);
+
+    expect(result).toEqual({ ok: false, reason: "already-registered" });
+    expect(readGeneratedTexts(runId)).toEqual(before);
   });
 });
