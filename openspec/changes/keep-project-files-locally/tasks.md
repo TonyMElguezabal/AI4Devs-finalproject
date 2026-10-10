@@ -66,6 +66,6 @@ Tests that already existed: AC1 per-stage persistence (`voice-over-persistence.t
 ## 9. Close out
 
 - [x] 9.1 No coordination comment needed: JOS-157 and JOS-158 are both merged and this change now implements the corrected-instructions file itself (task 1.1, design Decision 5).
-- [ ] 9.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-162.
+- [x] 9.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-162. PR #45: https://github.com/TonyMElguezabal/AI4Devs-finalproject/pull/45
 - [x] 9.3 Obtain review by at least one human, not only AI agents.
 - [ ] 9.4 Archive the OpenSpec change after merge.
