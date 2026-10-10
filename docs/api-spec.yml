@@ -64,6 +64,13 @@
 # attempt record can reach the page. No new path; one long description is folded
 # differently by the generator.
 #
+# JOS-159 (retry-final-assembly) — 2026-10-10: regenerated; the only change is the new
+# `POST /sessions/{sessionId}/assembly/retry` (200 `{ ok, held }`, 404, 409
+# `{ ok, reason }`; a body field answers 400 from the strict empty body — the exact
+# same shape as JOS-156's decomposition retry route). The `assembly` entry in
+# `session.failure.phase` and `session.phases[].phase` was already a valid enum
+# value from JOS-168/184; this change is the first to actually produce it.
+#
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -1085,6 +1092,75 @@ paths:
                   - reason
                 additionalProperties: false
   /sessions/{sessionId}/decomposition/retry:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              anyOf:
+                - not: {}
+                - type: object
+                  properties: {}
+                  additionalProperties: false
+                  nullable: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: sessionId
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  held:
+                    type: boolean
+                    description: "True while the session is paused: the retry is accepted and waits
+                      for continue."
+                required:
+                  - ok
+                  - held
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /sessions/{sessionId}/assembly/retry:
     post:
       requestBody:
         required: true

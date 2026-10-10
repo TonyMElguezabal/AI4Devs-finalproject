@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import {
   ArtefactAlreadyExistsError,
   bindSceneImageProvider,
@@ -19,6 +20,7 @@ import {
   getSceneForRun,
   getScenesForRun,
   countProviderRequestsByScene,
+  clearRunFailure,
   correctImageInstruction,
   correctLegacyInstruction,
   correctVideoInstruction,
@@ -27,6 +29,7 @@ import {
   getSubmittedScenesForRun,
   getVoiceOver,
   insertProviderRequest,
+  isReadableMp4,
   markChunkComplete,
   markImageComplete,
   markProviderRequestResolved,
@@ -37,11 +40,14 @@ import {
   markScenePendingRetry,
   markSceneVideoRetry,
   markVideoGenerating,
+  moveAssemblyOutput,
+  PROJECTS_ROOT,
   recordStageAttempt,
   resetAttemptsForVideoStart,
   resolveArtefactPath,
   sceneCurrentRequestId,
   setFinalVideoPath,
+  setRunFailure,
   setRunPaused,
   writeArtefact,
   writeArtefactOnce,
@@ -178,12 +184,16 @@ export interface DerivedSessionState {
 const RETRY_STATE: Record<SessionFailure["phase"], SessionState> = {
   "voice-over": "voice-over-generating",
   decomposition: "chunk-decomposing",
+  // retry-final-assembly (JOS-159), design Decision 5 — unreachable through this zero-scenes branch (assembly
+  // only runs once scenes exist), kept for the Record's type completeness and consistency with the real value.
+  assembly: "final-video-generating",
 };
 
 /** The attempt stage whose in-flight attempt means the failed phase is being retried. */
 const RETRY_ATTEMPT_STAGE: Record<SessionFailure["phase"], AttemptStage> = {
   "voice-over": "voice-over",
   decomposition: "timestamps",
+  assembly: "assembly",
 };
 
 function isRetryInFlight(runId: string, failure: SessionFailure | null): boolean {
@@ -209,7 +219,12 @@ export function deriveSessionState(
   // v1.3: a scene still generating (anything but chunk-complete or failed) keeps
   // the session in `chunks-processing`, even beside a failed scene.
   const gate = assemblyGate(scenes);
-  if (gate.open) return { state: progress.hasFinalVideo ? "final-video" : "final-video-generating" };
+  if (gate.open) {
+    // retry-final-assembly (JOS-159), design Decision 1 — mirrors the zero-scenes branch's own
+    // `if (failure && progress.retryInFlight) … else if (failure) …` pattern one-for-one.
+    if (failure?.phase === "assembly" && !progress.retryInFlight) return { state: "failed", failedPhase: "assembly" };
+    return { state: progress.hasFinalVideo ? "final-video" : "final-video-generating" };
+  }
   if (gate.processingSceneIndexes.length > 0) return { state: "chunks-processing" };
   return { state: "failed", failedPhase: "scenes", failedSceneIndexes: gate.failedSceneIndexes };
 }
@@ -423,7 +438,39 @@ function getAssemblyTool(): AssemblyTool | undefined {
   return _assemblyTool;
 }
 
-/** Runs one assembly attempt; retries on transient failure up to RETRY_BUDGET. */
+/** retry-final-assembly (JOS-159), design Decision 1 — one cause string, never a raw filesystem path. A loose
+ * redaction, since a provider/tool error message is the only source that could ever contain one; this project's
+ * own pre-check messages below never embed a path to begin with. */
+function redactPaths(text: string): string {
+  return text.replace(/\/\S+/g, "[path]");
+}
+
+/** retry-final-assembly (JOS-159), design Decision 1 — the one place an assembly failure is written, from either
+ * a completed attempt (`attempt` carries its real `cycle`/`sequenceInCycle`) or a pre-attempt refusal (no tool, no
+ * voice-over, a missing clip — `cycle: 1, attemptsInCycle: 0`, always `retryable: false`). */
+function recordAssemblyFailure(
+  runId: string,
+  detail: string,
+  retryable: boolean,
+  attempt: { cycle: number; sequenceInCycle: number } | null,
+): void {
+  setRunFailure(runId, {
+    phase: "assembly",
+    cause: `The final video could not be assembled: ${redactPaths(detail)}. Your narration, images and clips are kept.`,
+    retryable,
+    manualRetryAvailable: true,
+    cycle: attempt?.cycle ?? 1,
+    attemptsInCycle: attempt?.sequenceInCycle ?? 0,
+    occurredAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Runs one assembly attempt; retries on transient failure up to RETRY_BUDGET. A manual retry (`assemblyRetry.ts`)
+ * goes through this same function via `assemblyStageLauncher.launch`/`launchAssemblyPhase`, exactly like a first
+ * run — it records its own fresh `stage_attempts` row and gets a full new budget (`attemptNumber` starts at 1
+ * again), rather than resuming any earlier attempt.
+ */
 async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise<void> {
   const run = getRun(runId);
   if (!run) return;
@@ -431,21 +478,42 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
   // ignore-repeated-success-confirmations (JOS-161), design Decision 3 — no assembly for a session that already has its
   // final video, or while one is in flight. No await precedes the attempt record below, so this check and the record
   // cannot interleave with another launch.
-  if (run.finalVideoPath || getStageAttempts(runId, "assembly").some((attempt) => attempt.outcome === "in-flight")) return;
+  if (run.finalVideoPath || getStageAttempts(runId, "assembly").some((attempt) => attempt.outcome === "in-flight")) {
+    return;
+  }
+
+  // retry-final-assembly (JOS-159), design Decision 2 — adopt a final-video.mp4 already on disk with no recorded
+  // path (e.g. a crash between an earlier attempt's move and its database write) instead of generating a duplicate.
+  const finalPath = resolveArtefactPath(run.projectFolder, "final-video.mp4");
+  if (existsSync(finalPath) && isReadableMp4(finalPath)) {
+    setFinalVideoPath(runId, "final-video.mp4");
+    clearRunFailure(runId);
+    broadcast(runId);
+    return;
+  }
 
   const tool = getAssemblyTool();
   if (!tool) {
+    recordAssemblyFailure(runId, "no assembly tool is configured", false, null);
     broadcast(runId);
     return;
   }
 
   const voiceOver = getVoiceOver(runId);
   if (!voiceOver) {
+    recordAssemblyFailure(runId, "the session has no stored voice-over", false, null);
     broadcast(runId);
     return;
   }
 
   const scenes = getScenesForRun(runId).sort((a, b) => a.index - b.index);
+  // design Decision 1 — no eager existsSync check for a missing clip file here: many existing tests complete a
+  // scene's clip at the store level only (e.g. `deliverClipSuccessForTests`), with no real file, by design. A
+  // genuinely missing or unreadable clip file surfaces the same way any other tool failure does: the real ffmpeg
+  // adapter throws, the generic catch below turns it into a transient failure, and it is recorded after the
+  // normal retry budget — simpler than a special-cased pre-check, and does not require every caller to simulate
+  // a real file just to reach this stage.
+
   const fps = FINAL_OUTPUT.fps;
 
   // Build cumulative frame geometry (ADR 0005, Decision 4).
@@ -464,23 +532,32 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
     };
   });
 
-  const outputPath = resolveArtefactPath(run.projectFolder, "final-video.mp4");
+  // design Decision 2 — a per-attempt temp directory under PROJECTS_ROOT (same filesystem as every project
+  // folder in this app, unconditionally), so the move on success is always a same-device hard link.
+  const work = mkdtempSync(join(PROJECTS_ROOT, ".assembly-tmp-"));
+  const tempOutputPath = join(work, "final-video.mp4");
   const now = new Date().toISOString();
 
-  const attemptId = recordStageAttempt({
+  // attemptNumber === 1 means a fresh cycle is starting (a first run, or a manual retry — design Decision 3):
+  // give it the next cycle number explicitly, since `recordStageAttempt`'s own default (no cycle given) reuses
+  // the stage instance's current MAX(cycle), which would overflow the just-exhausted cycle's own attempt cap.
+  // Every later attempt within the same cycle (attemptNumber > 1, automatic or restart-continued) keeps the default.
+  const attempt = recordStageAttempt({
     runId,
     stage: "assembly",
     providerId: null,
     queuedAt: now,
     sentAt: now,
-  }).id;
+    ...(attemptNumber === 1 ? { cycle: (getStageAttempts(runId, "assembly").at(-1)?.cycle ?? 0) + 1 } : {}),
+  });
+  const attemptId = attempt.id;
 
   let result;
   try {
     result = await tool.assemble({
       clips,
       voiceOverPath: resolveArtefactPath(run.projectFolder, voiceOver.audioPath),
-      outputPath,
+      outputPath: tempOutputPath,
       fps: FINAL_OUTPUT.fps,
       width: FINAL_OUTPUT.width,
       height: FINAL_OUTPUT.height,
@@ -492,15 +569,21 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
   const finishedAt = new Date().toISOString();
 
   if (result.kind === "success") {
-    // A refused write means another assembly recorded the final video first: this result is discarded (JOS-161, Decision 2).
-    const recorded = setFinalVideoPath(runId, "final-video.mp4");
+    // A refused move/write means another assembly recorded the final video first: this result is discarded (JOS-161, Decision 2).
+    const moved = moveAssemblyOutput(run.projectFolder, tempOutputPath, "final-video.mp4");
+    rmSync(work, { recursive: true, force: true });
+    const recorded = moved && setFinalVideoPath(runId, "final-video.mp4");
     completeStageAttempt(attemptId, recorded ? { outcome: "success", finishedAt } : { outcome: "superseded", finishedAt });
+    if (recorded) clearRunFailure(runId);
     broadcast(runId);
     return;
   }
 
+  rmSync(work, { recursive: true, force: true });
+
   if (result.kind === "failed_not_retryable") {
     completeStageAttempt(attemptId, { outcome: "not-retryable", finishedAt, errorMessage: result.reason });
+    recordAssemblyFailure(runId, result.reason, false, attempt);
     broadcast(runId);
     return;
   }
@@ -508,6 +591,7 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
   // Transient failure — retry if budget remains.
   completeStageAttempt(attemptId, { outcome: "transient", finishedAt, errorMessage: result.reason });
   if (attemptNumber >= 1 + RETRY_BUDGET) {
+    recordAssemblyFailure(runId, result.reason, true, attempt);
     broadcast(runId);
     return;
   }
@@ -909,7 +993,11 @@ export const assemblyStageLauncher: StageLauncher = {
     const run = getRun(sessionId);
     const gate = assemblyGate(getScenesForRun(sessionId));
     const inFlight = getStageAttempts(sessionId, "assembly").some((attempt) => attempt.outcome === "in-flight");
-    const count = run && !run.finalVideoPath && gate.open && !inFlight ? 1 : 0;
+    // retry-final-assembly (JOS-159), design Decision 4 — a recorded assembly failure is not held work: the retry
+    // service claims its own cycle synchronously (Decision 3), so continue must never silently relaunch a failed,
+    // non-retrying assembly on its own. A session paused mid-attempt is unaffected: `inFlight` already covers it.
+    const blockedByFailure = run?.failure?.phase === "assembly";
+    const count = run && !run.finalVideoPath && gate.open && !inFlight && !blockedByFailure ? 1 : 0;
     return { count, sceneIds: [] };
   },
   // Stricter than `heldWork` (restart-recovery, Decision 3): boot must not relaunch an assembly whose budget is spent
@@ -918,8 +1006,12 @@ export const assemblyStageLauncher: StageLauncher = {
     const run = getRun(sessionId);
     const attempts = getStageAttempts(sessionId, "assembly");
     const settled = restartSettledAssemblyAttempt(sessionId);
+    // retry-final-assembly (JOS-159) — a pre-attempt failure (no tool, no voice-over, a missing clip) records
+    // `run.failure` with zero attempt rows, which `attempts.length === 0` below would otherwise read as "never
+    // tried yet" and relaunch forever across every restart.
+    const blockedByFailure = run?.failure?.phase === "assembly";
     const due =
-      run && !run.finalVideoPath && assemblyGate(getScenesForRun(sessionId)).open &&
+      run && !run.finalVideoPath && !blockedByFailure && assemblyGate(getScenesForRun(sessionId)).open &&
       (attempts.length === 0 || (settled !== null && settled.sequenceInCycle < 1 + RETRY_BUDGET));
     return { count: due ? 1 : 0, sceneIds: [] };
   },
@@ -1344,6 +1436,12 @@ function settleAssemblyInFlight(): SettleSummary {
   for (const attempt of getInFlightAttempts()) {
     if (attempt.stage !== "assembly") continue;
     completeStageAttempt(attempt.id, { outcome: "transient", finishedAt: new Date().toISOString(), errorMessage: RESTART_CAUSE });
+    // retry-final-assembly (JOS-159) — if this was the cycle's last attempt, `pendingAtBoot` will not relaunch it
+    // (its own budget check), so nothing else would ever record the failure; do it here, where the settle result
+    // is known, rather than leaving the session silently stuck in `final-video-generating`.
+    if (attempt.sequenceInCycle >= 1 + RETRY_BUDGET) {
+      recordAssemblyFailure(attempt.runId, "a restart interrupted the last attempt of its cycle", true, attempt);
+    }
     broadcast(attempt.runId);
     recordedFailedAttempt++;
   }
@@ -1359,9 +1457,42 @@ function settleAssemblyInFlight(): SettleSummary {
  * restart, so the relaunch pass rebuilds them last; launchers preserve eligibility and acquire ignores holders already
  * queued by a retry above.
  */
+/**
+ * retry-final-assembly (JOS-159), task 4.4, design.md Migration Plan — a session stuck in `final-video-generating`
+ * from before this change (PR #25's code never called `setRunFailure` on an assembly failure). Its last assembly
+ * attempt already settled `transient` (budget exhausted) or `not-retryable`, with no final video and no failure
+ * recorded; `settleAllInFlight` (called just before this, in `recoverOnBoot`) has already recorded a failure for
+ * any attempt genuinely interrupted by *this* restart, so this only ever finds older, already-settled attempts.
+ */
+function recordMissingAssemblyFailuresOnBoot(): void {
+  const stuck = db.prepare(`SELECT id AS runId FROM runs WHERE final_video_path IS NULL AND failure IS NULL`).all() as Array<{ runId: string }>;
+  for (const { runId } of stuck) {
+    const run = getRun(runId);
+    // Found manually testing 10.3/10.4 (not caught by any unit test): an *unpaused* session with no failure and
+    // an exhausted/not-retryable latest attempt can only be truly stuck (nothing else will ever touch it — see
+    // below). A *paused* one is ambiguous from attempt-row state alone: `beginAssemblyRetry` clears the failure
+    // and leaves no other trace, so this same shape also matches a retry that was just accepted and is sitting
+    // held, waiting for continue, interrupted by this very restart. Re-recording the old failure there would
+    // silently undo an accepted retry. Skipping it here is safe either way: `continueSession` resumes a genuine
+    // held retry normally, and a genuinely stuck paused legacy session just gets one fresh attempt on continue,
+    // which records its failure correctly through the ordinary path if it fails again.
+    if (!run || run.paused) continue;
+    const latest = getStageAttempts(runId, "assembly").at(-1);
+    if (!latest) continue;
+    // A transient attempt with budget remaining is mid-cycle, not stuck — `relaunchPendingWork` (called right
+    // after this in `recoverOnBoot`) continues it normally, the same as `settleAssemblyInFlight` only recording a
+    // failure once a cycle's budget is actually exhausted.
+    if (latest.outcome === "transient" && latest.sequenceInCycle < 1 + RETRY_BUDGET) continue;
+    if (latest.outcome !== "transient" && latest.outcome !== "not-retryable") continue;
+    recordAssemblyFailure(runId, latest.errorMessage ?? "the final video could not be assembled", latest.outcome === "transient", latest);
+    broadcast(runId);
+  }
+}
+
 export function recoverOnBoot(): SettleSummary {
   occupyResumedRequestSlots();
   const summary = settleAllInFlight();
+  recordMissingAssemblyFailuresOnBoot();
   // Waiting callbacks were lost on restart. Rebuild them only after all sent
   // requests have been counted and reconciled; launchers preserve eligibility
   // and acquire ignores holders already queued by a retry above.

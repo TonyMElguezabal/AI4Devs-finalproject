@@ -119,6 +119,7 @@ Fixed here as a documented convention, not left to per-story judgement (`docs/ad
 | A phase section | `{Phase} phase` (`aria-label` on the `<section>`; phases `Voice-over`, `Decomposition`, `Scenes`, `Final video`) | `Decomposition phase` |
 | Retry a failed scene | `Retry scene {index}` | `Retry scene 7` |
 | Retry a failed decomposition | `Retry decomposition` (the shared `PhaseRetryButton`, rendered by `PhaseSection` from `phaseActions`) | `Retry decomposition` |
+| Retry a failed assembly (JOS-159) | `Retry final video` (the same shared `PhaseRetryButton`; offered whatever `retryable` is — Decision 7) | `Retry final video` |
 | The correction form | `Correct scene {index} image instruction` (`aria-label` on the `<form>`) | `Correct scene 7 image instruction` |
 | The correction textarea | `Corrected image instruction for scene {index}` | — |
 | A scene's stage diagnostics (JOS-166) | `Scene {index} image diagnostics` / `Scene {index} clip diagnostics` (`role="group"` with an `aria-label`; the text is `Image: Fal.ai (fal-ai/flux/dev), 2 attempts`) | `Scene 7 image diagnostics` |
