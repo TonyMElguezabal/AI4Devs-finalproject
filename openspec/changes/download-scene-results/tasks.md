@@ -72,6 +72,6 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 ## 10. Close out
 
 - [x] 10.1 Ask the user before commenting on JOS-158 (a corrected clip must keep the clip download consistent) if its branch touches the download route or `SceneRow`. JOS-158 is merged (task 1.1) and does not touch either — no coordination comment needed. `correctVideoInstruction` (`db.ts`) only ever fires while `video_result IS NULL` (a failed clip attempt never committed one), so there is no stale clip reference to clean up — `scene.downloads.clipUrl` is simply absent until a later attempt commits a new one, through the same derivation this change already relies on.
-- [ ] 10.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-163.
+- [x] 10.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-163. PR #46: https://github.com/TonyMElguezabal/AI4Devs-finalproject/pull/46
 - [x] 10.3 Obtain review by at least one human, not only AI agents.
 - [ ] 10.4 Archive the OpenSpec change after merge.
