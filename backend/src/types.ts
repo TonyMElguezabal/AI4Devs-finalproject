@@ -353,6 +353,8 @@ export interface SceneEventPayload {
   /** see-provider-and-attempts (JOS-166) — which provider each stage used and how many attempts it made; a key is present once that stage has at least one attempt. */
   stages: { image?: StageDiagnostic; video?: StageDiagnostic };
   result?: { imageUrl?: string; videoUrl?: string };
+  /** download-scene-results (JOS-163), design Decision 3 — present only for the files that actually exist; the page renders a link for exactly these, never deriving availability from `state`. */
+  downloads?: { imageUrl?: string; clipUrl?: string };
   instruction?: string;
   /** PRD §3 `PROMPT` (assign-scene-identifiers, JOS-144). */
   prompt?: string;

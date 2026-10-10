@@ -68,10 +68,6 @@ export function correctScene(sessionId: string, sceneId: string, instruction: st
   }).then(asJson<{ ok: boolean }>);
 }
 
-export function downloadSceneUrl(sessionId: string, sceneId: string, kind: "image" | "video"): string {
-  return `${API_BASE}/sessions/${sessionId}/scenes/${sceneId}/download/${kind}`;
-}
-
 /** A result URL in the session payload is a path relative to the API base. */
 export function resolveResultUrl(path: string): string {
   return `${API_BASE}${path}`;

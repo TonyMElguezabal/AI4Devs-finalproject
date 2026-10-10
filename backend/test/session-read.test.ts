@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/server.ts";
-import { createRun, createScene, db, resetAll, commitSceneResult, markSceneInFlight, recordStageAttempt } from "../src/db.ts";
+import { createRun, createScene, db, getRun, resetAll, commitSceneResult, markSceneInFlight, recordStageAttempt, writeArtefactOnce } from "../src/db.ts";
 import { pauseSession, continueSession } from "../src/orchestrator.ts";
 import type { FastifyInstance } from "fastify";
 
@@ -140,12 +140,13 @@ describe("A consulted session shows only its own data — file access (spec scen
     const sessionB = await startSession({ title: "Session B" });
     const sceneOfA = randomUUID();
     createScene(sceneOfA, sessionA, 1, "success", 100);
-    // The download route gates on `chunk-complete` specifically (§12.3, out
-    // of scope for JOS-145/JOS-146 until assembly exists); this test is
-    // about session isolation, not the image stage, so it sets that status
+    // download-scene-results (JOS-163) — availability follows the stored
+    // reference, not scene status, so this test writes a real file; it is
+    // about session isolation, not the image stage, so it sets the status
     // directly rather than through either stage's own completion helper.
-    db.prepare("UPDATE scenes SET status = 'chunk-complete', result = ? WHERE id = ?").run("scene-1.png", sceneOfA);
-    commitSceneResult(sceneOfA, "scene-1.png");
+    const imagePath = writeArtefactOnce(getRun(sessionA)!.projectFolder, "scene-1.png", "fake-png-bytes");
+    db.prepare("UPDATE scenes SET status = 'chunk-complete', result = ? WHERE id = ?").run(imagePath, sceneOfA);
+    commitSceneResult(sceneOfA, imagePath);
 
     // Session A's own scene downloads fine...
     const ownRes = await app.inject({ method: "GET", url: `/sessions/${sessionA}/scenes/${sceneOfA}/download/image` });

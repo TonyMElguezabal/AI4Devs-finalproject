@@ -15,8 +15,6 @@ interface Props {
   onRetry: (sceneId: string) => Promise<unknown>;
   /** Corrects IMAGE and retries; rejects with the refusal reason. */
   onCorrect: (sceneId: string, instruction: string) => Promise<unknown>;
-  imageDownloadUrl: string;
-  videoDownloadUrl: string;
 }
 
 /**
@@ -33,7 +31,7 @@ interface Props {
  * show-scene-results-and-actions (JOS-151) — the details also show the
  * stored image and clip, and a failed scene's affected stage.
  */
-export function SceneRow({ scene, paused, onRetry, onCorrect, imageDownloadUrl, videoDownloadUrl }: Props) {
+export function SceneRow({ scene, paused, onRetry, onCorrect }: Props) {
   const [expanded, setExpanded] = useState(false);
   const correctionStage = scene.affectedStage === "video" ? "video" : "image";
   const currentInstruction = correctionStage === "video"
@@ -49,7 +47,6 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, imageDownloadUrl, 
 
   const isFailed = scene.state === "failed";
   const actions = sceneActions(scene);
-  const isComplete = scene.state === "chunk-complete";
   const isGenerating = scene.state === "image-generating" || scene.state === "video-generating";
 
   async function runAction(action: () => Promise<unknown>) {
@@ -159,10 +156,13 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, imageDownloadUrl, 
            * the scene's new state, on a success, arrives through the live update, not from here. */}
           {refusal && <p role="status">{refusal}</p>}
 
-          {isComplete && (
+          {/* download-scene-results (JOS-163), design Decision 3 — a link renders
+           * for exactly the entries the session read offers, never derived from
+           * `state`: the image can be downloadable while the clip still isn't. */}
+          {(scene.downloads?.imageUrl || scene.downloads?.clipUrl) && (
             <p className="download-links">
-              <a href={imageDownloadUrl}>Download scene {scene.index} image</a>
-              <a href={videoDownloadUrl}>Download scene {scene.index} video</a>
+              {scene.downloads.imageUrl && <a href={resolveResultUrl(scene.downloads.imageUrl)}>Download scene {scene.index} image</a>}
+              {scene.downloads.clipUrl && <a href={resolveResultUrl(scene.downloads.clipUrl)}>Download scene {scene.index} video</a>}
             </p>
           )}
         </div>

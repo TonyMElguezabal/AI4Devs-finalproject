@@ -71,6 +71,16 @@
 # `session.failure.phase` and `session.phases[].phase` was already a valid enum
 # value from JOS-168/184; this change is the first to actually produce it.
 #
+# JOS-163 (download-scene-results) — 2026-10-10: regenerated. The scene download
+# route's 200 response is now the binary file itself (`image/png`, `image/jpeg`
+# or `video/mp4` — rendered the same way z.any() already renders the
+# final-video download's 200, a tool quirk, not a new shape) instead of a
+# `text/plain` stub string; it no longer requires `chunk-complete`. Each scene
+# gained an optional `downloads` object (`imageUrl`/`clipUrl`, each present
+# only when that file actually exists), on the session read and the SSE scene
+# event. No field for the voice-over, timestamps or generated texts exists
+# anywhere (PRD §12.3) — `kind` stays `image | video`.
+#
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -204,8 +214,8 @@ paths:
                             - stage
                             - count
                           additionalProperties: false
-                        description: Stages with work actually in flight, computed whether or not
-                          the session is paused (JOS-153).
+                        description: Stages with work actually in flight, computed whether or not the
+                          session is paused (JOS-153).
                       failedPhase:
                         type: string
                       failedSceneIndexes:
@@ -490,6 +500,17 @@ paths:
                             videoUrl:
                               type: string
                           additionalProperties: false
+                        downloads:
+                          type: object
+                          properties:
+                            imageUrl:
+                              type: string
+                            clipUrl:
+                              type: string
+                          additionalProperties: false
+                          description: "download-scene-results (JOS-163): present only for the files that
+                            actually exist. The page offers a download link for
+                            exactly these."
                         instruction:
                           type: string
                         prompt:
@@ -638,8 +659,8 @@ paths:
                             - stage
                             - count
                           additionalProperties: false
-                        description: Stages with work actually in flight, computed whether or not
-                          the session is paused (JOS-153).
+                        description: Stages with work actually in flight, computed whether or not the
+                          session is paused (JOS-153).
                       failedPhase:
                         type: string
                       failedSceneIndexes:
@@ -924,6 +945,17 @@ paths:
                             videoUrl:
                               type: string
                           additionalProperties: false
+                        downloads:
+                          type: object
+                          properties:
+                            imageUrl:
+                              type: string
+                            clipUrl:
+                              type: string
+                          additionalProperties: false
+                          description: "download-scene-results (JOS-163): present only for the files that
+                            actually exist. The page offers a download link for
+                            exactly these."
                         instruction:
                           type: string
                         prompt:
@@ -1297,8 +1329,10 @@ paths:
               type: object
               properties:
                 instruction:
-                  type: string
-                  minLength: 1
+                  allOf:
+                    - type: string
+                    - type: string
+                      minLength: 1
               required:
                 - instruction
               additionalProperties: false
@@ -1383,11 +1417,11 @@ paths:
           required: true
       responses:
         "200":
-          description: Default Response
+          description: The stored file (image/png, image/jpeg or video/mp4)
           content:
             application/json:
               schema:
-                type: string
+                description: The stored file (image/png, image/jpeg or video/mp4)
         "404":
           description: Default Response
           content:
