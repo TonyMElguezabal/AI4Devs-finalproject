@@ -54,14 +54,14 @@ Tests that already existed: AC1 per-stage persistence (`voice-over-persistence.t
 
 ## 7. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Decide applicability: no UI change, and the files are not visible or downloadable in the app (§12.3), so the UI part of this story is limited to two same-title sessions showing their own results. Record the decision.
-- [ ] 7.2 If applicable: start two same-title sessions from the page, confirm each session page shows only its own scenes and results, and save `openspec/changes/keep-project-files-locally/reports/YYYY-MM-DD-step-7-e2e.md`. Otherwise record why it does not apply in that report.
+- [x] 7.1 Decide applicability: no UI change, and the files are not visible or downloadable in the app (§12.3), so the UI part of this story is limited to two same-title sessions showing their own results. Record the decision. **Decision: not applicable** — see report.
+- [x] 7.2 If applicable: start two same-title sessions from the page, confirm each session page shows only its own scenes and results, and save `openspec/changes/keep-project-files-locally/reports/2026-10-10-step-7-e2e.md`. Otherwise record why it does not apply in that report.
 
 ## 8. Update Technical Documentation (MANDATORY)
 
-- [ ] 8.1 `docs/api-spec.yml`: confirm no change is needed (no route or schema change); record that in the step 5 report.
-- [ ] 8.2 `docs/data-model.md`: list the files a project folder holds, with when each is written, including `script.txt`, `generated-texts.json` and `corrected-instructions.json`, and their JSON shape.
-- [ ] 8.3 `docs/backend-standards.md`: state that every result goes into the project folder through `writeArtefactOnce` (write-once artefacts) or `writeArtefact` (artefacts that can change, such as corrections), that temporary links are downloaded before the result is accepted, and that nothing deletes project files.
+- [x] 8.1 `docs/api-spec.yml`: confirm no change is needed (no route or schema change); record that in the step 5 report.
+- [x] 8.2 `docs/data-model.md`: list the files a project folder holds, with when each is written, including `script.txt`, `generated-texts.json` and `corrected-instructions.json`, and their JSON shape.
+- [x] 8.3 `docs/backend-standards.md`: state that every result goes into the project folder through `writeArtefactOnce` (write-once artefacts) or `writeArtefact` (artefacts that can change, such as corrections), that temporary links are downloaded before the result is accepted, and that nothing deletes project files.
 
 ## 9. Close out
 

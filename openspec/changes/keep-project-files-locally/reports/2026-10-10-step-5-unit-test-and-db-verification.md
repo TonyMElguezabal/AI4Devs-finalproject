@@ -30,6 +30,10 @@ Every scenario in `specs/project-files/spec.md` has at least one test.
 
 Diff since the propose commit (`8bc41ca`) touches only test files additively: 2 new test files (`corrected-instructions-persistence.test.ts`, `project-files-ac-pinning.test.ts`), and in the 5 modified test files no existing `describe`/`it` block was removed — only 3 expected-value updates (`content-lock.test.ts`, to include the new `script.txt`) and 2 added assertions (`image-stage.test.ts`, `video-stage.test.ts`). Test count went from 1413 to 1419 (backend) plus the 159 frontend tests (unchanged, no frontend code touched).
 
+## Task 8.1 — `docs/api-spec.yml`
+
+Confirmed no change needed: grepped for `script.txt`, `generated-texts`, `project_folder`/`projectFolder` — no hits. This change adds no route and no response field (the files are local-only, per §12.3), matching proposal.md's "API contract: no change."
+
 ## Task 5.1/5.4 — default store untouched
 
 Baseline: `backend/data/` does not exist in this worktree (never created). All unit test runs in this session used `DB_PATH=/tmp/jos162-test.sqlite` and `PROJECTS_ROOT=/tmp/jos162-test-projects` (isolated from `data/skeleton.sqlite`/`data/projects`, per the convention `tasks.md`'s intro states). Confirmed after the full run: `backend/data/` still does not exist — the default store was never touched.

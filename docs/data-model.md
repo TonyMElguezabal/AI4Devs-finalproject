@@ -281,6 +281,23 @@ erDiagram
     Scene ||--o| SceneResult : "at most one commit"
 ```
 
+## Project folder contents (`keep-project-files-locally`, JOS-162, §12.2)
+
+Every file a session can produce lives under its own `project_folder` (never deleted or expired, §12.2/D04). In the order a session can produce them:
+
+| File | Written by | When | Shape |
+|---|---|---|---|
+| `script.txt` | `createRun` (`db.ts`) | At session creation, with `writeArtefactOnce` | Plain text, the script exactly as submitted (no trimming, no re-encoding) |
+| `generated-texts.json` | `registerDecomposition` (`sceneRegistration.ts`) | Once, when the session's chunks are registered, with `writeArtefactOnce` | `{ "chunks": [{ "id", "prompt", "imageInstruction", "videoInstruction", "narrationInterval": { "startSeconds", "endSeconds" } }, …] }`, one entry per chunk in registration order |
+| `voice-over.mp3` | `voiceOverPhase.ts` | Once the voice-over succeeds, with `writeArtefactOnce` | The MP3 bytes |
+| `voice-over-timestamps.json` / `narration-timestamps.json` | `voiceOverPhase.ts` / `narrationTimestampsPhase.ts` | Alongside/after the voice-over, with `writeArtefactOnce` | Native or computed per-character timestamps (§11.1) |
+| `scene-<idx>.<ext>` | the image stage (`generate-chunk-image`, JOS-145) | Per scene, once its image succeeds, with `writeArtefactOnce` | Image bytes; a temporary-link result is downloaded and saved before the scene completes (§12.2/D05) |
+| `scene-<idx>.mp4` | the video stage (`generate-chunk-video`, JOS-146) | Per scene, once its clip succeeds, with `writeArtefactOnce` | Clip bytes; same download-before-complete rule as the image |
+| `corrected-instructions.json` | `correctImageInstruction` / `correctLegacyInstruction` / `correctVideoInstruction` (`db.ts`) | Each time a failed scene's `IMAGE`, `VIDEO` or legacy instruction is corrected (§10.3), with a plain `writeArtefact` (not write-once — a scene can be corrected more than once) | `{ "scenes": { "<sceneId>": { "imageInstruction"\|"videoInstruction"\|"instruction": "…", "correctedAt": "<ISO timestamp>" } } }` — merged per scene and field; only the latest correction per field is kept, matching the store |
+| `final-video.mp4` | the assembly phase (`assemble-final-video`, JOS-149) | Once, on a successful assembly, moved in with a hard link | The assembled MP4 |
+
+`script.txt` and `generated-texts.json` are kept in the project folder in addition to the `runs.script` and `scenes.prompt`/`image_instruction`/`video_instruction`/narration-interval columns documented above — the store is still the system of record; the project folder is a parallel, locally-readable copy (§12.2, AC1).
+
 ## Key Design Principles
 
 1. **Append-only attempts, mutable read model.** `provider_requests` never rewrites history; `scenes.status`/`result` is a derived, idempotently-updatable read model on top of it (Decision 1).
