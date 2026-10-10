@@ -30,8 +30,8 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 4. Frontend: links from the session read (TDD; design Decision 3)
 
-- [ ] 4.1 Write failing component tests: links render only for the entries present in `scene.downloads`, including an image link on a `video-generating` scene and on a `failed` scene with an image; no link for a scene without downloads; no link for the MP3, timestamps or texts anywhere on the session page.
-- [ ] 4.2 Add `downloads` to the scene type, render the links in `SceneRow` through `resolveResultUrl`, remove `downloadSceneUrl` and the URL props from `SceneList`. Make 4.1 pass.
+- [x] 4.1 Write failing component tests: links render only for the entries present in `scene.downloads`, including an image link on a `video-generating` scene and on a `failed` scene with an image; no link for a scene without downloads; no link for the MP3, timestamps or texts anywhere on the session page. Rewrote the "Download gating" describe block in `test/components.test.tsx`.
+- [x] 4.2 Add `downloads` to the scene type, render the links in `SceneRow` through `resolveResultUrl`, remove `downloadSceneUrl` and the URL props from `SceneList`. Make 4.1 pass. Also dropped the now-unused `sessionId` prop from `SceneList`/`SessionPage.tsx` and the `imageDownloadUrl`/`videoDownloadUrl` props from every existing `SceneRow` test render call (mechanical, ~25 call sites).
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 

@@ -78,6 +78,8 @@ export interface SceneEventPayload {
   /** JOS-166 — per stage; a key is present once that stage has at least one attempt. */
   stages: { image?: StageDiagnostic; video?: StageDiagnostic };
   result?: { imageUrl?: string; videoUrl?: string };
+  /** download-scene-results (JOS-163) — present only for the files that actually exist; render a download link for exactly these, never derived from `state`. */
+  downloads?: { imageUrl?: string; clipUrl?: string };
   instruction?: string;
   /** PRD §3 `PROMPT`: the fragment of the script this scene narrates (retry-or-correct-image, JOS-157). */
   prompt?: string;
