@@ -139,6 +139,16 @@ function sceneToPayload(scene: Scene, requestCounts: { image: number; video: num
     // show-scene-results-and-actions (JOS-151), Decision 3 — the route path,
     // relative to the API base; the stored file path stays internal.
     result: scene.result ? { imageUrl: `/sessions/${scene.runId}/scenes/${scene.id}/image` } : undefined,
+    // download-scene-results (JOS-163), design Decision 3 — availability
+    // follows what is actually stored, built here next to `result`, so the
+    // page never derives it from `state`.
+    downloads:
+      scene.result || scene.videoResult
+        ? {
+            ...(scene.result ? { imageUrl: `/sessions/${scene.runId}/scenes/${scene.id}/download/image` } : {}),
+            ...(scene.videoResult ? { clipUrl: `/sessions/${scene.runId}/scenes/${scene.id}/download/video` } : {}),
+          }
+        : undefined,
     instruction: scene.instruction,
     prompt: scene.prompt,
     imageInstruction: scene.imageInstruction,

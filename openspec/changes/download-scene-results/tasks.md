@@ -13,19 +13,20 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 ## 2. Backend: the download route (TDD; design Decisions 1, 2 and 4)
 
-- [ ] 2.1 Write failing route tests (`app.inject`):
+- [x] 2.1 Write failing route tests (`app.inject`):
   - an `image-complete` scene's image downloads with its bytes, `Content-Disposition: attachment; filename="scene-<index>-image.png"`, `image/png` and `Content-Length`, while another scene is `submitted` (AC1);
   - the image of a `video-generating` scene, and of a scene whose clip failed, downloads (AC1, AC3);
   - a `chunk-complete` scene's clip downloads with `video/mp4` and `filename="scene-<index>-clip.mp4"` (AC2);
   - a successful scene's image and clip download while other scenes are `failed` (AC3);
   - 409 for an image or clip that does not exist yet; 404 for an unknown scene, a scene of another session, a missing file, and a path outside the project folder;
   - `kind` values `voice-over`, `timestamps` and `texts` answer 400 (AC4).
-- [ ] 2.2 Implement the handler per Decisions 1 and 2. Make 2.1 pass.
+  New test file: `test/scene-download.test.ts` (15 tests).
+- [x] 2.2 Implement the handler per Decisions 1 and 2. Make 2.1 pass.
 
 ## 3. Backend: downloads in the session read (TDD; design Decision 3)
 
-- [ ] 3.1 Write failing tests: a scene with only an image has `downloads.imageUrl` and no `clipUrl`; a complete scene has both; a scene with neither has no `downloads`; the session read has no download entry for the voice-over, timestamps or texts (AC4). The SSE scene event carries the same field.
-- [ ] 3.2 Add `downloads` to `toSnapshot` and to the scene response schema. Make 3.1 pass.
+- [x] 3.1 Write failing tests: a scene with only an image has `downloads.imageUrl` and no `clipUrl`; a complete scene has both; a scene with neither has no `downloads`; the session read has no download entry for the voice-over, timestamps or texts (AC4). The SSE scene event carries the same field. New test file: `test/scene-downloads-read.test.ts` (5 tests).
+- [x] 3.2 Add `downloads` to `toSnapshot` and to the scene response schema. Make 3.1 pass.
 
 ## 4. Frontend: links from the session read (TDD; design Decision 3)
 

@@ -100,6 +100,10 @@ const sceneResponseSchema = z.object({
     .strict()
     .describe("PRD §3: which provider each stage used and how many attempts it made. A key is present once that stage has at least one attempt. Derived from the stored attempt records, never stored."),
   result: z.object({ imageUrl: z.string().optional(), videoUrl: z.string().optional() }).optional(),
+  downloads: z
+    .object({ imageUrl: z.string().optional(), clipUrl: z.string().optional() })
+    .optional()
+    .describe("download-scene-results (JOS-163): present only for the files that actually exist. The page offers a download link for exactly these."),
   instruction: z.string().optional(),
   prompt: z
     .string()
@@ -406,37 +410,61 @@ export const routes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  // PRD §12.3 — per-scene downloads while other scenes still process.
-  // Simplification: this skeleton models one combined stage, so "image" and
-  // "video" availability are not distinguished; both are available together
-  // once the scene reaches `chunk-complete`. A real two-stage backend would
-  // gate these independently.
+  // download-scene-results (JOS-163), design Decisions 1-2, 4 — availability
+  // is "the file exists" (`scenes.result` for image, `scenes.video_result`
+  // for video), not a scene state, so each is downloadable independently of
+  // the other and of every other scene's state (AC1-AC3). `kind` stays
+  // `image | video` — `voice-over`/`timestamps`/`texts` answer 400 by
+  // construction (AC4, §12.3).
   typed.get(
     "/sessions/:sessionId/scenes/:sceneId/download/:kind",
     {
       schema: {
         params: z.object({ sessionId: sessionIdSchema, sceneId: z.string().uuid(), kind: z.enum(["image", "video"]) }),
-        response: { 200: z.string(), 409: conflictSchema, 404: conflictSchema },
+        response: { 200: z.any().describe("The stored file (image/png, image/jpeg or video/mp4)"), 409: conflictSchema, 404: conflictSchema },
       },
     },
     async (request, reply) => {
       // consult-session (JOS-135) Decision 2 — scoped by (sessionId,
       // sceneId) at the data-access boundary, not a manual check the
-      // handler has to remember. This inline schema was also a real,
-      // pre-existing bug from start-video-project: it validated `sessionId`
-      // as a UUID, which rejects every real ULID session id with a 400
-      // before the handler even runs — fixed here alongside the scoping.
+      // handler has to remember.
+      const { kind } = request.params;
       const scene = getSceneForRun(request.params.sessionId, request.params.sceneId);
       if (!scene) {
         reply.code(404);
         return { ok: false, reason: "unknown scene" };
       }
-      if (scene.status !== "chunk-complete") {
+      const storedPath = kind === "image" ? scene.result : scene.videoResult;
+      if (!storedPath) {
         reply.code(409);
-        return { ok: false, reason: `scene ${request.params.kind} is not available in status '${scene.status}'` };
+        return { ok: false, reason: `scene ${kind} is not available yet` };
       }
-      reply.type("text/plain");
-      return `stub ${request.params.kind} content for scene ${scene.index} (${scene.result})`;
+      const contentType = kind === "video" ? "video/mp4" : IMAGE_CONTENT_TYPES[extname(storedPath).toLowerCase()];
+      if (!contentType) {
+        reply.code(404);
+        return { ok: false, reason: `scene has no stored ${kind}` };
+      }
+      const run = getRun(request.params.sessionId);
+      if (!run) {
+        reply.code(404);
+        return { ok: false, reason: "unknown scene" };
+      }
+      let fullPath: string;
+      try {
+        fullPath = resolveArtefactPath(run.projectFolder, storedPath);
+      } catch {
+        reply.code(404);
+        return { ok: false, reason: `scene has no stored ${kind}` };
+      }
+      if (!existsSync(fullPath) || !statSync(fullPath).isFile()) {
+        reply.code(404);
+        return { ok: false, reason: `scene has no stored ${kind}` };
+      }
+      const filename = kind === "image" ? `scene-${scene.index}-image${extname(storedPath)}` : `scene-${scene.index}-clip.mp4`;
+      reply.header("Content-Disposition", `attachment; filename="${filename}"`);
+      reply.header("Content-Length", statSync(fullPath).size);
+      reply.type(contentType);
+      return reply.send(createReadStream(fullPath));
     },
   );
 
