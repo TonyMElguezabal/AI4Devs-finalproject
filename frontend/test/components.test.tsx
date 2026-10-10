@@ -181,7 +181,7 @@ describe("Scene details show PROMPT, IMAGE and VIDEO (JOS-157, design Decision 7
   });
 });
 
-describe("Scene retry and correction refusals show a sentence (JOS-157, design Decision 7)", () => {
+describe("Scene retry and correction refusals show a sentence (JOS-157/JOS-158)", () => {
   it("disables the retry button while pending and re-enables after the answer", async () => {
     const user = userEvent.setup();
     let resolveRetry: () => void = () => {};
@@ -201,7 +201,6 @@ describe("Scene retry and correction refusals show a sentence (JOS-157, design D
   it.each([
     ["unknown-scene", "This scene could not be found."],
     ["not-failed", "This scene is not currently failed."],
-    ["image-already-generated", "This scene's image already succeeded; only its clip failed."],
   ])("shows the sentence for a retry refusal %s", async (reason, sentence) => {
     const user = userEvent.setup();
     const scene = makeScene({ sceneId: "f3", index: 1, state: "failed", affectedStage: "image" });
@@ -243,7 +242,7 @@ describe("Scene retry and correction refusals show a sentence (JOS-157, design D
   it("shows the sentence for a correction refusal, submitted with the current draft", async () => {
     const user = userEvent.setup();
     const scene = makeScene({ sceneId: "c1", index: 1, state: "failed", affectedStage: "image" });
-    const onCorrect = vi.fn(() => Promise.reject(new Error("image-already-generated")));
+    const onCorrect = vi.fn(() => Promise.reject(new Error("not-failed")));
     render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={onCorrect} imageDownloadUrl="#" videoDownloadUrl="#" />);
     await expandScene(1);
 
@@ -253,30 +252,74 @@ describe("Scene retry and correction refusals show a sentence (JOS-157, design D
     await user.click(screen.getByRole("button", { name: "Save correction and retry" }));
 
     expect(onCorrect).toHaveBeenCalledExactlyOnceWith("c1", "a new instruction");
-    expect(await screen.findByText("This scene's image already succeeded; only its clip failed.")).toBeInTheDocument();
+    expect(await screen.findByText("This scene is not currently failed.")).toBeInTheDocument();
   });
 });
 
 // show-scene-results-and-actions (JOS-151), group 4 — design Decisions 4 and 5.
 describe("sceneActions derives actions from state and affected stage (JOS-151, Decision 4)", () => {
   it("offers retry and image correction only for a failed image scene", () => {
-    expect(sceneActions(makeScene({ state: "failed", affectedStage: "image" }))).toEqual({ retry: true, correctImage: true });
+    expect(sceneActions(makeScene({ state: "failed", affectedStage: "image" }))).toEqual({
+      retry: true,
+      correctImage: true,
+      correctVideo: false,
+    });
   });
 
-  it("offers nothing for a failed video scene", () => {
-    expect(sceneActions(makeScene({ state: "failed", affectedStage: "video" }))).toEqual({ retry: false, correctImage: false });
+  it("offers retry and video correction for a failed video scene", () => {
+    expect(sceneActions(makeScene({ state: "failed", affectedStage: "video" }))).toEqual({
+      retry: true,
+      correctImage: false,
+      correctVideo: true,
+    });
   });
 
   it("offers nothing for a failed scene whose stage is unknown", () => {
-    expect(sceneActions(makeScene({ state: "failed" }))).toEqual({ retry: false, correctImage: false });
+    expect(sceneActions(makeScene({ state: "failed" }))).toEqual({ retry: false, correctImage: false, correctVideo: false });
   });
 
   it.each<SceneState>(["submitted", "image-generating", "image-complete", "video-generating", "chunk-complete"])(
     "offers nothing for a scene in %s",
     (state) => {
-      expect(sceneActions(makeScene({ state, affectedStage: "image" }))).toEqual({ retry: false, correctImage: false });
+      expect(sceneActions(makeScene({ state, affectedStage: "image" }))).toEqual({ retry: false, correctImage: false, correctVideo: false });
     },
   );
+});
+
+describe("Clip recovery controls derive from a failed video stage (JOS-158)", () => {
+  it("offers retry and VIDEO correction only for a failed video scene", () => {
+    expect(sceneActions(makeScene({ state: "failed", affectedStage: "video" }))).toEqual({
+      retry: true,
+      correctImage: false,
+      correctVideo: true,
+    });
+  });
+
+  it("prefills and submits the VIDEO instruction in the accessible correction form", async () => {
+    const user = userEvent.setup();
+    const onCorrect = vi.fn(async () => {});
+    const scene = makeScene({
+      sceneId: "clip-failed",
+      index: 4,
+      state: "failed",
+      affectedStage: "video",
+      imageInstruction: "the successful image instruction",
+      videoInstruction: "the stored VIDEO instruction",
+    });
+    render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={onCorrect} imageDownloadUrl="#" videoDownloadUrl="#" />);
+    await expandScene(4);
+
+    const form = screen.getByRole("form", { name: "Correct scene 4 video instruction" });
+    const textarea = within(form).getByRole("textbox", { name: "Corrected video instruction for scene 4" });
+    expect(textarea).toHaveValue("the stored VIDEO instruction");
+    expect(screen.queryByRole("form", { name: "Correct scene 4 image instruction" })).not.toBeInTheDocument();
+
+    await user.clear(textarea);
+    await user.type(textarea, "a corrected VIDEO instruction");
+    await user.click(within(form).getByRole("button", { name: "Save correction and retry" }));
+
+    expect(onCorrect).toHaveBeenCalledExactlyOnceWith("clip-failed", "a corrected VIDEO instruction");
+  });
 });
 
 describe("Scene details show the available results (JOS-151, Decision 5)", () => {
@@ -332,12 +375,13 @@ describe("A failed scene shows its error, affected stage and only the actions fo
     expect(screen.getByRole("form", { name: "Correct scene 1 image instruction" })).toBeInTheDocument();
   });
 
-  it("shows the error and the stage 'video' and no actions for a clip failure", async () => {
+  it("shows retry and VIDEO correction for a clip failure", async () => {
     await expand(makeScene({ sceneId: "f", index: 1, state: "failed", affectedStage: "video", errorCause: "clip provider timeout" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent("clip provider timeout");
     expect(screen.getByText("Affected stage").nextElementSibling).toHaveTextContent("video");
-    expect(screen.queryByRole("button", { name: "Retry scene 1" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry scene 1" })).toBeInTheDocument();
+    expect(screen.getByRole("form", { name: "Correct scene 1 video instruction" })).toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "Correct scene 1 image instruction" })).not.toBeInTheDocument();
   });
 
