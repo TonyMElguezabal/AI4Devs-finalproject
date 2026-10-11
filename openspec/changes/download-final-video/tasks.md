@@ -65,6 +65,6 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 ## 10. Close out
 
 - [x] 10.1 Report the download-filename finding (design Decision 3) to the user: every project's final video downloads as `final-video.mp4`, so several are indistinguishable in a Downloads folder. Ask whether to raise it as a product ticket. User confirmed: the file should be named after the project title. Filed as JOS-193: https://linear.app/josetony/issue/JOS-193/name-the-downloaded-final-video-after-the-project-title
-- [ ] 10.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-164.
+- [x] 10.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-164. PR #47: https://github.com/TonyMElguezabal/AI4Devs-finalproject/pull/47
 - [x] 10.3 Obtain review by at least one human, not only AI agents.
 - [ ] 10.4 Archive the OpenSpec change after merge.
