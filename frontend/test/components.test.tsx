@@ -459,15 +459,16 @@ describe("Download gating", () => {
     }
   });
 
-  it("offers the final video only at final-video, never earlier", () => {
-    const { rerender } = render(<FinalVideoDownload state="chunks-processing" url="/final" />);
-    expect(screen.queryByRole("link", { name: "Download final video" })).not.toBeInTheDocument();
-
-    rerender(<FinalVideoDownload state="failed" url="/final" />);
-    expect(screen.queryByRole("link", { name: "Download final video" })).not.toBeInTheDocument();
-
-    rerender(<FinalVideoDownload state="final-video" url="/final" />);
+  // download-final-video (JOS-164), design Decision 2 — the component renders
+  // exactly the URL it is given; it does not know or ask about session state.
+  it("renders the link from the URL it is given", () => {
+    render(<FinalVideoDownload url="/final" />);
     expect(screen.getByRole("link", { name: "Download final video" })).toHaveAttribute("href", "/final");
+  });
+
+  it("renders nothing when the URL is undefined", () => {
+    render(<FinalVideoDownload url={undefined} />);
+    expect(screen.queryByRole("link", { name: "Download final video" })).not.toBeInTheDocument();
   });
 });
 
@@ -833,7 +834,7 @@ describe("SessionPage", () => {
 
   it("shows title, script, state and available results for a session (4.1)", () => {
     const snapshot = {
-      session: makeSession({ title: "My Trip", script: "A wide shot of a harbor.", state: "final-video" }),
+      session: makeSession({ title: "My Trip", script: "A wide shot of a harbor.", state: "final-video", finalVideoUrl: "/sessions/s1/download/final-video" }),
       scenes: [],
     };
     render(<SessionPage {...baseProps} snapshot={snapshot} />);
@@ -848,6 +849,23 @@ describe("SessionPage", () => {
     render(<SessionPage {...baseProps} snapshot={snapshot} />);
     expect(screen.getByText("Scenes are not yet available.")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  // download-final-video (JOS-164), design Decision 2 — the page follows
+  // exactly what the session read publishes, never the session's own state.
+  it.each(["chunks-processing", "final-video-generating", "failed"] as const)(
+    "offers no final-video download for a %s session read that carries no finalVideoUrl",
+    (state) => {
+      const snapshot = { session: makeSession({ state }), scenes: [] };
+      render(<SessionPage {...baseProps} snapshot={snapshot} />);
+      expect(screen.queryByRole("link", { name: "Download final video" })).not.toBeInTheDocument();
+    },
+  );
+
+  it("offers the final-video download when the session read carries finalVideoUrl", () => {
+    const snapshot = { session: makeSession({ state: "final-video", finalVideoUrl: "/sessions/s1/download/final-video" }), scenes: [] };
+    render(<SessionPage {...baseProps} snapshot={snapshot} />);
+    expect(screen.getByRole("link", { name: "Download final video" })).toHaveAttribute("href", `${API_BASE}/sessions/s1/download/final-video`);
   });
 
   it("renders scenes in the order received (4.3)", () => {
@@ -1002,7 +1020,11 @@ describe("The session page shows one section per phase (JOS-168)", () => {
   });
 
   it("puts the scene list in the Scenes section and the download in the Final video section (6.1)", () => {
-    const session = makeSession({ state: "final-video", phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "complete", assembly: "complete" }) });
+    const session = makeSession({
+      state: "final-video",
+      finalVideoUrl: "/sessions/s1/download/final-video",
+      phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "complete", assembly: "complete" }),
+    });
     render(<SessionPage {...baseProps} snapshot={{ session, scenes: [makeScene({ sceneId: "a", index: 1, state: "chunk-complete" })] }} />);
 
     expect(within(screen.getByRole("region", { name: "Scenes phase" })).getByRole("listitem", { name: "Scene 1" })).toBeInTheDocument();
