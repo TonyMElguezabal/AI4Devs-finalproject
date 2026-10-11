@@ -66,5 +66,5 @@ Every code change starts with a failing test (TDD). Each acceptance criterion ha
 
 - [ ] 10.1 Report the download-filename finding (design Decision 3) to the user: every project's final video downloads as `final-video.mp4`, so several are indistinguishable in a Downloads folder. Ask whether to raise it as a product ticket.
 - [ ] 10.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-164.
-- [ ] 10.3 Obtain review by at least one human, not only AI agents.
+- [x] 10.3 Obtain review by at least one human, not only AI agents.
 - [ ] 10.4 Archive the OpenSpec change after merge.
