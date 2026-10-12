@@ -34,6 +34,11 @@ The application SHALL NOT be reachable outside a local environment until the pro
 - **WHEN** someone bypasses the frontend and calls the backend's public address
 - **THEN** the same gate applies to that request
 
+#### Scenario: The host's own address is used
+
+- **WHEN** someone connects to the backend host's public address directly, on any port
+- **THEN** the connection is refused, because the host publishes no inbound port and all traffic reaches it only through the edge
+
 #### Scenario: The PRD change is not yet approved
 
 - **WHEN** the PRD access change is still a draft
@@ -64,7 +69,7 @@ Each environment SHALL run exactly one backend process at a time. The platform S
 
 #### Scenario: Nobody is watching
 
-- **WHEN** a session is processing and no browser has the page open for longer than the platform's inactivity timeout
+- **WHEN** a session is processing and no browser has the page open for longer than the edge's idle timeout
 - **THEN** the session keeps progressing and reaches its next state without a request arriving
 
 ### Requirement: Durable and recoverable storage
