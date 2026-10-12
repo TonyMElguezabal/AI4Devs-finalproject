@@ -95,8 +95,8 @@ feature/jos-<n>-<name>  ──PR──▶  feature/entrega-2-JAME (UAT)  ──m
 
 - Feature work branches from `feature/entrega-2-JAME` and merges back into it, never straight into `main`.
 - Production receives the image that UAT already ran for the same source tree; a production deploy for content UAT never ran fails instead of building. The branch-to-environment mapping is declared in one place so it can change later.
-- Hosted environments sit behind an access gate (Cloudflare Access) and are not public. Exposure is pending the product owner's approval of the PRD access change (draft in `openspec/changes/define-production-deployment/prd-draft.md`).
-- The hosting decision, its evidence and the delivery pipeline are recorded by `define-production-deployment` (JOS-194); `docs/adr/0007-deployment.md` is written when that change is accepted.
+- Hosted environments sit behind an access gate (Cloudflare Access) and are not public. The product owner approved the PRD access change on 2026-10-12; applying it to `docs/PRD.md` is tracked as task 2.3 of `define-production-deployment`.
+- The hosting decision (Cloudflare Tunnel and Access in front of one VM per environment), its evidence and the delivery pipeline are recorded in `docs/adr/0007-deployment.md` and the `define-production-deployment` change (JOS-194). The environments are not live yet; the follow-up stories build them.
 
 ## Specifications
 
