@@ -1,0 +1,11 @@
+dbs:
+  - path: ${DB_PATH}
+    replicas:
+      - type: s3
+        bucket: ${R2_BUCKET_NAME}
+        path: litestream/skeleton.sqlite
+        endpoint: https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
+        region: auto
+        access-key-id: ${AWS_ACCESS_KEY_ID}
+        secret-access-key: ${AWS_SECRET_ACCESS_KEY}
+        sync-interval: 1s

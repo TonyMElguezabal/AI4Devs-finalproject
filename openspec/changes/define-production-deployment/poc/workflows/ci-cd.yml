@@ -1,0 +1,100 @@
+# JOS-194 proof of concept — SKETCH, deliberately not under .github/workflows (nothing runs on the shared repository).
+# Implements design § Execution Record §5.1-§5.3. Lines marked VERIFY are open points the follow-up story must close.
+name: ci-cd
+
+on:
+  pull_request:
+  push:
+    branches: [feature/entrega-2-JAME, main]
+
+env:
+  # The branch -> environment mapping lives here and nowhere else (design Decision 7).
+  UAT_BRANCH: feature/entrega-2-JAME
+  PROD_BRANCH: main
+  IMAGE: ghcr.io/${{ github.repository }}/backend
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 26.4.0 }
+      - name: Backend (temporary DB_PATH/PROJECTS_ROOT, no .secrets.json)
+        working-directory: backend
+        env:
+          DB_PATH: ${{ runner.temp }}/ci-db/skeleton.sqlite
+          PROJECTS_ROOT: ${{ runner.temp }}/ci-projects
+        run: npm ci && npm run typecheck && npm test
+      - name: Frontend
+        working-directory: frontend
+        run: npm ci && npm run typecheck && npm test
+
+  build:
+    if: github.event_name == 'push' && github.ref_name == env.UAT_BRANCH
+    needs: check
+    runs-on: ubuntu-24.04
+    permissions: { contents: read, packages: write }
+    outputs:
+      tree: ${{ steps.id.outputs.tree }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: id
+        run: echo "tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - name: Build once per source tree
+        run: |
+          docker build --platform linux/amd64 -f openspec/changes/define-production-deployment/poc/Dockerfile \
+            -t "$IMAGE:tree-${{ steps.id.outputs.tree }}" -t "$IMAGE:sha-${{ github.sha }}" .
+          docker push --all-tags "$IMAGE"
+
+  deploy-uat:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment: uat
+    steps:
+      - uses: actions/checkout@v4
+      - name: Terraform (UAT)
+        working-directory: infra/uat
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: terraform init && terraform apply -auto-approve
+      - name: Deploy Worker + container   # VERIFY: wrangler accepts a registry image reference for the container
+        working-directory: openspec/changes/define-production-deployment/poc/worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          IMAGE_REF: ${{ env.IMAGE }}:tree-${{ needs.build.outputs.tree }}
+        run: npx wrangler deploy --env uat
+      - name: Smoke check through Access
+        env:
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          curl -fsS -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+            https://uat.vid4you.download/api/health
+
+  deploy-prod:
+    if: github.event_name == 'push' && github.ref_name == env.PROD_BRANCH
+    runs-on: ubuntu-24.04
+    environment: production        # required reviewer is configured on this GitHub Environment
+    steps:
+      - uses: actions/checkout@v4
+      - id: id
+        run: echo "tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+      - name: Fail closed unless UAT already ran this exact source tree
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker manifest inspect "$IMAGE:tree-${{ steps.id.outputs.tree }}" >/dev/null \
+            || { echo "No UAT-built image for tree ${{ steps.id.outputs.tree }}; bring this content through UAT first." >&2; exit 1; }
+      - name: Terraform (production)
+        working-directory: infra/prod
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: terraform init && terraform apply -auto-approve
+      - name: Deploy the same image   # VERIFY: promotion by reference, no rebuild
+        working-directory: openspec/changes/define-production-deployment/poc/worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          IMAGE_REF: ${{ env.IMAGE }}:tree-${{ steps.id.outputs.tree }}
+        run: npx wrangler deploy --env production
