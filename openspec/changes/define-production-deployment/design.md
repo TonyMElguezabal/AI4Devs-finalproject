@@ -114,9 +114,14 @@ Why the tree and not the commit: GitHub merges into `main` create a new commit S
 Terraform with the Cloudflare provider declares DNS records, the Tunnel and its ingress (or the Containers setup under B), the Access application and policy, the backup bucket, and Pages if F1 is chosen. Under A, the VM is declared with its own provider in the same configuration. State lives in a remote backend (leading candidate: an R2 bucket through the S3-compatible backend), with one workspace or directory per environment. Secret values are passed in at apply time, never committed.
 *Alternatives:* Pulumi (equivalent capability; rejected only because Terraform is what the ticket names and what the Cloudflare docs cover first); click-ops in the dashboard (rejected: the ticket asks for infrastructure as code, and hand-made resources cannot be recreated or reviewed).
 
-**Decision 9b — Register a new domain in Cloudflare, with one hostname per environment.**
-No domain exists yet. A new one is registered through Cloudflare Registrar, so the zone lives in the same account as Tunnel, Access and DNS from day one. Proposed hostnames: `uat.<domain>` for UAT, and `app.<domain>` for production, which keeps the apex free for anything else later. The product owner picks the name. Buying the domain is a one-off manual step in the dashboard, because Terraform does not purchase domains; from then on, Terraform manages the zone's records. The proof of concept uses a third, temporary hostname (for example `poc.<domain>`) that is deleted at teardown.
-*To verify in the evaluation:* whether option B (Containers) could run on a `workers.dev` address behind Access without a domain. This does not change the recommendation: production needs a stable, owned hostname either way, and option A's named Tunnel needs a zone on Cloudflare.
+**Decision 9b — One Cloudflare-registered domain, `vid4you.download`, with one hostname per environment.**
+The product owner registered `vid4you.download` through Cloudflare Registrar on 2026-10-12, so the zone lives in the same account as Tunnel, Access and DNS. Hostnames:
+- production: the apex, `vid4you.download`;
+- UAT: `uat.vid4you.download`;
+- proof of concept: `poc.vid4you.download`, temporary and deleted at teardown.
+
+Buying the domain was a one-off manual step, because Terraform does not purchase domains. From now on, Terraform manages the zone's records and Access applications; the zone itself is imported, not created.
+*To verify in the evaluation:* the apex needs a record type the chosen option supports. A Tunnel route on the apex works through Cloudflare's CNAME flattening, and a Pages custom domain on the apex must be checked. Record the result.
 *Alternatives:* free platform subdomains only (`*.pages.dev`, `*.workers.dev`) (rejected for production: the address would be tied to one platform choice, and changing platforms would change the URL); a domain bought from another registrar (works, but adds a nameserver hand-over step and a second account to manage).
 
 **Decision 10 — Close configuration gaps through follow-up stories, and work around them in the proof of concept.**
@@ -171,7 +176,7 @@ Rollback of a deploy is redeploying the previous image digest. A schema migratio
 ## Open Questions
 
 1. ~~Where does `uat` branch from?~~ **Answered:** no `uat` branch; UAT = `feature/entrega-2-JAME`, production = `main` (Decision 7).
-2. ~~Which domain is used?~~ **Answered:** none exists; a new one is registered (Decision 9b). **Still open:** the domain name itself, which the product owner chooses.
+2. ~~Which domain is used?~~ **Answered:** `vid4you.download`, registered through Cloudflare on 2026-10-12; production on the apex, UAT on `uat.` (Decision 9b).
 3. ~~Who is on the Access allowlist?~~ **Answered:** the product owner's address only, for both environments; one-time PIN by email (Decision 4).
 4. ~~Does UAT use real providers?~~ **Answered:** yes, with no spending cap for now.
 5. ~~What monthly budget is acceptable?~~ **Answered:** cost is not a constraint for now; it is dropped from the scoring and recorded for information only (Decision 2).
@@ -184,6 +189,6 @@ Rollback of a deploy is redeploying the previous image digest. A schema migratio
 - Git state at the time of the answer: `main` is 0 commits ahead of and 439 commits behind `feature/entrega-2-JAME`, so the first promotion can be a fast-forward.
 - Access allowlist: one address, the product owner's, for both environments.
 - Providers: UAT calls the real providers; no spending cap for now.
-- Domain: none exists yet; a new domain and hostnames must be created (Decision 9b).
+- Domain: `vid4you.download`, registered by the product owner through Cloudflare Registrar on 2026-10-12 (whois: registrar Cloudflare, nameservers `konnor`/`maeve.ns.cloudflare.com`). Production on the apex, UAT on `uat.vid4you.download`, proof of concept on `poc.vid4you.download` (Decision 9b).
 - Hosting cost: not a concern for now; removed from the scoring weights.
-- Still open: the domain name to register.
+- Nothing still open from the product owner.

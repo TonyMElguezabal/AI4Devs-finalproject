@@ -15,7 +15,7 @@ The backend stack, the store, the live-update mechanism and the single-process o
 - [ ] 1.2 Re-verify against the current code every constraint listed in `design.md` § Context (env vars, credentials, ffmpeg paths, SSE route, `/health`, CORS, body limit) and record any drift
 - [ ] 1.3 Confirm whether the stubbed voice and video providers produce media the real ffmpeg assembly can decode, so the proof of concept knows whether assembly is exercised for real or must be recorded as a stand-in
 - [ ] 1.4 Record what is still undecided at this point, so later conclusions can be traced to what was known
-- [ ] 1.5 Get the domain name from the product owner, have them register it through Cloudflare Registrar (a manual purchase they approve; never bought by the agent), and record the zone and the hostnames `uat.<domain>`, `app.<domain>` and the temporary `poc.<domain>` (design Decision 9b)
+- [x] 1.5 Get the domain name from the product owner, have them register it through Cloudflare Registrar (a manual purchase they approve; never bought by the agent), and record the zone and hostnames (design Decision 9b) — done: `vid4you.download` registered 2026-10-12 via Cloudflare; production = apex, UAT = `uat.vid4you.download`, PoC = `poc.vid4you.download`
 
 ## 2. Product: Draft the access change
 
@@ -49,7 +49,7 @@ The backend stack, the store, the live-update mechanism and the single-process o
 
 - [ ] 6.1 Write `poc/Dockerfile`: pinned Node version matching the project, ffmpeg/ffprobe from the distribution linked to the paths the code expects, frontend build included if F2 was chosen; record every workaround as a stand-in
 - [ ] 6.2 Build and run the image locally with a mounted volume for `DB_PATH`/`PROJECTS_ROOT` and `USE_STUB_*` enabled; confirm `/health` answers
-- [ ] 6.3 Write the Terraform sketch under `poc/terraform/` for the chosen option on the temporary hostname `poc.<domain>` from 1.5, including the Access application and the real allowlist policy (product owner's address, one-time PIN)
+- [ ] 6.3 Write the Terraform sketch under `poc/terraform/` for the chosen option on the temporary hostname `poc.vid4you.download` from 1.5 (importing the existing zone, not creating it), including the Access application and the real allowlist policy (product owner's address, one-time PIN)
 - [ ] 6.4 Apply it and deploy the image; list every created resource in `poc/RESOURCES.md` with its cost
 - [ ] 6.5 Write the workflow sketch under `poc/workflows/` (not under `.github/workflows/`, so nothing runs on the shared repository yet)
 - [ ] 6.6 Run the backup once and restore into an empty volume; record duration and what was recovered
