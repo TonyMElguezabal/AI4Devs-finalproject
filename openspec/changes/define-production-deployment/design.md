@@ -57,13 +57,14 @@ An option is only scored if it can meet all of these:
 - **D — Kubernetes**, any managed offering, with a StatefulSet of one replica and a persistent volume claim.
 
 Weighted criteria for the options that pass the gates:
-- data durability and backup: 25%
-- application code change required: 20%
-- deploy, rollback and same-artifact promotion: 20%
+- data durability and backup: 30%
+- application code change required: 25%
+- deploy, rollback and same-artifact promotion: 25%
 - operational load for a single maintainer: 20%
-- monthly cost for two environments: 15%
 
-*Hypothesis, to be confirmed or overturned by the evaluation:* A leads. It needs the least code change and keeps the store on a real disk. B's fit depends on whether its disk is durable across restarts and deploys and whether an instance can be kept running through a long session. Both are checked against current Cloudflare documentation, not assumed. C fails the "MVP is done" premise: it rewrites persistence, orchestration and timers. D meets the gates but brings a control plane, manifests and cluster upgrades for one process, so it is expected to lose on operational load and cost.
+Cost is not a criterion for now (product-owner decision, § Execution Record §1). The monthly estimate per environment is still recorded in the ADR for information, so that a later budget limit can re-score the options without redoing the research.
+
+*Hypothesis, to be confirmed or overturned by the evaluation:* A leads. It needs the least code change and keeps the store on a real disk. B's fit depends on whether its disk is durable across restarts and deploys and whether an instance can be kept running through a long session. Both are checked against current Cloudflare documentation, not assumed. C fails the "MVP is done" premise: it rewrites persistence, orchestration and timers. D meets the gates but brings a control plane, manifests and cluster upgrades for one process, so it is expected to lose on operational load.
 *Alternatives:* deciding on A without scoring (rejected: the ticket asks for the best option with evidence, and B is Cloudflare-native enough that dismissing it unexamined would be a preference, not a finding).
 
 **Decision 3 — Evaluate the frontend placement separately: Pages, or served by the backend.**
@@ -112,6 +113,11 @@ Why the tree and not the commit: GitHub merges into `main` create a new commit S
 **Decision 9 — Terraform for the infrastructure, with state off any laptop.**
 Terraform with the Cloudflare provider declares DNS records, the Tunnel and its ingress (or the Containers setup under B), the Access application and policy, the backup bucket, and Pages if F1 is chosen. Under A, the VM is declared with its own provider in the same configuration. State lives in a remote backend (leading candidate: an R2 bucket through the S3-compatible backend), with one workspace or directory per environment. Secret values are passed in at apply time, never committed.
 *Alternatives:* Pulumi (equivalent capability; rejected only because Terraform is what the ticket names and what the Cloudflare docs cover first); click-ops in the dashboard (rejected: the ticket asks for infrastructure as code, and hand-made resources cannot be recreated or reviewed).
+
+**Decision 9b — Register a new domain in Cloudflare, with one hostname per environment.**
+No domain exists yet. A new one is registered through Cloudflare Registrar, so the zone lives in the same account as Tunnel, Access and DNS from day one. Proposed hostnames: `uat.<domain>` for UAT, and `app.<domain>` for production, which keeps the apex free for anything else later. The product owner picks the name. Buying the domain is a one-off manual step in the dashboard, because Terraform does not purchase domains; from then on, Terraform manages the zone's records. The proof of concept uses a third, temporary hostname (for example `poc.<domain>`) that is deleted at teardown.
+*To verify in the evaluation:* whether option B (Containers) could run on a `workers.dev` address behind Access without a domain. This does not change the recommendation: production needs a stable, owned hostname either way, and option A's named Tunnel needs a zone on Cloudflare.
+*Alternatives:* free platform subdomains only (`*.pages.dev`, `*.workers.dev`) (rejected for production: the address would be tied to one platform choice, and changing platforms would change the URL); a domain bought from another registrar (works, but adds a nameserver hand-over step and a second account to manage).
 
 **Decision 10 — Close configuration gaps through follow-up stories, and work around them in the proof of concept.**
 The spike does not change product code. The proof-of-concept image works around the hard-coded ffmpeg paths by linking the distribution's ffmpeg/ffprobe to `/opt/homebrew/bin/`. It sets `VITE_API_BASE` (or uses F2's relative base) at build time. The real fixes become follow-up stories:
@@ -165,10 +171,10 @@ Rollback of a deploy is redeploying the previous image digest. A schema migratio
 ## Open Questions
 
 1. ~~Where does `uat` branch from?~~ **Answered:** no `uat` branch; UAT = `feature/entrega-2-JAME`, production = `main` (Decision 7).
-2. **Which domain is used?** Is a domain already managed in the Cloudflare account, and which hostnames should UAT and production use?
+2. ~~Which domain is used?~~ **Answered:** none exists; a new one is registered (Decision 9b). **Still open:** the domain name itself, which the product owner chooses.
 3. ~~Who is on the Access allowlist?~~ **Answered:** the product owner's address only, for both environments; one-time PIN by email (Decision 4).
 4. ~~Does UAT use real providers?~~ **Answered:** yes, with no spending cap for now.
-5. **What monthly budget is acceptable** for the hosting itself (not provider spend)? This decides between options A and B as much as the technical fit does.
+5. ~~What monthly budget is acceptable?~~ **Answered:** cost is not a constraint for now; it is dropped from the scoring and recorded for information only (Decision 2).
 
 ## Execution Record
 
@@ -178,4 +184,6 @@ Rollback of a deploy is redeploying the previous image digest. A schema migratio
 - Git state at the time of the answer: `main` is 0 commits ahead of and 439 commits behind `feature/entrega-2-JAME`, so the first promotion can be a fast-forward.
 - Access allowlist: one address, the product owner's, for both environments.
 - Providers: UAT calls the real providers; no spending cap for now.
-- Still open: domain/hostnames (question 2) and hosting budget (question 5).
+- Domain: none exists yet; a new domain and hostnames must be created (Decision 9b).
+- Hosting cost: not a concern for now; removed from the scoring weights.
+- Still open: the domain name to register.

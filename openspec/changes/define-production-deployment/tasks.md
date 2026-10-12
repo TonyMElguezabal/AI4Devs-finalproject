@@ -11,10 +11,11 @@ The backend stack, the store, the live-update mechanism and the single-process o
 
 ## 1. Gate: Collect the inputs and the product owner's answers
 
-- [ ] 1.1 Ask the product owner the design's open questions 1–5 and record the answers in `design.md` § Execution Record §1 — partial (2026-10-12): environments, allowlist and UAT providers answered; domain/hostnames (2) and hosting budget (5) still open
+- [x] 1.1 Ask the product owner the design's open questions 1–5 and record the answers in `design.md` § Execution Record §1 — done (2026-10-12): all five answered; only the domain name itself remains, tracked in 1.5
 - [ ] 1.2 Re-verify against the current code every constraint listed in `design.md` § Context (env vars, credentials, ffmpeg paths, SSE route, `/health`, CORS, body limit) and record any drift
 - [ ] 1.3 Confirm whether the stubbed voice and video providers produce media the real ffmpeg assembly can decode, so the proof of concept knows whether assembly is exercised for real or must be recorded as a stand-in
 - [ ] 1.4 Record what is still undecided at this point, so later conclusions can be traced to what was known
+- [ ] 1.5 Get the domain name from the product owner, have them register it through Cloudflare Registrar (a manual purchase they approve; never bought by the agent), and record the zone and the hostnames `uat.<domain>`, `app.<domain>` and the temporary `poc.<domain>` (design Decision 9b)
 
 ## 2. Product: Draft the access change
 
@@ -25,8 +26,8 @@ The backend stack, the store, the live-update mechanism and the single-process o
 
 - [ ] 3.1 Check options A–D against gates G1–G6 (design Decision 1), citing current Cloudflare and provider documentation with its retrieval date; eliminate any option failing a gate and record which gate and why
 - [ ] 3.2 For option B, establish from current documentation whether container disk survives restarts and deploys, whether an instance can be kept running through a long session, and whether SSE responses stream; record each as a fact with its source
-- [ ] 3.3 Score the survivors against the weighted criteria (durability and backup 25%, code change 20%, deploy/rollback/same artifact 20%, operational load 20%, cost 15%)
-- [ ] 3.4 Estimate monthly cost per environment for each survivor, listing every billable component
+- [ ] 3.3 Score the survivors against the weighted criteria (durability and backup 30%, code change 25%, deploy/rollback/same artifact 25%, operational load 20%; cost is not scored per product-owner decision)
+- [ ] 3.4 Estimate monthly cost per environment for each survivor, listing every billable component, for information only
 - [ ] 3.5 Select the leading option and record the runner-up as the documented fallback
 
 ## 4. Evaluate the frontend placement
@@ -48,7 +49,7 @@ The backend stack, the store, the live-update mechanism and the single-process o
 
 - [ ] 6.1 Write `poc/Dockerfile`: pinned Node version matching the project, ffmpeg/ffprobe from the distribution linked to the paths the code expects, frontend build included if F2 was chosen; record every workaround as a stand-in
 - [ ] 6.2 Build and run the image locally with a mounted volume for `DB_PATH`/`PROJECTS_ROOT` and `USE_STUB_*` enabled; confirm `/health` answers
-- [ ] 6.3 Write the Terraform sketch under `poc/terraform/` for the chosen option on a temporary hostname, including the Access application and the real allowlist policy (product owner's address, one-time PIN)
+- [ ] 6.3 Write the Terraform sketch under `poc/terraform/` for the chosen option on the temporary hostname `poc.<domain>` from 1.5, including the Access application and the real allowlist policy (product owner's address, one-time PIN)
 - [ ] 6.4 Apply it and deploy the image; list every created resource in `poc/RESOURCES.md` with its cost
 - [ ] 6.5 Write the workflow sketch under `poc/workflows/` (not under `.github/workflows/`, so nothing runs on the shared repository yet)
 - [ ] 6.6 Run the backup once and restore into an empty volume; record duration and what was recovered
