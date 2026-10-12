@@ -67,7 +67,7 @@ The first version of this group built the B+ option (Worker, Litestream, R2 FUSE
 - [ ] 7.1 Access gate: confirm an unauthenticated request to the page and to the API is rejected at the edge, and an allowed identity gets through; confirm the host's own address on every published port is refused (no inbound port) — **partly done**: unauthenticated page and API both answer `302` to the Access login; service token gets `200` on both; no ports are published on the host (`docker compose ps`). Left: the allowed-identity browser login (task 11.1)
 - [x] 7.2 End-to-end session: run one stubbed session through to the final-video download behind the gate — done through the real edge (`https://poc.vid4you.download/api`, service token): stubbed session reached `final-video`, downloaded 58,205 B `video/mp4`; stand-ins: preload stubs, `quick-scene`, ffmpeg symlink, developer machine as host
 - [ ] 7.3 SSE through the edge: confirm live updates arrive without reload, then hold a quiet stretch longer than the edge's documented idle timeout and confirm the page is still current
-- [ ] 7.4 Restart: restart the backend mid-session and confirm the session finishes with no data lost and the page recovers on its own
+- [ ] 7.4 Restart: restart the backend mid-session and confirm the session finishes with no data lost and the page recovers on its own — **partly done** (2026-10-12, through the real edge): backend restarted while the session sat at `voice-over-complete`; the session was intact, then reached `final-video` and downloaded (58,205 B); edge healthy again 7 s after the restart. **Not exercised: a restart while a stage is actually running** (stubbed stages finish in about a second). Finding: with `network_mode: service:backend`, `compose restart backend` also restarts `caddy` and `cloudflared`
 - [ ] 7.5 Redeploy: deploy a new image mid-session using stop-then-start (`compose stop backend`, then `up -d`) and confirm no two backend processes ran at once and the session resumes
 - [ ] 7.6 Real providers: run one short session with every `USE_STUB_*` off and credentials injected as secrets; confirm it reaches the final video through real ffmpeg on Linux and that no credential appears in logs or the image
 - [ ] 7.7 Promotion check: simulate a merge into a scratch copy of `main` and confirm its tree hash finds the UAT-recorded image reference; then add an extra commit and confirm the lookup fails closed (against a local registry, since nothing is pushed to the shared repository)
@@ -93,10 +93,10 @@ The first version of this group built the B+ option (Worker, Litestream, R2 FUSE
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
 - [ ] 10.1 Ensure the proof-of-concept environment is up and note the store's current state
-- [ ] 10.2 `GET /health` without credentials and confirm the edge rejects it; repeat with an Access service token and confirm `200`
+- [ ] 10.2 `GET /health` without credentials and confirm the edge rejects it; repeat with an Access service token and confirm `200` — done: no credentials → `302` to the Access login on `/` and `/api/health`; service token → `200 {"ok":true}`
 - [ ] 10.3 `POST` a session with a service token, confirm creation, then delete the session data to restore state
 - [ ] 10.4 Hold the SSE stream open with `curl -N` through the edge and capture frames, including heartbeats across a quiet stretch
-- [ ] 10.5 Download the final MP4 through the edge and confirm size and content type
+- [ ] 10.5 Download the final MP4 through the edge and confirm size and content type — done through the edge: `GET /sessions/:id/download/final-video` → `200`, 58,205 B, `video/mp4`
 - [ ] 10.6 Error cases: unknown session id on `GET /events` returns `404`; a test-only endpoint does not answer with `ALLOW_TEST_ENDPOINTS` off
 - [ ] 10.7 Record every command and response, confirm the store matches its pre-test state, and save `reports/YYYY-MM-DD-step-10-curl-endpoint-testing.md`
 
