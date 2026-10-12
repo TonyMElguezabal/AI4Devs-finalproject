@@ -358,6 +358,17 @@ Structured JSON logging (Fastify's built-in Pino logger), one event per line, ne
 - No accounts, sessions, or authentication in the MVP (PRD §12.3) — this is a local, single-user install. Session/data isolation (a run cannot see or overwrite another run's data) is a **functional integrity requirement**, not a security control, per PRD §12.3 — do not conflate the two when reasoning about what "isolation" needs to guarantee.
 - **Request body size ceiling**: PRD §4.1 imposes no product-side script length limit, but Fastify's own `bodyLimit` is the real, finite ceiling underneath that (`start-video-project`, JOS-134, Decision 6) — set to 50MB (`BODY_LIMIT_BYTES` env var, `server.ts`), far beyond any realistic script while still a named ceiling rather than "no limit at all." A request exceeding it gets Fastify's own `413`, structurally distinct from the `400`s this app's own Zod validation returns — never leave the framework default (1MB) in place, which would look identical to a product limit that does not exist.
 
+## Deployment
+
+Decided by `docs/adr/0007-deployment.md` (JOS-194): two hosted environments, UAT from `feature/entrega-2-JAME` and production from `main`, each one VM running the backend container behind a Cloudflare Tunnel and Access gate. The deployment guarantees live in `openspec/changes/define-production-deployment/specs/deployment-foundation/spec.md`.
+
+- **One backend process per environment, deployed by stop-then-start.** Never start a second process against the same store: it would run a second orchestrator, retry scheduler and concurrency cap. A restart (deploy or host) is resumed by `reconcileOnBoot`.
+- **Storage.** `DB_PATH` and `PROJECTS_ROOT` point at one persistent volume, set explicitly (the defaults are relative to the working directory). Backups use SQLite's online backup, never a copy of the live `.sqlite`/`-wal` files; `PROJECTS_ROOT` is synced incrementally to the off-host bucket.
+- **Configuration safety.** Hosted environments leave `ALLOW_TEST_ENDPOINTS` and every `USE_STUB_*` variable **unset**: any non-empty value, including `false` and `0`, enables them today. Provider keys come from per-environment secrets in the environment, never from the image or `.secrets.json`.
+- **Network.** The server listens on `127.0.0.1:3100`; the Tunnel connector and the reverse proxy share its network namespace and the host publishes no port. Access in front of the hostname is the only gate; the application stays account-free (PRD §12.3 as approved for the hosted install).
+- **Binaries.** ffmpeg and ffprobe must exist at the hard-coded `/opt/homebrew/bin/` paths until the configurable-path story lands; the image links the distribution's binaries there.
+- **Known gaps** (follow-up stories of JOS-194): the real assembly tool is not wired at bootstrap, so no hosted environment produces a final video yet; the SSE route echoes any request `Origin`.
+
 ## Development Workflow
 
 - Feature branches, descriptive English commit messages, small focused changes — per `docs/base-standards.md`.

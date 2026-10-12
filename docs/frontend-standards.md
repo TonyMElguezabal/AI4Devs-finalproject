@@ -146,6 +146,15 @@ npm run dev        # start the dev server for manual/E2E testing (fixed local UR
 - **Hook tests** (`test/useLiveSession.test.tsx`, from `define-live-updates`): the live-update seam tested against a controllable fake `EventSource`, never a real network connection — proving idempotent event application, per-scene state collapsing without cross-scene merging, the paused marker's independence from session state, and resync-on-every-reconnect.
 - **E2E**: agent-driven browser automation against the real backend harness (`openspec/changes/define-backend-stack/skeleton`), locating every element through the accessibility tree. Playwright MCP is the tool `docs/openspec-tasks-mandatory-steps.md` names; if unavailable in a session, an equivalent agent-driven real-browser tool (e.g. Claude in Chrome) is an acceptable substitute for the same intent, stated explicitly in the report when substituted.
 
+## Deployment
+
+Decided by `docs/adr/0007-deployment.md` (JOS-194).
+
+- **Placement.** The built frontend is served by a reverse proxy (Caddy) on the same host and hostname as the API, which it reaches under `/api/*` with the prefix stripped. One origin, so there is no CORS and the Access cookie travels with both the page and the SSE stream.
+- **API base.** Hosted builds use `VITE_API_BASE=/api`; the default `http://127.0.0.1:3100` is for local development only. The same build serves UAT and production, so nothing in the build may depend on the environment.
+- **Access.** Both environments sit behind Cloudflare Access; the page needs no login code of its own. A request that Access rejects arrives as a redirect to the login page, not as an API error.
+- **Live updates.** The SSE heartbeat (15 s) keeps the stream alive through the edge's read timeout; do not lengthen it.
+
 ## Development Workflow
 
 - Feature branches, descriptive English commit messages, small focused changes — per `docs/base-standards.md`.
