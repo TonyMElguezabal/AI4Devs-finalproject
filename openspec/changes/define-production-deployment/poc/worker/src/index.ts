@@ -21,10 +21,12 @@ const KEEP_ALIVE_SECONDS = 60;
 
 export class Vid4YouBackend extends Container<Env> {
   defaultPort = 8080;
-  // ponytail: always-on (the backend progresses sessions with no incoming request); make it conditional on in-flight work if idle cost ever matters.
-  sleepAfter = "24h";
+  // PoC: short on purpose, so experiment 7.14 can wait past it. The schedule below renews it every minute while the backend lives.
+  // ponytail: always-on keep-alive (the backend progresses sessions with no incoming request); make it conditional on in-flight work if idle cost ever matters.
+  sleepAfter = "10m";
 
-  constructor(ctx: DurableObjectState, env: Env) {
+  // ponytail: `{}` mirrors the library's own constructor type; drop when the library and workers-types agree.
+  constructor(ctx: DurableObjectState<{}>, env: Env) {
     super(ctx, env);
     const forwarded: Record<string, string | undefined> = {
       R2_ACCOUNT_ID: env.R2_ACCOUNT_ID,
