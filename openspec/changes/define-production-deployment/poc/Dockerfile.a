@@ -1,0 +1,30 @@
+# JOS-194 proof of concept — option A backend image (design § Execution Record §5.0). Throwaway.
+# Build context: the repository root.  docker build --platform linux/amd64 -f <this file> .
+ARG NODE_VERSION=26.4.0
+FROM node:${NODE_VERSION}-bookworm-slim
+
+# Stand-in: the code hard-codes /opt/homebrew/bin/ffmpeg (ffmpegAssemblyTool.ts:13-14).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl sqlite3 tini \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /opt/homebrew/bin \
+ && ln -s /usr/bin/ffmpeg /opt/homebrew/bin/ffmpeg \
+ && ln -s /usr/bin/ffprobe /opt/homebrew/bin/ffprobe
+
+WORKDIR /app
+COPY backend/package.json backend/package-lock.json backend/
+RUN cd backend && npm ci --omit=dev --no-audit --no-fund
+COPY backend/src backend/src
+COPY backend/public backend/public
+COPY openspec/changes/define-production-deployment/poc/preload.ts /app/poc/preload.ts
+RUN ffmpeg -loglevel error -f lavfi -i testsrc=size=1920x1088:rate=24 -t 1 -pix_fmt yuv420p -c:v libx264 /app/poc/clip.mp4 \
+ && mkdir -p /var/lib/vid4you && chown -R node:node /var/lib/vid4you
+
+ENV NODE_ENV=production \
+    PORT=3100 \
+    BACKEND_SRC=/app/backend/src \
+    DB_PATH=/var/lib/vid4you/skeleton.sqlite \
+    PROJECTS_ROOT=/var/lib/vid4you/projects
+USER node
+# Loopback-only listen (server.ts:134); cloudflared and Caddy share this network namespace.
+ENTRYPOINT ["/usr/bin/tini", "--", "node", "--import", "/app/poc/preload.ts", "/app/backend/src/server.ts"]
