@@ -33,7 +33,7 @@ Nothing starts decomposition after `voice-over-complete`; UAT cannot go script �
 ## Environment stories
 
 ### S7 — VM provider and host hardening — GATE, ONE
-- The product owner picks the provider (leading candidate Hetzner Cloud) and creates the account.
+- Provider: Hetzner Cloud (decided 2026-10-12). The product owner creates the account and a project API token; the agent never creates paid resources without a go-ahead.
 - One VM per environment; firewall denies all inbound traffic; no published port; automatic security updates; a probe of the VM's address on every port is refused.
 
 ### S8 — Compose project, Caddy and the production image — ONE, CONF, IAC
