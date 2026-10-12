@@ -199,7 +199,7 @@ Rollback of a deploy is redeploying the previous image digest. A schema migratio
 4. ~~Does UAT use real providers?~~ **Answered:** yes, with no spending cap for now.
 5. ~~What monthly budget is acceptable?~~ **Answered:** cost is not a constraint for now; it is dropped from the scoring and recorded for information only (Decision 2).
 6. ~~Must the compute run inside Cloudflare?~~ **Answered (2026-10-12):** no; option A, Cloudflare as the edge (Decision 1, G7 waived).
-7. **Which VM provider hosts UAT and production?** Leading candidate Hetzner Cloud (price, `hcloud` Terraform provider). It needs an account the product owner creates and pays for; the proof of concept does not need it (it uses a developer machine as the host, recorded as a stand-in).
+7. **Which VM provider hosts UAT and production?** *(2026-10-12: the product owner answered "Cloudflare". Cloudflare has no general-purpose VM product: its compute is Workers and Containers, i.e. option B/B+, which option A was chosen over. Needs clarification; see the status note in the apply report.)* Leading candidate Hetzner Cloud (price, `hcloud` Terraform provider). It needs an account the product owner creates and pays for; the proof of concept does not need it (it uses a developer machine as the host, recorded as a stand-in).
 
 ## Execution Record
 
