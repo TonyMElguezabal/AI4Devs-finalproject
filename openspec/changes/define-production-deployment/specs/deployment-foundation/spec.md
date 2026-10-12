@@ -22,7 +22,7 @@ The project SHALL record exactly one chosen hosting option for the frontend and 
 
 ### Requirement: No exposure without an approved access gate
 
-The application SHALL NOT be reachable outside a local environment until the product owner has approved a PRD change to §2.3, §12.3 and D07 that defines who may reach it. Every hosted environment SHALL place an access gate in front of both the frontend and the backend API, so that a request without an allowed identity reaches neither. The gate SHALL NOT require user accounts inside the application.
+The application SHALL NOT be reachable outside a local environment until the product owner has approved a PRD change to §2.3, §12.3 and D07 that defines who may reach it. Every hosted environment SHALL place an access gate in front of both the frontend and the backend API, so that a request without an allowed identity reaches neither. The allowed identities SHALL be an explicit list declared with the infrastructure; initially it holds the single product-owner address. The gate SHALL NOT require user accounts inside the application.
 
 #### Scenario: An unauthenticated request reaches a hosted environment
 
@@ -74,13 +74,23 @@ The SQLite store at `DB_PATH` and every file under `PROJECTS_ROOT` SHALL live on
 
 ### Requirement: Production ships the artifact UAT validated
 
-UAT SHALL deploy from the `uat` branch and production SHALL deploy from `main`. The backend image SHALL be built once per commit and promoted between environments by digest, never rebuilt for production. The frontend SHALL either be the same build in both environments or be rebuilt from the same commit with only environment configuration changed, and the ADR SHALL record which. A production deploy SHALL require a manual approval.
+There SHALL be exactly two hosted environments. UAT SHALL deploy from `feature/entrega-2-JAME` and production SHALL deploy from `main`. This branch-to-environment mapping SHALL be declared in one place, so changing it later does not touch pipeline logic. The backend image SHALL be built once for a given source tree and promoted to production as that same image, never rebuilt. Production SHALL deploy only an image that UAT has already run. The frontend SHALL either be the same build in both environments or be rebuilt from the same source with only environment configuration changed, and the ADR SHALL record which. A production deploy SHALL require a manual approval.
 
 #### Scenario: A change reaches production
 
-- **WHEN** a commit is promoted from UAT to production
-- **THEN** production runs the same backend image digest that ran in UAT
+- **WHEN** the UAT branch is merged into `main`
+- **THEN** production runs the same backend image digest that ran in UAT, even though the merge created a new commit
 - **AND** a person approved the production deploy
+
+#### Scenario: Main contains code UAT never ran
+
+- **WHEN** `main` holds a source tree for which no UAT-deployed image exists
+- **THEN** the production deploy fails instead of building a new image
+
+#### Scenario: The branch mapping changes
+
+- **WHEN** a different branch is assigned to an environment
+- **THEN** only the declared mapping changes
 
 #### Scenario: Environments differ
 
@@ -89,11 +99,11 @@ UAT SHALL deploy from the `uat` branch and production SHALL deploy from `main`. 
 
 ### Requirement: Safe configuration in hosted environments
 
-In a hosted environment, test-only endpoints (`ALLOW_TEST_ENDPOINTS`) SHALL be disabled, and production SHALL use real providers with every `USE_STUB_*` flag off. Provider credentials SHALL be injected as per-environment secrets and SHALL NOT appear in the repository, in the image or in logs. The backend SHALL accept cross-origin requests only from the environment's own frontend origin. The assembly stage SHALL find ffmpeg and ffprobe on the host it runs on.
+In a hosted environment, test-only endpoints (`ALLOW_TEST_ENDPOINTS`) SHALL be disabled, and both UAT and production SHALL use real providers with every `USE_STUB_*` flag off. UAT and production SHALL use separate provider credentials or, if the same keys are shared, the ADR SHALL record that their spend cannot be told apart. Provider credentials SHALL be injected as per-environment secrets and SHALL NOT appear in the repository, in the image or in logs. The backend SHALL accept cross-origin requests only from the environment's own frontend origin. The assembly stage SHALL find ffmpeg and ffprobe on the host it runs on.
 
-#### Scenario: Production starts
+#### Scenario: A hosted backend starts
 
-- **WHEN** the production backend starts
+- **WHEN** the UAT or production backend starts
 - **THEN** no test-only endpoint answers and no stubbed provider is active
 
 #### Scenario: The image is inspected

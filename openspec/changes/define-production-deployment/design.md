@@ -14,7 +14,7 @@ Vid4You runs today as two local processes: a Vite dev server for the React front
 
 The frontend is a static Vite build whose API address is fixed at build time: `VITE_API_BASE`, defaulting to `http://127.0.0.1:3100` (`frontend/src/api/client.ts:6`).
 
-The product decision this change runs into is PRD §2.3, §12.3 and D07: the MVP is a local single-user install with no accounts, and exposure beyond a local environment requires defining authentication first. The ticket (JOS-194) asks for production on Cloudflare, a UAT environment fed by a new `uat` branch with the same code, CI/CD, and Terraform or similar.
+The product decision this change runs into is PRD §2.3, §12.3 and D07: the MVP is a local single-user install with no accounts, and exposure beyond a local environment requires defining authentication first. The ticket (JOS-194) asks for production on Cloudflare, a UAT environment with the same code, CI/CD, and Terraform or similar. The product owner later fixed the environments at two, mapped to existing branches: UAT to `feature/entrega-2-JAME`, production to `main` (§ Execution Record §1).
 
 There is no CI today (`.github/` holds only agent prompts), and `docs/development_guide.md` still describes the setup of an unrelated earlier project.
 
@@ -76,7 +76,7 @@ F2 removes cross-origin requests entirely: CORS becomes unnecessary, the SSE str
 *Alternatives:* F1 with a per-environment build and restricted CORS (kept as the fallback; it is the conventional layout, but it gives up "same artifact" for the frontend and needs Access to work across two origins).
 
 **Decision 4 — Gate exposure with Cloudflare Access, and change the PRD before going live.**
-Each environment's hostname or hostnames sit behind a Cloudflare Access application, with a policy that allows a named email list (one-time PIN or an identity provider). Every request without an allowed identity is stopped at the edge, including direct API calls. The application itself stays account-free, which keeps the MVP's §2.1 single-role model. This change drafts the PRD text for §2.3, §12.3 and D07 ("hosted single-user install behind an edge access gate") and stops before any production hostname is published until the product owner approves it.
+Each environment's hostname or hostnames sit behind a Cloudflare Access application, with a policy that allows an explicit email list declared in Terraform. The list currently holds one address, the product owner's, for both environments. Login uses Access's one-time PIN by email, which needs no identity-provider setup; an identity provider can replace it later without touching the application. Every request without an allowed identity is stopped at the edge, including direct API calls. The application itself stays account-free, which keeps the MVP's §2.1 single-role model. This change drafts the PRD text for §2.3, §12.3 and D07 ("hosted single-user install behind an edge access gate") and stops before any production hostname is published until the product owner approves it.
 *Alternatives:* in-app authentication (rejected for this change: it is a new product capability that PRD §2.3 puts outside the MVP and would need its own story); relying on an unguessable URL (rejected: the API has no authorization at all, so anyone who learns the URL controls every session); HTTP basic auth at a reverse proxy (rejected: it works, but it puts credentials in a config file and offers no per-person revocation, where Access does both at no code cost).
 
 **Decision 5 — One backend instance, deployed by stop-then-start.**
@@ -92,20 +92,20 @@ Each environment runs exactly one backend container. A deploy stops the old cont
 A restore into an empty environment is done once during the proof of concept and timed. The backup interval sets the maximum data loss and is recorded as such.
 *Alternatives:* storing media in R2 directly instead of on disk (rejected for now: every file path, the download routes and the assembly tool assume a local filesystem, so this would be a storage rework, not a deployment); no backups because the volume is "durable" (rejected: a volume survives restarts, not deleting the wrong resource or losing the host).
 
-**Decision 7 — `uat` and `main` as environment branches, promoted by image digest.**
-- UAT deploys from `uat` and production from `main`.
-- Feature work keeps flowing through the integration branch. `uat` is updated from it by pull request, and `main` is updated from `uat` by a fast-forward merge only, so production deploys a commit that UAT already ran.
-- CI builds the backend image (with the frontend inside it under F2) once per commit, tags it with the commit SHA, and pushes it to a registry (leading candidate: GitHub Container Registry).
-- The production job deploys the **digest** recorded by the UAT deploy for that SHA; it never rebuilds.
+**Decision 7 — Two fixed environments mapped to existing branches, promoted by source tree.**
+- Exactly two environments exist. UAT deploys from `feature/entrega-2-JAME`, the branch feature work already merges into. Production deploys from `main`. No `uat` branch is created.
+- The branch-to-environment mapping is declared once (for example, a small map at the top of the workflow or a repository variable). Every job reads it from there, so a future remapping is a one-line change (product-owner note: the mapping may change later).
+- CI builds the backend image (with the frontend inside it under F2) once for a source tree and pushes it to a registry (leading candidate: GitHub Container Registry). The image is tagged with the tree hash (`git rev-parse HEAD^{tree}`) as well as the commit SHA, and the UAT deploy records which digest it ran for that tree.
+- The production job computes `main`'s tree hash and deploys the digest UAT recorded for it. If no UAT-run image exists for that tree, the job fails; it never builds.
 
-Where `uat` is first branched from is an open question, because MVP work currently integrates into `feature/entrega-2-JAME` rather than `main`.
-*Alternatives:* rebuilding for production from `main` (rejected: two builds of one commit can differ through dependency resolution or base-image updates, and then UAT has not validated what ships); a single trunk with environment tags instead of branches (a valid design, but the ticket explicitly asks for a `uat` branch, so it is recorded as the alternative rather than chosen).
+Why the tree and not the commit: GitHub merges into `main` create a new commit SHA, so a SHA-keyed lookup would never find the UAT image. The tree hash is identical whenever `main` holds exactly what UAT ran. That is the case for a fast-forward, which is possible today because `main` is 0 commits ahead of `feature/entrega-2-JAME`. It is also the case for a merge commit when `main` has nothing UAT lacks. History shows both kinds of merge into `main` (some PR merges produced a tree different from the merged branch), so the fail-closed check is what guarantees the rule, not the merge style.
+*Alternatives:* rebuilding for production from `main` (rejected: two builds of one source can differ through dependency resolution or base-image updates, and then UAT has not validated what ships); keying by commit SHA and requiring fast-forward-only merges (rejected: GitHub's merge button cannot enforce it, so the rule would rest on discipline); creating a separate `uat` branch (rejected by the product owner: the integration branch already plays that role).
 
 **Decision 8 — GitHub Actions for CI/CD, GitHub Environments for approval and secrets.**
 - On every pull request: backend and frontend `typecheck` and `test`. The backend tests run with temporary `DB_PATH`/`PROJECTS_ROOT` directories and no `.secrets.json`, so a test that only passes with a developer's local keys fails in CI instead of passing silently.
-- On merge to `uat`: build, push and deploy to UAT.
-- On a fast-forward to `main`: deploy the recorded digest to production after a required reviewer approves in the `production` GitHub Environment.
-- Provider credentials and deploy keys live as secrets in the `uat` and `production` GitHub Environments and are written to the host's environment at deploy time, never into the image.
+- On a push to the UAT branch (`feature/entrega-2-JAME`): build, push and deploy to UAT.
+- On a push to `main`: resolve the UAT-recorded digest for `main`'s tree and deploy it to production after a required reviewer approves in the `production` GitHub Environment.
+- Provider credentials and deploy keys live as secrets in the `uat` and `production` GitHub Environments and are written to the host's environment at deploy time, never into the image. UAT runs real providers (product-owner decision), so it gets its own provider keys wherever a provider allows more than one, which keeps UAT spend visible separately from production.
 
 *Alternatives:* Cloudflare-native builds (rejected for the backend: Pages builds cover only the frontend); a self-hosted CI (rejected: more to operate, nothing gained).
 
@@ -118,7 +118,7 @@ The spike does not change product code. The proof-of-concept image works around 
 - configurable `FFMPEG_PATH`/`FFPROBE_PATH`, defaulting to the binaries on `PATH`;
 - a frontend API base that fits multiple environments;
 - CORS restricted to the environment's origin, if F1 is chosen;
-- production refusing to start with `ALLOW_TEST_ENDPOINTS` or any `USE_STUB_*` set.
+- a hosted backend (UAT or production) refusing to start with `ALLOW_TEST_ENDPOINTS` or any `USE_STUB_*` set.
 
 *Alternatives:* fixing them inside this change (rejected: it mixes a spike with product changes and skips their TDD cycle; each fix is small but deserves its own failing test first).
 
@@ -130,7 +130,7 @@ Anything beyond this (metrics, tracing, a log platform) is recorded as optional 
 *Alternatives:* adopting a hosted log or metrics service now (rejected: a single-user tool with one process does not yet have the volume or the on-call rotation that would justify it).
 
 **Decision 12 — The proof of concept is throwaway and lives inside this change.**
-The Dockerfile, the Terraform sketch, the workflow sketch and the run notes go under `openspec/changes/define-production-deployment/poc/`. The proof of concept uses a temporary hostname, a test Access policy and stubbed providers. Every paid or account-level resource it creates is listed and torn down at the end of the timebox, unless the follow-up stories adopt it explicitly.
+The Dockerfile, the Terraform sketch, the workflow sketch and the run notes go under `openspec/changes/define-production-deployment/poc/`. The proof of concept uses a temporary hostname and the same Access policy as the real environments. Its restart, redeploy and idle experiments run on stubbed providers, so they are repeatable and cheap. One extra session runs on real providers, to prove that secrets reach the container and that real ffmpeg assembly works on Linux (UAT will do the same on every run, with no spending cap per product-owner decision). Every paid or account-level resource it creates is listed and torn down at the end of the timebox, unless the follow-up stories adopt it explicitly.
 *Alternatives:* building the real pipeline directly (rejected: it commits to a platform before the evidence exists, and it would ship before the PRD change is approved).
 
 **Decision 13 — Record the decision in ADR 0007 unconditionally.**
@@ -143,7 +143,8 @@ Every later deployment story and every future maintainer depends on this choice,
 - **Access breaks the SSE stream or the downloads** → Covered by Decision 3. Under F2 everything is same-origin, so the Access cookie travels with both. Under F1 it must be shown working cross-origin in the proof of concept, or F1 loses.
 - **The single VM is a single point of failure** → Accepted for a single-user MVP. Backups bound the data loss, and Terraform plus a restore bound the recovery time. Both are measured and recorded, not promised.
 - **The backup copies a half-written SQLite file** → Use SQLite's online backup only, and prove it with the restore drill.
-- **UAT on real providers costs money on every test run** → Recorded as an open question. The default is stubs in UAT, with real providers enabled per test campaign.
+- **UAT on real providers costs money on every run, with no cap** → Accepted by the product owner. Separate UAT keys where possible keep the spend attributable, and the ADR records which providers cannot separate it.
+- **Main is merged with content UAT never ran** → The production job finds no image for that tree and fails closed (Decision 7). The fix is to bring that content through UAT first, never to build for production.
 - **Uploads hit an edge body-size limit before Fastify's 50 MB one** → Check the plan's request-size limit and record which limit a user would meet first.
 - **The proof of concept passes only because of the ffmpeg symlink or a stub** → Name every such stand-in in the evidence report, the same discipline earlier spikes used.
 - **Cloudflare Containers' capabilities change quickly** → Evaluate option B against the documentation current on the evaluation date and record that date in the ADR.
@@ -163,8 +164,18 @@ Rollback of a deploy is redeploying the previous image digest. A schema migratio
 
 ## Open Questions
 
-1. **Where does `uat` branch from?** MVP work integrates into `feature/entrega-2-JAME`, not `main`. Either `entrega-2` is merged into `main` first and `uat` is cut from `main`, or `uat` is cut from `entrega-2` now. This needs the product owner's call.
+1. ~~Where does `uat` branch from?~~ **Answered:** no `uat` branch; UAT = `feature/entrega-2-JAME`, production = `main` (Decision 7).
 2. **Which domain is used?** Is a domain already managed in the Cloudflare account, and which hostnames should UAT and production use?
-3. **Who is on the Access allowlist** for UAT and for production, and is one-time PIN by email enough, or is an identity provider required?
-4. **Does UAT use real providers?** And if so, under what budget?
-5. **What monthly budget is acceptable** for two environments? This decides between options A and B as much as the technical fit does.
+3. ~~Who is on the Access allowlist?~~ **Answered:** the product owner's address only, for both environments; one-time PIN by email (Decision 4).
+4. ~~Does UAT use real providers?~~ **Answered:** yes, with no spending cap for now.
+5. **What monthly budget is acceptable** for the hosting itself (not provider spend)? This decides between options A and B as much as the technical fit does.
+
+## Execution Record
+
+### §1 — Product-owner answers (2026-10-12)
+
+- Environments: always exactly two, UAT and production. UAT deploys from `feature/entrega-2-JAME`, production from `main`. The mapping may change in the future, so it is declared in one place.
+- Git state at the time of the answer: `main` is 0 commits ahead of and 439 commits behind `feature/entrega-2-JAME`, so the first promotion can be a fast-forward.
+- Access allowlist: one address, the product owner's, for both environments.
+- Providers: UAT calls the real providers; no spending cap for now.
+- Still open: domain/hostnames (question 2) and hosting budget (question 5).

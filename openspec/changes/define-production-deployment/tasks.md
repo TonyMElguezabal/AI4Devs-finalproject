@@ -11,7 +11,7 @@ The backend stack, the store, the live-update mechanism and the single-process o
 
 ## 1. Gate: Collect the inputs and the product owner's answers
 
-- [ ] 1.1 Ask the product owner the design's open questions 1–5 (base of `uat`, domain and hostnames, Access allowlist and login method, real providers in UAT, monthly budget) and record the answers in `design.md` § Execution Record §1
+- [ ] 1.1 Ask the product owner the design's open questions 1–5 and record the answers in `design.md` § Execution Record §1 — partial (2026-10-12): environments, allowlist and UAT providers answered; domain/hostnames (2) and hosting budget (5) still open
 - [ ] 1.2 Re-verify against the current code every constraint listed in `design.md` § Context (env vars, credentials, ffmpeg paths, SSE route, `/health`, CORS, body limit) and record any drift
 - [ ] 1.3 Confirm whether the stubbed voice and video providers produce media the real ffmpeg assembly can decode, so the proof of concept knows whether assembly is exercised for real or must be recorded as a stand-in
 - [ ] 1.4 Record what is still undecided at this point, so later conclusions can be traced to what was known
@@ -37,9 +37,9 @@ The backend stack, the store, the live-update mechanism and the single-process o
 
 ## 5. Define the environment and delivery model
 
-- [ ] 5.1 Write down the branch flow (integration branch → `uat` → fast-forward to `main`) and the promotion-by-digest rule (design Decision 7), using the answer from 1.1
-- [ ] 5.2 Define the CI jobs: PR checks with temporary `DB_PATH`/`PROJECTS_ROOT` and no `.secrets.json`, build-once-per-SHA, UAT deploy, approval-gated production deploy (design Decision 8)
-- [ ] 5.3 Define the secret inventory per environment (provider keys, deploy credentials, Tunnel token, Terraform credentials) and where each one lives
+- [ ] 5.1 Write down the branch flow (feature branches → `feature/entrega-2-JAME` = UAT → `main` = production), where the branch-to-environment mapping is declared once, and the promotion-by-source-tree rule with its fail-closed check (design Decision 7)
+- [ ] 5.2 Define the CI jobs: PR checks with temporary `DB_PATH`/`PROJECTS_ROOT` and no `.secrets.json`, build-once-per-tree, UAT deploy on push to the UAT branch, approval-gated production deploy on push to `main` (design Decision 8)
+- [ ] 5.3 Define the secret inventory per environment (provider keys, deploy credentials, Tunnel token, Terraform credentials) and where each one lives; record per provider whether UAT can have its own key so UAT spend stays separate
 - [ ] 5.4 Define the Terraform layout: resources per environment, provider(s), remote state location, how secret values are passed (design Decision 9)
 - [ ] 5.5 Define backup schedule, method (SQLite online backup + incremental project-file sync), target bucket, and the recovery-point bound it implies (design Decision 6)
 - [ ] 5.6 Define the health check, log retention and uptime alert (design Decision 11)
@@ -48,7 +48,7 @@ The backend stack, the store, the live-update mechanism and the single-process o
 
 - [ ] 6.1 Write `poc/Dockerfile`: pinned Node version matching the project, ffmpeg/ffprobe from the distribution linked to the paths the code expects, frontend build included if F2 was chosen; record every workaround as a stand-in
 - [ ] 6.2 Build and run the image locally with a mounted volume for `DB_PATH`/`PROJECTS_ROOT` and `USE_STUB_*` enabled; confirm `/health` answers
-- [ ] 6.3 Write the Terraform sketch under `poc/terraform/` for the chosen option on a temporary hostname, including the Access application and a test policy
+- [ ] 6.3 Write the Terraform sketch under `poc/terraform/` for the chosen option on a temporary hostname, including the Access application and the real allowlist policy (product owner's address, one-time PIN)
 - [ ] 6.4 Apply it and deploy the image; list every created resource in `poc/RESOURCES.md` with its cost
 - [ ] 6.5 Write the workflow sketch under `poc/workflows/` (not under `.github/workflows/`, so nothing runs on the shared repository yet)
 - [ ] 6.6 Run the backup once and restore into an empty volume; record duration and what was recovered
@@ -60,9 +60,11 @@ The backend stack, the store, the live-update mechanism and the single-process o
 - [ ] 7.3 SSE through the edge: confirm live updates arrive without reload, then hold a quiet stretch longer than the edge's documented idle timeout and confirm the page is still current
 - [ ] 7.4 Restart: restart the backend mid-session and confirm the session finishes with no data lost and the page recovers on its own
 - [ ] 7.5 Redeploy: deploy a new image mid-session using stop-then-start and confirm no two backend processes ran at once and the session resumes
-- [ ] 7.6 Body limit: record which request-size limit (edge or Fastify's 50 MB) a large script hits first
-- [ ] 7.7 Record every outcome in `reports/YYYY-MM-DD-step-7-poc-experiments.md`, failures included, naming every observation that relied on a stand-in
-- [ ] 7.8 If a must-pass gate fails, stop and move to the runner-up option from 3.5 rather than continuing on paper
+- [ ] 7.6 Real providers: run one short session with every `USE_STUB_*` off and credentials injected as secrets; confirm it reaches the final video through real ffmpeg on Linux and that no credential appears in logs or the image
+- [ ] 7.7 Promotion check: simulate a merge into a scratch copy of `main` and confirm its tree hash finds the UAT-recorded image; then add an extra commit and confirm the lookup fails closed
+- [ ] 7.8 Body limit: record which request-size limit (edge or Fastify's 50 MB) a large script hits first
+- [ ] 7.9 Record every outcome in `reports/YYYY-MM-DD-step-7-poc-experiments.md`, failures included, naming every observation that relied on a stand-in
+- [ ] 7.10 If a must-pass gate fails, stop and move to the runner-up option from 3.5 rather than continuing on paper
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
@@ -101,7 +103,7 @@ The backend stack, the store, the live-update mechanism and the single-process o
 - [ ] 12.1 Write `docs/adr/0007-deployment.md`: gates, scored options, decision, rejected alternatives with reasons, cost per environment, evaluation date, risks
 - [ ] 12.2 Add a deployment section to `docs/backend-standards.md` (single instance, stop-then-start, storage, backups, configuration safety)
 - [ ] 12.3 Add a deployment section to `docs/frontend-standards.md` (placement, API base, same-origin or CORS)
-- [ ] 12.4 Rewrite `docs/development_guide.md` around the real local setup and the integration → `uat` → `main` flow, removing the stale setup of an unrelated earlier project
+- [ ] 12.4 Rewrite `docs/development_guide.md` around the real local setup and the `feature/entrega-2-JAME` (UAT) → `main` (production) flow, removing the stale setup of an unrelated earlier project
 - [ ] 12.5 Check the three documents name the same decision and do not contradict ADRs 0001–0006
 
 ## 13. Close the spike
@@ -109,4 +111,3 @@ The backend stack, the store, the live-update mechanism and the single-process o
 - [ ] 13.1 Write the follow-up stories with acceptance criteria, each naming the `deployment-foundation` requirement it satisfies: configurable ffmpeg/ffprobe + production Dockerfile; frontend API base / static serving; production start guards; Terraform UAT; CI + UAT deploy; backup and restore; Terraform production + gated promotion; health and alerting
 - [ ] 13.2 Tear down every resource in `poc/RESOURCES.md` not explicitly adopted by a follow-up story, and record the teardown
 - [ ] 13.3 Comment on JOS-194 with the decision, the ADR link and the follow-up story list
-- [ ] 13.4 Create the `uat` branch from the base agreed in 1.1 (only after the answer exists; never guessed)
