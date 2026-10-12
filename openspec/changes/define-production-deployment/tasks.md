@@ -12,44 +12,44 @@ The backend stack, the store, the live-update mechanism and the single-process o
 ## 1. Gate: Collect the inputs and the product owner's answers
 
 - [x] 1.1 Ask the product owner the design's open questions 1–5 and record the answers in `design.md` § Execution Record §1 — done (2026-10-12): all five answered; only the domain name itself remains, tracked in 1.5
-- [ ] 1.2 Re-verify against the current code every constraint listed in `design.md` § Context (env vars, credentials, ffmpeg paths, SSE route, `/health`, CORS, body limit) and record any drift
-- [ ] 1.3 Confirm whether the stubbed voice and video providers produce media the real ffmpeg assembly can decode, so the proof of concept knows whether assembly is exercised for real or must be recorded as a stand-in
-- [ ] 1.4 Record what is still undecided at this point, so later conclusions can be traced to what was known
+- [x] 1.2 Re-verify against the current code every constraint listed in `design.md` § Context (env vars, credentials, ffmpeg paths, SSE route, `/health`, CORS, body limit) and record any drift — done: constraints hold; four new findings (assembly tool never wired, loopback-only listen, truthy test flags, SSE echoes Origin) recorded in `design.md` § Execution Record §1.2
+- [x] 1.3 Confirm whether the stubbed voice and video providers produce media the real ffmpeg assembly can decode, so the proof of concept knows whether assembly is exercised for real or must be recorded as a stand-in — done: **no** (stub video is a 12-byte `ftyp` header, stub assembly writes no file); recorded in § Execution Record §1.3
+- [x] 1.4 Record what is still undecided at this point, so later conclusions can be traced to what was known — done: § Execution Record §1.4
 - [x] 1.5 Get the domain name from the product owner, have them register it through Cloudflare Registrar (a manual purchase they approve; never bought by the agent), and record the zone and hostnames (design Decision 9b) — done: `vid4you.download` registered 2026-10-12 via Cloudflare; production = apex, UAT = `uat.vid4you.download`, PoC = `poc.vid4you.download`
 
 ## 2. Product: Draft the access change
 
-- [ ] 2.1 Draft the PRD text for §2.3, §12.3 and D07 that permits a hosted single-user install behind an edge access gate (design Decision 4), as a proposed change with a changelog row
+- [x] 2.1 Draft the PRD text for §2.3, §12.3 and D07 that permits a hosted single-user install behind an edge access gate (design Decision 4), as a proposed change with a changelog row — done: `prd-draft.md` (also covers §12.2 and the §2.1/§11 credentials wording; `docs/PRD.md` untouched)
 - [ ] 2.2 Submit the draft to the product owner and record the outcome; if not approved by the end of the timebox, mark every production-publishing follow-up story as blocked on it
 
 ## 3. Evaluate the backend options
 
-- [ ] 3.1 Check options A–D against gates G1–G6 (design Decision 1), citing current Cloudflare and provider documentation with its retrieval date; eliminate any option failing a gate and record which gate and why
-- [ ] 3.2 For option B, establish from current documentation whether container disk survives restarts and deploys, whether an instance can be kept running through a long session, and whether SSE responses stream; record each as a fact with its source
-- [ ] 3.3 Score the survivors against the weighted criteria (durability and backup 30%, code change 25%, deploy/rollback/same artifact 25%, operational load 20%; cost is not scored per product-owner decision)
-- [ ] 3.4 Estimate monthly cost per environment for each survivor, listing every billable component, for information only
-- [ ] 3.5 Select the leading option and record the runner-up as the documented fallback
+- [x] 3.1 Check options A–D against gates G1–G6 (design Decision 1), citing current Cloudflare and provider documentation with its retrieval date; eliminate any option failing a gate and record which gate and why — done: five options against seven gates (G7 added from the ticket wording); B eliminated at G2, C at G4, D dominated by A; table in `design.md` § Execution Record §3
+- [x] 3.2 For option B, establish from current documentation whether container disk survives restarts and deploys, whether an instance can be kept running through a long session, and whether SSE responses stream; record each as a fact with its source — done: disk ephemeral, snapshots manual/beta, no pinning, SIGTERM + 15 min, SSE not documented; sources in § Execution Record §3
+- [x] 3.3 Score the survivors against the weighted criteria (durability and backup 30%, code change 25%, deploy/rollback/same artifact 25%, operational load 20%; cost is not scored per product-owner decision) — done: A 7.40, B+ 6.70 (evaluator scores, B+ durability to be revised after the PoC)
+- [x] 3.4 Estimate monthly cost per environment for each survivor, listing every billable component, for information only — done: ≈$40–45 per environment per month if never sleeping (Containers); VM and domain renewal not researched
+- [x] 3.5 Select the leading option and record the runner-up as the documented fallback — done: leading B+ (only option passing every gate incl. G7, conditional on three unknowns); fallback A (needs G7 waived by the product owner)
 
 ## 4. Evaluate the frontend placement
 
-- [ ] 4.1 Compare F1 (Pages + separate API hostname) and F2 (backend serves the built frontend, API under `/api` on the same origin) on: same-artifact promotion, CORS, Access across origins, SSE cookie behaviour, moving parts (design Decision 3)
-- [ ] 4.2 Check whether F1 can route `/api/*` on the Pages hostname to the backend, and what that adds
-- [ ] 4.3 Select the placement and record what each follow-up story must change as a result (API base, static route or CORS)
+- [x] 4.1 Compare F1 (Pages + separate API hostname) and F2 (backend serves the built frontend, API under `/api` on the same origin) on: same-artifact promotion, CORS, Access across origins, SSE cookie behaviour, moving parts (design Decision 3) — done: F1/F2/F3 compared in § Execution Record §4
+- [x] 4.2 Check whether F1 can route `/api/*` on the Pages hostname to the backend, and what that adds — done: answered by F3 — a Worker in front of the backend routes `/api/*` on the same hostname, no Pages needed for the API
+- [x] 4.3 Select the placement and record what each follow-up story must change as a result (API base, static route or CORS) — done: F3 under B+ (F2 under A); `VITE_API_BASE` becomes `/api`; no product code serves files
 
 ## 5. Define the environment and delivery model
 
-- [ ] 5.1 Write down the branch flow (feature branches → `feature/entrega-2-JAME` = UAT → `main` = production), where the branch-to-environment mapping is declared once, and the promotion-by-source-tree rule with its fail-closed check (design Decision 7)
-- [ ] 5.2 Define the CI jobs: PR checks with temporary `DB_PATH`/`PROJECTS_ROOT` and no `.secrets.json`, build-once-per-tree, UAT deploy on push to the UAT branch, approval-gated production deploy on push to `main` (design Decision 8)
-- [ ] 5.3 Define the secret inventory per environment (provider keys, deploy credentials, Tunnel token, Terraform credentials) and where each one lives; record per provider whether UAT can have its own key so UAT spend stays separate
-- [ ] 5.4 Define the Terraform layout: resources per environment, provider(s), remote state location, how secret values are passed (design Decision 9)
-- [ ] 5.5 Define backup schedule, method (SQLite online backup + incremental project-file sync), target bucket, and the recovery-point bound it implies (design Decision 6)
-- [ ] 5.6 Define the health check, log retention and uptime alert (design Decision 11)
+- [x] 5.1 Write down the branch flow (feature branches → `feature/entrega-2-JAME` = UAT → `main` = production), where the branch-to-environment mapping is declared once, and the promotion-by-source-tree rule with its fail-closed check (design Decision 7) — done: § Execution Record §5.1
+- [x] 5.2 Define the CI jobs: PR checks with temporary `DB_PATH`/`PROJECTS_ROOT` and no `.secrets.json`, build-once-per-tree, UAT deploy on push to the UAT branch, approval-gated production deploy on push to `main` (design Decision 8) — done: § Execution Record §5.2; promotion by existing image reference to be verified in the PoC
+- [x] 5.3 Define the secret inventory per environment (provider keys, deploy credentials, Tunnel token, Terraform credentials) and where each one lives; record per provider whether UAT can have its own key so UAT spend stays separate — done: § Execution Record §5.3; separate UAT keys for ElevenLabs/fal/RunningHub to be checked in each console
+- [x] 5.4 Define the Terraform layout: resources per environment, provider(s), remote state location, how secret values are passed (design Decision 9) — done: § Execution Record §5.4 (Terraform for surrounding resources, Wrangler for Worker + container)
+- [x] 5.5 Define backup schedule, method (SQLite online backup + incremental project-file sync), target bucket, and the recovery-point bound it implies (design Decision 6) — done: § Execution Record §5.5
+- [x] 5.6 Define the health check, log retention and uptime alert (design Decision 11) — done: § Execution Record §5.6
 
 ## 6. Build the proof of concept (throwaway, under `poc/`)
 
-- [ ] 6.1 Write `poc/Dockerfile`: pinned Node version matching the project, ffmpeg/ffprobe from the distribution linked to the paths the code expects, frontend build included if F2 was chosen; record every workaround as a stand-in
+- [ ] 6.1 Write `poc/Dockerfile` for the leading option B+: pinned Node version matching the project, ffmpeg/ffprobe from the distribution linked to the paths the code expects, Litestream, FUSE and `tigrisfs`, and an entrypoint that restores the database from R2 before starting the server; the frontend is **not** in the image (F3 serves it from the Worker); record every workaround as a stand-in; add `poc/preload.ts`, loaded with `node --import`, that registers the real ffmpeg assembly adapter plus the stub decomposition, image, voice and video providers (video stub returning a small real MP4 generated by ffmpeg at image build), because the server wires none of these without a stub flag (design § Execution Record §1.2–1.3)
 - [ ] 6.2 Build and run the image locally with a mounted volume for `DB_PATH`/`PROJECTS_ROOT` and `USE_STUB_*` enabled; confirm `/health` answers
-- [ ] 6.3 Write the Terraform sketch under `poc/terraform/` for the chosen option on the temporary hostname `poc.vid4you.download` from 1.5 (importing the existing zone, not creating it), including the Access application and the real allowlist policy (product owner's address, one-time PIN)
+- [ ] 6.3 Write the Worker (static assets, `/api` proxy with prefix stripped, a `Container` subclass with a `schedule()`-based keep-alive that calls `renewActivityTimeout()`) under `poc/worker/`, and the Terraform sketch under `poc/terraform/` for the chosen option on the temporary hostname `poc.vid4you.download` from 1.5 (importing the existing zone, not creating it), including the Access application and the real allowlist policy (product owner's address, one-time PIN)
 - [ ] 6.4 Apply it and deploy the image; list every created resource in `poc/RESOURCES.md` with its cost
 - [ ] 6.5 Write the workflow sketch under `poc/workflows/` (not under `.github/workflows/`, so nothing runs on the shared repository yet)
 - [ ] 6.6 Run the backup once and restore into an empty volume; record duration and what was recovered
@@ -66,6 +66,7 @@ The backend stack, the store, the live-update mechanism and the single-process o
 - [ ] 7.8 Body limit: record which request-size limit (edge or Fastify's 50 MB) a large script hits first
 - [ ] 7.9 Record every outcome in `reports/YYYY-MM-DD-step-7-poc-experiments.md`, failures included, naming every observation that relied on a stand-in
 - [ ] 7.10 If a must-pass gate fails, stop and move to the runner-up option from 3.5 rather than continuing on paper
+- [ ] 7.11 Unattended progress: start a stubbed session, close every browser, wait longer than `sleepAfter`, and confirm the session kept progressing (keep-alive works) and whether an open SSE stream alone counts as activity; record in the 7.9 report (design § Execution Record §3, unknown 1)
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
@@ -109,6 +110,6 @@ The backend stack, the store, the live-update mechanism and the single-process o
 
 ## 13. Close the spike
 
-- [ ] 13.1 Write the follow-up stories with acceptance criteria, each naming the `deployment-foundation` requirement it satisfies: configurable ffmpeg/ffprobe + production Dockerfile; frontend API base / static serving; production start guards; Terraform UAT; CI + UAT deploy; backup and restore; Terraform production + gated promotion; health and alerting
+- [ ] 13.1 Write the follow-up stories with acceptance criteria, each naming the `deployment-foundation` requirement it satisfies: wire the real ffmpeg assembly tool at server bootstrap (blocker: no deployed environment can assemble without it); configurable ffmpeg/ffprobe paths + production Dockerfile; configurable listen `HOST`; frontend API base / static serving; CORS and SSE origin restriction; start guards that reject any `ALLOW_TEST_ENDPOINTS`/`USE_STUB_*` variable that is present; Terraform UAT; CI + UAT deploy; backup and restore; Terraform production + gated promotion; health and alerting
 - [ ] 13.2 Tear down every resource in `poc/RESOURCES.md` not explicitly adopted by a follow-up story, and record the teardown
 - [ ] 13.3 Comment on JOS-194 with the decision, the ADR link and the follow-up story list

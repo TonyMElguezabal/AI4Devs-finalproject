@@ -42,7 +42,7 @@ The application SHALL NOT be reachable outside a local environment until the pro
 
 ### Requirement: Exactly one backend instance per environment
 
-Each environment SHALL run exactly one backend process at a time. The platform SHALL NOT scale the backend horizontally, and SHALL NOT stop it while a session is processing. A deploy SHALL stop the old process before the new one starts processing sessions, and the new process SHALL rely on the existing boot-time reconciliation to resume work.
+Each environment SHALL run exactly one backend process at a time. The platform SHALL NOT scale the backend horizontally. The deploy process SHALL NOT start a second process against the same store, and SHALL stop the old process before the new one starts processing sessions. The backend SHALL keep processing sessions while no browser is connected. A restart, whether caused by a deploy or by the platform, SHALL leave every session resumable: the new process SHALL rely on the existing boot-time reconciliation to resume work, and the data lost across the restart SHALL stay within the recovery bound recorded in the ADR.
 
 #### Scenario: Load increases
 
@@ -55,6 +55,17 @@ Each environment SHALL run exactly one backend process at a time. The platform S
 - **WHEN** a new version is deployed while a session is processing
 - **THEN** at no point do two backend processes process sessions against the same store
 - **AND** the session resumes after the new process starts, without user action
+
+#### Scenario: The platform restarts the backend
+
+- **WHEN** the platform stops and restarts the backend without a deploy
+- **THEN** every session resumes from its persisted state without user action
+- **AND** anything lost is within the recorded recovery bound
+
+#### Scenario: Nobody is watching
+
+- **WHEN** a session is processing and no browser has the page open for longer than the platform's inactivity timeout
+- **THEN** the session keeps progressing and reaches its next state without a request arriving
 
 ### Requirement: Durable and recoverable storage
 

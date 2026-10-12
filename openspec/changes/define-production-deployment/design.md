@@ -41,18 +41,20 @@ There is no CI today (`.github/` holds only agent prompts), and `docs/developmen
 
 **Decision 1 — Set the must-pass gates before comparing platforms.**
 An option is only scored if it can meet all of these:
-- (G1) exactly one long-lived backend process that is not stopped while a session is processing;
+- (G1) exactly one backend process at a time, and a deploy never interrupts a processing session without the boot-time resume. A platform-initiated restart is tolerated, because the application resumes from persisted state (PRD §12.1, `reconcileOnBoot`), but only together with G2;
 - (G2) durable storage for `DB_PATH` and `PROJECTS_ROOT` that survives a restart, a redeploy and a host replacement (the last one via backup);
 - (G3) long-lived SSE responses through the edge;
 - (G4) a Linux runtime with ffmpeg/ffprobe and Node ≥ 22.5;
 - (G5) an access gate covering both the page and the API;
-- (G6) per-environment secrets kept out of the image.
+- (G6) per-environment secrets kept out of the image;
+- (G7) the backend runs in the Cloudflare account, because the ticket asks to "deploy the application in dash.cloudflare.com and consider this the production environment". Compute that only sits behind Cloudflare's edge does not satisfy it. The product owner may waive this gate; the evaluation records which options depend on the waiver.
 
 *Alternatives:* scoring the options on general merits (rejected: the platforms differ mostly in exactly these properties, so leaving them implicit hides the deciding facts); treating the ticket's "containers, Kubernetes" as the shortlist (rejected: the ticket asks which option is best, not which of those two).
 
-**Decision 2 — Evaluate four backend options and score the survivors.**
-- **A — Cloudflare Tunnel to one container host with a persistent volume.** The backend runs as a single container on a small VM. `cloudflared` publishes it without opening inbound ports. Cloudflare provides DNS, TLS, Access and the edge.
-- **B — Cloudflare Containers.** The backend image runs on Cloudflare's container runtime behind a Worker or Durable Object.
+**Decision 2 — Evaluate five backend options and score the survivors.**
+- **A — Cloudflare Tunnel to one container host with a persistent volume.** The backend runs as a single container on a small VM. `cloudflared` publishes it without opening inbound ports. Cloudflare provides DNS, TLS, Access and the edge, but the VM is outside Cloudflare (fails G7 unless waived).
+- **B — Cloudflare Containers, as is.** The backend image runs on Cloudflare's container runtime behind a Worker or Durable Object, on the instance's own disk.
+- **B+ — Cloudflare Containers with externalised state.** As B, but the SQLite file is replicated to R2 by Litestream and restored at boot, and `PROJECTS_ROOT` is an R2 bucket mounted through FUSE (Cloudflare's documented `tigrisfs` pattern). A Durable-Object-side keep-alive stops the instance sleeping while work is in flight.
 - **C — Workers-native rewrite.** Hono on Workers, D1 for the store, R2 for media, Durable Objects or Workflows for orchestration and timers.
 - **D — Kubernetes**, any managed offering, with a StatefulSet of one replica and a persistent volume claim.
 
@@ -64,13 +66,14 @@ Weighted criteria for the options that pass the gates:
 
 Cost is not a criterion for now (product-owner decision, § Execution Record §1). The monthly estimate per environment is still recorded in the ADR for information, so that a later budget limit can re-score the options without redoing the research.
 
-*Hypothesis, to be confirmed or overturned by the evaluation:* A leads. It needs the least code change and keeps the store on a real disk. B's fit depends on whether its disk is durable across restarts and deploys and whether an instance can be kept running through a long session. Both are checked against current Cloudflare documentation, not assumed. C fails the "MVP is done" premise: it rewrites persistence, orchestration and timers. D meets the gates but brings a control plane, manifests and cluster upgrades for one process, so it is expected to lose on operational load.
-*Alternatives:* deciding on A without scoring (rejected: the ticket asks for the best option with evidence, and B is Cloudflare-native enough that dismissing it unexamined would be a preference, not a finding).
+*Hypothesis (initial, superseded by § Execution Record §3):* A leads, because it needs the least code change and keeps the store on a real disk. The evaluation overturned the premise that A is the whole answer: A fails G7, and B fails G2 on its own, which is why B+ was added as a fifth option.
+*Alternatives:* deciding on A without scoring (rejected: the ticket asks for the best option with evidence, and Cloudflare-native options are close enough to the ticket's wording that dismissing them unexamined would be a preference, not a finding).
 
 **Decision 3 — Evaluate the frontend placement separately: Pages, or served by the backend.**
-Two placements are compared.
+Three placements are compared.
 - **(F1)** Cloudflare Pages hosts the static build, and the API is reached at a separate hostname.
 - **(F2)** The backend serves the built frontend itself, so each environment is one image on one hostname, with the API under `/api` on the same origin.
+- **(F3)** One Worker per environment serves the static build as Workers static assets and forwards `/api/*` (prefix stripped) to the backend, so there is one hostname and one origin without any product code serving files. Only available where a Worker fronts the backend (options B and B+).
 
 F2 removes cross-origin requests entirely: CORS becomes unnecessary, the SSE stream carries the Access cookie without `withCredentials`, and one Access application covers everything. The frontend build no longer depends on the environment (a relative API base), and UAT and production run literally the same artifact. The cost is a static-file route in the backend and the loss of Pages' CDN for static assets, which matters little for a single-user tool.
 *To verify in the evaluation:* whether F1 can route `/api/*` on the Pages hostname to the backend (for example through a Worker route) to get the same-origin benefits, and what that adds in moving parts.
@@ -82,6 +85,8 @@ Each environment's hostname or hostnames sit behind a Cloudflare Access applicat
 
 **Decision 5 — One backend instance, deployed by stop-then-start.**
 Each environment runs exactly one backend container. A deploy stops the old container (giving in-flight requests a short grace period), then starts the new one. On boot, `reconcileOnBoot` resumes in-flight work, and open pages reconnect and resync through the ADR 0003 rule. A downtime of a few seconds per deploy is accepted.
+
+Platform-initiated restarts are accepted for the same reason: Cloudflare Containers states that it "does not guarantee that any container instance will run for a set period" and that host restarts happen "on an irregular cadence", and the application was built to resume (PRD §12.1). What the platform restart must not do is lose the store, which is G2's job. Where the platform sleeps idle instances, an explicit keep-alive must count in-flight background work as activity, because the backend progresses sessions with no incoming request.
 *Alternatives:* rolling or blue-green deploys (rejected: two processes against one SQLite file would run two orchestrators, two retry schedulers and two concurrency caps at once, which breaks the single-instance assumption that `define-backend-stack` and the restart-safe concurrency spec rest on); auto-scaling (rejected for the same reason).
 
 **Decision 6 — Store data on a host volume and back it up off-host.**
@@ -125,11 +130,19 @@ Buying the domain was a one-off manual step, because Terraform does not purchase
 *Alternatives:* free platform subdomains only (`*.pages.dev`, `*.workers.dev`) (rejected for production: the address would be tied to one platform choice, and changing platforms would change the URL); a domain bought from another registrar (works, but adds a nameserver hand-over step and a second account to manage).
 
 **Decision 10 — Close configuration gaps through follow-up stories, and work around them in the proof of concept.**
-The spike does not change product code. The proof-of-concept image works around the hard-coded ffmpeg paths by linking the distribution's ffmpeg/ffprobe to `/opt/homebrew/bin/`. It sets `VITE_API_BASE` (or uses F2's relative base) at build time. The real fixes become follow-up stories:
+The spike does not change product code. The proof-of-concept image works around each gap without editing `backend/src`:
+- the hard-coded ffmpeg paths, by linking the distribution's ffmpeg/ffprobe to `/opt/homebrew/bin/`;
+- the missing assembly wiring, by a preload module (`node --import poc/preload.ts src/server.ts`) that registers the real ffmpeg adapter and any stub providers before the server starts;
+- the loopback-only listen address, by running the Tunnel connector in the same network namespace as the backend (or, if that is not possible, by a preload that patches the listen call; recorded as a stand-in);
+- `VITE_API_BASE`, by setting it at build time (or using F2's relative base).
+
+The real fixes become follow-up stories:
+- **wire the real assembly tool at bootstrap**: `createFfmpegAssemblyTool()` is exported but never called, so without a stub flag every session fails at assembly with "no assembly tool is configured" (finding §1.2);
 - configurable `FFMPEG_PATH`/`FFPROBE_PATH`, defaulting to the binaries on `PATH`;
+- a `HOST` setting for the listen address (default `127.0.0.1`), because the backend binds loopback only;
 - a frontend API base that fits multiple environments;
-- CORS restricted to the environment's origin, if F1 is chosen;
-- a hosted backend (UAT or production) refusing to start with `ALLOW_TEST_ENDPOINTS` or any `USE_STUB_*` set.
+- CORS restricted to the environment's origin, and the SSE route using the same check, because it echoes any request `Origin` into `Access-Control-Allow-Origin` and so ignores the CORS plugin;
+- a hosted backend (UAT or production) refusing to start when `ALLOW_TEST_ENDPOINTS` or any `USE_STUB_*` variable is **present**, whatever its value: today any non-empty value enables them, including `false` and `0`, and an unrecognised `USE_STUB_VIDEO_PROVIDER` value silently activates the `transient-failure` stub.
 
 *Alternatives:* fixing them inside this change (rejected: it mixes a spike with product changes and skips their TDD cycle; each fix is small but deserves its own failing test first).
 
@@ -192,3 +205,139 @@ Rollback of a deploy is redeploying the previous image digest. A schema migratio
 - Domain: `vid4you.download`, registered by the product owner through Cloudflare Registrar on 2026-10-12 (whois: registrar Cloudflare, nameservers `konnor`/`maeve.ns.cloudflare.com`). Production on the apex, UAT on `uat.vid4you.download`, proof of concept on `poc.vid4you.download` (Decision 9b).
 - Hosting cost: not a concern for now; removed from the scoring weights.
 - Nothing still open from the product owner.
+
+### §1.2 — Constraints re-verified against the code (base `2fa63dc`, 2026-10-12)
+
+Confirmed unchanged from § Context: environment variables (`PORT`, `DB_PATH`, `PROJECTS_ROOT`, `BODY_LIMIT_BYTES`, `STAGE_CONCURRENCY_LIMIT`, `RETRY_*`, `ALLOW_TEST_ENDPOINTS`, `USE_STUB_*`, `ASSEMBLY_STUB_DELAY_MS`); credentials via `loadCredential` (env wins over `.secrets.json`); `GET /health`; SSE at `GET /events` with a 15 s heartbeat; `@fastify/cors` with `origin: true`; 50 MB body limit; ffmpeg/ffprobe at `/opt/homebrew/bin/`; `DB_PATH` and `PROJECTS_ROOT` default to paths relative to the working directory (`data/skeleton.sqlite`, `data/projects`), so a container must set both explicitly.
+
+**New findings, not in § Context:**
+
+1. **The real assembly tool is never wired.** `createFfmpegAssemblyTool()` (`ffmpegAssemblyTool.ts:26`) has no caller. `server.ts` calls `setAssemblyTool` only when `USE_STUB_ASSEMBLY_TOOL` is set; otherwise `getAssemblyTool()` returns `undefined` and assembly records the failure "no assembly tool is configured". `git log -S` finds only the commit that added the adapter, and no remote branch (`entrega-2`, `main`, the JOS-159 and JOS-164 branches) calls it. As the code stands, **no deployed environment can produce a final video**. This is the largest gap the spike found, and it is a story of its own, not a configuration tweak.
+2. **The server listens on `127.0.0.1` only** (`server.ts:134`; there is no `HOST` setting). A container with a published port cannot be reached; a Tunnel connector in the same network namespace can.
+3. **`ALLOW_TEST_ENDPOINTS` is truthiness-checked** (`routes.ts:599`): `ALLOW_TEST_ENDPOINTS=false` enables the test endpoints. The same holds for every `USE_STUB_*` flag, and an unknown `USE_STUB_VIDEO_PROVIDER` value selects the `transient-failure` stub. Infrastructure code must leave these variables unset, not set to a falsy string.
+4. **The SSE route ignores the CORS allowlist.** It writes `Access-Control-Allow-Origin: <request Origin>` directly on `reply.raw` (`routes.ts:571`), so restricting `@fastify/cors` alone does not close it.
+
+### §1.3 — Do the stubs exercise real assembly? (task 1.3)
+
+**No.** The stub voice provider emits a silent but valid MP3 (`createSilentMp3`), which ffmpeg decodes. The stub video provider returns a 12-byte `ftyp` header (`server.ts:103`, hex `00000000667479706d703432`), which is not a decodable video, and the stub assembly tool returns `success` with an `outputPath` but never writes the file, so `GET /sessions/:id/download/final-video` would answer `404 final video file not found on disk`. Consequences for the proof of concept:
+
+- A session on the stock stubs reaches `final-video` state but has no downloadable MP4. Tasks 7.2, 10.5 and 11.4 therefore need either a preload that registers a stub video provider returning a small real MP4 (generated by ffmpeg when the image is built) together with the real assembly adapter, or they are recorded as exercised only by the real-provider run in 7.6.
+- The image and decomposition stages have no server-level stub flag either (`setImageProviderRegistry` and `setDecompositionDependencies` exist but server bootstrap never calls them), so a stubbed session needs those registered by the same preload.
+- Every such preload registration is a **stand-in**, to be named in the evidence report; real assembly on Linux is proven only by 7.6.
+
+### §1.4 — Still undecided at this point
+
+The hosting option (A–D), the frontend placement (F1/F2), the exact preload surface the PoC needs, and whether the PRD access change will be approved. Nothing in groups 3–5 has been decided yet; conclusions below are traceable to the facts above.
+
+### §3 — Backend option evaluation (tasks 3.1–3.5; documentation retrieved 2026-10-12)
+
+**Facts established from Cloudflare documentation** (sources are the pages named; Containers is a fast-moving product, so the retrieval date matters):
+
+| Fact | Source |
+|---|---|
+| Container disk is ephemeral by default; after sleep the next start "uses a fresh disk from the container image" | developers.cloudflare.com/containers/platform-details/architecture/, /containers/faq/ |
+| Persistence options: Durable Object storage, **manual** filesystem snapshots (public beta since 2026-09-30, `durable_object` scheduling policy only; consistency and loss window not documented), or R2 through FUSE ("do not expect native SSD-like performance") | /changelog/post/2026-09-30-snapshots/, /containers/faq/, /containers/examples/r2-fuse-mount/ |
+| "Cloudflare does not guarantee that any container instance will run for a set period"; host restarts "on an irregular cadence"; no way to pin an instance | /containers/faq/ |
+| Stop sequence (deploy rollout, inactivity, destroy): SIGTERM, wait up to 15 minutes, then SIGKILL | /containers/platform-details/architecture/ |
+| `sleepAfter` defaults to 10 minutes; "Incoming requests reset the timer"; background work must call `renewActivityTimeout()`; whether an open streaming response counts is **not documented** | /containers/container-class/ |
+| Largest instance: standard-4, 4 vCPU, 12 GiB, **20 GB disk**; account limits 1,500 vCPU / 6 TiB / 30 TB | /containers/platform-details/limits/ |
+| Proxy limits: read timeout 125 s (Enterprise-configurable), idle timeout 900 s, write timeout 30 s | /fundamentals/reference/connection-limits/ |
+| Proxied request body limit by plan: 100 MB (Free, Pro), 200 MB (Business), 500 MB (Enterprise) | Workers limits page (secondary result; zone setting is authoritative) |
+| Containers require Workers Paid ($5/month minimum); billed per 10 ms of activity; CPU on active usage | /containers/platform/pricing/ |
+| Litestream-to-R2 with restore-at-boot is a documented community pattern; replication is asynchronous, so abrupt termination can lose the last seconds of writes; it covers only the SQLite files | third-party write-ups (OpenClaw Cloudflare template); not Cloudflare documentation |
+| Terraform provider v5 covers Tunnel, Tunnel config, Access application, Access policy and identity providers (`onetimepin`); a Containers application resource is **not confirmed**, so the container is deployed with Wrangler | provider changelog v5.7.0; community thread |
+| New Zero Trust organisations default to Cloudflare's own identity provider, so one-time PIN must be enabled explicitly | /cloudflare-one/integrations/identity-providers/one-time-pin/ |
+
+**Gate results.**
+
+| Option | G1 | G2 | G3 | G4 | G5 | G6 | G7 | Outcome |
+|---|---|---|---|---|---|---|---|---|
+| A — Tunnel + VM | pass | pass (VM volume + backups) | pass (15 s heartbeat ≪ 125 s / 900 s) | pass | pass | pass | **fail** (VM is outside Cloudflare) | survives only if G7 is waived |
+| B — Containers as is | conditional | **fail** (ephemeral disk; snapshots manual, beta, loss window unknown) | unverified | pass | pass | pass | pass | **eliminated at G2** |
+| B+ — Containers + Litestream/R2 + FUSE | conditional on keep-alive | conditional on three unknowns below | unverified | pass | pass | pass | pass | **survives, needs the PoC** |
+| C — Workers rewrite | pass | pass (D1/R2/DO) | pass | **fail**: no subprocess, so no ffmpeg and no `node:sqlite` in Workers; assembly would still need a container | pass | pass | pass | **eliminated at G4** (and the largest code change by far) |
+| D — Kubernetes | pass | pass (PVC) | pass | pass | pass | pass | **fail** | dominated by A: same G7 failure, more to operate |
+
+**Unknowns that decide B+ (each becomes a PoC experiment):**
+1. Does the instance keep progressing a session with **no incoming request** for longer than `sleepAfter`, using a Durable-Object-side keep-alive? (Experiment 7.11.)
+2. Is **media durable at file close** on the FUSE mount, and does the real assembly adapter (which finalises an MP4) write correctly to it? (Experiments 7.4, 7.6.)
+3. Is the **database recovery window** after a hard stop small enough to accept, and does the app tolerate losing the last seconds of writes (e.g., re-sending one provider request; `PRIMARY KEY` idempotency already protects `scene_results`)? (Experiment 7.4.)
+
+**Scoring of the survivors** (evaluator scores 0–10 before any PoC; B+ durability is scored on documented expectations and must be revised after the PoC):
+
+| Criterion (weight) | A | B+ | Reasoning |
+|---|---|---|---|
+| Data durability and backup (30%) | 8 | 6 | A: real volume + backups, loss window = backup interval. B+: three moving parts (Litestream, FUSE, R2), unproven |
+| Application code change (25%) | 9 | 6 | Both need the follow-up fixes of Decision 10. B+ also needs a Worker, a Durable Object class and a keep-alive |
+| Deploy, rollback, same-artifact (25%) | 7 | 8 | B+: Wrangler rollouts replace the instance with a new image reference; A: image pull + restart over SSH or an agent |
+| Operational load (20%) | 5 | 7 | A: OS patching, disk, Docker, host monitoring. B+: managed, but beta features |
+| **Weighted total** | **7.40** | **6.70** | |
+
+**Selection (task 3.5).** Cost is not scored. A scores higher on the technical criteria, but it fails G7, the ticket's own wording ("deploy the application in dash.cloudflare.com"). **Leading option: B+**, because it is the only option that passes every gate including G7, conditional on the three unknowns above. **Documented fallback: A**, which is technically stronger but needs the product owner to waive G7. If B+ fails a gate in the PoC (task 7.10), the choice becomes "waive G7 and take A" or "accept C's rewrite with a container for assembly"; that is a product-owner decision and is recorded as such, not made silently.
+
+**Cost, for information only** (rates retrieved 2026-10-12; always-on `standard-2` instance, 1 vCPU / 6 GiB / 12 GB): memory ≈ 6 GiB × 2.63 M s × $0.0000025 ≈ $39/month, disk ≈ $2/month, CPU on active use only, plus the shared $5 Workers Paid minimum and R2 storage. Roughly $40–45 per environment per month if the instance never sleeps; less when it does. Option A's VM price was not researched (provider-dependent). The domain renewal price was not researched.
+
+### §4 — Frontend placement (tasks 4.1–4.3)
+
+| | F1 Pages + separate API host | F2 backend serves the build | F3 Worker static assets + `/api` proxy |
+|---|---|---|---|
+| Same artifact in UAT and production | no, build bakes `VITE_API_BASE` per environment | yes (relative base) | yes (relative base `/api`) |
+| CORS needed | yes, plus Access across two origins | no | no |
+| SSE and downloads carry the Access cookie | needs cross-origin credentials | same origin | same origin |
+| Product code change | CORS restriction | a static-file route in the backend | none (Worker strips `/api`) |
+| Available with | any option | A, B, B+ | B, B+ (needs a Worker in front) |
+
+**Selection.** With B+ as the leading option, **F3**: one Worker per environment serves the static build and forwards `/api/*` to the container with the prefix stripped, so the backend keeps its current routes and no product code serves files. Under A the equivalent is F2. F1 is the fallback only if neither is possible. The frontend's `VITE_API_BASE` becomes `/api`, which is the follow-up story "frontend API base". Task 4.2's question is answered by F3: a Worker in front of the backend routes `/api/*` on the same hostname, so Pages is not needed for the API at all.
+
+**Consequence for follow-up stories:** static assets move into the Worker's deployment; the CORS and SSE-origin fixes of Decision 10 remain worth doing as defence in depth even with a same-origin layout.
+
+### §5 — Delivery model (tasks 5.1–5.6)
+
+**5.1 Branch flow.** Feature branches → `feature/entrega-2-JAME` (UAT) → `main` (production). The mapping lives in one workflow-level map, for example `env: { UAT_BRANCH: feature/entrega-2-JAME, PROD_BRANCH: main }`, read by every job. Promotion rule and fail-closed check as in Decision 7. A promotion image is identified by `git rev-parse <commit>^{tree}`.
+
+**5.2 CI jobs.**
+
+| Job | Trigger | Does |
+|---|---|---|
+| `check` | every pull request | install, `typecheck` and `test` for backend and frontend, with temporary `DB_PATH`/`PROJECTS_ROOT` and no `.secrets.json` |
+| `build` | push to the UAT branch | build the image once, tag with commit SHA and tree hash, push to the container registry |
+| `deploy-uat` | after `build` | Terraform plan/apply for UAT, `wrangler deploy` for the Worker and container with the built image, smoke check through an Access service token |
+| `deploy-prod` | push to `main` | compute `main`'s tree hash, look up the UAT-recorded image; **fail if none**; wait for the `production` environment's reviewer; deploy that image |
+
+Open point to verify in the PoC: whether `wrangler deploy` accepts an already pushed image reference for the container, so that production reuses the UAT image rather than rebuilding (promotion by reference).
+
+**5.3 Secret inventory** (per environment; values never in the repository, the image or logs):
+
+| Secret | Used by | Stored in |
+|---|---|---|
+| `OPENAI_KEY`, `ELEVENLABS_KEY`, `FAL_API_KEY`, `RUNNINGHUB_API_KEY` | backend | Worker secrets, forwarded to the container as environment variables |
+| R2 access key pair for the data bucket | Litestream and the FUSE mount in the container | Worker secrets, forwarded to the container |
+| `CLOUDFLARE_API_TOKEN` (scoped) | Terraform, Wrangler in CI | GitHub Environment secret |
+| Terraform state backend key pair | CI | GitHub Environment secret |
+| Access service token (id + secret) | smoke checks and uptime probe | GitHub Environment secret |
+
+Separate UAT provider keys (task 5.3's requirement): OpenAI supports per-project keys. For ElevenLabs, fal and RunningHub, whether a second key can be created and attributed separately must be checked in each provider's console; recorded as an open item for the follow-up story rather than assumed.
+
+**5.4 Terraform layout.**
+
+```
+infra/
+  modules/access   # one-time-PIN identity provider, application, policy (emails from a variable)
+  modules/storage  # R2 buckets: <env>-data (media + Litestream), <env>-backup
+  modules/dns      # records on the imported zone (apex or uat. -> the Worker route)
+  uat/    main.tf    # one state per environment
+  prod/   main.tf
+```
+
+Provider: Cloudflare v5, pinned. State backend: an R2 bucket through the S3-compatible backend, created once by hand (the bootstrap problem; recorded). The zone is **imported**, not created. The Worker and the container are deployed with Wrangler from CI, because a Containers application resource is not confirmed in the provider; Terraform owns the surrounding resources. Secret values are supplied as variables at apply time.
+
+**5.5 Backups.**
+
+| Data | Primary | Recovery point | Backup |
+|---|---|---|---|
+| SQLite store | local disk in the container, replicated by Litestream to `<env>-data` | seconds (asynchronous; documented as not guaranteed) | Litestream snapshots/retention in the same bucket, plus a scheduled copy to `<env>-backup` |
+| Project files | R2 bucket mounted at `PROJECTS_ROOT` | durable at file close | scheduled bucket-to-bucket copy to `<env>-backup`; R2 object versioning support to be checked before relying on it |
+
+The restore drill (task 6.6) restores both into an empty environment and records duration.
+
+**5.6 Health, logs, alerting.** Health: the existing `GET /health`, called by an external uptime check that carries an Access service token (Access would otherwise reject an anonymous probe). Logs: Fastify JSON to stdout, viewed through Workers observability/logs for the container; retention is whatever the platform keeps and is recorded. Alert: an email from the uptime check on failure. Anything beyond that is deferred.
