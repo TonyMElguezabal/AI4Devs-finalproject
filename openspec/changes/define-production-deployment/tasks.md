@@ -70,17 +70,17 @@ The backend stack, the store, the live-update mechanism and the single-process o
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 8.1 Confirm which test suites exist (backend, frontend) and whether any test depends on a developer's `.secrets.json`, a fixed `DB_PATH` or a macOS ffmpeg path; record findings
-- [ ] 8.2 Record every such dependency as input to the CI follow-up story (5.2); no product test is changed in this spike
+- [x] 8.1 Confirm which test suites exist (backend, frontend) and whether any test depends on a developer's `.secrets.json`, a fixed `DB_PATH` or a macOS ffmpeg path; record findings — done: 91 backend test files (1,443 tests; 3 contract files skip without keys) and 2 frontend files; dependencies on default `data/` paths, `ffprobe` on PATH, `docs/PRD-v1.4.md`, and a timing-sensitive `orchestrator.test.ts`; none needs `.secrets.json`
+- [x] 8.2 Record every such dependency as input to the CI follow-up story (5.2); no product test is changed in this spike — done: recorded as findings 1-6 in `reports/2026-10-12-step-9-unit-test-and-db-verification.md`; no product test changed
 
 ## 9. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 9.1 Capture the pre-test state of the local store (session and scene counts, `PROJECTS_ROOT` folder count)
-- [ ] 9.2 Run the backend and frontend suites as CI would: fresh checkout, temporary `DB_PATH`/`PROJECTS_ROOT`, no `.secrets.json`; capture pass/fail/skip
-- [ ] 9.3 Run the same suites inside the proof-of-concept image (Linux) and record any difference from the macOS run
-- [ ] 9.4 Verify post-test state matches the baseline, restoring it if needed
-- [ ] 9.5 Create `reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md` with commands, results, pre/post comparison and cleanup
-- [ ] 9.6 Mark this step complete only after the report exists
+- [x] 9.1 Capture the pre-test state of the local store (session and scene counts, `PROJECTS_ROOT` folder count) — done: worktree has no `backend/data` or `.secrets.json`; temp store dirs empty; main checkout dev DB mtime 2026-10-04 22:39
+- [x] 9.2 Run the backend and frontend suites as CI would: fresh checkout, temporary `DB_PATH`/`PROJECTS_ROOT`, no `.secrets.json`; capture pass/fail/skip — done: backend 1439 passed / 4 skipped in 2 of 3 full runs (1 timing flake); frontend 162/162; both typecheck clean
+- [x] 9.3 Run the same suites inside the proof-of-concept image (Linux) and record any difference from the macOS run — done: Linux aarch64 with ffmpeg and `docs/`: 1439 passed in one run, one orchestrator timing flake in the other; without ffmpeg 26 tests fail ("ffprobe is not installed")
+- [x] 9.4 Verify post-test state matches the baseline, restoring it if needed — done: no state created in the worktree; dev DB mtime unchanged; nothing to restore
+- [x] 9.5 Create `reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md` with commands, results, pre/post comparison and cleanup — done: `reports/2026-10-12-step-9-unit-test-and-db-verification.md`
+- [x] 9.6 Mark this step complete only after the report exists — done: tests ran, flake and environment dependencies documented, report exists
 
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
