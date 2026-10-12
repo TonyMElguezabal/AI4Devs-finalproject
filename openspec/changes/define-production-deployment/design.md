@@ -367,7 +367,7 @@ infra/
   prod/   main.tf
 ```
 
-Provider: Cloudflare v5, pinned, plus the VM provider (open question 7). State backend: an R2 bucket through the S3-compatible backend, created once by hand (the bootstrap problem; recorded). The zone is **imported**, not created. Everything, including the application runtime (compose project), is declared; there is no Wrangler step. Secret values are supplied as variables at apply time. `modules/edge` is already sketched under `poc/terraform/` and is **unvalidated** until a `terraform`/`tofu` binary validates it.
+Provider: Cloudflare v5, pinned, plus the Hetzner Cloud provider (`hcloud`). State backend: an R2 bucket through the S3-compatible backend, created once by hand (the bootstrap problem; recorded). The zone is **imported**, not created. Everything, including the application runtime (compose project), is declared; there is no Wrangler step. Secret values are supplied as variables at apply time. `modules/edge` is sketched under `poc/terraform/`; it validated and applied against provider v5 on 2026-10-12 (7 resources); `modules/host` and `modules/backup` are not yet written.
 
 **5.5 Backups.**
 

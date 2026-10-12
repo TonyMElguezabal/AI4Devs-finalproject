@@ -110,7 +110,7 @@ The first version of this group built the B+ option (Worker, Litestream, R2 FUSE
 
 ## 12. Update Technical Documentation (MANDATORY)
 
-- [x] 12.1 Write `docs/adr/0007-deployment.md`: gates, scored options, decision, rejected alternatives with reasons, cost per environment, evaluation date, risks — done: `docs/adr/0007-deployment.md` (Accepted 2026-10-12; VM provider listed as open)
+- [x] 12.1 Write `docs/adr/0007-deployment.md`: gates, scored options, decision, rejected alternatives with reasons, cost per environment, evaluation date, risks — done: `docs/adr/0007-deployment.md` (Accepted 2026-10-12; VM provider Hetzner Cloud)
 - [x] 12.2 Add a deployment section to `docs/backend-standards.md` (single instance, stop-then-start, storage, backups, configuration safety) — done: `## Deployment` section in `docs/backend-standards.md`
 - [x] 12.3 Add a deployment section to `docs/frontend-standards.md` (placement, API base, same-origin or CORS) — done: `## Deployment` section in `docs/frontend-standards.md`
 - [x] 12.4 Rewrite `docs/development_guide.md` around the real local setup and the `feature/entrega-2-JAME` (UAT) → `main` (production) flow, removing the stale setup of an unrelated earlier project — done: `docs/development_guide.md` rewritten (real local setup, credentials, state paths, dev-only switches, test preconditions, branch/environment flow); the stale setup of the unrelated earlier project, including its embedded database password, is gone. ADR 0007 is linked as "written when this change is accepted", not as an existing file
