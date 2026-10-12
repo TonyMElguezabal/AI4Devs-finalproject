@@ -1,6 +1,6 @@
 # ADR 0007 — Deployment: UAT and production (JOS-194)
 
-- Status: Accepted (product-owner decision, 2026-10-12)
+- Status: Accepted for option A on 2026-10-12; **reopened the same day**: the product owner asked for a proof of concept of option B+ (compute inside Cloudflare) and will decide on its evidence. Option A is the proven fallback.
 - Date: 2026-10-12
 - Change: `define-production-deployment` (JOS-194)
 

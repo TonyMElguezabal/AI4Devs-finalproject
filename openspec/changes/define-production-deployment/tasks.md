@@ -62,6 +62,16 @@ The first version of this group built the B+ option (Worker, Litestream, R2 FUSE
 - [ ] 6.6 Run the backup once (`sqlite3 .backup` and restic to a bucket; local directory or a second volume as a recorded stand-in if R2 is not enabled) and restore into an empty volume; record duration and what was recovered
 - [ ] 6.9 Rewrite `poc/workflows/ci-cd.yml` for option A (build once by tree hash, deploy by digest over the Tunnel-reached SSH, fail-closed production job) and mark every point that needs a real VM as VERIFY
 
+### 6B. B+ proof of concept (requested by the product owner 2026-10-12; option A above is the proven fallback)
+
+The B+ files from 6.1 and 6.3 are reused, updated to a second hostname so both PoCs coexist. Hostname `poc-cf.vid4you.download` (one level under the zone, so the universal certificate covers it). Instance `standard-1` and `sleepAfter` 10 minutes, so that experiment 7.14 can wait past it cheaply.
+
+- [ ] 6.10 Prepare the B+ files: Worker `package.json` with `@cloudflare/containers` and Wrangler ≥ 4.136, `wrangler.jsonc` for `poc-cf.vid4you.download`, a build of the frontend with `VITE_API_BASE=/api` as the Worker's assets, and `poc/terraform-bplus/` (Access application and policies for the new hostname, the R2 bucket) in its own state; typecheck and `tofu validate`
+- [ ] 6.11 Product-owner prerequisites (only they can do these): activate Workers Paid, enable R2, create an R2 API token scoped to the bucket, and widen the API token scopes; record that each is in place
+- [ ] 6.12 Apply `terraform-bplus` (gate and bucket before the hostname), set the Worker secrets, and `wrangler deploy` the Worker and container; list every created resource in `poc/RESOURCES.md` with its cost
+- [ ] 6.13 Run the 6.2 stubbed session on the deployed B+ instance through the gate
+- [ ] 6.14 Backup drill on B+: kill the instance, confirm Litestream restored the database from R2 and the project files are intact on the FUSE mount; record the recovery window
+
 ## 7. Run the experiments and record evidence
 
 - [ ] 7.1 Access gate: confirm an unauthenticated request to the page and to the API is rejected at the edge, and an allowed identity gets through; confirm the host's own address on every published port is refused (no inbound port) — **partly done**: unauthenticated page and API both answer `302` to the Access login; service token gets `200` on both; no ports are published on the host (`docker compose ps`). Left: the allowed-identity browser login (task 11.1)
@@ -75,6 +85,11 @@ The first version of this group built the B+ option (Worker, Litestream, R2 FUSE
 - [ ] 7.9 Record every outcome in `reports/YYYY-MM-DD-step-7-poc-experiments.md`, failures included, naming every observation that relied on a stand-in
 - [ ] 7.10 If a must-pass gate fails, stop and move to the runner-up (B+) rather than continuing on paper; record which gate failed
 - [ ] 7.11 Unattended progress: start a stubbed session, close every browser, wait longer than the edge's idle timeout, and confirm the session kept progressing and the page is current on reopening; record in the 7.9 report
+- [ ] 7.12 B+ unknown 2, media durability: with the real ffmpeg assembly writing to the FUSE mount, confirm the MP4 is complete and downloadable after an instance restart, and record write behaviour (time, errors)
+- [ ] 7.13 B+ unknown 3, database recovery window: hard-stop the instance during a write burst, restore at boot, and record what was lost (rows, seconds) and whether `reconcileOnBoot` repairs the session
+- [ ] 7.14 B+ unknown 1, unattended progress: start a stubbed session, close every client, wait longer than `sleepAfter` (10 minutes), and confirm the keep-alive kept the instance running and the session finished; record whether an open SSE stream alone counts as activity
+- [ ] 7.15 B+ through the edge: SSE heartbeat across the 125 s read timeout, redeploy mid-session (SIGTERM and the new instance), and body limit
+- [ ] 7.16 Record the product owner's decision, B+ or A, with the evidence from 7.12–7.15 and the PoC cost, in `design.md` and ADR 0007; the losing option stays documented as the runner-up
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
