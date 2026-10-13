@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import {
   createRun,
@@ -35,6 +35,13 @@ import { releaseAttempt, releaseSessionAttempts } from "../src/retry/retrySchedu
 import { recordAttemptOutcome, setRetryDelayConfig } from "../src/retry/stageAttemptRecorder.ts";
 import { continueSession, pauseSession } from "../src/orchestrator.ts";
 import type { SessionSnapshot } from "../src/types.ts";
+
+// run-session-end-to-end (JOS-195), design Decision 6 — this file tests the voice-over phase alone, so the hand-off to
+// decomposition that a stored narration now triggers is disabled here; `narration-handoff-*.test.ts` covers it.
+vi.mock("../src/decompositionPhase.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/decompositionPhase.ts")>()),
+  launchDecompositionFor: () => undefined,
+}));
 
 // generate-voice-over (JOS-136), group 5 — the voice phase: automatic launch,
 // the in-flight attempt, the unaltered script, the provider binding, the

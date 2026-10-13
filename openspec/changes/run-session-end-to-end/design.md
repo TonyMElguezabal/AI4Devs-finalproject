@@ -47,8 +47,9 @@ JOS-160's Decision 4 deferred exactly this rule to "the story that adds the live
 **Decision 5 — `configureAssemblyTool(env)` exported from a small module, called by the bootstrap.**
 It registers `createAssemblyTool` for a stub mode (existing `assemblyStubModeFor`) or `createFfmpegAssemblyTool()` otherwise. Tests call it directly. The bootstrap keeps its other flags unchanged.
 
-**Decision 6 — Tests that wait for `voice-over-complete` install stub decomposition dependencies.**
-With the hand-off, those tests would start a real decomposition (default OpenAI and ElevenLabs providers) and fail without keys. Each affected test file installs stubs with `setDecompositionDependencies` (and resets them), and assertions about the state right after the narration either wait for `voice-over-complete` before the hand-off settles or assert the next state. A shared test helper avoids repeating the stub.
+**Decision 6 — Voice-over tests run with the hand-off disabled; the hand-off has its own tests.**
+With the hand-off, a stored narration is immediately followed by `chunk-decomposing` (or `failed`, with the real key-less providers). The tests of the voice-over phase in isolation assert `voice-over-complete`, "no failure" and the order of published states, which the next phase now changes. Rewriting those assertions would weaken what the voice-over tests check. Instead, each of those files mocks `launchDecompositionFor` as a no-op (`vi.mock` of `decompositionPhase.ts`, keeping every other export), so they keep testing the voice-over phase alone. The hand-off itself is covered by `narration-handoff-*.test.ts` and `session-end-to-end.test.ts`, which install the stub decomposition dependencies from `test/decompositionStubs.ts`.
+*Alternatives:* a production seam to disable the hand-off (rejected: test-only code in the product); stub decomposition dependencies in every file (rejected: the session then leaves `voice-over-complete` and the assertions fail anyway).
 
 ## Risks / Trade-offs
 
