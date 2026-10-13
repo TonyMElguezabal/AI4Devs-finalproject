@@ -86,6 +86,6 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 13. Close
 
-- [ ] 13.1 Comment on JOS-195 with what shipped, the reports and the PR link; link JOS-194's stories S1 and S6 to JOS-195 (in JOS-194's `follow-up-stories.md` on its own branch, coordinated with that change)
+- [ ] 13.1 Comment on JOS-195 with what shipped, the reports and the PR link; link JOS-194's stories S1 and S6 to JOS-195 (in JOS-194's `follow-up-stories.md` on its own branch, coordinated with that change) — **first half done 2026-10-13**: the comment (what changed, verification, what is not covered) is on JOS-195; the PR link and the JOS-194 link follow the push
 - [ ] 13.2 Open the PR into `feature/entrega-2-JAME` (after the user's go-ahead to push)
 - [ ] 13.3 After merge, archive this change with `/opsx:archive`
