@@ -71,10 +71,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 11.1 Start backend (as 10.1) and frontend; type a script in the UI and start the project
-- [ ] 11.2 Confirm the page moves past `voice-over-complete` on its own and shows the decomposition and scenes phases progressing, without reload
-- [ ] 11.3 Pause before the narration completes, confirm the held decomposition is shown, continue, confirm it starts
-- [ ] 11.4 Restore the environment and save `reports/YYYY-MM-DD-step-11-e2e-playwright.md`
+- [x] 11.1 Start backend (as 10.1) and frontend; type a script in the UI and start the project — done (`reports/2026-10-13-step-11-e2e-browser.md`): backend from this branch with stub voice/video/assembly, no keys, and the Vite dev server; a script typed in the UI and started
+- [x] 11.2 Confirm the page moves past `voice-over-complete` on its own and shows the decomposition and scenes phases progressing, without reload — done (`reports/2026-10-13-step-11-e2e-browser.md`): with no click after Start the page moved from `voice-over-generating` to the decomposition phase on its own, without reload (no keys, so the decomposition shows its missing-credential failure)
+- [x] 11.3 Pause before the narration completes, confirm the held decomposition is shown, continue, confirm it starts — done (`reports/2026-10-13-step-11-e2e-browser.md`): Pause while the narration generated; the page showed "Waiting for continue: 1 decomposition"; Continue started the decomposition without reload
+- [x] 11.4 Restore the environment and save `reports/YYYY-MM-DD-step-11-e2e-playwright.md` — done (`reports/2026-10-13-step-11-e2e-browser.md`): servers stopped, tab closed, temporary stores removed
 
 ## 12. Update Technical Documentation (MANDATORY)
 
