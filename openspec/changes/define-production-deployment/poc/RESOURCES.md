@@ -42,3 +42,21 @@ Not yet created (waiting for the R2 test, task 6.15): the Worker `vid4you-poc`, 
 | R2 S3 API token | created by the product owner, scoped to `vid4you-poc-data` | free |
 
 Teardown: `npx wrangler delete --name vid4you-poc` (also removes the container application and the DO), `tofu destroy` in `poc/terraform-bplus`, delete the R2 S3 token and the `vid4you-poc` API token in the dashboard; downgrading Workers Paid is the product owner's call.
+
+## Teardown — 2026-10-13 (task 13.2)
+
+Done after the product owner chose the local packaged application (design Decision 14).
+
+| Step | Result |
+|---|---|
+| `wrangler delete --name vid4you-poc` | Worker, Durable Object binding and custom domain removed |
+| `wrangler containers delete a03a443e-…` | container application removed (it survived the Worker deletion with one live instance) |
+| `wrangler containers images delete` × 11 | every pushed tag removed from the Cloudflare registry |
+| `aws s3 rm --recursive` (R2 S3 API) | 340 objects removed from `vid4you-poc-data` |
+| `tofu destroy` in `poc/terraform-bplus` | 5 destroyed: bucket, Access application, two policies, service token |
+| `docker compose down -v` (A stack) and local `poc-r2-*` containers | stopped and removed, `poc_data` volume removed |
+| `tofu destroy` in `poc/terraform` | 7 destroyed: tunnel, tunnel configuration, DNS record, Access application, two policies, service token |
+| Account check via the API | Access applications: only the pre-existing `VidaaS Admin`; policies: its two; identity providers unchanged; tunnels, R2 buckets, DNS records, service tokens: none of ours; Worker `vid4you-poc` not found |
+| Local secrets | scratchpad `cf.env` and `r2.env` deleted; local Terraform state and plan files deleted |
+
+Left for the product owner: delete the `vid4you-poc` API token and the R2 S3 API token in the dashboard, and decide whether to keep Workers Paid. Local Docker images (`vid4you-poc-*`) remain on the developer machine; `docker image rm` frees about 2 GB.
