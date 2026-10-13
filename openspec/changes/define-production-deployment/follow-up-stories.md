@@ -30,6 +30,11 @@ Requirement abbreviations: **DEC** single documented hosting decision · **GATE*
 ### S6 — Forward hand-off after the voice-over (product gap) — FUP
 Nothing starts decomposition after `voice-over-complete`; UAT cannot go script → final video without test endpoints. Belongs to `decompose-script-into-chunks` (0/78 tasks); recorded here so it is not forgotten. Acceptance: a session created through the public API reaches `final-video` with all stages stubbed, no test endpoint involved.
 
+### S14 — Write project files without hard links — CONF (only if option B+ is chosen)
+Found by the B+ proof of concept: R2 FUSE has no `link()`, and `db.ts` publishes every project file with `linkSync(tmp, final)` (`db.ts:624`, `:675`).
+- Replace the idiom with an exclusive create (`wx`) or an exclusive copy that keeps the EEXIST semantics, and keep the existing tests green on a local disk.
+- A test runs the write path against a directory on which `link()` fails with `EPERM` and still publishes the file once.
+
 ## Environment stories
 
 ### S7 — VM provider and host hardening — GATE, ONE

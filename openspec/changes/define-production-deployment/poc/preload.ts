@@ -2,9 +2,24 @@
 // Loaded with: node --import poc/preload.ts backend/src/server.ts
 // POC_MODE=real  -> real providers, real ffmpeg assembly (task 7.6)
 // POC_MODE=stub  -> stub decomposition/image/voice/video providers, real ffmpeg assembly (tasks 7.1-7.5)
-import { readFileSync } from "node:fs";
+import fs, { readFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+
+// STAND-IN, PoC finding (design § Execution Record, B+ test): R2 FUSE has no hard links, and db.ts publishes every project file with
+// `linkSync(tmp, final)` as a write-once idiom (db.ts:624, :675), so every write would fail with EPERM. Fall back to an exclusive copy,
+// which keeps the EEXIST semantics the callers rely on. The real fix is a product-code story (S14).
+const realLink = fs.linkSync;
+(fs as { linkSync: typeof fs.linkSync }).linkSync = (existingPath, newPath) => {
+  try {
+    realLink(existingPath, newPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EPERM") throw error;
+    fs.copyFileSync(existingPath, newPath, fs.constants.COPYFILE_EXCL);
+  }
+};
+syncBuiltinESMExports();
 
 const backendSrc = process.env.BACKEND_SRC ?? "/app/backend/src";
 const load = (file: string) => import(pathToFileURL(join(backendSrc, file)).href);
