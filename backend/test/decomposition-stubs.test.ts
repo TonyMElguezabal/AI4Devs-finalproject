@@ -30,7 +30,7 @@ describe("the stub decomposition dependencies helper", () => {
     const stubs = installStubDecompositionDependencies();
     const { instructionGenerator } = getDecompositionDependencies();
 
-    const result = await instructionGenerator.generate(["first", "second"]);
+    const result = await instructionGenerator.generate(["first", "second"], "en");
 
     expect(result).toEqual({
       kind: "success",
@@ -56,7 +56,7 @@ describe("the stub decomposition dependencies helper", () => {
 
   it("starts counting from zero on every install", async () => {
     const first = installStubDecompositionDependencies();
-    await getDecompositionDependencies().instructionGenerator.generate(["a"]);
+    await getDecompositionDependencies().instructionGenerator.generate(["a"], "en");
     expect(first.generateCalls).toBe(1);
 
     const second = installStubDecompositionDependencies();
