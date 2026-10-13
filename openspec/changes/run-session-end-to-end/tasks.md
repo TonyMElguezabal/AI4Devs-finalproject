@@ -9,10 +9,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 1. Gate (no code before every item passes)
 
-- [ ] 1.1 `git fetch`; confirm no branch or open PR already adds the narration hand-off or the default assembly tool (JOS-194 searched all remote branches on 2026-10-13; repeat). Record the integration head used
-- [ ] 1.2 Confirm design Decision 2's assumption: a stored narration-timestamps record always has a `timestamps` attempt (read `narrationTimestampsPhase.ts`). If not, change the held-work term to "no scenes and no decomposition attempt" in design.md and the spec first
-- [ ] 1.3 Read `preserve-progress-across-restarts` (design Decision 4, task 1.3) and the restart tests; record what boot does today for a `submitted` session without a voice-over, so Decision 4's widened candidate query can be pinned by a test before it changes
-- [ ] 1.4 With the user's approval, point `decompose-script-into-chunks` tasks 2.3, 9.1 and 14.1 and `preserve-progress-across-restarts`' deferred decomposition pending rule at this change, so each rule lives in one place
+- [x] 1.1 `git fetch`; confirm no branch or open PR already adds the narration hand-off or the default assembly tool (JOS-194 searched all remote branches on 2026-10-13; repeat). Record the integration head used — done: head `2fa63dc`; no remote branch references `launchDecompositionFor`, `handOffAfterNarration`, `configureAssemblyTool` or calls `createFfmpegAssemblyTool()`; open PRs are #47 (JOS-164, download the final video) and #1 (docs), neither related
+- [x] 1.2 Confirm design Decision 2's assumption: a stored narration-timestamps record always has a `timestamps` attempt (read `narrationTimestampsPhase.ts`). If not, change the held-work term to "no scenes and no decomposition attempt" in design.md and the spec first — confirmed: `insertNarrationTimestamps` is called only from `storeTimestamps` and the leftover-file adoption, both inside `obtainNarrationTimestamps` after its attempt is recorded (or claimed); Decision 2 stands
+- [x] 1.3 Read `preserve-progress-across-restarts` (design Decision 4, task 1.3) and the restart tests; record what boot does today for a `submitted` session without a voice-over, so Decision 4's widened candidate query can be pinned by a test before it changes — recorded: JOS-160 Decision 4 defers this rule to the story that adds the live start (this one). Today `recoverOnBoot` inner-joins `scenes`, so a session without scenes is never a candidate and a narration-less `submitted` session is not relaunched at boot (its in-flight voice-over attempt is timed out by the startup sweep and a scheduled retry re-armed). Design Decision 4 was narrowed to narrated sessions so that stays true; `restartHelpers.simulateRestart()` is the way to exercise boot
+- [x] 1.4 Moved to 12.5: pointing `decompose-script-into-chunks` and `preserve-progress-across-restarts` at this change edits other changes' artifacts, so it is done at the end and reported for the user's approval
 
 ## 2. Test support (design Decision 6)
 
@@ -32,9 +32,9 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 5. Boot (TDD; design Decision 4)
 
-- [ ] 5.1 Write a test pinning today's boot behaviour found in 1.3 for a `submitted` session without a voice-over (it must hold after the query change, or the change must be deliberate and recorded)
+- [ ] 5.1 Write a test pinning today's boot behaviour found in 1.3: a `submitted` session without a voice-over is not relaunched by `recoverOnBoot` (it must still hold after the query change)
 - [ ] 5.2 Write failing tests: a stored, not paused session at `voice-over-complete` with no decomposition attempt starts decomposition on `recoverOnBoot`; a paused one does not; a failed one does not; a session with scenes keeps today's behaviour
-- [ ] 5.3 Widen `recoverOnBoot`'s candidate query to sessions without scenes. Make 5.1-5.2 pass; the restart and concurrency tests stay green
+- [ ] 5.3 Rewrite `recoverOnBoot`'s candidate query as a `FROM runs` query with `EXISTS` terms: today's two scene terms unchanged, plus "no final video and a stored voice-over" (design Decision 4). Make 5.1-5.2 pass; the restart and concurrency tests stay green
 
 ## 6. Default assembly tool (TDD; design Decision 5)
 
@@ -81,6 +81,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 - [ ] 12.2 `docs/api-spec.yml` and `docs/data-model.md`: confirm no state or field description changes; update only if one says decomposition must be started manually
 - [ ] 12.3 `docs/development_guide.md`: the stub flags section no longer needs `quick-scene` to reach the final video
 - [ ] 12.4 Check the documents agree with each other and with ADRs 0001-0007
+- [ ] 12.5 With the user's approval, point `decompose-script-into-chunks` tasks 2.3, 9.1 and 14.1 and `preserve-progress-across-restarts`' deferred decomposition rule (Decision 4) at this change, so each rule lives in one place
 
 ## 13. Close
 

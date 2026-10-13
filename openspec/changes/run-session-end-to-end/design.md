@@ -38,9 +38,11 @@ The first thing `runDecompositionPhase` does with real work is record a `timesta
 **Decision 3 — One hand-off helper in `voiceOverPhase.ts`, called after each successful store.**
 After each `confirmVoiceOver(...).stored === true` and its `broadcast`, call `handOffAfterNarration(runId)`, which calls `launchDecompositionFor(runId)`. The import goes from `voiceOverPhase.ts` to `decompositionPhase.ts`; nothing `decompositionPhase.ts` imports reaches back into `voiceOverPhase.ts`, so there is no cycle.
 
-**Decision 4 — Boot candidates include sessions without scenes.**
-`recoverOnBoot`'s query becomes a `LEFT JOIN` (or a `UNION` with "runs with no final video"), so a narrated session without scenes is a candidate; `relaunchPendingWork` then asks every launcher, and only the decomposition launcher's new term matches it. A paused session is filtered by `admitLaunch` as today.
-*Risk checked during apply:* the voice-over launcher's `heldWork` also matches a `submitted` session without a voice-over; widening the candidates would relaunch it at boot. That is the intended resume behaviour of `voice-over` (its attempts are timed out by the JOS-185 sweep), but it is new at boot, so a test pins it: either it is relaunched (and the spec of `preserve-progress-across-restarts` agrees) or the candidate query keeps it out. Decided by the existing `restart` tests during apply; recorded in the tasks.
+**Decision 4 — Boot candidates include narrated sessions without scenes, and only those.**
+`recoverOnBoot` builds its candidates with an inner join on `scenes`, so a session without scenes is never relaunched. The query is rewritten as a `FROM runs` query with `EXISTS` terms: today's two scene-based terms unchanged, plus "no final video and a stored `voice_overs` row". `relaunchPendingWork` then asks every launcher, and only the decomposition launcher's new term matches such a session. A paused session is filtered by `admitLaunch` as today.
+Why only narrated sessions: the voice-over launcher's `heldWork` also matches a `submitted` session with no voice-over and no attempt in flight. Widening to every session without scenes would start relaunching voice-over generation at boot, a behaviour change this story does not need (and the product owner did not ask for). A pinning test (task 5.1) holds today's behaviour for a narration-less `submitted` session.
+JOS-160's Decision 4 deferred exactly this rule to "the story that adds the live start", because it also changes `heldWork` so that continue starts decompositions; both are intended here.
+*Alternative:* widening to all sessions without scenes (rejected: relaunches voice-over at boot, out of scope).
 
 **Decision 5 — `configureAssemblyTool(env)` exported from a small module, called by the bootstrap.**
 It registers `createAssemblyTool` for a stub mode (existing `assemblyStubModeFor`) or `createFfmpegAssemblyTool()` otherwise. Tests call it directly. The bootstrap keeps its other flags unchanged.
