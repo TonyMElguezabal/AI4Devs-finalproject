@@ -21,7 +21,7 @@ The backend stack, the store, the live-update mechanism and the single-process o
 
 - [x] 2.1 Draft the PRD text for §2.3, §12.3 and D07 that permits a hosted single-user install behind an edge access gate (design Decision 4), as a proposed change with a changelog row — done: `prd-draft.md` (also covers §12.2 and the §2.1/§11 credentials wording; `docs/PRD.md` untouched)
 - [x] 2.2 Submit the draft to the product owner and record the outcome; if not approved by the end of the timebox, mark every production-publishing follow-up story as blocked on it — done: approved as drafted on 2026-10-12; production-publishing stories are not blocked on it; the three open questions keep the draft's defaults
-- [ ] 2.3 Apply the approved text to `docs/PRD.md` as v1.6 (§2.3, §12.3, §12.2, §2.1/§11, D07, §16 changelog), following the repository's convention of keeping the previous version as a copy (`docs/PRD-v1.5.md`), and check which tests and documents read `docs/PRD-v1.4.md` or the PRD version before moving anything
+- [x] 2.3 Apply the approved text to `docs/PRD.md` as v1.6 (§2.3, §12.3, §12.2, §2.1/§11, D07, §16 changelog), following the repository's convention of keeping the previous version as a copy (`docs/PRD-v1.5.md`), and check which tests and documents read `docs/PRD-v1.4.md` or the PRD version before moving anything — done 2026-10-13: `docs/PRD.md` is v1.6 (§2.3, §12.3, §12.2, §2.1/§11, D07, §16 changelog row), the previous version kept as `docs/PRD-v1.5.md`; the only test that reads a PRD copy reads `PRD-v1.4.md` and is unaffected
 
 ## 3. Evaluate the backend options
 

@@ -1,6 +1,6 @@
 # PRD change draft — hosted single-user install behind an edge access gate
 
-- Status: **APPROVED as drafted by the product owner on 2026-10-12** (stated in the JOS-194 session). `docs/PRD.md` (v1.5) is not yet updated: applying this text and creating `docs/PRD-v1.5.md` as the previous-version copy is task 2.3. The questions at the end were not answered separately, so the draft's defaults stand (no new acceptance criterion; the admitted identities live in infrastructure code).
+- Status: **APPROVED as drafted by the product owner on 2026-10-12** (stated in the JOS-194 session). Applied to `docs/PRD.md` as v1.6 on 2026-10-13 (task 2.3); the previous version is `docs/PRD-v1.5.md`. The questions at the end were not answered separately, so the draft's defaults stand (no new acceptance criterion; the admitted identities live in infrastructure code).
 - Origin: `define-production-deployment` (JOS-194), requirement "No exposure without an approved access gate" in `specs/deployment-foundation/spec.md`.
 - Proposed version: 1.6.
 
