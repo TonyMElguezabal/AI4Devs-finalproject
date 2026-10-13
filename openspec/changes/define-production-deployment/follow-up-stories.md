@@ -42,6 +42,7 @@ Found by the B+ proof of concept: R2 FUSE has no `link()`, and `db.ts` publishes
 - One VM per environment; firewall denies all inbound traffic; no published port; automatic security updates; a probe of the VM's address on every port is refused.
 
 ### S8 — Compose project, Caddy and the production image — ONE, CONF, IAC
+> PoC finding: do **not** share the backend's network namespace with `cloudflared` and Caddy in production unless a supervisor recreates them together; after a crash restart they stay attached to a dead namespace. Use a bridge network and the `HOST` setting (S2 area) instead.
 - Productionise `poc/Dockerfile.a`, `Dockerfile.web`, `Caddyfile` and `compose.yml`; the image holds no credentials (checked by an image search).
 - `cloudflared`, Caddy and the backend share one network namespace; restart policy `unless-stopped`.
 

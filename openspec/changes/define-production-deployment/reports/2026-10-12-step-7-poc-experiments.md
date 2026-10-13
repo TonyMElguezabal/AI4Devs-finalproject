@@ -22,3 +22,16 @@ ffmpeg symlinked to `/opt/homebrew/bin`; preload registering assembly plus stub 
 ## Findings
 - With `network_mode: service:backend`, `compose restart backend` also restarts `caddy` and `cloudflared`.
 - The account already had an Access application, a Google provider and two policies; the PoC reused the Google provider and left the rest untouched.
+
+## Update 2026-10-13 — option A, restart during a running stage
+
+`POC_STUB_VIDEO_DELAY_MS=45000` keeps the stub video request pending for 45 s, so a session sits in the video stage (`chunks-processing`).
+
+| Experiment | Result |
+|---|---|
+| `docker kill` of the backend container 6 s into the video stage | The edge answered `502`/`530` and **did not heal**: the backend container was not restarted (a manual kill counts as a manual stop for the restart policy), and `caddy` and `cloudflared`, which share the backend's network namespace, stayed on the dead one. |
+| `compose up -d`, then `restart caddy cloudflared` | Edge healthy again. The backend logged `stillPending: 1`, `video inFlight: 1` at boot (`reconcileOnBoot` picked the request up), and the session finished: `final-video`, download `200`, 58,205 B. |
+| Request size (7.8) | about 10 MB and about 49 MB accepted; about 51 MB returned `502` at the edge (origin closed mid-upload, so Fastify's `413` is not delivered); about 101 MB returned Cloudflare's `413`. |
+| Promotion by tree (7.7) | merge commit with the same content: image FOUND; extra commit: NOT FOUND (fail closed). |
+
+**Finding (option A):** sharing one network namespace between the backend and its connector is a coupling hazard. Whenever the backend container is recreated or restarted on its own, the containers attached to its namespace must be restarted too. `compose restart` and `up` handle it for the three together; a crash restart by the Docker daemon does not. A production compose project needs either separate containers on a bridge network (which needs the `HOST` setting, story S2/S3 area) or the dependents recreated by a supervisor.

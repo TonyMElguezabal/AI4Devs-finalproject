@@ -11,6 +11,7 @@ services:
     environment:
       POC_MODE: ${POC_MODE:-stub}
       ALLOW_TEST_ENDPOINTS: ${ALLOW_TEST_ENDPOINTS:-1}
+      POC_STUB_VIDEO_DELAY_MS: ${POC_STUB_VIDEO_DELAY_MS:-0}
     volumes:
       - data:/var/lib/vid4you
   caddy:

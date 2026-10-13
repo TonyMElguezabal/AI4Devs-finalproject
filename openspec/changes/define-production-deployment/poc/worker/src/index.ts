@@ -11,6 +11,7 @@ interface Env {
   AWS_SECRET_ACCESS_KEY: string;
   POC_MODE: string;
   POC_KEEPALIVE?: string;
+  POC_STUB_VIDEO_DELAY_MS?: string;
   ALLOW_TEST_ENDPOINTS?: string;
   OPENAI_KEY?: string;
   ELEVENLABS_KEY?: string;
@@ -35,6 +36,7 @@ export class Vid4YouBackend extends Container<Env> {
       AWS_ACCESS_KEY_ID: env.AWS_ACCESS_KEY_ID,
       AWS_SECRET_ACCESS_KEY: env.AWS_SECRET_ACCESS_KEY,
       POC_MODE: env.POC_MODE,
+      POC_STUB_VIDEO_DELAY_MS: env.POC_STUB_VIDEO_DELAY_MS,
       ALLOW_TEST_ENDPOINTS: env.ALLOW_TEST_ENDPOINTS,
       OPENAI_KEY: env.OPENAI_KEY,
       ELEVENLABS_KEY: env.ELEVENLABS_KEY,
@@ -65,6 +67,7 @@ export default {
       const stub = getContainer(env.BACKEND, "singleton");
       const action = url.pathname.slice("/__poc/".length);
       if (action === "state") return Response.json(await stub.getState());
+      if (action === "uptime") return stub.containerFetch(new Request("http://container/uptime"), 8081);
       if (action === "stop") { await stub.stop(); return Response.json({ stopped: "SIGTERM" }); }
       if (action === "kill") { await stub.destroy(); return Response.json({ destroyed: "SIGKILL" }); }
       return new Response("unknown poc action", { status: 404 });
