@@ -10,6 +10,7 @@ interface Env {
   AWS_ACCESS_KEY_ID: string;
   AWS_SECRET_ACCESS_KEY: string;
   POC_MODE: string;
+  POC_KEEPALIVE?: string;
   ALLOW_TEST_ENDPOINTS?: string;
   OPENAI_KEY?: string;
   ELEVENLABS_KEY?: string;
@@ -45,10 +46,12 @@ export class Vid4YouBackend extends Container<Env> {
   }
 
   override async onStart(): Promise<void> {
+    if (this.env.POC_KEEPALIVE === "0") return; // control run for experiment 7.14
     await this.schedule(KEEP_ALIVE_SECONDS, "keepAlive");
   }
 
   async keepAlive(): Promise<void> {
+    if (this.env.POC_KEEPALIVE === "0") return;
     this.renewActivityTimeout();
     await this.schedule(KEEP_ALIVE_SECONDS, "keepAlive");
   }
