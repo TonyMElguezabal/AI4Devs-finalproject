@@ -23,9 +23,8 @@ process.env.PROJECTS_ROOT ??= join(dataDir, "projects");
 (globalThis as Record<string, unknown>).__VID4YOU_CREDENTIALS_BASE = join(dataDir, "base", "dir");
 
 // Story L5: a packaged build never exposes test endpoints or stubs, whatever the user's environment says.
-// The PoC keeps them only when explicitly started in stub mode, or in real-test mode (real providers + the test endpoint
-// that registers a scene, because nothing starts decomposition after the voice-over yet — story S6).
-if (process.env.POC_MODE !== "stub" && process.env.POC_MODE !== "real-test") {
+// The PoC keeps them only when it is explicitly started in stub mode.
+if (process.env.POC_MODE !== "stub") {
   for (const name of Object.keys(process.env)) {
     if (name === "ALLOW_TEST_ENDPOINTS" || name.startsWith("USE_STUB_")) delete process.env[name];
   }

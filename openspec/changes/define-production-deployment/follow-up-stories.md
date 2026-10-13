@@ -6,12 +6,12 @@ Requirement abbreviations: **DEC** single documented distribution decision · **
 
 ## Blockers for any useful build
 
-### S1 — Wire the real assembly tool at server bootstrap — PLAT
+### S1 — Wire the real assembly tool at server bootstrap — PLAT — **DONE in JOS-195** (`run-session-end-to-end`, `configureAssemblyTool`)
 `createFfmpegAssemblyTool()` has no caller, so no build produces a final video without a stub flag. Stand-in: `entry.ts` calls `setAssemblyTool(createFfmpegAssemblyTool())`.
 - With no `USE_STUB_ASSEMBLY_TOOL`, a session that reaches assembly runs the real tool.
 - A start-up test asserts the tool is registered; the existing stub flag still replaces it in development.
 
-### S6 — Forward hand-off after the voice-over (product gap) — FUP
+### S6 — Forward hand-off after the voice-over (product gap) — FUP — **DONE in JOS-195** (narration hand-off, boot rule)
 Nothing starts decomposition after `voice-over-complete`, so a session cannot go from script to final video without the test endpoint `quick-scene`. Belongs to `decompose-script-into-chunks` (0/78 tasks); recorded here so it is not forgotten.
 - A session created through the public API reaches `final-video` with all stages stubbed, no test endpoint involved.
 

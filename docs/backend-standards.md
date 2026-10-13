@@ -370,7 +370,7 @@ Decided by `docs/adr/0007-deployment.md` (JOS-194): Vid4You ships as one executa
 - **Local exposure.** Listen on `127.0.0.1` only, and accept a request only when its `Origin` (if present) is the app's own origin and its `Host` is the loopback address and port, SSE included: any website the user opens can send requests to `127.0.0.1`. Never use CORS `origin: true`.
 - **Release safety.** A packaged build ignores `ALLOW_TEST_ENDPOINTS` and every `USE_STUB_*` and serves no `/docs`. In development, leave those variables **unset** rather than set to a falsy string: any non-empty value enables them today.
 - **Binaries.** ffmpeg and ffprobe are resolved as: `FFMPEG_PATH`/`FFPROBE_PATH`, then the binaries beside the executable, then `PATH`. The hard-coded Homebrew path is a known gap (story S2).
-- **Known gaps** before a release: the real assembly tool is not wired at bootstrap (S1), decomposition is not started after the voice-over (S6), and the `Origin`/`Host` guard does not exist yet (L3).
+- **Known gaps** before a release: the `Origin`/`Host` guard does not exist yet (L3). The real assembly tool is registered at start-up and decomposition starts after the narration (`run-session-end-to-end`, JOS-195).
 
 ## Development Workflow
 

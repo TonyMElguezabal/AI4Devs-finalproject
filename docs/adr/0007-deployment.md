@@ -56,8 +56,7 @@ There's no hosting cost. Provider API usage is as today (UAT calls real provider
 ## Consequences
 
 - **Blockers for a useful build:**
-  - wire the real assembly tool at bootstrap (S1);
-  - start decomposition after the voice-over (S6);
+  - wire the real assembly tool at bootstrap (S1) and start decomposition after the voice-over (S6): **done in JOS-195** (`run-session-end-to-end`);
   - restrict `Origin`/`Host` (L3, security, before any release).
 - **Packaging stories:**
   - a `startServer()` that works in a bundle and on Windows (L1);

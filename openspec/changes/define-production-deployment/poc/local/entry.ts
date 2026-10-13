@@ -5,9 +5,9 @@ import { existsSync, readFileSync } from "node:fs";
 import http from "node:http";
 import { extname, join } from "node:path";
 import sea from "node:sea";
-import { buildApp, bootLogFields } from "../../../../../backend/src/server.ts";
-import { recoverOnBoot, setAssemblyTool } from "../../../../../backend/src/orchestrator.ts";
-import { createFfmpegAssemblyTool } from "../../../../../backend/src/ffmpegAssemblyTool.ts";
+import { buildApp, bootLogFields, configureAssemblyTool } from "../../../../../backend/src/server.ts";
+import { recoverOnBoot } from "../../../../../backend/src/orchestrator.ts";
+import { setDecompositionLogger } from "../../../../../backend/src/decompositionPhase.ts";
 import * as concurrency from "../../../../../backend/src/concurrency.ts";
 import { STAGE } from "../../../../../backend/src/types.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "../../../../../backend/src/config/providers.ts";
@@ -66,10 +66,12 @@ const alreadyRunning = (): Promise<boolean> => new Promise((resolve) => {
 
 // ---- PoC stub mode (never in a release): the providers the stubbed experiments need ----
 if (process.env.POC_MODE === "stub") {
-  const step = 0.05;
   setDecompositionDependencies({
+    // The stub narration is about 1 s long; spread the script's characters over 0.95 s so the product's own
+    // timestamp validation (the last character must end within the narration) accepts them.
     alignmentProvider: { async align(_audio: Uint8Array, script: string) {
-      return { kind: "success", characters: [...script].map((text, i) => ({ text, start: 0.1 + i * step, end: 0.1 + (i + 1) * step })) };
+      const step = 0.95 / Math.max([...script].length, 1);
+      return { kind: "success", characters: [...script].map((text, i) => ({ text, start: 0.01 + i * step, end: 0.01 + (i + 1) * step })) };
     } },
     instructionGenerator: { async generate(texts: readonly string[]) {
       return { kind: "success", pairs: texts.map((_, i) => ({ image: `image ${i + 1}`, video: `video ${i + 1}` })) };
@@ -98,8 +100,8 @@ if (process.env.POC_MODE === "stub") {
   setVideoProviderRegistry({ defaultIdentifier: STUB_VIDEO_PROVIDER_NAME, adapters: { [STUB_VIDEO_PROVIDER_NAME]: video } } as never);
 }
 
-// ---- Story S1: the real assembly tool, wired at bootstrap ----
-setAssemblyTool(createFfmpegAssemblyTool());
+// ---- JOS-195 (merged): the real assembly tool by default, through the same function server.ts uses ----
+configureAssemblyTool(process.env);
 
 // ---- Story L1: the bootstrap server.ts runs only under `node src/server.ts` (its entry check fails in a bundle and on Windows) ----
 async function main(): Promise<void> {
@@ -111,6 +113,7 @@ async function main(): Promise<void> {
   concurrency.setLimit(STAGE, Number(process.env.STAGE_CONCURRENCY_LIMIT ?? MAX_SIMULTANEOUS_REQUESTS.image));
   const app = await buildApp();
   setVoiceOverLogger(app.log);
+  setDecompositionLogger(app.log);
   app.log.info(bootLogFields(recoverOnBoot()), "boot recovery complete");
   app.log.info({ scheduledRetries: rebuildScheduler() }, "scheduled retries re-armed");
   startAttemptTimeoutWatcher();
