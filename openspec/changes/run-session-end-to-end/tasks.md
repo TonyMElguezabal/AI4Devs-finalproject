@@ -78,10 +78,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 12. Update Technical Documentation (MANDATORY)
 
-- [ ] 12.1 `docs/backend-standards.md`: remove "the real assembly tool is not wired at bootstrap (S1)" and "decomposition is not started after the voice-over (S6)" from the deployment section's known gaps; describe the hand-off and the boot rule where the launch gate is documented
-- [ ] 12.2 `docs/api-spec.yml` and `docs/data-model.md`: confirm no state or field description changes; update only if one says decomposition must be started manually
-- [ ] 12.3 `docs/development_guide.md`: the stub flags section no longer needs `quick-scene` to reach the final video
-- [ ] 12.4 Check the documents agree with each other and with ADRs 0001-0007
+- [x] 12.1 `docs/backend-standards.md`: remove "the real assembly tool is not wired at bootstrap (S1)" and "decomposition is not started after the voice-over (S6)" from the deployment section's known gaps; describe the hand-off and the boot rule where the launch gate is documented — done: `docs/backend-standards.md` — the relaunch candidates now include narrated sessions, the decomposition row of the boot table says what is relaunched, and a "hand-off to decomposition" paragraph follows the voice-phase launch-gate paragraph (also the assembly tool registration). The "known gaps" lines of JOS-194's deployment section do not exist on this base; they are removed when that branch is rebased onto this change (13.1)
+- [x] 12.2 `docs/api-spec.yml` and `docs/data-model.md`: confirm no state or field description changes; update only if one says decomposition must be started manually — done: checked `docs/api-spec.yml` and `docs/data-model.md`: neither describes the start of decomposition or says it is manual; no change needed
+- [x] 12.3 `docs/development_guide.md`: the stub flags section no longer needs `quick-scene` to reach the final video — not applicable on this base: the stub-flags section of `docs/development_guide.md` exists only on JOS-194's branch; its line about `quick-scene` is updated there after this change merges (13.1)
+- [x] 12.4 Check the documents agree with each other and with ADRs 0001-0007 — done: `docs/` has no remaining statement that nothing starts decomposition; ADRs 0001-0006 are unaffected (single process, SQLite and SSE unchanged)
 - [ ] 12.5 With the user's approval, point `decompose-script-into-chunks` tasks 2.3, 9.1 and 14.1 and `preserve-progress-across-restarts`' deferred decomposition rule (Decision 4) at this change, so each rule lives in one place
 
 ## 13. Close
