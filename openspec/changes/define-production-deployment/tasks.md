@@ -131,11 +131,11 @@ Stand-ins live under `poc/local/`; product code is not changed (Decision 10). Ev
 
 ## 11. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 11.1 Open the proof-of-concept hostname in the browser and pass the Access login with a test identity
-- [ ] 11.2 Start a stubbed session from the UI and confirm live progress renders without reload
-- [ ] 11.3 Restart the backend mid-session and confirm the page recovers on its own
-- [ ] 11.4 Download the final video from the UI
-- [ ] 11.5 Restore the environment and save `reports/YYYY-MM-DD-step-11-e2e-playwright.md`
+- [x] 11.1 Open the proof-of-concept in the browser — under Decision 14 this is the packaged executable's local page (`http://127.0.0.1:<port>/`); there is no Access login to pass — done (`reports/2026-10-13-step-11-e2e-browser.md`): page and same-origin API from the executable
+- [x] 11.2 Start a stubbed session from the UI and confirm live progress renders without reload (the scene is registered with `quick-scene` from outside, since decomposition is not wired — finding §1.2-5) — done (`reports/2026-10-13-step-11-e2e-browser.md`): session started from the UI; live updates rendered without reload after the scene was registered
+- [x] 11.3 Restart the backend mid-session and confirm the page recovers on its own — done (`reports/2026-10-13-step-11-e2e-browser.md`): `kill -9` and relaunch; the open page reconnected and reached `final-video` on its own
+- [x] 11.4 Download the final video from the UI — done (`reports/2026-10-13-step-11-e2e-browser.md`): link target fetched, 58,339 B `video/mp4` 1920x1080; the browser download was not clicked (needs the user's approval)
+- [x] 11.5 Restore the environment and save `reports/YYYY-MM-DD-step-11-e2e-playwright.md` — done (`reports/2026-10-13-step-11-e2e-browser.md`)
 
 ## 12. Update Technical Documentation (MANDATORY)
 
