@@ -44,8 +44,8 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 7. End to end through the API (TDD)
 
-- [ ] 7.1 Write a failing test: with all providers and the assembly tool stubbed, `POST /sessions` (via `inject`) reaches `final-video` with no `/internal/test/*` request, through voice-over, `chunk-decomposing`, `chunks-processing` and assembly
-- [ ] 7.2 Make 7.1 pass with groups 3-6 in place (no extra production code expected; if any is needed, update design.md first)
+- [x] 7.1 Write a failing test: with all providers and the assembly tool stubbed, `POST /sessions` (via `inject`) reaches `final-video` with no `/internal/test/*` request, through voice-over, `chunk-decomposing`, `chunks-processing` and assembly — done: `backend/test/session-end-to-end.test.ts` — `POST /sessions` with the voice, decomposition, image, video and assembly stubs reaches `final-video` through `voice-over-complete`, `chunk-decomposing`, `chunks-processing`; a second test pins that `/internal/test/quick-scene` answers 404. Non-vacuity checked: with the hand-off disabled the first test times out
+- [x] 7.2 Make 7.1 pass with groups 3-6 in place (no extra production code expected; if any is needed, update design.md first) — done: no extra production code was needed beyond groups 3-6
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
