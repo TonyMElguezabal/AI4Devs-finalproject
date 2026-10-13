@@ -1,6 +1,6 @@
 # PRD change draft v1.7 — local packaged application
 
-- Status: **DRAFT, not approved.** `docs/PRD.md` stays at v1.6 until the product owner approves this text (task 2.4).
+- Status: **APPROVED by the product owner on 2026-10-13** and applied to `docs/PRD.md` as v1.7 (previous version kept as `docs/PRD-v1.6.md`). Answers: the PRD says "the user's computer" without naming platforms (they stay in ADR 0007), and backups are the user's choice. The applied text drops the platform names and the folder examples shown below.
 - Origin: `define-production-deployment` (JOS-194), design Decision 14 (2026-10-13), ADR 0007.
 - Why: v1.6 admitted a hosted deployment behind an edge access gate. The product owner has since chosen to ship Vid4You as an application that runs on the user's own computer (macOS or Windows) and calls the cloud AI providers. v1.6's hosted wording no longer describes the product.
 
