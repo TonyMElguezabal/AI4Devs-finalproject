@@ -148,12 +148,12 @@ npm run dev        # start the dev server for manual/E2E testing (fixed local UR
 
 ## Deployment
 
-Decided by `docs/adr/0007-deployment.md` (JOS-194).
+Decided by `docs/adr/0007-deployment.md` (JOS-194): the frontend is built once and embedded in the packaged executable, which serves it and the API from the same `http://127.0.0.1:<port>/` origin.
 
-- **Placement.** The built frontend is served by a reverse proxy (Caddy) on the same host and hostname as the API, which it reaches under `/api/*` with the prefix stripped. One origin, so there is no CORS and the Access cookie travels with both the page and the SSE stream.
-- **API base.** Hosted builds use `VITE_API_BASE=/api`; the default `http://127.0.0.1:3100` is for local development only. The same build serves UAT and production, so nothing in the build may depend on the environment.
-- **Access.** Both environments sit behind Cloudflare Access; the page needs no login code of its own. A request that Access rejects arrives as a redirect to the login page, not as an API error.
-- **Live updates.** The SSE heartbeat (15 s) keeps the stream alive through the edge's read timeout; do not lengthen it.
+- **API base.** Packaged builds use a same-origin API base (`VITE_API_BASE=""`); the default `http://127.0.0.1:3100` is for development with the Vite dev server only. Nothing in the build may depend on the machine it runs on.
+- **One page.** The app uses `/` with `?sessionId=`; adding routes is fine, but they must not collide with API paths, because both are served on one origin.
+- **Live updates.** The SSE stream must recover by itself after the backend restarts (shown in the PoC after a `kill -9` and relaunch); keep the reconnect-and-resync behaviour of ADR 0003.
+- **No secrets in the frontend.** Provider credentials never reach the browser; the backend reads them from the user's data folder.
 
 ## Development Workflow
 

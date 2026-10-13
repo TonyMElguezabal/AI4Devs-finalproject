@@ -80,23 +80,23 @@ Notes from running the suites on a clean checkout:
 - `test/orchestrator.test.ts` is timing-sensitive and fails occasionally in a full run; rerun the file alone before treating it as a regression.
 - The `*.contract.test.ts` files call real providers and are skipped when no key is set.
 
-## Branches and environments
+## Branches and release channels
 
-There are exactly two hosted environments (decision of the product owner, JOS-194):
+Vid4You ships as a packaged application per platform that runs on the user's computer and calls the cloud AI APIs (`docs/adr/0007-deployment.md`, JOS-194). There are exactly two release channels:
 
-| Environment | Branch | Address (planned, not live yet) |
+| Channel | Branch | Published as |
 |---|---|---|
-| UAT | `feature/entrega-2-JAME` | `uat.vid4you.download` |
-| Production | `main` | `vid4you.download` |
+| UAT | `feature/entrega-2-JAME` | pre-release, built once per source tree |
+| Production | `main` | release containing the same files as the UAT pre-release for that source tree |
 
 ```
-feature/jos-<n>-<name>  ──PR──▶  feature/entrega-2-JAME (UAT)  ──merge──▶  main (production)
+feature/jos-<n>-<name>  ──PR──▶  feature/entrega-2-JAME (UAT pre-release)  ──merge──▶  main (production release)
 ```
 
 - Feature work branches from `feature/entrega-2-JAME` and merges back into it, never straight into `main`.
-- Production receives the image that UAT already ran for the same source tree; a production deploy for content UAT never ran fails instead of building. The branch-to-environment mapping is declared in one place so it can change later.
-- Hosted environments sit behind an access gate (Cloudflare Access) and are not public. The product owner approved the PRD access change on 2026-10-12; applying it to `docs/PRD.md` is tracked as task 2.3 of `define-production-deployment`.
-- The hosting decision (Cloudflare Tunnel and Access in front of one VM per environment), its evidence and the delivery pipeline are recorded in `docs/adr/0007-deployment.md` and the `define-production-deployment` change (JOS-194). The environments are not live yet; the follow-up stories build them.
+- A production release is published only for a source tree that already has a UAT pre-release, after a reviewer approves; otherwise it fails closed. The branch-to-channel mapping is declared in one place so it can change later.
+- The pipeline that does this is a follow-up story (L7); until then, the proof-of-concept build is `node openspec/changes/define-production-deployment/poc/local/build.mjs` (macOS executable in `poc/local/out/`).
+- Hosted options (Cloudflare Tunnel + VM, Cloudflare Containers) were evaluated and set aside; their evidence stays in the change's reports.
 
 ## Specifications
 

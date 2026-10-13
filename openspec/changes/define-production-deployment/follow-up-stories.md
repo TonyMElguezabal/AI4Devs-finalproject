@@ -1,74 +1,79 @@
 # Follow-up stories — JOS-194
 
-Each story names the `deployment-foundation` requirement it satisfies (spec: `specs/deployment-foundation/spec.md`). Order follows `design.md` § Migration Plan. Stories are drafts to file in Linear; none is filed yet. The PRD access change is approved (task 2.2), so none is blocked on it.
+Distribution decision: a local packaged application for macOS and Windows that calls the cloud AI APIs (design Decision 14). Each story names the `deployment-foundation` requirement it satisfies (`specs/deployment-foundation/spec.md`) and the proof-of-concept stand-in it replaces (`poc/local/`, `reports/2026-10-13-step-6e-local-app-poc.md`). Stories are drafts to file in Linear; none is filed yet. Each code story starts with a failing test (TDD).
 
-Requirement abbreviations: **DEC** single documented hosting decision · **GATE** no exposure without an approved access gate · **ONE** exactly one backend instance · **STORE** durable and recoverable storage · **PROMO** production ships the artifact UAT validated · **CONF** safe configuration · **IAC** infrastructure as code · **EVID** recorded evidence · **FUP** follow-up work specified.
+Requirement abbreviations: **DEC** single documented distribution decision · **PLAT** runs on the supported platforms without installing a runtime · **LOCAL** reachable only by the local user · **ONE** exactly one backend instance per user · **DATA** data kept in the user's data folder · **CRED** credentials stay on the user's computer · **SAFE** release builds are safe by construction · **PROMO** production releases are the artifacts UAT validated · **PIPE** build and release pipeline declared as code · **EVID** recorded evidence · **FUP** follow-up work specified.
 
-## Code stories (no environment needed; each with its own failing test first)
+## Blockers for any useful build
 
-### S1 — Wire the real assembly tool at server bootstrap — CONF, ONE (blocker)
-`createFfmpegAssemblyTool()` has no caller, so no hosted environment can produce a final video.
-- With no `USE_STUB_ASSEMBLY_TOOL`, a session that reaches assembly runs the real tool and does not fail with "no assembly tool is configured".
-- A start-up test asserts the tool is registered; the existing stub flag still replaces it.
-
-### S2 — Configurable ffmpeg and ffprobe paths — CONF
-- `FFMPEG_PATH` and `FFPROBE_PATH` select the binaries; the default is the binary on `PATH`, no longer `/opt/homebrew/bin`.
-- A missing binary fails at start-up with a message naming the variable.
-
-### S3 — Start guards for test-only switches — CONF
-- The backend refuses to start when `ALLOW_TEST_ENDPOINTS` or any `USE_STUB_*` variable is **present**, whatever its value, when `NODE_ENV=production`.
-- An unrecognised `USE_STUB_VIDEO_PROVIDER` value fails instead of selecting the `transient-failure` stub.
-
-### S4 — CORS and SSE origin restricted to the environment's origin — CONF
-- `@fastify/cors` accepts only the configured origin (environment variable); the SSE route applies the same check instead of echoing `Origin`.
-- A request from a foreign origin gets no `Access-Control-Allow-Origin`.
-
-### S5 — Frontend API base `/api` — PROMO, CONF
-- The hosted build uses `VITE_API_BASE=/api`; the same build artifact runs in both environments.
-- Local development keeps working with the existing default.
+### S1 — Wire the real assembly tool at server bootstrap — PLAT
+`createFfmpegAssemblyTool()` has no caller, so no build produces a final video without a stub flag. Stand-in: `entry.ts` calls `setAssemblyTool(createFfmpegAssemblyTool())`.
+- With no `USE_STUB_ASSEMBLY_TOOL`, a session that reaches assembly runs the real tool.
+- A start-up test asserts the tool is registered; the existing stub flag still replaces it in development.
 
 ### S6 — Forward hand-off after the voice-over (product gap) — FUP
-Nothing starts decomposition after `voice-over-complete`; UAT cannot go script → final video without test endpoints. Belongs to `decompose-script-into-chunks` (0/78 tasks); recorded here so it is not forgotten. Acceptance: a session created through the public API reaches `final-video` with all stages stubbed, no test endpoint involved.
+Nothing starts decomposition after `voice-over-complete`, so a session cannot go from script to final video without the test endpoint `quick-scene`. Belongs to `decompose-script-into-chunks` (0/78 tasks); recorded here so it is not forgotten.
+- A session created through the public API reaches `final-video` with all stages stubbed, no test endpoint involved.
 
-### S14 — Write project files without hard links — CONF (only if option B+ is chosen)
-Found by the B+ proof of concept: R2 FUSE has no `link()`, and `db.ts` publishes every project file with `linkSync(tmp, final)` (`db.ts:624`, `:675`).
-- Replace the idiom with an exclusive create (`wx`) or an exclusive copy that keeps the EEXIST semantics, and keep the existing tests green on a local disk.
-- A test runs the write path against a directory on which `link()` fails with `EPERM` and still publishes the file once.
+### L3 — Accept requests only from the app's own page (security) — LOCAL
+Any website the user visits can call `127.0.0.1`: today the backend echoes any `Origin` (CORS `origin: true`, and the SSE route writes it back itself) and accepts any `Host`. The PoC showed a foreign origin reading `/languages` with `access-control-allow-origin: https://evil.example`. Stand-in: the guard in `entry.ts`. **Must ship before any release.**
+- A request with an `Origin` other than the app's own origin gets `403`; so does one whose `Host` is not the loopback address and port (DNS rebinding).
+- The SSE route applies the same rule; CORS no longer allows arbitrary origins (replaces the hosted story S4).
+- Requests without `Origin` (navigation, the app's own same-origin fetches that omit it) keep working.
 
-## Environment stories
+## Packaging
 
-### S7 — VM provider and host hardening — GATE, ONE
-- Provider: Hetzner Cloud (decided 2026-10-12). The product owner creates the account and a project API token; the agent never creates paid resources without a go-ahead.
-- One VM per environment; firewall denies all inbound traffic; no published port; automatic security updates; a probe of the VM's address on every port is refused.
+### L1 — A start-up function that works in a bundle and on Windows — PLAT
+`server.ts:97` compares `import.meta.url` with `` `file://${process.argv[1]}` ``, which never matches on Windows or in a bundle, and the bootstrap uses top-level `await`. Stand-in: `build.mjs` cuts the bootstrap and `entry.ts` repeats it.
+- `server.ts` exports `startServer(options)`; `node src/server.ts` still starts it in development; the packaged entry calls it.
+- A test starts the server through `startServer` on an ephemeral port.
 
-### S8 — Compose project, Caddy and the production image — ONE, CONF, IAC
-> PoC finding: do **not** share the backend's network namespace with `cloudflared` and Caddy in production unless a supervisor recreates them together; after a crash restart they stay attached to a dead namespace. Use a bridge network and the `HOST` setting (S2 area) instead.
-- Productionise `poc/Dockerfile.a`, `Dockerfile.web`, `Caddyfile` and `compose.yml`; the image holds no credentials (checked by an image search).
-- `cloudflared`, Caddy and the backend share one network namespace; restart policy `unless-stopped`.
+### L2 — Per-user data folder and credentials file — DATA, CRED
+`DB_PATH`/`PROJECTS_ROOT` default to the working directory and `.secrets.json` is resolved from the source tree (`credentials.ts:18`). Stand-in: `env.ts`.
+- Defaults: `~/Library/Application Support/Vid4You` (macOS), `%APPDATA%\Vid4You` (Windows); environment variables still override.
+- Credentials: environment first, then `credentials.json` in that folder; a missing key names the file and the variable, never a value.
+- Project folder names avoid Windows-reserved names (`CON`, `NUL`, `COM1`…) and trailing dots or spaces.
 
-### S9 — OpenTofu for UAT — IAC, GATE
-- `infra/modules/{edge,host,backup}` and `infra/uat`, remote state in an R2 bucket, the zone imported, Access policy from a variable.
-- A plan shows drift; an apply on an empty account recreates UAT. Includes validating the provider attributes that the PoC left unproven.
+### S2 — ffmpeg and ffprobe found beside the executable — PLAT
+Assembly hard-codes `/opt/homebrew/bin/ffmpeg`; the voice-over check calls `ffprobe` from `PATH`. Stand-in: `env.ts` remaps both.
+- `FFMPEG_PATH`/`FFPROBE_PATH` override; otherwise the binaries beside the executable; otherwise `PATH`. Both callers use the same resolution.
+- A missing binary fails at start-up with a message naming it.
 
-### S10 — CI and UAT deploy — PROMO, CONF
-- `check` on pull requests (ffmpeg installed, temporary `DB_PATH`/`PROJECTS_ROOT`, no `.secrets.json`; known timing-sensitive `orchestrator.test.ts` addressed or quarantined).
-- Build once per tree on push to `feature/entrega-2-JAME`, push to GHCR, deploy to UAT by digest with stop-then-start, smoke check through an Access service token.
-- Provider keys per environment as GitHub Environment secrets; separate UAT keys where a provider allows it, else recorded as shared.
+### L4 — One instance per user — ONE
+Stand-in: `entry.ts` probes `/health` on the port first.
+- A second launch opens the running instance and exits; a port taken by another program is reported clearly instead of a crash.
 
-### S11 — Backup and restore drill — STORE
-- Scheduled `sqlite3 .backup` and `restic` to `<env>-backup`; recovery point recorded as a number.
-- A restore into an empty volume is performed once on UAT, timed and recorded, before production goes live. Alert when the last backup is older than twice its interval.
+### L5 — Release builds are safe by construction — SAFE
+Today any non-empty `ALLOW_TEST_ENDPOINTS`/`USE_STUB_*` (even `false`) enables test endpoints or stubs, and an unknown `USE_STUB_VIDEO_PROVIDER` value selects the `transient-failure` stub. Stand-in: `env.ts` deletes them; `build.mjs` replaces `@fastify/swagger-ui`. (Replaces the hosted story S3.)
+- A packaged build ignores those variables and serves no `/docs`; development keeps them.
 
-### S12 — Production with gated promotion — PROMO, GATE, STORE
-- `infra/prod` and the apex hostname; `deploy-prod` on push to `main` resolves the UAT-recorded digest for `main`'s tree hash and **fails closed** if none exists; a required reviewer approves.
-- A scratch-repository rehearsal proves both the pass and the fail-closed case before the first real promotion.
+### L6 — Build the executables — PLAT
+Stand-in: `poc/local/build.mjs`.
+- The backend serves the built frontend on its own port with a same-origin API base (replaces the hosted story S5); the frontend is embedded in the executable.
+- One executable per platform from the official Node release binary (checksum-verified), plus ffmpeg/ffprobe beside it, in an archive per platform.
+- Targets: macOS arm64 and x64, Windows x64.
 
-### S13 — Health and alerting — ONE, EVID
-- External uptime check on `GET /health` with an Access service token; email alert on failure.
-- Docker `local` log driver with rotation; retention recorded.
+### L7 — CI and release channels — PIPE, PROMO
+Replaces the hosted CI story S10.
+- Pull requests: backend and frontend typecheck and tests with ffmpeg installed, temporary `DB_PATH`/`PROJECTS_ROOT`, no credentials file; the timing-sensitive `orchestrator.test.ts` fixed or quarantined.
+- Push to `feature/entrega-2-JAME`: build every platform once per source tree, publish a **pre-release** (UAT) named by tree hash.
+- Push to `main`: find the pre-release for `main`'s tree hash and publish **the same files** as a release after a reviewer approves; fail closed if none exists (rule rehearsed in `poc/promotion-check.sh`).
+- The branch-to-channel mapping lives in one place.
+
+### L8 — Signing and notarization — PLAT
+Without it macOS Gatekeeper and Windows SmartScreen warn on first launch, and some antivirus tools flag unsigned Node executables.
+- Needs an Apple Developer account and a Windows code-signing certificate (product-owner purchases); secrets live in the pipeline, never in the repository.
+
+### L9 — Windows verification — PLAT, EVID
+Task 6.20: the product owner runs the `.exe` on a Windows laptop.
+- Start, page load, one stubbed session to a final video, a kill and relaunch, data under `%APPDATA%\Vid4You`, a title with Windows-invalid characters.
+
+## No longer needed (hosted options, kept for a future hosted or multi-user mode)
+S3, S4, S5 are replaced by L5, L3, L6. S7 (VM and host hardening), S8 (compose, Caddy), S9 (Terraform), S10 (hosted CI, replaced by L7), S11 (off-host backups), S12 (gated production deploy), S13 (uptime alerting) and S14 (B+ only: writes without hard links) are not filed. Their evidence stays in the reports.
 
 ## Recorded risks not turned into stories
-- **R-B+1 (only if B+ is chosen):** one of four mid-stage rollout runs ended `failed` with no log captured; reproduce with log capture before relying on rollouts under load. Related: the `schedule()`-based keep-alive in the design does not work and was replaced by an `onActivityExpired()` override.
-- A restart **during** a running stage was not exercised in the PoC (stubbed stages finish in about a second); S10's UAT runs with real providers are the first real test (`EVID`).
-- Unattended progress was verified only as "no browser connected"; there is no platform sleep under option A.
-- B+ (Cloudflare Containers with Litestream and R2) is the documented runner-up and was never run.
+- **Processing stops while the computer sleeps or the app is closed.** Sessions resume on the next launch (shown in the PoC), but a long video needs the laptop awake. Worth a line in the user guide.
+- **Backups are the user's.** Data lives only on the user's computer; PRD §12.2 never deletes it, but nothing copies it elsewhere.
+- **Size.** About 270 MB on disk (146 MB executable, ffmpeg and ffprobe); acceptable for a desktop tool, reducible later.
+- **Real providers inside the executable were not run** in the PoC (stubs only); the first UAT pre-release with keys in the credentials file is the first real test.
+- **Port 3100 may be taken** on some machines; L4 must report it, and a configurable port exists (`VID4YOU_PORT` in the PoC).
