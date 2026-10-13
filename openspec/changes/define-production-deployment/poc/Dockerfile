@@ -43,4 +43,5 @@ ENV NODE_ENV=production \
 EXPOSE 8080
 # PoC-only uptime probe (preload.ts); Cloudflare routes only EXPOSEd ports.
 EXPOSE 8081
+LABEL poc.rollout="6"
 ENTRYPOINT ["/usr/bin/tini", "--", "/app/poc/entrypoint.sh"]

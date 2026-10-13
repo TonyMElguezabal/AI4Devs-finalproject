@@ -11,6 +11,7 @@ interface Env {
   AWS_SECRET_ACCESS_KEY: string;
   POC_MODE: string;
   POC_KEEPALIVE?: string;
+  POC_SLEEP_AFTER?: string;
   POC_STUB_VIDEO_DELAY_MS?: string;
   ALLOW_TEST_ENDPOINTS?: string;
   OPENAI_KEY?: string;
@@ -18,8 +19,6 @@ interface Env {
   FAL_API_KEY?: string;
   RUNNINGHUB_API_KEY?: string;
 }
-
-const KEEP_ALIVE_SECONDS = 60;
 
 export class Vid4YouBackend extends Container<Env> {
   defaultPort = 8080;
@@ -44,19 +43,20 @@ export class Vid4YouBackend extends Container<Env> {
       RUNNINGHUB_API_KEY: env.RUNNINGHUB_API_KEY,
     };
     // Unset must stay unset: the backend treats any non-empty value (even "false") as enabled (design §1.2, finding 3).
+    if (env.POC_SLEEP_AFTER) this.sleepAfter = env.POC_SLEEP_AFTER; // experiment knob, default "10m"
     this.envVars = Object.fromEntries(Object.entries(forwarded).filter(([, v]) => v !== undefined && v !== "")) as Record<string, string>;
   }
 
-  override async onStart(): Promise<void> {
-    if (this.env.POC_KEEPALIVE === "0") return; // control run for experiment 7.14
-    await this.schedule(KEEP_ALIVE_SECONDS, "keepAlive");
+  // Keep-alive: when the inactivity timeout expires, renew it instead of stopping (the library's default). The backend progresses
+  // sessions with no incoming request, so a sleeping instance would stall them. POC_KEEPALIVE=0 restores the default for the control run.
+  override async onActivityExpired(): Promise<void> {
+    if (this.env.POC_KEEPALIVE === "0") return super.onActivityExpired();
+    console.log("poc: activity expired; renewing instead of stopping");
+    this.renewActivityTimeout();
   }
 
-  async keepAlive(): Promise<void> {
-    if (this.env.POC_KEEPALIVE === "0") return;
-    this.renewActivityTimeout();
-    await this.schedule(KEEP_ALIVE_SECONDS, "keepAlive");
-  }
+  // Schedules created by earlier PoC versions may still be stored; they must not reschedule themselves.
+  async keepAlive(): Promise<void> {}
 }
 
 export default {
@@ -67,6 +67,7 @@ export default {
       const stub = getContainer(env.BACKEND, "singleton");
       const action = url.pathname.slice("/__poc/".length);
       if (action === "state") return Response.json(await stub.getState());
+      if (action === "logs") return stub.containerFetch(new Request("http://container/logs"), 8081);
       if (action === "uptime") return stub.containerFetch(new Request("http://container/uptime"), 8081);
       if (action === "stop") { await stub.stop(); return Response.json({ stopped: "SIGTERM" }); }
       if (action === "kill") { await stub.destroy(); return Response.json({ destroyed: "SIGKILL" }); }

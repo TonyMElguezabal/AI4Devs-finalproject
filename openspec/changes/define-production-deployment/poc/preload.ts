@@ -24,7 +24,30 @@ syncBuiltinESMExports();
 // PoC-only: process uptime on a second port, read by the Worker's /__poc/uptime to tell whether the container was ever restarted.
 const { createServer } = await import("node:http");
 const bootedAt = Date.now();
-createServer((_request, response) => response.end(JSON.stringify({ pid: process.pid, uptimeSeconds: Math.round(process.uptime()), bootedAt }))).listen(8081, "0.0.0.0");
+// PoC-only diagnostics: keep the last ~256 KB of what the process writes to stdout/stderr (Fastify's logger writes through fs.write*),
+// so a stuck experiment can be read from outside through the Worker's /__poc/logs.
+let logTail = "";
+const keep = (chunk: unknown) => {
+  logTail = (logTail + (typeof chunk === "string" ? chunk : Buffer.from(chunk as Uint8Array).toString("utf8"))).slice(-262144);
+};
+const realWriteSync = fs.writeSync;
+(fs as { writeSync: typeof fs.writeSync }).writeSync = ((fd: number, data: never, ...rest: never[]) => {
+  if (fd === 1 || fd === 2) keep(data);
+  return (realWriteSync as (...args: unknown[]) => number)(fd, data, ...rest);
+}) as typeof fs.writeSync;
+const realWrite = fs.write;
+(fs as { write: typeof fs.write }).write = ((fd: number, data: never, ...rest: never[]) => {
+  if (fd === 1 || fd === 2) keep(data);
+  return (realWrite as (...args: unknown[]) => void)(fd, data, ...rest);
+}) as typeof fs.write;
+for (const stream of [process.stdout, process.stderr]) {
+  const original = stream.write.bind(stream);
+  stream.write = ((chunk: unknown, ...rest: unknown[]) => { keep(chunk); return (original as (...args: unknown[]) => boolean)(chunk, ...rest); }) as typeof stream.write;
+}
+createServer((request, response) => {
+  if (request.url?.startsWith("/logs")) return void response.end(logTail);
+  response.end(JSON.stringify({ pid: process.pid, uptimeSeconds: Math.round(process.uptime()), bootedAt }));
+}).listen(8081, "0.0.0.0");
 
 const backendSrc = process.env.BACKEND_SRC ?? "/app/backend/src";
 const load = (file: string) => import(pathToFileURL(join(backendSrc, file)).href);

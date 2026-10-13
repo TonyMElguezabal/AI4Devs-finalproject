@@ -68,6 +68,7 @@ Found by the B+ proof of concept: R2 FUSE has no `link()`, and `db.ts` publishes
 - Docker `local` log driver with rotation; retention recorded.
 
 ## Recorded risks not turned into stories
+- **R-B+1 (only if B+ is chosen):** one of four mid-stage rollout runs ended `failed` with no log captured; reproduce with log capture before relying on rollouts under load. Related: the `schedule()`-based keep-alive in the design does not work and was replaced by an `onActivityExpired()` override.
 - A restart **during** a running stage was not exercised in the PoC (stubbed stages finish in about a second); S10's UAT runs with real providers are the first real test (`EVID`).
 - Unattended progress was verified only as "no browser connected"; there is no platform sleep under option A.
 - B+ (Cloudflare Containers with Litestream and R2) is the documented runner-up and was never run.
