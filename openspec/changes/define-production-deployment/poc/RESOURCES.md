@@ -26,3 +26,6 @@ Local host stand-in: docker compose project `poc` on the developer machine (cont
 | Access service token | `vid4you-poc-cf-smoke`, 8760 h | free |
 
 Not yet created (waiting for the R2 test, task 6.15): the Worker `vid4you-poc`, its Durable Object, the container instance (`standard-1`), the custom domain record, Workers Paid plan. Teardown: `tofu destroy` in `poc/terraform-bplus`, `wrangler delete` for the Worker, then delete the R2 S3 token.
+
+### B+ deploy attempt, 2026-10-13 (stopped by the plan)
+`wrangler deploy` uploaded the Worker script `vid4you-poc` (assets and Durable Object binding, no container application, no custom-domain record) and then failed at the Containers API: "You do not have access to Cloudflare Containers. Deploying containers requires the Workers Paid plan." The account is on the Workers Free plan. Nothing billable was created. Remove the script with `npx wrangler delete --name vid4you-poc` if B+ is abandoned.
