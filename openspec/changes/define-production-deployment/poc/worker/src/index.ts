@@ -57,6 +57,15 @@ export class Vid4YouBackend extends Container<Env> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    // PoC-only controls (behind Access): drive the instance lifecycle for experiments 6.14, 7.4, 7.13, 7.14. Remove with the PoC.
+    if (url.pathname.startsWith("/__poc/")) {
+      const stub = getContainer(env.BACKEND, "singleton");
+      const action = url.pathname.slice("/__poc/".length);
+      if (action === "state") return Response.json(await stub.getState());
+      if (action === "stop") { await stub.stop(); return Response.json({ stopped: "SIGTERM" }); }
+      if (action === "kill") { await stub.destroy(); return Response.json({ destroyed: "SIGKILL" }); }
+      return new Response("unknown poc action", { status: 404 });
+    }
     if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
       url.pathname = url.pathname.slice("/api".length) || "/";
       return getContainer(env.BACKEND, "singleton").fetch(new Request(url, request));

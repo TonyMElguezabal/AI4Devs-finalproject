@@ -29,3 +29,16 @@ Not yet created (waiting for the R2 test, task 6.15): the Worker `vid4you-poc`, 
 
 ### B+ deploy attempt, 2026-10-13 (stopped by the plan)
 `wrangler deploy` uploaded the Worker script `vid4you-poc` (assets and Durable Object binding, no container application, no custom-domain record) and then failed at the Containers API: "You do not have access to Cloudflare Containers. Deploying containers requires the Workers Paid plan." The account is on the Workers Free plan. Nothing billable was created. Remove the script with `npx wrangler delete --name vid4you-poc` if B+ is abandoned.
+
+### B+ deployed, 2026-10-13 (after Workers Paid was activated)
+| Resource | Name / identifier | Cost |
+|---|---|---|
+| Workers Paid plan | account subscription (activated by the product owner) | $5/month minimum |
+| Worker | `vid4you-poc` (assets + `/api` proxy + PoC control routes `/__poc/*`) | within the plan's included requests |
+| Durable Object class | `Vid4YouBackend` (SQLite-backed) | within the plan |
+| Container application | `vid4you-poc-vid4youbackend`, id `a03a443e-d98f-4524-bc03-4519db83a24e`, `standard-1`, `max_instances` 1 | about $0.90/day while an instance runs |
+| Custom domain | `poc-cf.vid4you.download` (Wrangler-managed DNS record) | free |
+| Worker secrets | `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | free |
+| R2 S3 API token | created by the product owner, scoped to `vid4you-poc-data` | free |
+
+Teardown: `npx wrangler delete --name vid4you-poc` (also removes the container application and the DO), `tofu destroy` in `poc/terraform-bplus`, delete the R2 S3 token and the `vid4you-poc` API token in the dashboard; downgrading Workers Paid is the product owner's call.

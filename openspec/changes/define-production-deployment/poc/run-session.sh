@@ -10,6 +10,7 @@ AUTH=()
 if [ -n "${CF_ACCESS_CLIENT_ID:-}" ]; then
   AUTH=(-H "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}" -H "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}")
 fi
+if [ -n "${CURL_RESOLVE:-}" ]; then AUTH+=(--resolve "$CURL_RESOLVE"); fi   # host:443:ip, for a resolver that cached a negative answer
 json() { python3 -c "import json,sys;d=json.load(sys.stdin);print($1)"; }
 api() { curl -fsS -m 20 ${AUTH[@]+"${AUTH[@]}"} "$@"; }
 
