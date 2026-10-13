@@ -1,9 +1,16 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getRun, getStageAttempts, getVoiceOver, resetAll } from "../src/db.ts";
 import { releaseAttempt } from "../src/retry/retryScheduler.ts";
 import { sweepTimedOutAttempts } from "../src/retry/attemptTimeoutWatcher.ts";
 import { startNewCycle } from "../src/retry/stageAttemptRecorder.ts";
 import { after, register, sendFirstAttempt, sendScheduledRetry, VOICE_LIMIT_MS, waitFor } from "./voiceTimeoutFixtures.ts";
+
+// run-session-end-to-end (JOS-195), design Decision 6 — this file tests the voice-over phase alone, so the hand-off to
+// decomposition that a stored narration now triggers is disabled here; `narration-handoff-*.test.ts` covers it.
+vi.mock("../src/decompositionPhase.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/decompositionPhase.ts")>()),
+  launchDecompositionFor: () => undefined,
+}));
 
 // stage-execution-time-limit (JOS-185), group 4 — a result that arrives after its attempt timed out is
 // accepted once, or discarded, and never completes the stage twice.

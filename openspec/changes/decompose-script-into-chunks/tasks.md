@@ -21,7 +21,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 - [ ] 2.1 Write failing tests for the `Chunk` value: `sequence_number`, `prompt`, `image_instruction`, `video_instruction`, `narration_start_seconds`, `narration_duration_seconds`, `status`
 - [ ] 2.2 Write failing tests that `sequence_number` is immutable once assigned
-- [ ] 2.3 Write failing tests for the session state transition `voice-over-complete → chunk-decomposing`, and that every other transition out of `chunk-decomposing` besides its designated success/failure paths is refused
+- [ ] 2.3 Write failing tests for the session state transition `voice-over-complete → chunk-decomposing`, and that every other transition out of `chunk-decomposing` besides its designated success/failure paths is refused _(The transition's start is covered by `run-session-end-to-end` (JOS-195): the narration hand-off and the boot rule, tests in `narration-handoff-*.test.ts`; the transition pairs themselves were tested by JOS-139.)_
 - [ ] 2.4 Implement the `Chunk` value and the state transition, then run the group 2 tests and confirm they pass
 
 ## 3. Persistence: chunks and stage-instance records (TDD)
@@ -80,7 +80,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 9. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 9.1 Review `generate-voice-over` tests that assert nothing launches after `voice-over-complete`, and update them for the automatic decomposition launch
+- [ ] 9.1 Review `generate-voice-over` tests that assert nothing launches after `voice-over-complete`, and update them for the automatic decomposition launch _(Done by `run-session-end-to-end` (JOS-195), group 8: the affected voice-over files mock the hand-off as a no-op; see its step 9 report.)_
 - [ ] 9.2 Confirm every scenario in `specs/script-decomposition/spec.md` has at least one functional test
 - [ ] 9.3 Confirm module test coverage has not decreased
 - [ ] 9.4 Document the test command
@@ -119,7 +119,7 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 
 ## 14. Close out
 
-- [ ] 14.1 Confirm with `generate-voice-over` where the transition out of `voice-over-complete` is implemented only here
+- [ ] 14.1 Confirm with `generate-voice-over` where the transition out of `voice-over-complete` is implemented only here _(Resolved by `run-session-end-to-end` (JOS-195): the start of decomposition after the narration is implemented in `voiceOverPhase.ts` (`handOffAfterNarration`) through the decomposition launcher.)_
 - [ ] 14.2 Record for the image- and video-generation stories where `chunks-processing` is launched from, so they extend the phase-launch gate rather than re-derive it
 - [ ] 14.3 Open the PR with a description linking to this change
 - [ ] 14.4 Obtain review by at least one human, not only AI agents

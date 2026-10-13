@@ -10,6 +10,7 @@ import { stagesWithoutRestartRecovery } from "./launchGate.ts";
 import * as concurrency from "./concurrency.ts";
 import { STAGE } from "./types.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
+import { setDecompositionLogger } from "./decompositionPhase.ts";
 import { setVoiceOverLogger } from "./voiceOverPhase.ts";
 import { rebuildScheduler } from "./retry/retryScheduler.ts";
 import { startAttemptTimeoutWatcher } from "./retry/attemptTimeoutWatcher.ts";
@@ -17,6 +18,8 @@ import { setRetryDelayConfig } from "./retry/stageAttemptRecorder.ts";
 import { createStubVoiceProvider as createStubVoice, setVoiceProviderRegistry, type StubVoiceProviderMode } from "./voiceProvider.ts";
 import { setVideoProviderRegistry, createStubVideoProvider, STUB_VIDEO_PROVIDER_NAME, type StubVideoProviderMode } from "./videoProvider.ts";
 import { createStubAssemblyTool, type StubAssemblyMode } from "./stubAssemblyTool.ts";
+import { createFfmpegAssemblyTool } from "./ffmpegAssemblyTool.ts";
+import type { AssemblyTool } from "./assemblyTool.ts";
 
 const PORT = Number(process.env.PORT ?? 3100);
 // define-provider-configuration (JOS-165) task 17.2 — this skeleton's one
@@ -92,6 +95,25 @@ export function assemblyStubModeFor(name: string, delayMsValue: string | undefin
   return { kind: "transient-failure" };
 }
 
+/**
+ * run-session-end-to-end (JOS-195), design Decision 5 — the assembly tool the running application uses: the ffmpeg
+ * adapter by default, or the stub a `USE_STUB_ASSEMBLY_TOOL` value names (manual testing only). Registering it here,
+ * rather than inline in the bootstrap, lets a test reach it; without it every session fails at assembly with
+ * "no assembly tool is configured".
+ */
+export function configureAssemblyTool(
+  env: Record<string, string | undefined> = process.env,
+  factories: { ffmpeg: () => AssemblyTool; stub: (mode: StubAssemblyMode) => AssemblyTool } = {
+    ffmpeg: createFfmpegAssemblyTool,
+    stub: createStubAssemblyTool,
+  },
+): AssemblyTool {
+  const stubMode = env.USE_STUB_ASSEMBLY_TOOL;
+  const tool = stubMode ? factories.stub(assemblyStubModeFor(stubMode, env.ASSEMBLY_STUB_DELAY_MS)) : factories.ffmpeg();
+  setAssemblyTool(tool);
+  return tool;
+}
+
 // Bootstrap only when this file is run directly (`node src/server.ts`), not
 // when imported by tests.
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
@@ -120,12 +142,11 @@ if (isMainModule) {
   }
   // USE_STUB_ASSEMBLY_TOOL=success|transient-failure|not-retryable-failure|slow-success — manual endpoint testing only (JOS-149).
   // `slow-success` (JOS-161) answers success after ASSEMBLY_STUB_DELAY_MS (default 15000), so a pause can land during assembly.
-  const stubAssemblyMode = process.env.USE_STUB_ASSEMBLY_TOOL as string | undefined;
-  if (stubAssemblyMode) {
-    setAssemblyTool(createStubAssemblyTool(assemblyStubModeFor(stubAssemblyMode, process.env.ASSEMBLY_STUB_DELAY_MS)));
-  }
+  // Without it the real ffmpeg adapter is registered (run-session-end-to-end, JOS-195).
+  configureAssemblyTool();
   const app = await buildApp();
   setVoiceOverLogger(app.log);
+  setDecompositionLogger(app.log);
   const summary = recoverOnBoot();
   app.log.info(bootLogFields(summary), "boot recovery complete");
   app.log.info({ scheduledRetries: rebuildScheduler() }, "scheduled retries re-armed");
