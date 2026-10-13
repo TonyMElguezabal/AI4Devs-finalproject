@@ -15,3 +15,14 @@ Created 2026-10-12 with `tofu apply` from `poc/terraform/` (OpenTofu 1.13.1, Clo
 Not created: R2 buckets, Workers, Containers (skipped by decision), a one-time-PIN identity provider, any VM. The account's existing resources (`VidaaS Admin` application, its policies, the Google provider) were not modified.
 
 Local host stand-in: docker compose project `poc` on the developer machine (containers `backend`, `caddy`, `cloudflared`, named volume `poc_data`), no ports published. That machine stands in for the VM.
+
+## B+ proof of concept (created 2026-10-13 from `poc/terraform-bplus/`, separate state)
+
+| Resource | Name / identifier | Cost |
+|---|---|---|
+| R2 bucket | `vid4you-poc-data` (database replica under `litestream/`, media under `projects/`) | free tier 10 GB, then cents |
+| Access application | `vid4you-poc-cf`, domain `poc-cf.vid4you.download`, identity provider: the existing Google provider | free |
+| Access policies | `vid4you-poc-cf owner` (allow, product owner's email), `vid4you-poc-cf smoke token` (non-identity) | free |
+| Access service token | `vid4you-poc-cf-smoke`, 8760 h | free |
+
+Not yet created (waiting for the R2 test, task 6.15): the Worker `vid4you-poc`, its Durable Object, the container instance (`standard-1`), the custom domain record, Workers Paid plan. Teardown: `tofu destroy` in `poc/terraform-bplus`, `wrangler delete` for the Worker, then delete the R2 S3 token.
