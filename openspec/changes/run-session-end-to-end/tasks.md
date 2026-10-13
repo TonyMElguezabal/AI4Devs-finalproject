@@ -28,8 +28,8 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 4. Voice-over hand-off (TDD; design Decision 3)
 
-- [ ] 4.1 Write failing tests: the first voice-over attempt's success, a retried attempt's success, and an accepted late result each start decomposition exactly once; a voice-over failure starts nothing; a session paused while the voice-over was in flight stays at `voice-over-complete` with one held decomposition unit, and continue starts it
-- [ ] 4.2 Add `handOffAfterNarration(runId)` to `voiceOverPhase.ts` and call it after each successful store and its broadcast. Make 4.1 pass
+- [x] 4.1 Write failing tests: the first voice-over attempt's success, a retried attempt's success, and an accepted late result each start decomposition exactly once; a voice-over failure starts nothing; a session paused while the voice-over was in flight stays at `voice-over-complete` with one held decomposition unit, and continue starts it — done: `backend/test/narration-handoff-voice.test.ts` (first attempt, retried attempt, accepted late result each start one decomposition and exactly one `timestamps` attempt; a not-retryable voice failure starts nothing; a session paused while in flight stays at `voice-over-complete` with one held unit and continue starts it); the three starts seen failing first
+- [x] 4.2 Add `handOffAfterNarration(runId)` to `voiceOverPhase.ts` and call it after each successful store and its broadcast. Make 4.1 pass — done: `handOffAfterNarration` in `voiceOverPhase.ts`, called after the broadcast at both store sites (the attempt path used by first and retried attempts, and the accepted late result); no import cycle; 15 hand-off tests pass, typecheck clean
 
 ## 5. Boot (TDD; design Decision 4)
 
