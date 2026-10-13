@@ -1,27 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import {
-  createRun,
-  countScenesForRun,
-  getStageAttempts,
-  insertVoiceOver,
-  recordStageAttempt,
-  resetAll,
-  setRunFailure,
-  writeArtefactOnce,
-} from "../src/db.ts";
+import { createRun, countScenesForRun, getStageAttempts, recordStageAttempt, resetAll, setRunFailure } from "../src/db.ts";
 import { decompositionLauncher, launchDecompositionFor } from "../src/decompositionPhase.ts";
 import { resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
 import { continueSession, pauseSession, resetVideoStageStartDelayMs, setVideoStageStartDelayMs, toSnapshot } from "../src/orchestrator.ts";
 import { createDecompositionFailure } from "../src/sessionStateMachine.ts";
+import { narratedSession, NARRATED_SCRIPT } from "./narratedSession.ts";
 import { installStubDecompositionDependencies, removeStubDecompositionDependencies, type StubDecompositionCalls } from "./decompositionStubs.ts";
 
 // run-session-end-to-end (JOS-195), design Decisions 1-2 — the decomposition launcher gains the "waiting after the
 // narration" term, so the gate's pause, continue and held-work reporting cover the first start too.
-
-const STEP = 0.25;
-const MP3 = Buffer.from([0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x01, 0x02, 0x03]);
-const SCRIPT = "The harbor is quiet at dusk. Fishing boats return with the tide.";
 
 let stubs: StubDecompositionCalls;
 
@@ -50,24 +38,6 @@ async function waitFor(condition: () => boolean, timeoutMs = 2000): Promise<void
   }
 }
 
-/** A session whose narration is stored (native timestamps unavailable, so alignment obtains them) and nothing else. */
-function narratedSession(): string {
-  const runId = randomUUID();
-  const { projectFolder } = createRun(runId, "Hand-off test", SCRIPT, "en");
-  writeArtefactOnce(projectFolder, "voice-over.mp3", MP3);
-  insertVoiceOver({
-    runId,
-    audioPath: "voice-over.mp3",
-    timestampsPath: null,
-    durationSeconds: SCRIPT.length * STEP,
-    sizeBytes: MP3.length,
-    nativeTimestampsAvailable: false,
-    providerRequestId: "req-1",
-    completedAt: "2026-10-13T10:00:00.000Z",
-  });
-  return runId;
-}
-
 function decompositionAttempts(runId: string) {
   return [...getStageAttempts(runId, "timestamps"), ...getStageAttempts(runId, "decomposition")];
 }
@@ -81,7 +51,7 @@ describe("decompositionLauncher.heldWork: waiting after the narration", () => {
 
   it("counts nothing for a session without a stored narration", () => {
     const runId = randomUUID();
-    createRun(runId, "No narration", SCRIPT, "en");
+    createRun(runId, "No narration", NARRATED_SCRIPT, "en");
 
     expect(decompositionLauncher.heldWork(runId).count).toBe(0);
   });

@@ -1506,11 +1506,16 @@ export function recoverOnBoot(): SettleSummary {
   // Waiting callbacks were lost on restart. Rebuild them only after all sent
   // requests have been counted and reconciled; launchers preserve eligibility
   // and acquire ignores holders already queued by a retry above.
-  // ponytail: every unfinished session with scenes is a candidate and the launchers filter; add an index-backed
-  // query if boot time on a large store matters.
+  // ponytail: every unfinished session with scenes, and every unfinished narrated session, is a candidate and the
+  // launchers filter; add an index-backed query if boot time on a large store matters.
+  // run-session-end-to-end (JOS-195), design Decision 4 — a narrated session without scenes is a candidate so its
+  // decomposition can start; a session with no narration is deliberately not (the voice-over launcher would match it).
   const candidateSessions = db.prepare(
-    `SELECT DISTINCT s.run_id AS runId FROM scenes s JOIN runs r ON r.id = s.run_id
-     WHERE s.status IN ('submitted', 'image-complete') OR r.final_video_path IS NULL`,
+    `SELECT r.id AS runId FROM runs r
+     WHERE EXISTS (SELECT 1 FROM scenes s WHERE s.run_id = r.id AND s.status IN ('submitted', 'image-complete'))
+        OR (r.final_video_path IS NULL
+            AND (EXISTS (SELECT 1 FROM scenes s WHERE s.run_id = r.id)
+                 OR EXISTS (SELECT 1 FROM voice_overs v WHERE v.run_id = r.id)))`,
   ).all() as Array<{ runId: string }>;
   for (const { runId } of candidateSessions) {
     if (admitLaunch(runId).admitted) relaunchPendingWork(runId);

@@ -33,9 +33,9 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 5. Boot (TDD; design Decision 4)
 
-- [ ] 5.1 Write a test pinning today's boot behaviour found in 1.3: a `submitted` session without a voice-over is not relaunched by `recoverOnBoot` (it must still hold after the query change)
-- [ ] 5.2 Write failing tests: a stored, not paused session at `voice-over-complete` with no decomposition attempt starts decomposition on `recoverOnBoot`; a paused one does not; a failed one does not; a session with scenes keeps today's behaviour
-- [ ] 5.3 Rewrite `recoverOnBoot`'s candidate query as a `FROM runs` query with `EXISTS` terms: today's two scene terms unchanged, plus "no final video and a stored voice-over" (design Decision 4). Make 5.1-5.2 pass; the restart and concurrency tests stay green
+- [x] 5.1 Write a test pinning today's boot behaviour found in 1.3: a `submitted` session without a voice-over is not relaunched by `recoverOnBoot` (it must still hold after the query change) — done: `backend/test/narration-handoff-boot.test.ts` — a `submitted` session with no narration is not relaunched by a simulated restart (passes before and after the query change)
+- [x] 5.2 Write failing tests: a stored, not paused session at `voice-over-complete` with no decomposition attempt starts decomposition on `recoverOnBoot`; a paused one does not; a failed one does not; a session with scenes keeps today's behaviour — done: same file — narrated and not paused starts decomposition; paused waits with one held unit; failed is not restarted; a session with scenes keeps its attempts and scenes; boot run twice starts once; the two start tests seen failing first
+- [x] 5.3 Rewrite `recoverOnBoot`'s candidate query as a `FROM runs` query with `EXISTS` terms: today's two scene terms unchanged, plus "no final video and a stored voice-over" (design Decision 4). Make 5.1-5.2 pass; the restart and concurrency tests stay green — done: `recoverOnBoot`'s candidates are a `FROM runs` query with `EXISTS` terms (today's scene terms plus "no final video and a stored voice-over"); typecheck clean; 115 tests pass across the hand-off, restart-concurrency, orchestrator, image-stage and video-stage files
 
 ## 6. Default assembly tool (TDD; design Decision 5)
 
