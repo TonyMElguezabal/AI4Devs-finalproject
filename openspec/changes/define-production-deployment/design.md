@@ -164,6 +164,21 @@ The Dockerfile, the Terraform sketch, the workflow sketch and the run notes go u
 **Decision 13 — Record the decision in ADR 0007 unconditionally.**
 Every later deployment story and every future maintainer depends on this choice, and none of them will be in the room.
 
+**Decision 14 — Ship Vid4You as a local packaged application that calls the cloud AI APIs (product-owner decision, 2026-10-13). This supersedes the hosting outcome of Decisions 1–13.**
+After the hosted options A and B+ were both proven workable (§ Execution Record §3, §6.15, `reports/2026-10-13-step-7-bplus-experiments.md`), the product owner chose to run the whole application on the user's own computer instead, using its CPU, memory and disk, with only the AI stages (reasoning, voice, alignment, image, video) calling the cloud providers as today. It must run on a Mac and on a Windows laptop. Fully local AI models were considered and rejected for now: image-to-video on a 32 GB Apple M1 Max is estimated at minutes per clip at 480–720p, far from the product's 1080p target.
+
+What follows from it:
+- **One executable per platform, no runtime to install.** The backend is bundled (esbuild) into a Node single executable application (SEA) that also serves the built frontend from embedded assets and opens the default browser at `http://127.0.0.1:<port>`. ffmpeg and ffprobe ship next to it per platform. Targets: macOS arm64 and x64, Windows x64; Linux x64 is cheap to add and is built but not a product commitment.
+- **Per-user data folder.** `DB_PATH`, `PROJECTS_ROOT` and the credentials file default to the OS application-data folder (`~/Library/Application Support/Vid4You` on macOS, `%APPDATA%\Vid4You` on Windows), never the install folder, so an upgrade or reinstall keeps every session and video (PRD §12.2).
+- **Credentials** are read from the environment or from `credentials.json` in that folder (today's `.secrets.json` rule, relocated). No settings screen; PRD §2.1 keeps configuration out of the UI.
+- **Local exposure.** The server keeps listening on loopback only. Because any web page the user opens can send requests to `127.0.0.1`, the backend accepts a request only when its `Origin` (when present) is the app's own origin and its `Host` is the loopback address and port (DNS-rebinding guard); the SSE route applies the same check. This replaces the Access gate.
+- **One instance per user**: a second launch finds the running instance (port or lock file in the data folder) and opens the browser on it instead of starting a second backend against the same store (Decision 5's single-process rule).
+- **UAT and production become release channels.** A push to `feature/entrega-2-JAME` builds the executables once per source tree and publishes them as a pre-release (UAT); a push to `main` promotes **the same files** to a release when `main`'s tree hash matches a pre-release, and fails closed otherwise (Decision 7's rule, unchanged). The mapping stays declared once.
+- **Signing.** Unsigned builds run with an OS warning (Gatekeeper, SmartScreen). Signing and notarization need an Apple Developer account and a Windows code-signing certificate; deferred to a follow-up story, not a PoC blocker.
+- **The hosted designs stay documented.** Options A and B+ are recorded as the alternatives for a future hosted or multi-user mode; their PoC resources are torn down (task 13.2).
+
+*Alternatives:* Electron (a real window and auto-update, but about 150 MB and a second runtime to keep patched); Tauri with a Node sidecar (small, but adds Rust and still needs the Node executable); a plain `npm start` checkout (what exists today; needs Node and ffmpeg installed by the user). The SEA keeps the smallest number of moving parts; a desktop shell can wrap it later without changing the backend.
+
 ## Risks / Trade-offs
 
 - **The PRD change is not approved** → The spike still delivers the ADR, the PoC and the stories. Production stays unpublished, and the stories that would publish it are marked blocked on the PRD decision.
@@ -385,3 +400,15 @@ restic gives encrypted, deduplicated, incremental backups to R2's S3 API with on
 **5.6 Health, logs, alerting.** Health: the existing `GET /health`, called by an external uptime check that carries an Access service token (Access would otherwise reject an anonymous probe). Logs: Fastify JSON to stdout, kept by Docker's `local` log driver with rotation on the VM and searchable there; retention is recorded. Alert: an email from the uptime check on failure, and one when the last successful backup is older than twice its interval. Anything beyond that is deferred.
 
 **5.7 Cost, for information only** (not researched in detail): a small VM (Hetzner CX-class) per environment is single-digit euros per month; Cloudflare Tunnel, Access (free up to 50 users) and DNS are free; R2 storage is cents for this volume; the domain renewal is the registrar's. All of it is well below the $40–45 per environment per month of B+.
+
+### §7 — Local packaged application: facts from the code (2026-10-13, base of this branch)
+
+| # | Finding | Consequence |
+|---|---|---|
+| 1 | `server.ts:97` decides "am I the entry point" with `import.meta.url === \`file://${process.argv[1]}\``. | Never true on Windows (`file:///C:/...` vs a backslash path) and never true in a bundle: the server would not start. Story L1. |
+| 2 | `config/credentials.ts:18` resolves `.secrets.json` relative to the source tree; `server.ts:67` reads `public/index.html` relative to the source file. | Both must move to the data folder or embedded assets. Story L2. |
+| 3 | `DB_PATH` and `PROJECTS_ROOT` default to paths relative to the working directory. | Default to the per-user data folder. Story L2. |
+| 4 | `@fastify/cors` with `origin: true`, and the SSE route echoes any `Origin`. | Any website the user visits could read sessions and spend provider credit through `127.0.0.1`. Story L3 (security, before any release). |
+| 5 | Dependencies are pure JavaScript; SQLite is `node:sqlite`; the server listens on `127.0.0.1`. | No native modules to build per platform; loopback is already right. |
+| 6 | `sanitizeForFilesystem` (`db.ts:547`) already replaces `/ \\ : * ? " < > \|`. | Windows folder names are mostly safe; reserved names (`CON`, `NUL`) and trailing dots are not handled (minor, story L2). |
+| 7 | `@fastify/swagger-ui` serves its static files from `node_modules`. | Does not survive bundling; `/docs` is disabled in packaged builds. |

@@ -1,182 +1,162 @@
 # Deployment foundation
 
-Requirements established by choosing how Vid4You is hosted in UAT and production. They govern where and how the application runs and who can reach it, not what it does. Product behaviour stays owned by the stories that specified it.
+Requirements established by choosing how Vid4You reaches its users: a packaged application that runs on the user's own computer (macOS or Windows) and calls the cloud AI providers. They govern how the application is built, released, started, where it keeps its data and who can reach it, not what it does. Product behaviour stays owned by the stories that specified it.
 
 ## ADDED Requirements
 
-### Requirement: Single documented hosting decision
+### Requirement: Single documented distribution decision
 
-The project SHALL record exactly one chosen hosting option for the frontend and the backend in an ADR. The ADR SHALL state the must-pass gates, the weighted criteria, the score of every evaluated option, the rejected alternatives with the gate or criterion each lost on, a monthly cost estimate per environment, and the evidence behind the choice. `docs/backend-standards.md`, `docs/frontend-standards.md` and `docs/development_guide.md` SHALL describe the same decision. Implementation stories SHALL follow that record rather than choosing a platform themselves.
+The project SHALL record exactly one chosen way of shipping and running the application in an ADR. The ADR SHALL state the evaluated options (including the hosted options that were proven and set aside), the reasons for the choice, the supported platforms, an estimate of running cost for the user, and the evidence behind the choice. `docs/backend-standards.md`, `docs/frontend-standards.md` and `docs/development_guide.md` SHALL describe the same decision. Implementation stories SHALL follow that record rather than choosing a packaging or hosting approach themselves.
 
-#### Scenario: A deployment story begins
+#### Scenario: A delivery story begins
 
-- **WHEN** work starts on a story that builds, ships or operates the application
-- **THEN** the ADR and the standards name the same hosting option for the frontend and the backend
-- **AND** the story does not select its own platform
+- **WHEN** work starts on a story that builds, packages, releases or runs the application
+- **THEN** the ADR and the standards name the same distribution approach
+- **AND** the story does not select its own
 
-#### Scenario: An option is rejected
+#### Scenario: An option is set aside
 
 - **WHEN** an evaluated option is not chosen
-- **THEN** the ADR names the gate it failed or the criteria it scored lower on
-- **AND** the reason refers to a fact recorded in the change, not to preference
+- **THEN** the ADR names the reason and refers to a fact recorded in the change, not to preference
 
-### Requirement: No exposure without an approved access gate
+### Requirement: Runs on the supported platforms without installing a runtime
 
-The application SHALL NOT be reachable outside a local environment until the product owner has approved a PRD change to §2.3, §12.3 and D07 that defines who may reach it. Every hosted environment SHALL place an access gate in front of both the frontend and the backend API, so that a request without an allowed identity reaches neither. The allowed identities SHALL be an explicit list declared with the infrastructure; initially it holds the single product-owner address. The gate SHALL NOT require user accounts inside the application.
+The application SHALL be delivered as one executable per supported platform, at least macOS (arm64 and x64) and Windows (x64), that starts the backend, serves the user interface and opens it in the default browser. The user SHALL NOT need to install Node.js, ffmpeg or any other runtime. The assembly stage SHALL find the ffmpeg and ffprobe shipped with the application.
 
-#### Scenario: An unauthenticated request reaches a hosted environment
+#### Scenario: First launch on a clean laptop
 
-- **WHEN** a request without an allowed identity is sent to the frontend or the API of UAT or production
-- **THEN** the gate rejects it before it reaches the application
+- **WHEN** a user without Node.js or ffmpeg starts the executable on a supported platform
+- **THEN** the user interface opens in the default browser and a session can be created
 
-#### Scenario: The API is called directly
+#### Scenario: Assembly on each platform
 
-- **WHEN** someone bypasses the frontend and calls the backend's public address
-- **THEN** the same gate applies to that request
+- **WHEN** a session reaches final assembly on macOS or Windows
+- **THEN** the assembly tool runs the bundled ffmpeg and ffprobe successfully
 
-#### Scenario: The host's own address is used
+### Requirement: Reachable only by the local user
 
-- **WHEN** someone connects to the backend host's public address directly, on any port
-- **THEN** the connection is refused, because the host publishes no inbound port and all traffic reaches it only through the edge
+The backend SHALL listen on the loopback interface only. It SHALL reject a request whose `Origin` header is present and is not the application's own origin, and a request whose `Host` header is not the loopback address and the application's port. The live-update stream SHALL apply the same checks. The application SHALL NOT require user accounts.
 
-#### Scenario: The PRD change is not yet approved
+#### Scenario: A website the user visits calls the local backend
 
-- **WHEN** the PRD access change is still a draft
-- **THEN** no production hostname is published
-- **AND** proof-of-concept traffic runs only on a temporary hostname behind the gate
+- **WHEN** a page from another origin, open in the user's browser, sends a request to the local backend
+- **THEN** the backend rejects it and the page can neither read sessions nor start provider calls
 
-### Requirement: Exactly one backend instance per environment
+#### Scenario: DNS rebinding
 
-Each environment SHALL run exactly one backend process at a time. The platform SHALL NOT scale the backend horizontally. The deploy process SHALL NOT start a second process against the same store, and SHALL stop the old process before the new one starts processing sessions. The backend SHALL keep processing sessions while no browser is connected. A restart, whether caused by a deploy or by the platform, SHALL leave every session resumable: the new process SHALL rely on the existing boot-time reconciliation to resume work, and the data lost across the restart SHALL stay within the recovery bound recorded in the ADR.
+- **WHEN** a request reaches the backend with a `Host` other than the loopback address and port
+- **THEN** the backend rejects it
 
-#### Scenario: Load increases
+#### Scenario: Another machine on the network
 
-- **WHEN** several sessions are processing at once
-- **THEN** the environment still runs a single backend instance
-- **AND** the concurrency cap per stage is enforced by that instance alone
+- **WHEN** another machine connects to the user's computer on the application's port
+- **THEN** the connection is refused, because the backend listens on loopback only
 
-#### Scenario: A deploy happens mid-session
+### Requirement: Exactly one backend instance per user
 
-- **WHEN** a new version is deployed while a session is processing
-- **THEN** at no point do two backend processes process sessions against the same store
-- **AND** the session resumes after the new process starts, without user action
+Each user's installation SHALL run at most one backend process against its store. Launching the application while it is already running SHALL open the user interface of the running instance instead of starting a second backend. The backend SHALL keep processing sessions while no browser tab is open. After the process stops for any reason, the next launch SHALL resume every session from its persisted state through the existing boot-time reconciliation.
 
-#### Scenario: The platform restarts the backend
+#### Scenario: Second launch
 
-- **WHEN** the platform stops and restarts the backend without a deploy
-- **THEN** every session resumes from its persisted state without user action
-- **AND** anything lost is within the recorded recovery bound
+- **WHEN** the user starts the application while it is already running
+- **THEN** no second backend process starts against the same store
+- **AND** the browser opens on the running instance
 
-#### Scenario: Nobody is watching
+#### Scenario: The tab is closed
 
-- **WHEN** a session is processing and no browser has the page open for longer than the edge's idle timeout
-- **THEN** the session keeps progressing and reaches its next state without a request arriving
+- **WHEN** a session is processing and the user closes every browser tab
+- **THEN** the session keeps progressing while the application runs
 
-### Requirement: Durable and recoverable storage
+#### Scenario: The computer restarts mid-session
 
-The SQLite store at `DB_PATH` and every file under `PROJECTS_ROOT` SHALL live on storage that survives a backend restart, a redeploy and a host replacement. Each environment SHALL take backups of both on a recorded schedule to a separate location. A restore SHALL be performed at least once and its result recorded before production goes live.
+- **WHEN** the application stops while a session is processing and is started again
+- **THEN** the session resumes from its persisted state without user action
 
-#### Scenario: The backend restarts
+### Requirement: Data kept in the user's data folder
 
-- **WHEN** the backend process restarts or a new version is deployed
-- **THEN** every session, scene result and project file present before is still present
-- **AND** an in-progress session resumes from its persisted state
+The SQLite store, every project folder and the credentials file SHALL live in a per-user application-data folder (on macOS `~/Library/Application Support/Vid4You`, on Windows `%APPDATA%\Vid4You`), never in the installation folder, unless the user overrides the location through the documented environment variables. Upgrading, reinstalling or removing the executable SHALL NOT delete that folder. Project files keep PRD §12.2's rule: they are never deleted or expired automatically.
 
-#### Scenario: Storage is lost
+#### Scenario: Upgrade
 
-- **WHEN** the environment's storage is replaced
-- **THEN** restoring the latest backup brings back the sessions and their project files
-- **AND** the time between backups bounds the data that can be lost, and that bound is recorded
+- **WHEN** the user replaces the executable with a newer release
+- **THEN** every session, scene result and project file present before is still present and usable
 
-### Requirement: Production ships the artifact UAT validated
+#### Scenario: Project folder names on Windows
 
-There SHALL be exactly two hosted environments. UAT SHALL deploy from `feature/entrega-2-JAME` and production SHALL deploy from `main`. This branch-to-environment mapping SHALL be declared in one place, so changing it later does not touch pipeline logic. The backend image SHALL be built once for a given source tree and promoted to production as that same image, never rebuilt. Production SHALL deploy only an image that UAT has already run. The frontend SHALL either be the same build in both environments or be rebuilt from the same source with only environment configuration changed, and the ADR SHALL record which. A production deploy SHALL require a manual approval.
+- **WHEN** a video title contains characters or names Windows does not allow in a folder name
+- **THEN** the project folder is still created and the session proceeds
+
+### Requirement: Credentials stay on the user's computer
+
+Provider credentials SHALL be read from the process environment first and from a credentials file in the user's data folder second. They SHALL NOT appear in the repository, in any release artifact or in logs. A missing credential SHALL fail the affected stage with a message naming the variable or file, never its value.
+
+#### Scenario: The release artifact is inspected
+
+- **WHEN** a released executable or the repository is searched for provider credentials
+- **THEN** none are found
+
+#### Scenario: A credential is missing
+
+- **WHEN** a stage needs a credential the user has not provided
+- **THEN** the stage fails with a message that names where to put it
+
+### Requirement: Release builds are safe by construction
+
+A released executable SHALL NOT expose test-only endpoints and SHALL NOT use stub providers, whatever environment variables are set on the user's computer. The interactive API documentation SHALL NOT be served by released executables.
+
+#### Scenario: A test switch is set on the user's machine
+
+- **WHEN** `ALLOW_TEST_ENDPOINTS` or a `USE_STUB_*` variable is present on the computer running a released executable
+- **THEN** no test-only endpoint answers and no stub provider is active
+
+### Requirement: Production releases are the artifacts UAT validated
+
+There SHALL be exactly two release channels. UAT SHALL be published as pre-releases built from `feature/entrega-2-JAME`, and production as releases from `main`. This branch-to-channel mapping SHALL be declared in one place. Executables SHALL be built once per source tree and promoted to production as the same files, never rebuilt. A production release SHALL be published only for a source tree that already has a UAT pre-release, and SHALL require a manual approval.
 
 #### Scenario: A change reaches production
 
 - **WHEN** the UAT branch is merged into `main`
-- **THEN** production runs the same backend image digest that ran in UAT, even though the merge created a new commit
-- **AND** a person approved the production deploy
+- **THEN** the production release contains byte-identical executables to the UAT pre-release for the same source tree, even though the merge created a new commit
+- **AND** a person approved it
 
 #### Scenario: Main contains code UAT never ran
 
-- **WHEN** `main` holds a source tree for which no UAT-deployed image exists
-- **THEN** the production deploy fails instead of building a new image
+- **WHEN** `main` holds a source tree with no UAT pre-release
+- **THEN** the production release fails instead of building new executables
 
 #### Scenario: The branch mapping changes
 
-- **WHEN** a different branch is assigned to an environment
+- **WHEN** a different branch is assigned to a channel
 - **THEN** only the declared mapping changes
 
-#### Scenario: Environments differ
+### Requirement: Build and release pipeline declared as code
 
-- **WHEN** UAT and production behave differently
-- **THEN** the difference is explained by environment configuration that is declared and reviewable, not by different code
+Building every platform's executable, running the tests, and publishing pre-releases and releases SHALL be declared in version-controlled pipeline code that runs without a developer's machine. Signing credentials, when introduced, SHALL be supplied as pipeline secrets and never stored in the repository.
 
-### Requirement: Safe configuration in hosted environments
+#### Scenario: A release is rebuilt from scratch
 
-In a hosted environment, test-only endpoints (`ALLOW_TEST_ENDPOINTS`) SHALL be disabled, and both UAT and production SHALL use real providers with every `USE_STUB_*` flag off. UAT and production SHALL use separate provider credentials or, if the same keys are shared, the ADR SHALL record that their spend cannot be told apart. Provider credentials SHALL be injected as per-environment secrets and SHALL NOT appear in the repository, in the image or in logs. The backend SHALL accept cross-origin requests only from the environment's own frontend origin. The assembly stage SHALL find ffmpeg and ffprobe on the host it runs on.
+- **WHEN** the pipeline runs for a source tree on a clean runner
+- **THEN** it produces every supported platform's executable without manual steps
 
-#### Scenario: A hosted backend starts
+### Requirement: Recorded evidence for the chosen approach
 
-- **WHEN** the UAT or production backend starts
-- **THEN** no test-only endpoint answers and no stubbed provider is active
+Before the decision is accepted, a proof of concept SHALL show a packaged executable on macOS running one session end to end (stubbed providers allowed) to a downloadable final video, the rejection of a cross-origin request, and recovery after the process is stopped mid-session. A Windows executable SHALL be built and started at least once, on a Windows machine or a Windows CI runner. Each outcome SHALL be recorded, failures included, with any observation that relied on a stand-in named as such.
 
-#### Scenario: The image is inspected
+#### Scenario: Packaged session on macOS
 
-- **WHEN** the backend image or the repository is searched for provider credentials
-- **THEN** none are found
+- **WHEN** the proof-of-concept executable runs on macOS
+- **THEN** a session reaches its final video and the MP4 downloads
 
-#### Scenario: A foreign origin calls the API
+#### Scenario: Windows start
 
-- **WHEN** a browser page from an origin other than the environment's frontend calls the API
-- **THEN** the backend does not grant it cross-origin access
-
-#### Scenario: Assembly runs on the hosted platform
-
-- **WHEN** a session reaches final assembly in a hosted environment
-- **THEN** the assembly tool runs ffmpeg and ffprobe successfully on that host
-
-### Requirement: Infrastructure declared as code
-
-Every hosted resource the application depends on (DNS records, frontend hosting, the backend's route from the edge, the access gate and its policy, and any storage bucket) SHALL be declared in version-controlled infrastructure code. Applying that code SHALL be able to recreate an environment, and its state SHALL be stored outside any developer's machine. Secrets SHALL NOT be stored in that code or its state in plain text.
-
-#### Scenario: An environment is recreated
-
-- **WHEN** the infrastructure code is applied to an empty account or project
-- **THEN** it creates every resource that environment needs, apart from secret values supplied separately
-
-#### Scenario: A resource is changed by hand
-
-- **WHEN** a hosted resource differs from its declaration
-- **THEN** a plan shows the drift before the next apply
-
-### Requirement: Recorded evidence on the chosen platform
-
-Before the decision is accepted, a proof of concept on the chosen option SHALL run one stubbed session end to end behind the access gate. The run SHALL show live updates arriving over the SSE stream through the edge, a successful final-video download, and recovery after a backend restart mid-session. Each outcome SHALL be recorded, failures included, with any observation that relied on a stand-in named as such.
-
-#### Scenario: Live updates pass through the edge
-
-- **WHEN** a session is processing in the proof of concept
-- **THEN** the open page receives state changes over SSE without reloading
-- **AND** a quiet stretch longer than the edge's idle timeout does not leave the page stale
-
-#### Scenario: The backend restarts in the proof of concept
-
-- **WHEN** the backend is restarted while the session is processing
-- **THEN** the session reaches its final video with no data lost and no manual reload
-
-#### Scenario: A must-pass gate fails
-
-- **WHEN** the chosen option fails a must-pass gate during the proof of concept
-- **THEN** the evaluation moves to the next-ranked option rather than continuing on paper
+- **WHEN** the Windows executable is started
+- **THEN** the backend answers its health check and the interface loads
 
 ### Requirement: Follow-up work is specified, not implied
 
-The change SHALL finish with a list of implementation stories that turn the decision into the real UAT and production environments. Each story SHALL have acceptance criteria and SHALL name the requirement of this capability it satisfies. Any gap found during the spike and not closed by it SHALL appear either as a story or as a recorded risk.
+The change SHALL finish with a list of implementation stories that turn the decision into released executables. Each story SHALL have acceptance criteria and SHALL name the requirement of this capability it satisfies. Any gap found during the spike and not closed by it SHALL appear either as a story or as a recorded risk.
 
 #### Scenario: The spike closes
 
 - **WHEN** the timebox ends
-- **THEN** every blocker found (for example, the hard-coded ffmpeg paths or the build-time API address) is closed, turned into a story, or recorded as a risk
-- **AND** no blocker is left unmentioned
+- **THEN** every blocker found (for example the entry-point check that fails on Windows, or the permissive CORS) is closed, turned into a story, or recorded as a risk
