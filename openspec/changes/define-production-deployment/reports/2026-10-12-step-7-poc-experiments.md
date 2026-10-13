@@ -1,5 +1,7 @@
 # Step 7 — proof-of-concept experiments (option A), interim
 
+> Files under `poc/` cited here for options A and B+ were removed on 2026-10-13 after Decision 14; they are in git history at commit `926f9a0` (`poc/RESOURCES.md`).
+
 Environment: `poc.vid4you.download` on the real Cloudflare edge (Access gate, Tunnel), host = developer machine (macOS, Docker under Colima, linux/arm64 containers) standing in for the VM. Providers stubbed through `poc/preload.ts`; assembly through real ffmpeg on Debian; `ALLOW_TEST_ENDPOINTS=1` and `quick-scene` used because the decomposition hand-off is not wired (design §1.2, finding 5). Service token `vid4you-poc-smoke`.
 
 | Task | Experiment | Result |

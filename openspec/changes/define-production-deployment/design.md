@@ -161,6 +161,8 @@ Anything beyond this (metrics, tracing, a log platform) is recorded as optional 
 The Dockerfile, the Terraform sketch, the workflow sketch and the run notes go under `openspec/changes/define-production-deployment/poc/`. The proof of concept uses a temporary hostname and the same Access policy as the real environments. Under option A the host is a developer machine running the same image and `cloudflared` in containers, standing in for the VM (recorded as a stand-in); what the edge, Access, SSE, restart and backup experiments show does not depend on which machine the container runs on, so no VM provider account is needed to decide. Its restart, redeploy and idle experiments run on stubbed providers, so they are repeatable and cheap. One extra session runs on real providers, to prove that secrets reach the container and that real ffmpeg assembly works on Linux (UAT will do the same on every run, with no spending cap per product-owner decision). Every paid or account-level resource it creates is listed and torn down at the end of the timebox, unless the follow-up stories adopt it explicitly.
 *Alternatives:* building the real pipeline directly (rejected: it commits to a platform before the evidence exists, and it would ship before the PRD change is approved).
 
+*Cleanup (2026-10-13):* after Decision 14 the cloud proof-of-concept files were removed; only `poc/local/`, `poc/promotion-check.sh`, `poc/workflows/release.yml` and `poc/RESOURCES.md` remain. The removed files are in git history at commit `926f9a0`.
+
 **Decision 13 — Record the decision in ADR 0007 unconditionally.**
 Every later deployment story and every future maintainer depends on this choice, and none of them will be in the room.
 

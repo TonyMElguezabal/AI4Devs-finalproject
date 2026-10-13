@@ -1,5 +1,7 @@
 # Step 9 Report - Unit Tests and Database Verification
 
+> Files under `poc/` cited here for options A and B+ were removed on 2026-10-13 after Decision 14; they are in git history at commit `926f9a0` (`poc/RESOURCES.md`).
+
 - Date: 2026-10-12
 - Change: define-production-deployment (JOS-194)
 - Agent: Claude (Sonnet 5.5)

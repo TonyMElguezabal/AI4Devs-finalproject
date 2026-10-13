@@ -1,5 +1,7 @@
 # Step 6.15 — B+ against the real R2 bucket, from a local container
 
+> Files under `poc/` cited here for options A and B+ were removed on 2026-10-13 after Decision 14; they are in git history at commit `926f9a0` (`poc/RESOURCES.md`).
+
 Date: 2026-10-13. Image `vid4you-poc-bplus` (linux/arm64, Colima), `--cap-add SYS_ADMIN --device /dev/fuse`, bucket `vid4you-poc-data` in the real account. **No Cloudflare compute was used**; Workers Paid is not active. Providers stubbed, assembly through real ffmpeg, `quick-scene` for the missing decomposition hand-off.
 
 ## Stand-ins

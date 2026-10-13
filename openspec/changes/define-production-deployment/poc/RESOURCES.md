@@ -60,3 +60,7 @@ Done after the product owner chose the local packaged application (design Decisi
 | Local secrets | scratchpad `cf.env` and `r2.env` deleted; local Terraform state and plan files deleted |
 
 Left for the product owner: delete the `vid4you-poc` API token and the R2 S3 API token in the dashboard, and decide whether to keep Workers Paid. Local Docker images (`vid4you-poc-*`) remain on the developer machine; `docker image rm` frees about 2 GB.
+
+## Proof-of-concept files removed — 2026-10-13
+
+After Decision 14 the cloud proof-of-concept files were deleted from the change: option A (`Dockerfile.a`, `Dockerfile.web`, `Caddyfile`, `compose.yml`, `compose.local.yml`, `terraform/`), option B+ (`Dockerfile`, `entrypoint.sh`, `litestream.yml`, `preload.ts`, `r2-local-test.sh`, `worker/`, `terraform-bplus/`), the shared session driver `run-session.sh` and the hosted workflow sketch `workflows/ci-cd.yml`. They remain in git history: `git show 926f9a0:openspec/changes/define-production-deployment/poc/<file>`. Kept: `local/` (the packaged-application PoC, input to story L6), `promotion-check.sh` and `workflows/release.yml` (inputs to story L7), and this record.

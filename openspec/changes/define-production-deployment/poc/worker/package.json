@@ -1,8 +1,0 @@
-{
-  "name": "vid4you-poc-worker",
-  "private": true,
-  "type": "module",
-  "scripts": { "typecheck": "tsc --noEmit", "deploy": "wrangler deploy" },
-  "dependencies": { "@cloudflare/containers": "^0.3.0" },
-  "devDependencies": { "@cloudflare/workers-types": "^5.20261006.1", "typescript": "^5.9.0", "wrangler": "^4.136.0" }
-}

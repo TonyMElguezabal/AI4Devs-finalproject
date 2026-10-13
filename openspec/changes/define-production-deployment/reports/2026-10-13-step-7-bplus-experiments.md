@@ -1,5 +1,7 @@
 # Step 7 — B+ experiments on Cloudflare Containers
 
+> Files under `poc/` cited here for options A and B+ were removed on 2026-10-13 after Decision 14; they are in git history at commit `926f9a0` (`poc/RESOURCES.md`).
+
 Date: 2026-10-13. `poc-cf.vid4you.download` behind Access (Google identity provider, service token for the experiments), Worker `vid4you-poc`, container `standard-1`, R2 bucket `vid4you-poc-data`. Providers stubbed, real ffmpeg on the FUSE mount, `quick-scene` for the missing decomposition hand-off. `POC_STUB_VIDEO_DELAY_MS` keeps the stub video request pending so a session sits in the video stage.
 
 ## Stand-ins
