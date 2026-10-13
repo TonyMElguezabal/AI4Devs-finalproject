@@ -39,8 +39,8 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. Default assembly tool (TDD; design Decision 5)
 
-- [ ] 6.1 Write failing tests for `configureAssemblyTool(env)`: without `USE_STUB_ASSEMBLY_TOOL` the ffmpeg tool is registered; with `success`, `not-retryable-failure`, `slow-success`, the matching stub (unknown values keep today's `transient-failure` fallback)
-- [ ] 6.2 Implement `configureAssemblyTool` (exported, next to `assemblyStubModeFor`) and call it from the bootstrap in place of the stub-only branch. Make 6.1 pass
+- [x] 6.1 Write failing tests for `configureAssemblyTool(env)`: without `USE_STUB_ASSEMBLY_TOOL` the ffmpeg tool is registered; with `success`, `not-retryable-failure`, `slow-success`, the matching stub (unknown values keep today's `transient-failure` fallback) — done: `backend/test/assembly-default.test.ts` (ffmpeg tool without a stub mode; the stub in the requested mode for `success`, `not-retryable-failure`, `slow-success` with its delay; `transient-failure` fallback for an unknown value; the real adapter when no factories are given); seen failing first
+- [x] 6.2 Implement `configureAssemblyTool` (exported, next to `assemblyStubModeFor`) and call it from the bootstrap in place of the stub-only branch. Make 6.1 pass — done: `configureAssemblyTool(env, factories)` exported from `server.ts` and called by the bootstrap in place of the stub-only branch; `getAssemblyTool` exported from `orchestrator.ts`; the bootstrap also hands the Fastify logger to the decomposition phase; typecheck clean
 
 ## 7. End to end through the API (TDD)
 

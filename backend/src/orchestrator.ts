@@ -444,7 +444,8 @@ export function resetAssemblyTool(): void {
   _assemblyTool = undefined;
 }
 
-function getAssemblyTool(): AssemblyTool | undefined {
+/** The registered AssemblyTool, or undefined while none is configured. */
+export function getAssemblyTool(): AssemblyTool | undefined {
   return _assemblyTool;
 }
 
