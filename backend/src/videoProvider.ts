@@ -5,10 +5,11 @@ import { VIDEO_PROVIDER, VIDEO_GENERATION_SETTING } from "./config/providers.ts"
 
 // generate-chunk-video (JOS-146) — the video stage's provider port (Decision 3):
 // RunningHub's async submit-and-poll shape. Unlike Fal.ai's image stage (one
-// synchronous round trip), RunningHub requires:
-//   1. upload the image (`POST .../media/upload/binary`) to get a URL;
-//   2. submit prompt, resolution, duration, firstFrameUrl (`POST .../task/openapi/create`) → taskId;
-//   3. poll (`POST .../task/openapi/status`) until SUCCESS|FAILED.
+// synchronous round trip), RunningHub requires, in the shapes the live service
+// accepts (fix-runninghub-adapter, JOS-196; checked 2026-10-13):
+//   1. upload the image as a multipart `file` (`POST .../media/upload/binary`) → `data.download_url`;
+//   2. submit prompt, resolution, duration, firstFrameUrl (`POST` to `VIDEO_PROVIDER.endpoint`) → top-level `taskId`;
+//   3. poll (`POST .../openapi/v2/query`) until `status` is SUCCESS (`results[0].url`) or FAILED.
 
 /** What a successful generation returns. */
 export type GeneratedClip =
@@ -40,25 +41,34 @@ function classifyHttpStatus(status: number): "failed_transient" | "failed_not_re
   return status >= 400 && status < 500 && status !== 408 && status !== 429 ? "failed_not_retryable" : "failed_transient";
 }
 
+/** The upload answer: `{ code: 0, msg: "success", data: { download_url } }`, or the flat task envelope with an `errorCode`. */
 const uploadResponseSchema = z.object({
-  code: z.number(),
-  data: z.object({ fileUrl: z.string().min(1) }),
+  code: z.number().optional(),
+  msg: z.string().nullish(),
+  errorCode: z.union([z.string(), z.number()]).nullish(),
+  errorMessage: z.string().nullish(),
+  data: z.object({ download_url: z.string().min(1) }).partial().nullish(),
 });
 
-const submitResponseSchema = z.object({
-  code: z.number(),
-  data: z.object({ taskId: z.string().min(1) }),
+/** The flat envelope of a submit and a query answer; `data.taskId` is tolerated as the earlier scripts did. */
+const taskResponseSchema = z.object({
+  code: z.number().optional(),
+  taskId: z.string().nullish(),
+  status: z.string().nullish(),
+  errorCode: z.union([z.string(), z.number()]).nullish(),
+  errorMessage: z.string().nullish(),
+  results: z.array(z.object({ url: z.string().nullish() })).nullish(),
+  data: z.object({ taskId: z.string().nullish() }).partial().nullish(),
 });
 
-const queryResponseSchema = z.object({
-  code: z.number(),
-  data: z.object({
-    taskStatus: z.string(),
-    outputList: z
-      .array(z.object({ fileUrl: z.string().min(1) }))
-      .optional(),
-  }),
-});
+/** A readable reason for a provider error envelope: the step and the provider's own code, never a credential. */
+function providerErrorReason(step: string, envelope: { code?: number | undefined; errorCode?: string | number | null | undefined; errorMessage?: string | null | undefined; msg?: string | null | undefined }): string | undefined {
+  const code = envelope.errorCode !== undefined && envelope.errorCode !== null && String(envelope.errorCode) !== "" ? String(envelope.errorCode) : undefined;
+  const failedCode = envelope.code !== undefined && envelope.code !== 0 ? String(envelope.code) : undefined;
+  if (code === undefined && failedCode === undefined) return undefined;
+  const message = (envelope.errorMessage || envelope.msg || "").trim().slice(0, 120);
+  return `${step} failed${message ? `: ${message}` : ""} (error ${code ?? failedCode})`;
+}
 
 export function createRunningHubVideoProvider(
   options: { fetchFn?: typeof fetch; loadKey?: () => string } = {},
@@ -67,12 +77,15 @@ export function createRunningHubVideoProvider(
   const loadKey = options.loadKey ?? (() => loadCredential("RUNNINGHUB_API_KEY"));
 
   async function doUpload(imageBytes: Buffer, apiKey: string): Promise<{ ok: true; url: string } | { ok: false; kind: "failed_transient" | "failed_not_retryable"; reason: string }> {
+    // multipart/form-data with a `file` part; the content type (with its boundary) is set by the form, not by us.
+    const form = new FormData();
+    form.append("file", new Blob([new Uint8Array(imageBytes)], { type: "image/png" }), "frame.png");
     let response: Response;
     try {
       response = await fetchFn(`${RUNNINGHUB_BASE}/openapi/v2/media/upload/binary`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/octet-stream" },
-        body: new Uint8Array(imageBytes),
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: form,
       });
     } catch {
       return { ok: false, kind: "failed_transient", reason: "the video provider could not be reached during image upload" };
@@ -81,10 +94,14 @@ export function createRunningHubVideoProvider(
       return { ok: false, kind: classifyHttpStatus(response.status), reason: `image upload answered HTTP ${response.status}` };
     }
     const parsed = uploadResponseSchema.safeParse(await response.json().catch(() => null));
-    if (!parsed.success || parsed.data.code !== 0) {
+    if (!parsed.success) {
       return { ok: false, kind: "failed_transient", reason: "the image upload response did not match the expected shape" };
     }
-    return { ok: true, url: parsed.data.data.fileUrl };
+    const providerError = providerErrorReason("image upload", parsed.data);
+    if (providerError) return { ok: false, kind: "failed_transient", reason: providerError };
+    const url = parsed.data.data?.download_url;
+    if (!url) return { ok: false, kind: "failed_transient", reason: "the image upload response had no download URL" };
+    return { ok: true, url };
   }
 
   return {
@@ -101,7 +118,7 @@ export function createRunningHubVideoProvider(
 
       let response: Response;
       try {
-        response = await fetchFn(`${RUNNINGHUB_BASE}/openapi/v2/task/openapi/create`, {
+        response = await fetchFn(`${RUNNINGHUB_BASE}${VIDEO_PROVIDER.endpoint}`, {
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -119,12 +136,16 @@ export function createRunningHubVideoProvider(
         return { kind: classifyHttpStatus(response.status), reason: `task submission answered HTTP ${response.status}` };
       }
 
-      const parsed = submitResponseSchema.safeParse(await response.json().catch(() => null));
-      if (!parsed.success || parsed.data.code !== 0) {
+      const parsed = taskResponseSchema.safeParse(await response.json().catch(() => null));
+      if (!parsed.success) {
         return { kind: "failed_transient", reason: "the task submission response did not match the expected shape" };
       }
+      const providerError = providerErrorReason("task submission", parsed.data);
+      if (providerError) return { kind: "failed_transient", reason: providerError };
+      const taskId = parsed.data.taskId || parsed.data.data?.taskId;
+      if (!taskId) return { kind: "failed_transient", reason: "the task submission response had no task id" };
 
-      return { kind: "submitted", requestId: parsed.data.data.taskId };
+      return { kind: "submitted", requestId: taskId };
     },
 
     async poll(requestId) {
@@ -137,7 +158,7 @@ export function createRunningHubVideoProvider(
 
       let response: Response;
       try {
-        response = await fetchFn(`${RUNNINGHUB_BASE}/openapi/v2/task/openapi/status`, {
+        response = await fetchFn(`${RUNNINGHUB_BASE}/openapi/v2/query`, {
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({ taskId: requestId }),
@@ -150,21 +171,23 @@ export function createRunningHubVideoProvider(
         return { kind: classifyHttpStatus(response.status), reason: `poll answered HTTP ${response.status}` };
       }
 
-      const parsed = queryResponseSchema.safeParse(await response.json().catch(() => null));
-      if (!parsed.success || parsed.data.code !== 0) {
+      const parsed = taskResponseSchema.safeParse(await response.json().catch(() => null));
+      if (!parsed.success) {
         return { kind: "failed_transient", reason: "the poll response did not match the expected shape" };
       }
 
-      const status = parsed.data.data.taskStatus;
+      const status = parsed.data.status;
       if (status === "SUCCESS") {
-        const url = parsed.data.data.outputList?.[0]?.fileUrl;
+        const url = parsed.data.results?.[0]?.url;
         if (!url) return { kind: "failed_transient", reason: "the video provider returned SUCCESS but no result URL" };
         return { kind: "success", clip: { source: "temporary-url", url } };
       }
       if (status === "FAILED") {
         // JOS-165: NOT_RETRYABLE_FAILURE_SIGNAL_CONFIRMED = false — no distinguishable signal.
-        return { kind: "failed_transient", reason: "the video provider task ended in FAILED" };
+        return { kind: "failed_transient", reason: providerErrorReason("the video task", parsed.data) ?? "the video provider task ended in FAILED" };
       }
+      const providerError = providerErrorReason("polling", parsed.data);
+      if (providerError && !status) return { kind: "failed_transient", reason: providerError };
       // QUEUED, RUNNING, or any other status → still pending
       return { kind: "pending" };
     },
