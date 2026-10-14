@@ -7,10 +7,29 @@ Vid4You is two packages in one repository: `backend/` (Fastify, `node:sqlite`, T
 ## Prerequisites
 
 - **Node.js 26.4.0**, the version the repository is developed and tested with. The backend needs a release that has `node:sqlite` and runs `.ts` files natively (strip-only type removal), so it does not work on older LTS lines. No `engines` field is declared yet.
-- **ffmpeg and ffprobe.** The voice-over phase calls `ffprobe` from `PATH`; the assembly adapter calls `/opt/homebrew/bin/ffmpeg` and `/opt/homebrew/bin/ffprobe` (hard-coded; on macOS `brew install ffmpeg` puts them there). Both must exist, including on CI.
+- **ffmpeg and ffprobe** (development only). The voice-over phase calls `ffprobe` from `PATH`; the assembly adapter calls `/opt/homebrew/bin/ffmpeg` and `/opt/homebrew/bin/ffprobe` (hard-coded; on macOS `brew install ffmpeg` puts them there). Both must exist, including on CI. The packaged app bundles both beside the executable and needs no install.
 - **Git** and **npm**.
 
-## Run it locally
+## Run it
+
+Two ways to run, both on `127.0.0.1:3100`. Run one at a time: a second instance on the same port will not start.
+
+### Packaged app (macOS)
+
+This is what users get. Build it from the repository root, then start it:
+
+```bash
+node openspec/changes/define-production-deployment/poc/local/build.mjs
+./openspec/changes/define-production-deployment/poc/local/out/Vid4You
+```
+
+- The app opens the page in your browser. A second launch opens the running app instead of starting another.
+- Data lives in `~/Library/Application Support/Vid4You/` (`VID4YOU_DATA_DIR` overrides it). Keys go in `.secrets.json` in that folder.
+- `VID4YOU_PORT` changes the port; `VID4YOU_NO_BROWSER=1` stops the browser opening.
+- Release rules apply: no `/docs`, no test endpoints, no stubs. The one exception is `POC_MODE=stub`, which runs every provider as a stub and spends nothing; a stubbed session still produces a final MP4 with the real ffmpeg.
+- Only macOS is built and tested so far. The Windows build is untested (task 6.20).
+
+### Development mode
 
 ```bash
 # backend: http://127.0.0.1:3100 (API docs at /docs)
@@ -24,11 +43,32 @@ npm ci
 npm run dev
 ```
 
-The frontend talks to `http://127.0.0.1:3100` unless `VITE_API_BASE` is set at build time. The backend listens on loopback only.
+The frontend talks to `http://127.0.0.1:3100` unless `VITE_API_BASE` is set at build time. The backend listens on loopback only. With no `USE_STUB_*` switch set (see below), every provider is real.
+
+### Your first real run
+
+1. Put the four keys in the secrets file (next section).
+2. Open the page, create a project, paste the script, and start it. The product's real size is a 1,500–1,800 word script: 8–12 minutes of narration and 30–50 clips.
+3. Expect these measured times (2026-10-13/14, one clip at a time unless noted):
+   - voice-over: about 2.5 minutes for 10,217 characters;
+   - decomposition: 1–3.5 minutes (67 fragments took 208.6 s);
+   - each clip: 6.5–12 minutes (394 s for 7 s, 661–730 s for 14 s), three in flight.
+   A 30–50 clip session is roughly 1.5–2.5 hours of video stage. That is an estimate; a session of that size has not been timed.
+4. Keep the laptop awake. Processing pauses while it sleeps or the app is closed and resumes on the next launch.
+5. Every provider task is billed, and a timed-out clip is resubmitted, so a timeout costs a second task. Top up RunningHub before a long run. If a scene fails with `error 605`, the balance is empty: top it up, then use **Retry scene N** on that scene.
+
+### Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| Port 3100 is in use | Another Vid4You or program holds it. Stop it, or change the port (`VID4YOU_PORT` packaged, `PORT` in development). |
+| A stage fails naming a variable such as `OPENAI_KEY` | That key is missing from both the environment and the secrets file. Add it and retry the scene. |
+| A scene fails with `error 605` | RunningHub balance is empty (see step 5 above). |
+| macOS refuses to open the app on another Mac | The build is ad-hoc signed, not notarized (story L8). Right-click the app and choose **Open** once. |
 
 ### Provider credentials
 
-Real provider calls need four keys, read from the environment first and from a git-ignored `backend/.secrets.json` second (the environment wins):
+Real provider calls need four keys. In development they are read from the environment first and from a git-ignored `backend/.secrets.json` second (the environment wins). The packaged app reads only the environment and `.secrets.json` in its data folder; a checkout's `backend/.secrets.json` is not used.
 
 | Variable | Provider stage |
 |---|---|
