@@ -89,7 +89,7 @@ No existe un límite funcional de palabras establecido por el producto. Un guion
 
 Si una restricción del servicio impide procesar el contenido, el sistema informa la causa. No recorta ni resume el guion para adaptarlo silenciosamente.
 
-The MVP has no product-level content policy: providers' own content filters decide. A rejection is a not-retryable failure (§10.1). Because the script is locked at project start (§4.2), a rejected script requires starting a new project; rejected `IMAGE` or `VIDEO` instructions can be corrected (§10.3).
+The MVP has no product-level content policy: providers' own content filters decide. The script is checked at submission by the reasoning provider's moderation endpoint (§11.3, JOS-187) before the project exists: a flagged script is refused with the flagged categories named, nothing is created, and the script stays in the form to be edited and resubmitted. If the check cannot run, the submission is refused as temporarily unavailable and nothing is created; a script is never registered unchecked. A rejection later in the pipeline is a not-retryable failure (§10.1). Because the script is locked at project start (§4.2), a rejected script requires starting a new project; rejected `IMAGE` or `VIDEO` instructions can be corrected (§10.3).
 
 ### 4.2 Fidelidad e inmutabilidad
 
@@ -243,7 +243,7 @@ A pause applies to the whole session: every not-yet-launched generation, phase, 
 
 Ante un fallo transitorio, el sistema permite hasta **tres reintentos automáticos adicionales al intento inicial** de la etapa afectada. No realiza reintentos automáticos indefinidos.
 
-A failure the provider reports as not retryable (for example, a content-filter rejection) skips automatic retries and goes directly to `failed` with its cause shown.
+A failure the provider reports as not retryable (for example, a content-filter rejection) skips automatic retries and goes directly to `failed` with its cause shown. A disallowed script never reaches the pipeline: it is refused at submission (§4.1, JOS-187). Corrected `IMAGE`/`VIDEO` instructions (§10.3) are not moderated.
 
 Each stage has a hardcoded maximum of simultaneous provider requests, shared across all sessions. Requests beyond it wait their turn and are sent first come, first served, regardless of session. Waiting counts neither as a failed attempt nor as execution time.
 
@@ -325,7 +325,7 @@ Defined by `define-provider-configuration` (JOS-165), verified against real call
 | Per-phase maximum times | Reasoning 20s, Image 25s, Voice 10s, Alignment 5s, Video 240s, Assembly provisional | Set above the observed slow tail of 4-7 real samples per stage; assembly depends on JOS-182 |
 | Maximum simultaneous requests per stage | Reasoning 50, Image 200 (provisional), Voice/Alignment/Video undetermined | No invented numbers where no real rate limit was found |
 
-**Not-retryable failure signal**: tested against all four provider-calling stages with disallowed instructional content — **none produced a distinguishable rejection**. This is an open finding for the product owner (`docs/adr/0005-provider-selection.md`, Decision 5), not yet resolved: §10.1's not-retryable branch currently has nothing to trigger on for this content class on any of these providers.
+**Not-retryable failure signal**: tested against all four provider-calling stages with disallowed instructional content — **none produced a distinguishable rejection** (`docs/adr/0005-provider-selection.md`, Decision 5). **Resolved at the entry point by JOS-187**: the script is checked by OpenAI's moderation endpoint before a session exists. Moderation model `omni-moderation-2024-09-26`, maximum time 10 seconds (measured 0.12–2.2 s). The downstream stages still have no content signal, and corrected `IMAGE`/`VIDEO` instructions (§10.3) remain unmoderated.
 
 ## 12. Persistencia, archivos y descargas
 
@@ -483,7 +483,7 @@ Origin: `define-provider-configuration` (JOS-165), 2026-09-27.
 | Video admitted durations fixed at 5-15 seconds, measured; segmentation lower bound (§6.1) now matches it by construction. | JOS-165 |
 | Final MP4 resolution/frame rate confirmed as a normalization the assembly stage must perform — neither the image nor video provider natively produces 1920×1080@30fps (§11.3). New requirement handed to `define-media-assembly` (JOS-182). | JOS-165 |
 | Supported language list fixed at English and Spanish, each verified across all three chain stages (§4.1, §11.3). | JOS-165, D09 |
-| **Open finding, not yet resolved**: no provider tested produces a distinguishable not-retryable failure signal for disallowed content; §10.1's not-retryable branch has nothing to trigger on for this content class currently (§11.3). | JOS-165 |
+| **Resolved by JOS-187**: no provider tested produces a distinguishable not-retryable failure signal for disallowed content, so the script is now moderated at submission (§4.1, §11.3). Corrected `IMAGE`/`VIDEO` instructions remain unmoderated. | JOS-165, JOS-187 |
 | Speed-factor limit and assembly's per-phase maximum time remain provisional, pending `define-media-assembly` (JOS-182). | JOS-165 |
 
 ### From version 1.2 to 1.3

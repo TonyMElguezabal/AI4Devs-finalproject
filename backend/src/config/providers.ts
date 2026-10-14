@@ -22,6 +22,16 @@ export const DECOMPOSITION_PROVIDER = {
   model: "gpt-6-astra",
 } as const;
 
+/**
+ * moderate-script-at-submission (JOS-187): the reasoning provider's own
+ * moderation endpoint checks the script before a session is registered.
+ * Pinned to a dated snapshot (report: step 1); `-latest` is not a pin.
+ */
+export const SCRIPT_MODERATION = {
+  name: "OpenAI",
+  model: "omni-moderation-2024-09-26",
+} as const;
+
 export const VOICE_PROVIDER = {
   name: "ElevenLabs",
   model: "eleven_multilingual_v2",
@@ -171,6 +181,9 @@ export const PER_PHASE_MAX_TIME_SECONDS = {
   assembly: "undetermined" as const, // define-media-assembly (JOS-182) not yet archived — report: step 8, task 8.5
 } as const;
 
+/** Moderation runs while the User waits (JOS-187). Provisional: observed 0.12-2.2 s (report: step 1). */
+export const MODERATION_MAX_TIME_SECONDS = 10;
+
 // ---- Speed-factor limit (§7.2, §7.3) ----
 // define-media-assembly (JOS-182, ADR 0005 Decision 5, PR #3, Accepted
 // 2026-09-26) measured a sharply asymmetric *mechanism* on the signed
@@ -199,7 +212,10 @@ export const SPEED_FACTOR_LIMIT: number = 2.0;
  * field exists but is scoped to sexual content, not violence/weapons.
  * §10.1's not-retryable branch currently has nothing to trigger on for this
  * content class on any of these four providers — escalated to the product
- * owner, not resolved by this module.
+ * owner. Resolved at the entry point by moderate-script-at-submission
+ * (JOS-187): the script is checked by OpenAI's moderation endpoint before a
+ * session exists, so a disallowed script is refused with a visible cause.
+ * This flag stays `false` because the downstream stages still have no signal.
  */
 export const NOT_RETRYABLE_FAILURE_SIGNAL_CONFIRMED = false;
 

@@ -110,6 +110,14 @@ what gets generated with no user-visible signal), or add an explicit upstream
 content-moderation check on the submitted script before the pipeline runs (surfaces a
 real, visible not-retryable failure at submission time, per §4.1).
 
+**Resolved by JOS-187 (`moderate-script-at-submission`):** the product owner chose the second
+direction. `POST /sessions` sends the script to OpenAI's moderation endpoint
+(`omni-moderation-2024-09-26`, same `OPENAI_KEY`) before registering anything. Flagged → `422`
+naming the categories; no verdict → `503`; nothing is created in either case. Verified for the
+step-7a inputs in English and Spanish. The downstream stages still have no signal, so
+`NOT_RETRYABLE_FAILURE_SIGNAL_CONFIRMED` stays `false`. Remaining exposure: corrected
+`IMAGE`/`VIDEO` instructions (§10.3) are not moderated.
+
 ## Decision 6 — Version identifiers and retirement exposure
 
 | Provider | Hardcoded identifier | Exposure |
@@ -175,8 +183,8 @@ See `openspec/changes/define-provider-configuration/reports/`:
   forcing the next sentence to split) were not tested against the reasoning provider —
   deferred to US-09's implementation-level TDD, which can combine real duration bounds
   with a deliberately engineered long sentence.
-- **The not-retryable failure signal gap (Decision 5)** is recorded as a finding, not
-  closed — the product owner has not yet chosen a direction.
+- **The not-retryable failure signal gap (Decision 5)** is resolved at submission by
+  JOS-187 (moderation of the script). Downstream stages still have no signal.
 - **Real queueing behavior was never observed** for any provider (RunningHub's
   time-to-`RUNNING` was ~0.46-0.48s in all 7 samples, sequential and concurrent alike) —
   §10.1's queue-time-doesn't-count-as-execution-time principle held in every sample but
@@ -199,6 +207,6 @@ See `openspec/changes/define-provider-configuration/reports/`:
   for both English and Spanish, and inherits the untested clause-boundary-split edge case
   as an open risk to cover in its own TDD suite.
 - §10.1's not-retryable-failure branch has no confirmed trigger for content-policy
-  rejections on any of these four providers — a product decision is needed before US-22
-  (retry budget) can claim this case is handled, one way or the other.
+  rejections on any of these four providers. JOS-187 closes the gap for scripts by refusing
+  them at submission; corrected `IMAGE`/`VIDEO` instructions (§10.3) remain exposed.
 - Total spend: **$5.605 of the $20 ceiling** (task 15.7, `reports/2026-09-27-step-15-spend-summary.md`).

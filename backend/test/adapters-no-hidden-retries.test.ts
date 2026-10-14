@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElevenLabsAlignmentProvider } from "../src/alignmentProvider.ts";
 import { createFalAiImageProvider } from "../src/imageProvider.ts";
+import { createOpenAiScriptModerator } from "../src/scriptModeration.ts";
 import { createRunningHubVideoProvider } from "../src/videoProvider.ts";
 import { createOpenAiVisualInstructionGenerator } from "../src/visualInstructions.ts";
 import { createElevenLabsVoiceProvider } from "../src/voiceProvider.ts";
@@ -52,6 +53,14 @@ describe.each(FAILURES)("A failing provider call ($name)", (failure) => {
     const { fetchFn, calls } = countingFetch(failure);
 
     await createElevenLabsAlignmentProvider({ fetchFn, loadKey: KEY }).align(Buffer.from([0x49, 0x44, 0x33]), "Hello.");
+
+    expect(calls).toHaveLength(1);
+  });
+
+  it("script moderation: one request", async () => {
+    const { fetchFn, calls } = countingFetch(failure);
+
+    await createOpenAiScriptModerator({ fetchFn, loadKey: KEY }).moderate("A script.");
 
     expect(calls).toHaveLength(1);
   });

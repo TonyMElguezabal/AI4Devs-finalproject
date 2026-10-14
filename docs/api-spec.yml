@@ -605,6 +605,36 @@ paths:
                   - session
                   - scenes
                 additionalProperties: false
+        "422":
+          description: The script was flagged by the moderation endpoint (moderate-script-at-submission, JOS-187). `reason` names the flagged categories. Nothing is created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "503":
+          description: The content check could not produce a verdict (timeout, network error, error status or missing credential). Nothing is created; the script may be submitted again.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
   /sessions/{sessionId}:
     get:
       parameters:
