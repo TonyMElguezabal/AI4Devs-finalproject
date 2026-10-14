@@ -20,3 +20,20 @@
 
 ## Open
 Raising the decomposition and voice limits is the same kind of product-configuration change as the video one (PRD §11.3). It is not done here without the product owner's decision.
+
+## Measurements at the product's real script size (2026-10-13/14)
+
+The product owner's real workload is a 1,500-1,800 word script, an 8-12 minute narration and 30-50 chunks. Two more direct measurements were made with the product's own adapters (the timeout signal removed so the real answer time shows):
+
+| Stage | Input | Result |
+|---|---|---|
+| Voice-over (ElevenLabs `eleven_multilingual_v2`, native timestamps) | **10,217 characters, 1,740 words**, one request | accepted (above the documented 10,000-character figure); **151.1 s**; about 12.8 minutes of narration (12.28 MB at 128 kbit/s); native timestamps present |
+| Decomposition (OpenAI, visual instructions) | **67 fragments**, 10,151 characters (the same text segmented over a 767 s narration) | **208.6 s**, 67 pairs returned; 11 fragments took 74-76 s, so the time grows sub-linearly with the number of scenes |
+
+Decisions taken from them: decomposition, voice and video limits are all set to 600 s (margins 2.9x, 4x and 1.7x), provisional until a full-size session has been timed end to end.
+
+## Not measured yet
+- Video clips of 10-15 s (the only sample is a 5 s clip, 344 s).
+- 30-50 clips at the stage's cap of 3 in flight: at about 6 minutes per clip that is roughly 1.5-2 hours of wall time for the video stage alone, and a RunningHub charge per clip.
+- A script above 10,217 characters in one voice request (the documented limit is 10,000 and 10,217 was accepted; a 1,800-word Spanish script is about 11,000-12,000 characters).
+- Assembly of 30-50 clips with a 10-12 minute narration (its limit is still undetermined).

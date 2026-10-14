@@ -106,9 +106,11 @@ describe("The speed-factor limit (§7.2, record-speed-adjustment-factor, JOS-148
 describe("Per-phase maximum times are set above the measured slow tail (Decision 7, §10.1)", () => {
   it("each numeric phase limit exceeds its own measured maximum sample", () => {
     // Measured maxima from reports/2026-09-27-step-8-timing-measurements.md
-    expect(PER_PHASE_MAX_TIME_SECONDS.decomposition).toBeGreaterThan(8.47);
+    // Decomposition: 208.6 s for 67 fragments (11 fragments took 75 s), same run; it grows with the number of scenes.
+    expect(PER_PHASE_MAX_TIME_SECONDS.decomposition).toBeGreaterThan(208.6);
     expect(PER_PHASE_MAX_TIME_SECONDS.image).toBeGreaterThan(10.79);
-    expect(PER_PHASE_MAX_TIME_SECONDS.voice).toBeGreaterThan(2.47);
+    // Voice: 151 s for 10,217 characters (1,740 words, about 12.8 minutes), 2026-10-13, a real run at the product's script size.
+    expect(PER_PHASE_MAX_TIME_SECONDS.voice).toBeGreaterThan(151);
     expect(PER_PHASE_MAX_TIME_SECONDS.alignment).toBeGreaterThan(0.48);
     // 344 s: one real 5 s clip at 2K, 2026-10-13 (fix-runninghub-adapter, JOS-196, reports/…step-5-live-api-check.md);
     // the earlier 141-159 s samples (JOS-165) were taken before the adapter reached the live service.

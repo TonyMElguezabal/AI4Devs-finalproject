@@ -163,9 +163,9 @@ export const MAX_SIMULTANEOUS_REQUESTS = {
 // timeout failure rates suggest these margins are wrong.
 
 export const PER_PHASE_MAX_TIME_SECONDS = {
-  decomposition: 20, // observed 6.41-8.47s
+  decomposition: 600, // 208.6 s for 67 fragments, 75 s for 11 (2026-10-13, real script size, JOS-197); 6.41-8.47 s on a short script (JOS-165). Provisional
   image: 25, // observed 9.22-10.79s
-  voice: 10, // observed 2.20-2.47s
+  voice: 600, // 151 s for 10,217 characters, about 12.8 min of narration (2026-10-13, JOS-197); 2.20-2.47 s on a 142-character script (JOS-165). Provisional
   alignment: 5, // observed 0.26-0.48s
   video: 600, // 344 s for one real 5 s clip at 2K (2026-10-13, JOS-196); earlier samples 141-159 s (JOS-165). Provisional: revisit after 10+ real clips (JOS-197)
   assembly: "undetermined" as const, // define-media-assembly (JOS-182) not yet archived — report: step 8, task 8.5
