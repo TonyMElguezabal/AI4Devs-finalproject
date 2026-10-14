@@ -136,8 +136,14 @@ if (isMainModule) {
   }
   // USE_STUB_VOICE_PROVIDER=success|success-without-timestamps|transient-failure|transient-twice-then-success|not-retryable-failure|undecodable-audio|empty-audio|hang|hang-once-then-success|success-after-limit — manual endpoint testing only.
   const stubVoiceMode = process.env.USE_STUB_VOICE_PROVIDER as StubVoiceProviderMode | undefined;
+  // VOICE_STUB_DELAY_MS — with `success-after-limit`, how long each call takes (default: the voice maximum time plus 2 s).
+  // A value below the maximum time makes calls slow but in time, so the per-stage cap's queueing can be watched (JOS-167).
+  const voiceStubDelayMs = Number(process.env.VOICE_STUB_DELAY_MS);
   if (stubVoiceMode) {
-    setVoiceProviderRegistry({ defaultIdentifier: "stub-voice", adapters: { "stub-voice": createStubVoice(stubVoiceMode) } });
+    setVoiceProviderRegistry({
+      defaultIdentifier: "stub-voice",
+      adapters: { "stub-voice": createStubVoice(stubVoiceMode, Number.isFinite(voiceStubDelayMs) && voiceStubDelayMs > 0 ? { lateAfterMs: voiceStubDelayMs } : {}) },
+    });
   }
   // USE_STUB_ASSEMBLY_TOOL=success|transient-failure|not-retryable-failure|slow-success — manual endpoint testing only (JOS-149).
   // `slow-success` (JOS-161) answers success after ASSEMBLY_STUB_DELAY_MS (default 15000), so a pause can land during assembly.

@@ -67,10 +67,10 @@ Gate result (2026-10-14): the branch was 152 commits behind the integration bran
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the real server on a scratch store and scratch projects folder with stub providers, `ALLOW_TEST_ENDPOINTS=1`, and a slow stub voice provider. Confirm `GET /health` and that the boot log lists all five caps.
-- [ ] 9.2 Start 5 sessions at once with `POST /sessions`. `GET /sessions/:id` on each shows at most 3 voice attempts `in-flight`, the rest `scheduled` and none failed. As calls return, the waiting sessions are sent in creation order.
-- [ ] 9.3 `POST /sessions/:id/pause` on a waiting session; confirm it is skipped when a slot frees; `POST /sessions/:id/continue` sends it.
-- [ ] 9.4 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/limit-provider-requests-per-stage/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
+- [x] 9.1 Start the real server on a scratch store and scratch projects folder with stub providers, `ALLOW_TEST_ENDPOINTS=1`, and a slow stub voice provider. Confirm `GET /health` and that the boot log lists all five caps.
+- [x] 9.2 Start 5 sessions at once with `POST /sessions`. `GET /sessions/:id` on each shows at most 3 voice attempts `in-flight`, the rest `scheduled` and none failed. As calls return, the waiting sessions are sent in creation order.
+- [x] 9.3 `POST /sessions/:id/pause` on a waiting session; confirm it is skipped when a slot frees; `POST /sessions/:id/continue` sends it.
+- [x] 9.4 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/limit-provider-requests-per-stage/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
