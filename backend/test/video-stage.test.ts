@@ -278,6 +278,27 @@ describe("Group 4 — Precondition and launch (Decisions 1, 2, 4)", () => {
     expect(getScene(scenes[0]!.id)?.status).toBe("chunk-complete");
   });
 
+  it("shows a chunk waiting for the video cap as image-complete, not failed, and sets no failure (JOS-167, AC4)", async () => {
+    const runId = randomUUID();
+    createRun(runId, "test", "script", "en");
+    const provider = createStubVideoProvider("success-bytes", { bytes: MP4_BYTES });
+    setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
+    concurrency.setLimit("video", 1);
+    concurrency.acquire("video", "another-session-scene", () => undefined); // the cap is full
+
+    await bringToImageComplete(runId);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(getScenesForRun(runId).map((scene) => scene.status)).toEqual(["image-complete"]);
+    expect(provider.calls).toHaveLength(0);
+    expect(getRun(runId)?.failure).toBeNull();
+    expect(toSnapshot(runId)?.session.state).not.toBe("failed");
+
+    concurrency.release("video", "another-session-scene");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(provider.calls).toHaveLength(1);
+  });
+
   it("uses the 'video' concurrency key, not the 'image' one", async () => {
     const runId = randomUUID();
     createRun(runId, "test", "script", "en");

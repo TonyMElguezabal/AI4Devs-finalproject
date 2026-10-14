@@ -8,8 +8,8 @@ import { routes } from "./routes.ts";
 import { recoverOnBoot, setAssemblyTool, VIDEO_STAGE } from "./orchestrator.ts";
 import { stagesWithoutRestartRecovery } from "./launchGate.ts";
 import * as concurrency from "./concurrency.ts";
-import { STAGE } from "./types.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
+import { STAGE } from "./types.ts";
 import { setDecompositionLogger } from "./decompositionPhase.ts";
 import { setVoiceOverLogger } from "./voiceOverPhase.ts";
 import { rebuildScheduler } from "./retry/retryScheduler.ts";
@@ -81,7 +81,7 @@ export function bootLogFields(summary: ReturnType<typeof recoverOnBoot>) {
   };
   return {
     ...summary,
-    concurrency: { [STAGE]: stageUsage(STAGE), [VIDEO_STAGE]: stageUsage(VIDEO_STAGE) },
+    concurrency: Object.fromEntries(Object.keys(MAX_SIMULTANEOUS_REQUESTS).map((stage) => [stage, stageUsage(stage)])),
     noRestartRecovery: stagesWithoutRestartRecovery(),
   };
 }

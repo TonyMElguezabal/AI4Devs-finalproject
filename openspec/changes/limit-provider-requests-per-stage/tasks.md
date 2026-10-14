@@ -39,16 +39,16 @@ Gate result (2026-10-14): the branch was 152 commits behind the integration bran
 
 ## 5. Backend: waiting is not execution time, not an attempt, not a failure (TDD; spec "Waiting is neither…", "Waiting work is never shown as failed")
 
-- [ ] 5.1 A voice attempt that waits longer than the voice maximum time and then returns in time is a success, not `timed-out` (watcher test with injected clock).
-- [ ] 5.2 A waiting attempt uses no attempt in the cycle: after it is sent, the cycle shows exactly one attempt.
-- [ ] 5.3 A timed-out voice attempt keeps its slot until its call returns. A retry scheduled by the timeout waits for that slot (Decision 6).
-- [ ] 5.4 Restart while a session-level attempt is waiting: after boot it is still `scheduled`, no failed attempt is recorded, and it is sent once a slot is free.
-- [ ] 5.5 The session snapshot for a session waiting for its voice-over slot, and for scenes waiting behind the video cap, shows no `failed` state and no run failure.
-- [ ] 5.6 Make any of 5.1–5.5 that fail pass, without new display states (Decision 7).
+- [x] 5.1 A voice attempt that waits longer than the voice maximum time and then returns in time is a success, not `timed-out` (watcher test with injected clock).
+- [x] 5.2 A waiting attempt uses no attempt in the cycle: after it is sent, the cycle shows exactly one attempt.
+- [x] 5.3 A timed-out voice attempt keeps its slot until its call returns. A retry scheduled by the timeout waits for that slot (Decision 6).
+- [x] 5.4 Restart while a session-level attempt is waiting: after boot it is still `scheduled`, no failed attempt is recorded, and it is sent once a slot is free.
+- [x] 5.5 The session snapshot for a session waiting for its voice-over slot, and for scenes waiting behind the video cap, shows no `failed` state and no run failure.
+- [x] 5.6 Make any of 5.1–5.5 that fail pass, without new display states (Decision 7).
 
 ## 6. Backend: boot log
 
-- [ ] 6.1 `bootLogFields` reports `inFlight` and `limit` for every capped stage, not only image and video. Update its test.
+- [x] 6.1 `bootLogFields` reports `inFlight` and `limit` for every capped stage, not only image and video. Update its test.
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
