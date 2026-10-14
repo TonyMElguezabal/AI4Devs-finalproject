@@ -74,9 +74,9 @@ Gate result (2026-10-14): the branch was 152 commits behind the integration bran
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: no UI change, but AC4 is visible on the session page, so it applies.
-- [ ] 10.2 Run backend (scratch store, slow stub voice, voice limit 1) and frontend. Open two sessions started together: the waiting one shows its voice-over as pending, not failed, and completes after the first.
-- [ ] 10.3 Restore the environment and save `openspec/changes/limit-provider-requests-per-stage/reports/YYYY-MM-DD-step-10-e2e.md`.
+- [x] 10.1 Decide applicability: no UI change, but AC4 is visible on the session page, so it applies.
+- [x] 10.2 Run backend (scratch store, slow stub voice, voice limit 1) and frontend. Open two sessions started together: the waiting one shows its voice-over as pending, not failed, and completes after the first.
+- [x] 10.3 Restore the environment and save `openspec/changes/limit-provider-requests-per-stage/reports/YYYY-MM-DD-step-10-e2e.md`.
 
 ## 11. Update Technical Documentation (MANDATORY)
 
