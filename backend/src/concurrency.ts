@@ -7,7 +7,14 @@
  * time limit.
  */
 
-const limits = new Map<string, number>();
+import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
+
+/** The configured cap of every provider-calling stage (JOS-167); a stage outside it is uncapped. */
+function configuredLimits(): Map<string, number> {
+  return new Map(Object.entries(MAX_SIMULTANEOUS_REQUESTS));
+}
+
+const limits = configuredLimits();
 /** The holders (scene ids) that own a slot, per stage; the in-flight count is the set's size. */
 const holders = new Map<string, Set<string>>();
 const queues = new Map<string, Array<{ holder: string; onAcquired: () => void }>>();
@@ -77,9 +84,10 @@ export function stats(stage: string): { inFlight: number; queued: number; limit:
   };
 }
 
-/** Test-only: wipe all semaphore state between test cases. */
+/** Test-only: wipe all semaphore state between test cases and restore the configured limits. */
 export function resetAll(): void {
   limits.clear();
+  for (const [stage, limit] of configuredLimits()) limits.set(stage, limit);
   holders.clear();
   queues.clear();
 }

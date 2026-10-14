@@ -14,9 +14,9 @@ Gate result (2026-10-14): the branch was 152 commits behind the integration bran
 
 ## 2. Backend: cap values from one constant (TDD; design Decisions 1, 2)
 
-- [ ] 2.1 Write failing tests: after module load, `stats()` reports decomposition 50, image 200, voice 3, alignment 2, video 3; `voice + alignment <= 5`; `resetAll()` restores the configured limits.
-- [ ] 2.2 Set `MAX_SIMULTANEOUS_REQUESTS` to numbers (voice 3, alignment 2, video 3) with source comments (ElevenLabs Creator documented limit; JOS-165 step 8.2), typed so `undetermined` no longer compiles.
-- [ ] 2.3 Set every limit in `concurrency.ts` from the constant; make `resetAll()` restore them. Remove `PROVISIONAL_VIDEO_CONCURRENCY` and its `setLimit` from `orchestrator.ts`, and the image `setLimit` from `server.ts` (keep the `STAGE_CONCURRENCY_LIMIT` override). Make 2.1 pass and keep the image and video tests green.
+- [x] 2.1 Write failing tests: after module load, `stats()` reports decomposition 50, image 200, voice 3, alignment 2, video 3; `voice + alignment <= 5`; `resetAll()` restores the configured limits.
+- [x] 2.2 Set `MAX_SIMULTANEOUS_REQUESTS` to numbers (voice 3, alignment 2, video 3) with source comments (ElevenLabs Creator documented limit; JOS-165 step 8.2), typed so `undetermined` no longer compiles.
+- [x] 2.3 Set every limit in `concurrency.ts` from the constant; make `resetAll()` restore them. Remove `PROVISIONAL_VIDEO_CONCURRENCY` and its `setLimit` from `orchestrator.ts`, and the image `setLimit` from `server.ts` (keep the `STAGE_CONCURRENCY_LIMIT` override). Make 2.1 pass and keep the image and video tests green.
 
 ## 3. Backend: one slot-taking claim for session-level attempts (TDD; design Decisions 3, 5, 6)
 

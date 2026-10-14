@@ -90,10 +90,10 @@ describe("Per-stage request maximum stays within the recorded rate limit under t
     expect((cap as number) * RETRY_BUDGET_ATTEMPTS).toBeLessThan(2000);
   });
 
-  it("voice, alignment and video are explicitly undetermined, not a guessed number (Decision 6)", () => {
-    expect(MAX_SIMULTANEOUS_REQUESTS.voice).toBe("undetermined");
-    expect(MAX_SIMULTANEOUS_REQUESTS.alignment).toBe("undetermined");
-    expect(MAX_SIMULTANEOUS_REQUESTS.video).toBe("undetermined");
+  it("voice, alignment and video are numbers, decided by the product owner (JOS-167)", () => {
+    expect(MAX_SIMULTANEOUS_REQUESTS.voice).toBe(3);
+    expect(MAX_SIMULTANEOUS_REQUESTS.alignment).toBe(2);
+    expect(MAX_SIMULTANEOUS_REQUESTS.video).toBe(3);
   });
 });
 

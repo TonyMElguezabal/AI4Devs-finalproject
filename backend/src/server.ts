@@ -22,10 +22,9 @@ import { createFfmpegAssemblyTool } from "./ffmpegAssemblyTool.ts";
 import type { AssemblyTool } from "./assemblyTool.ts";
 
 const PORT = Number(process.env.PORT ?? 3100);
-// define-provider-configuration (JOS-165) task 17.2 — this skeleton's one
-// generic stage (STAGE = "image") maps to the real image stage's derived
-// cap, replacing the walking skeleton's arbitrary placeholder (was 2).
-const STAGE_CONCURRENCY_LIMIT = Number(process.env.STAGE_CONCURRENCY_LIMIT ?? MAX_SIMULTANEOUS_REQUESTS.image);
+// The caps come from MAX_SIMULTANEOUS_REQUESTS (JOS-167); this override exists
+// for manual testing, where a small image cap makes queueing visible.
+const STAGE_CONCURRENCY_OVERRIDE = process.env.STAGE_CONCURRENCY_LIMIT;
 
 // start-video-project (JOS-134) Decision 6 — impose no product-side script
 // length limit; where an infrastructure ceiling remains, name the cause
@@ -118,7 +117,7 @@ export function configureAssemblyTool(
 // when imported by tests.
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
-  concurrency.setLimit(STAGE, STAGE_CONCURRENCY_LIMIT);
+  if (STAGE_CONCURRENCY_OVERRIDE) concurrency.setLimit(STAGE, Number(STAGE_CONCURRENCY_OVERRIDE));
   // USE_STUB_VIDEO_PROVIDER=success|success-bytes|pending|request-lost|transient-failure|not-retryable-failure — manual endpoint testing only.
   // `pending` leaves every clip unfinished, so a restart can be watched resuming it; `success` is an alias of `success-bytes`.
   const stubVideoMode = process.env.USE_STUB_VIDEO_PROVIDER as string | undefined;
@@ -153,5 +152,5 @@ if (isMainModule) {
   // stage-execution-time-limit (JOS-185) Decision 8 — after resumption, so a result recovered at boot wins over a timeout.
   startAttemptTimeoutWatcher();
   await app.listen({ port: PORT, host: "127.0.0.1" });
-  app.log.info(`listening on http://127.0.0.1:${PORT} (docs at /docs) — stage concurrency limit ${STAGE_CONCURRENCY_LIMIT}, body limit ${BODY_LIMIT_BYTES} bytes`);
+  app.log.info(`listening on http://127.0.0.1:${PORT} (docs at /docs) — image concurrency limit ${concurrency.stats(STAGE).limit}, body limit ${BODY_LIMIT_BYTES} bytes`);
 }

@@ -88,9 +88,6 @@ import {
 export const RETRY_BUDGET = 3;
 
 export const VIDEO_STAGE = "video";
-/** Provisional cap — JOS-167 replaces this (design Decision 2). */
-export const PROVISIONAL_VIDEO_CONCURRENCY = 3;
-concurrency.setLimit(VIDEO_STAGE, PROVISIONAL_VIDEO_CONCURRENCY);
 
 /** Poll interval between checks of the video provider (Decision 3). */
 let videoPollIntervalMs = 10_000;
