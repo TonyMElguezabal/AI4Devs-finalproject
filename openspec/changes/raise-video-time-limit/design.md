@@ -4,7 +4,7 @@
 
 ## Decisions
 
-**Decision 1 — 600 s.** The observed 344 s plus margin (1.7x), the smallest round value that leaves a longer slow tail without making a stuck task wait many minutes. It stays provisional: JOS-165's rule ("set above the observed slow tail") is kept, and the row is revisited when a real session has produced 10 or more clips. *Alternative:* 900 s (rejected: delays a real failure by 15 minutes with one sample showing 344 s); keeping 240 s with more concurrency (rejected: does not remove the timeouts).
+**Decision 1 — 600 s for voice, decomposition and video.** Observed at the product's real scale: video 344 s for a 5 s clip (1.7x margin), voice 151 s for 10,217 characters (4x), decomposition 208.6 s for 67 fragments (2.9x; 75 s for 11, so it grows with the number of scenes, sub-linearly). One round value keeps the three rows easy to state and review; it leaves a slower tail without making a stuck task wait many minutes. Image (25 s, calls of about 10 s) and alignment (5 s, unused when native timestamps are usable) are unchanged. It stays provisional: JOS-165's rule ("set above the observed slow tail") is kept, and the row is revisited when a real session has produced 10 or more clips. *Alternative:* 900 s (rejected: delays a real failure by 15 minutes with one sample showing 344 s); keeping 240 s with more concurrency (rejected: does not remove the timeouts).
 
 **Decision 2 — Only the constant changes in `src`.** Both readers take the value from the constant; the existing deadline tests derive their numbers from it.
 
