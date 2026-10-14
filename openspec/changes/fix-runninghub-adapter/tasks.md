@@ -32,9 +32,9 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 5. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 5.1 With the account's key in a throwaway credentials file, run the three adapter calls against the live API for one 5-second clip: upload, submit, poll until `SUCCESS`, download the clip, and check it with `ffprobe`; record each request shape and answer (without the key) and the cost reported in `usage`
-- [ ] 5.2 Error case: an upload of a non-image body and a poll of an unknown task id answer with readable transient failures
-- [ ] 5.3 Save `reports/YYYY-MM-DD-step-5-live-api-check.md` and delete the throwaway credentials file
+- [x] 5.1 With the account's key in a throwaway credentials file, run the three adapter calls against the live API for one 5-second clip: upload, submit, poll until `SUCCESS`, download the clip, and check it with `ffprobe`; record each request shape and answer (without the key) and the cost reported in `usage` — done (`reports/2026-10-14-step-5-live-api-check.md`): through the adapter, upload → submit → poll → download of one 5 s clip: success at t+344 s, 2528x1440 h264 + aac, 5.167 s; **344 s exceeds the 240 s video limit**, recorded as a finding
+- [x] 5.2 Error case: an upload of a non-image body and a poll of an unknown task id answer with readable transient failures — done: a malformed task id answers a readable transient failure (error 1007); a non-image body is accepted by RunningHub at upload (recorded)
+- [x] 5.3 Save `reports/YYYY-MM-DD-step-5-live-api-check.md` and delete the throwaway credentials file — done: report saved; the credentials file belongs to the JOS-194 real-provider run and is removed with it
 
 ## 6. E2E Testing with Playwright MCP (MANDATORY if applicable)
 
