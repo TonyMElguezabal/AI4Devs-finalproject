@@ -5,7 +5,7 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { routes } from "./routes.ts";
-import { recoverOnBoot, setAssemblyTool, VIDEO_STAGE } from "./orchestrator.ts";
+import { recoverOnBoot, setAssemblyTool } from "./orchestrator.ts";
 import { stagesWithoutRestartRecovery } from "./launchGate.ts";
 import * as concurrency from "./concurrency.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";

@@ -52,18 +52,18 @@ Gate result (2026-10-14): the branch was 152 commits behind the integration bran
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review the tests that set or rely on limits and first-attempt shape: `concurrency`, `restart-concurrency`, `retry-scheduler`, `attempt-timeout`, `voice-over-*`, `decomposition-*`, `restart-*`, `orchestrator`, `video-stage`, `image-stage`. Update any that assumed an uncapped session stage, `PROVISIONAL_VIDEO_CONCURRENCY`, or an `in-flight` first attempt.
-- [ ] 7.2 Map every scenario in `specs/provider-request-limit/spec.md` and `specs/restart-safe-concurrency/spec.md`, and AC1–AC4 of JOS-167, to at least one test. List the mapping in the step 8 report.
+- [x] 7.1 Review the tests that set or rely on limits and first-attempt shape: `concurrency`, `restart-concurrency`, `retry-scheduler`, `attempt-timeout`, `voice-over-*`, `decomposition-*`, `restart-*`, `orchestrator`, `video-stage`, `image-stage`. Update any that assumed an uncapped session stage, `PROVISIONAL_VIDEO_CONCURRENCY`, or an `in-flight` first attempt.
+- [x] 7.2 Map every scenario in `specs/provider-request-limit/spec.md` and `specs/restart-safe-concurrency/spec.md`, and AC1–AC4 of JOS-167, to at least one test. List the mapping in the step 8 report.
 - [ ] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test baseline of the default store: row counts per table (including `stage_attempts` by outcome), applied migrations, and `data/projects/` contents.
-- [ ] 8.2 Run the targeted tests from 7.1.
-- [ ] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` in the checkout.
-- [ ] 8.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 8.5 Create the report `openspec/changes/limit-provider-requests-per-stage/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`.
-- [ ] 8.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 8.1 Capture the pre-test baseline of the default store: row counts per table (including `stage_attempts` by outcome), applied migrations, and `data/projects/` contents.
+- [x] 8.2 Run the targeted tests from 7.1.
+- [x] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` in the checkout.
+- [x] 8.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 8.5 Create the report `openspec/changes/limit-provider-requests-per-stage/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`.
+- [x] 8.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
@@ -83,7 +83,7 @@ Gate result (2026-10-14): the branch was 152 commits behind the integration bran
 - [ ] 11.1 `docs/PRD.md` §11: record the final per-stage caps, with the ElevenLabs value marked as documented, not measured.
 - [ ] 11.2 `docs/data-model.md`: a `scheduled` attempt with trigger `initial` means "waiting for a slot". `queuedAt` is when it became ready and `sentAt` is when it took its slot.
 - [ ] 11.3 `docs/backend-standards.md`: the cap rule. Every provider call takes a slot keyed by stage; session-level attempts go through `sendWithSlot`; a slot covers one call and is released when the call returns, not when the attempt closes.
-- [ ] 11.4 `docs/api-spec.yml`: confirm no change is needed; record that in the step 8 report.
+- [x] 11.4 `docs/api-spec.yml`: confirm no change is needed; record that in the step 8 report.
 
 ## 12. Close out
 
