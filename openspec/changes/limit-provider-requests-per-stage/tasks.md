@@ -20,7 +20,7 @@ Gate result (2026-10-14): the branch was 152 commits behind the integration bran
 
 ## 3. Backend: one slot-taking claim for session-level attempts (TDD; design Decisions 3, 5, 6)
 
-- [ ] 3.1 Write failing tests for `sendWithSlot` in `retry-scheduler.test.ts`, with a voice limit of 1:
+- [x] 3.1 Write failing tests for `sendWithSlot` in `retry-scheduler.test.ts`, with a voice limit of 1:
   - a second attempt stays `scheduled` with no `sentAt` while the first is in flight, and is claimed when the first's call returns;
   - FIFO across two sessions;
   - a pause while queued releases the slot and leaves the attempt `scheduled`;
@@ -29,7 +29,7 @@ Gate result (2026-10-14): the branch was 152 commits behind the integration bran
   - the slot is released when `send` settles, including when it throws, and earlier when `send` calls `releaseSlot()`; calling it twice releases once;
   - a `timestamps` attempt takes an `alignment` slot unless a stored or usable native timestamps file means no call is made;
   - the result is `{ sent: false }` for a paused session, and `{ sent: true, value }` otherwise.
-- [ ] 3.2 Implement `sendWithSlot(attempt, send)` and the stage-to-key mapping. Route `releaseAttempt` through it. Make 3.1 pass.
+- [x] 3.2 Implement `sendWithSlot(attemptId, send, now)` and the stage-to-key mapping. Route `releaseAttempt` through it. Make 3.1 pass.
 
 ## 4. Backend: first attempts enter as scheduled (TDD; design Decisions 3, 4)
 
