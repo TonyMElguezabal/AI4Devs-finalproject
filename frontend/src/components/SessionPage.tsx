@@ -3,7 +3,7 @@ import { SessionHeader } from "./SessionHeader";
 import { SceneList } from "./SceneList";
 import { FinalVideoDownload } from "./FinalVideoDownload";
 import { PhaseSection } from "./PhaseSection";
-import { downloadFinalVideoUrl } from "../api/client";
+import { resolveResultUrl } from "../api/client";
 
 interface Props {
   sessionId: string;
@@ -71,7 +71,7 @@ export function SessionPage({
                 <SceneList scenes={snapshot.scenes} paused={snapshot.session.paused} onRetry={onRetry} onCorrect={onCorrect} />
               )}
               {progress.phase === "assembly" && (
-                <FinalVideoDownload state={snapshot.session.state} url={downloadFinalVideoUrl(sessionId)} />
+                <FinalVideoDownload url={snapshot.session.finalVideoUrl ? resolveResultUrl(snapshot.session.finalVideoUrl) : undefined} />
               )}
             </PhaseSection>
           ))}

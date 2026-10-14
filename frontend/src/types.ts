@@ -64,6 +64,8 @@ export interface SessionEventPayload {
   failedSceneIndexes?: number[];
   /** JOS-168 — always the four phases in pipeline order; the page derives no phase status of its own. */
   phases: PhaseProgress[];
+  /** download-final-video (JOS-164) — present only once the final video exists; the page offers the download for exactly this, never derived from `state`. */
+  finalVideoUrl?: string;
   updatedAt: string;
 }
 

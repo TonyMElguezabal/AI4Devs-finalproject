@@ -81,6 +81,19 @@
 # event. No field for the voice-over, timestamps or generated texts exists
 # anywhere (PRD §12.3) — `kind` stays `image | video`.
 #
+# JOS-164 (download-final-video) — 2026-10-10: regenerated. Corrects a wrong
+# contract: the final-video download's 200 was documented as `application/json`
+# (a `z.any()` response always resolves that way in `fastify-type-provider-zod`)
+# while the server has always sent `video/mp4` bytes. Now documented as
+# `content: video/mp4` with a binary schema, via a route-level
+# `config.swaggerTransform` override (`binaryFileSwaggerTransform` in
+# `routes.ts`) that replaces only that one route's 200 entry; every other
+# route, including the scene download route JOS-163 added (still `z.any()`,
+# so still documented as `application/json` despite sending binary bytes, the
+# same gap this change closes only for the final-video route), is unaffected.
+# No behaviour change: the route, its handler, headers and status codes are
+# exactly as before.
+#
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -1502,9 +1515,10 @@ paths:
         "200":
           description: The assembled MP4 file (video/mp4)
           content:
-            application/json:
+            video/mp4:
               schema:
-                description: The assembled MP4 file (video/mp4)
+                type: string
+                format: binary
         "404":
           description: Default Response
           content:

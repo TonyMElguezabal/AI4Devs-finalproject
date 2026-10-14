@@ -73,10 +73,6 @@ export function resolveResultUrl(path: string): string {
   return `${API_BASE}${path}`;
 }
 
-export function downloadFinalVideoUrl(sessionId: string): string {
-  return `${API_BASE}/sessions/${sessionId}/download/final-video`;
-}
-
 export function eventsUrl(sessionId: string): string {
   return `${API_BASE}/events?sessionId=${encodeURIComponent(sessionId)}`;
 }
