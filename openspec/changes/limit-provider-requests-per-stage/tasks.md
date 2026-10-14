@@ -54,7 +54,7 @@ Gate result (2026-10-14): the branch was 152 commits behind the integration bran
 
 - [x] 7.1 Review the tests that set or rely on limits and first-attempt shape: `concurrency`, `restart-concurrency`, `retry-scheduler`, `attempt-timeout`, `voice-over-*`, `decomposition-*`, `restart-*`, `orchestrator`, `video-stage`, `image-stage`. Update any that assumed an uncapped session stage, `PROVISIONAL_VIDEO_CONCURRENCY`, or an `in-flight` first attempt.
 - [x] 7.2 Map every scenario in `specs/provider-request-limit/spec.md` and `specs/restart-safe-concurrency/spec.md`, and AC1–AC4 of JOS-167, to at least one test. List the mapping in the step 8 report.
-- [ ] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [ ] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit). (not measured: no coverage provider installed in backend; see the step 8 report)
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
