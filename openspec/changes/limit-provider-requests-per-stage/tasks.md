@@ -87,7 +87,7 @@ Gate result (2026-10-14): the branch was 152 commits behind the integration bran
 
 ## 12. Close out
 
-- [ ] 12.1 Ask the user before commenting on the related tickets (JOS-184, JOS-185, JOS-136) that first attempts now enter as `scheduled`.
-- [ ] 12.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-167.
+- [x] 12.1 Ask the user before commenting on the related tickets (JOS-184, JOS-185, JOS-136) that first attempts now enter as `scheduled`.
+- [x] 12.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-167.
 - [x] 12.3 Obtain review by at least one human, not only AI agents.
 - [ ] 12.4 Archive the OpenSpec change after merge.
