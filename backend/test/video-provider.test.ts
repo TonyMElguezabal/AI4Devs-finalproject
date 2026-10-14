@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, beforeEach } from "vitest";
+import { VIDEO_PROVIDER } from "../src/config/providers.ts";
 import {
   createStubVideoProvider,
   createRunningHubVideoProvider,
@@ -132,79 +133,52 @@ describe("StubVideoProvider (Decision 3 — covers all outcome modes)", () => {
   });
 });
 
-describe("RunningHub adapter (Decision 3 — tested against mocked HTTP)", () => {
+describe("RunningHub adapter (JOS-196 — the live API's request and answer shapes, tested against mocked HTTP)", () => {
   beforeEach(() => {
     resetVideoDownloadFetch();
   });
 
-  function makeUploadResponse(url: string): Response {
-    return new Response(
-      JSON.stringify({ code: 0, data: { fileUrl: url } }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  const json = (body: unknown): Response =>
+    new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
 
-  function makeSubmitResponse(taskId: string): Response {
-    return new Response(
-      JSON.stringify({ code: 0, data: { taskId } }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  /** The upload answer RunningHub gives on success (checked against the live service, 2026-10-13). */
+  const uploadAnswer = (url: string): Response =>
+    json({ code: 0, msg: "success", errorMessages: null, data: { type: "image", download_url: url, fileName: "frame.png", size: "1" } });
 
-  function makeQueryPendingResponse(): Response {
-    return new Response(
-      JSON.stringify({ code: 0, data: { taskStatus: "QUEUED" } }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  /** The flat envelope of a submit or a query answer. */
+  const taskAnswer = (fields: Record<string, unknown>): Response =>
+    json({ taskId: "", status: "", errorCode: "", errorMessage: "", results: null, clientId: "", ...fields });
 
-  function makeQuerySuccessResponse(resultUrl: string): Response {
-    return new Response(
-      JSON.stringify({
-        code: 0,
-        data: {
-          taskStatus: "SUCCESS",
-          outputList: [{ fileUrl: resultUrl }],
-        },
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  const provider = (fetchFn: (url: string, options?: RequestInit) => Promise<Response>) =>
+    createRunningHubVideoProvider({ fetchFn: fetchFn as typeof fetch, loadKey: () => "test-api-key" });
 
-  function makeQueryFailedResponse(): Response {
-    return new Response(
-      JSON.stringify({ code: 0, data: { taskStatus: "FAILED" } }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  const submitArgs = { imageBytes: VALID_IMAGE, instruction: "animate the scene", durationSeconds: 8 } as const;
 
-  it("submit: uploads the image bytes and sends prompt, duration, resolution and firstFrameUrl", async () => {
+  it("submit: uploads the image as a multipart file part and sends prompt, duration, resolution and firstFrameUrl to the model endpoint", async () => {
     const calls: { url: string; options?: RequestInit }[] = [];
     const taskId = randomUUID();
-    const uploadUrl = "https://cdn.runninghub.io/img/abc.jpg";
+    const uploadUrl = "https://cdn.runninghub.io/img/abc.png";
 
-    const mockFetch = async (url: string, options?: RequestInit): Promise<Response> => {
+    const result = await provider(async (url, options) => {
       calls.push({ url, options });
-      if (url.includes("/media/upload")) return makeUploadResponse(uploadUrl);
-      if (url.includes("/task/openapi/create")) return makeSubmitResponse(taskId);
+      if (url.includes("/media/upload")) return uploadAnswer(uploadUrl);
+      if (url.endsWith(VIDEO_PROVIDER.endpoint)) return taskAnswer({ taskId, status: "QUEUED" });
       return new Response("unexpected", { status: 404 });
-    };
+    }).submit(submitArgs);
 
-    const provider = createRunningHubVideoProvider({
-      fetchFn: mockFetch as typeof fetch,
-      loadKey: () => "test-api-key",
-    });
+    expect(result).toEqual({ kind: "submitted", requestId: taskId });
 
-    const result = await provider.submit({
-      imageBytes: VALID_IMAGE,
-      instruction: "animate the scene",
-      durationSeconds: 8,
-    });
+    const upload = calls.find((c) => c.url.includes("/media/upload"));
+    expect(upload).toBeTruthy();
+    expect(upload!.options?.body).toBeInstanceOf(FormData);
+    const file = (upload!.options!.body as FormData).get("file");
+    expect(file).toBeInstanceOf(Blob);
+    expect(Buffer.from(await (file as Blob).arrayBuffer()).equals(VALID_IMAGE)).toBe(true);
+    const uploadHeaders = new Headers(upload!.options?.headers);
+    expect(uploadHeaders.get("authorization")).toBe("Bearer test-api-key");
+    expect(uploadHeaders.get("content-type")).toBeNull(); // multipart sets its own boundary
 
-    expect(result.kind).toBe("submitted");
-    if (result.kind === "submitted") expect(result.requestId).toBe(taskId);
-
-    const submitCall = calls.find((c) => c.url.includes("/task/openapi/create"));
+    const submitCall = calls.find((c) => c.url.endsWith(VIDEO_PROVIDER.endpoint));
     expect(submitCall).toBeTruthy();
     const body = JSON.parse(submitCall!.options?.body as string);
     expect(body.prompt).toBe("animate the scene");
@@ -213,41 +187,81 @@ describe("RunningHub adapter (Decision 3 — tested against mocked HTTP)", () =>
     expect(body.firstFrameUrl).toBe(uploadUrl);
   });
 
-  it("poll: maps QUEUED/RUNNING to pending", async () => {
-    const taskId = randomUUID();
-    const mockFetch = async (): Promise<Response> => makeQueryPendingResponse();
-    const provider = createRunningHubVideoProvider({
-      fetchFn: mockFetch as typeof fetch,
-      loadKey: () => "test-api-key",
-    });
-    const poll = await provider.poll(taskId);
+  it("submit: reads the task id from data.taskId when the answer nests it", async () => {
+    const result = await provider(async (url) => {
+      if (url.includes("/media/upload")) return uploadAnswer("https://cdn.runninghub.io/img/abc.png");
+      return json({ code: 0, data: { taskId: "nested-1" } });
+    }).submit(submitArgs);
+
+    expect(result).toEqual({ kind: "submitted", requestId: "nested-1" });
+  });
+
+  it("submit: an upload answered with an error envelope is transient, names the upload and carries the error code", async () => {
+    const calls: string[] = [];
+    const result = await provider(async (url) => {
+      calls.push(url);
+      return taskAnswer({ errorCode: "1000", errorMessage: "Unknown error, please retry or contact support" });
+    }).submit(submitArgs);
+
+    expect(result.kind).toBe("failed_transient");
+    if (result.kind !== "failed_transient") throw new Error("unreachable");
+    expect(result.reason).toMatch(/image upload/i);
+    expect(result.reason).toContain("1000");
+    expect(result.reason).not.toContain("test-api-key");
+    expect(calls).toHaveLength(1); // no task is created after a failed upload
+  });
+
+  it("submit: a refused task submission is transient, names the submission and carries the error code", async () => {
+    const result = await provider(async (url) => {
+      if (url.includes("/media/upload")) return uploadAnswer("https://cdn.runninghub.io/img/abc.png");
+      return taskAnswer({ errorCode: "1002", errorMessage: "invalid parameter" });
+    }).submit(submitArgs);
+
+    expect(result.kind).toBe("failed_transient");
+    if (result.kind !== "failed_transient") throw new Error("unreachable");
+    expect(result.reason).toMatch(/task submission/i);
+    expect(result.reason).toContain("1002");
+  });
+
+  it("poll: posts the task id to the query endpoint", async () => {
+    const calls: { url: string; options?: RequestInit }[] = [];
+    await provider(async (url, options) => {
+      calls.push({ url, options });
+      return taskAnswer({ taskId: "T1", status: "QUEUED" });
+    }).poll("T1");
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url).toBe("https://www.runninghub.ai/openapi/v2/query");
+    expect(calls[0]!.options?.method).toBe("POST");
+    expect(JSON.parse(calls[0]!.options?.body as string)).toEqual({ taskId: "T1" });
+  });
+
+  it.each(["QUEUED", "RUNNING", "SOMETHING_ELSE"])("poll: maps %s to pending", async (status) => {
+    const poll = await provider(async () => taskAnswer({ taskId: "T1", status })).poll("T1");
+
     expect(poll.kind).toBe("pending");
   });
 
   it("poll: maps SUCCESS with results[0].url to a temporary-url success", async () => {
-    const taskId = randomUUID();
     const resultUrl = "https://cdn.runninghub.io/output/clip.mp4";
-    const mockFetch = async (): Promise<Response> => makeQuerySuccessResponse(resultUrl);
-    const provider = createRunningHubVideoProvider({
-      fetchFn: mockFetch as typeof fetch,
-      loadKey: () => "test-api-key",
-    });
-    const poll = await provider.poll(taskId);
-    expect(poll.kind).toBe("success");
-    if (poll.kind === "success") {
-      expect(poll.clip.source).toBe("temporary-url");
-      if (poll.clip.source === "temporary-url") expect(poll.clip.url).toBe(resultUrl);
-    }
+
+    const poll = await provider(async () =>
+      taskAnswer({ taskId: "T1", status: "SUCCESS", results: [{ url: resultUrl, outputType: "mp4" }] }),
+    ).poll("T1");
+
+    expect(poll).toEqual({ kind: "success", clip: { source: "temporary-url", url: resultUrl } });
+  });
+
+  it("poll: SUCCESS without a result url is transient", async () => {
+    const poll = await provider(async () => taskAnswer({ taskId: "T1", status: "SUCCESS", results: null })).poll("T1");
+
+    expect(poll.kind).toBe("failed_transient");
+    if (poll.kind === "failed_transient") expect(poll.reason).toMatch(/no result url/i);
   });
 
   it("poll: maps FAILED to failed_transient (no distinguishable not-retryable signal)", async () => {
-    const taskId = randomUUID();
-    const mockFetch = async (): Promise<Response> => makeQueryFailedResponse();
-    const provider = createRunningHubVideoProvider({
-      fetchFn: mockFetch as typeof fetch,
-      loadKey: () => "test-api-key",
-    });
-    const poll = await provider.poll(taskId);
+    const poll = await provider(async () => taskAnswer({ taskId: "T1", status: "FAILED", errorCode: "5", errorMessage: "generation failed" })).poll("T1");
+
     expect(poll.kind).toBe("failed_transient");
   });
 
