@@ -7,8 +7,10 @@
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm the base still matches design.md § Context: image and video acquire through `concurrency.ts`; voice-over, timestamps and decomposition first attempts are inserted `in-flight` with `sentAt`; `releaseAttempt` claims before sending; `getScheduledAttempts` orders by `due_at`. If JOS-156 (retry-decomposition) or another branch touching `decompositionPhase.ts` or `retryScheduler.ts` has merged since, update the artifacts before coding.
-- [ ] 1.2 Check which `providerId` a scheduled `timestamps` retry carries (alignment or native), since Decision 5 keys the slot on it. Record the finding in design.md if it differs.
+- [x] 1.1 `git fetch`. Confirm the base still matches design.md § Context: image and video acquire through `concurrency.ts`; voice-over, timestamps and decomposition first attempts are inserted `in-flight` with `sentAt`; `releaseAttempt` claims before sending; `getScheduledAttempts` orders by `due_at`. If JOS-156 (retry-decomposition) or another branch touching `decompositionPhase.ts` or `retryScheduler.ts` has merged since, update the artifacts before coding.
+- [x] 1.2 Check which `providerId` a scheduled `timestamps` retry carries (alignment or native), since Decision 5 keys the slot on it. Record the finding in design.md if it differs.
+
+Gate result (2026-10-14): the branch was 152 commits behind the integration branch and was rebased onto it (the propose commit was unpushed). JOS-156 and JOS-195 changed the three phases; design.md § Context and Decisions 3-6 were updated. The `timestamps` `providerId` is not a reliable key (design Decision 5).
 
 ## 2. Backend: cap values from one constant (TDD; design Decisions 1, 2)
 
@@ -24,14 +26,16 @@
   - a pause while queued releases the slot and leaves the attempt `scheduled`;
   - a timer and a continue releasing the same attempt send it once;
   - a native-timestamps attempt and an assembly attempt take no slot;
-  - the slot is released when `send` settles, including when it throws.
+  - the slot is released when `send` settles, including when it throws, and earlier when `send` calls `releaseSlot()`; calling it twice releases once;
+  - a `timestamps` attempt takes an `alignment` slot unless a stored or usable native timestamps file means no call is made;
+  - the result is `{ sent: false }` for a paused session, and `{ sent: true, value }` otherwise.
 - [ ] 3.2 Implement `sendWithSlot(attempt, send)` and the stage-to-key mapping. Route `releaseAttempt` through it. Make 3.1 pass.
 
 ## 4. Backend: first attempts enter as scheduled (TDD; design Decisions 3, 4)
 
 - [ ] 4.1 Write failing tests: with the voice limit at 1 and one voice call in flight, a second session's `generateVoiceOver` records a `scheduled` initial attempt, sends nothing and sets no failure. When the first call returns, it is sent with `sentAt` later than `queuedAt`.
 - [ ] 4.2 Same for timestamps through alignment (limit 1) and for decomposition (limit 1). The alignment slot is free before the follow-on decomposition attempt waits for its own slot (Decision 4).
-- [ ] 4.3 Change the first-attempt entry points (`generateVoiceOver`, `obtainNarrationTimestamps`, `segmentStoredTimestamps`) to record the attempt `scheduled` (trigger `initial`, `dueAt = queuedAt`) and send it through `sendWithSlot`, keeping their awaited return values when a slot is free. Make 4.1 and 4.2 pass.
+- [ ] 4.3 Change the first-attempt entry points (`generateVoiceOver`, `obtainNarrationTimestamps`, `segmentStoredTimestamps`) to record the attempt `scheduled` (trigger `initial`, `dueAt = queuedAt`) and send it through `sendWithSlot`, keeping their awaited return values when a slot is free. `runDecompositionPhase`, `sendDecompositionAttempt` and `sendVoiceAttempt` pass `releaseSlot` through and call it right after `align` / `synthesize` return. The decomposition attempt recorded after a timestamps attempt is also `scheduled` and goes through `sendWithSlot`. Make 4.1 and 4.2 pass.
 
 ## 5. Backend: waiting is not execution time, not an attempt, not a failure (TDD; spec "Waiting is neither…", "Waiting work is never shown as failed")
 
