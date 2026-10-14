@@ -80,9 +80,9 @@ Gate result (2026-10-14): the branch was 152 commits behind the integration bran
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/PRD.md` §11: record the final per-stage caps, with the ElevenLabs value marked as documented, not measured.
-- [ ] 11.2 `docs/data-model.md`: a `scheduled` attempt with trigger `initial` means "waiting for a slot". `queuedAt` is when it became ready and `sentAt` is when it took its slot.
-- [ ] 11.3 `docs/backend-standards.md`: the cap rule. Every provider call takes a slot keyed by stage; session-level attempts go through `sendWithSlot`; a slot covers one call and is released when the call returns, not when the attempt closes.
+- [x] 11.1 `docs/PRD.md` §11: record the final per-stage caps, with the ElevenLabs value marked as documented, not measured.
+- [x] 11.2 `docs/data-model.md`: a `scheduled` attempt with trigger `initial` means "waiting for a slot". `queuedAt` is when it became ready and `sentAt` is when it took its slot.
+- [x] 11.3 `docs/backend-standards.md`: the cap rule. Every provider call takes a slot keyed by stage; session-level attempts go through `sendWithSlot`; a slot covers one call and is released when the call returns, not when the attempt closes.
 - [x] 11.4 `docs/api-spec.yml`: confirm no change is needed; record that in the step 8 report.
 
 ## 12. Close out

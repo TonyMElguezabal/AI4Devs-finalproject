@@ -323,7 +323,7 @@ Defined by `define-provider-configuration` (JOS-165), verified against real call
 | Supported script languages (§4.1, D09) | English, Spanish | Each verified independently across voice, alignment and reasoning |
 | Acceptable speed-factor limit | **Provisional** | `define-media-assembly` (JOS-182) recommends 0.5x-2.0x (its ADR, Decision 5); `decide-silence-allocation` (JOS-142) verified D11's adopted rule against that recommendation (max 1.08x observed). Not yet the fixed constant: US-33 records it, and JOS-182's own PR is not yet merged into this branch's history. |
 | Per-phase maximum times | Reasoning 20s, Image 25s, Voice 10s, Alignment 5s, Video 240s, Assembly provisional | Set above the observed slow tail of 4-7 real samples per stage; assembly depends on JOS-182 |
-| Maximum simultaneous requests per stage | Reasoning 50, Image 200 (provisional), Voice/Alignment/Video undetermined | No invented numbers where no real rate limit was found |
+| Maximum simultaneous requests per stage | Reasoning 50, Image 200 (provisional), Voice 3, Alignment 2, Video 3 (`limit-provider-requests-per-stage`, JOS-167) | Voice and alignment add up to the 5 concurrent requests ElevenLabs documents for the Creator tier; that value is documented, not measured. Video 3 is the highest concurrency measured with no slowdown (JOS-165, step 8.2) |
 
 **Not-retryable failure signal**: tested against all four provider-calling stages with disallowed instructional content — **none produced a distinguishable rejection**. This is an open finding for the product owner (`docs/adr/0005-provider-selection.md`, Decision 5), not yet resolved: §10.1's not-retryable branch currently has nothing to trigger on for this content class on any of these providers.
 
