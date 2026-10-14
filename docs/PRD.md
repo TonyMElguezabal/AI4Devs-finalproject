@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.5  
+**Versión:** 1.7  
 **Alcance:** MVP  
-**Status (v1.5):** D11 closed — silence allocation decided (`decide-silence-allocation`, JOS-142). All product decisions now closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.4.md`.
+**Status (v1.7):** the MVP is a single-user application on the user's own computer that calls the cloud AI providers; the hosted deployment admitted in v1.6 is withdrawn (`define-production-deployment`, JOS-194). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.6.md`.
 
 ## 1. Objetivo del producto
 
@@ -20,7 +20,7 @@ El usuario puede consultar el progreso por fase y por escena, descargar resultad
 |---|---|
 | User (*Usuario*) | Enter a title, a script, and the script's language; follow progress and per-scene diagnostics; pause and continue the session; download results; retry failed stages. |
 
-The MVP has a single role: the User. Providers and all generation parameters are hardcoded in the application (§11); the MVP has no configuration files, no administration interface, and no Administrator role. Provider credentials (API keys) are read from the machine's local environment or a local secrets file kept out of the code repository; they are never hardcoded. An Administrator role (configuration, diagnostics, provider changes, and reports on `/admin`) is deferred post-MVP.
+The MVP has a single role: the User. Providers and all generation parameters are hardcoded in the application (§11); the MVP has no configuration files, no administration interface, and no Administrator role. Provider credentials (API keys) are read from the process environment or from a credentials file in the user's application-data folder; they are never hardcoded, never part of the application download, and never shown in the interface or logs. An Administrator role (configuration, diagnostics, provider changes, and reports on `/admin`) is deferred post-MVP.
 
 ### 2.2 Incluido en el MVP
 
@@ -40,7 +40,7 @@ The MVP has a single role: the User. Providers and all generation parameters are
 ### 2.3 Fuera del MVP
 
 - Interfaz de administración, incluida la ruta `/admin`.
-- Cuentas de usuario, autenticación y exposición de la aplicación fuera de un entorno local.
+- User accounts, authentication and authorization, any multi-user access, and any hosted (server) deployment. The MVP is an application that runs on the user's own computer (§12.3).
 - Reportes de uso o costos.
 - Importación o edición libre de chunks.
 - Reescritura del guion o regeneración de una narración ya completada.
@@ -272,7 +272,7 @@ Ninguna recuperación permite cambiar `ID`, `PROMPT`, el orden narrativo o un vo
 
 ## 11. Proveedores y operación
 
-In the MVP, the provider for each stage (reasoning, voice, alignment, image, video) and all generation parameters are hardcoded in the application. Hardcoded parameters: narration voice, quality, and speed; video admitted durations and maximum; segmentation lower bound; acceptable speed-factor limit; per-phase maximum times; output resolution and frame rate; supported script languages; and maximum simultaneous requests per stage. Their concrete values were defined by `define-provider-configuration` (JOS-165) and are recorded in §11.3. Provider credentials are read from the local environment or a local secrets file, never hardcoded. There is one provider per stage.
+In the MVP, the provider for each stage (reasoning, voice, alignment, image, video) and all generation parameters are hardcoded in the application. Hardcoded parameters: narration voice, quality, and speed; video admitted durations and maximum; segmentation lower bound; acceptable speed-factor limit; per-phase maximum times; output resolution and frame rate; supported script languages; and maximum simultaneous requests per stage. Their concrete values were defined by `define-provider-configuration` (JOS-165) and are recorded in §11.3. Provider credentials are read from the process environment or from a credentials file in the user's application-data folder, never hardcoded. There is one provider per stage.
 
 | Etapa | Capacidad requerida |
 |---|---|
@@ -337,23 +337,25 @@ After a restart, a request already sent to a provider is resumed: the system wai
 
 Recibir más de una confirmación de éxito para una misma generación no debe duplicar resultados, iniciar dos veces la etapa siguiente ni incorporar una escena varias veces al montaje.
 
+Processing happens only while the application is running; if the computer sleeps or the application is closed, in-progress sessions resume from their saved state the next time it starts.
+
 ### 12.2 Archivos
 
 Los archivos locales se organizan en carpetas identificadas por el título del video y **no se eliminan automáticamente ni caducan**. Los proyectos con títulos iguales deben permanecer separados y no sobrescribir sus resultados. Each project folder is named with the video title plus the project's creation date and time to the minute (e.g. `My Trip 2026-09-15 10-42`); if a folder with that name already exists, a counter is appended (e.g. `My Trip 2026-09-15 10-42 (2)`).
 
-Se conservan localmente el guion y los textos generados, el MP3 completo, sus marcas de tiempo, los clips y el MP4 final. Every result delivered only as a temporary provider link, images included, is saved into the project folder before the link expires.
+Se conservan localmente el guion y los textos generados, el MP3 completo, sus marcas de tiempo, los clips y el MP4 final. Every result delivered only as a temporary provider link, images included, is saved into the project folder before the link expires. The store and the project folders live in the user's application-data folder on their computer, never in the installation folder, so updating or reinstalling the application keeps them. They are never deleted or expired automatically; copying them elsewhere (backups) is the user's choice.
 
 La conservación de archivos es independiente de la vigencia de la sesión. Sessions do not expire in the MVP; they remain consultable, downloadable, and resumable indefinitely.
 
 ### 12.3 Modelo de acceso, descargas y aislamiento
 
-El MVP se ejecuta como una **instalación local destinada a un único usuario**. No existen cuentas, autenticación ni reglas de autorización.
+The MVP is a **single-user application installed on the user's own computer**. It is delivered as an executable that needs no other software installed; it runs the interface and all processing locally and calls the cloud AI providers (§11) over the internet. The application has no accounts, authentication or authorization rules.
 
 El usuario puede descargar imágenes y clips exitosos individualmente mientras otras escenas siguen procesándose o presentan fallos. El MP4 final solo está disponible después de completarse el montaje. In-app downloads are limited to per-scene images, per-scene clips, and the final MP4; the MP3, timestamps, script, and generated texts are stored locally (§12.2) but cannot be downloaded from the app.
 
 Las sesiones se consultan mediante su identificador. La separación de datos entre sesiones es un **requisito funcional de integridad, no un control de seguridad**: impide que un proyecto muestre o sobrescriba resultados de otro, y no protege frente a accesos de terceros.
 
-Exponer la aplicación fuera de un entorno local exige definir previamente autenticación y reglas de autorización. Esa exposición queda fuera del MVP, conforme a §2.3.
+The application accepts requests only from its own interface on the same computer: it listens on the local loopback address and rejects requests coming from other web pages open in the user's browser. Admitting more than one person, or reaching the application from another computer, is outside the MVP (§2.3).
 
 ## 13. Criterios de aceptación del MVP
 
@@ -397,7 +399,7 @@ Las decisiones marcadas como abiertas no están aprobadas y deben cerrarse antes
 | D04 | Efecto de la expiración de la sesión a los dos días. | **Closed (v1.3)** | No session expiry in the MVP (§12.2). |
 | D05 | Dependencia de enlaces temporales del proveedor. | **Closed (v1.3)** | Every temporary-link result, images included, is saved locally before its link expires (§12.2). |
 | D06 | Continuación de otras escenas tras un fallo y reintentos posteriores a una acción manual. | **Closed (v1.3)** | Other scenes keep generating; each manual retry starts a new cycle of up to three automatic retries (§10.2). |
-| D07 | Autorización y acceso a las sesiones. | **Cerrada** | Instalación local monousuario, sin cuentas ni autorización. La separación entre sesiones es integridad funcional, no seguridad (§12.3). |
+| D07 | Autorización y acceso a las sesiones. | **Cerrada (revisada en v1.7)** | Aplicación monousuario instalada en el equipo del usuario; sin cuentas ni autorización; solo la propia interfaz local puede usar la aplicación. La separación entre sesiones es integridad funcional, no seguridad (§12.3). |
 | D08 | Parámetros de salida del MP4 final. | **Closed (v1.3)** | Voice-over-only audio (clip sound removed); hardcoded resolution and frame rate (expected 1920×1080 at 30 fps); H.264 video and AAC audio (§7.3). |
 | D09 | Idiomas admitidos. | **Closed (v1.3)** | Hardcoded list of supported languages; the User selects the script language from that list when starting a project, and no provider is called before that (§4.1). |
 | D10 | Momento exacto del bloqueo del guion durante la generación de voz. | **Closed (v1.3)** | The script is locked when the User starts the project (§4.2). |
@@ -435,6 +437,28 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
+
+### From version 1.6 to 1.7
+
+Origin: `define-production-deployment` (JOS-194), design Decision 14, ADR 0007, 2026-10-13.
+
+| Change | Origin |
+|---|---|
+| The MVP is an application on the user's own computer calling the cloud AI providers; the hosted deployment admitted in v1.6 is withdrawn (§2.3, §12.3, D07). | Product owner, JOS-194 |
+| Store, project folders and credentials live in the user's application-data folder; backups are the user's choice (§2.1, §11, §12.2). | Product owner, JOS-194 |
+| Only the application's own local interface may use it (§12.3). | JOS-194 |
+| Processing pauses while the application is not running and resumes on the next start (§12.1). | JOS-194 |
+
+### From version 1.5 to 1.6
+
+Origin: `define-production-deployment` (JOS-194), 2026-10-12.
+
+| Change | Origin |
+|---|---|
+| Hosted deployment admitted: two environments (UAT, production), single-user, behind an edge access gate with an explicit identity list (§2.3, §12.3, D07). | Product owner, JOS-194 |
+| Credentials may be injected as per-environment secrets (§2.1, §11). | JOS-194 |
+| Project files live on the host's persistent storage with off-host backups; retention rules unchanged (§12.2). | JOS-194 |
+| No accounts, authorization or multi-user access in the MVP; the gate is not a user model. | JOS-194 |
 
 ### From version 1.4 to 1.5
 

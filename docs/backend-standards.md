@@ -360,6 +360,18 @@ Structured JSON logging (Fastify's built-in Pino logger), one event per line, ne
 - No accounts, sessions, or authentication in the MVP (PRD §12.3) — this is a local, single-user install. Session/data isolation (a run cannot see or overwrite another run's data) is a **functional integrity requirement**, not a security control, per PRD §12.3 — do not conflate the two when reasoning about what "isolation" needs to guarantee.
 - **Request body size ceiling**: PRD §4.1 imposes no product-side script length limit, but Fastify's own `bodyLimit` is the real, finite ceiling underneath that (`start-video-project`, JOS-134, Decision 6) — set to 50MB (`BODY_LIMIT_BYTES` env var, `server.ts`), far beyond any realistic script while still a named ceiling rather than "no limit at all." A request exceeding it gets Fastify's own `413`, structurally distinct from the `400`s this app's own Zod validation returns — never leave the framework default (1MB) in place, which would look identical to a product limit that does not exist.
 
+## Deployment
+
+Decided by `docs/adr/0007-deployment.md` (JOS-194): Vid4You ships as one executable per platform (macOS, Windows) that runs on the user's own computer and calls the cloud AI APIs. The guarantees live in `openspec/changes/define-production-deployment/specs/deployment-foundation/spec.md`; the stories that implement them are listed in that change's `follow-up-stories.md`.
+
+- **Portable code.** The backend must run on macOS and Windows and inside a bundle: no paths built from `file://` + `process.argv`, no paths resolved from the source tree at runtime, no POSIX-only assumptions in file names; use `node:path` and `node:url` helpers. Pure-JavaScript dependencies only (no native modules), so one bundle works on every platform.
+- **One process per user.** Never start a second backend against the same store; a restart is resumed by `reconcileOnBoot`.
+- **Data folder.** `DB_PATH`, `PROJECTS_ROOT` and the credentials file default to the per-user data folder (`~/Library/Application Support/Vid4You`, `%APPDATA%\Vid4You`); environment variables override; nothing is written next to the executable.
+- **Local exposure.** Listen on `127.0.0.1` only, and accept a request only when its `Origin` (if present) is the app's own origin and its `Host` is the loopback address and port, SSE included: any website the user opens can send requests to `127.0.0.1`. Never use CORS `origin: true`.
+- **Release safety.** A packaged build ignores `ALLOW_TEST_ENDPOINTS` and every `USE_STUB_*` and serves no `/docs`. In development, leave those variables **unset** rather than set to a falsy string: any non-empty value enables them today.
+- **Binaries.** ffmpeg and ffprobe are resolved as: `FFMPEG_PATH`/`FFPROBE_PATH`, then the binaries beside the executable, then `PATH`. The hard-coded Homebrew path is a known gap (story S2).
+- **Known gaps** before a release: the `Origin`/`Host` guard does not exist yet (L3). The real assembly tool is registered at start-up and decomposition starts after the narration (`run-session-end-to-end`, JOS-195).
+
 ## Development Workflow
 
 - Feature branches, descriptive English commit messages, small focused changes — per `docs/base-standards.md`.

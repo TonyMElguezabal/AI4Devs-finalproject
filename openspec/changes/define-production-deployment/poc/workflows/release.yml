@@ -1,0 +1,111 @@
+# JOS-194 proof of concept — release channels for the local packaged application (design Decision 14, ADR 0007).
+# SKETCH, deliberately not under .github/workflows (nothing runs on the shared repository). Story L7 makes it real.
+# Lines marked VERIFY are open points the story must close.
+name: release
+
+on:
+  pull_request:
+  push:
+    branches: [feature/entrega-2-JAME, main]
+
+env:
+  # The branch -> channel mapping lives here and nowhere else.
+  UAT_BRANCH: feature/entrega-2-JAME
+  PROD_BRANCH: main
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 26.4.0 }
+      - name: ffprobe is required on PATH by the voice-over tests
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Backend (temporary store, no credentials file)
+        working-directory: backend
+        env:
+          DB_PATH: ${{ runner.temp }}/ci-db/skeleton.sqlite
+          PROJECTS_ROOT: ${{ runner.temp }}/ci-projects
+        run: npm ci && npm run typecheck && npm test
+      - name: Frontend
+        working-directory: frontend
+        run: npm ci && npm run typecheck && npm test
+
+  tree:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    outputs:
+      hash: ${{ steps.t.outputs.hash }}
+      uat_exists: ${{ steps.t.outputs.uat_exists }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: t
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          hash=$(git rev-parse HEAD^{tree})
+          echo "hash=$hash" >> "$GITHUB_OUTPUT"
+          if gh release view "uat-$hash" >/dev/null 2>&1; then echo "uat_exists=true" >> "$GITHUB_OUTPUT"; else echo "uat_exists=false" >> "$GITHUB_OUTPUT"; fi
+
+  build:
+    # Build once per source tree, only on the UAT branch and only if this tree has no pre-release yet.
+    if: github.event_name == 'push' && github.ref_name == env.UAT_BRANCH && needs.tree.outputs.uat_exists == 'false'
+    needs: [check, tree]
+    strategy:
+      matrix:
+        include:
+          - { os: macos-15, name: macos-arm64 }
+          - { os: macos-13, name: macos-x64 }        # VERIFY: Intel runner availability
+          - { os: windows-2025, name: windows-x64 }  # VERIFY: build.mjs on Windows (npm.cmd via shell, tar for .zip, no codesign)
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 26.4.0 }
+      - run: npm ci --prefix backend && npm ci --prefix frontend
+      - run: node openspec/changes/define-production-deployment/poc/local/build.mjs
+      - name: Archive (executable + ffmpeg + ffprobe)
+        shell: bash
+        run: |
+          cd openspec/changes/define-production-deployment/poc/local/out
+          if [ "${{ runner.os }}" = "Windows" ]; then 7z a "../Vid4You-${{ matrix.name }}.zip" Vid4You.exe ffmpeg.exe ffprobe.exe
+          else zip -9 "../Vid4You-${{ matrix.name }}.zip" Vid4You ffmpeg ffprobe; fi
+      # L8 (later): sign and notarize here, with secrets from the environment; never in the repository.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Vid4You-${{ matrix.name }}
+          path: openspec/changes/define-production-deployment/poc/local/Vid4You-${{ matrix.name }}.zip
+
+  publish-uat:
+    needs: [tree, build]
+    runs-on: ubuntu-24.04
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist, merge-multiple: true }
+      - name: Pre-release named by source tree (UAT channel)
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release create "uat-${{ needs.tree.outputs.hash }}" dist/*.zip --repo "${{ github.repository }}" \
+            --prerelease --target "${{ github.sha }}" --title "UAT ${{ github.sha }}" \
+            --notes "Built once for source tree ${{ needs.tree.outputs.hash }}."
+
+  publish-prod:
+    if: github.event_name == 'push' && github.ref_name == env.PROD_BRANCH
+    needs: tree
+    runs-on: ubuntu-24.04
+    environment: production   # a required reviewer approves on this GitHub Environment
+    permissions: { contents: write }
+    steps:
+      - name: Fail closed unless UAT already has this exact source tree
+        if: needs.tree.outputs.uat_exists != 'true'
+        run: |
+          echo "No UAT pre-release for tree ${{ needs.tree.outputs.hash }}; bring this content through ${UAT_BRANCH} first." >&2
+          exit 1
+      - name: Promote the same files (no rebuild)
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release download "uat-${{ needs.tree.outputs.hash }}" --repo "${{ github.repository }}" --dir dist
+          gh release create "v$(date -u +%Y.%m.%d)-${GITHUB_SHA::7}" dist/*.zip --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" --title "Vid4You $(date -u +%Y-%m-%d)" \
+            --notes "Same files as UAT pre-release uat-${{ needs.tree.outputs.hash }}."

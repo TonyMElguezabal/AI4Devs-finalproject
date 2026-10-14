@@ -146,6 +146,15 @@ npm run dev        # start the dev server for manual/E2E testing (fixed local UR
 - **Hook tests** (`test/useLiveSession.test.tsx`, from `define-live-updates`): the live-update seam tested against a controllable fake `EventSource`, never a real network connection — proving idempotent event application, per-scene state collapsing without cross-scene merging, the paused marker's independence from session state, and resync-on-every-reconnect.
 - **E2E**: agent-driven browser automation against the real backend harness (`openspec/changes/define-backend-stack/skeleton`), locating every element through the accessibility tree. Playwright MCP is the tool `docs/openspec-tasks-mandatory-steps.md` names; if unavailable in a session, an equivalent agent-driven real-browser tool (e.g. Claude in Chrome) is an acceptable substitute for the same intent, stated explicitly in the report when substituted.
 
+## Deployment
+
+Decided by `docs/adr/0007-deployment.md` (JOS-194): the frontend is built once and embedded in the packaged executable, which serves it and the API from the same `http://127.0.0.1:<port>/` origin.
+
+- **API base.** Packaged builds use a same-origin API base (`VITE_API_BASE=""`); the default `http://127.0.0.1:3100` is for development with the Vite dev server only. Nothing in the build may depend on the machine it runs on.
+- **One page.** The app uses `/` with `?sessionId=`; adding routes is fine, but they must not collide with API paths, because both are served on one origin.
+- **Live updates.** The SSE stream must recover by itself after the backend restarts (shown in the PoC after a `kill -9` and relaunch); keep the reconnect-and-resync behaviour of ADR 0003.
+- **No secrets in the frontend.** Provider credentials never reach the browser; the backend reads them from the user's data folder.
+
 ## Development Workflow
 
 - Feature branches, descriptive English commit messages, small focused changes — per `docs/base-standards.md`.
