@@ -3,13 +3,14 @@ import { getRun, getStageAttempt, getStageAttempts, recordStageAttempt, resetAll
 import { continueSession, pauseSession } from "../src/orchestrator.ts";
 import { setVoiceOverLogger, type VoiceOverLogEntry } from "../src/voiceOverPhase.ts";
 import { startAttemptTimeoutWatcher, sweepTimedOutAttempts } from "../src/retry/attemptTimeoutWatcher.ts";
-import { after, createGatedVoiceProvider, register, sendFirstAttempt, sendScheduledRetry, T0, useProvider, VOICE_LIMIT_MS, waitFor } from "./voiceTimeoutFixtures.ts";
+import { resetVoiceSlots, after, createGatedVoiceProvider, register, sendFirstAttempt, sendScheduledRetry, T0, useProvider, VOICE_LIMIT_MS, waitFor } from "./voiceTimeoutFixtures.ts";
 
 // stage-execution-time-limit (JOS-185), group 4 — a sent attempt that outlasts its stage's maximum
 // time is timed out through the retry policy. Time is injected: nothing here waits for real time.
 
 beforeEach(() => {
   resetAll();
+  resetVoiceSlots();
 });
 
 describe("a sent attempt that never answers", () => {

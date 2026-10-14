@@ -460,9 +460,9 @@ describe("A transient failure (5.9, retry policy JOS-184)", () => {
     setRetryDelayConfig({ baseSeconds: 0, capSeconds: 0 });
     const runId = register();
     const stub = useStub("transient-failure");
-    pauseSession(runId);
 
     await generateVoiceOver(runId);
+    pauseSession(runId); // the retry's timer has not fired yet: a zero delay still waits for the next tick
     await new Promise((resolve) => setTimeout(resolve, 30)); // the retry is due and its timer has fired
 
     expect(stub.calls).toHaveLength(1);

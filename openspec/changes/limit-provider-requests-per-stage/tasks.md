@@ -33,9 +33,9 @@ Gate result (2026-10-14): the branch was 152 commits behind the integration bran
 
 ## 4. Backend: first attempts enter as scheduled (TDD; design Decisions 3, 4)
 
-- [ ] 4.1 Write failing tests: with the voice limit at 1 and one voice call in flight, a second session's `generateVoiceOver` records a `scheduled` initial attempt, sends nothing and sets no failure. When the first call returns, it is sent with `sentAt` later than `queuedAt`.
-- [ ] 4.2 Same for timestamps through alignment (limit 1) and for decomposition (limit 1). The alignment slot is free before the follow-on decomposition attempt waits for its own slot (Decision 4).
-- [ ] 4.3 Change the first-attempt entry points (`generateVoiceOver`, `obtainNarrationTimestamps`, `segmentStoredTimestamps`) to record the attempt `scheduled` (trigger `initial`, `dueAt = queuedAt`) and send it through `sendWithSlot`, keeping their awaited return values when a slot is free. `runDecompositionPhase`, `sendDecompositionAttempt` and `sendVoiceAttempt` pass `releaseSlot` through and call it right after `align` / `synthesize` return. The decomposition attempt recorded after a timestamps attempt is also `scheduled` and goes through `sendWithSlot`. Make 4.1 and 4.2 pass.
+- [x] 4.1 Write failing tests: with the voice limit at 1 and one voice call in flight, a second session's `generateVoiceOver` records a `scheduled` initial attempt, sends nothing and sets no failure. When the first call returns, it is sent with `sentAt` later than `queuedAt`.
+- [x] 4.2 Same for timestamps through alignment (limit 1) and for decomposition (limit 1). The alignment slot is free before the follow-on decomposition attempt waits for its own slot (Decision 4).
+- [x] 4.3 Change the first-attempt entry points (`generateVoiceOver`, `obtainNarrationTimestamps`, `segmentStoredTimestamps`) to record the attempt `scheduled` (trigger `initial`, `dueAt = queuedAt`) and send it through `sendWithSlot`, keeping their awaited return values when a slot is free. `runDecompositionPhase`, `sendDecompositionAttempt` and `sendVoiceAttempt` pass `releaseSlot` through and call it right after `align` / `synthesize` return. The decomposition attempt recorded after a timestamps attempt is also `scheduled` and goes through `sendWithSlot`. Make 4.1 and 4.2 pass.
 
 ## 5. Backend: waiting is not execution time, not an attempt, not a failure (TDD; spec "Waiting is neither…", "Waiting work is never shown as failed")
 

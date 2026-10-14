@@ -3,7 +3,7 @@ import { getRun, getStageAttempts, getVoiceOver, resetAll } from "../src/db.ts";
 import { releaseAttempt } from "../src/retry/retryScheduler.ts";
 import { sweepTimedOutAttempts } from "../src/retry/attemptTimeoutWatcher.ts";
 import { startNewCycle } from "../src/retry/stageAttemptRecorder.ts";
-import { after, register, sendFirstAttempt, sendScheduledRetry, VOICE_LIMIT_MS, waitFor } from "./voiceTimeoutFixtures.ts";
+import { resetVoiceSlots, after, register, sendFirstAttempt, sendScheduledRetry, VOICE_LIMIT_MS, waitFor } from "./voiceTimeoutFixtures.ts";
 
 // run-session-end-to-end (JOS-195), design Decision 6 — this file tests the voice-over phase alone, so the hand-off to
 // decomposition that a stored narration now triggers is disabled here; `narration-handoff-*.test.ts` covers it.
@@ -17,6 +17,7 @@ vi.mock("../src/decompositionPhase.ts", async (importOriginal) => ({
 
 beforeEach(() => {
   resetAll();
+  resetVoiceSlots();
 });
 
 const outcomes = (runId: string) => getStageAttempts(runId, "voice-over").map((attempt) => attempt.outcome);

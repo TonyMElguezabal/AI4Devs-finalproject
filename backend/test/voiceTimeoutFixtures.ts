@@ -5,6 +5,7 @@ import { generateVoiceOver } from "../src/voiceOverPhase.ts";
 import { releaseAttempt } from "../src/retry/retryScheduler.ts";
 import { createSilentMp3, setVoiceProviderRegistry, type VoiceProvider, type VoiceSynthesisResult } from "../src/voiceProvider.ts";
 import { expect } from "vitest";
+import * as concurrency from "../src/concurrency.ts";
 
 // stage-execution-time-limit (JOS-185) — shared setup for the timeout and late-result tests. Time is
 // injected: nothing waits for real time.
@@ -76,4 +77,13 @@ export function sendScheduledRetry(runId: string, at: Date): void {
   const scheduled = getStageAttempts(runId, "voice-over").find((attempt) => attempt.outcome === "scheduled");
   if (!scheduled) throw new Error("no retry is scheduled");
   expect(releaseAttempt(scheduled.id, () => at)).toBe("sent");
+}
+
+/**
+ * These tests hang several voice calls on purpose, and a timed-out call keeps its slot until it returns (JOS-167,
+ * Decision 6). They test timeouts, not the cap, so they run with room for every hung call.
+ */
+export function resetVoiceSlots(): void {
+  concurrency.resetAll();
+  concurrency.setLimit("voice", 20);
 }

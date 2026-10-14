@@ -29,7 +29,7 @@ import { admitLaunch, registerStageLauncher, type StageLauncher } from "./launch
 import { broadcast } from "./orchestrator.ts";
 import { recordAttemptOutcome, type RecordedOutcome } from "./retry/stageAttemptRecorder.ts";
 import { registerTimeoutHandler } from "./retry/attemptTimeoutWatcher.ts";
-import { hasScheduledAttempt, registerAttemptSender, releaseSessionAttempts } from "./retry/retryScheduler.ts";
+import { hasScheduledAttempt, registerAttemptSender, releaseSessionAttempts, sendWithSlot } from "./retry/retryScheduler.ts";
 import { createVoiceOverFailure } from "./sessionStateMachine.ts";
 import { getVoiceProviderRegistry, type VoiceSynthesisResult } from "./voiceProvider.ts";
 import { canLaunchVoiceOver } from "./voiceLaunchGuard.ts";
@@ -192,9 +192,13 @@ export async function generateVoiceOver(runId: string, now: () => Date = () => n
 
   // Decision 3 — the binding wins over whatever the build's default is today.
   const providerId = run.voiceProviderId ?? getVoiceProviderRegistry().defaultIdentifier;
-  const startedAt = now();
-  const attempt = startVoiceAttempt({ runId, providerId, queuedAt: startedAt.toISOString(), sentAt: startedAt.toISOString() });
-  return sendVoiceAttempt(attempt, now);
+  // JOS-167 — recorded `scheduled` and sent through the stage's slot: sent at once when one is free, otherwise it waits
+  // (neither an attempt used nor execution time) and `sentAt` is stamped when it takes its slot.
+  const queuedAt = now().toISOString();
+  const attempt = startVoiceAttempt({ runId, providerId, queuedAt, sentAt: null });
+  const sent = await sendWithSlot(attempt.id, (claimed, releaseSlot) => sendVoiceAttempt(claimed, now, releaseSlot), now);
+  // Not sent: the session was paused while it waited. The attempt stays scheduled and continue sends it.
+  return sent.sent ? sent.value : { ok: false, reason: "already-in-flight" };
 }
 
 /** What a recorded failure (a failed call or a timeout) does to the session: log exhaustion, set the failure, publish the state. */
@@ -314,7 +318,12 @@ async function handleLateResult(attempt: StageAttempt, result: VoiceSynthesisRes
 }
 
 /** Sends one in-flight voice attempt (the first, or a claimed retry) and reports its classified outcome to the recorder. */
-export async function sendVoiceAttempt(attempt: StageAttempt, now: () => Date = () => new Date()): Promise<VoiceOverOutcome> {
+export async function sendVoiceAttempt(
+  attempt: StageAttempt,
+  now: () => Date = () => new Date(),
+  /** Called as soon as the provider call returns, so the slot covers that call and not the confirmation after it (JOS-167). */
+  releaseSlot: () => void = () => undefined,
+): Promise<VoiceOverOutcome> {
   const runId = attempt.runId;
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown-session" };
@@ -377,6 +386,7 @@ export async function sendVoiceAttempt(attempt: StageAttempt, now: () => Date = 
   } catch {
     result = { kind: "failed_transient", reason: "the voice provider call failed unexpectedly" };
   }
+  releaseSlot();
 
   // stage-execution-time-limit (JOS-185) Decision 4 — the watcher may have timed this attempt out while the call was still running.
   if (getStageAttempt(attempt.id)?.outcome === "timed-out") return handleLateResult(attempt, result, now);
@@ -417,11 +427,14 @@ export async function sendVoiceAttempt(attempt: StageAttempt, now: () => Date = 
   return finishFailure("not-retryable", confirmed.detail, undefined, result.providerRequestId);
 }
 
-registerAttemptSender("voice-over", (attempt) => {
-  sendVoiceAttempt(attempt).catch((err: unknown) => {
-    logger.info({ event: "voice-over.launch.error", sessionId: attempt.runId, stage: "voice-over", reason: err instanceof Error ? err.name : "unknown" });
-  });
-});
+registerAttemptSender("voice-over", (attempt, releaseSlot) =>
+  sendVoiceAttempt(attempt, () => new Date(), releaseSlot).then(
+    () => undefined,
+    (err: unknown) => {
+      logger.info({ event: "voice-over.launch.error", sessionId: attempt.runId, stage: "voice-over", reason: err instanceof Error ? err.name : "unknown" });
+    },
+  ),
+);
 
 /**
  * run-session-end-to-end (JOS-195), design Decision 3 — the narration is stored, so the session moves on to its

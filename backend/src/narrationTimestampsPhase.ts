@@ -9,7 +9,7 @@ import {
   getStageAttempts,
   getVoiceOver,
   insertNarrationTimestamps,
-  recordStageAttempt,
+  scheduleStageAttempt,
   resolveArtefactPath,
   setRunFailure,
   writeArtefactOnce,
@@ -21,6 +21,7 @@ import {
   type UsabilityResult,
 } from "./narrationTimestamps.ts";
 import { broadcast } from "./orchestrator.ts";
+import { registerSlotKeyResolver, sendWithSlot } from "./retry/retryScheduler.ts";
 import { createDecompositionFailure } from "./sessionStateMachine.ts";
 import type { DecompositionFailure, Run, StageAttempt, TimestampMechanism, VoiceOver } from "./types.ts";
 
@@ -42,7 +43,7 @@ const NATIVE_UNUSABLE = "native-unusable";
 
 export type ObtainResult =
   | { ok: true; mechanism: TimestampMechanism }
-  | { ok: false; reason: "unknown-session" | "no-voice-over" | "already-obtained" }
+  | { ok: false; reason: "unknown-session" | "no-voice-over" | "already-obtained" | "held" }
   | { ok: false; reason: "decomposition-failed"; failure: DecompositionFailure };
 
 export const storedFileSchema = z.object({
@@ -112,6 +113,8 @@ export async function obtainNarrationTimestamps(
   now: () => Date = () => new Date(),
   /** A retry's scheduled attempt, already claimed in flight: completed instead of recording a new one (retry-decomposition, Decision 4). */
   claimedAttempt?: StageAttempt,
+  /** Called as soon as the alignment call returns, so the slot covers that call only (JOS-167, Decision 4). */
+  releaseSlot: () => void = () => undefined,
 ): Promise<ObtainResult> {
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown-session" };
@@ -123,17 +126,22 @@ export async function obtainNarrationTimestamps(
   const nativeAlreadyUnusable = getStageAttempts(runId, "timestamps").some((attempt) => attempt.errorCode === NATIVE_UNUSABLE);
   const nativePath = voiceOver.nativeTimestampsAvailable && !nativeAlreadyUnusable ? voiceOver.timestampsPath : null;
 
-  // Decision 2 — recorded in flight before anything is read or sent.
+  // Decision 2 — recorded before anything is read or sent. JOS-167: a first attempt is recorded `scheduled` and sent
+  // through the stage's slot, so it waits (no attempt used, no clock) when the alignment stage is full.
   const startedAt = now().toISOString();
-  const attempt =
-    claimedAttempt ??
-    recordStageAttempt({
+  if (!claimedAttempt) {
+    const recorded = scheduleStageAttempt({
       runId,
       stage: "timestamps",
       providerId: nativePath ? NATIVE_PROVIDER : ALIGNMENT_PROVIDER,
       queuedAt: startedAt,
-      sentAt: startedAt,
+      dueAt: startedAt,
+      trigger: "initial",
     });
+    const sent = await sendWithSlot(recorded.id, (claimed, release) => obtainNarrationTimestamps(runId, alignmentProvider, now, claimed, release), now);
+    return sent.sent ? sent.value : { ok: false, reason: "held" };
+  }
+  const attempt = claimedAttempt;
 
   let nativeFinding: string | null = nativeAlreadyUnusable ? "native timestamps were already judged unusable" : null;
 
@@ -199,6 +207,7 @@ export async function obtainNarrationTimestamps(
   }
 
   const aligned = await alignmentProvider.align(audio, run.script);
+  releaseSlot();
   if (aligned.kind === "failed_not_retryable") return fail(aligned.reason, false);
   if (aligned.kind === "failed_transient" || aligned.kind === "invalid_output") return fail(aligned.reason, true);
 
@@ -206,3 +215,18 @@ export async function obtainNarrationTimestamps(
   if (!check.usable) return fail(`the alignment provider's timestamps are not usable: ${check.reason}`, true);
   return stored("alignment", aligned.characters);
 }
+
+/**
+ * JOS-167 Decision 5 — a timestamps attempt takes an alignment slot only when it will call the alignment provider:
+ * not when a stored file already exists, nor when the native timestamps are usable. Side-effect free.
+ */
+registerSlotKeyResolver("timestamps", (attempt) => {
+  const run = getRun(attempt.runId);
+  const voiceOver = run ? getVoiceOver(attempt.runId) : undefined;
+  if (!run || !voiceOver) return null;
+  if (checkLeftoverFile(run, voiceOver).present) return null;
+  const nativeAlreadyUnusable = getStageAttempts(attempt.runId, "timestamps").some((other) => other.errorCode === NATIVE_UNUSABLE);
+  const nativePath = voiceOver.nativeTimestampsAvailable && !nativeAlreadyUnusable ? voiceOver.timestampsPath : null;
+  if (nativePath && checkNativeFile(run, voiceOver, nativePath).usable) return null;
+  return "alignment";
+});

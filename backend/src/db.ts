@@ -909,18 +909,16 @@ export function bindVoiceProvider(runId: string, providerId: string): boolean {
  * failure and the in-flight attempt are committed together, so a crash leaves
  * either all of them or none.
  */
-export function startVoiceAttempt(input: { runId: string; providerId: string; queuedAt: string; sentAt: string }): StageAttempt {
+export function startVoiceAttempt(input: { runId: string; providerId: string; queuedAt: string; sentAt: string | null }): StageAttempt {
   db.exec("BEGIN");
   try {
     bindVoiceProvider(input.runId, input.providerId);
     clearRunFailure(input.runId);
-    const attempt = recordStageAttempt({
-      runId: input.runId,
-      stage: "voice-over",
-      providerId: input.providerId,
-      queuedAt: input.queuedAt,
-      sentAt: input.sentAt,
-    });
+    // JOS-167 — a null `sentAt` is an attempt waiting for a slot: scheduled, due now, stamped when it is sent.
+    const attempt =
+      input.sentAt === null
+        ? scheduleStageAttempt({ runId: input.runId, stage: "voice-over", providerId: input.providerId, queuedAt: input.queuedAt, dueAt: input.queuedAt, trigger: "initial" })
+        : recordStageAttempt({ runId: input.runId, stage: "voice-over", providerId: input.providerId, queuedAt: input.queuedAt, sentAt: input.sentAt });
     db.exec("COMMIT");
     return attempt;
   } catch (err) {
@@ -1101,7 +1099,7 @@ export function scheduleStageAttempt(input: {
   queuedAt: string;
   dueAt: string;
   cycle?: number;
-  trigger: AttemptTrigger;
+  trigger?: AttemptTrigger;
 }): StageAttempt {
   return insertStageAttempt({ ...input, sentAt: null, outcome: "scheduled" });
 }
