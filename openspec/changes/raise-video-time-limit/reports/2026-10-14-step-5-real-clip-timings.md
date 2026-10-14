@@ -64,3 +64,26 @@ Scenes 5, 6 and 8 (all 14 s) were timed out at 606-610 s on each of their first 
 2. **A timed-out attempt costs a billable task and the next attempt submits another one**; the first task keeps running at the provider. Nine tasks were spent on three scenes. A retry that keeps polling the same task (or a late-result path for clips) would avoid this; it is a retry-policy change, recorded as a follow-up rather than made here.
 3. **The RunningHub balance ran out during the run.** The account needs a top-up before the three scenes can be retried.
 4. Eight clips and the whole narration are intact in the project folder; retrying only the three failed scenes (each a single new task at 1200 s) completes the session.
+
+## The completed run (2026-10-14, after the balance was topped up and the video limit set to 1200 s)
+
+Scenes 5, 6 and 8 (the three 14 s clips) were retried from the page, one new task each:
+
+| Scene | Requested | Time |
+|---|---|---|
+| 5 | 14 s | **661 s** |
+| 6 | 14 s | **719 s** |
+| 8 | 14 s | **730 s** |
+
+All three exceeded 600 s, which confirms that 1200 s was needed. The session then assembled in about 76 s and reached **`final-video`**.
+
+| Check | Result |
+|---|---|
+| Download through the API | `200`, 24,843,754 B, `video/mp4` |
+| Video | h264, **1920x1080**, 30 fps, 129.13 s |
+| Audio | mp3, 44.1 kHz, mono, 129.12 s (the narration is 129.15 s; the 11 clips sum to 131.2 s before retiming) |
+| Pipeline | voice-over (ElevenLabs, 3 attempts, late result accepted), decomposition (OpenAI, 2 attempts), 11 images, 11 clips, local ffmpeg assembly (1 attempt) |
+| Page | all scenes `chunk-complete`, "Final video — Complete", download link |
+
+## What it cost in attempts
+Scenes 5, 6 and 8 each had three timed-out tasks (billed) before the successful one, plus the earlier probe and test tasks; the balance ran out once (error 605) and was topped up by the product owner. With the 1200 s limit a run of this size needs one task per clip.
