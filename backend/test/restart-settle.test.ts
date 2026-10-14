@@ -1,3 +1,4 @@
+import { PER_PHASE_MAX_TIME_SECONDS } from "../src/config/providers.ts";
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
@@ -74,7 +75,7 @@ describe("Voice-over attempts lost at a restart (3.2, JOS-185)", () => {
   it("an in-flight voice-over attempt is timed out by the startup sweep and its retry is scheduled", () => {
     const runId = randomUUID();
     createRun(runId, "Voice", SCRIPT, "en");
-    leaveInFlight(runId, "voice-over", 60);
+    leaveInFlight(runId, "voice-over", PER_PHASE_MAX_TIME_SECONDS.voice + 60); // sent a minute past its limit
 
     simulateRestart();
 
