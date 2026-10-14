@@ -93,12 +93,16 @@ describe("an attempt at the product's real script size", () => {
     expect(hasExpired({ stage: "decomposition", sentAt: SENT_AT }, at(209))).toBe(false);
   });
 
-  it("a clip still in flight after 344 s has not expired", () => {
-    expect(hasExpired({ stage: "video", sentAt: SENT_AT }, at(344))).toBe(false);
+  it("a 14 s clip still in flight after 640 s has not expired", () => {
+    expect(hasExpired({ stage: "video", sentAt: SENT_AT }, at(640))).toBe(false);
   });
 
-  it.each(["voice-over", "decomposition", "video"] as const)("%s expires once it is past 600 s", (stage) => {
-    expect(hasExpired({ stage, sentAt: SENT_AT }, at(600))).toBe(false);
-    expect(hasExpired({ stage, sentAt: SENT_AT }, at(601))).toBe(true);
+  it.each([
+    ["voice-over", 600],
+    ["decomposition", 600],
+    ["video", 1200],
+  ] as const)("%s expires once it is past %i s", (stage, limit) => {
+    expect(hasExpired({ stage, sentAt: SENT_AT }, at(limit))).toBe(false);
+    expect(hasExpired({ stage, sentAt: SENT_AT }, at(limit + 1))).toBe(true);
   });
 });

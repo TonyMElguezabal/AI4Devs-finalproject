@@ -143,8 +143,8 @@ Measured from 4-7 real samples per stage (spike-level spread, not a percentile s
 Decomposition 20s, Image 25s, Voice 10s, Alignment 5s, **Video 240s** — provisional,
 ~1.5-2x the observed max. *These were the values when this ADR was accepted, from short samples. At the product's
 real script size (1,500-1,800 words) `raise-video-time-limit` (JOS-197, PRD v1.8) measured decomposition 208.6 s for
-67 fragments, voice 151 s for 10,217 characters and video 344 s for one 5 s clip, and set decomposition, voice and
-video to **600 s**; image (25 s) and alignment (5 s) are unchanged. The measurements below are the original ones.* **Video is 15-30x slower than every other stage** (observed
+67 fragments, voice 151 s for 10,217 characters and video 394-546 s for 7-13 s clips (above 610 s for 14 s), and set decomposition, voice and
+video to **600 s, 600 s and 1200 s**; image (25 s) and alignment (5 s) are unchanged. The measurements below are the original ones.* **Video is 15-30x slower than every other stage** (observed
 141-159.5s per 5s clip, sequential and at 3x concurrency alike, no queueing observed at
 that load) — the dominant cost in the whole pipeline's latency, and the main driver for
 UX/progress-messaging design. Assembly's maximum remains undetermined — depends on

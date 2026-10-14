@@ -37,3 +37,30 @@ Decisions taken from them: decomposition, voice and video limits are all set to 
 - 30-50 clips at the stage's cap of 3 in flight: at about 6 minutes per clip that is roughly 1.5-2 hours of wall time for the video stage alone, and a RunningHub charge per clip.
 - A script above 10,217 characters in one voice request (the documented limit is 10,000 and 10,217 was accepted; a 1,800-word Spanish script is about 11,000-12,000 characters).
 - Assembly of 30-50 clips with a 10-12 minute narration (its limit is still undetermined).
+
+## The 11-scene run (2026-10-14, session `01M4W4294K86VRGKTW9JF6AHKK`, limits at 600 s)
+
+The failed session's decomposition was retried from the UI (no new narration). Real providers throughout.
+
+| Stage | Result |
+|---|---|
+| Decomposition retry | succeeded in about 60 s, 11 scenes (it had failed at the old 20 s limit) |
+| Scene images (fal) | 11 images in about 12 s |
+| Clips (RunningHub, 2K, 3 in flight) | first completed at 7.8 min; 8 of 11 completed over about 26 minutes of video stage |
+
+Clip generation time against the requested duration (one successful attempt each):
+
+| Requested | Time | | Requested | Time |
+|---|---|---|---|---|
+| 7 s (scene 11) | 394 s | | 12 s (scenes 1, 10) | 528 s, 527 s |
+| 9 s (scene 4) | 527 s | | 13 s (scene 2) | 546 s |
+| 10 s (scene 7) | 454 s | | **14 s (scenes 5, 6, 8)** | **over 606-610 s, on 8 of 8 attempts that were not cut short** |
+| 11 s (scenes 3, 9) | 538 s, 485 s | | | |
+
+Scenes 5, 6 and 8 (all 14 s) were timed out at 606-610 s on each of their first two or three attempts; every timed-out attempt had already been billed by RunningHub. The last attempts then failed with **"task submission failed: Your balance is insufficient. Please top up your account. (error 605)"**, and each scene ended `failed` after four attempts; the session ended `failed`, phase `scenes`, scenes 5, 6 and 8. The failure reasons are now stored on the scene (`last_error`) and name the step and the provider's code, which is how this was found.
+
+## Findings
+1. **Clip generation time grows with the clip's duration**, roughly 35-40 s per second of clip at 2K. 14 s exceeds 600 s; 15 s is admitted, so the limit needs about 2x the extrapolated 600-700 s: **1200 s** for video.
+2. **A timed-out attempt costs a billable task and the next attempt submits another one**; the first task keeps running at the provider. Nine tasks were spent on three scenes. A retry that keeps polling the same task (or a late-result path for clips) would avoid this; it is a retry-policy change, recorded as a follow-up rather than made here.
+3. **The RunningHub balance ran out during the run.** The account needs a top-up before the three scenes can be retried.
+4. Eight clips and the whole narration are intact in the project folder; retrying only the three failed scenes (each a single new task at 1200 s) completes the session.

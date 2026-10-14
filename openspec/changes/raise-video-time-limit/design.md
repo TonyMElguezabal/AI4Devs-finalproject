@@ -4,7 +4,7 @@
 
 ## Decisions
 
-**Decision 1 — 600 s for voice, decomposition and video.** Observed at the product's real scale: video 344 s for a 5 s clip (1.7x margin), voice 151 s for 10,217 characters (4x), decomposition 208.6 s for 67 fragments (2.9x; 75 s for 11, so it grows with the number of scenes, sub-linearly). One round value keeps the three rows easy to state and review; it leaves a slower tail without making a stuck task wait many minutes. Image (25 s, calls of about 10 s) and alignment (5 s, unused when native timestamps are usable) are unchanged. It stays provisional: JOS-165's rule ("set above the observed slow tail") is kept, and the row is revisited when a real session has produced 10 or more clips. *Alternative:* 900 s (rejected: delays a real failure by 15 minutes with one sample showing 344 s); keeping 240 s with more concurrency (rejected: does not remove the timeouts).
+**Decision 1 — 600 s for voice and decomposition, 1200 s for video.** Observed at the product's real scale: voice 151 s for 10,217 characters (4x margin), decomposition 208.6 s for 67 fragments (2.9x; 75 s for 11, so it grows with the number of scenes, sub-linearly), and video clips whose time grows with their duration: 394 s for 7 s, 454 s for 10 s, 528 s for 12 s, 546 s for 13 s and **over 610 s three times for 14 s**, with 15 s admitted. 1200 s is about twice the extrapolated time of a 15 s clip (about 600-700 s). One round value keeps the three rows easy to state and review; it leaves a slower tail without making a stuck task wait many minutes. Image (25 s, calls of about 10 s) and alignment (5 s, unused when native timestamps are usable) are unchanged. It stays provisional: JOS-165's rule ("set above the observed slow tail") is kept, and the row is revisited when a real session has produced 10 or more clips. *Alternative:* 900 s (rejected: delays a real failure by 15 minutes with one sample showing 344 s); keeping 240 s with more concurrency (rejected: does not remove the timeouts).
 
 **Decision 2 — Only the constant changes in `src`.** Both readers take the value from the constant; the existing deadline tests derive their numbers from it.
 
@@ -12,7 +12,7 @@
 
 ## Risks / Trade-offs
 
-- [A 10 s or 15 s clip takes longer than a 5 s one] → 600 s is provisional; the first real session's timings are recorded and the row revisited.
+- [A 15 s clip is slower than extrapolated] → 1200 s is provisional; the timings of a full-size session are recorded and the row revisited. [A timed-out clip is resubmitted while the first task keeps running and is billed] → a retry policy that keeps polling the same task is out of scope here and recorded as a follow-up.
 - [A genuinely stuck task now holds a cap slot for 10 minutes] → the video cap is 3 requests; accepted for one user.
 
 ## Open Questions

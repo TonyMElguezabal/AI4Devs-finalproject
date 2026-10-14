@@ -112,9 +112,9 @@ describe("Per-phase maximum times are set above the measured slow tail (Decision
     // Voice: 151 s for 10,217 characters (1,740 words, about 12.8 minutes), 2026-10-13, a real run at the product's script size.
     expect(PER_PHASE_MAX_TIME_SECONDS.voice).toBeGreaterThan(151);
     expect(PER_PHASE_MAX_TIME_SECONDS.alignment).toBeGreaterThan(0.48);
-    // 344 s: one real 5 s clip at 2K, 2026-10-13 (fix-runninghub-adapter, JOS-196, reports/…step-5-live-api-check.md);
-    // the earlier 141-159 s samples (JOS-165) were taken before the adapter reached the live service.
-    expect(PER_PHASE_MAX_TIME_SECONDS.video).toBeGreaterThan(344);
+    // Clips of 14 s timed out at 607-610 s three times each on 2026-10-14 (a real 11-scene run, JOS-197); 7-13 s clips took 394-546 s.
+    // The longest admitted clip is 15 s, so the limit must clear the longest observed time with room.
+    expect(PER_PHASE_MAX_TIME_SECONDS.video).toBeGreaterThan(610 * 1.5);
   });
 
   it("assembly is explicitly undetermined pending define-media-assembly (JOS-182)", () => {

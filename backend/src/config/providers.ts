@@ -167,7 +167,7 @@ export const PER_PHASE_MAX_TIME_SECONDS = {
   image: 25, // observed 9.22-10.79s
   voice: 600, // 151 s for 10,217 characters, about 12.8 min of narration (2026-10-13, JOS-197); 2.20-2.47 s on a 142-character script (JOS-165). Provisional
   alignment: 5, // observed 0.26-0.48s
-  video: 600, // 344 s for one real 5 s clip at 2K (2026-10-13, JOS-196); earlier samples 141-159 s (JOS-165). Provisional: revisit after 10+ real clips (JOS-197)
+  video: 1200, // grows with the clip's length at 2K: 394 s for 7 s, 528 s for 12 s, 546 s for 13 s, over 610 s for 14 s (2026-10-14, JOS-197); 141-159 s on early samples (JOS-165). 15 s is admitted. Provisional
   assembly: "undetermined" as const, // define-media-assembly (JOS-182) not yet archived — report: step 8, task 8.5
 } as const;
 

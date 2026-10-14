@@ -83,8 +83,8 @@ async function sceneWithPendingClip(): Promise<string> {
 }
 
 describe("the video stage's time limit", () => {
-  it("is 600 s", () => {
-    expect(PER_PHASE_MAX_TIME_SECONDS.video).toBe(600);
+  it("is 1200 s", () => {
+    expect(PER_PHASE_MAX_TIME_SECONDS.video).toBe(1200);
   });
 
   const failedRequests = (sceneId: string) =>
@@ -92,10 +92,10 @@ describe("the video stage's time limit", () => {
       .prepare("SELECT latency_ms AS latencyMs FROM provider_requests WHERE scene_id = ? AND stage = 'video' AND mode = 'transient_failure'")
       .all(sceneId) as Array<{ latencyMs: number }>;
 
-  it("leaves a clip that is still generating after 344 s pending, with no failure and no new request", async () => {
+  it("leaves a 14 s clip that is still generating after 640 s pending, with no failure and no new request", async () => {
     const sceneId = await sceneWithPendingClip();
 
-    await vi.advanceTimersByTimeAsync(344_000);
+    await vi.advanceTimersByTimeAsync(640_000);
 
     expect(getScene(sceneId)!.status).toBe("video-generating");
     expect(getScene(sceneId)!.attempts).toBe(1);
