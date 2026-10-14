@@ -145,17 +145,19 @@ export const FINAL_OUTPUT = {
 } as const;
 
 // ---- Per-stage request caps (§10.1, Decision 6) ----
-// Derived from a measured rate limit with headroom for the 1+3 retry budget.
-// `undetermined` where no real limit was found — recording an invented
-// number was explicitly rejected (Decision 6; report: step 7c).
+// Every capped stage has a number (limit-provider-requests-per-stage, JOS-167,
+// product owner decision 2026-10-09). `concurrency.ts` sets each stage's limit
+// from this constant, and nothing else sets one.
 
-export const MAX_SIMULTANEOUS_REQUESTS = {
+export type CappedStage = "decomposition" | "image" | "voice" | "alignment" | "video";
+
+export const MAX_SIMULTANEOUS_REQUESTS: Record<CappedStage, number> = {
   decomposition: 50, // 500 req/min (OpenAI, measured) ÷ 10 headroom factor — provisional pending group 8 latency data
   image: 200, // 2000 (Fal.ai, measured) ÷ 10 — provisional, the rate-limit window's time unit is unconfirmed
-  voice: "undetermined" as const, // ElevenLabs: no request-rate number found; constraint is the shared character quota (see ALIGNMENT_PROVIDER.sharesAccountWith)
-  alignment: "undetermined" as const, // shares ElevenLabs account with voice — task 7.5a
-  video: "undetermined" as const, // RunningHub: no numeric limit found; empirical probing deferred by product owner (report: step 7c)
-} as const;
+  voice: 3, // ElevenLabs Creator tier documents 5 concurrent requests per account, shared with alignment: 3 + 2. Documented, not measured
+  alignment: 2, // the other 2 of that account limit of 5 (see ALIGNMENT_PROVIDER.sharesAccountWith)
+  video: 3, // RunningHub: the highest concurrency measured with no slowdown (JOS-165, step 8.2)
+};
 
 // ---- Per-phase maximum times (§10.1, Decision 7) ----
 // Provisional — 4-7 real samples per stage (report: step 8), enough to see

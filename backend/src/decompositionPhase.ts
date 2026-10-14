@@ -9,14 +9,14 @@ import {
   getRun,
   getStageAttempts,
   getVoiceOver,
-  recordStageAttempt,
+  scheduleStageAttempt,
   resolveArtefactPath,
   setRunFailure,
 } from "./db.ts";
 import { admitLaunch, registerStageLauncher, RESTART_CAUSE, type SettleSummary, type StageLauncher } from "./launchGate.ts";
 import { obtainNarrationTimestamps, storedFileSchema } from "./narrationTimestampsPhase.ts";
 import { broadcast, launchImageStageForRun } from "./orchestrator.ts";
-import { registerAttemptSender, releaseSessionAttempts } from "./retry/retryScheduler.ts";
+import { registerAttemptSender, releaseSessionAttempts, sendWithSlot } from "./retry/retryScheduler.ts";
 import { registerDecomposition, type RegistrationResult, type RetryPosition } from "./sceneRegistration.ts";
 import { segmentScript } from "./segmentation.ts";
 import { createDecompositionFailure } from "./sessionStateMachine.ts";
@@ -105,19 +105,23 @@ export async function segmentStoredTimestamps(
   const timestamps = getNarrationTimestamps(runId)!;
   const voiceOver = getVoiceOver(runId)!;
 
-  // Recorded in flight before anything is segmented or sent. The first try of the step is `initial`, even though the
-  // timestamps attempt already opened the shared instance.
-  const startedAt = now().toISOString();
-  const attempt =
-    claimedAttempt ??
-    recordStageAttempt({
+  // Recorded before anything is segmented or sent. The first try of the step is `initial`, even though the
+  // timestamps attempt already opened the shared instance. JOS-167: recorded `scheduled` and sent through the
+  // decomposition slot, so it waits (no attempt used, no clock) when the stage is full.
+  if (!claimedAttempt) {
+    const queuedAt = now().toISOString();
+    const recorded = scheduleStageAttempt({
       runId,
       stage: "decomposition",
       providerId: DECOMPOSITION_ATTEMPT_PROVIDER,
-      queuedAt: startedAt,
-      sentAt: startedAt,
+      queuedAt,
+      dueAt: queuedAt,
       ...(getStageAttempts(runId, "decomposition").length === 0 ? { trigger: "initial" as const } : {}),
     });
+    const sent = await sendWithSlot(recorded.id, (claimed) => segmentStoredTimestamps(runId, instructionGenerator, now, claimed), now);
+    return sent.sent ? sent.value : { ok: false, reason: "held" };
+  }
+  const attempt = claimedAttempt;
   const retryState: RetryPosition = { cycle: attempt.cycle, attemptsInCycle: attempt.sequenceInCycle };
 
   const result = await divideStoredTimestamps(run, timestamps.path, voiceOver.durationSeconds, instructionGenerator, now, retryState);
@@ -173,10 +177,10 @@ export async function runDecompositionPhase(
  * A retry's scheduled attempt, claimed by the gate (retry-decomposition, Decision 4): runs the step it names on the
  * configured providers. A timestamps attempt that succeeds goes on to divide, as `runDecompositionPhase` does.
  */
-async function sendDecompositionAttempt(attempt: StageAttempt): Promise<void> {
+async function sendDecompositionAttempt(attempt: StageAttempt, releaseSlot: () => void = () => undefined): Promise<void> {
   const dependencies = getDecompositionDependencies();
   if (attempt.stage === "timestamps") {
-    const obtained = await obtainNarrationTimestamps(attempt.runId, dependencies.alignmentProvider, () => new Date(), attempt);
+    const obtained = await obtainNarrationTimestamps(attempt.runId, dependencies.alignmentProvider, () => new Date(), attempt, releaseSlot);
     if (!obtained.ok) {
       // A refusal before the attempt was used leaves it in flight; "already-obtained" means the step's work is done.
       completeStageAttempt(attempt.id, {
