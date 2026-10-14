@@ -18,6 +18,8 @@ import {
   SPEED_FACTOR_LIMIT,
   MAX_ATTEMPTS_PER_CYCLE,
   PROVISIONAL_RETRY_DELAY_SECONDS,
+  SCRIPT_MODERATION,
+  MODERATION_MAX_TIME_SECONDS,
 } from "../src/config/providers.ts";
 
 // define-provider-configuration (JOS-165) task 11.2 — Decision 8 requires the
@@ -163,5 +165,15 @@ describe("Retry policy constants (bounded-retry-policy, JOS-184)", () => {
   it("keeps the retry delays provisional and well-formed until the PRD records them", () => {
     expect(PROVISIONAL_RETRY_DELAY_SECONDS).toEqual({ base: 2, cap: 30 });
     expect(PROVISIONAL_RETRY_DELAY_SECONDS.cap).toBeGreaterThanOrEqual(PROVISIONAL_RETRY_DELAY_SECONDS.base);
+  });
+});
+
+describe("Script moderation at submission (moderate-script-at-submission, JOS-187)", () => {
+  it("pins the moderation model to a dated snapshot, not -latest", () => {
+    expect(SCRIPT_MODERATION).toEqual({ name: "OpenAI", model: "omni-moderation-2024-09-26" });
+  });
+
+  it("bounds the moderation request above the measured slow tail (0.12-2.2 s)", () => {
+    expect(MODERATION_MAX_TIME_SECONDS).toBe(10);
   });
 });

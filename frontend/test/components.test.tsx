@@ -5,6 +5,7 @@ import { SceneList } from "../src/components/SceneList";
 import { SceneRow } from "../src/components/SceneRow";
 import { SessionHeader } from "../src/components/SessionHeader";
 import { FinalVideoDownload } from "../src/components/FinalVideoDownload";
+import App from "../src/App";
 import { StartProjectForm } from "../src/components/StartProjectForm";
 import { SessionPage } from "../src/components/SessionPage";
 import { PhaseSection } from "../src/components/PhaseSection";
@@ -1367,5 +1368,37 @@ describe("Phase sections list the session-level stages that ran (JOS-166)", () =
     rerender(<SessionPage {...baseProps} snapshot={{ session: second, scenes: [] }} />);
 
     expect(screen.getByRole("listitem")).toHaveTextContent("Scene instructions: OpenAI (gpt-6-astra), 2 attempts");
+  });
+});
+
+// moderate-script-at-submission (JOS-187), group 5 — a refused submission shows
+// the backend's reason and leaves the form as the User filled it.
+describe("A refused submission (422 / 503)", () => {
+  it.each([
+    [422, "The script was refused by the provider's content policy (flagged: violence). Edit the script and submit it again."],
+    [503, "The content check is temporarily unavailable. Submit the script again in a moment."],
+  ])("shows the %s reason and keeps title, script and language", async (status, reason) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        String(url).endsWith("/languages")
+          ? new Response(JSON.stringify([{ code: "en", label: "English" }]), { status: 200 })
+          : new Response(JSON.stringify({ ok: false, reason }), { status }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.type(screen.getByLabelText("Title"), "Harbor");
+    await user.type(screen.getByLabelText("Script"), "A script to refuse.");
+    await user.selectOptions(await screen.findByLabelText("Language"), "en");
+    await user.click(screen.getByRole("button", { name: "Start project" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(reason);
+    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Harbor");
+    expect((screen.getByLabelText("Script") as HTMLTextAreaElement).value).toBe("A script to refuse.");
+    expect((screen.getByLabelText("Language") as HTMLSelectElement).value).toBe("en");
+    expect(screen.getByRole("form", { name: "Start a project" })).toBeTruthy();
+    vi.unstubAllGlobals();
   });
 });

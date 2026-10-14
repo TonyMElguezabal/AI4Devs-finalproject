@@ -3,6 +3,7 @@ import { z } from "zod";
 import { jsonSchemaTransform, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname } from "node:path";
+import { getScriptModerator } from "./scriptModeration.ts";
 import { launchVoiceOverFor } from "./voiceOverPhase.ts";
 import { retryDecomposition } from "./decompositionRetry.ts";
 import { retryAssembly } from "./assemblyRetry.ts";
@@ -272,15 +273,30 @@ export const routes: FastifyPluginAsync = async (app) => {
   // to launch and no provider is called here (Decision 8). The consultation
   // read and the resync snapshot are the same endpoint (consult-session,
   // JOS-135, Decision 1; define-live-updates, JOS-183, Decision 4).
+  // moderate-script-at-submission (JOS-187): the script is checked by the
+  // reasoning provider's moderation endpoint first. Flagged → 422, no verdict →
+  // 503, and nothing is created in either case.
   typed.post(
     "/sessions",
     {
       schema: {
         body: createSessionBodySchema,
-        response: { 201: snapshotResponseSchema },
+        response: { 201: snapshotResponseSchema, 422: conflictSchema, 503: conflictSchema },
       },
     },
     async (request, reply) => {
+      const verdict = await getScriptModerator().moderate(request.body.script);
+      if (verdict.kind === "flagged") {
+        reply.code(422);
+        return {
+          ok: false,
+          reason: `The script was refused by the provider's content policy (flagged: ${verdict.categories.join(", ")}). Edit the script and submit it again.`,
+        };
+      }
+      if (verdict.kind === "unavailable") {
+        reply.code(503);
+        return { ok: false, reason: "The content check is temporarily unavailable. Submit the script again in a moment." };
+      }
       const sessionId = ulid();
       createRun(sessionId, request.body.title, request.body.script, request.body.language);
       reply.code(201);
