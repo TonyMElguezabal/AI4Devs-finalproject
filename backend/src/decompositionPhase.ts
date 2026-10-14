@@ -224,10 +224,42 @@ function settleInterruptedDecompositionAttempts(): SettleSummary {
   return { resumed: 0, recordedFailedAttempt, stillPending: 0 };
 }
 
+export interface DecompositionLogger {
+  info(fields: Record<string, unknown>): void;
+}
+
+let logger: DecompositionLogger = { info: () => undefined };
+
+/** The bootstrap hands the Fastify logger over, the way `setVoiceOverLogger` does. */
+export function setDecompositionLogger(next: DecompositionLogger): void {
+  logger = next;
+}
+
 /**
- * The stage's entry in the phase-launch gate (retry-decomposition, Decision 5). Held work is a retry's scheduled
- * attempt for a session with no chunks. JOS-136's "directly after the narration" start joins the held-work and launch
- * terms here, when it launches this phase itself.
+ * run-session-end-to-end (JOS-195), design Decisions 1-2 — a narrated session is waiting for its first decomposition
+ * start while it has a stored voice-over and nothing else of the phase: no scenes, no failure and no `timestamps` or
+ * `decomposition` attempt in any outcome. The phase records its first attempt before it awaits anything, so one start
+ * is enough to make every later trigger (a second narration signal, continue, boot) find this false.
+ */
+function waitingAfterNarration(sessionId: string): boolean {
+  const run = getRun(sessionId);
+  if (!run || run.failure !== null) return false;
+  if (!getVoiceOver(sessionId)) return false;
+  if (countScenesForRun(sessionId) > 0) return false;
+  return getStageAttempts(sessionId, "timestamps").length === 0 && getStageAttempts(sessionId, "decomposition").length === 0;
+}
+
+function startInBackground(sessionId: string): void {
+  logger.info({ event: "decomposition.launch", sessionId });
+  runDecompositionPhase(sessionId, getDecompositionDependencies()).catch((err: unknown) => {
+    logger.info({ event: "decomposition.launch.error", sessionId, reason: err instanceof Error ? err.name : "unknown" });
+  });
+}
+
+/**
+ * The stage's entry in the phase-launch gate (retry-decomposition, Decision 5; run-session-end-to-end, Decision 1).
+ * Held work is a retry's scheduled attempt for a session with no chunks, or a narrated session still waiting for its
+ * first start. Launching releases the scheduled attempt, or starts the phase for the waiting session.
  */
 export const decompositionLauncher: StageLauncher = {
   stage: "decomposition",
@@ -237,13 +269,22 @@ export const decompositionLauncher: StageLauncher = {
       [...getStageAttempts(sessionId, "timestamps"), ...getStageAttempts(sessionId, "decomposition")].some(
         (attempt) => attempt.outcome === "scheduled",
       );
-    return { count: retryScheduled ? 1 : 0, sceneIds: [] };
+    return { count: retryScheduled || waitingAfterNarration(sessionId) ? 1 : 0, sceneIds: [] };
   },
   settleInFlight: settleInterruptedDecompositionAttempts,
   launch: (sessionId: string) => {
     if (!admitLaunch(sessionId).admitted) return;
+    if (waitingAfterNarration(sessionId)) {
+      startInBackground(sessionId);
+      return;
+    }
     releaseSessionAttempts(sessionId);
   },
 };
 
 registerStageLauncher(decompositionLauncher);
+
+/** The hand-off the voice-over phase makes once the narration is stored (run-session-end-to-end, Decision 3). */
+export function launchDecompositionFor(sessionId: string): void {
+  decompositionLauncher.launch(sessionId);
+}

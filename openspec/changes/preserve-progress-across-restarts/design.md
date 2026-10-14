@@ -61,6 +61,8 @@ The assembly pending rule is narrower than its `heldWork`, which counts any open
 **Decision 4 — The decomposition pending rule is deferred.**
 Nothing in the running app starts decomposition, so a relaunch rule would be its first live launch. It would also change `heldWork`, so continue would start decompositions the live flow never starts. That is a product change for the story that adds the live start. This change ships the timestamps and instruction settles, which close the "stuck `chunk-decomposing` forever" case, and leaves `decompositionLauncher.launch` as it is. The spec scenario for it is dropped.
 
+*Delivered by `run-session-end-to-end` (JOS-195):* the live start now exists, so the pending rule ships there. At boot a narrated session with no scenes, no failure and no `timestamps` or `decomposition` attempt starts its decomposition; `heldWork` reports it, so continue starts it too.
+
 **Decision 5 — Prove consultation with a simulated restart and with a real one.**
 A test helper, `simulateRestart()`, discards in-memory state while keeping the store file:
 

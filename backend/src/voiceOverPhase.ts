@@ -24,6 +24,7 @@ import {
   writeArtefactOnce,
 } from "./db.ts";
 import { VOICE_PROVIDER } from "./config/providers.ts";
+import { launchDecompositionFor } from "./decompositionPhase.ts";
 import { admitLaunch, registerStageLauncher, type StageLauncher } from "./launchGate.ts";
 import { broadcast } from "./orchestrator.ts";
 import { recordAttemptOutcome, type RecordedOutcome } from "./retry/stageAttemptRecorder.ts";
@@ -299,6 +300,7 @@ async function handleLateResult(attempt: StageAttempt, result: VoiceSynthesisRes
     if (getRun(runId)?.failure?.phase === "voice-over") clearRunFailure(runId);
     log("late-success");
     broadcast(runId);
+    handOffAfterNarration(runId);
     return { ok: true };
   }
   if (confirmed.reason === "already-stored") {
@@ -400,6 +402,7 @@ export async function sendVoiceAttempt(attempt: StageAttempt, now: () => Date = 
       ...fingerprint,
     });
     broadcast(runId);
+    handOffAfterNarration(runId);
     return { ok: true };
   }
   if (confirmed.reason === "already-stored") {
@@ -419,6 +422,15 @@ registerAttemptSender("voice-over", (attempt) => {
     logger.info({ event: "voice-over.launch.error", sessionId: attempt.runId, stage: "voice-over", reason: err instanceof Error ? err.name : "unknown" });
   });
 });
+
+/**
+ * run-session-end-to-end (JOS-195), design Decision 3 — the narration is stored, so the session moves on to its
+ * decomposition (PRD §5 step 3) without user action, through the launch gate: a paused or already-started session
+ * is left alone, and a second signal for the same session starts nothing.
+ */
+function handOffAfterNarration(sessionId: string): void {
+  launchDecompositionFor(sessionId);
+}
 
 function launchInBackground(sessionId: string): void {
   generateVoiceOver(sessionId).catch((err: unknown) => {

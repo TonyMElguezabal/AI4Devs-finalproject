@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { ulid } from "../src/util/ulid.ts";
 import { createRun, getStageAttempts, resetAll } from "../src/db.ts";
@@ -6,6 +6,13 @@ import { releaseAttempt } from "../src/retry/retryScheduler.ts";
 import { buildApp } from "../src/server.ts";
 import { generateVoiceOver } from "../src/voiceOverPhase.ts";
 import { createStubVoiceProvider, setVoiceProviderRegistry, type StubVoiceProviderMode } from "../src/voiceProvider.ts";
+
+// run-session-end-to-end (JOS-195), design Decision 6 — this file tests the voice-over phase alone, so the hand-off to
+// decomposition that a stored narration now triggers is disabled here; `narration-handoff-*.test.ts` covers it.
+vi.mock("../src/decompositionPhase.ts", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../src/decompositionPhase.ts")>()),
+  launchDecompositionFor: () => undefined,
+}));
 
 // generate-voice-over (JOS-136), group 6 — the session read (US-02) exposes the
 // voice-over's outcome and the voice-over failure, and offers no MP3 download
