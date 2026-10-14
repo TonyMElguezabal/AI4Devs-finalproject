@@ -167,7 +167,7 @@ export const PER_PHASE_MAX_TIME_SECONDS = {
   image: 25, // observed 9.22-10.79s
   voice: 10, // observed 2.20-2.47s
   alignment: 5, // observed 0.26-0.48s
-  video: 240, // observed 141.10-159.50s sequential, 156.12-157.61s at 3x concurrency
+  video: 600, // 344 s for one real 5 s clip at 2K (2026-10-13, JOS-196); earlier samples 141-159 s (JOS-165). Provisional: revisit after 10+ real clips (JOS-197)
   assembly: "undetermined" as const, // define-media-assembly (JOS-182) not yet archived — report: step 8, task 8.5
 } as const;
 

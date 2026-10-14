@@ -140,8 +140,10 @@ only) did not anticipate.
 ## Decision 8 — Per-phase maximum times
 
 Measured from 4-7 real samples per stage (spike-level spread, not a percentile study):
-Decomposition 20s, Image 25s, Voice 10s, Alignment 5s, **Video 240s** — provisional,
-~1.5-2x the observed max. **Video is 15-30x slower than every other stage** (observed
+Decomposition 20s, Image 25s, Voice 10s, Alignment 5s, **Video 600s** — provisional,
+~1.5-2x the observed max. *Video was 240 s when this ADR was accepted (samples of 141-159.5 s); it was raised to
+600 s by `raise-video-time-limit` (JOS-197, PRD v1.8) after one real 5 s clip took 344 s once the adapter reached
+the live service (JOS-196). The sentence below keeps the original measurements.* **Video is 15-30x slower than every other stage** (observed
 141-159.5s per 5s clip, sequential and at 3x concurrency alike, no queueing observed at
 that load) — the dominant cost in the whole pipeline's latency, and the main driver for
 UX/progress-messaging design. Assembly's maximum remains undetermined — depends on

@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.7  
+**Versión:** 1.8  
 **Alcance:** MVP  
-**Status (v1.7):** the MVP is a single-user application on the user's own computer that calls the cloud AI providers; the hosted deployment admitted in v1.6 is withdrawn (`define-production-deployment`, JOS-194). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.6.md`.
+**Status (v1.8):** the video stage's maximum time is raised from 240 s to 600 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.7.md`.
 
 ## 1. Objetivo del producto
 
@@ -322,7 +322,7 @@ Defined by `define-provider-configuration` (JOS-165), verified against real call
 | Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264/AAC | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
 | Supported script languages (§4.1, D09) | English, Spanish | Each verified independently across voice, alignment and reasoning |
 | Acceptable speed-factor limit | **Provisional** | `define-media-assembly` (JOS-182) recommends 0.5x-2.0x (its ADR, Decision 5); `decide-silence-allocation` (JOS-142) verified D11's adopted rule against that recommendation (max 1.08x observed). Not yet the fixed constant: US-33 records it, and JOS-182's own PR is not yet merged into this branch's history. |
-| Per-phase maximum times | Reasoning 20s, Image 25s, Voice 10s, Alignment 5s, Video 240s, Assembly provisional | Set above the observed slow tail of 4-7 real samples per stage; assembly depends on JOS-182 |
+| Per-phase maximum times | Reasoning 20s, Image 25s, Voice 10s, Alignment 5s, Video 600s, Assembly provisional | Set above the observed slow tail of 4-7 real samples per stage; assembly depends on JOS-182. Video re-measured on 2026-10-13: 344 s for one 5 s clip at 2K (JOS-196), so raised from 240 s in v1.8; provisional until 10 or more real clips are timed |
 | Maximum simultaneous requests per stage | Reasoning 50, Image 200 (provisional), Voice/Alignment/Video undetermined | No invented numbers where no real rate limit was found |
 
 **Not-retryable failure signal**: tested against all four provider-calling stages with disallowed instructional content — **none produced a distinguishable rejection**. This is an open finding for the product owner (`docs/adr/0005-provider-selection.md`, Decision 5), not yet resolved: §10.1's not-retryable branch currently has nothing to trigger on for this content class on any of these providers.
@@ -437,6 +437,14 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
+
+### From version 1.7 to 1.8
+
+Origin: `raise-video-time-limit` (JOS-197), 2026-10-14.
+
+| Change | Origin |
+|---|---|
+| The video stage's maximum time is 600 s instead of 240 s: RunningHub generated one real 5 s clip at 2K in 344 s once its adapter reached the live API, above the 141-159 s samples the 240 s was set from; each retry of a timed-out clip would submit another billable task (§10.1, §11.3). | Product owner, JOS-197 |
 
 ### From version 1.6 to 1.7
 

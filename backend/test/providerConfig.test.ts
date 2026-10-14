@@ -110,7 +110,9 @@ describe("Per-phase maximum times are set above the measured slow tail (Decision
     expect(PER_PHASE_MAX_TIME_SECONDS.image).toBeGreaterThan(10.79);
     expect(PER_PHASE_MAX_TIME_SECONDS.voice).toBeGreaterThan(2.47);
     expect(PER_PHASE_MAX_TIME_SECONDS.alignment).toBeGreaterThan(0.48);
-    expect(PER_PHASE_MAX_TIME_SECONDS.video).toBeGreaterThan(159.5);
+    // 344 s: one real 5 s clip at 2K, 2026-10-13 (fix-runninghub-adapter, JOS-196, reports/…step-5-live-api-check.md);
+    // the earlier 141-159 s samples (JOS-165) were taken before the adapter reached the live service.
+    expect(PER_PHASE_MAX_TIME_SECONDS.video).toBeGreaterThan(344);
   });
 
   it("assembly is explicitly undetermined pending define-media-assembly (JOS-182)", () => {
@@ -120,7 +122,7 @@ describe("Per-phase maximum times are set above the measured slow tail (Decision
   // stage-execution-time-limit (JOS-185) task 9.3 — the timeout watcher reads these values, so they are compared with
   // the PRD's own row: either side changing alone is caught here.
   it("equal the per-phase maximum times recorded in PRD §11.3", () => {
-    const prd = readFileSync(resolve(import.meta.dirname, "../../docs/PRD-v1.4.md"), "utf8");
+    const prd = readFileSync(resolve(import.meta.dirname, "../../docs/PRD.md"), "utf8");
     const row = prd.split("\n").find((line) => line.startsWith("| Per-phase maximum times"));
     const match = row?.match(/Reasoning (\d+)s, Image (\d+)s, Voice (\d+)s, Alignment (\d+)s, Video (\d+)s, Assembly provisional/);
 

@@ -9,25 +9,25 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 1. Tests first
 
-- [ ] 1.1 In `providerConfig.test.ts`: the slow-tail floor for video becomes 344 s, and the PRD comparison reads `docs/PRD.md` instead of `docs/PRD-v1.4.md`; run it and confirm it fails (the constant is 240)
-- [ ] 1.2 Write failing stage tests (the orchestrator's poll check, with an injected clock or sent-at): a request 344 s old and still running is pending with no failure; one 601 s old is a transient failure naming the 600 s limit
+- [x] 1.1 In `providerConfig.test.ts`: the slow-tail floor for video becomes 344 s, and the PRD comparison reads `docs/PRD.md` instead of `docs/PRD-v1.4.md`; run it and confirm it fails (the constant is 240) — done: floor 344 s and the PRD comparison against `docs/PRD.md`; seen failing (240)
+- [x] 1.2 Write failing stage tests (the orchestrator's poll check, with an injected clock or sent-at): a request 344 s old and still running is pending with no failure; one 601 s old is a transient failure naming the 600 s limit — done: `video-time-limit.test.ts` — still pending after 344 s with one attempt and no failed request row; failed past the limit with a `transient_failure` row above the limit and attempt 2 started; seen failing first
 
 ## 2. Implement
 
-- [ ] 2.1 Set `PER_PHASE_MAX_TIME_SECONDS.video` to 600 with its comment (observed 344 s for a 5 s clip at 2K on 2026-10-13, JOS-196; provisional)
-- [ ] 2.2 PRD: copy `docs/PRD.md` to `docs/PRD-v1.7.md`; in `docs/PRD.md` set v1.8, update the status line, the §11.3 row (`Video 600s`) and add the "From version 1.7 to 1.8" changelog section
-- [ ] 2.3 `docs/adr/0005-provider-selection.md`: record the new value and the reason; check no other document states 240 s as current
+- [x] 2.1 Set `PER_PHASE_MAX_TIME_SECONDS.video` to 600 with its comment (observed 344 s for a 5 s clip at 2K on 2026-10-13, JOS-196; provisional) — done: `PER_PHASE_MAX_TIME_SECONDS.video = 600` with its comment
+- [x] 2.2 PRD: copy `docs/PRD.md` to `docs/PRD-v1.7.md`; in `docs/PRD.md` set v1.8, update the status line, the §11.3 row (`Video 600s`) and add the "From version 1.7 to 1.8" changelog section — done: `docs/PRD-v1.7.md` copied; `docs/PRD.md` is v1.8 (status line, §11.3 row, changelog section)
+- [x] 2.3 `docs/adr/0005-provider-selection.md`: record the new value and the reason; check no other document states 240 s as current — done: `docs/adr/0005-provider-selection.md` records 600 s with the reason; `docs/data-model.md` no longer says 240 s; no other document states it as current
 
 ## 3. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 3.1 Review tests that depend on the video limit (`attempt-deadline`, timeout and orchestrator tests, `generate-chunk-video` tests) and record which needed a change; assertions about "240" literals are replaced by the constant
+- [x] 3.1 Review tests that depend on the video limit (`attempt-deadline`, timeout and orchestrator tests, `generate-chunk-video` tests) and record which needed a change; assertions about "240" literals are replaced by the constant — done: only `providerConfig.test.ts` changed; `attempt-deadline.test.ts` derives from the constant
 
 ## 4. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 4.1 Capture the pre-test state (temporary `DB_PATH`/`PROJECTS_ROOT`, no `.secrets.json`)
-- [ ] 4.2 Run the targeted tests, the full backend suite, typecheck, and the frontend suite
-- [ ] 4.3 Verify the post-test state matches the baseline
-- [ ] 4.4 Save `reports/YYYY-MM-DD-step-4-unit-test-and-db-verification.md`
+- [x] 4.1 Capture the pre-test state (temporary `DB_PATH`/`PROJECTS_ROOT`, no `.secrets.json`) — done: fresh temporary stores, no `.secrets.json`
+- [x] 4.2 Run the targeted tests, the full backend suite, typecheck, and the frontend suite — done: backend 1482 passed / 5 skipped, frontend 162, typecheck clean
+- [x] 4.3 Verify the post-test state matches the baseline — done: temporary stores removed, nothing else changed
+- [x] 4.4 Save `reports/YYYY-MM-DD-step-4-unit-test-and-db-verification.md` — done: `reports/2026-10-14-step-4-unit-test-and-db-verification.md`
 
 ## 5. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
@@ -40,8 +40,8 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 7. Update Technical Documentation (MANDATORY)
 
-- [ ] 7.1 `docs/backend-standards.md`: update the per-phase limits sentence if it states 240 s as current
-- [ ] 7.2 Check `docs/api-spec.yml` and `docs/data-model.md` need no change
+- [x] 7.1 `docs/backend-standards.md`: update the per-phase limits sentence if it states 240 s as current — not applicable: `docs/backend-standards.md` does not state the video limit as a number
+- [x] 7.2 Check `docs/api-spec.yml` and `docs/data-model.md` need no change — done: `docs/api-spec.yml` needs no change; `docs/data-model.md` was updated (2.3)
 
 ## 8. Close
 
