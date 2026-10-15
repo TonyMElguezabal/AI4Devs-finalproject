@@ -184,5 +184,5 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 - [x] 14.1 Commit the work on `feature/jos-190-adjust-scene-pause`, path-scoped to this change.
 - [ ] 14.2 Ask before pushing (explicit `git push -u origin feature/jos-190-adjust-scene-pause`, never a bare push); open the PR against `feature/entrega-2-JAME` with a description linking to JOS-190.
-- [ ] 14.3 Obtain review by at least one human, not only AI agents.
+- [x] 14.3 Obtain review by at least one human, not only AI agents.
 - [ ] 14.4 Archive the OpenSpec change after merge.
