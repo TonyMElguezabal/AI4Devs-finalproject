@@ -69,13 +69,15 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 5. Backend: narration edits in the assembly tool (TDD; design Decision 5)
 
-- [ ] 5.1 Write failing tests:
+- [x] 5.1 Write failing tests:
   - the stub assembly tool records `narrationEdits`;
   - the ffmpeg adapter, given no edits, issues exactly today's arguments (`-c:a copy`);
   - given edits, it builds the cut/insert filtergraph and AAC encode;
   - an output whose audio and video durations differ by more than one frame is reported as a failure.
   The real-ffmpeg test uses the committed fixture and runs where `ffmpeg` is present, like the existing adapter tests.
-- [ ] 5.2 Extend `AssemblyInput`, `ffmpegAssemblyTool.ts` and `stubAssemblyTool.ts`; make 5.1 pass.
+- [x] 5.2 Extend `AssemblyInput`, `ffmpegAssemblyTool.ts` and `stubAssemblyTool.ts`; make 5.1 pass.
+
+  Result: `AssemblyInput.narrationEdits` and `NarrationEdit` live on the port (`assemblyTool.ts`); the adapter's argument and filtergraph building is now two exported pure functions (`buildMuxArguments`, `buildNarrationFilter`) so the no-edit path is pinned to today's exact arguments without running ffmpeg. The measured one-frame guard fails the attempt as transient. The three real-ffmpeg tests use the committed JOS-182 fixture and skip when ffmpeg is absent.
 
 ## 6. Backend: rebuild lifecycle (TDD; design Decisions 6-8)
 

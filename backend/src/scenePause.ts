@@ -1,3 +1,4 @@
+import type { NarrationEdit } from "./assemblyTool.ts";
 import { SPEED_FACTOR_LIMIT } from "./config/providers.ts";
 import type { TimestampCharacter } from "./narrationTimestamps.ts";
 import type { Sentence } from "./sentences.ts";
@@ -133,12 +134,6 @@ export function isAllowedPause(range: PauseRange, seconds: number): boolean {
   const steps = seconds / PAUSE_STEP_SECONDS;
   if (Math.abs(steps - Math.round(steps)) > EPSILON) return false;
   return seconds >= range.minSeconds - EPSILON && seconds <= range.maxSeconds + EPSILON;
-}
-
-/** One change to the narration, in the stored (original) timeline: `deltaSeconds` of silence removed (negative) or inserted (positive) at `atSeconds`. */
-export interface NarrationEdit {
-  atSeconds: number;
-  deltaSeconds: number;
 }
 
 export interface PauseEditedScene {
