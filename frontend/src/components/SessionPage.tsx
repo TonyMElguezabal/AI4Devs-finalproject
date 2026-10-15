@@ -24,6 +24,11 @@ interface Props {
   onRetryPhase: (phase: Phase) => Promise<unknown>;
 }
 
+/** "14 Oct, 10:42" in the User's own locale and time zone; the instant stays machine-readable on the element. */
+function formatStarted(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
 /**
  * consult-session (JOS-135) — the session page, reached by identifier
  * (Decision 5). Shows only what the session read returns (Decision 6): no
@@ -80,6 +85,7 @@ export function SessionPage({
           <h1 className="project-title">{session.title}</h1>
           <div className="project-meta">
             <span className="chip">{session.language}</span>
+            <time dateTime={session.createdAt}>Started {formatStarted(session.createdAt)}</time>
           </div>
         </div>
         <details className="script-disclosure">

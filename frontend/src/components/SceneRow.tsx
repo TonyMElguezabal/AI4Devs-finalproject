@@ -69,6 +69,7 @@ export function SceneRow({ scene, paused, onRetry, onCorrect }: Props) {
   }
 
   const imageUrl = scene.result?.imageUrl;
+  const hasMedia = Boolean(scene.result?.imageUrl || scene.result?.videoUrl || scene.downloads?.imageUrl || scene.downloads?.clipUrl);
   const statusClass = sceneStatusClass(scene.state, scene.held);
 
   return (
@@ -101,33 +102,35 @@ export function SceneRow({ scene, paused, onRetry, onCorrect }: Props) {
 
       {expanded && (
         <div className="scene-details">
-          <div className="scene-media">
-            {scene.result?.imageUrl && (
-              <img className="scene-image" src={resolveResultUrl(scene.result.imageUrl)} alt={`Scene ${scene.index} image`} />
-            )}
-            {scene.result?.videoUrl && (
-              <video className="scene-clip" controls src={resolveResultUrl(scene.result.videoUrl)} aria-label={`Scene ${scene.index} clip`} />
-            )}
-            {/* download-scene-results (JOS-163), design Decision 3 — a link renders
-             * for exactly the entries the session read offers, never derived from
-             * `state`: the image can be downloadable while the clip still isn't. */}
-            {(scene.downloads?.imageUrl || scene.downloads?.clipUrl) && (
-              <p className="download-links">
-                {scene.downloads.imageUrl && (
-                  <a className="button" href={resolveResultUrl(scene.downloads.imageUrl)}>
-                    <Icon name="download" />
-                    Download scene {scene.index} image
-                  </a>
-                )}
-                {scene.downloads.clipUrl && (
-                  <a className="button" href={resolveResultUrl(scene.downloads.clipUrl)}>
-                    <Icon name="download" />
-                    Download scene {scene.index} video
-                  </a>
-                )}
-              </p>
-            )}
-          </div>
+          {hasMedia && (
+            <div className="scene-media">
+              {scene.result?.imageUrl && (
+                <img className="scene-image" src={resolveResultUrl(scene.result.imageUrl)} alt={`Scene ${scene.index} image`} />
+              )}
+              {scene.result?.videoUrl && (
+                <video className="scene-clip" controls src={resolveResultUrl(scene.result.videoUrl)} aria-label={`Scene ${scene.index} clip`} />
+              )}
+              {/* download-scene-results (JOS-163), design Decision 3 — a link renders
+               * for exactly the entries the session read offers, never derived from
+               * `state`: the image can be downloadable while the clip still isn't. */}
+              {(scene.downloads?.imageUrl || scene.downloads?.clipUrl) && (
+                <p className="download-links">
+                  {scene.downloads.imageUrl && (
+                    <a className="button" href={resolveResultUrl(scene.downloads.imageUrl)}>
+                      <Icon name="download" />
+                      Download scene {scene.index} image
+                    </a>
+                  )}
+                  {scene.downloads.clipUrl && (
+                    <a className="button" href={resolveResultUrl(scene.downloads.clipUrl)}>
+                      <Icon name="download" />
+                      Download scene {scene.index} video
+                    </a>
+                  )}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="scene-info">
             <dl>

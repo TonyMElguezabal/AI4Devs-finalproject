@@ -66,6 +66,8 @@ export interface SessionEventPayload {
   phases: PhaseProgress[];
   /** download-final-video (JOS-164) — present only once the final video exists; the page offers the download for exactly this, never derived from `state`. */
   finalVideoUrl?: string;
+  /** ISO-8601 instant the session was registered (documented in `docs/api-spec.yml`, always present). */
+  createdAt: string;
   updatedAt: string;
 }
 

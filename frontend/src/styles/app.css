@@ -471,6 +471,15 @@ textarea {
   letter-spacing: -0.015em;
 }
 
+.project-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
 .chip {
   display: inline-block;
   padding: 0 0.5rem;

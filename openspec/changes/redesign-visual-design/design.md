@@ -31,7 +31,7 @@ Constraints: the accessible-name convention in `docs/frontend-standards.md` is f
 - No new screens (the project-list gap in `frontend-standards.md` § Not Yet Decided stays open).
 - No manual theme toggle; the OS preference decides.
 - No gesture-driven interaction (drag, swipe); nothing here needs a spring physics library.
-- No backend, API or data-model change. No new data shown: the mockup's voice-over duration line and "Started …" timestamp are illustrative and are not built, because the session read does not carry them.
+- No backend, API or data-model change. No new data is requested: the panel's "Started …" line uses `createdAt`, which the session read already carries (`docs/api-spec.yml`) and `types.ts` now declares. The mockup's voice-over duration line is illustrative and is not built, because the session read does not carry it.
 
 ## Decisions
 
@@ -70,7 +70,7 @@ The existing modifiers stay as text beside the label: a held scene shows "Waitin
 
 ### 4. Layout: project panel + pipeline, CSS grid with one breakpoint
 
-`SessionPage` wraps its content in a grid: an `<aside>` project panel and a pipeline column. At ≥1024px the grid is `320px minmax(0, 1fr)` and the panel is `position: sticky`; below, one column. The panel contains, in order: the title (now an `h1`), the language, the script inside a native `<details>`/`<summary>` ("Show script"), and the unchanged `SessionHeader` section with its pause/continue button stretched to full width.
+`SessionPage` wraps its content in a grid: an `<aside>` project panel and a pipeline column. At ≥1024px the grid is `320px minmax(0, 1fr)` and the panel is `position: sticky`; below, one column. The panel contains, in order: the title (now an `h1`), the language and a "Started …" time (from `createdAt`), the script inside a native `<details>`/`<summary>` ("Show script" / "Hide script"), the unchanged `SessionHeader` section with its pause/continue button stretched to full width, a named "Scenes done" progress bar (a count of `chunk-complete` scenes; present only when scenes exist), and the session id.
 
 The pipeline column contains a new `PhaseStepper` (a `<div role="group" aria-label="Pipeline progress">` with one step per phase: icon, phase name, status label) and then the existing `PhaseSection`s rendered as cards. The stepper is read from `session.phases` only; it derives nothing. It is deliberately a group, not an `<ol>`: existing tests (and agent-driven E2E) read the page's `listitem` roles as "the scenes", so scene rows must stay the only list items besides the stage diagnostics.
 

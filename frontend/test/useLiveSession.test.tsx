@@ -57,6 +57,7 @@ function snapshot(overrides: Partial<SessionSnapshot["session"]> = {}, scenes: S
       held: [],
       running: [],
       phases: [],
+      createdAt: "2026-09-25T00:00:00.000Z",
       updatedAt: "2026-09-25T00:00:00.000Z",
       ...overrides,
     },

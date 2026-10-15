@@ -46,15 +46,24 @@ frontend/
 │   │   ├── client.ts           # typed fetch wrappers, one per backend endpoint
 │   │   └── useLiveSession.ts   # the ONE seam every view consumes live state through
 │   ├── components/
+│   │   ├── TopBar.tsx            # wordmark, connection indicator, "New project"
 │   │   ├── StartProjectForm.tsx
+│   │   ├── SessionPage.tsx       # project panel beside the pipeline
 │   │   ├── SessionHeader.tsx
+│   │   ├── PhaseStepper.tsx      # the four phases at a glance (a group, not a list)
+│   │   ├── PhaseSection.tsx
+│   │   ├── PhaseRetryButton.tsx
 │   │   ├── SceneList.tsx
-│   │   ├── SceneRow.tsx
-│   │   └── FinalVideoDownload.tsx
+│   │   ├── SceneRow.tsx          # a scene card
+│   │   ├── FinalVideoDownload.tsx
+│   │   ├── StatusPill.tsx        # label + icon + status class, drawn the same everywhere
+│   │   └── Icon.tsx              # ten inline glyphs, always hidden from the accessibility tree
 │   ├── styles/
-│   │   ├── tokens.css           # color/type design tokens (see Visual Design)
-│   │   ├── app.css              # layout + per-status classes, consumes tokens.css
-│   │   └── status.ts            # the one state→status-class mapping every component uses
+│   │   ├── tokens.css           # color/type/depth tokens, light and dark (see Visual Design)
+│   │   ├── app.css              # layout + motion, consumes tokens.css only
+│   │   └── status.ts            # the one state→status-class (and →icon) mapping every component uses
+│   ├── phaseLabels.ts            # phase and phase-status words
+│   ├── statusLabels.ts           # scene and session state words, affected stage, warning sentences
 │   ├── types.ts                 # mirrors the backend's wire contract (see Not Yet Decided)
 │   └── App.tsx                  # identifier-based routing via a URL query param
 ├── test/
@@ -118,6 +127,8 @@ Fixed here as a documented convention, not left to per-story judgement (`docs/ad
 | A scene row | `Scene {index}` (`aria-label` on the `<li>`) | `Scene 7` |
 | Expand/collapse a scene's details | `View scene {index} details` / `Hide scene {index} details` | `View scene 7 details` |
 | A phase section | `{Phase} phase` (`aria-label` on the `<section>`; phases `Voice-over`, `Decomposition`, `Scenes`, `Final video`) | `Decomposition phase` |
+| The phase stepper (JOS-198) | `Pipeline progress` (`role="group"`, deliberately not a list: scene rows are the page's only list items besides stage lists) | `Pipeline progress` |
+| Scenes done (JOS-198) | `Scenes done` (a native `<progress>`; present only when scenes exist) | — |
 | Retry a failed scene | `Retry scene {index}` | `Retry scene 7` |
 | Retry a failed decomposition | `Retry decomposition` (the shared `PhaseRetryButton`, rendered by `PhaseSection` from `phaseActions`) | `Retry decomposition` |
 | Retry a failed assembly (JOS-159) | `Retry final video` (the same shared `PhaseRetryButton`; offered whatever `retryable` is — Decision 7) | `Retry final video` |
@@ -163,14 +174,20 @@ Decided by `docs/adr/0007-deployment.md` (JOS-194): the frontend is built once a
 
 ## Visual Design
 
-Decided in `define-visual-design` (JOS-180 follow-up), resolving the deferral recorded in `docs/adr/0004-frontend-stack.md`. Two working mockups of the real session-view screen were built and product-owner reviewed before implementation; the chosen direction — **"Render Console"** — is a dark, monospace, pipeline-monitor aesthetic, deliberately fixed (no light-mode variant, no `prefers-color-scheme` adaptation).
+**"Studio"** (`redesign-visual-design`, JOS-198) replaces the earlier "Render Console" direction of `define-visual-design`. It was chosen by product-owner review of a clickable mockup (`https://claude.ai/artifact/3HdP5s6BDdPAJ6eAs8mebS`, version 2); the earlier mockup review is recorded in `docs/adr/0004-frontend-stack.md`. Light surfaces and a dark counterpart that follows the operating system, plain-language status, raised ("extruded") surfaces, and a small spring in how things open.
 
-- **Tokens**: `src/styles/tokens.css` — CSS custom properties for color (`--color-bg`, `--color-text`, `--color-muted`, `--color-border`, `--color-status-complete`, `--color-status-progress`, `--color-status-failed`, `--color-status-queued`) and type (`--font-mono`: `IBM Plex Mono` with a system-monospace fallback). Components style themselves against these tokens in `src/styles/app.css` — no component hardcodes a color or font literal.
-- **Status encoding**: `src/styles/status.ts` exports `sceneStatusClass`/`sessionStatusClass`, the one shared mapping from every chunk state (6) and session state (8) to one of four status classes (`status-complete`, `status-progress`, `status-failed`, `status-queued`), rendered as a left-edge color bar plus matching text color. Status is **never color-only**: the existing text label (e.g. "chunk-complete", "failed — image generation", "— paused") is what a component already rendered before this change, and remains the primary signal; color is additive. `sceneStatusClass` takes an optional `held` argument: a held scene maps to `status-queued` whatever its own state (`distinguish-paused-session`, JOS-153, Decision 6) — it is waiting, not in progress.
-- **`held` and `running` are rendered exactly as the backend sends them, never recomputed or re-derived in a component.** (`distinguish-paused-session`, JOS-153, Decision 1; `consult-session` Decision 6, `pause-and-continue-session` Decision 7.) `SessionHeader` takes `session.held`/`session.running` and lists them; it does not infer "still generating" from session or scene state itself. `SceneList`/`SceneRow` take `paused` and the scene's own `held` flag and decide the row's label (`— still generating` / `— waiting for continue`) from those two plus the scene's state — they do not count sibling scenes or read `session.running` directly. A new session-level stage that records in-flight work needs no frontend change: it appears in `running` from the backend and the existing rendering picks it up.
-- **The paused marker is a status line, never `role="alert"`.** (`distinguish-paused-session`, JOS-153, Decision 5.) `role="alert"` is reserved for failures and warnings in this UI (the failed-phase line, duration/speed-factor warnings); presenting a pause as an alert would read as a problem rather than a normal, reversible state. The marker, the running line and the held line are each their own `<p>`, not wrapped in or combined with an alert region.
-- **No UI component library**: unchanged from the original stack decision — plain CSS, no Bootstrap/MUI/Tailwind runtime.
-- **No markup or accessible-name change**: this was a CSS-and-classname-only change over the prototype `define-frontend-stack` proved automatable. See `openspec/changes/define-visual-design/` for the full proposal, design rationale, and verification reports (unit tests, curl check, browser-driven E2E).
+- **Tokens**: `src/styles/tokens.css`. Every colour is defined for both themes: the light palette on `:root`, the dark values overriding only what differs inside `@media (prefers-color-scheme: dark)` (with `color-scheme: dark`). Surfaces and text: `--color-bg`, `--color-surface`, `--color-surface-sunken`, `--color-text`, `--color-muted`, `--color-border`. One interactive colour: `--color-accent` (+ `--color-on-accent`). Status: `--color-status-complete|progress|failed|queued`, tinted by `--tint-pill` (13%) and `--tint-callout` (9%). Depth: `--extrude-sm|--extrude|--extrude-lift|--extrude-pressed` (a lit top edge, a solid side, a soft cast shadow). Type: `--font-ui` (`system-ui`; the packaged app targets macOS and Windows) and `--font-mono` (the session id only), `--font-size-xs`…`xl`. Space: `--space-1`…`6` (4/8 rhythm in `rem`), `--radius-control`, `--radius-card`. Motion: one `--ease-spring`.
+- **No literals in components**: `src/styles/app.css` consumes tokens only; no component hardcodes a colour, font or shadow. Changing a colour pair means re-running the contrast check below.
+- **Contrast is computed, not eyeballed**: `openspec/changes/redesign-visual-design/reports/contrast.mjs` reads `tokens.css` and checks every text/background pair in both themes, including status text on its tinted pill and callout backgrounds (WCAG 2.x, 4.5:1). 50 pairs, 0 failing at JOS-198; the table is `contrast-output.md` beside it. The mockup's lighter status colours measured 3.9-4.4 on their tints, which is why the light-theme status colours are darker than in the mockup.
+- **Status is never colour-only, and never a raw state string.** `src/statusLabels.ts` holds the one mapping from a scene or session state to its words (`Queued`, `Generating image`, `Image ready`, `Generating clip`, `Done`, `Failed`; `Registered`, `Recording voice-over`, `Voice-over ready`, `Splitting into scenes`, `Generating scenes`, `Assembling final video`, `Final video ready`, `Needs attention`), `src/phaseLabels.ts` for phases, and `src/styles/status.ts` the one mapping from state to a status class and its icon (`check`, `progress`, `failed`, `queued`). `StatusPill` draws label + icon + colour together; the label is the signal. The wire values are never shown. The affected stage reads `Image`/`Clip`, and the two scene warnings are sentences taken from the wire contract's own definitions, with no numeric limit repeated.
+- **Held scenes**: `sceneStatusClass` takes an optional `held` argument: a held scene maps to `status-queued` whatever its own state (`distinguish-paused-session`, JOS-153, Decision 6) — it is waiting, not in progress.
+- **`held` and `running` are rendered exactly as the backend sends them, never recomputed or re-derived in a component.** (`distinguish-paused-session`, JOS-153, Decision 1; `consult-session` Decision 6, `pause-and-continue-session` Decision 7.) `SessionHeader` takes `session.held`/`session.running` and lists them; it does not infer "still generating" from session or scene state itself. `SceneList`/`SceneRow` take `paused` and the scene's own `held` flag and decide the card's note (`Still generating` / `Waiting for continue`) from those two plus the scene's state — they do not count sibling scenes or read `session.running` directly. A new session-level stage that records in-flight work needs no frontend change: it appears in `running` from the backend and the existing rendering picks it up.
+- **The paused marker is a status line, never `role="alert"`.** (`distinguish-paused-session`, JOS-153, Decision 5.) `role="alert"` is reserved for failures and warnings in this UI (the failed-phase line, a phase's failure cause, the duration and speed-factor warnings); presenting a pause as an alert would read as a problem rather than a normal, reversible state. The marker, the running line and the held line are each their own `<p>`.
+- **Layout**: a top bar (`TopBar`: wordmark, `Live`/`Connecting…`, `New project`) over a project panel and the pipeline. At 1024px and wider the panel (title, language, `Started …`, script disclosure, session status, `Scenes done`, session id) is sticky beside the pipeline; below, it stacks above it. The pipeline is the `Pipeline progress` stepper, then one card per phase. Scenes are a responsive grid of cards; expanding one makes it span the row, replaces the thumbnail with the single named image, and shows the details in two columns (no empty media column when there is nothing to show). The page body never scrolls horizontally from 375px up.
+- **Motion** (`app.css`, last blocks): `transform` and `opacity` only; never blocks input. Buttons sink into their extrusion on press and spring back; a scene's details open from the card's top edge with a small overshoot; panels, steps and cards pop in staggered when they mount. Because entrances are CSS animations on mount, a live update changes a card's label in place and replays nothing (React keeps the node). `prefers-reduced-motion: reduce` removes every animation and the press/hover movement; `prefers-reduced-transparency: reduce` makes the top bar opaque.
+- **Icons**: `Icon.tsx` holds a closed set of ten inline SVGs (`currentColor`), always `aria-hidden` and `focusable="false"`, so an icon beside a label never changes an accessible name. No icon library.
+- **No UI component library**: unchanged from the original stack decision — plain CSS, no Bootstrap/MUI/Tailwind runtime, and no animation library (design Decision 1 of `redesign-visual-design`: the interactions are not gesture-driven, so a spring-physics library would add weight without benefit).
+- **No accessible-name change**: the naming convention above is unchanged apart from two additions (`Pipeline progress`, `Scenes done`); the "Accessible naming convention" suite passes without edits. See `openspec/changes/redesign-visual-design/` for the proposal, design, spec and verification reports (unit tests, endpoint check, browser E2E with screenshots in light and dark at 375/1024/1440px).
 
 ## Not Yet Decided
 

@@ -59,6 +59,7 @@ function makeSession(overrides: Partial<SessionEventPayload>): SessionEventPaylo
     held: [],
     running: [],
     phases: makePhases(),
+    createdAt: "2026-09-25T00:00:00.000Z",
     updatedAt: "2026-09-25T00:00:00.000Z",
     ...overrides,
   };
@@ -1549,6 +1550,15 @@ describe("The session page layout (JOS-198)", () => {
     expect(panel.getByRole("region", { name: "Session status" })).toBeInTheDocument();
   });
 
+  it("shows when the session was started, as a machine-readable time", () => {
+    const snapshot = snapshotWith([]);
+    snapshot.session.createdAt = "2026-10-14T10:42:00.000Z";
+    render(<SessionPage {...baseProps} snapshot={snapshot} />);
+    const started = within(screen.getByRole("complementary")).getByText(/^Started /);
+    expect(started.tagName).toBe("TIME");
+    expect(started).toHaveAttribute("datetime", "2026-10-14T10:42:00.000Z");
+  });
+
   it("shows a pipeline progress group with the four steps in order, each with its status label", () => {
     render(<SessionPage {...baseProps} snapshot={snapshotWith([])} />);
     const group = screen.getByRole("group", { name: "Pipeline progress" });
@@ -1682,6 +1692,28 @@ describe("Scene cards (JOS-198)", () => {
     await expandScene(1);
     expect(screen.getByText(DURATION_WARNING_TEXT)).toHaveAttribute("role", "alert");
     expect(screen.getByText(SPEED_WARNING_TEXT)).toHaveAttribute("role", "alert");
+  });
+
+  it("keeps the same DOM node across a live state change, so its entrance does not replay", () => {
+    const list = (state: SceneState) => (
+      <SceneList scenes={[makeScene({ sceneId: "a", index: 1, state }), makeScene({ sceneId: "b", index: 2, state: "submitted" })]} {...props} />
+    );
+    const { rerender } = render(list("image-generating"));
+    const before = [screen.getByRole("listitem", { name: "Scene 1" }), screen.getByRole("listitem", { name: "Scene 2" })];
+
+    rerender(list("chunk-complete"));
+
+    expect(screen.getByRole("listitem", { name: "Scene 1" })).toBe(before[0]);
+    expect(screen.getByRole("listitem", { name: "Scene 2" })).toBe(before[1]);
+    expect(within(before[0] as HTMLElement).getByText("Done")).toBeInTheDocument();
+  });
+
+  it("renders no empty media column for a scene that has no image, clip or download", async () => {
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "failed", affectedStage: "image", errorCause: "refused" })} {...props} />);
+    await expandScene(1);
+    const row = screen.getByRole("listitem", { name: "Scene 1" });
+    expect(row.querySelector(".scene-media")).toBeNull();
+    expect(row.querySelector(".scene-info")).not.toBeNull();
   });
 
   it("keeps the numeric values as plain text", async () => {

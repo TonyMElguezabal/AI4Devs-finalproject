@@ -58,7 +58,7 @@ Every behaviour or markup change starts with a failing test (TDD), and every sce
 
 - [x] 5.1 Write failing tests for `SessionPage`: a project panel (`<aside>`) contains the title as a level-1 heading, the language, a "Show script" disclosure with the script, and the "Session status" section; the pipeline column contains a group named `Pipeline progress` (not a list, so scene rows stay the only list items) whose four steps read, in order, each phase name and its status label; the four phase sections still follow.
 
-  Deviation from design Decision 4 as first written: the stepper is a `group`, not an `<ol>` (design.md updated), because existing tests count `listitem` roles as scene rows. Also added, beyond the listed tasks: a named `Scenes done` progress bar in the project panel (derived from the scene list's `chunk-complete` count, never stored) and a "Loading session" line before the first snapshot.
+  Deviation from design Decision 4 as first written: the stepper is a `group`, not an `<ol>` (design.md updated), because existing tests count `listitem` roles as scene rows. Also added, beyond the listed tasks: a "Started …" `<time>` from the wire's `createdAt` (the first draft of design.md wrongly said the session read lacks it), a named `Scenes done` progress bar in the project panel (derived from the scene list's `chunk-complete` count, never stored) and a "Loading session" line before the first snapshot.
 - [x] 5.2 Implement `src/components/PhaseStepper.tsx` (reads `session.phases` only) and the panel/pipeline structure in `SessionPage`; make 5.1 pass.
 - [x] 5.3 Write failing tests for `SessionHeader`: the session state shows as its plain label (not the raw string) in a status pill; the paused marker, still-generating, held, failed-phase and failed-scenes lines are unchanged; Pause/Continue keep their names. Implement; make them pass.
 - [x] 5.4 Write failing tests for `PhaseSection`: the status renders as a `StatusPill`; a failure renders as a callout containing the cause (still `role="alert"`) and, when offered, the `Retry decomposition` button; held work renders as "Waiting for you to continue (N held)". Implement; make them pass.
@@ -83,43 +83,45 @@ Every behaviour or markup change starts with a failing test (TDD), and every sce
 
 ## 9. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 9.1 Rewrite the assertions listed in task 1.3 to the new labels and text; change nothing else in those tests.
-- [ ] 9.2 Confirm the "Accessible naming convention" suite in `test/components.test.tsx` passes with no edit to it.
-- [ ] 9.3 Confirm every scenario in `specs/visual-design/spec.md` is covered, naming for each whether it is a unit test, the contrast script or an E2E check; list the mapping in the step 10 report. Map JOS-198's five acceptance criteria the same way.
+- [x] 9.1 Rewrite the assertions listed in task 1.3 to the new labels and text; change nothing else in those tests.
+- [x] 9.2 Confirm the "Accessible naming convention" suite in `test/components.test.tsx` passes with no edit to it.
+- [x] 9.3 Confirm every scenario in `specs/visual-design/spec.md` is covered, naming for each whether it is a unit test, the contrast script or an E2E check; list the mapping in the step 10 report. Map JOS-198's five acceptance criteria the same way.
 
 ## 10. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 10.1 Capture the pre-test baseline of the default store (row counts per table, applied migrations) and `data/projects/` contents. This change touches no backend code; the baseline proves the frontend suite leaves them untouched.
-- [ ] 10.2 Run the targeted tests (`frontend/test/components.test.tsx`) and the contrast script.
-- [ ] 10.3 Run `npm run typecheck` and the full `npm test` in `frontend/` and `backend/`.
-- [ ] 10.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 10.5 Create the report `openspec/changes/redesign-visual-design/reports/YYYY-MM-DD-step-10-unit-test-and-db-verification.md`, including the contrast table for both themes.
-- [ ] 10.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 10.1 Capture the pre-test baseline of the default store (row counts per table, applied migrations) and `data/projects/` contents. This change touches no backend code; the baseline proves the frontend suite leaves them untouched.
+- [x] 10.2 Run the targeted tests (`frontend/test/components.test.tsx`) and the contrast script.
+- [x] 10.3 Run `npm run typecheck` and the full `npm test` in `frontend/` and `backend/`.
+- [x] 10.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 10.5 Create the report `openspec/changes/redesign-visual-design/reports/YYYY-MM-DD-step-10-unit-test-and-db-verification.md`, including the contrast table for both themes.
+- [x] 10.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 11. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 11.1 No endpoint changes. Start the real server on a scratch store and scratch projects folder; `curl GET /health`, `POST /sessions`, `GET /sessions/:id` and `GET /languages` answer as before, proving the frontend still reads the same contract.
-- [ ] 11.2 Clean up the scratch store and folder; confirm the default store is untouched; save `reports/YYYY-MM-DD-step-11-manual-endpoint-testing.md`.
+- [x] 11.1 No endpoint changes. Start the real server on a scratch store and scratch projects folder; `curl GET /health`, `POST /sessions`, `GET /sessions/:id` and `GET /languages` answer as before, proving the frontend still reads the same contract.
+- [x] 11.2 Clean up the scratch store and folder; confirm the default store is untouched; save `reports/YYYY-MM-DD-step-11-manual-endpoint-testing.md`.
 
 ## 12. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 12.1 Applies: every screen changes. Run backend (scratch store) and frontend.
-- [ ] 12.2 Start a project through the form, located by its labels; confirm the session page, the `Pipeline progress` group and the four phase sections by accessible name.
-- [ ] 12.3 Advance the session on the backend and confirm labels update live without a reload and without the other cards replaying their entrance.
-- [ ] 12.4 Expand a scene, pause and continue, and trigger a refusal or retry, all located by accessible name only.
-- [ ] 12.5 Screenshot the session page at 375, 1024 and 1440px in light and dark color schemes; confirm no horizontal scroll and the stacked/side-by-side layout.
-- [ ] 12.6 Emulate `prefers-reduced-motion: reduce` and `prefers-reduced-transparency: reduce`; confirm details open with no animation and the top bar is opaque.
-- [ ] 12.7 Restore the environment and save `reports/YYYY-MM-DD-step-12-e2e.md` with the screenshots.
+- [x] 12.1 Applies: every screen changes. Run backend (scratch store) and frontend.
+- [x] 12.2 Start a project through the form, located by its labels; confirm the session page, the `Pipeline progress` group and the four phase sections by accessible name.
+- [x] 12.3 Advance the session on the backend and confirm labels update live without a reload and without the other cards replaying their entrance.
+- [x] 12.4 Expand a scene, pause and continue, and trigger a refusal or retry, all located by accessible name only.
+- [x] 12.5 Screenshot the session page at 375, 1024 and 1440px in light and dark color schemes; confirm no horizontal scroll and the stacked/side-by-side layout.
+- [x] 12.6 Emulate `prefers-reduced-motion: reduce` and `prefers-reduced-transparency: reduce`; confirm details open with no animation and the top bar is opaque.
+- [x] 12.7 Restore the environment and save `reports/YYYY-MM-DD-step-12-e2e.md` with the screenshots.
 
 ## 13. Update Technical Documentation (MANDATORY)
 
-- [ ] 13.1 `docs/frontend-standards.md` § Visual Design: replace Render Console with the Studio direction (both palettes, typography, depth and motion tokens, status labels + icon convention, reduced-motion/transparency behaviour); update § Project Structure with `statusLabels.ts`, `Icon.tsx`, `StatusPill.tsx`, `PhaseStepper.tsx`; add `Pipeline progress` to the accessible-naming table.
-- [ ] 13.2 `docs/adr/0004-frontend-stack.md`: one line pointing to this change as superseding the Render Console visual direction.
-- [ ] 13.3 Run `graphify update .`.
+- [x] 13.1 `docs/frontend-standards.md` § Visual Design: replace Render Console with the Studio direction (both palettes, typography, depth and motion tokens, status labels + icon convention, reduced-motion/transparency behaviour); update § Project Structure with `statusLabels.ts`, `Icon.tsx`, `StatusPill.tsx`, `PhaseStepper.tsx`; add `Pipeline progress` to the accessible-naming table.
+- [x] 13.2 `docs/adr/0004-frontend-stack.md`: one line pointing to this change as superseding the Render Console visual direction.
+- [x] 13.3 Run `graphify update .`.
+
+  Result: ran in the worktree (7,925 nodes, 12,871 edges). `graphify-out/` is untracked on this branch, as in the main checkout, so it is not part of the commit.
 
 ## 14. Close out
 
-- [ ] 14.1 Commit the work on `feature/jos-198-redesign-visual-design`, path-scoped to this change.
+- [x] 14.1 Commit the work on `feature/jos-198-redesign-visual-design`, path-scoped to this change.
 - [ ] 14.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-198 and the mockup.
 - [ ] 14.3 Obtain review by at least one human, not only AI agents.
 - [ ] 14.4 Archive the OpenSpec change after merge.
