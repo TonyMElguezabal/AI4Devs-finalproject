@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { pauseRefusalSentence } from "../pauseRefusals";
 import type { ScenePauseView } from "../types";
 
@@ -24,12 +24,16 @@ export function PauseDial({ sceneIndex, pause, onSetPause }: Props) {
   const [draft, setDraft] = useState(String(pause.seconds));
   const [pending, setPending] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
+  // Enter saves and disables the field, which blurs it, which would save again: one request per change.
+  const saving = useRef(false);
 
   useEffect(() => {
     setDraft(String(pause.seconds));
   }, [pause.seconds]);
 
   async function save(seconds: number) {
+    if (saving.current) return;
+    saving.current = true;
     setPending(true);
     setRefusal(null);
     try {
@@ -38,6 +42,7 @@ export function PauseDial({ sceneIndex, pause, onSetPause }: Props) {
       setRefusal(pauseRefusalSentence(error instanceof Error ? error.message : ""));
       setDraft(String(pause.seconds));
     } finally {
+      saving.current = false;
       setPending(false);
     }
   }

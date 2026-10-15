@@ -141,41 +141,44 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 9. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 9.1 Review tests that assert the exact session or scene payload shape, the assembly arguments, `final-video.mp4` as the only file, or "assembly refuses when a final video exists"; update only where this change's specs require it.
-- [ ] 9.2 Confirm every scenario in `specs/` has at least one test, and map each to its tests in the step 10 report.
-- [ ] 9.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 9.1 Review tests that assert the exact session or scene payload shape, the assembly arguments, `final-video.mp4` as the only file, or "assembly refuses when a final video exists"; update only where this change's specs require it.
+- [x] 9.2 Confirm every scenario in `specs/` has at least one test, and map each to its tests in the step 10 report.
+- [x] 9.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
 ## 10. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 10.1 Capture the pre-test baseline of the default store (row counts per table, applied migrations, triggers) and `data/projects/`.
-- [ ] 10.2 Run the targeted tests (`scene-pause`, `scene-pause-api`, the assembly and restart tests, `components`).
-- [ ] 10.3 Run `npm run typecheck` and the full `npm test` in `backend` and `frontend` (backend with scratch `DB_PATH`/`PROJECTS_ROOT`). Run the backend suite once more in a fresh worktree without `backend/.secrets.json`.
-- [ ] 10.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 10.5 Create `openspec/changes/adjust-scene-pause/reports/YYYY-MM-DD-step-10-unit-test-and-db-verification.md`.
-- [ ] 10.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 10.1 Capture the pre-test baseline of the default store (row counts per table, applied migrations, triggers) and `data/projects/`.
+- [x] 10.2 Run the targeted tests (`scene-pause`, `scene-pause-api`, the assembly and restart tests, `components`).
+- [x] 10.3 Run `npm run typecheck` and the full `npm test` in `backend` and `frontend` (backend with scratch `DB_PATH`/`PROJECTS_ROOT`). Run the backend suite once more in a fresh worktree without `backend/.secrets.json`.
+- [x] 10.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 10.5 Create `openspec/changes/adjust-scene-pause/reports/YYYY-MM-DD-step-10-unit-test-and-db-verification.md`.
+- [x] 10.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 11. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 11.1 Start the real server on a scratch store and projects folder, with `USE_STUB_ASSEMBLY_TOOL` unset so the real ffmpeg adapter runs; reach a session with a final video (test endpoints plus the real assembly).
-- [ ] 11.2 `curl` the pause route: a valid trim (200), off-grid (422), out of range (422 with the clamp sentence), during an assembly (409), unknown scene (404).
-- [ ] 11.3 `curl` the rebuild: 202, then `GET` the session until version 2. Check that the project folder holds `final-video.mp4` and `final-video-2.mp4`, and `ffprobe` the new file for duration and sync. Then `nothing-to-rebuild` (409). Check that `GET /docs/json` documents both routes.
-- [ ] 11.4 Clean up the scratch store and folder; confirm the default store is untouched; save `reports/YYYY-MM-DD-step-11-manual-endpoint-testing.md`.
+- [x] 11.1 Start the real server on a scratch store and projects folder, with `USE_STUB_ASSEMBLY_TOOL` unset so the real ffmpeg adapter runs; reach a session with a final video (test endpoints plus the real assembly).
+- [x] 11.2 `curl` the pause route: a valid trim (200), off-grid (422), out of range (422 with the clamp sentence), during an assembly (409), unknown scene (404).
+- [x] 11.3 `curl` the rebuild: 202, then `GET` the session until version 2. Check that the project folder holds `final-video.mp4` and `final-video-2.mp4`, and `ffprobe` the new file for duration and sync. Then `nothing-to-rebuild` (409). Check that `GET /docs/json` documents both routes.
+- [x] 11.4 Clean up the scratch store and folder; confirm the default store is untouched; save `reports/YYYY-MM-DD-step-11-manual-endpoint-testing.md`.
 
 ## 12. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 12.1 Applies: the session page gains a field and an action. Run the backend (scratch store, real assembly) and the frontend.
-- [ ] 12.2 On a session with a final video, expand a scene by name, set `Pause after scene {n}`, leave the field, and confirm the saved value and `Reset scene {n} pause`.
-- [ ] 12.3 Click `Rebuild final video`. Confirm the download stays during the rebuild, the section reaches "Version 2" without a reload, and the new file downloads.
-- [ ] 12.4 Force a refusal (an off-grid value) and confirm the sentence; reset a scene and confirm `Rebuild final video` disappears when nothing is pending.
-- [ ] 12.5 Restore the environment; save `reports/YYYY-MM-DD-step-12-e2e.md` with screenshots.
+- [x] 12.1 Applies: the session page gains a field and an action. Run the backend (scratch store, real assembly) and the frontend.
+- [x] 12.2 On a session with a final video, expand a scene by name, set `Pause after scene {n}`, leave the field, and confirm the saved value and `Reset scene {n} pause`.
+- [x] 12.3 Click `Rebuild final video`. Confirm the download stays during the rebuild, the section reaches "Version 2" without a reload, and the new file downloads.
+- [x] 12.4 Force a refusal (an off-grid value) and confirm the sentence; reset a scene and confirm `Rebuild final video` disappears when nothing is pending.
+- [x] 12.5 Restore the environment; save `reports/YYYY-MM-DD-step-12-e2e.md` with screenshots.
 
 ## 13. Update Technical Documentation (MANDATORY)
 
-- [ ] 13.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only changes are the two routes and the new read fields.
-- [ ] 13.2 `docs/data-model.md`: the two tables, which one is mutable and why, the implicit version 1, and that pauses and effective intervals are derived.
-- [ ] 13.3 `docs/adr/0005-media-assembly.md`: a dated amendment to Decision 4b (stream copy unless the User edited pauses; edited builds encode once and are verified within ±1 frame), with the spike's numbers.
-- [ ] 13.4 `docs/PRD.md` §7.3: the pause dial after the final video, its range, and versioned final-video files. `docs/frontend-standards.md`: the three new accessible names.
-- [ ] 13.5 Run `graphify update .`.
+- [x] 13.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only changes are the two routes and the new read fields.
+- [x] 13.2 `docs/data-model.md`: the two tables, which one is mutable and why, the implicit version 1, and that pauses and effective intervals are derived.
+- [x] 13.3 `docs/adr/0005-media-assembly.md`: a dated amendment to Decision 4b (stream copy unless the User edited pauses; edited builds encode once and are verified within ±1 frame), with the spike's numbers.
+- [x] 13.4 `docs/PRD.md` §7.3: the pause dial after the final video, its range, and versioned final-video files. `docs/frontend-standards.md`: the three new accessible names.
+- [x] 13.5 Run `graphify update .`.
+
+  Result: ran in the worktree; `graphify-out/` is untracked on this branch (as on the integration branch's other worktrees' main checkout), so it is not part of the commit.
+  `docs/api-spec.yml` was regenerated with `app.swagger({ yaml: true })` from the real route schemas; the only changes are the two routes and the new read fields, plus a header note. The generator renders the two hand-written 422/503 descriptions of `POST /sessions` (JOS-187) as "Default Response"; those were kept as committed.
 
 ## 14. Close out
 

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { SceneList } from "../src/components/SceneList";
@@ -1795,6 +1795,20 @@ describe("The pause dial (JOS-190)", () => {
     await user.type(field, "2.5{Enter}");
 
     expect(onSetPause).toHaveBeenCalledWith("a", 2.5);
+  });
+
+  it("sends one request when Enter is followed by the field losing focus while the save is pending", async () => {
+    const user = userEvent.setup();
+    const onSetPause = vi.fn(() => new Promise<void>(() => {})); // never settles: the save stays pending
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "chunk-complete", pause })} {...base} onSetPause={onSetPause} />);
+    await expandScene(1);
+    const field = screen.getByLabelText("Pause after scene 1");
+
+    await user.clear(field);
+    await user.type(field, "3.3{Enter}");
+    fireEvent.blur(field); // the browser blurs a field that gets disabled mid-save; jsdom does not, so it is fired here
+
+    expect(onSetPause).toHaveBeenCalledTimes(1);
   });
 
   it("enables Reset only when the pause differs from the original, and restores the original", async () => {

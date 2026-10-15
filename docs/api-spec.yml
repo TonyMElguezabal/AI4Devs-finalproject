@@ -94,6 +94,16 @@
 # No behaviour change: the route, its handler, headers and status codes are
 # exactly as before.
 #
+# JOS-190 (adjust-scene-pause) — 2026-10-15: regenerated. Two new paths:
+# `POST /sessions/{sessionId}/scenes/{sceneId}/pause` (body `{ seconds }`; 200 the
+# updated scene, 404, 409 `{ ok, reason }`, 422 `{ ok, reason }` with a sentence naming
+# the scene's range) and `POST /sessions/{sessionId}/final-video/rebuild` (202
+# `{ ok, held }`, 404, 409). New read fields: `session.finalVideo` (`version`,
+# `pendingPauseEdits`, optional `rebuildFailure`) and `scene.pause` (`originalSeconds`,
+# `seconds`, `minSeconds`, `maxSeconds`, `limitedBySpeedFactor`), both present only once a
+# final video exists. Nothing else changed. It is a POST, not a PUT, because the API has
+# no PUT, PATCH or DELETE by design (content lock, AC1). The 422/503 descriptions of
+# `POST /sessions` that JOS-187 wrote by hand are kept as they were.
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -390,6 +400,35 @@ paths:
                         type: string
                         description: Route to download the assembled MP4; present only when state is
                           final-video (JOS-149).
+                      finalVideo:
+                        type: object
+                        properties:
+                          version:
+                            type: integer
+                            minimum: 1
+                            description: 1 for the original final-video.mp4; 2 onwards for each rebuild.
+                              finalVideoUrl always serves this version.
+                          pendingPauseEdits:
+                            type: boolean
+                            description: True when the User's pause edits differ from those this version was
+                              built with, so a rebuild would change it.
+                          rebuildFailure:
+                            type: object
+                            properties:
+                              cause:
+                                type: string
+                            required:
+                              - cause
+                            additionalProperties: false
+                            description: Present only while the latest rebuild attempt ended in failure. The
+                              current version is kept and a rebuild can be
+                              requested again.
+                        required:
+                          - version
+                          - pendingPauseEdits
+                        additionalProperties: false
+                        description: "adjust-scene-pause (JOS-190): present once the session has a final
+                          video. Derived on every read, never stored."
                     required:
                       - type
                       - sessionId
@@ -590,6 +629,43 @@ paths:
                           type: boolean
                           description: True while the session is paused and this scene has pending work
                             waiting to be launched.
+                        pause:
+                          type: object
+                          properties:
+                            originalSeconds:
+                              type: number
+                              description: "The silence after this scene in the narration as generated: its
+                                interval's end minus the end of its last spoken
+                                character."
+                            seconds:
+                              type: number
+                              description: The pause the User has set; equals originalSeconds when unchanged.
+                            minSeconds:
+                              type: number
+                              description: "The least the pause may be: the 0.2 s floor, raised when a shorter
+                                pause would speed this scene's clip past the
+                                speed-factor limit."
+                            maxSeconds:
+                              type: number
+                              description: "The most the pause may be: the 3.0 s cap, lowered when a longer
+                                pause would slow this scene's clip past the
+                                speed-factor limit."
+                            limitedBySpeedFactor:
+                              type: boolean
+                              description: True when the speed-factor limit, not the floor or the cap, set
+                                either bound.
+                          required:
+                            - originalSeconds
+                            - seconds
+                            - minSeconds
+                            - maxSeconds
+                            - limitedBySpeedFactor
+                          additionalProperties: false
+                          description: "adjust-scene-pause (JOS-190): the dial for the silence after this
+                            scene. Present only once the session has a final
+                            video and this scene's pause can be derived. Derived
+                            on every read; the stored interval is never
+                            changed."
                         updatedAt:
                           type: string
                       required:
@@ -865,6 +941,35 @@ paths:
                         type: string
                         description: Route to download the assembled MP4; present only when state is
                           final-video (JOS-149).
+                      finalVideo:
+                        type: object
+                        properties:
+                          version:
+                            type: integer
+                            minimum: 1
+                            description: 1 for the original final-video.mp4; 2 onwards for each rebuild.
+                              finalVideoUrl always serves this version.
+                          pendingPauseEdits:
+                            type: boolean
+                            description: True when the User's pause edits differ from those this version was
+                              built with, so a rebuild would change it.
+                          rebuildFailure:
+                            type: object
+                            properties:
+                              cause:
+                                type: string
+                            required:
+                              - cause
+                            additionalProperties: false
+                            description: Present only while the latest rebuild attempt ended in failure. The
+                              current version is kept and a rebuild can be
+                              requested again.
+                        required:
+                          - version
+                          - pendingPauseEdits
+                        additionalProperties: false
+                        description: "adjust-scene-pause (JOS-190): present once the session has a final
+                          video. Derived on every read, never stored."
                     required:
                       - type
                       - sessionId
@@ -1065,6 +1170,43 @@ paths:
                           type: boolean
                           description: True while the session is paused and this scene has pending work
                             waiting to be launched.
+                        pause:
+                          type: object
+                          properties:
+                            originalSeconds:
+                              type: number
+                              description: "The silence after this scene in the narration as generated: its
+                                interval's end minus the end of its last spoken
+                                character."
+                            seconds:
+                              type: number
+                              description: The pause the User has set; equals originalSeconds when unchanged.
+                            minSeconds:
+                              type: number
+                              description: "The least the pause may be: the 0.2 s floor, raised when a shorter
+                                pause would speed this scene's clip past the
+                                speed-factor limit."
+                            maxSeconds:
+                              type: number
+                              description: "The most the pause may be: the 3.0 s cap, lowered when a longer
+                                pause would slow this scene's clip past the
+                                speed-factor limit."
+                            limitedBySpeedFactor:
+                              type: boolean
+                              description: True when the speed-factor limit, not the floor or the cap, set
+                                either bound.
+                          required:
+                            - originalSeconds
+                            - seconds
+                            - minSeconds
+                            - maxSeconds
+                            - limitedBySpeedFactor
+                          additionalProperties: false
+                          description: "adjust-scene-pause (JOS-190): the dial for the silence after this
+                            scene. Present only once the session has a final
+                            video and this scene's pause can be derived. Derived
+                            on every read; the stored interval is never
+                            changed."
                         updatedAt:
                           type: string
                       required:
@@ -1256,6 +1398,380 @@ paths:
           required: true
       responses:
         "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  held:
+                    type: boolean
+                    description: "True while the session is paused: the retry is accepted and waits
+                      for continue."
+                required:
+                  - ok
+                  - held
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /sessions/{sessionId}/scenes/{sceneId}/pause:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seconds:
+                  type: number
+                  minimum: 0
+              required:
+                - seconds
+              additionalProperties: false
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: sessionId
+          required: true
+        - schema:
+            type: string
+          in: path
+          name: sceneId
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum:
+                      - scene
+                  sessionId:
+                    type: string
+                  sceneId:
+                    type: string
+                  index:
+                    type: number
+                  state:
+                    type: string
+                  affectedStage:
+                    type: string
+                    enum:
+                      - image
+                      - video
+                  errorCause:
+                    type: string
+                    nullable: true
+                  stages:
+                    type: object
+                    properties:
+                      image:
+                        type: object
+                        properties:
+                          stage:
+                            type: string
+                            enum:
+                              - image
+                              - video
+                              - voice-over
+                              - timestamps
+                              - instructions
+                              - assembly
+                          provider:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                              model:
+                                type: string
+                                nullable: true
+                            required:
+                              - name
+                              - model
+                            additionalProperties: false
+                          attempts:
+                            type: integer
+                            minimum: 1
+                            description: Attempts recorded for this stage across every retry cycle,
+                              including one still in flight.
+                        required:
+                          - stage
+                          - provider
+                          - attempts
+                        additionalProperties: false
+                      video:
+                        type: object
+                        properties:
+                          stage:
+                            type: string
+                            enum:
+                              - image
+                              - video
+                              - voice-over
+                              - timestamps
+                              - instructions
+                              - assembly
+                          provider:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                              model:
+                                type: string
+                                nullable: true
+                            required:
+                              - name
+                              - model
+                            additionalProperties: false
+                          attempts:
+                            type: integer
+                            minimum: 1
+                            description: Attempts recorded for this stage across every retry cycle,
+                              including one still in flight.
+                        required:
+                          - stage
+                          - provider
+                          - attempts
+                        additionalProperties: false
+                    additionalProperties: false
+                    description: "PRD §3: which provider each stage used and how many attempts it
+                      made. A key is present once that stage has at least one
+                      attempt. Derived from the stored attempt records, never
+                      stored."
+                  result:
+                    type: object
+                    properties:
+                      imageUrl:
+                        type: string
+                      videoUrl:
+                        type: string
+                    additionalProperties: false
+                  downloads:
+                    type: object
+                    properties:
+                      imageUrl:
+                        type: string
+                      clipUrl:
+                        type: string
+                    additionalProperties: false
+                    description: "download-scene-results (JOS-163): present only for the files that
+                      actually exist. The page offers a download link for
+                      exactly these."
+                  instruction:
+                    type: string
+                  prompt:
+                    type: string
+                    description: "PRD §3 PROMPT: the fragment of the script this chunk narrates.
+                      Immutable once the chunk is established (PRD §6)."
+                  imageInstruction:
+                    type: string
+                    description: "PRD §3 IMAGE: the instruction to generate the chunk's image."
+                  videoInstruction:
+                    type: string
+                    description: "PRD §3 VIDEO: the instruction to animate the chunk's image."
+                  narrationInterval:
+                    type: object
+                    properties:
+                      startSeconds:
+                        type: number
+                      endSeconds:
+                        type: number
+                    required:
+                      - startSeconds
+                      - endSeconds
+                    additionalProperties: false
+                    description: "PRD §3 and §7.3: the part of the voice-over this chunk narrates,
+                      in seconds. The intervals of a session's chunks are
+                      contiguous and cover the voice-over from 0 to its full
+                      duration. Read-only and immutable once the chunk is
+                      established; absent for a scene created without a
+                      decomposition."
+                  requestedDurationSeconds:
+                    type: number
+                    description: "PRD §7.2: the video provider's admitted clip duration requested
+                      for this chunk, chosen as the one needing the smallest
+                      speed change to match its narrated interval. Read-only and
+                      immutable once the chunk is established; absent for a
+                      scene created without a decomposition."
+                  durationWarning:
+                    type: string
+                    enum:
+                      - exceeds-maximum
+                    description: "PRD §6.1.1: set when the chunk's narrated interval is longer than
+                      the provider's largest admitted duration (an unsplittable
+                      sentence), so the requested duration had to be capped at
+                      that maximum. Not a failure. Read-only and immutable once
+                      the chunk is established."
+                  speedFactor:
+                    type: number
+                    description: "PRD §7.2/AC23: the speed-adjustment factor the requested duration
+                      implies (`max(requested/narrated, narrated/requested)`,
+                      always >= 1). Read-only and immutable once the chunk is
+                      established; absent for a scene created without a
+                      decomposition."
+                  speedFactorWarning:
+                    type: string
+                    enum:
+                      - exceeds-limit
+                    description: "PRD §7.2: set when the speed-adjustment factor exceeds the
+                      hardcoded acceptable limit. Not a failure, and independent
+                      of durationWarning. Read-only and immutable once the chunk
+                      is established."
+                  held:
+                    type: boolean
+                    description: True while the session is paused and this scene has pending work
+                      waiting to be launched.
+                  pause:
+                    type: object
+                    properties:
+                      originalSeconds:
+                        type: number
+                        description: "The silence after this scene in the narration as generated: its
+                          interval's end minus the end of its last spoken
+                          character."
+                      seconds:
+                        type: number
+                        description: The pause the User has set; equals originalSeconds when unchanged.
+                      minSeconds:
+                        type: number
+                        description: "The least the pause may be: the 0.2 s floor, raised when a shorter
+                          pause would speed this scene's clip past the
+                          speed-factor limit."
+                      maxSeconds:
+                        type: number
+                        description: "The most the pause may be: the 3.0 s cap, lowered when a longer
+                          pause would slow this scene's clip past the
+                          speed-factor limit."
+                      limitedBySpeedFactor:
+                        type: boolean
+                        description: True when the speed-factor limit, not the floor or the cap, set
+                          either bound.
+                    required:
+                      - originalSeconds
+                      - seconds
+                      - minSeconds
+                      - maxSeconds
+                      - limitedBySpeedFactor
+                    additionalProperties: false
+                    description: "adjust-scene-pause (JOS-190): the dial for the silence after this
+                      scene. Present only once the session has a final video and
+                      this scene's pause can be derived. Derived on every read;
+                      the stored interval is never changed."
+                  updatedAt:
+                    type: string
+                required:
+                  - type
+                  - sessionId
+                  - sceneId
+                  - index
+                  - state
+                  - stages
+                  - updatedAt
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "422":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /sessions/{sessionId}/final-video/rebuild:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              anyOf:
+                - not: {}
+                - type: object
+                  properties: {}
+                  additionalProperties: false
+                  nullable: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: sessionId
+          required: true
+      responses:
+        "202":
           description: Default Response
           content:
             application/json:

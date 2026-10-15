@@ -55,6 +55,24 @@ While tracing the last few milliseconds of an early (post-fix) drift measurement
 
 **Methodological finding, recorded so it isn't rediscovered expensively later**: `ffprobe`'s per-file `format=duration` on an intermediate container is not reliable evidence for frame-accurate accumulation — it carries its own container-metadata rounding, independent of the actual frame content. `nb_frames` on the final concatenated output is the correct signal, and is what every bound in this ADR is actually checked against.
 
+### Amendment to Decision 4b — 2026-10-15 (adjust-scene-pause, JOS-190)
+
+Decision 4b stands for every build with **no pause edits**: the voice-over is muxed with `-c:a copy`, never re-encoded. The product owner added a dial that shortens or lengthens the silence after a scene and rebuilds the final video (`openspec/specs/scene-pause-adjustment`), which cannot be done with a stream copy: removing or inserting silence changes the audio's content.
+
+For a build **with** edits, the narration is cut or extended at each pause's midpoint with an `atrim` / `anullsrc` / `concat` filtergraph (`ffmpegAssemblyTool.ts`, `buildNarrationFilter`) and encoded **once** (AAC 192 kbps). The stored MP3 is never touched. Because Decision 4b was about this exact risk, the adapter does not trust the encode: it measures the output's audio stream against the video track (`sum(frameCount) / fps`) and **fails the attempt when they differ by more than one frame**.
+
+Spike, `openspec/changes/adjust-scene-pause/reports/2026-10-15-step-1-narration-edit-spike.md` (ffmpeg 8.1.2, macOS; speech synthesized with `say`, encoded to 44.1 kHz mono 128 kbps MP3, because no real voice-over was available):
+
+| Case | Expected | Measured |
+|---|---|---|
+| Trim 1.5 s, insert 1.0 s, trim 0.6 s (net −1.1 s) | 17.0546 s | 17.0540 s |
+| Pause 2.805 s trimmed to the 0.2 s floor | 15.5495 s, 0.2 s pause kept | 15.5490 s, 0.200 s |
+| 20 separate 0.1 s cuts | 16.1546 s | 16.1540 s (constant 0.6 ms, no growth) |
+| AAC fixture → AAC, one 0.7 s cut / no edit | 13.7000 s / 14.4000 s | 13.7000 s / 14.4000 s |
+| Edited audio vs a frame-exact video | within one frame (33.3 ms) | 12.7 ms (the copy path: 12.1 ms) |
+
+**What did not reproduce.** The 7-11 ms priming-delay drift this Decision recorded for an AAC → AAC re-encode did not appear on ffmpeg 8.1.2, even with no edit. It may be version-specific, or a `format=duration` container artefact (this ADR's own methodological note). The measurement guard is kept regardless, and the ffmpeg version the packaged app ships should be recorded with any later change to this path.
+
 ## Decision 5 — Speed-factor threshold: 0.5×-2.0×, asymmetric in basis
 
 Swept a clean `testsrc` source (already at the 1920×1080@30fps target, no normalisation confound) across factors 0.5×-2.0×, measuring exact byte-identical consecutive-frame duplication on the raw filter output (encoder-noise-free — see Decision 4b's methodological note; the same container-duration pitfall was checked for here too).
