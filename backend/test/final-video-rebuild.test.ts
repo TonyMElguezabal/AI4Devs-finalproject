@@ -1,151 +1,30 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
-import * as concurrency from "../src/concurrency.ts";
 import {
   clearScenePauseEdit,
-  commitSceneResult,
   createRun,
   getFinalVideoBuilds,
   getRun,
-  getScenesForRun,
   getStageAttempts,
-  insertNarrationTimestamps,
-  insertVoiceOver,
-  markImageComplete,
-  resetAll,
   resolveArtefactPath,
   setScenePauseEdit,
-  writeArtefactOnce,
 } from "../src/db.ts";
 import { rebuildFinalVideo } from "../src/finalVideoRebuild.ts";
 import {
   RETRY_BUDGET,
   assemblyStageLauncher,
   continueSession,
-  launchVideoStageForRun,
   pauseSession,
   recoverOnBoot,
-  resetAssemblyLaunchCount,
-  resetAssemblyTool,
-  resetVideoStageStartDelayMs,
-  setAssemblyTool,
   toSnapshot,
 } from "../src/orchestrator.ts";
-import type { AssemblyInput, AssemblyResult, AssemblyTool } from "../src/assemblyTool.ts";
-import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
-import { createStubVideoProvider, resetVideoDownloadFetch, resetVideoProviderRegistry, setVideoProviderRegistry } from "../src/videoProvider.ts";
-import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
+import { SCRIPT, finishedSession, resetRebuildEnvironment, waitFor } from "./rebuildFixtures.ts";
 
 // adjust-scene-pause (JOS-190), group 6 — design Decisions 6-8: a rebuild is a fresh assembly cycle that applies the
 // stored pause edits, writes a new versioned file, never replaces an earlier one, and never marks the session failed.
 
-const PNG = Buffer.from("89504e470d0a1a0a0000000d49484452000007800000044000000000000000000000000000", "hex");
-const MP4 = Buffer.from("00000020667479706d703432", "hex");
-const TEST_VIDEO_PROVIDER = "test-video-provider";
-const SCRIPT = "Scene 1. Scene 2.";
-
-const generator: VisualInstructionGenerator = {
-  async generate(texts) {
-    return { kind: "success", pairs: texts.map((_, i) => ({ image: `img ${i + 1}`, video: `vid ${i + 1}` })) };
-  },
-};
-
-const fragments: SegmentedFragment[] = [
-  { text: "Scene 1.", narrationInterval: { startSeconds: 0, endSeconds: 5 } },
-  { text: "Scene 2.", narrationInterval: { startSeconds: 5, endSeconds: 10 } },
-];
-
-/** Seven spoken characters per scene, 0.1 s each: scene 1 speaks 0-0.7 s, scene 2 speaks 5.0-5.7 s. Both pauses are 4.3 s. */
-function narrationCharacters(): Array<{ text: string; start: number; end: number }> {
-  const out: Array<{ text: string; start: number; end: number }> = [];
-  for (const [startAt, text] of [[0, "Scene1."], [5, "Scene2."]] as const) {
-    [...text].forEach((character, index) => out.push({ text: character, start: startAt + index * 0.1, end: startAt + (index + 1) * 0.1 }));
-  }
-  return out;
-}
-
-async function waitFor(predicate: () => boolean, ms = 4000): Promise<void> {
-  const deadline = Date.now() + ms;
-  while (!predicate()) {
-    if (Date.now() >= deadline) throw new Error("waitFor timed out");
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-}
-
-type ToolMode = "success" | "transient" | "not-retryable" | { slowMs: number };
-
-/** An assembly tool that writes a real (tiny) MP4 on success and records every input it was given. */
-function tool(calls: AssemblyInput[], mode: () => ToolMode): AssemblyTool {
-  return {
-    async assemble(input): Promise<AssemblyResult> {
-      calls.push({ ...input, clips: [...input.clips] });
-      const current = mode();
-      if (current === "transient") return { kind: "failed_transient", reason: "stub transient failure" };
-      if (current === "not-retryable") return { kind: "failed_not_retryable", reason: "stub not-retryable failure" };
-      if (typeof current === "object") await new Promise((resolve) => setTimeout(resolve, current.slowMs));
-      writeFileSync(input.outputPath, MP4);
-      return { kind: "success", outputPath: input.outputPath };
-    },
-  };
-}
-
-interface Finished {
-  runId: string;
-  sceneIds: string[];
-  calls: AssemblyInput[];
-  setMode: (next: ToolMode) => void;
-}
-
-/** A session whose first assembly succeeded (final-video.mp4), with stored timestamps so pauses can be derived. */
-async function finishedSession(): Promise<Finished> {
-  const runId = randomUUID();
-  createRun(runId, "Rebuild test", SCRIPT, "en");
-  const run = getRun(runId)!;
-  const audio = writeArtefactOnce(run.projectFolder, "voice-over.mp3", Buffer.from("fake-mp3-bytes"));
-  insertVoiceOver({
-    runId,
-    audioPath: audio,
-    timestampsPath: null,
-    durationSeconds: 10,
-    sizeBytes: 14,
-    nativeTimestampsAvailable: false,
-    providerRequestId: "fake",
-    completedAt: new Date().toISOString(),
-  });
-  const characters = narrationCharacters();
-  const stored = writeArtefactOnce(run.projectFolder, "narration-timestamps.json", JSON.stringify({ mechanism: "alignment", characters }));
-  insertNarrationTimestamps({ runId, mechanism: "alignment", path: stored, characterCount: characters.length, obtainedAt: new Date().toISOString() });
-
-  const calls: AssemblyInput[] = [];
-  let mode: ToolMode = "success";
-  setAssemblyTool(tool(calls, () => mode));
-
-  const registered = await registerDecomposition(runId, fragments, generator, 10);
-  if (!registered.ok) throw new Error(`registration failed: ${registered.reason}`);
-  for (const scene of getScenesForRun(runId)) {
-    const rel = writeArtefactOnce(run.projectFolder, `scene-${scene.index}.png`, PNG);
-    commitSceneResult(scene.id, rel);
-    markImageComplete(scene.id, rel);
-  }
-  launchVideoStageForRun(runId);
-  await waitFor(() => getRun(runId)?.finalVideoPath === "final-video.mp4");
-  return { runId, sceneIds: registered.sceneIds, calls, setMode: (next) => { mode = next; } };
-}
-
-beforeEach(() => {
-  resetVideoStageStartDelayMs();
-  resetAll();
-  resetVideoProviderRegistry();
-  resetVideoDownloadFetch();
-  concurrency.resetAll();
-  resetAssemblyLaunchCount();
-  resetAssemblyTool();
-  setVideoProviderRegistry({
-    defaultIdentifier: TEST_VIDEO_PROVIDER,
-    adapters: { [TEST_VIDEO_PROVIDER]: createStubVideoProvider("success-bytes", { bytes: MP4 }) },
-  });
-});
+beforeEach(resetRebuildEnvironment);
 
 describe("a rebuild applies the stored edits in a new version (design Decision 6)", () => {
   it("opens a fresh cycle, passes shifted intervals and the narration edit, and writes final-video-2.mp4", async () => {

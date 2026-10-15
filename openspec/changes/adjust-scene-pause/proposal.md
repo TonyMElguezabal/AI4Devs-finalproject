@@ -46,7 +46,7 @@ Product-owner decisions taken while scoping this change (2026-10-15):
   - `db.ts`: a pause-edit table and a final-video-build table, plus migrations.
   - `orchestrator.ts`: effective intervals, the rebuild launch path, the session read, and the state while a rebuild runs.
   - `assemblyTool.ts` / `ffmpegAssemblyTool.ts` / `stubAssemblyTool.ts`: optional narration edits.
-  - `routes.ts`: `PUT …/scenes/:sceneId/pause` and `POST …/final-video/rebuild`.
+  - `routes.ts`: `POST …/scenes/:sceneId/pause` and `POST …/final-video/rebuild`.
   - Restart recovery for a rebuild that was in flight.
 - **Frontend:** `types.ts`, `SceneRow.tsx` (pause field), `FinalVideoDownload.tsx` (rebuild, version), `api/client.ts`, tests.
 - **Docs:** `docs/api-spec.yml` (regenerated), `docs/data-model.md`, `docs/adr/0005-provider-selection.md` (Decision 4b exception), `docs/PRD.md` §7.3, `docs/frontend-standards.md` (three new accessible names).

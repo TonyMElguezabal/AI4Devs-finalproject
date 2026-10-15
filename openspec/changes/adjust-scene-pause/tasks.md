@@ -102,18 +102,24 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 7. Backend: API and read (TDD; design Decision 9)
 
-- [ ] 7.1 Write failing tests in `backend/test/scene-pause-api.test.ts` for `PUT /sessions/:sessionId/scenes/:sceneId/pause`:
+- [x] 7.1 Write failing tests in `backend/test/scene-pause-api.test.ts` for `POST /sessions/:sessionId/scenes/:sceneId/pause`:
   - 200 with the updated scene;
   - 422 off-grid and out of range (sentence names the range and the clamp reason);
   - 409 with no final video, during an assembly, and for a scene with no pause;
   - 404 for an unknown session or scene;
   - a live snapshot is broadcast.
-- [ ] 7.2 Write failing tests for `POST /sessions/:sessionId/final-video/rebuild`: 202, 409 `no-final-video`, `assembly-in-progress` and `nothing-to-rebuild`, 404.
-- [ ] 7.3 Write failing tests for the read:
+- [x] 7.2 Write failing tests for `POST /sessions/:sessionId/final-video/rebuild`: 202, 409 `no-final-video`, `assembly-in-progress` and `nothing-to-rebuild`, 404.
+- [x] 7.3 Write failing tests for the read:
   - `scene.pause` appears only with a final video and a derivable pause;
   - `session.finalVideo` carries `version`, `pendingPauseEdits` and `rebuildFailure`;
   - the generated OpenAPI documents both routes and the new fields.
-- [ ] 7.4 Implement the routes with Zod schemas and the read fields; make 7.1-7.3 pass.
+- [x] 7.4 Implement the routes with Zod schemas and the read fields; make 7.1-7.3 pass.
+
+  Result: 17 tests in `scene-pause-api.test.ts`; full backend suite 1612 passed, 5 skipped. Changes from the design as first written:
+  - the dial is **`POST`**, not `PUT`: `session-api-surface` pins that the API has no PUT, PATCH or DELETE at all (AC1), and every mutation in this API is a POST. design.md, proposal.md and this file now say POST;
+  - the 422 sentence names the range and, when the speed factor narrowed it, why; an unreadable-timestamps or no-PROMPT scene answers 409 `no-pause`; an edit is also refused (409 `assembly-in-progress`) while a rebuild is only *requested* (held by a pause), not just while it runs;
+  - the stored value is `round(s × 10) / 10` (a first draft stored `33 × 0.1 = 3.3000000000000003`).
+  One unrelated existing test (`orchestrator.test.ts`, "delivering the same success twice…") failed once in a full run and passed on 3 isolated runs, on the base, and in 2 further full runs; it looks timing-sensitive under load and is not touched by this change.
 
 ## 8. Frontend (TDD; design Decision 10)
 

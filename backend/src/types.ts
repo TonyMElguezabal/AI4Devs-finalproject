@@ -344,6 +344,28 @@ export interface SessionEventPayload {
   updatedAt: string;
   /** Route to download the assembled MP4; present only when state is `final-video` (JOS-149). */
   finalVideoUrl?: string;
+  /** adjust-scene-pause (JOS-190), Decision 9 — present once a final video exists. Derived on every read. */
+  finalVideo?: FinalVideoStatus;
+}
+
+/** The current final video's place in its history, and what a rebuild would change. */
+export interface FinalVideoStatus {
+  /** 1 for the original `final-video.mp4`; 2 onwards for each rebuild. */
+  version: number;
+  /** True when the User's pause edits differ from those the current version was built with. */
+  pendingPauseEdits: boolean;
+  /** Present only while the latest rebuild attempt ended in failure; the current version is kept. */
+  rebuildFailure?: { cause: string };
+}
+
+/** What the dial may do for one scene (adjust-scene-pause, JOS-190). All values in seconds. */
+export interface ScenePauseView {
+  originalSeconds: number;
+  seconds: number;
+  minSeconds: number;
+  maxSeconds: number;
+  /** Whether the speed-factor limit, not the 0.2 s floor or 3.0 s cap, set a bound. */
+  limitedBySpeedFactor: boolean;
 }
 
 /** Scene event / snapshot entry — carries CURRENT state, never a delta. */
@@ -378,6 +400,8 @@ export interface SceneEventPayload {
   /** Set only when the factor exceeds the hardcoded `SPEED_FACTOR_LIMIT`. Immutable. */
   speedFactorWarning?: SpeedFactorWarning;
   held?: boolean; // true only while the session is paused and this scene has pending work
+  /** adjust-scene-pause (JOS-190): present only once the session has a final video and this scene's pause can be derived. */
+  pause?: ScenePauseView;
   updatedAt: string;
 }
 

@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
-import { getNarrationTimestamps, getRun, getScenesForRun, getVoiceOver, resolveArtefactPath } from "./db.ts";
+import { getFinalVideoBuilds, getNarrationTimestamps, getRun, getScenePauseEdits, getScenesForRun, getVoiceOver, resolveArtefactPath } from "./db.ts";
 import type { TimestampCharacter } from "./narrationTimestamps.ts";
-import { derivePauses, type PauseEditedScene } from "./scenePause.ts";
+import { derivePauses, pauseRange, type PauseEditedScene } from "./scenePause.ts";
+import type { ScenePauseView } from "./types.ts";
 
 // adjust-scene-pause (JOS-190) — the store-reading half of `scenePause.ts`: everything a session's pauses are derived
 // from (its scenes, its stored character timestamps, its voice-over), gathered once so the session read, the pause route
@@ -61,4 +62,41 @@ export function loadSessionPauses(runId: string): SessionPauses | null {
       requestedDurationSeconds: scene.requestedDurationSeconds,
     })),
   };
+}
+
+/** The pause edits the current final video was built with: none for the original file (version 1), the latest build's for a rebuild. */
+function appliedPauses(runId: string): Record<string, number> {
+  return getFinalVideoBuilds(runId).at(-1)?.pauses ?? {};
+}
+
+/** True when the stored edits differ from those the current final video was built with. */
+export function hasPendingPauseEdits(runId: string): boolean {
+  const current = getScenePauseEdits(runId);
+  const applied = appliedPauses(runId);
+  if (current.size !== Object.keys(applied).length) return true;
+  for (const [sceneId, seconds] of current) {
+    const was = applied[sceneId];
+    if (was === undefined || Math.abs(was - seconds) > 1e-6) return true;
+  }
+  return false;
+}
+
+/** Each editable scene's dial: its original and current pause and the range it may move within (Decision 2). */
+export function scenePauseViews(runId: string): Map<string, ScenePauseView> {
+  const session = loadSessionPauses(runId);
+  const views = new Map<string, ScenePauseView>();
+  if (!session) return views;
+  const edits = getScenePauseEdits(runId);
+  for (const scene of session.scenes) {
+    const original = scene.originalPauseSeconds;
+    const interval = scene.narrationInterval;
+    if (original === null || interval === null || scene.requestedDurationSeconds === null) continue;
+    const range = pauseRange({
+      clipSeconds: scene.requestedDurationSeconds,
+      speechSeconds: interval.endSeconds - interval.startSeconds - original,
+      originalSeconds: original,
+    });
+    views.set(scene.id, { ...range, seconds: edits.get(scene.id) ?? original });
+  }
+  return views;
 }

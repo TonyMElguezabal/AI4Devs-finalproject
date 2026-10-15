@@ -11,6 +11,7 @@ import {
   completeStageAttempt,
   db,
   getAllInFlightScenes,
+  getFinalVideoBuilds,
   getAllVideoGeneratingScenes,
   getImageCompleteScenesForRun,
   getProviderRequest,
@@ -59,7 +60,7 @@ import {
 } from "./db.ts";
 import type { AssemblyTool, NarrationEdit } from "./assemblyTool.ts";
 import { applyPauseEdits } from "./scenePause.ts";
-import { loadSessionPauses } from "./sessionPauses.ts";
+import { hasPendingPauseEdits, loadSessionPauses, scenePauseViews } from "./sessionPauses.ts";
 import * as concurrency from "./concurrency.ts";
 import { admitLaunch, launchHeldWork, registerStageLauncher, relaunchPendingWork, RESTART_CAUSE, sessionHeldWork, sessionRunningWork, settleAllInFlight, type SettleSummary, type StageLauncher } from "./launchGate.ts";
 import { describeProvider, diagnosticStageOf, type StageDiagnostic } from "./stageDiagnostics.ts";
@@ -83,8 +84,10 @@ import {
   type PhaseProgress,
   type PhaseStatus,
   type ProviderOutcome,
+  type FinalVideoStatus,
   type Scene,
   type SceneEventPayload,
+  type ScenePauseView,
   type SessionFailure,
   type SessionEventPayload,
   type SessionSnapshot,
@@ -334,6 +337,28 @@ export function derivePhaseProgress(input: {
   });
 }
 
+/**
+ * adjust-scene-pause (JOS-190), Decision 9 — where the current final video sits in its history, whether the User's
+ * pause edits differ from what it was built with, and why the latest rebuild failed (derived from its attempt, never
+ * stored: a failed rebuild is not the session's failure, Decision 6).
+ */
+function finalVideoStatus(runId: string, finalVideoPath: string): FinalVideoStatus {
+  const builds = getFinalVideoBuilds(runId);
+  const status: FinalVideoStatus = {
+    version: builds.at(-1)?.version ?? 1,
+    pendingPauseEdits: hasPendingPauseEdits(runId),
+  };
+  const latest = getStageAttempts(runId, "assembly").at(-1);
+  const failed = latest !== undefined && (latest.outcome === "transient" || latest.outcome === "not-retryable");
+  if (failed && finalVideoPath) {
+    const reason = latest.errorMessage ?? "an unknown error";
+    status.rebuildFailure = {
+      cause: `The new version could not be built: ${redactPaths(reason)}. Your current final video (version ${status.version}) is kept.`,
+    };
+  }
+  return status;
+}
+
 export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const run = getRun(runId);
   if (!run) return undefined;
@@ -379,10 +404,17 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     createdAt: run.createdAt,
     updatedAt: new Date().toISOString(),
     finalVideoUrl: run.finalVideoPath != null ? `/sessions/${run.id}/download/final-video` : undefined,
+    finalVideo: run.finalVideoPath != null ? finalVideoStatus(runId, run.finalVideoPath) : undefined,
   };
+  // adjust-scene-pause (JOS-190), Decision 9 — each scene's dial, only once there is a final video to rebuild.
+  const pauseViews = run.finalVideoPath != null ? scenePauseViews(runId) : new Map<string, ScenePauseView>();
   return {
     session,
-    scenes: scenes.map((s) => ({ ...sceneToPayload(s, requestCounts.get(s.id)), held: heldSceneIds.has(s.id) || undefined })),
+    scenes: scenes.map((s) => ({
+      ...sceneToPayload(s, requestCounts.get(s.id)),
+      held: heldSceneIds.has(s.id) || undefined,
+      pause: pauseViews.get(s.id),
+    })),
   };
 }
 

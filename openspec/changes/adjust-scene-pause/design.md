@@ -127,7 +127,7 @@ At boot, an in-flight rebuild attempt is settled by the existing restart path as
 
 ### 9. API and validation
 
-- **`PUT /sessions/:sessionId/scenes/:sceneId/pause`**, body `{ seconds: number }` (Zod: finite, ≥ 0).
+- **`POST /sessions/:sessionId/scenes/:sceneId/pause`**, body `{ seconds: number }` (Zod: finite, ≥ 0).
   - The server checks that the value is on the 0.1 s grid (tolerance 1e-9) or equals the original, and inside the scene's range. Otherwise it returns 422 with a sentence naming the range, and the clamp reason when relevant.
   - Also 404 (unknown session or scene), and 409 for no final video, an assembly in progress, or a scene with no derivable pause.
   - It answers 200 with the updated scene payload and broadcasts the snapshot.
