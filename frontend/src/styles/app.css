@@ -909,6 +909,62 @@ progress::-moz-progress-bar {
 
 .final-video {
   display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.final-video-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.final-video-version {
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.final-video-note {
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
+/* adjust-scene-pause (JOS-190) — the dial for the silence after a scene, inside an expanded scene card. */
+.pause-dial {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.pause-dial label {
+  font-size: var(--font-size-sm);
+  font-weight: 550;
+}
+
+.pause-dial-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pause-dial-row input {
+  width: 6.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pause-unit {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+}
+
+.pause-range,
+.pause-note {
+  font-size: var(--font-size-xs);
+  color: var(--color-muted);
 }
 
 .final-video-pending {

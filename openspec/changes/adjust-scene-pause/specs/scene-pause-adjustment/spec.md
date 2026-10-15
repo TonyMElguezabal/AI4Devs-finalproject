@@ -109,7 +109,7 @@ Once the session has a final video, the read SHALL carry, per scene with a deriv
 
 - **GIVEN** a scene whose minimum is set by the speed-factor limit at 1.0 s
 - **WHEN** its card is expanded
-- **THEN** it states that a shorter pause would speed the clip past 2.0×
+- **THEN** it states that a shorter pause would speed the clip past the speed-factor limit
 
 #### Scenario: Downloading during a rebuild
 

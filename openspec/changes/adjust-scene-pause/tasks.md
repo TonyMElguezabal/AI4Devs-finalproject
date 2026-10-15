@@ -123,19 +123,21 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 8. Frontend (TDD; design Decision 10)
 
-- [ ] 8.1 Add `pause` and `finalVideo` to `types.ts` and the test fixtures; add `setScenePause` and `rebuildFinalVideo` to `api/client.ts`.
-- [ ] 8.2 Write failing tests for the scene card:
+- [x] 8.1 Add `pause` and `finalVideo` to `types.ts` and the test fixtures; add `setScenePause` and `rebuildFinalVideo` to `api/client.ts`.
+- [x] 8.2 Write failing tests for the scene card:
   - `Pause after scene {n}` appears only when `pause` is present, with the read's min, max and value;
   - leaving the field saves the value;
   - `Reset scene {n} pause` is enabled only when the value differs and restores the original;
   - the clamp sentence appears when `limitedBySpeedFactor`;
   - a refusal shows as a status sentence.
-- [ ] 8.3 Write failing tests for the Final video section:
+- [x] 8.3 Write failing tests for the Final video section:
   - "Version N";
   - `Rebuild final video` only when edits are pending;
   - the download stays during a rebuild;
   - a failed rebuild shows its cause and keeps the button.
-- [ ] 8.4 Implement in `SceneRow.tsx` and `FinalVideoDownload.tsx` with the existing tokens and Studio styling; make 8.2-8.3 pass. The "Accessible naming convention" suite passes with only the three new names added.
+- [x] 8.4 Implement in `SceneRow.tsx` and `FinalVideoDownload.tsx` with the existing tokens and Studio styling; make 8.2-8.3 pass. The "Accessible naming convention" suite passes with only the three new names added.
+
+  Result: 18 new tests, frontend suite 231 passed; the "Accessible naming convention" suite is unedited and green. New: `PauseDial.tsx` (the field, Reset, range and speed-factor sentences, refusals), `pauseRefusals.ts` (coded refusals to sentences; the server's own 422 sentence passes through), the version/rebuild/failure/in-progress parts of `FinalVideoDownload.tsx`, `setScenePause`/`rebuildFinalVideo` in the client, and the wiring in `SceneList`, `SceneRow`, `SessionPage` and `App`. The dial and the rebuild props are optional, so every existing render of those components is unchanged. The page says "the speed-factor limit" and never the number (it lives in the backend); the spec's scenario was reworded to match. A session in `final-video-generating` that already has a final video is shown as a rebuild in progress, the previous version still downloadable.
 
 ## 9. Review and Update Existing Unit Tests (MANDATORY)
 
