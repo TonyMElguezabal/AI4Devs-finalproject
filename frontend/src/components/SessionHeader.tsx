@@ -1,5 +1,8 @@
 import type { SessionEventPayload } from "../types";
 import { sessionStatusClass } from "../styles/status";
+import { SESSION_STATE_LABEL } from "../statusLabels";
+import { Icon } from "./Icon";
+import { StatusPill } from "./StatusPill";
 
 interface Props {
   session: SessionEventPayload;
@@ -21,7 +24,9 @@ function stageList(stages: ReadonlyArray<{ stage: string; count: number }>): str
  * will start on continue (`held`) (distinguish-paused-session, JOS-153,
  * design Decision 5). The header never computes either list itself
  * (Decision 1) and never borrows the success or failure styling for the
- * pause (Decision 7): the border keeps the state's own class throughout.
+ * pause (Decision 7): the pill keeps the state's own class throughout.
+ *
+ * redesign-visual-design (JOS-198), Decision 3 — the state is shown as its plain-language label in a pill.
  */
 export function SessionHeader({ session, onPause, onContinue }: Props) {
   const offerContinue = session.paused;
@@ -29,10 +34,16 @@ export function SessionHeader({ session, onPause, onContinue }: Props) {
 
   return (
     <section aria-label="Session status" className={`session-header ${sessionStatusClass(session.state)}`}>
-      <p className="session-state-line">
-        Session state: <strong>{session.state}</strong>
-      </p>
-      {session.paused && <p className="session-paused-marker">Paused — waiting for you to continue</p>}
+      <div className="session-state-line">
+        <span className="eyebrow">Session state</span>
+        <StatusPill statusClass={sessionStatusClass(session.state)} label={SESSION_STATE_LABEL[session.state]} />
+      </div>
+      {session.paused && (
+        <p className="session-paused-marker">
+          <Icon name="pause" />
+          Paused — waiting for you to continue
+        </p>
+      )}
       {session.paused && (
         <p className="session-running-line">
           {session.running.length > 0 ? `Still generating: ${stageList(session.running)}` : "Nothing is generating"}
@@ -44,12 +55,14 @@ export function SessionHeader({ session, onPause, onContinue }: Props) {
         <p>Failed scenes: {session.failedSceneIndexes.join(", ")}</p>
       )}
       {offerContinue && (
-        <button type="button" onClick={onContinue}>
+        <button type="button" className="primary" onClick={onContinue}>
+          <Icon name="play" />
           Continue session
         </button>
       )}
       {offerPause && (
         <button type="button" onClick={onPause}>
+          <Icon name="pause" />
           Pause session
         </button>
       )}

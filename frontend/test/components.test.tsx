@@ -15,6 +15,11 @@ import { sceneActions } from "../src/sceneActions";
 import { phaseActions } from "../src/phaseActions";
 import { PHASE_LABEL, PHASE_STATUS_LABEL } from "../src/phaseLabels";
 import { API_BASE } from "../src/api/client";
+import { SCENE_STATE_LABEL, SESSION_STATE_LABEL, AFFECTED_STAGE_LABEL, DURATION_WARNING_TEXT, SPEED_WARNING_TEXT } from "../src/statusLabels";
+import { statusIcon } from "../src/styles/status";
+import { Icon, type IconName } from "../src/components/Icon";
+import { StatusPill } from "../src/components/StatusPill";
+import { TopBar } from "../src/components/TopBar";
 
 function makeScene(overrides: Partial<SceneEventPayload>): SceneEventPayload {
   return {
@@ -77,15 +82,15 @@ describe("SceneList ordering (Decision 6)", () => {
 // show-scene-results-and-actions (JOS-151) — "A state change arrives": the row
 // shows a newly delivered state without a reload.
 describe("A live state change reaches the row (JOS-151)", () => {
-  it("shows image-complete once a new snapshot reports it, without a remount", () => {
+  it("shows the Image ready label once a new snapshot reports it, without a remount", () => {
     const props = { onRetry: async () => {}, onCorrect: async () => {} };
     const { rerender } = render(<SceneList {...props} scenes={[makeScene({ sceneId: "b", index: 2, state: "image-generating" })]} />);
-    expect(screen.getByRole("listitem", { name: "Scene 2" })).toHaveTextContent("image-generating");
+    expect(screen.getByRole("listitem", { name: "Scene 2" })).toHaveTextContent("Generating image");
 
     rerender(<SceneList {...props} scenes={[makeScene({ sceneId: "b", index: 2, state: "image-complete" })]} />);
 
-    expect(screen.getByRole("listitem", { name: "Scene 2" })).toHaveTextContent("image-complete");
-    expect(screen.getByRole("listitem", { name: "Scene 2" })).not.toHaveTextContent("image-generating");
+    expect(screen.getByRole("listitem", { name: "Scene 2" })).toHaveTextContent("Image ready");
+    expect(screen.getByRole("listitem", { name: "Scene 2" })).not.toHaveTextContent("Generating image");
   });
 });
 
@@ -355,11 +360,11 @@ describe("A failed scene shows its error, affected stage and only the actions fo
     await userEvent.setup().click(screen.getByRole("button", { name: `View scene ${scene.index} details` }));
   }
 
-  it("shows the error, the stage 'image', the retry button and the correction form for an image failure", async () => {
+  it("shows the error, the stage Image, the retry button and the correction form for an image failure", async () => {
     await expand(makeScene({ sceneId: "f", index: 1, state: "failed", affectedStage: "image", errorCause: "content filter rejection" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent("content filter rejection");
-    expect(screen.getByText("Affected stage").nextElementSibling).toHaveTextContent("image");
+    expect(screen.getByText("Affected stage").nextElementSibling).toHaveTextContent("Image");
     expect(screen.getByRole("button", { name: "Retry scene 1" })).toBeInTheDocument();
     expect(screen.getByRole("form", { name: "Correct scene 1 image instruction" })).toBeInTheDocument();
   });
@@ -368,7 +373,7 @@ describe("A failed scene shows its error, affected stage and only the actions fo
     await expand(makeScene({ sceneId: "f", index: 1, state: "failed", affectedStage: "video", errorCause: "clip provider timeout" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent("clip provider timeout");
-    expect(screen.getByText("Affected stage").nextElementSibling).toHaveTextContent("video");
+    expect(screen.getByText("Affected stage").nextElementSibling).toHaveTextContent("Clip");
     expect(screen.getByRole("button", { name: "Retry scene 1" })).toBeInTheDocument();
     expect(screen.getByRole("form", { name: "Correct scene 1 video instruction" })).toBeInTheDocument();
     expect(screen.queryByRole("form", { name: "Correct scene 1 image instruction" })).not.toBeInTheDocument();
@@ -501,8 +506,8 @@ describe("Speed-adjustment factor in scene details (JOS-148)", () => {
     render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} />);
     await user.click(screen.getByRole("button", { name: "View scene 1 details" }));
 
-    const durationWarning = screen.getByText(/exceeds-maximum/);
-    const factorWarning = screen.getByText(/exceeds-limit/);
+    const durationWarning = screen.getByText(DURATION_WARNING_TEXT);
+    const factorWarning = screen.getByText(SPEED_WARNING_TEXT);
     expect(durationWarning).toBeInTheDocument();
     expect(factorWarning).toBeInTheDocument();
     expect(durationWarning).not.toBe(factorWarning);
@@ -546,13 +551,14 @@ describe("Scene status class mapping (define-visual-design, Decision 2)", () => 
   ];
 
   for (const state of ALL_SCENE_STATES) {
-    it(`renders scene state "${state}" with its mapped status class and unchanged text label`, () => {
+    it(`renders scene state "${state}" with its mapped status class and its plain-language label`, () => {
       const scene = makeScene({ sceneId: `st-${state}`, index: 1, state });
       render(<SceneRow scene={scene} onRetry={async () => {}} onCorrect={async () => {}} />);
 
       const row = screen.getByRole("listitem", { name: "Scene 1" });
       expect(row.className.split(/\s+/)).toContain(sceneStatusClass(state));
-      expect(screen.getByText(new RegExp(`— ${state}$`))).toBeInTheDocument();
+      expect(screen.getByText(SCENE_STATE_LABEL[state])).toBeInTheDocument();
+      expect(row).not.toHaveTextContent(state === "failed" ? "—" : state);
     });
   }
 
@@ -584,13 +590,14 @@ describe("Session status class mapping (define-visual-design, Decision 2)", () =
   ];
 
   for (const state of ALL_SESSION_STATES) {
-    it(`renders session state "${state}" with its mapped status class and unchanged text label`, () => {
+    it(`renders session state "${state}" with its mapped status class and its plain-language label`, () => {
       const session = makeSession({ state });
       render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
 
       const section = screen.getByRole("region", { name: "Session status" });
       expect(section.className.split(/\s+/)).toContain(sessionStatusClass(state));
-      expect(screen.getByText(new RegExp(state))).toBeInTheDocument();
+      expect(screen.getByText(SESSION_STATE_LABEL[state])).toBeInTheDocument();
+      expect(section).not.toHaveTextContent(state === "failed" ? "—" : `${state}`);
     });
   }
 
@@ -610,7 +617,7 @@ describe("SessionHeader paused and running display (JOS-153)", () => {
     const session = makeSession({ state: "chunks-processing", paused: true });
     render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
 
-    expect(screen.getByText("chunks-processing")).toBeInTheDocument();
+    expect(screen.getByText("Generating scenes")).toBeInTheDocument();
     const marker = screen.getByText("Paused — waiting for you to continue");
     expect(marker).toBeInTheDocument();
     expect(marker.closest('[role="alert"]')).toBeNull();
@@ -823,7 +830,6 @@ describe("SessionPage", () => {
   const noop = () => {};
   const baseProps = {
     sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
-    connected: true,
     notFound: false,
     onStartNew: noop,
     onPause: noop,
@@ -841,7 +847,7 @@ describe("SessionPage", () => {
     render(<SessionPage {...baseProps} snapshot={snapshot} />);
     expect(screen.getByText("My Trip")).toBeInTheDocument();
     expect(screen.getByText("A wide shot of a harbor.")).toBeInTheDocument();
-    expect(screen.getByText(/final-video/)).toBeInTheDocument();
+    expect(screen.getByText("Final video ready")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Download final video" })).toBeInTheDocument();
   });
 
@@ -954,9 +960,9 @@ describe("Scene rows: still generating vs waiting for continue (JOS-153)", () =>
     ];
     render(<SceneList scenes={scenes} paused onRetry={async () => {}} onCorrect={async () => {}} />);
 
-    expect(screen.getByRole("listitem", { name: "Scene 1" })).toHaveTextContent("chunk-complete");
-    expect(screen.getByRole("listitem", { name: "Scene 2" })).toHaveTextContent("image-generating");
-    expect(screen.getByRole("listitem", { name: "Scene 3" })).toHaveTextContent("submitted");
+    expect(screen.getByRole("listitem", { name: "Scene 1" })).toHaveTextContent("Done");
+    expect(screen.getByRole("listitem", { name: "Scene 2" })).toHaveTextContent("Generating image");
+    expect(screen.getByRole("listitem", { name: "Scene 3" })).toHaveTextContent("Queued");
   });
 });
 
@@ -1002,7 +1008,7 @@ describe("Phase actions, status classes and labels (JOS-168)", () => {
 // view-progress-by-phase (JOS-168), tasks 6.1-6.3 — design Decisions 6 and 8.
 describe("The session page shows one section per phase (JOS-168)", () => {
   const noop = () => {};
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {}, onRetryPhase: () => Promise.resolve() };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {}, onRetryPhase: () => Promise.resolve() };
   const SECTION_NAMES = ["Voice-over phase", "Decomposition phase", "Scenes phase", "Final video phase"];
 
   it("lists the four sections in pipeline order, each with its status label (6.1)", () => {
@@ -1037,7 +1043,7 @@ describe("The session page shows one section per phase (JOS-168)", () => {
     render(<SessionPage {...baseProps} snapshot={{ session, scenes: [makeScene({ sceneId: "b", index: 2, state: "failed", affectedStage: "image", errorCause: "The image provider refused the request." })] }} />);
 
     const header = within(screen.getByRole("region", { name: "Session status" }));
-    expect(header.getByText("failed")).toBeInTheDocument();
+    expect(header.getByText("Needs attention")).toBeInTheDocument();
     expect(header.getByText("Failed phase: scenes")).toBeInTheDocument();
     expect(header.getByText("Failed scenes: 2")).toBeInTheDocument();
   });
@@ -1070,7 +1076,9 @@ describe("The session page shows one section per phase (JOS-168)", () => {
     render(<SessionPage {...baseProps} snapshot={{ session, scenes }} />);
 
     const section = within(screen.getByRole("region", { name: "Scenes phase" }));
-    expect(section.getByText("Failed")).toBeInTheDocument();
+    // The phase's own status and the failed scene's label are both "Failed" (JOS-198: one label per state).
+    expect(section.getAllByText("Failed")).toHaveLength(2);
+    expect(within(section.getByRole("listitem", { name: "Scene 2" })).getByText("Failed")).toBeInTheDocument();
     await user.click(section.getByRole("button", { name: "View scene 2 details" }));
     expect(section.getByRole("button", { name: "Retry scene 2" })).toBeInTheDocument();
   });
@@ -1121,7 +1129,7 @@ describe("The session page shows one section per phase (JOS-168)", () => {
 describe("The Decomposition section offers a retry (JOS-156)", () => {
   const noop = () => {};
   const cause = "The narration's timestamps could not be obtained: alignment answered HTTP 503.";
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {} };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {} };
 
   function failedDecomposition(retryable: boolean) {
     const session = makeSession({
@@ -1208,7 +1216,7 @@ describe("The Decomposition section offers a retry (JOS-156)", () => {
 describe("The Final video section offers a retry (JOS-159)", () => {
   const noop = () => {};
   const cause = "The final video could not be assembled: stub failure. Your narration, images and clips are kept.";
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {} };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {} };
 
   function failedAssembly(retryable: boolean) {
     const session = makeSession({
@@ -1324,7 +1332,7 @@ describe("Scene details show the provider and attempts of each stage that ran (J
 
 describe("Phase sections list the session-level stages that ran (JOS-166)", () => {
   const noop = () => {};
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", connected: true, notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {}, onRetryPhase: () => Promise.resolve() };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {}, onRetryPhase: () => Promise.resolve() };
 
   const timestamps = { stage: "timestamps", provider: { name: "ElevenLabs", model: "forced alignment" }, attempts: 2 } as const;
   const instructions = { stage: "instructions", provider: { name: "OpenAI", model: "gpt-6-astra" }, attempts: 1 } as const;
@@ -1400,5 +1408,302 @@ describe("A refused submission (422 / 503)", () => {
     expect((screen.getByLabelText("Language") as HTMLSelectElement).value).toBe("en");
     expect(screen.getByRole("form", { name: "Start a project" })).toBeTruthy();
     vi.unstubAllGlobals();
+  });
+});
+
+// redesign-visual-design (JOS-198), group 3 — design Decisions 3 and 6: one mapping from state to plain-language label,
+// one mapping from status class to icon, and a decorative icon that never changes an accessible name.
+describe("Plain-language status labels (JOS-198)", () => {
+  it("labels every scene state", () => {
+    expect(SCENE_STATE_LABEL).toEqual({
+      submitted: "Queued",
+      "image-generating": "Generating image",
+      "image-complete": "Image ready",
+      "video-generating": "Generating clip",
+      "chunk-complete": "Done",
+      failed: "Failed",
+    });
+  });
+
+  it("labels every session state", () => {
+    expect(SESSION_STATE_LABEL).toEqual({
+      submitted: "Registered",
+      "voice-over-generating": "Recording voice-over",
+      "voice-over-complete": "Voice-over ready",
+      "chunk-decomposing": "Splitting into scenes",
+      "chunks-processing": "Generating scenes",
+      "final-video-generating": "Assembling final video",
+      "final-video": "Final video ready",
+      failed: "Needs attention",
+    });
+  });
+
+  it("never shows a raw wire state as a label", () => {
+    const wireStates = [...Object.keys(SCENE_STATE_LABEL), ...Object.keys(SESSION_STATE_LABEL)];
+    for (const label of [...Object.values(SCENE_STATE_LABEL), ...Object.values(SESSION_STATE_LABEL)]) {
+      expect(wireStates).not.toContain(label);
+      expect(label).not.toMatch(/^[a-z]+(-[a-z]+)+$/);
+      expect(label[0]).toBe(label[0]?.toUpperCase());
+    }
+  });
+
+  it("names the affected stage and the two warnings in words", () => {
+    expect(AFFECTED_STAGE_LABEL).toEqual({ image: "Image", video: "Clip" });
+    expect(DURATION_WARNING_TEXT).not.toMatch(/exceeds-/);
+    expect(SPEED_WARNING_TEXT).not.toMatch(/exceeds-/);
+  });
+
+  it("gives each of the four status classes one icon", () => {
+    expect(statusIcon("status-complete")).toBe("check");
+    expect(statusIcon("status-progress")).toBe("progress");
+    expect(statusIcon("status-failed")).toBe("failed");
+    expect(statusIcon("status-queued")).toBe("queued");
+  });
+});
+
+describe("Icon and StatusPill (JOS-198)", () => {
+  const NAMES: IconName[] = ["check", "progress", "failed", "queued", "pause", "play", "download", "retry", "chevron", "plus"];
+
+  it.each(NAMES)("renders %s hidden from the accessibility tree", (name) => {
+    const { container } = render(<Icon name={name} />);
+    const svg = container.querySelector("svg");
+    expect(svg).not.toBeNull();
+    expect(svg?.getAttribute("aria-hidden")).toBe("true");
+    expect(svg?.getAttribute("focusable")).toBe("false");
+  });
+
+  it("renders the label as text, the status class on the pill, and a hidden icon", () => {
+    render(<StatusPill statusClass="status-failed" label="Needs attention" />);
+    const pill = screen.getByText("Needs attention");
+    expect(pill.className.split(/\s+/)).toEqual(expect.arrayContaining(["status-pill", "status-failed"]));
+    expect(pill.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+  });
+});
+
+// group 4 — design Decision 4: the top bar owns the wordmark, the connection indicator and "New project".
+describe("TopBar (JOS-198)", () => {
+  it("shows only the wordmark on the start form", () => {
+    render(<TopBar />);
+    expect(screen.getByText("Vid4You")).toBeInTheDocument();
+    expect(screen.queryByText("Live")).not.toBeInTheDocument();
+    expect(screen.queryByText(/connecting/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("shows Live when connected and Connecting… otherwise", () => {
+    const { rerender } = render(<TopBar connected />);
+    expect(screen.getByText("Live")).toBeInTheDocument();
+    rerender(<TopBar connected={false} />);
+    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.queryByText("Live")).not.toBeInTheDocument();
+  });
+
+  it("offers New project, which calls the handler", async () => {
+    const onNewProject = vi.fn();
+    render(<TopBar connected onNewProject={onNewProject} />);
+    await userEvent.setup().click(screen.getByRole("button", { name: "New project" }));
+    expect(onNewProject).toHaveBeenCalledTimes(1);
+  });
+
+  it("adds no alert and no status landmark", () => {
+    render(<TopBar connected onNewProject={() => {}} />);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+});
+
+describe("The start form card (JOS-198)", () => {
+  it("keeps its form name and labels and adds a heading", () => {
+    render(<StartProjectForm onStart={() => {}} languages={[{ code: "en", label: "English" }]} />);
+    expect(screen.getByRole("form", { name: "Start a project" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Title")).toBeInTheDocument();
+    expect(screen.getByLabelText("Script")).toBeInTheDocument();
+    expect(screen.getByLabelText("Language")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+  });
+});
+
+// group 5 — design Decision 4: project panel beside the pipeline, a phase stepper, a plain-language header.
+describe("The session page layout (JOS-198)", () => {
+  const noop = () => {};
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {}, onRetryPhase: () => Promise.resolve() };
+
+  function snapshotWith(scenes: SceneEventPayload[]) {
+    const session = makeSession({
+      title: "My Trip",
+      script: "A wide shot of a harbor.",
+      language: "en",
+      state: "chunks-processing",
+      phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "in-progress" }),
+    });
+    return { session, scenes };
+  }
+
+  it("puts the title, language, script and status in a project panel", () => {
+    render(<SessionPage {...baseProps} snapshot={snapshotWith([])} />);
+    const panel = within(screen.getByRole("complementary"));
+    expect(panel.getByRole("heading", { level: 1, name: "My Trip" })).toBeInTheDocument();
+    expect(panel.getByText("en")).toBeInTheDocument();
+    expect(panel.getByText("Show script")).toBeInTheDocument();
+    expect(panel.getByText("A wide shot of a harbor.")).toBeInTheDocument();
+    expect(panel.getByRole("region", { name: "Session status" })).toBeInTheDocument();
+  });
+
+  it("shows a pipeline progress group with the four steps in order, each with its status label", () => {
+    render(<SessionPage {...baseProps} snapshot={snapshotWith([])} />);
+    const group = screen.getByRole("group", { name: "Pipeline progress" });
+    const steps = Array.from(group.children) as HTMLElement[];
+    expect(steps.map((step) => step.textContent)).toEqual(["Voice-overComplete", "DecompositionComplete", "ScenesIn progress", "Final videoNot started"]);
+    expect(group.querySelectorAll("svg[aria-hidden='true']").length).toBe(4);
+  });
+
+  it("keeps scene rows the only list items besides stage diagnostics", () => {
+    render(<SessionPage {...baseProps} snapshot={snapshotWith([makeScene({ sceneId: "a", index: 1 })])} />);
+    expect(screen.getAllByRole("listitem").map((row) => row.getAttribute("aria-label"))).toEqual(["Scene 1"]);
+  });
+
+  it("shows how many scenes are done, as a named progress bar", () => {
+    const scenes = [
+      makeScene({ sceneId: "a", index: 1, state: "chunk-complete" }),
+      makeScene({ sceneId: "b", index: 2, state: "image-generating" }),
+      makeScene({ sceneId: "c", index: 3, state: "chunk-complete" }),
+    ];
+    render(<SessionPage {...baseProps} snapshot={snapshotWith(scenes)} />);
+    const bar = screen.getByRole("progressbar", { name: "Scenes done" });
+    expect(bar).toHaveAttribute("value", "2");
+    expect(bar).toHaveAttribute("max", "3");
+    expect(within(screen.getByRole("complementary")).getByText("2 of 3")).toBeInTheDocument();
+  });
+
+  it("shows no progress bar while there are no scenes", () => {
+    render(<SessionPage {...baseProps} snapshot={snapshotWith([])} />);
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  it("no longer prints the raw session state or a connection line", () => {
+    render(<SessionPage {...baseProps} snapshot={snapshotWith([])} />);
+    expect(screen.getByText("Generating scenes")).toBeInTheDocument();
+    expect(screen.queryByText("chunks-processing")).not.toBeInTheDocument();
+    expect(screen.queryByText(/connect/i)).not.toBeInTheDocument();
+  });
+
+  it("says the session is loading until the first snapshot arrives", () => {
+    render(<SessionPage {...baseProps} snapshot={undefined} />);
+    expect(screen.getByText(/loading session/i)).toBeInTheDocument();
+  });
+});
+
+describe("The session header as a status pill (JOS-198)", () => {
+  it("shows the plain label in a pill carrying the state's status class", () => {
+    render(<SessionHeader session={makeSession({ state: "chunk-decomposing" })} onPause={() => {}} onContinue={() => {}} />);
+    const pill = screen.getByText("Splitting into scenes");
+    expect(pill.className.split(/\s+/)).toContain("status-pill");
+    expect(pill.className.split(/\s+/)).toContain(sessionStatusClass("chunk-decomposing"));
+  });
+
+  it("keeps Pause and Continue by name, with a hidden icon", () => {
+    const { rerender } = render(<SessionHeader session={makeSession({ state: "chunks-processing" })} onPause={() => {}} onContinue={() => {}} />);
+    const pause = screen.getByRole("button", { name: "Pause session" });
+    expect(pause.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+    rerender(<SessionHeader session={makeSession({ state: "chunks-processing", paused: true })} onPause={() => {}} onContinue={() => {}} />);
+    expect(screen.getByRole("button", { name: "Continue session" })).toBeInTheDocument();
+  });
+});
+
+describe("Phase cards (JOS-198)", () => {
+  const failed: PhaseProgress = { phase: "decomposition", status: "failed", heldCount: 0, stages: [], failure: { cause: "Timestamps could not be obtained.", retryable: true } };
+
+  it("shows the phase status as a pill", () => {
+    render(<PhaseSection progress={failed} onRetry={() => Promise.resolve()} />);
+    const pill = screen.getByText("Failed");
+    expect(pill.className.split(/\s+/)).toEqual(expect.arrayContaining(["status-pill", "status-failed"]));
+  });
+
+  it("puts the failure cause (an alert) and the retry button in one callout", () => {
+    render(<PhaseSection progress={failed} onRetry={() => Promise.resolve()} />);
+    const callout = screen.getByRole("alert").closest(".callout");
+    expect(callout).not.toBeNull();
+    expect(callout).toContainElement(screen.getByRole("button", { name: "Retry decomposition" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Timestamps could not be obtained.");
+  });
+
+  it("shows held work as a neutral callout with the same sentence as before", () => {
+    const held: PhaseProgress = { phase: "scenes", status: "in-progress", heldCount: 2, stages: [] };
+    render(<PhaseSection progress={held} />);
+    expect(screen.getByText("Waiting for you to continue (2 held)").closest(".callout")).not.toBeNull();
+  });
+});
+
+// group 6 — design Decision 5: a scene is a card; details expand it.
+describe("Scene cards (JOS-198)", () => {
+  const props = { onRetry: async () => {}, onCorrect: async () => {} };
+
+  it("shows the plain label in a pill, never the raw state", () => {
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 2, state: "video-generating" })} {...props} />);
+    const row = screen.getByRole("listitem", { name: "Scene 2" });
+    const pill = within(row).getByText("Generating clip");
+    expect(pill.className.split(/\s+/)).toEqual(expect.arrayContaining(["status-pill", "status-progress"]));
+    expect(row).not.toHaveTextContent("video-generating");
+  });
+
+  it("shows the requested duration on the card when the backend sent one", () => {
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, requestedDurationSeconds: 6 })} {...props} />);
+    expect(within(screen.getByRole("listitem", { name: "Scene 1" })).getByText("6 s")).toBeInTheDocument();
+  });
+
+  it("shows a decorative thumbnail only when the scene has an image, and hides the index badge", () => {
+    const { rerender } = render(<SceneRow scene={makeScene({ sceneId: "a", index: 1 })} {...props} />);
+    const row = screen.getByRole("listitem", { name: "Scene 1" });
+    expect(row.querySelector("img")).toBeNull();
+    expect(row.querySelector(".scene-index")?.getAttribute("aria-hidden")).toBe("true");
+
+    rerender(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "image-complete", result: { imageUrl: "/sessions/s1/scenes/a/image" } })} {...props} />);
+    const thumb = row.querySelector("img");
+    expect(thumb?.getAttribute("alt")).toBe("");
+    expect(thumb?.getAttribute("src")).toBe(`${API_BASE}/sessions/s1/scenes/a/image`);
+  });
+
+  it("swaps the thumbnail for the one named image when expanded", async () => {
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "image-complete", result: { imageUrl: "/sessions/s1/scenes/a/image" } })} {...props} />);
+    await expandScene(1);
+    const row = screen.getByRole("listitem", { name: "Scene 1" });
+    expect(row.querySelectorAll("img")).toHaveLength(1);
+    expect(screen.getByRole("img", { name: "Scene 1 image" })).toBeInTheDocument();
+    expect(row.className.split(/\s+/)).toContain("open");
+  });
+
+  it("writes the two warnings as sentences, each an alert", async () => {
+    render(
+      <SceneRow
+        scene={makeScene({ sceneId: "a", index: 1, state: "chunk-complete", requestedDurationSeconds: 10, durationWarning: "exceeds-maximum", speedFactor: 2.3, speedFactorWarning: "exceeds-limit" })}
+        {...props}
+      />,
+    );
+    await expandScene(1);
+    expect(screen.getByText(DURATION_WARNING_TEXT)).toHaveAttribute("role", "alert");
+    expect(screen.getByText(SPEED_WARNING_TEXT)).toHaveAttribute("role", "alert");
+  });
+
+  it("keeps the numeric values as plain text", async () => {
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "chunk-complete", requestedDurationSeconds: 15, speedFactor: 1.16 })} {...props} />);
+    await expandScene(1);
+    expect(screen.getByText("Requested duration").nextElementSibling).toHaveTextContent("15");
+    expect(screen.getByText("Speed factor").nextElementSibling).toHaveTextContent("1.16");
+  });
+});
+
+// group 7 — design Decision 3 + proposal: the final-video card.
+describe("The final-video card (JOS-198)", () => {
+  it("shows the download as the primary action when a url is published", () => {
+    render(<FinalVideoDownload url="/sessions/s1/download/final-video" />);
+    const link = screen.getByRole("link", { name: "Download final video" });
+    expect(link.className.split(/\s+/)).toEqual(expect.arrayContaining(["button", "primary"]));
+    expect(screen.queryByText(/available once/i)).not.toBeInTheDocument();
+  });
+
+  it("says when it becomes available while there is no url", () => {
+    render(<FinalVideoDownload url={undefined} />);
+    expect(screen.getByText("Available once every scene is done")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 });

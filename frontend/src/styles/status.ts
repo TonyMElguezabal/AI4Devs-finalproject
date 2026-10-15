@@ -1,4 +1,5 @@
 import type { PhaseStatus, SceneState, SessionState } from "../types";
+import type { IconName } from "../components/Icon";
 
 /**
  * The one shared status-to-style mapping every component draws from
@@ -48,4 +49,16 @@ export function sceneStatusClass(state: SceneState, held?: boolean): StatusClass
 
 export function sessionStatusClass(state: SessionState): StatusClass {
   return SESSION_STATE_TO_CLASS[state];
+}
+
+const STATUS_TO_ICON: Record<StatusClass, IconName> = {
+  "status-complete": "check",
+  "status-progress": "progress",
+  "status-failed": "failed",
+  "status-queued": "queued",
+};
+
+/** redesign-visual-design (JOS-198), design Decision 6 — a status's icon is chosen from the same mapping as its colour. */
+export function statusIcon(statusClass: StatusClass): IconName {
+  return STATUS_TO_ICON[statusClass];
 }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { retryRefusalSentence } from "../retryRefusals";
+import { Icon } from "./Icon";
 
 interface Props {
   label: string;
@@ -29,6 +30,7 @@ export function PhaseRetryButton({ label, onRetry }: Props) {
   return (
     <>
       <button type="button" disabled={pending} onClick={handleClick}>
+        <Icon name="retry" />
         {label}
       </button>
       {refusal && <p role="status">{refusal}</p>}

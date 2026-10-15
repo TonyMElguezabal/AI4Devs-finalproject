@@ -64,7 +64,7 @@ Mirrors `phaseLabels.ts`:
 | | | | `final-video` | Final video ready |
 | | | | `failed` | Needs attention |
 
-The existing modifiers stay as text beside the label: a held scene shows "Waiting for continue", a scene still generating during a pause shows "Still generating", and the session header keeps "Paused — waiting for you to continue", "Still generating: …" and "Waiting for continue: …". `Affected stage` shows "Image" or "Clip" through the existing `STAGE_DIAGNOSTIC_LABEL`. Duration and speed warnings become sentences ("Narration runs longer than the longest clip the provider can make", "Speed factor above the 2.00× limit") instead of `exceeds-maximum`/`exceeds-limit`.
+The existing modifiers stay as text beside the label: a held scene shows "Waiting for continue", a scene still generating during a pause shows "Still generating", and the session header keeps "Paused — waiting for you to continue", "Still generating: …" and "Waiting for continue: …". `Affected stage` shows "Image" or "Clip" through the existing `STAGE_DIAGNOSTIC_LABEL`. Duration and speed warnings become sentences taken from the wire contract's own definitions ("The narrated interval is longer than the longest clip duration the provider offers." and "The speed adjustment this clip needs is above the acceptable limit.") instead of `exceeds-maximum`/`exceeds-limit`; no numeric limit is stated, because the limit lives in the backend and the page must not repeat it.
 
 *Alternative:* keep raw state strings and only restyle. Rejected by the product owner during mockup review.
 
@@ -72,9 +72,9 @@ The existing modifiers stay as text beside the label: a held scene shows "Waitin
 
 `SessionPage` wraps its content in a grid: an `<aside>` project panel and a pipeline column. At ≥1024px the grid is `320px minmax(0, 1fr)` and the panel is `position: sticky`; below, one column. The panel contains, in order: the title (now an `h1`), the language, the script inside a native `<details>`/`<summary>` ("Show script"), and the unchanged `SessionHeader` section with its pause/continue button stretched to full width.
 
-The pipeline column contains a new `PhaseStepper` (an `<ol aria-label="Pipeline progress">` with one `<li>` per phase: icon, phase name, status label) and then the existing `PhaseSection`s rendered as cards. The stepper is read from `session.phases` only; it derives nothing.
+The pipeline column contains a new `PhaseStepper` (a `<div role="group" aria-label="Pipeline progress">` with one step per phase: icon, phase name, status label) and then the existing `PhaseSection`s rendered as cards. The stepper is read from `session.phases` only; it derives nothing. It is deliberately a group, not an `<ol>`: existing tests (and agent-driven E2E) read the page's `listitem` roles as "the scenes", so scene rows must stay the only list items besides the stage diagnostics.
 
-`App.tsx` gains a sticky top bar (`<header>`) holding the wordmark "Vid4You", the connection indicator (moved from `SessionPage`), and a "New project" button that calls the existing `handleStartNew`. The top bar is translucent (`backdrop-filter`) with a 1px shadow line instead of a border.
+`App.tsx` renders a new `TopBar` component (a sticky `<header>`) holding the wordmark "Vid4You", the connection indicator ("Live" / "Connecting…", moved out of `SessionPage`, which loses its `connected` prop) and, on a session page only, a "New project" button that calls the existing `handleStartNew`. The top bar is translucent (`backdrop-filter`) with a 1px shadow line instead of a border.
 
 *Alternative:* tabs per phase. Rejected: it hides progress in other phases, and the stepper already gives the overview.
 

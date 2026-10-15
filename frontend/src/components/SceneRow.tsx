@@ -5,6 +5,9 @@ import { sceneActions } from "../sceneActions";
 import { resolveResultUrl } from "../api/client";
 import { formatStageDiagnostic } from "../stageDiagnostics";
 import { sceneRecoveryRefusalSentence } from "../sceneRecoveryRefusals";
+import { AFFECTED_STAGE_LABEL, DURATION_WARNING_TEXT, SCENE_STATE_LABEL, SPEED_WARNING_TEXT } from "../statusLabels";
+import { Icon } from "./Icon";
+import { StatusPill } from "./StatusPill";
 
 interface Props {
   scene: SceneEventPayload;
@@ -30,6 +33,10 @@ interface Props {
  *
  * show-scene-results-and-actions (JOS-151) — the details also show the
  * stored image and clip, and a failed scene's affected stage.
+ *
+ * redesign-visual-design (JOS-198), Decision 5 — a card: a decorative thumbnail, the plain-language label in a
+ * pill, and the unchanged details toggle. Expanded, the card spans the row and shows the named image in place of
+ * the thumbnail, so a scene never has two images.
  */
 export function SceneRow({ scene, paused, onRetry, onCorrect }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -61,110 +68,149 @@ export function SceneRow({ scene, paused, onRetry, onCorrect }: Props) {
     }
   }
 
+  const imageUrl = scene.result?.imageUrl;
+  const statusClass = sceneStatusClass(scene.state, scene.held);
+
   return (
-    <li aria-label={`Scene ${scene.index}`} className={`scene-row ${sceneStatusClass(scene.state, scene.held)}`}>
-      <span className="scene-summary">
-        #{scene.index} — {scene.state}
-      </span>
-      {scene.held && <span className="scene-held"> — waiting for continue</span>}
-      {paused && !scene.held && isGenerating && <span className="scene-generating"> — still generating</span>}
-      {isFailed && <span role="alert"> {scene.errorCause}</span>}
-      <button type="button" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
-        {expanded ? `Hide scene ${scene.index} details` : `View scene ${scene.index} details`}
-      </button>
+    <li aria-label={`Scene ${scene.index}`} className={`scene-row pop ${statusClass}${expanded ? " open" : ""}`}>
+      {!expanded && (
+        <div className={`scene-thumb${!imageUrl && scene.state === "image-generating" ? " shimmer" : ""}`}>
+          {imageUrl ? <img src={resolveResultUrl(imageUrl)} alt="" /> : <Icon name={isFailed ? "failed" : "queued"} />}
+          <span className="scene-index" aria-hidden="true">
+            {scene.index}
+          </span>
+        </div>
+      )}
+      <div className="scene-body">
+        <div className="scene-line">
+          <StatusPill statusClass={statusClass} label={SCENE_STATE_LABEL[scene.state]} />
+          {scene.requestedDurationSeconds !== undefined && <span className="scene-duration">{scene.requestedDurationSeconds} s</span>}
+        </div>
+        {scene.held && <span className="scene-held">Waiting for continue</span>}
+        {paused && !scene.held && isGenerating && <span className="scene-generating">Still generating</span>}
+        {isFailed && (
+          <span role="alert" className="scene-error">
+            {scene.errorCause}
+          </span>
+        )}
+        <button type="button" className="toggle" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
+          <Icon name="chevron" />
+          {expanded ? `Hide scene ${scene.index} details` : `View scene ${scene.index} details`}
+        </button>
+      </div>
 
       {expanded && (
         <div className="scene-details">
-          <dl>
-            <dt>PROMPT</dt>
-            <dd>{scene.prompt}</dd>
-            <dt>IMAGE</dt>
-            <dd>{scene.imageInstruction}</dd>
-            <dt>VIDEO</dt>
-            <dd>{scene.videoInstruction}</dd>
-            {isFailed && scene.affectedStage && (
-              <>
-                <dt>Affected stage</dt>
-                <dd>{scene.affectedStage}</dd>
-              </>
+          <div className="scene-media">
+            {scene.result?.imageUrl && (
+              <img className="scene-image" src={resolveResultUrl(scene.result.imageUrl)} alt={`Scene ${scene.index} image`} />
             )}
-            {scene.requestedDurationSeconds !== undefined && (
-              <>
-                <dt>Requested duration</dt>
-                <dd>
-                  {scene.requestedDurationSeconds}
-                  {scene.durationWarning && <span role="alert"> {scene.durationWarning}</span>}
-                </dd>
-              </>
+            {scene.result?.videoUrl && (
+              <video className="scene-clip" controls src={resolveResultUrl(scene.result.videoUrl)} aria-label={`Scene ${scene.index} clip`} />
             )}
-            {scene.speedFactor !== undefined && (
-              <>
-                <dt>Speed factor</dt>
-                <dd>
-                  {scene.speedFactor}
-                  {scene.speedFactorWarning && <span role="alert"> {scene.speedFactorWarning}</span>}
-                </dd>
-              </>
+            {/* download-scene-results (JOS-163), design Decision 3 — a link renders
+             * for exactly the entries the session read offers, never derived from
+             * `state`: the image can be downloadable while the clip still isn't. */}
+            {(scene.downloads?.imageUrl || scene.downloads?.clipUrl) && (
+              <p className="download-links">
+                {scene.downloads.imageUrl && (
+                  <a className="button" href={resolveResultUrl(scene.downloads.imageUrl)}>
+                    <Icon name="download" />
+                    Download scene {scene.index} image
+                  </a>
+                )}
+                {scene.downloads.clipUrl && (
+                  <a className="button" href={resolveResultUrl(scene.downloads.clipUrl)}>
+                    <Icon name="download" />
+                    Download scene {scene.index} video
+                  </a>
+                )}
+              </p>
             )}
-          </dl>
+          </div>
 
-          {/* JOS-166 — which provider each stage that has run used, and how many attempts it made. Read-only. */}
-          {scene.stages.image && (
-            <div role="group" aria-label={`Scene ${scene.index} image diagnostics`} className="stage-diagnostic">
-              {formatStageDiagnostic(scene.stages.image)}
-            </div>
-          )}
-          {scene.stages.video && (
-            <div role="group" aria-label={`Scene ${scene.index} clip diagnostics`} className="stage-diagnostic">
-              {formatStageDiagnostic(scene.stages.video)}
-            </div>
-          )}
+          <div className="scene-info">
+            <dl>
+              <dt>PROMPT</dt>
+              <dd>{scene.prompt}</dd>
+              <dt>IMAGE</dt>
+              <dd>{scene.imageInstruction}</dd>
+              <dt>VIDEO</dt>
+              <dd>{scene.videoInstruction}</dd>
+              {isFailed && scene.affectedStage && (
+                <>
+                  <dt>Affected stage</dt>
+                  <dd>{AFFECTED_STAGE_LABEL[scene.affectedStage]}</dd>
+                </>
+              )}
+              {scene.requestedDurationSeconds !== undefined && (
+                <>
+                  <dt>Requested duration</dt>
+                  <dd>{scene.requestedDurationSeconds}</dd>
+                </>
+              )}
+              {scene.speedFactor !== undefined && (
+                <>
+                  <dt>Speed factor</dt>
+                  <dd>{scene.speedFactor}</dd>
+                </>
+              )}
+            </dl>
+            {scene.durationWarning && (
+              <div className="callout callout-warn">
+                <Icon name="failed" />
+                <p role="alert">{DURATION_WARNING_TEXT}</p>
+              </div>
+            )}
+            {scene.speedFactorWarning && (
+              <div className="callout callout-warn">
+                <Icon name="failed" />
+                <p role="alert">{SPEED_WARNING_TEXT}</p>
+              </div>
+            )}
 
-          {scene.result?.imageUrl && (
-            <img className="scene-image" src={resolveResultUrl(scene.result.imageUrl)} alt={`Scene ${scene.index} image`} />
-          )}
-          {scene.result?.videoUrl && (
-            <video className="scene-clip" controls src={resolveResultUrl(scene.result.videoUrl)} aria-label={`Scene ${scene.index} clip`} />
-          )}
+            {/* JOS-166 — which provider each stage that has run used, and how many attempts it made. Read-only. */}
+            {scene.stages.image && (
+              <div role="group" aria-label={`Scene ${scene.index} image diagnostics`} className="stage-diagnostic">
+                {formatStageDiagnostic(scene.stages.image)}
+              </div>
+            )}
+            {scene.stages.video && (
+              <div role="group" aria-label={`Scene ${scene.index} clip diagnostics`} className="stage-diagnostic">
+                {formatStageDiagnostic(scene.stages.video)}
+              </div>
+            )}
 
-          {actions.retry && (
-            <button type="button" disabled={pending} onClick={() => runAction(() => onRetry(scene.sceneId))}>
-              Retry scene {scene.index}
-            </button>
-          )}
-          {(actions.correctImage || actions.correctVideo) && (
-            <form
-              aria-label={`Correct scene ${scene.index} ${correctionStage} instruction`}
-              className="correction-form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                runAction(() => onCorrect(scene.sceneId, draftInstruction));
-              }}
-            >
-              <label htmlFor={`correction-${scene.sceneId}`}>Corrected {correctionStage} instruction for scene {scene.index}</label>
-              <textarea
-                id={`correction-${scene.sceneId}`}
-                value={draftInstruction}
-                onChange={(e) => setDraftInstruction(e.target.value)}
-              />
-              <button type="submit" disabled={pending}>
-                Save correction and retry
+            {actions.retry && (
+              <button type="button" disabled={pending} onClick={() => runAction(() => onRetry(scene.sceneId))}>
+                <Icon name="retry" />
+                Retry scene {scene.index}
               </button>
-            </form>
-          )}
-          {/* retry-or-correct-image (JOS-157), design Decision 7 — a 404/409 refusal shown as its sentence;
-           * the scene's new state, on a success, arrives through the live update, not from here. */}
-          {refusal && <p role="status">{refusal}</p>}
-
-          {/* download-scene-results (JOS-163), design Decision 3 — a link renders
-           * for exactly the entries the session read offers, never derived from
-           * `state`: the image can be downloadable while the clip still isn't. */}
-          {(scene.downloads?.imageUrl || scene.downloads?.clipUrl) && (
-            <p className="download-links">
-              {scene.downloads.imageUrl && <a href={resolveResultUrl(scene.downloads.imageUrl)}>Download scene {scene.index} image</a>}
-              {scene.downloads.clipUrl && <a href={resolveResultUrl(scene.downloads.clipUrl)}>Download scene {scene.index} video</a>}
-            </p>
-          )}
+            )}
+            {(actions.correctImage || actions.correctVideo) && (
+              <form
+                aria-label={`Correct scene ${scene.index} ${correctionStage} instruction`}
+                className="correction-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  runAction(() => onCorrect(scene.sceneId, draftInstruction));
+                }}
+              >
+                <label htmlFor={`correction-${scene.sceneId}`}>Corrected {correctionStage} instruction for scene {scene.index}</label>
+                <textarea
+                  id={`correction-${scene.sceneId}`}
+                  value={draftInstruction}
+                  onChange={(e) => setDraftInstruction(e.target.value)}
+                />
+                <button type="submit" className="primary" disabled={pending}>
+                  Save correction and retry
+                </button>
+              </form>
+            )}
+            {/* retry-or-correct-image (JOS-157), design Decision 7 — a 404/409 refusal shown as its sentence;
+             * the scene's new state, on a success, arrives through the live update, not from here. */}
+            {refusal && <p role="status">{refusal}</p>}
+          </div>
         </div>
       )}
     </li>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { StartProjectForm, type StartProjectValues, type SupportedLanguage } from "./components/StartProjectForm";
 import { SessionPage } from "./components/SessionPage";
+import { TopBar } from "./components/TopBar";
 import { useLiveSession } from "./api/useLiveSession";
 import { correctScene, createSession, continueSession, fetchLanguages, pauseSession, retryAssembly, retryDecomposition, retryScene } from "./api/client";
 
@@ -58,33 +59,35 @@ export default function App() {
 
   if (!sessionId) {
     return (
-      <main className="app-shell">
-        <h1 className="app-title">Vid4You (prototype)</h1>
-        <StartProjectForm onStart={handleStart} languages={languages} submitting={starting} />
-        {startError && <p role="alert">{startError}</p>}
-      </main>
+      <>
+        <TopBar />
+        <main className="app-main">
+          <StartProjectForm onStart={handleStart} languages={languages} submitting={starting} error={startError} />
+        </main>
+      </>
     );
   }
 
   return (
-    <main className="app-shell">
-      <h1 className="app-title">Vid4You (prototype)</h1>
-      <SessionPage
-        sessionId={sessionId}
-        snapshot={snapshot}
-        connected={connected}
-        notFound={notFound}
-        onStartNew={handleStartNew}
-        onPause={() => pauseSession(sessionId)}
-        onContinue={() => continueSession(sessionId)}
-        onRetry={(sceneId) => retryScene(sessionId, sceneId)}
-        onCorrect={(sceneId, instruction) => correctScene(sessionId, sceneId, instruction)}
-        onRetryPhase={(phase) => {
-          if (phase === "decomposition") return retryDecomposition(sessionId);
-          if (phase === "assembly") return retryAssembly(sessionId);
-          return Promise.reject(new Error("not-retryable"));
-        }}
-      />
-    </main>
+    <>
+      <TopBar connected={notFound ? undefined : connected} onNewProject={handleStartNew} />
+      <main className="app-main">
+        <SessionPage
+          sessionId={sessionId}
+          snapshot={snapshot}
+          notFound={notFound}
+          onStartNew={handleStartNew}
+          onPause={() => pauseSession(sessionId)}
+          onContinue={() => continueSession(sessionId)}
+          onRetry={(sceneId) => retryScene(sessionId, sceneId)}
+          onCorrect={(sceneId, instruction) => correctScene(sessionId, sceneId, instruction)}
+          onRetryPhase={(phase) => {
+            if (phase === "decomposition") return retryDecomposition(sessionId);
+            if (phase === "assembly") return retryAssembly(sessionId);
+            return Promise.reject(new Error("not-retryable"));
+          }}
+        />
+      </main>
+    </>
   );
 }

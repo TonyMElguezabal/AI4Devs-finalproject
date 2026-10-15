@@ -1,33 +1,93 @@
 /*
- * Vid4You visual design tokens ("Render Console" direction).
- * Chosen by product-owner review of working mockups — see
- * docs/adr/0004-frontend-stack.md and openspec/changes/define-visual-design/.
- * Components consume these via class names in app.css, never inline hexes.
+ * Vid4You visual design tokens ("Studio" direction, redesign-visual-design, JOS-198).
+ * Chosen by product-owner review of a working mockup; supersedes the "Render Console" direction of
+ * define-visual-design. Components consume these through class names in app.css, never inline literals.
+ *
+ * Every colour is defined here for both themes: the light palette on :root, the dark palette overriding
+ * only the tokens that differ inside the prefers-color-scheme block. The text/background pairs below are
+ * verified by openspec/changes/redesign-visual-design/reports/contrast.mjs, which reads this file —
+ * keep colours as hex and keep the :root blocks flat so it can.
  */
 :root {
-  --color-bg: #14161a;
-  --color-text: #e7e5de;
-  --color-muted: #8a8f98;
-  --color-border: #2a2e35;
+  color-scheme: light;
 
-  --color-status-complete: #4e9e8e;
-  --color-status-progress: #e8a33d;
-  --color-status-failed: #d6635a;
-  /*
-   * NOTE (define-visual-design, spec "Sufficient text contrast"): the
-   * mockup's original #5B6068 measured 2.86:1 against --color-bg, failing
-   * the 4.5:1 minimum. Raised to #848994 (5.16:1) — verified with the WCAG
-   * relative-luminance formula, not eyeballed.
-   */
-  --color-status-queued: #848994;
+  /* Surfaces and text */
+  --color-bg: #f5f5f7;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #eeeef1;
+  --color-text: #1d1d1f;
+  --color-muted: #5c5c64;
+  --color-border: rgba(0, 0, 0, 0.1);
 
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* Accent: the one interactive colour */
+  --color-accent: #0066cc;
+  --color-on-accent: #ffffff;
+  --color-edge-accent: #004c99;
 
-  --font-size-sm: 12px;
-  --font-size-md: 13px;
-  --font-size-lg: 16px;
+  /* Status: always paired with a label and an icon, never colour alone */
+  --color-status-complete: #146c2e;
+  --color-status-progress: #9a4500;
+  --color-status-failed: #b3261a;
+  --color-status-queued: #5a5a62;
+  --tint-pill: 13%;
+  --tint-callout: 9%;
 
-  --space-sm: 8px;
-  --space-md: 14px;
-  --space-lg: 24px;
+  /* Depth: lit top edge + solid side + soft cast shadow */
+  --color-highlight: rgba(255, 255, 255, 0.9);
+  --color-edge: #d6d6dc;
+  --color-cast: rgba(0, 0, 0, 0.1);
+  --color-bar: rgba(245, 245, 247, 0.72);
+  --extrude-sm: inset 0 1px 0 var(--color-highlight), 0 2px 0 var(--color-edge), 0 4px 8px var(--color-cast);
+  --extrude: inset 0 1px 0 var(--color-highlight), 0 4px 0 var(--color-edge), 0 8px 18px var(--color-cast);
+  --extrude-lift: inset 0 1px 0 var(--color-highlight), 0 7px 0 var(--color-edge), 0 16px 30px var(--color-cast);
+  --extrude-pressed: inset 0 1px 0 var(--color-highlight), 0 0 0 var(--color-edge), 0 1px 3px var(--color-cast);
+
+  /* Type */
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.8125rem;
+  --font-size-md: 0.9375rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.75rem;
+
+  /* Space and shape */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --radius-control: 8px;
+  --radius-card: 12px;
+
+  /* Motion: one overshooting curve for entrances and press release */
+  --ease-spring: cubic-bezier(0.34, 1.45, 0.64, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --color-bg: #111113;
+    --color-surface: #1c1c1f;
+    --color-surface-sunken: #2a2a2f;
+    --color-text: #f5f5f7;
+    --color-muted: #a5a5ae;
+    --color-border: rgba(255, 255, 255, 0.12);
+
+    --color-accent: #4da3ff;
+    --color-on-accent: #06121f;
+    --color-edge-accent: #1f5f9e;
+
+    --color-status-complete: #4cc26b;
+    --color-status-progress: #ffa043;
+    --color-status-failed: #ff6b5e;
+    --color-status-queued: #a5a5ae;
+
+    --color-highlight: rgba(255, 255, 255, 0.08);
+    --color-edge: #08080a;
+    --color-cast: rgba(0, 0, 0, 0.55);
+    --color-bar: rgba(17, 17, 19, 0.72);
+  }
 }
