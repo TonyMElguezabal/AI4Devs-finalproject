@@ -528,6 +528,8 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
     description:
       "add scene_pause_edits (the User's mutable pause intent) and final_video_builds (write-once record of each rebuilt final video) (adjust-scene-pause, JOS-190)",
     up: (target) => {
+      // A rebuild the User asked for and that has not finished (possibly held by a pause); see Run.rebuildRequestedAt.
+      target.exec("ALTER TABLE runs ADD COLUMN rebuild_requested_at TEXT");
       // Mutable on purpose, and the only mutable timing data: the dial is meant to be turned more than once. It holds
       // User intent only; no locked record is read from or written to here. "No row" means "the original pause".
       target.exec(`
@@ -745,7 +747,7 @@ export function createRun(id: string, title: string, script: string, language: s
   db.prepare(
     "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script) VALUES (?, ?, ?, 0, ?, ?, ?)",
   ).run(id, title, createdAt, language, projectFolder, script);
-  return { id, title, script, createdAt, paused: false, language, projectFolder, voiceProviderId: null, failure: null, finalVideoPath: null };
+  return { id, title, script, createdAt, paused: false, language, projectFolder, voiceProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
 }
 
 export function setRunProjectFolder(runId: string, projectFolder: string): void {
@@ -833,6 +835,7 @@ function rowToRun(row: any): Run {
     voiceProviderId: row.voice_provider_id ?? null,
     failure: row.failure ? (JSON.parse(row.failure) as SessionFailure) : null,
     finalVideoPath: row.final_video_path ?? null,
+    rebuildRequestedAt: row.rebuild_requested_at ?? null,
   };
 }
 
@@ -1365,6 +1368,18 @@ export function getStageAttempts(runId: string, stage: AttemptStage): StageAttem
 export function setFinalVideoPath(runId: string, relativePath: string): boolean {
   const result = db.prepare("UPDATE runs SET final_video_path = ? WHERE id = ? AND final_video_path IS NULL").run(relativePath, runId);
   return Number(result.changes) > 0;
+}
+
+/** Records that a rebuild was asked for. `false` when one is already outstanding or the session has no final video. */
+export function requestFinalVideoRebuild(runId: string): boolean {
+  const result = db
+    .prepare("UPDATE runs SET rebuild_requested_at = ? WHERE id = ? AND final_video_path IS NOT NULL AND rebuild_requested_at IS NULL")
+    .run(nowIso(), runId);
+  return Number(result.changes) > 0;
+}
+
+export function clearFinalVideoRebuildRequest(runId: string): void {
+  db.prepare("UPDATE runs SET rebuild_requested_at = NULL WHERE id = ?").run(runId);
 }
 
 /**

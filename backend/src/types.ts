@@ -57,6 +57,11 @@ export interface Run {
   failure: SessionFailure | null;
   /** The relative path of the assembled MP4 in the project folder; null until assembly succeeds (assemble-final-video, JOS-149). */
   finalVideoPath: string | null;
+  /**
+   * adjust-scene-pause (JOS-190), Decision 6 — set when the User asked for a rebuild that has not finished (it may be
+   * held by a pause); cleared when the rebuild succeeds or ends in failure. Survives a restart.
+   */
+  rebuildRequestedAt: string | null;
 }
 
 /** Design Decision 9 (generate-voice-over, JOS-136) — what the session carries when the voice-over failed. */

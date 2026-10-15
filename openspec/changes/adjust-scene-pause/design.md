@@ -64,6 +64,7 @@ Let `C` be the scene's `requestedDurationSeconds` (its clip length) and `S = int
   - The existing `final-video.mp4` is version 1, with no edits, implicitly: there is no row and no backfill.
 - `runs.final_video_path` keeps pointing at the current version. A rebuild changes it with a compare-and-set (`WHERE final_video_path = ?expected`), so two concurrent successes cannot both win. This mirrors JOS-161's "refused move means another won".
 - **Pending edits** = the current edits ≠ the latest build's `pauses` (version 1 = `{}`).
+- `runs.rebuild_requested_at` (nullable) records a rebuild that was asked for and has not finished. It is what lets a rebuild requested while the session is paused be held as work, and is cleared when the rebuild succeeds, ends in failure, or is settled by a restart.
 
 ### 4. Effective intervals are a pure function
 

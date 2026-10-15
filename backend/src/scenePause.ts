@@ -140,8 +140,8 @@ export interface PauseEditedScene {
   id: string;
   index: number;
   narrationInterval: NarrationInterval | null;
-  /** The scene's derived pause (`derivePauses`); a scene without one cannot be edited. */
-  originalPauseSeconds: number;
+  /** The scene's derived pause (`derivePauses`); null when none can be derived, and such a scene cannot be edited. */
+  originalPauseSeconds: number | null;
 }
 
 export interface PauseEditResult {
@@ -171,11 +171,12 @@ export function applyPauseEdits(
   for (const scene of ordered) {
     const interval = scene.narrationInterval!;
     const newPause = edited.get(scene.id);
-    const delta = newPause === undefined || Math.abs(newPause - scene.originalPauseSeconds) < EPSILON ? 0 : newPause - scene.originalPauseSeconds;
+    const original = scene.originalPauseSeconds;
+    const delta = newPause === undefined || original === null || Math.abs(newPause - original) < EPSILON ? 0 : newPause - original;
     const startShift = shift;
     shift += delta;
     intervals.set(scene.id, { startSeconds: interval.startSeconds + startShift, endSeconds: interval.endSeconds + shift });
-    if (delta !== 0) edits.push({ atSeconds: interval.endSeconds - scene.originalPauseSeconds / 2, deltaSeconds: delta });
+    if (delta !== 0 && original !== null) edits.push({ atSeconds: interval.endSeconds - original / 2, deltaSeconds: delta });
   }
   return { intervals, edits, durationSeconds: voiceOverDurationSeconds + shift };
 }

@@ -81,17 +81,24 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. Backend: rebuild lifecycle (TDD; design Decisions 6-8)
 
-- [ ] 6.1 Write failing tests through the store and the assembly stub:
+- [x] 6.1 Write failing tests through the store and the assembly stub:
   - a rebuild runs a fresh cycle;
   - it passes the shifted intervals and edits to the tool;
   - on success it writes `final-video-2.mp4`, keeps `final-video.mp4`, records the build with its edits, and moves `final_video_path`;
   - a second rebuild writes version 3.
-- [ ] 6.2 Write failing tests for failure and state:
+- [x] 6.2 Write failing tests for failure and state:
   - a failed rebuild leaves the previous version current, sets no `runs.failure`, and exposes `rebuildFailure`;
   - while a rebuild runs the state is `final-video-generating`, the assembly phase is in progress, and `finalVideoUrl` stays set;
   - a paused session holds the rebuild until continue.
-- [ ] 6.3 Write failing restart tests: an in-flight rebuild at boot is settled as a failed attempt, the current version is unchanged, and nothing is relaunched.
-- [ ] 6.4 Implement the rebuild mode in `runAssemblyAttempt`, the launcher entry, `rebuildInFlight` in `deriveSessionState`, and the restart settlement; make 6.1-6.3 pass.
+- [x] 6.3 Write failing restart tests: an in-flight rebuild at boot is settled as a failed attempt, the current version is unchanged, and nothing is relaunched.
+- [x] 6.4 Implement the rebuild mode in `runAssemblyAttempt`, the launcher entry, `rebuildInFlight` in `deriveSessionState`, and the restart settlement; make 6.1-6.3 pass.
+
+  Result: 11 tests in `final-video-rebuild.test.ts`, all new, all green; the full backend suite is 1594 passed. What the design did not spell out and the code needed:
+  - a persisted marker, `runs.rebuild_requested_at` (added to the still-unreleased migration 16, `Run.rebuildRequestedAt`), because a rebuild asked for while paused must survive until continue and a restart. `requestFinalVideoRebuild` sets it atomically (refused if one is outstanding or there is no final video); it is cleared on success, on final failure, and when a restart settles an interrupted rebuild;
+  - `src/sessionPauses.ts` (reads the stored character timestamps and derives every scene's pause) and `src/finalVideoRebuild.ts` (the command and `hasPendingPauseEdits`), mirroring `assemblyRetry.ts`;
+  - `applyPauseEdits` now takes `originalPauseSeconds: number | null`: a scene with no derivable pause is never edited but still shifts when an earlier one changes;
+  - a rebuild that cannot start (no tool, no narration, unreadable timestamps) is recorded as its own not-retryable assembly attempt (`refuseRebuild`) so the read can say why, never as `runs.failure`;
+  - `settleAssemblyInFlight` no longer calls `recordAssemblyFailure` for an interrupted attempt of a session that has a final video.
 
 ## 7. Backend: API and read (TDD; design Decision 9)
 
