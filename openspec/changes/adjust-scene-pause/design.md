@@ -89,7 +89,7 @@ Assembly feeds `intervals'` to the existing frame-geometry code in place of the 
 
 This is an explicit exception to Decision 4b, scoped to edited builds. It is recorded in ADR 0005 as a dated amendment.
 
-**Gate (task 1):** before any code, confirm on the committed JOS-182 fixture and a real voice-over that an edited encode stays within ±1 frame at every cut and at the end.
+**Gate (task 1) — passed 2026-10-15** (`reports/2026-10-15-step-1-narration-edit-spike.md`): an edited encode stayed within 1 ms of its expected duration and 12.7 ms of the frame-exact video (the baseline copy path: 12.1 ms), with no growth over 20 cuts. It was run on synthesized speech encoded to MP3, since no real voice-over was available; the AAC path stands.
 
 *Alternative, and the fallback if the gate fails:* splice the MP3 with stream copy, snapping each cut to an MP3 frame boundary (26 ms), and use the snapped deltas as the real deltas in Decision 4. This preserves Decision 4b, but risks bit-reservoir artefacts at the splice. It was not chosen first because it is harder to verify, though the cuts fall in silence.
 

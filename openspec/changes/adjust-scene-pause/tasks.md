@@ -9,25 +9,31 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`; confirm the base still matches design.md § Context:
+- [x] 1.1 `git fetch`; confirm the base still matches design.md § Context:
   - `runAssemblyAttempt` maps stored intervals to clips and refuses when `finalVideoPath` is set;
   - the ffmpeg adapter muxes with `-c:a copy`;
   - interval, duration and speed-factor columns have lock triggers;
   - `sentenceSpeechSpans` is exported.
   Record the result here; if anything moved, update design.md before coding.
-- [ ] 1.2 Spike (design Decision 5), recorded in `reports/YYYY-MM-DD-step-1-narration-edit-spike.md`:
+
+  Result: all four hold; entrega had not moved (0 commits behind). See the step 1 report § 1.1.
+- [x] 1.2 Spike (design Decision 5), recorded in `reports/2026-10-15-step-1-narration-edit-spike.md`:
   - on the committed JOS-182 fixture and on one real voice-over, cut 1.5 s and insert 1.0 s of silence at pause midpoints with the `atrim`/`anullsrc`/`concat` → AAC path;
   - measure with `ffprobe` (`nb_frames`, stream durations) that audio and video agree within ±1 frame at each cut and at the end.
   If they do not, switch Decision 5 to the MP3 frame-snapped splice and update design.md before coding.
-- [ ] 1.3 Measure, on the same real session, the derived pause of every scene (Decision 1). Record the largest pause and how many scenes the speed-factor clamp would narrow, to confirm the range rule on real data.
+
+  Result: passes. Edited narration within 1 ms of expected, audio-vs-video 12.7 ms (baseline 12.1 ms), error constant with 20 cuts. Done on `say`-synthesized speech encoded to MP3 rather than a real voice-over (none available); Decision 5 (AAC) stands.
+- [x] 1.3 Measure, on the same real session, the derived pause of every scene (Decision 1). Record the largest pause and how many scenes the speed-factor clamp would narrow, to confirm the range rule on real data.
+
+  Result: no real session or ElevenLabs audio is available (no credential, no stored audio), so this uses JOS-142's recorded survey of real narration: 26 pauses, 0.04-1.26 s; the clamp binds on none. See the step 1 report § 1.3.
 
 ## 2. Backend: pause derivation and range (TDD; design Decisions 1-2)
 
-- [ ] 2.1 Write failing unit tests in a new `backend/test/scene-pause.test.ts` for `derivePauses(script, scenes, characters, mp3Duration)`:
+- [x] 2.1 Write failing unit tests in a new `backend/test/scene-pause.test.ts` for `derivePauses(script, scenes, characters, mp3Duration)`:
   - a pause between two scenes;
   - the last scene runs to the MP3's end;
   - a scene with no `PROMPT`, and timestamps that do not match the script, yield no pause instead of an error.
-- [ ] 2.2 Write failing tests for `pauseRange(clipSeconds, speechSeconds, originalPause)`:
+- [x] 2.2 Write failing tests for `pauseRange(clipSeconds, speechSeconds, originalPause)`:
   - the comfortable case (0.2-3.0);
   - a floor raised by the speed factor (`C`=8, `S`=3.0 → 1.0);
   - a ceiling lowered by the speed factor;
@@ -35,7 +41,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
   - an original already outside the limit is included;
   - `limitedBySpeedFactor`;
   - grid membership (1.1 allowed, 1.05 refused, the off-grid original allowed).
-- [ ] 2.3 Implement both as pure functions in `backend/src/scenePause.ts`, reusing `sentenceSpeechSpans`; make 2.1-2.2 pass.
+- [x] 2.3 Implement both as pure functions in `backend/src/scenePause.ts`, reusing `sentenceSpeechSpans`; make 2.1-2.2 pass.
 
 ## 3. Backend: effective intervals (TDD; design Decision 4)
 
