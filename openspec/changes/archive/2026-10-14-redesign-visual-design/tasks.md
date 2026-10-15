@@ -126,4 +126,6 @@ Every behaviour or markup change starts with a failing test (TDD), and every sce
 
   Result (2026-10-14): not applicable. The branch tracked `origin/feature/entrega-2-JAME` (created with `git worktree add -b … origin/feature/entrega-2-JAME`), and a push from this worktree put the JOS-198 commits (256b08f..c91cf7c, plus a `graphify files` commit, 1a9a10b) directly on the integration branch before a PR was opened; a PR would have been empty. The User chose to leave it there. The upstream was unset locally so this branch cannot push to the integration branch by accident.
 - [ ] 14.3 Obtain review by at least one human, not only AI agents.
-- [ ] 14.4 Archive the OpenSpec change after merge.
+- [x] 14.4 Archive the OpenSpec change after merge.
+
+  Result (2026-10-14): archived before merge, at the User's request, with 14.3 (human review) still open. Recorded as a warning in the archive, not as a completed review.
