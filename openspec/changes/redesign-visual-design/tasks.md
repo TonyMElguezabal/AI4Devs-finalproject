@@ -123,5 +123,5 @@ Every behaviour or markup change starts with a failing test (TDD), and every sce
 
 - [x] 14.1 Commit the work on `feature/jos-198-redesign-visual-design`, path-scoped to this change.
 - [ ] 14.2 Ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-198 and the mockup.
-- [ ] 14.3 Obtain review by at least one human, not only AI agents.
+- [x] 14.3 Obtain review by at least one human, not only AI agents.
 - [ ] 14.4 Archive the OpenSpec change after merge.
