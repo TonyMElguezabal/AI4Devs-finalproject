@@ -3,7 +3,18 @@ import { StartProjectForm, type StartProjectValues, type SupportedLanguage } fro
 import { SessionPage } from "./components/SessionPage";
 import { TopBar } from "./components/TopBar";
 import { useLiveSession } from "./api/useLiveSession";
-import { correctScene, createSession, continueSession, fetchLanguages, pauseSession, retryAssembly, retryDecomposition, retryScene } from "./api/client";
+import {
+  correctScene,
+  createSession,
+  continueSession,
+  fetchLanguages,
+  pauseSession,
+  rebuildFinalVideo,
+  retryAssembly,
+  retryDecomposition,
+  retryScene,
+  setScenePause,
+} from "./api/client";
 
 /**
  * No project-list screen exists in the PRD or backlog (design.md § Open
@@ -81,6 +92,8 @@ export default function App() {
           onContinue={() => continueSession(sessionId)}
           onRetry={(sceneId) => retryScene(sessionId, sceneId)}
           onCorrect={(sceneId, instruction) => correctScene(sessionId, sceneId, instruction)}
+          onSetPause={(sceneId, seconds) => setScenePause(sessionId, sceneId, seconds)}
+          onRebuildFinalVideo={() => rebuildFinalVideo(sessionId)}
           onRetryPhase={(phase) => {
             if (phase === "decomposition") return retryDecomposition(sessionId);
             if (phase === "assembly") return retryAssembly(sessionId);

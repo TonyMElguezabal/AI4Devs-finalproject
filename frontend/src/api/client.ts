@@ -1,4 +1,4 @@
-import type { SessionSnapshot } from "../types";
+import type { SceneEventPayload, SessionSnapshot } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -54,6 +54,20 @@ export function retryDecomposition(sessionId: string): Promise<{ ok: true; held:
 
 export function retryAssembly(sessionId: string): Promise<{ ok: true; held: boolean }> {
   return fetch(`${API_BASE}/sessions/${sessionId}/assembly/retry`, { method: "POST" }).then(asJson<{ ok: true; held: boolean }>);
+}
+
+/** adjust-scene-pause (JOS-190) — sets the silence after a scene; resolves with the updated scene, rejects with the sentence or reason. */
+export function setScenePause(sessionId: string, sceneId: string, seconds: number): Promise<SceneEventPayload> {
+  return fetch(`${API_BASE}/sessions/${sessionId}/scenes/${sceneId}/pause`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ seconds }),
+  }).then(asJson<SceneEventPayload>);
+}
+
+/** adjust-scene-pause (JOS-190) — assembles a new version of the final video with the stored pause edits. */
+export function rebuildFinalVideo(sessionId: string): Promise<{ ok: true; held: boolean }> {
+  return fetch(`${API_BASE}/sessions/${sessionId}/final-video/rebuild`, { method: "POST" }).then(asJson<{ ok: true; held: boolean }>);
 }
 
 export function retryScene(sessionId: string, sceneId: string): Promise<{ ok: boolean }> {

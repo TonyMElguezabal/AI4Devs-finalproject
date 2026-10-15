@@ -180,6 +180,8 @@ Los intervalos de narración de los chunks forman una **partición del eje tempo
 
 El montaje debe conservar todo el contenido narrado y la secuencia de escenas, sin omisiones, duplicaciones ni huecos visuales. Debe cubrir también las pausas existentes en la narración.
 
+**Ajuste manual de una pausa (JOS-190, product owner decision 2026-10-15).** Una vez existe el video final, el usuario puede acortar o alargar el silencio que sigue a una escena y reconstruir el video final. El silencio se mueve entre 0.2 y 3.0 segundos en pasos de 0.1 s, acotado además para que el clip de esa escena no supere el límite de factor de velocidad; el valor inicial es la pausa original. El silencio se recorta o se amplía por el centro de la pausa: el habla y su velocidad no cambian, las escenas posteriores se desplazan en consecuencia y el MP3 almacenado no se modifica. Cada reconstrucción escribe un archivo nuevo (`final-video-<versión>.mp4`, versión 2 en adelante) y conserva los anteriores; ningún clip se vuelve a generar y los intervalos almacenados de los chunks, y la regla D11, no cambian. Es la única excepción a «el audio no se modifica» de este apartado.
+
 El video final solo puede generarse cuando todas las escenas estén en `chunk-complete`. Una sesión con una escena fallida o pendiente no puede alcanzar `final-video`.
 
 **Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are hardcoded (expected 1920×1080 at 30 fps), with H.264 video and AAC audio.

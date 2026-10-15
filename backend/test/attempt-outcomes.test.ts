@@ -171,7 +171,8 @@ describe("Migration 15 adds the outcomes and lateResultAt", () => {
         )
         .run();
 
-      expect(applyMigrationsTo(fixture)).toEqual([15]);
+      // Bounded to 15: this test is about migration 15, not about whatever migrations are added after it.
+      expect(applyMigrationsTo(fixture, 15)).toEqual([15]);
 
       const insert = (id: string, sequence: number, outcome: string) =>
         fixture

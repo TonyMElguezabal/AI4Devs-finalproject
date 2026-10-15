@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { SceneList } from "../src/components/SceneList";
@@ -20,6 +20,7 @@ import { statusIcon } from "../src/styles/status";
 import { Icon, type IconName } from "../src/components/Icon";
 import { StatusPill } from "../src/components/StatusPill";
 import { TopBar } from "../src/components/TopBar";
+import { PauseDial } from "../src/components/PauseDial";
 
 function makeScene(overrides: Partial<SceneEventPayload>): SceneEventPayload {
   return {
@@ -1737,5 +1738,248 @@ describe("The final-video card (JOS-198)", () => {
     render(<FinalVideoDownload url={undefined} />);
     expect(screen.getByText("Available once every scene is done")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+});
+
+// adjust-scene-pause (JOS-190), group 8 — design Decision 10: the dial in an expanded scene card, and the rebuild in
+// the Final video section. Names are new; no existing name changes.
+describe("The pause dial (JOS-190)", () => {
+  const pause = { originalSeconds: 4.3, seconds: 4.3, minSeconds: 1.8, maxSeconds: 4.3, limitedBySpeedFactor: true };
+  const base = { onRetry: async () => {}, onCorrect: async () => {} };
+
+  it("is absent from a scene whose read carries no pause", async () => {
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "chunk-complete" })} {...base} onSetPause={async () => {}} />);
+    await expandScene(1);
+
+    expect(screen.queryByLabelText("Pause after scene 1")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reset scene 1 pause" })).not.toBeInTheDocument();
+  });
+
+  it("shows a named number field with the read's value and bounds, in 0.1 s steps", async () => {
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 2, state: "chunk-complete", pause: { ...pause, seconds: 3.3 } })} {...base} onSetPause={async () => {}} />);
+    await expandScene(2);
+
+    const field = screen.getByLabelText("Pause after scene 2") as HTMLInputElement;
+    expect(field.type).toBe("number");
+    expect(field.value).toBe("3.3");
+    expect(field.min).toBe("1.8");
+    expect(field.max).toBe("4.3");
+    expect(field.step).toBe("0.1");
+  });
+
+  it("saves a changed value when the field is left, and not an unchanged one", async () => {
+    const user = userEvent.setup();
+    const onSetPause = vi.fn(async () => {});
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "chunk-complete", pause })} {...base} onSetPause={onSetPause} />);
+    await expandScene(1);
+    const field = screen.getByLabelText("Pause after scene 1");
+
+    await user.click(field);
+    await user.tab();
+    expect(onSetPause).not.toHaveBeenCalled();
+
+    await user.clear(field);
+    await user.type(field, "3.3");
+    await user.tab();
+    expect(onSetPause).toHaveBeenCalledWith("a", 3.3);
+  });
+
+  it("saves on Enter too", async () => {
+    const user = userEvent.setup();
+    const onSetPause = vi.fn(async () => {});
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "chunk-complete", pause })} {...base} onSetPause={onSetPause} />);
+    await expandScene(1);
+    const field = screen.getByLabelText("Pause after scene 1");
+
+    await user.clear(field);
+    await user.type(field, "2.5{Enter}");
+
+    expect(onSetPause).toHaveBeenCalledWith("a", 2.5);
+  });
+
+  it("sends one request when Enter is followed by the field losing focus while the save is pending", async () => {
+    const user = userEvent.setup();
+    const onSetPause = vi.fn(() => new Promise<void>(() => {})); // never settles: the save stays pending
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "chunk-complete", pause })} {...base} onSetPause={onSetPause} />);
+    await expandScene(1);
+    const field = screen.getByLabelText("Pause after scene 1");
+
+    await user.clear(field);
+    await user.type(field, "3.3{Enter}");
+    fireEvent.blur(field); // the browser blurs a field that gets disabled mid-save; jsdom does not, so it is fired here
+
+    expect(onSetPause).toHaveBeenCalledTimes(1);
+  });
+
+  it("enables Reset only when the pause differs from the original, and restores the original", async () => {
+    const user = userEvent.setup();
+    const onSetPause = vi.fn(async () => {});
+    const { rerender } = render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "chunk-complete", pause })} {...base} onSetPause={onSetPause} />);
+    await expandScene(1);
+    expect(screen.getByRole("button", { name: "Reset scene 1 pause" })).toBeDisabled();
+
+    rerender(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "chunk-complete", pause: { ...pause, seconds: 3.3 } })} {...base} onSetPause={onSetPause} />);
+    const reset = screen.getByRole("button", { name: "Reset scene 1 pause" });
+    expect(reset).toBeEnabled();
+    await user.click(reset);
+
+    expect(onSetPause).toHaveBeenCalledWith("a", 4.3);
+  });
+
+  it("explains a speed-factor bound without repeating the numeric limit", async () => {
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "chunk-complete", pause })} {...base} onSetPause={async () => {}} />);
+    await expandScene(1);
+
+    const note = screen.getByText(/shorter than 1\.8 s would speed this scene's clip past the speed-factor limit/i);
+    expect(note.textContent).not.toMatch(/2\.0/);
+  });
+
+  it("says nothing about the speed factor when the 0.2-3.0 s bounds apply", async () => {
+    const free = { originalSeconds: 2.6, seconds: 2.6, minSeconds: 0.2, maxSeconds: 3.0, limitedBySpeedFactor: false };
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "chunk-complete", pause: free })} {...base} onSetPause={async () => {}} />);
+    await expandScene(1);
+
+    expect(screen.queryByText(/speed-factor limit/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/0\.2 s to 3\.0 s/)).toBeInTheDocument();
+  });
+
+  it("shows a refusal as a sentence, the server's own for a range error", async () => {
+    const user = userEvent.setup();
+    const sentence = "The pause after scene 1 can be 1.8 s to 4.3 s, in steps of 0.1 s, or its original 4.3 s.";
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "chunk-complete", pause })} {...base} onSetPause={async () => { throw new Error(sentence); }} />);
+    await expandScene(1);
+    const field = screen.getByLabelText("Pause after scene 1");
+
+    await user.clear(field);
+    await user.type(field, "1.0");
+    await user.tab();
+
+    expect(await screen.findByRole("status")).toHaveTextContent(sentence);
+  });
+
+  it("words the coded refusals", async () => {
+    const user = userEvent.setup();
+    render(<SceneRow scene={makeScene({ sceneId: "a", index: 1, state: "chunk-complete", pause })} {...base} onSetPause={async () => { throw new Error("assembly-in-progress"); }} />);
+    await expandScene(1);
+    const field = screen.getByLabelText("Pause after scene 1");
+
+    await user.clear(field);
+    await user.type(field, "3.3{Enter}");
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/being built/i);
+  });
+
+  it("PauseDial restores the saved value when the read changes under it", () => {
+    const { rerender } = render(<PauseDial sceneIndex={1} pause={pause} onSetPause={async () => {}} />);
+    rerender(<PauseDial sceneIndex={1} pause={{ ...pause, seconds: 2.0 }} onSetPause={async () => {}} />);
+
+    expect((screen.getByLabelText("Pause after scene 1") as HTMLInputElement).value).toBe("2");
+  });
+});
+
+describe("The Final video section's rebuild (JOS-190)", () => {
+  it("shows the version and offers no rebuild while nothing is pending", () => {
+    render(<FinalVideoDownload url="/sessions/s1/download/final-video" finalVideo={{ version: 2, pendingPauseEdits: false }} />);
+
+    expect(screen.getByText("Version 2")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rebuild final video" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Download final video" })).toBeInTheDocument();
+  });
+
+  it("offers Rebuild final video when edits are pending, and calls the handler", async () => {
+    const user = userEvent.setup();
+    const onRebuild = vi.fn(async () => ({ ok: true }));
+    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true }} onRebuild={onRebuild} />);
+
+    await user.click(screen.getByRole("button", { name: "Rebuild final video" }));
+
+    expect(onRebuild).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the download and says the new version is being built while a rebuild runs", () => {
+    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true }} rebuilding onRebuild={async () => ({})} />);
+
+    expect(screen.getByRole("link", { name: "Download final video" })).toBeInTheDocument();
+    expect(screen.getByText(/new version is being built/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rebuild final video" })).not.toBeInTheDocument();
+  });
+
+  it("shows a failed rebuild's cause and keeps the button", () => {
+    const cause = "The new version could not be built: stub transient failure. Your current final video (version 1) is kept.";
+    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true, rebuildFailure: { cause } }} onRebuild={async () => ({})} />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent(cause);
+    expect(screen.getByRole("button", { name: "Rebuild final video" })).toBeInTheDocument();
+  });
+
+  it("shows a refusal as a sentence", async () => {
+    const user = userEvent.setup();
+    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true }} onRebuild={async () => { throw new Error("nothing-to-rebuild"); }} />);
+
+    await user.click(screen.getByRole("button", { name: "Rebuild final video" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/no changes/i);
+  });
+
+  it("shows neither version nor rebuild when the read carries no finalVideo", () => {
+    render(<FinalVideoDownload url="/x" />);
+
+    expect(screen.queryByText(/^Version/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rebuild final video" })).not.toBeInTheDocument();
+  });
+
+  it("is wired through the session page", async () => {
+    const user = userEvent.setup();
+    const onRebuildFinalVideo = vi.fn(async () => ({ ok: true }));
+    const session = makeSession({
+      state: "final-video",
+      finalVideoUrl: "/sessions/s1/download/final-video",
+      finalVideo: { version: 1, pendingPauseEdits: true },
+      phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "complete", assembly: "complete" }),
+    });
+    render(
+      <SessionPage
+        sessionId="01ARZ3NDEKTSV4RRFFQ69G5FAV"
+        snapshot={{ session, scenes: [] }}
+        notFound={false}
+        onStartNew={() => {}}
+        onPause={() => {}}
+        onContinue={() => {}}
+        onRetry={async () => {}}
+        onCorrect={async () => {}}
+        onRetryPhase={() => Promise.resolve()}
+        onRebuildFinalVideo={onRebuildFinalVideo}
+      />,
+    );
+
+    await user.click(within(screen.getByRole("region", { name: "Final video phase" })).getByRole("button", { name: "Rebuild final video" }));
+
+    expect(onRebuildFinalVideo).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats a generating session that already has a final video as a rebuild in progress", () => {
+    const session = makeSession({
+      state: "final-video-generating",
+      finalVideoUrl: "/sessions/s1/download/final-video",
+      finalVideo: { version: 1, pendingPauseEdits: true },
+      phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "complete", assembly: "in-progress" }),
+    });
+    render(
+      <SessionPage
+        sessionId="01ARZ3NDEKTSV4RRFFQ69G5FAV"
+        snapshot={{ session, scenes: [] }}
+        notFound={false}
+        onStartNew={() => {}}
+        onPause={() => {}}
+        onContinue={() => {}}
+        onRetry={async () => {}}
+        onCorrect={async () => {}}
+        onRetryPhase={() => Promise.resolve()}
+      />,
+    );
+
+    const section = within(screen.getByRole("region", { name: "Final video phase" }));
+    expect(section.getByText(/new version is being built/i)).toBeInTheDocument();
+    expect(section.getByRole("link", { name: "Download final video" })).toBeInTheDocument();
   });
 });

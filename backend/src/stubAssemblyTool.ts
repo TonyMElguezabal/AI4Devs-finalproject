@@ -36,7 +36,7 @@ export type CapturedAssemblyInput = AssemblyInput;
 export function createCapturingAssemblyTool(captures: CapturedAssemblyInput[]): AssemblyTool {
   return {
     async assemble(input: AssemblyInput): Promise<AssemblyResult> {
-      captures.push({ ...input, clips: [...input.clips] });
+      captures.push({ ...input, clips: [...input.clips], ...(input.narrationEdits ? { narrationEdits: [...input.narrationEdits] } : {}) });
       return { kind: "success", outputPath: input.outputPath };
     },
   };

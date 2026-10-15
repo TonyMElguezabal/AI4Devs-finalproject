@@ -9,6 +9,8 @@ interface Props {
   onRetry: (sceneId: string) => Promise<unknown>;
   /** Corrects IMAGE and retries; rejects with the refusal reason. */
   onCorrect: (sceneId: string, instruction: string) => Promise<unknown>;
+  /** adjust-scene-pause (JOS-190) — passed through to each row. */
+  onSetPause?: (sceneId: string, seconds: number) => Promise<unknown>;
 }
 
 /**
@@ -17,7 +19,7 @@ interface Props {
  * render, not trusting arrival/array order, is the point of this component
  * existing separately from `SessionView` — see its ordering test.
  */
-export function SceneList({ scenes, paused, onRetry, onCorrect }: Props) {
+export function SceneList({ scenes, paused, onRetry, onCorrect, onSetPause }: Props) {
   const ordered = [...scenes].sort((a, b) => a.index - b.index);
 
   return (
@@ -29,7 +31,7 @@ export function SceneList({ scenes, paused, onRetry, onCorrect }: Props) {
       ) : (
         <ul className="scene-list">
           {ordered.map((scene) => (
-            <SceneRow key={scene.sceneId} scene={scene} paused={paused} onRetry={onRetry} onCorrect={onCorrect} />
+            <SceneRow key={scene.sceneId} scene={scene} paused={paused} onRetry={onRetry} onCorrect={onCorrect} onSetPause={onSetPause} />
           ))}
         </ul>
       )}

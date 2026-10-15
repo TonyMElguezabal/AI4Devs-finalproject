@@ -3,6 +3,7 @@ import { intervalDurationSeconds, requestedClipDuration } from "./admittedDurati
 import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS, SPEED_FACTOR_LIMIT } from "./config/providers.ts";
 import { countScenesForRun, getRun, insertRegisteredScenes, setRunFailure, writeArtefactOnce } from "./db.ts";
 import { broadcast } from "./orchestrator.ts";
+import { findIntervalPartitionProblem } from "./intervalPartition.ts";
 import { createDecompositionFailure } from "./sessionStateMachine.ts";
 import type { DecompositionFailure, NarrationInterval, SpeedFactorWarning } from "./types.ts";
 import type { VisualInstructionGenerator, VisualInstructionPair } from "./visualInstructions.ts";
@@ -82,22 +83,7 @@ function findFragmentProblem(script: string, fragments: readonly SegmentedFragme
  * boundary comes from one `unitBoundaries` array, so a correct segmentation is bit-identical.
  */
 function findPartitionProblem(fragments: readonly SegmentedFragment[], voiceOverDurationSeconds: number): string | null {
-  let previousEnd = 0;
-  for (const [position, fragment] of fragments.entries()) {
-    const number = position + 1;
-    const { startSeconds, endSeconds } = fragment.narrationInterval;
-    if (startSeconds !== previousEnd) {
-      return position === 0
-        ? `scene 1 starts at ${startSeconds} s instead of 0 s`
-        : `scene ${number} starts at ${startSeconds} s but scene ${number - 1} ends at ${previousEnd} s`;
-    }
-    if (!(endSeconds > startSeconds)) return `scene ${number} has an empty narration interval`;
-    previousEnd = endSeconds;
-  }
-  if (previousEnd !== voiceOverDurationSeconds) {
-    return `scene ${fragments.length} ends at ${previousEnd} s but the voice-over lasts ${voiceOverDurationSeconds} s`;
-  }
-  return null;
+  return findIntervalPartitionProblem(fragments.map((fragment) => fragment.narrationInterval), voiceOverDurationSeconds);
 }
 
 function findInstructionProblem(pairs: readonly VisualInstructionPair[], expected: number): string | null {

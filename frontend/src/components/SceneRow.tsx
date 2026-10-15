@@ -7,6 +7,7 @@ import { formatStageDiagnostic } from "../stageDiagnostics";
 import { sceneRecoveryRefusalSentence } from "../sceneRecoveryRefusals";
 import { AFFECTED_STAGE_LABEL, DURATION_WARNING_TEXT, SCENE_STATE_LABEL, SPEED_WARNING_TEXT } from "../statusLabels";
 import { Icon } from "./Icon";
+import { PauseDial } from "./PauseDial";
 import { StatusPill } from "./StatusPill";
 
 interface Props {
@@ -18,6 +19,8 @@ interface Props {
   onRetry: (sceneId: string) => Promise<unknown>;
   /** Corrects IMAGE and retries; rejects with the refusal reason. */
   onCorrect: (sceneId: string, instruction: string) => Promise<unknown>;
+  /** Sets the silence after this scene (adjust-scene-pause, JOS-190); rejects with the refusal. Absent: no dial is offered. */
+  onSetPause?: (sceneId: string, seconds: number) => Promise<unknown>;
 }
 
 /**
@@ -38,7 +41,7 @@ interface Props {
  * pill, and the unchanged details toggle. Expanded, the card spans the row and shows the named image in place of
  * the thumbnail, so a scene never has two images.
  */
-export function SceneRow({ scene, paused, onRetry, onCorrect }: Props) {
+export function SceneRow({ scene, paused, onRetry, onCorrect, onSetPause }: Props) {
   const [expanded, setExpanded] = useState(false);
   const correctionStage = scene.affectedStage === "video" ? "video" : "image";
   const currentInstruction = correctionStage === "video"
@@ -159,6 +162,9 @@ export function SceneRow({ scene, paused, onRetry, onCorrect }: Props) {
                 </>
               )}
             </dl>
+            {scene.pause && onSetPause && (
+              <PauseDial sceneIndex={scene.index} pause={scene.pause} onSetPause={(seconds) => onSetPause(scene.sceneId, seconds)} />
+            )}
             {scene.durationWarning && (
               <div className="callout callout-warn">
                 <Icon name="failed" />

@@ -19,6 +19,16 @@ export interface AssemblyClip {
   frameCount: number;
 }
 
+/**
+ * One change to the narration, in the stored (original) timeline (adjust-scene-pause, JOS-190, Decision 4):
+ * `deltaSeconds` of silence is removed (negative: that much, centred on `atSeconds`) or inserted (positive: at
+ * `atSeconds`). The caller has already shifted the clips' intervals by the same amounts.
+ */
+export interface NarrationEdit {
+  atSeconds: number;
+  deltaSeconds: number;
+}
+
 /** Inputs required to assemble one final video. */
 export interface AssemblyInput {
   /** Clips in ascending scene order. Must be non-empty. */
@@ -33,6 +43,12 @@ export interface AssemblyInput {
   width: number;
   /** Target height (FINAL_OUTPUT.height = 1080). */
   height: number;
+  /**
+   * The User's pause edits (adjust-scene-pause, JOS-190). Absent or empty: the voice-over is muxed as-is, exactly as
+   * before. Present: the narration is cut/extended at these points and encoded once, and the tool MUST verify audio
+   * and video agree within one frame, failing the attempt otherwise.
+   */
+  narrationEdits?: readonly NarrationEdit[];
 }
 
 export type AssemblyResult =
