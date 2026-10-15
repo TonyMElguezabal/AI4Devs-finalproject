@@ -134,3 +134,53 @@ export function isAllowedPause(range: PauseRange, seconds: number): boolean {
   if (Math.abs(steps - Math.round(steps)) > EPSILON) return false;
   return seconds >= range.minSeconds - EPSILON && seconds <= range.maxSeconds + EPSILON;
 }
+
+/** One change to the narration, in the stored (original) timeline: `deltaSeconds` of silence removed (negative) or inserted (positive) at `atSeconds`. */
+export interface NarrationEdit {
+  atSeconds: number;
+  deltaSeconds: number;
+}
+
+export interface PauseEditedScene {
+  id: string;
+  index: number;
+  narrationInterval: NarrationInterval | null;
+  /** The scene's derived pause (`derivePauses`); a scene without one cannot be edited. */
+  originalPauseSeconds: number;
+}
+
+export interface PauseEditResult {
+  /** Each editable scene's interval in the edited narration; the stored intervals are never written. */
+  intervals: Map<string, NarrationInterval>;
+  /** One entry per scene whose pause really changed, in scene order. */
+  edits: NarrationEdit[];
+  /** The edited narration's length: the voice-over's plus every change. */
+  durationSeconds: number;
+}
+
+/**
+ * Design Decision 4 — the effective intervals once the pauses in `edited` (scene id → new pause) are applied. Scene i's
+ * change is `new − original`; its interval's end moves by every change up to and including its own, its start by every
+ * change before it. The shift is accumulated once and added to the stored boundary, so a stored boundary shared by two
+ * neighbours stays bit-identical and the result still passes the exact partition check.
+ */
+export function applyPauseEdits(
+  scenes: readonly PauseEditedScene[],
+  edited: ReadonlyMap<string, number>,
+  voiceOverDurationSeconds: number,
+): PauseEditResult {
+  const ordered = scenes.filter((scene) => scene.narrationInterval !== null).sort((a, b) => a.index - b.index);
+  const intervals = new Map<string, NarrationInterval>();
+  const edits: NarrationEdit[] = [];
+  let shift = 0;
+  for (const scene of ordered) {
+    const interval = scene.narrationInterval!;
+    const newPause = edited.get(scene.id);
+    const delta = newPause === undefined || Math.abs(newPause - scene.originalPauseSeconds) < EPSILON ? 0 : newPause - scene.originalPauseSeconds;
+    const startShift = shift;
+    shift += delta;
+    intervals.set(scene.id, { startSeconds: interval.startSeconds + startShift, endSeconds: interval.endSeconds + shift });
+    if (delta !== 0) edits.push({ atSeconds: interval.endSeconds - scene.originalPauseSeconds / 2, deltaSeconds: delta });
+  }
+  return { intervals, edits, durationSeconds: voiceOverDurationSeconds + shift };
+}

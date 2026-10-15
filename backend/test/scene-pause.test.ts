@@ -3,10 +3,12 @@ import {
   PAUSE_CAP_SECONDS,
   PAUSE_FLOOR_SECONDS,
   PAUSE_STEP_SECONDS,
+  applyPauseEdits,
   derivePauses,
   isAllowedPause,
   pauseRange,
 } from "../src/scenePause.ts";
+import { findIntervalPartitionProblem } from "../src/intervalPartition.ts";
 import type { TimestampCharacter } from "../src/narrationTimestamps.ts";
 import type { NarrationInterval } from "../src/types.ts";
 
@@ -197,5 +199,101 @@ describe("isAllowedPause", () => {
 
   it("tolerates float noise on the grid", () => {
     expect(isAllowedPause(range, 0.1 + 0.2 + 0.7)).toBe(true); // 1.0000000000000002
+  });
+});
+
+// group 3 — design Decision 4: effective intervals are a pure function of the stored ones and the edits.
+describe("applyPauseEdits (design Decision 4)", () => {
+  // Four scenes of 5 s speech each, pauses 1.0 / 2.6 / 1.2 / 0.8 s. Intervals follow D11.
+  function session() {
+    const pauses = [1.0, 2.6, 1.2, 0.8];
+    const intervals: NarrationInterval[] = [];
+    let clock = 0;
+    for (const pause of pauses) {
+      intervals.push({ startSeconds: clock, endSeconds: clock + 5 + pause });
+      clock += 5 + pause;
+    }
+    const scenes = intervals.map((narrationInterval, index) => ({
+      id: `scene-${index + 1}`,
+      index: index + 1,
+      narrationInterval,
+      originalPauseSeconds: pauses[index]!,
+    }));
+    return { scenes, duration: clock };
+  }
+
+  it("returns the stored intervals untouched when there are no edits", () => {
+    const { scenes, duration } = session();
+
+    const result = applyPauseEdits(scenes, new Map(), duration);
+
+    expect(result.durationSeconds).toBe(duration);
+    expect(result.edits).toEqual([]);
+    expect([...result.intervals.values()]).toEqual(scenes.map((scene) => scene.narrationInterval));
+  });
+
+  it("shortens the scene and shifts every later scene earlier for a trim", () => {
+    const { scenes, duration } = session();
+
+    const result = applyPauseEdits(scenes, new Map([["scene-2", 1.1]]), duration);
+
+    expect(result.durationSeconds).toBeCloseTo(duration - 1.5, 9);
+    expect(result.intervals.get("scene-1")).toEqual(scenes[0]!.narrationInterval);
+    expect(result.intervals.get("scene-2")!.startSeconds).toBe(scenes[1]!.narrationInterval!.startSeconds);
+    expect(result.intervals.get("scene-2")!.endSeconds).toBeCloseTo(scenes[1]!.narrationInterval!.endSeconds - 1.5, 9);
+    expect(result.intervals.get("scene-3")!.startSeconds).toBeCloseTo(scenes[2]!.narrationInterval!.startSeconds - 1.5, 9);
+    expect(result.intervals.get("scene-4")!.endSeconds).toBeCloseTo(duration - 1.5, 9);
+  });
+
+  it("lengthens the scene and shifts every later scene later for an extension", () => {
+    const { scenes, duration } = session();
+
+    const result = applyPauseEdits(scenes, new Map([["scene-1", 1.5]]), duration);
+
+    expect(result.durationSeconds).toBeCloseTo(duration + 0.5, 9);
+    expect(result.intervals.get("scene-1")!.endSeconds).toBeCloseTo(scenes[0]!.narrationInterval!.endSeconds + 0.5, 9);
+    expect(result.intervals.get("scene-2")!.startSeconds).toBeCloseTo(scenes[1]!.narrationInterval!.startSeconds + 0.5, 9);
+  });
+
+  it("accumulates several edits", () => {
+    const { scenes, duration } = session();
+
+    const result = applyPauseEdits(scenes, new Map([["scene-1", 1.5], ["scene-3", 0.2]]), duration); // +0.5 and -1.0
+
+    expect(result.durationSeconds).toBeCloseTo(duration - 0.5, 9);
+    expect(result.intervals.get("scene-4")!.startSeconds).toBeCloseTo(scenes[3]!.narrationInterval!.startSeconds - 0.5, 9);
+    expect(result.intervals.get("scene-2")!.startSeconds).toBeCloseTo(scenes[1]!.narrationInterval!.startSeconds + 0.5, 9);
+  });
+
+  it("describes each change at the middle of the original pause, in the original timeline", () => {
+    const { scenes, duration } = session();
+
+    const result = applyPauseEdits(scenes, new Map([["scene-2", 1.1], ["scene-4", 1.3]]), duration);
+
+    // Scene 2: interval 6.0..13.6 (pause 2.6 s, speech ends at 11.0) -> middle 12.3. Scene 4: ends at the voice-over's end.
+    expect(result.edits).toHaveLength(2);
+    expect(result.edits[0]!.atSeconds).toBeCloseTo(scenes[1]!.narrationInterval!.endSeconds - 1.3, 9);
+    expect(result.edits[0]!.deltaSeconds).toBeCloseTo(-1.5, 9);
+    expect(result.edits[1]!.atSeconds).toBeCloseTo(duration - 0.4, 9);
+    expect(result.edits[1]!.deltaSeconds).toBeCloseTo(0.5, 9);
+  });
+
+  it("keeps the intervals a partition of the edited voice-over, with exact comparisons", () => {
+    const { scenes, duration } = session();
+    const edits = new Map([["scene-1", 0.2], ["scene-2", 3.0], ["scene-3", 0.7], ["scene-4", 2.9]]);
+
+    const result = applyPauseEdits(scenes, edits, duration);
+
+    const ordered = scenes.map((scene) => result.intervals.get(scene.id)!);
+    expect(findIntervalPartitionProblem(ordered, result.durationSeconds)).toBeNull();
+  });
+
+  it("treats an edit equal to the original pause, or for a scene without a pause, as no edit", () => {
+    const { scenes, duration } = session();
+
+    const result = applyPauseEdits(scenes, new Map([["scene-2", 2.6], ["no-such-scene", 1.0]]), duration);
+
+    expect(result.edits).toEqual([]);
+    expect(result.durationSeconds).toBe(duration);
   });
 });

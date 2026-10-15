@@ -45,14 +45,16 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 3. Backend: effective intervals (TDD; design Decision 4)
 
-- [ ] 3.1 Write failing tests for `applyPauseEdits(intervals, pauses, mp3Duration)`:
+- [x] 3.1 Write failing tests for `applyPauseEdits(intervals, pauses, mp3Duration)`:
   - no edits returns the stored intervals unchanged;
   - a trim shortens that scene and shifts every later one;
   - an extension lengthens and shifts;
   - several edits accumulate;
   - the result passes the shared partition check against the edited duration;
   - `edits` carry the original-timeline midpoints and deltas.
-- [ ] 3.2 Implement it in `scenePause.ts`; make 3.1 pass.
+- [x] 3.2 Implement it in `scenePause.ts`; make 3.1 pass.
+
+  Result: the partition rule moved out of `sceneRegistration.ts` into a pure `intervalPartition.ts` (`findIntervalPartitionProblem`, same messages) that both call, because importing the private function would have pulled `db`/`orchestrator` into the pause module and created an import cycle. The 124 existing registration/interval tests still pass.
 
 ## 4. Backend: storage (TDD; design Decision 3)
 
