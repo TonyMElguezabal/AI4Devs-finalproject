@@ -58,12 +58,14 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 4. Backend: storage (TDD; design Decision 3)
 
-- [ ] 4.1 Write failing tests:
+- [x] 4.1 Write failing tests:
   - `scene_pause_edits` set, replace and delete-on-original;
   - `final_video_builds` insert, with its no-update/no-delete triggers refusing changes;
   - the compare-and-set of `runs.final_video_path` refuses a stale expected path;
   - storing an edit never changes a scene's interval, requested duration or speed factor (the lock triggers still fire).
-- [ ] 4.2 Add the migrations and repository functions in `db.ts`; make 4.1 pass. Existing migration and lock tests still pass.
+- [x] 4.2 Add the migrations and repository functions in `db.ts`; make 4.1 pass. Existing migration and lock tests still pass.
+
+  Result: migration 16, the two write-once triggers, `setScenePauseEdit`/`clearScenePauseEdit`/`getScenePauseEdits`, `nextFinalVideoVersion`/`insertFinalVideoBuild`/`getFinalVideoBuilds`, `replaceFinalVideoPath`, and the `resetAll` additions. `scene_pause_edits` also carries `run_id` (indexed) so a session's edits read without a join; design.md updated to say so. One existing test (`attempt-outcomes`, "Migration 15…") applied *every* later migration and expected exactly `[15]`; it now bounds `applyMigrationsTo(fixture, 15)`, which is what it meant.
 
 ## 5. Backend: narration edits in the assembly tool (TDD; design Decision 5)
 

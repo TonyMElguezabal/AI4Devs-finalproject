@@ -55,7 +55,7 @@ Let `C` be the scene's `requestedDurationSeconds` (its clip length) and `S = int
 
 ### 3. Storage: one mutable table, one write-once table
 
-- `scene_pause_edits (scene_id TEXT PRIMARY KEY REFERENCES scenes(id), pause_seconds REAL NOT NULL, updated_at TEXT NOT NULL)`.
+- `scene_pause_edits (scene_id TEXT PRIMARY KEY REFERENCES scenes(id), run_id TEXT NOT NULL REFERENCES runs(id), pause_seconds REAL NOT NULL CHECK (pause_seconds >= 0), updated_at TEXT NOT NULL)`, indexed on `run_id` so a session's edits read without a join.
   - It is the only mutable timing data, deliberately: the dial is meant to be turned more than once.
   - Setting a scene back to its original pause deletes the row, so "no row" always means "original".
 - `final_video_builds (run_id TEXT, version INTEGER, path TEXT NOT NULL, pauses TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (run_id, version))`.

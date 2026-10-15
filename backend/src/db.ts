@@ -206,6 +206,18 @@ export const NARRATION_TIMESTAMPS_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER narrat
     SELECT RAISE(ABORT, 'locked: narration_timestamps cannot be deleted once obtained');
   END;`;
 
+// adjust-scene-pause (JOS-190), Decision 3 — a rebuilt final video's record (its version, file and the pause edits it
+// was built with) is written once. `resetAll()` (test-only) lifts the delete trigger inside its transaction.
+export const FINAL_VIDEO_BUILDS_NO_UPDATE_TRIGGER_DDL = `CREATE TRIGGER final_video_builds_no_update BEFORE UPDATE ON final_video_builds
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: final_video_builds cannot be modified once recorded');
+  END;`;
+
+export const FINAL_VIDEO_BUILDS_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER final_video_builds_no_delete BEFORE DELETE ON final_video_builds
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: final_video_builds cannot be deleted once recorded');
+  END;`;
+
 // ---- Versioned migrations (Decision 6) — applied on top of the baseline ----
 // Each migration takes the target database explicitly (not a closed-over
 // singleton) so the exact same runner can be pointed at a fixture database
@@ -509,6 +521,37 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
         target.exec("ROLLBACK");
         throw err;
       }
+    },
+  },
+  {
+    version: 16,
+    description:
+      "add scene_pause_edits (the User's mutable pause intent) and final_video_builds (write-once record of each rebuilt final video) (adjust-scene-pause, JOS-190)",
+    up: (target) => {
+      // Mutable on purpose, and the only mutable timing data: the dial is meant to be turned more than once. It holds
+      // User intent only; no locked record is read from or written to here. "No row" means "the original pause".
+      target.exec(`
+        CREATE TABLE scene_pause_edits (
+          scene_id TEXT PRIMARY KEY REFERENCES scenes(id),
+          run_id TEXT NOT NULL REFERENCES runs(id),
+          pause_seconds REAL NOT NULL CHECK (pause_seconds >= 0),
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX scene_pause_edits_run_id ON scene_pause_edits (run_id);
+      `);
+      // Version 1 is the original final-video.mp4 and has no row (no backfill); a rebuild is version 2 onwards.
+      target.exec(`
+        CREATE TABLE final_video_builds (
+          run_id TEXT NOT NULL REFERENCES runs(id),
+          version INTEGER NOT NULL CHECK (version >= 2),
+          path TEXT NOT NULL,
+          pauses TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (run_id, version)
+        );
+      `);
+      target.exec(FINAL_VIDEO_BUILDS_NO_UPDATE_TRIGGER_DDL);
+      target.exec(FINAL_VIDEO_BUILDS_NO_DELETE_TRIGGER_DDL);
     },
   },
 ];
@@ -1324,6 +1367,72 @@ export function setFinalVideoPath(runId: string, relativePath: string): boolean 
   return Number(result.changes) > 0;
 }
 
+/**
+ * adjust-scene-pause (JOS-190), Decision 3 — moves the current final video to a rebuilt file, only from the path the
+ * caller saw, so two rebuilds that both finish cannot both become current (the loser's file is left unreferenced).
+ */
+export function replaceFinalVideoPath(runId: string, expectedPath: string, newPath: string): boolean {
+  const result = db.prepare("UPDATE runs SET final_video_path = ? WHERE id = ? AND final_video_path = ?").run(newPath, runId, expectedPath);
+  return Number(result.changes) > 0;
+}
+
+// ---- Pause edits and rebuilt final videos (adjust-scene-pause, JOS-190) ----
+
+/** Stores or replaces the User's pause for a scene. Callers have already validated it against the scene's range. */
+export function setScenePauseEdit(runId: string, sceneId: string, pauseSeconds: number): void {
+  db.prepare(
+    "INSERT INTO scene_pause_edits (scene_id, run_id, pause_seconds, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(scene_id) DO UPDATE SET pause_seconds = excluded.pause_seconds, updated_at = excluded.updated_at",
+  ).run(sceneId, runId, pauseSeconds, nowIso());
+}
+
+/** Back to the original pause: the edit is removed, never stored as an equal value. */
+export function clearScenePauseEdit(sceneId: string): void {
+  db.prepare("DELETE FROM scene_pause_edits WHERE scene_id = ?").run(sceneId);
+}
+
+/** Scene id → the User's pause, for every edited scene of the session. */
+export function getScenePauseEdits(runId: string): Map<string, number> {
+  const rows = db.prepare("SELECT scene_id, pause_seconds FROM scene_pause_edits WHERE run_id = ?").all(runId) as Array<{
+    scene_id: string;
+    pause_seconds: number;
+  }>;
+  return new Map(rows.map((row) => [row.scene_id, row.pause_seconds]));
+}
+
+export interface FinalVideoBuild {
+  runId: string;
+  /** 2 onwards; the original `final-video.mp4` is version 1 and has no record. */
+  version: number;
+  path: string;
+  /** Scene id → the pause that build applied (only edited scenes). */
+  pauses: Record<string, number>;
+  createdAt: string;
+}
+
+export function nextFinalVideoVersion(runId: string): number {
+  const row = db.prepare("SELECT MAX(version) AS v FROM final_video_builds WHERE run_id = ?").get(runId) as { v: number | null };
+  return (row.v ?? 1) + 1;
+}
+
+/** Records a rebuild once. `false` when that version already exists (another rebuild recorded it first). */
+export function insertFinalVideoBuild(build: FinalVideoBuild): boolean {
+  const result = db
+    .prepare("INSERT OR IGNORE INTO final_video_builds (run_id, version, path, pauses, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(build.runId, build.version, build.path, JSON.stringify(build.pauses), build.createdAt);
+  return Number(result.changes) > 0;
+}
+
+export function getFinalVideoBuilds(runId: string): FinalVideoBuild[] {
+  const rows = db.prepare("SELECT * FROM final_video_builds WHERE run_id = ? ORDER BY version ASC").all(runId) as any[];
+  return rows.map((row) => ({
+    runId: row.run_id,
+    version: row.version,
+    path: row.path,
+    pauses: JSON.parse(row.pauses) as Record<string, number>,
+    createdAt: row.created_at,
+  }));
+}
+
 export function getAllInFlightScenes(): Scene[] {
   const rows = db.prepare("SELECT * FROM scenes WHERE status = 'image-generating'").all() as any[];
   return rows.map(rowToScene);
@@ -1640,12 +1749,14 @@ export function resetAll(): void {
     db.exec("DROP TRIGGER voice_overs_no_delete");
     db.exec("DROP TRIGGER scenes_no_delete");
     db.exec("DROP TRIGGER narration_timestamps_no_delete");
+    db.exec("DROP TRIGGER final_video_builds_no_delete");
     db.exec(
-      "DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
+      "DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
     );
     db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
     db.exec(SCENE_NO_DELETE_TRIGGER_DDL);
     db.exec(NARRATION_TIMESTAMPS_NO_DELETE_TRIGGER_DDL);
+    db.exec(FINAL_VIDEO_BUILDS_NO_DELETE_TRIGGER_DDL);
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");
