@@ -177,12 +177,12 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 - [x] 13.4 `docs/PRD.md` §7.3: the pause dial after the final video, its range, and versioned final-video files. `docs/frontend-standards.md`: the three new accessible names.
 - [x] 13.5 Run `graphify update .`.
 
-  Result: ran in the worktree; `graphify-out/` is untracked on this branch (as on the integration branch's other worktrees' main checkout), so it is not part of the commit.
+  Result: ran in the worktree. `graphify-out/` is tracked on the integration branch, so the refresh is its own commit (the project's rule: a committed graph is rewritten whole and that diff is expected).
   `docs/api-spec.yml` was regenerated with `app.swagger({ yaml: true })` from the real route schemas; the only changes are the two routes and the new read fields, plus a header note. The generator renders the two hand-written 422/503 descriptions of `POST /sessions` (JOS-187) as "Default Response"; those were kept as committed.
 
 ## 14. Close out
 
-- [ ] 14.1 Commit the work on `feature/jos-190-adjust-scene-pause`, path-scoped to this change.
+- [x] 14.1 Commit the work on `feature/jos-190-adjust-scene-pause`, path-scoped to this change.
 - [ ] 14.2 Ask before pushing (explicit `git push -u origin feature/jos-190-adjust-scene-pause`, never a bare push); open the PR against `feature/entrega-2-JAME` with a description linking to JOS-190.
 - [ ] 14.3 Obtain review by at least one human, not only AI agents.
 - [ ] 14.4 Archive the OpenSpec change after merge.
