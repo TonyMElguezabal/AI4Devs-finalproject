@@ -11,7 +11,7 @@ describe("the deadline of an attempt", () => {
   it("is its send time plus its stage's maximum time", () => {
     const deadline = attemptDeadline({ stage: "voice-over", sentAt: SENT_AT });
 
-    expect(deadline?.toISOString()).toBe("2026-10-05T10:00:10.000Z"); // voice: 10 s
+    expect(deadline?.getTime()).toBe(new Date(SENT_AT).getTime() + PER_PHASE_MAX_TIME_SECONDS.voice * 1000);
   });
 
   it("does not exist for an attempt that has not been sent", () => {
@@ -43,9 +43,9 @@ describe("each stage uses its own maximum time", () => {
 
   it("gives different stages different deadlines", () => {
     const voice = attemptDeadline({ stage: "voice-over", sentAt: SENT_AT })!;
-    const video = attemptDeadline({ stage: "video", sentAt: SENT_AT })!;
+    const image = attemptDeadline({ stage: "image", sentAt: SENT_AT })!;
 
-    expect(video.getTime()).toBeGreaterThan(voice.getTime());
+    expect(voice.getTime()).toBeGreaterThan(image.getTime());
   });
 });
 
@@ -66,9 +66,10 @@ describe("hasExpired, with an injectable clock", () => {
   const attempt = { stage: "voice-over", sentAt: SENT_AT } as const;
 
   it("is false until the deadline and true after it", () => {
-    expect(hasExpired(attempt, new Date("2026-10-05T10:00:09.999Z"))).toBe(false);
-    expect(hasExpired(attempt, new Date("2026-10-05T10:00:10.000Z"))).toBe(false); // exactly at the limit is not over it
-    expect(hasExpired(attempt, new Date("2026-10-05T10:00:10.001Z"))).toBe(true);
+    const deadlineMs = new Date(SENT_AT).getTime() + PER_PHASE_MAX_TIME_SECONDS.voice * 1000;
+    expect(hasExpired(attempt, new Date(deadlineMs - 1))).toBe(false);
+    expect(hasExpired(attempt, new Date(deadlineMs))).toBe(false); // exactly at the limit is not over it
+    expect(hasExpired(attempt, new Date(deadlineMs + 1))).toBe(true);
   });
 
   it("is false for an attempt that was never sent or has no limit", () => {
@@ -76,5 +77,32 @@ describe("hasExpired, with an injectable clock", () => {
 
     expect(hasExpired({ stage: "voice-over", sentAt: null }, now)).toBe(false);
     expect(hasExpired({ stage: "assembly", sentAt: SENT_AT }, now)).toBe(false);
+  });
+});
+
+// raise-video-time-limit (JOS-197), spec video-stage-time-limit — the limits fit a full-size script, so a request still
+// being processed after the times measured at the product's real scale is not expired.
+describe("an attempt at the product's real script size", () => {
+  const at = (seconds: number) => new Date(new Date(SENT_AT).getTime() + seconds * 1000);
+
+  it("a voice-over of 10,000 characters still in flight after 151 s has not expired", () => {
+    expect(hasExpired({ stage: "voice-over", sentAt: SENT_AT }, at(151))).toBe(false);
+  });
+
+  it("a decomposition of 67 fragments still in flight after 209 s has not expired", () => {
+    expect(hasExpired({ stage: "decomposition", sentAt: SENT_AT }, at(209))).toBe(false);
+  });
+
+  it("a 14 s clip still in flight after 640 s has not expired", () => {
+    expect(hasExpired({ stage: "video", sentAt: SENT_AT }, at(640))).toBe(false);
+  });
+
+  it.each([
+    ["voice-over", 600],
+    ["decomposition", 600],
+    ["video", 1200],
+  ] as const)("%s expires once it is past %i s", (stage, limit) => {
+    expect(hasExpired({ stage, sentAt: SENT_AT }, at(limit))).toBe(false);
+    expect(hasExpired({ stage, sentAt: SENT_AT }, at(limit + 1))).toBe(true);
   });
 });

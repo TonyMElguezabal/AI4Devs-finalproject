@@ -108,11 +108,15 @@ describe("The speed-factor limit (§7.2, record-speed-adjustment-factor, JOS-148
 describe("Per-phase maximum times are set above the measured slow tail (Decision 7, §10.1)", () => {
   it("each numeric phase limit exceeds its own measured maximum sample", () => {
     // Measured maxima from reports/2026-09-27-step-8-timing-measurements.md
-    expect(PER_PHASE_MAX_TIME_SECONDS.decomposition).toBeGreaterThan(8.47);
+    // Decomposition: 208.6 s for 67 fragments (11 fragments took 75 s), same run; it grows with the number of scenes.
+    expect(PER_PHASE_MAX_TIME_SECONDS.decomposition).toBeGreaterThan(208.6);
     expect(PER_PHASE_MAX_TIME_SECONDS.image).toBeGreaterThan(10.79);
-    expect(PER_PHASE_MAX_TIME_SECONDS.voice).toBeGreaterThan(2.47);
+    // Voice: 151 s for 10,217 characters (1,740 words, about 12.8 minutes), 2026-10-13, a real run at the product's script size.
+    expect(PER_PHASE_MAX_TIME_SECONDS.voice).toBeGreaterThan(151);
     expect(PER_PHASE_MAX_TIME_SECONDS.alignment).toBeGreaterThan(0.48);
-    expect(PER_PHASE_MAX_TIME_SECONDS.video).toBeGreaterThan(159.5);
+    // Clips of 14 s timed out at 607-610 s three times each on 2026-10-14 (a real 11-scene run, JOS-197); 7-13 s clips took 394-546 s.
+    // The longest admitted clip is 15 s, so the limit must clear the longest observed time with room.
+    expect(PER_PHASE_MAX_TIME_SECONDS.video).toBeGreaterThan(610 * 1.5);
   });
 
   it("assembly is explicitly undetermined pending define-media-assembly (JOS-182)", () => {
@@ -122,7 +126,7 @@ describe("Per-phase maximum times are set above the measured slow tail (Decision
   // stage-execution-time-limit (JOS-185) task 9.3 — the timeout watcher reads these values, so they are compared with
   // the PRD's own row: either side changing alone is caught here.
   it("equal the per-phase maximum times recorded in PRD §11.3", () => {
-    const prd = readFileSync(resolve(import.meta.dirname, "../../docs/PRD-v1.4.md"), "utf8");
+    const prd = readFileSync(resolve(import.meta.dirname, "../../docs/PRD.md"), "utf8");
     const row = prd.split("\n").find((line) => line.startsWith("| Per-phase maximum times"));
     const match = row?.match(/Reasoning (\d+)s, Image (\d+)s, Voice (\d+)s, Alignment (\d+)s, Video (\d+)s, Assembly provisional/);
 
