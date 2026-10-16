@@ -1,6 +1,6 @@
 # Add observability and telemetry to the packaged application
 
-Linear-Issue: none yet (to be filed; see Impact)
+Linear-Issue: JOS-199
 
 ## Why
 

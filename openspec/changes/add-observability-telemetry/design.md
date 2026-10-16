@@ -190,6 +190,6 @@ Resource attributes: `service.name=vid4you`, `service.version`, `deployment.envi
 
 ## Open Questions
 
-- **The Linear ticket.** It needs to be filed, and the branch renamed to `feature/jos-<n>-…` if the team prefers ticket-numbered branches.
+- ~~**The Linear ticket.**~~ Filed as JOS-199 (owner jose.elguezabal@gmail.com); the branch is renamed `feature/jos-199-add-observability-telemetry`.
 - **Who owns the Grafana Cloud stack and Cloudflare deploy token** (the product owner's account?). This is needed before task group 6 can deploy.
 - **The PRD addendum wording for the privacy note.** It is drafted in task group 9 for product-owner approval.

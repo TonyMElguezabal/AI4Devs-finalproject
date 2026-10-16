@@ -1,7 +1,7 @@
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [x] 0.1 Create feature branch `feature/add-observability-telemetry` from `origin/feature/entrega-2-JAME` with `--no-track` (worktree `AI4Devs-observability`)
-- [ ] 0.2 Verify the branch has no upstream (`git branch -vv`), and push only with `git push -u origin feature/add-observability-telemetry`
+- [x] 0.1 Create feature branch `feature/jos-199-add-observability-telemetry` (renamed after JOS-199 was filed) from `origin/feature/entrega-2-JAME` with `--no-track` (worktree `AI4Devs-observability`)
+- [x] 0.2 Verify the branch has no upstream (`git branch -vv`), and push only with `git push -u origin feature/jos-199-add-observability-telemetry`
 - [ ] 0.3 Re-check that L3 (Origin/Host guard) and L6/L7 have not landed in a way that changes this plan (`git fetch`, `git branch -a | grep -iE "jos-|l3|origin-guard"`), and record the result in design.md § Context
 
 ## 1. Backend: Shared path scrubber (TDD, D11)
