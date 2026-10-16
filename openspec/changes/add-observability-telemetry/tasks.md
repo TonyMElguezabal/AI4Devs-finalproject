@@ -2,13 +2,13 @@
 
 - [x] 0.1 Create feature branch `feature/jos-199-add-observability-telemetry` (renamed after JOS-199 was filed) from `origin/feature/entrega-2-JAME` with `--no-track` (worktree `AI4Devs-observability`)
 - [x] 0.2 Verify the branch has no upstream (`git branch -vv`), and push only with `git push -u origin feature/jos-199-add-observability-telemetry`
-- [ ] 0.3 Re-check that L3 (Origin/Host guard) and L6/L7 have not landed in a way that changes this plan (`git fetch`, `git branch -a | grep -iE "jos-|l3|origin-guard"`), and record the result in design.md § Context
+- [x] 0.3 Re-check that L3 (Origin/Host guard) and L6/L7 have not landed in a way that changes this plan (`git fetch`, `git branch -a | grep -iE "jos-|l3|origin-guard"`), and record the result in design.md § Context
 
 ## 1. Backend: Shared path scrubber (TDD, D11)
 
-- [ ] 1.1 Write failing tests in `backend/test/redact-paths.test.ts`: POSIX path, Windows drive path, UNC path, home folder, user name, text with no path left unchanged
-- [ ] 1.2 Implement `backend/src/util/redactPaths.ts` until the tests pass
-- [ ] 1.3 Replace the local `redactPaths` in `orchestrator.ts` with the shared import, and confirm the existing assembly-failure tests still pass
+- [x] 1.1 Write failing tests in `backend/test/redact-paths.test.ts`: POSIX path, Windows drive path, UNC path, home folder, user name, text with no path left unchanged
+- [x] 1.2 Implement `backend/src/util/redactPaths.ts` until the tests pass
+- [x] 1.3 Replace the local `redactPaths` in `orchestrator.ts` with the shared import, and confirm the existing assembly-failure tests still pass
 
 ## 2. Backend: Build identity and consent store (TDD, D3, D8)
 

@@ -29,6 +29,7 @@ These facts come from the code on `feature/entrega-2-JAME` (`e7ffb645`):
   - pure-JS dependencies only;
   - erasable TypeScript only, so no enums and no parameter properties;
   - no credential and no script text in any log.
+- Re-checked on 2026-10-15 (task 0.3): `origin/feature/entrega-2-JAME` is still `e7ffb645`, and no L3 (Origin/Host guard) or L6/L7 branch has merged. Only `feature/jos-194-production-deployment` exists, so this plan stands unchanged.
 - The packaging stories L1–L9 are not implemented yet. The data folder, version, channel and release tag don't exist in the code. CORS is `origin: true` and there's no Origin/Host guard (L3).
 
 ## Goals / Non-Goals
