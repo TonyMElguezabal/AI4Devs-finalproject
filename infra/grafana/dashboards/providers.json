@@ -1,0 +1,599 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus (Grafana Cloud metrics)",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.0.0"
+    }
+  ],
+  "uid": "vid4you-providers",
+  "title": "Vid4You \u2014 providers and cost",
+  "description": "Provider attempts, latency, retry and error rate per stage, and estimated cost per final video.",
+  "tags": [
+    "vid4you"
+  ],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "refresh": "5m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "env",
+        "label": "Environment",
+        "type": "custom",
+        "multi": true,
+        "includeAll": false,
+        "query": "production,uat,development",
+        "options": [
+          {
+            "text": "production",
+            "value": "production",
+            "selected": true
+          },
+          {
+            "text": "uat",
+            "value": "uat",
+            "selected": true
+          },
+          {
+            "text": "development",
+            "value": "development",
+            "selected": false
+          }
+        ],
+        "current": {
+          "text": [
+            "production",
+            "uat"
+          ],
+          "value": [
+            "production",
+            "uat"
+          ]
+        },
+        "description": "development builds are hidden by default"
+      },
+      {
+        "name": "price_clip_second",
+        "label": "Price per clip second (USD)",
+        "type": "constant",
+        "query": "0.05",
+        "hide": 2,
+        "description": "Estimate. Update when the video provider changes its price.",
+        "current": {
+          "text": "0.05",
+          "value": "0.05"
+        },
+        "options": [
+          {
+            "text": "0.05",
+            "value": "0.05",
+            "selected": true
+          }
+        ]
+      },
+      {
+        "name": "price_image",
+        "label": "Price per image (USD)",
+        "type": "constant",
+        "query": "0.03",
+        "hide": 2,
+        "description": "Estimate. Update when the image provider changes its price.",
+        "current": {
+          "text": "0.03",
+          "value": "0.03"
+        },
+        "options": [
+          {
+            "text": "0.03",
+            "value": "0.03",
+            "selected": true
+          }
+        ]
+      },
+      {
+        "name": "price_voice_character",
+        "label": "Price per voice character (USD)",
+        "type": "constant",
+        "query": "0.0003",
+        "hide": 2,
+        "description": "Estimate. Update when the voice provider changes its price.",
+        "current": {
+          "text": "0.0003",
+          "value": "0.0003"
+        },
+        "options": [
+          {
+            "text": "0.0003",
+            "value": "0.0003",
+            "selected": true
+          }
+        ]
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "",
+      "options": {
+        "mode": "markdown",
+        "content": "**Cost is an estimate.** It multiplies billed units (clip seconds requested, images generated, voice characters sent, counted on success only) by the price constants of this dashboard (Settings \u2192 Variables). Failed calls that a provider still bills, and per-resolution price tiers, are not counted. Update the prices when a provider changes them."
+      },
+      "id": 1,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 4
+      }
+    },
+    {
+      "type": "row",
+      "title": "Attempts",
+      "collapsed": false,
+      "panels": [],
+      "id": 2,
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Attempts by stage, provider and outcome",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum by (stage, provider, outcome) (increase(vid4you_provider_calls_total{deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "{{stage}} / {{provider}} / {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "id": 3,
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Retry rate (transient outcomes)",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum by (stage, provider) (increase(vid4you_provider_calls_total{deployment_environment=~\"$env\", outcome=\"transient\"}[$__rate_interval])) / sum by (stage, provider) (increase(vid4you_provider_calls_total{deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "{{stage}} / {{provider}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "id": 4,
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Error rate (not-retryable outcomes)",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum by (stage, provider) (increase(vid4you_provider_calls_total{deployment_environment=~\"$env\", outcome=\"not-retryable\"}[$__rate_interval])) / sum by (stage, provider) (increase(vid4you_provider_calls_total{deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "legendFormat": "{{stage}} / {{provider}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "id": 5,
+      "gridPos": {
+        "x": 12,
+        "y": 13,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "type": "row",
+      "title": "Latency",
+      "collapsed": false,
+      "panels": [],
+      "id": 6,
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency percentiles per stage and provider",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le, stage, provider) (rate(vid4you_provider_call_duration_ms_bucket{deployment_environment=~\"$env\"}[$__rate_interval])))",
+          "legendFormat": "p50 {{stage}} / {{provider}}",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, stage, provider) (rate(vid4you_provider_call_duration_ms_bucket{deployment_environment=~\"$env\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{stage}} / {{provider}}",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le, stage, provider) (rate(vid4you_provider_call_duration_ms_bucket{deployment_environment=~\"$env\"}[$__rate_interval])))",
+          "legendFormat": "p99 {{stage}} / {{provider}}",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "id": 7,
+      "gridPos": {
+        "x": 0,
+        "y": 22,
+        "w": 24,
+        "h": 8
+      }
+    },
+    {
+      "type": "row",
+      "title": "Estimated cost",
+      "collapsed": false,
+      "panels": [],
+      "id": 8,
+      "gridPos": {
+        "x": 0,
+        "y": 30,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Estimated cost in range (USD)",
+      "description": "Estimate \u2014 see the note at the top.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "((sum(increase(vid4you_billed_units_total{deployment_environment=~\"$env\", unit=\"clip_seconds\"}[$__range])) or vector(0)) * $price_clip_second) + ((sum(increase(vid4you_billed_units_total{deployment_environment=~\"$env\", unit=\"images\"}[$__range])) or vector(0)) * $price_image) + ((sum(increase(vid4you_billed_units_total{deployment_environment=~\"$env\", unit=\"voice_characters\"}[$__range])) or vector(0)) * $price_voice_character)",
+          "legendFormat": "",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "id": 9,
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Estimated cost per final video (USD)",
+      "description": "Estimate. Empty when no final video was made in the range.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "(((sum(increase(vid4you_billed_units_total{deployment_environment=~\"$env\", unit=\"clip_seconds\"}[$__range])) or vector(0)) * $price_clip_second) + ((sum(increase(vid4you_billed_units_total{deployment_environment=~\"$env\", unit=\"images\"}[$__range])) or vector(0)) * $price_image) + ((sum(increase(vid4you_billed_units_total{deployment_environment=~\"$env\", unit=\"voice_characters\"}[$__range])) or vector(0)) * $price_voice_character)) / (sum(increase(vid4you_final_videos_total{deployment_environment=~\"$env\"}[$__range])))",
+          "legendFormat": "",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "id": 10,
+      "gridPos": {
+        "x": 8,
+        "y": 31,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Final videos in range",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum(increase(vid4you_final_videos_total{deployment_environment=~\"$env\"}[$__range]))",
+          "legendFormat": "",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "id": 11,
+      "gridPos": {
+        "x": 16,
+        "y": 31,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Billed clip seconds",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum by (provider) (increase(vid4you_billed_units_total{deployment_environment=~\"$env\", unit=\"clip_seconds\"}[$__range]))",
+          "legendFormat": "{{provider}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      },
+      "id": 12,
+      "gridPos": {
+        "x": 0,
+        "y": 39,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Billed images",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum by (provider) (increase(vid4you_billed_units_total{deployment_environment=~\"$env\", unit=\"images\"}[$__range]))",
+          "legendFormat": "{{provider}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      },
+      "id": 13,
+      "gridPos": {
+        "x": 8,
+        "y": 39,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Billed voice characters",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "sum by (provider) (increase(vid4you_billed_units_total{deployment_environment=~\"$env\", unit=\"voice_characters\"}[$__range]))",
+          "legendFormat": "{{provider}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      },
+      "id": 14,
+      "gridPos": {
+        "x": 16,
+        "y": 39,
+        "w": 8,
+        "h": 8
+      }
+    }
+  ]
+}

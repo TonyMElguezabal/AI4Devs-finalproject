@@ -91,8 +91,8 @@
 
 ## 8. Dashboards (D12)
 
-- [ ] 8.1 Create `infra/grafana/dashboards/release-health.json`, `providers.json` and `usage.json` with datasource variables and the price constants
-- [ ] 8.2 Write `infra/grafana/README.md` (how to import, where to update prices)
+- [x] 8.1 Create `infra/grafana/dashboards/release-health.json`, `providers.json` and `usage.json` with datasource variables and the price constants
+- [x] 8.2 Write `infra/grafana/README.md` (how to import, where to update prices)
 - [ ] 8.3 Import the dashboards into the Grafana Cloud stack that is receiving the 6.5 test data and confirm every panel renders. Record the result in `reports/`
 
 ## 9. Packaging check
