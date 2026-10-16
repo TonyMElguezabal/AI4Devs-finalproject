@@ -38,7 +38,7 @@ import { STUB_PROVIDER_NAME } from "./types.ts";
 
 export type { NarrationTimestampsInput, VoiceOverInput } from "./types.ts";
 
-const DB_PATH = process.env.DB_PATH ?? "data/skeleton.sqlite";
+export const DB_PATH = process.env.DB_PATH ?? "data/skeleton.sqlite";
 mkdirSync(dirname(DB_PATH), { recursive: true });
 
 /** PRD §12.2 — local per-project folders, never deleted, never expiring. */

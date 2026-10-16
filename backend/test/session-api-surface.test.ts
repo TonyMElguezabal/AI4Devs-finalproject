@@ -54,7 +54,12 @@ describe("The API offers no operation that modifies the locked content (AC1)", (
   });
 
   it("offers no PUT, PATCH or DELETE route at all", () => {
-    const routes = offeredRoutes();
+    // add-observability-telemetry (JOS-199): the one deliberate exception is the app-level consent setting, which
+    // touches no session content. Any other mutating route still fails here.
+    const routes = offeredRoutes()
+      .split("\n")
+      .filter((line) => !line.includes("consent"))
+      .join("\n");
     expect(routes).not.toMatch(/\bPUT\b/);
     expect(routes).not.toMatch(/\bPATCH\b/);
     expect(routes).not.toMatch(/\bDELETE\b/);

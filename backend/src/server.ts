@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyBaseLogger, type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
@@ -12,8 +12,11 @@ import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
 import { STAGE } from "./types.ts";
 import { setDecompositionLogger } from "./decompositionPhase.ts";
 import { setVoiceOverLogger } from "./voiceOverPhase.ts";
-import { getTelemetrySettings } from "./db.ts";
+import { DB_PATH, getTelemetrySettings } from "./db.ts";
+import { createAppLogger } from "./telemetry/logFile.ts";
+import { dirname, join } from "node:path";
 import { recordProductEvent, setConsent, shutdownTelemetry } from "./telemetry/index.ts";
+import { startUpdateCheck } from "./telemetry/updateCheck.ts";
 import { installProcessErrorHandlers } from "./telemetry/processHandlers.ts";
 import { rebuildScheduler } from "./retry/retryScheduler.ts";
 import { startAttemptTimeoutWatcher } from "./retry/attemptTimeoutWatcher.ts";
@@ -44,7 +47,11 @@ const BODY_LIMIT_BYTES = Number(process.env.BODY_LIMIT_BYTES ?? 50 * 1024 * 1024
  * only caller that also calls `.listen()`.
  */
 export async function buildApp(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: process.env.NODE_ENV !== "test", bodyLimit: BODY_LIMIT_BYTES });
+  // add-observability-telemetry (JOS-199) Decision 5 — stdout as before, plus a rotating file in `logs` beside the store.
+  // Logging stays off under test, as before.
+  const loggerOptions: { loggerInstance?: FastifyBaseLogger; logger?: false } =
+    process.env.NODE_ENV !== "test" ? { loggerInstance: createAppLogger({ dir: join(dirname(DB_PATH), "logs") }) } : { logger: false };
+  const app = Fastify({ ...loggerOptions, bodyLimit: BODY_LIMIT_BYTES });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
@@ -160,6 +167,7 @@ if (isMainModule) {
   configureAssemblyTool();
   initTelemetry();
   installProcessErrorHandlers();
+  startUpdateCheck(); // not awaited: the answer is read by GET /app/update, and listen is never delayed
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.once(signal, () => void shutdownTelemetry().finally(() => process.exit(0)));
   }

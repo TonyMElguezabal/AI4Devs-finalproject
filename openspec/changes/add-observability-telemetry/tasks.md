@@ -50,20 +50,20 @@
 
 ## 5. Backend: Local log file and endpoints (TDD, D5, D9)
 
-- [ ] 5.1 Write failing tests for `telemetry/logFile.ts`:
+- [x] 5.1 Write failing tests for `telemetry/logFile.ts`:
   - lines are appended;
   - the file rotates when it passes the size limit, using a small limit injected in the test;
   - no more than 5 rotated files are kept
-- [ ] 5.2 Implement the rotating stream and pass a Pino multistream (stdout and file) to `buildApp` as `loggerInstance`, with the folder at `dirname(DB_PATH)/logs`
-- [ ] 5.3 Write failing route tests for `GET/PUT /telemetry/consent`: defaults, a valid save returning `200`, an invalid body returning `400` with the store unchanged
-- [ ] 5.4 Add the routes with Zod schemas in `routes.ts`
-- [ ] 5.5 Write failing tests for `telemetry/updateCheck.ts`, with `fetch` injected:
+- [x] 5.2 Implement the rotating stream and pass a Pino multistream (stdout and file) to `buildApp` as `loggerInstance`, with the folder at `dirname(DB_PATH)/logs`
+- [x] 5.3 Write failing route tests for `GET/PUT /telemetry/consent`: defaults, a valid save returning `200`, an invalid body returning `400` with the store unchanged
+- [x] 5.4 Add the routes with Zod schemas in `routes.ts`
+- [x] 5.5 Write failing tests for `telemetry/updateCheck.ts`, with `fetch` injected:
   - production with a newer tag returns available;
   - the same tag returns not available;
   - UAT picks the first pre-release;
   - a timeout or network error returns not available;
   - `development` makes no request
-- [ ] 5.6 Implement the update check, start it at boot without blocking `listen`, and add `GET /app/update`
+- [x] 5.6 Implement the update check, start it at boot without blocking `listen`, and add `GET /app/update`
 
 ## 6. Infrastructure: Telemetry relay (TDD, D6, D7)
 
