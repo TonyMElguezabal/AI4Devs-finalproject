@@ -11,6 +11,7 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
+import { ulid } from "./util/ulid.ts";
 import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import type {
@@ -556,6 +557,23 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       target.exec(FINAL_VIDEO_BUILDS_NO_DELETE_TRIGGER_DDL);
     },
   },
+  {
+    version: 17,
+    description: "add the single-row telemetry_settings table, every signal off (add-observability-telemetry, JOS-199)",
+    up: (target) => {
+      target.exec(`
+        CREATE TABLE telemetry_settings (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          errors INTEGER NOT NULL DEFAULT 0 CHECK (errors IN (0, 1)),
+          provider_usage INTEGER NOT NULL DEFAULT 0 CHECK (provider_usage IN (0, 1)),
+          product_usage INTEGER NOT NULL DEFAULT 0 CHECK (product_usage IN (0, 1)),
+          answered_at TEXT,
+          install_id TEXT NOT NULL
+        );
+      `);
+      target.prepare("INSERT INTO telemetry_settings (id, install_id) VALUES (1, ?)").run(ulid());
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -582,6 +600,29 @@ export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Nu
 }
 
 export const migrationsAppliedOnBoot = applyMigrationsTo(db);
+
+// ---- add-observability-telemetry (JOS-199), Decision 3: opt-in consent, one toggle per signal ----
+
+export type TelemetryConsent = { errors: boolean; providerUsage: boolean; productUsage: boolean };
+export type TelemetrySettings = TelemetryConsent & { answered: boolean; installId: string };
+
+export function getTelemetrySettings(target: DatabaseSync = db): TelemetrySettings {
+  const row = target.prepare("SELECT * FROM telemetry_settings WHERE id = 1").get() as any;
+  return {
+    errors: row.errors === 1,
+    providerUsage: row.provider_usage === 1,
+    productUsage: row.product_usage === 1,
+    answered: row.answered_at !== null,
+    installId: row.install_id,
+  };
+}
+
+export function saveTelemetryConsent(consent: TelemetryConsent, target: DatabaseSync = db): TelemetrySettings {
+  target
+    .prepare("UPDATE telemetry_settings SET errors = ?, provider_usage = ?, product_usage = ?, answered_at = ? WHERE id = 1")
+    .run(Number(consent.errors), Number(consent.providerUsage), Number(consent.productUsage), new Date().toISOString());
+  return getTelemetrySettings(target);
+}
 
 function nowIso(): string {
   return new Date().toISOString();

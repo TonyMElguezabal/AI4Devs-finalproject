@@ -12,10 +12,10 @@
 
 ## 2. Backend: Build identity and consent store (TDD, D3, D8)
 
-- [ ] 2.1 Write failing tests for `config/build.ts`: defaults (`0.0.0-dev`, `development`, null tag), a valid channel, and an unknown channel falling back to `development`
-- [ ] 2.2 Implement `backend/src/config/build.ts`
-- [ ] 2.3 Write failing tests for the `telemetry_settings` migration and its accessors: a fresh store has all signals off, `answered: false` and a stable install ID; saving persists and survives reopening the store
-- [ ] 2.4 Add the migration and `getTelemetrySettings` / `saveTelemetryConsent` to `db.ts`
+- [x] 2.1 Write failing tests for `config/build.ts`: defaults (`0.0.0-dev`, `development`, null tag), a valid channel, and an unknown channel falling back to `development`
+- [x] 2.2 Implement `backend/src/config/build.ts`
+- [x] 2.3 Write failing tests for the `telemetry_settings` migration and its accessors: a fresh store has all signals off, `answered: false` and a stable install ID; saving persists and survives reopening the store
+- [x] 2.4 Add the migration and `getTelemetrySettings` / `saveTelemetryConsent` to `db.ts`
 
 ## 3. Backend: Telemetry module (TDD, D1, D2, D13)
 
