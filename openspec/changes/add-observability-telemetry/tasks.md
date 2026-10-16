@@ -67,14 +67,14 @@
 
 ## 6. Infrastructure: Telemetry relay (TDD, D6, D7)
 
-- [ ] 6.1 Scaffold `infra/telemetry-relay/` (`package.json`, `wrangler.jsonc` with the rate-limit binding and the `otel.vid4you.download` custom domain, `tsconfig.json`, `src/allowlist.ts`)
-- [ ] 6.2 Write failing tests in `infra/telemetry-relay/test/relay.test.ts`, calling the handler with a fake `env` and a stubbed `fetch`:
+- [x] 6.1 Scaffold `infra/telemetry-relay/` (`package.json`, `wrangler.jsonc` with the rate-limit binding and the `otel.vid4you.download` custom domain, `tsconfig.json`, `src/allowlist.ts`)
+- [x] 6.2 Write failing tests in `infra/telemetry-relay/test/relay.test.ts`, calling the handler with a fake `env` and a stubbed `fetch`:
   - a valid JSON export is forwarded with Basic auth and the upstream status is returned;
   - the result for each refused case: wrong path `404`, wrong method `405`, protobuf `415`, more than 256 KB `413`, rate limited `429`;
   - an unknown attribute is stripped before forwarding;
   - the token never appears in any response
-- [ ] 6.3 Implement `infra/telemetry-relay/src/index.ts` until the tests pass
-- [ ] 6.4 Add `.github/workflows/telemetry-relay.yml` (push to `main` on `infra/telemetry-relay/**` and `workflow_dispatch`: `npm ci`, `vitest run`, `wrangler deploy`), with action versions pinned to commit SHAs
+- [x] 6.3 Implement `infra/telemetry-relay/src/index.ts` until the tests pass
+- [x] 6.4 Add `.github/workflows/telemetry-relay.yml` (push to `main` on `infra/telemetry-relay/**` and `workflow_dispatch`: `npm ci`, `vitest run`, `wrangler deploy`), with action versions pinned to commit SHAs
 - [ ] 6.5 Once the product owner has created the Grafana stack, the token and the GitHub secrets (Open Questions), deploy, then `curl` the relay with a sample export and confirm it appears in Grafana Explore. Record the result in `reports/`
 
 ## 7. Frontend: Consent dialog and update banner (TDD, D10)
