@@ -32,21 +32,21 @@
 
 ## 4. Backend: Hooks into provider recording and the process (TDD, D4)
 
-- [ ] 4.1 Write failing tests:
+- [x] 4.1 Write failing tests:
   - completing a voice-over attempt records one call with the run's provider, its latency and voice characters equal to the script length;
   - a refused second completion records nothing;
   - a `not-retryable` completion also records one error
-- [ ] 4.2 Change `completeStageAttempt` to `UPDATE … RETURNING` and call `recordProviderCall` / `recordError`
-- [ ] 4.3 Write failing tests:
+- [x] 4.2 Change `completeStageAttempt` to `UPDATE … RETURNING` and call `recordProviderCall` / `recordError`
+- [x] 4.3 Write failing tests:
   - `insertProviderRequest` for a `video` `success` records the scene's video provider and its requested seconds;
   - for an `image` `success` it records one image;
   - a `not_retryable_failure` records an error
-- [ ] 4.4 Add the hook to `insertProviderRequest`
-- [ ] 4.5 Write failing tests for product events:
+- [x] 4.4 Add the hook to `insertProviderRequest`
+- [x] 4.5 Write failing tests for product events:
   - app start counted once at boot;
   - session creation counted;
   - a session reaching `final-video` counted once
-- [ ] 4.6 Wire the product events (boot, session-creation route, the final-video transition) and register `uncaughtException` / `unhandledRejection` handlers that call `recordError` and then keep today's behavior
+- [x] 4.6 Wire the product events (boot, session-creation route, the final-video transition) and register `uncaughtException` / `unhandledRejection` handlers that call `recordError` and then keep today's behavior
 
 ## 5. Backend: Local log file and endpoints (TDD, D5, D9)
 

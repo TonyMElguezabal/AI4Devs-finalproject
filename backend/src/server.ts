@@ -12,6 +12,9 @@ import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
 import { STAGE } from "./types.ts";
 import { setDecompositionLogger } from "./decompositionPhase.ts";
 import { setVoiceOverLogger } from "./voiceOverPhase.ts";
+import { getTelemetrySettings } from "./db.ts";
+import { recordProductEvent, setConsent, shutdownTelemetry } from "./telemetry/index.ts";
+import { installProcessErrorHandlers } from "./telemetry/processHandlers.ts";
 import { rebuildScheduler } from "./retry/retryScheduler.ts";
 import { startAttemptTimeoutWatcher } from "./retry/attemptTimeoutWatcher.ts";
 import { setRetryDelayConfig } from "./retry/stageAttemptRecorder.ts";
@@ -71,6 +74,12 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   return app;
+}
+
+/** add-observability-telemetry (JOS-199) — load the stored consent, then count the start. Everything stays off until the user opts in. */
+export function initTelemetry(): void {
+  setConsent(getTelemetrySettings());
+  recordProductEvent("app_start");
 }
 
 /** The boot log fields: the settle summary, each stage's in-flight count and limit, and the stages with no restart recovery. */
@@ -149,6 +158,11 @@ if (isMainModule) {
   // `slow-success` (JOS-161) answers success after ASSEMBLY_STUB_DELAY_MS (default 15000), so a pause can land during assembly.
   // Without it the real ffmpeg adapter is registered (run-session-end-to-end, JOS-195).
   configureAssemblyTool();
+  initTelemetry();
+  installProcessErrorHandlers();
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => void shutdownTelemetry().finally(() => process.exit(0)));
+  }
   const app = await buildApp();
   setVoiceOverLogger(app.log);
   setDecompositionLogger(app.log);

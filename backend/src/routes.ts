@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
+import { recordProductEvent } from "./telemetry/index.ts";
 import { z } from "zod";
 import { jsonSchemaTransform, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
@@ -327,6 +328,7 @@ export const routes: FastifyPluginAsync = async (app) => {
       }
       const sessionId = ulid();
       createRun(sessionId, request.body.title, request.body.script, request.body.language);
+      recordProductEvent("session_started");
       reply.code(201);
       const snapshot = toSnapshot(sessionId);
       // generate-voice-over (JOS-136) Decision 1 — the session is committed; the
