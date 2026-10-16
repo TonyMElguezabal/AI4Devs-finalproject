@@ -5,10 +5,12 @@ interface Props {
   connected?: boolean;
   /** Present on a session page only: returns to the start form. Absent: no button is shown. */
   onNewProject?: () => void;
+  /** add-observability-telemetry (JOS-199): reopens the privacy choices. Absent: no button is shown. */
+  onOpenPrivacy?: () => void;
 }
 
 /** redesign-visual-design (JOS-198), design Decision 4 — the wordmark, the connection indicator and "New project". */
-export function TopBar({ connected, onNewProject }: Props) {
+export function TopBar({ connected, onNewProject, onOpenPrivacy }: Props) {
   return (
     <header className="top-bar">
       <div className="brand">
@@ -22,6 +24,11 @@ export function TopBar({ connected, onNewProject }: Props) {
           <span className="connection-dot" aria-hidden="true" />
           {connected ? "Live" : "Connecting…"}
         </span>
+      )}
+      {onOpenPrivacy && (
+        <button type="button" className="privacy-button" onClick={onOpenPrivacy}>
+          Privacy
+        </button>
       )}
       {onNewProject && (
         <button type="button" onClick={onNewProject}>

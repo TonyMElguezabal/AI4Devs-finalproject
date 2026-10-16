@@ -138,3 +138,16 @@ export interface SessionSnapshot {
 // runtime (src/api/client.ts's `fetchLanguages`), which is itself provisional
 // pending `define-provider-configuration` (US-33, JOS-165) — see
 // backend/src/config/languages.ts for that note. One source, not two.
+
+/** add-observability-telemetry (JOS-199) — one opt-in toggle per signal; `answered` is false until the user saves once. */
+export interface TelemetryChoices {
+  errors: boolean;
+  providerUsage: boolean;
+  productUsage: boolean;
+}
+export interface TelemetryConsent extends TelemetryChoices {
+  answered: boolean;
+}
+
+/** `GET /app/update`: a newer build exists on this build's channel. */
+export type AppUpdate = { available: false } | { available: true; tag: string; url: string };

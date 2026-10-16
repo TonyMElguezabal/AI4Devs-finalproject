@@ -79,15 +79,15 @@
 
 ## 7. Frontend: Consent dialog and update banner (TDD, D10)
 
-- [ ] 7.1 Add `getTelemetryConsent`, `saveTelemetryConsent` and `getAppUpdate` to `frontend/src/api/client.ts`, with types in `types.ts`
-- [ ] 7.2 Write failing tests for `TelemetryConsentDialog`:
+- [x] 7.1 Add `getTelemetryConsent`, `saveTelemetryConsent` and `getAppUpdate` to `frontend/src/api/client.ts`, with types in `types.ts`
+- [x] 7.2 Write failing tests for `TelemetryConsentDialog`:
   - it opens when `answered: false` and stays closed when answered;
   - all three boxes start unchecked;
   - Save sends the chosen values;
   - the privacy sentence is present
-- [ ] 7.3 Implement `TelemetryConsentDialog.tsx`, and add the "Privacy" button to `TopBar.tsx` that reopens it
-- [ ] 7.4 Write failing tests for `UpdateBanner`: hidden when not available; shown with the release link when available; Dismiss hides it
-- [ ] 7.5 Implement `UpdateBanner.tsx` and mount both components in `App.tsx`
+- [x] 7.3 Implement `TelemetryConsentDialog.tsx`, and add the "Privacy" button to `TopBar.tsx` that reopens it
+- [x] 7.4 Write failing tests for `UpdateBanner`: hidden when not available; shown with the release link when available; Dismiss hides it
+- [x] 7.5 Implement `UpdateBanner.tsx` and mount both components in `App.tsx`
 
 ## 8. Dashboards (D12)
 
