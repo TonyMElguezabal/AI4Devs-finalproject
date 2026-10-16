@@ -19,16 +19,16 @@
 
 ## 3. Backend: Telemetry module (TDD, D1, D2, D13)
 
-- [ ] 3.1 Add the `@opentelemetry/*` packages listed in D1 and `pino` as direct dependencies, pinning exact versions that are at least two weeks old
-- [ ] 3.2 Write failing tests in `backend/test/telemetry.test.ts` using in-memory exporters through `setTelemetryExportersForTest`:
+- [x] 3.1 Add the `@opentelemetry/*` packages listed in D1 and `pino` as direct dependencies, pinning exact versions that are at least two weeks old
+- [x] 3.2 Write failing tests in `backend/test/telemetry.test.ts` using in-memory exporters through `setTelemetryExportersForTest`:
   - each `record*` function is a no-op when its consent flag is off;
   - it records the documented metric or log record when the flag is on;
   - resource attributes match D13;
   - every exported attribute key is in `ALLOWED_ATTRIBUTE_KEYS`, imported from `infra/telemetry-relay/src/allowlist.ts`;
   - turning a flag off stops recording without a restart;
   - outcome normalisation covers every `StageAttemptOutcome` and `ProviderOutcomeMode`
-- [ ] 3.3 Write a failing test proving an unreachable endpoint never throws into the caller and logs at most once per minute
-- [ ] 3.4 Implement `backend/src/telemetry/` (consent cache, lazy providers, `recordProviderCall`, `recordError`, `recordProductEvent`, flush on shutdown) until 3.2–3.3 pass
+- [x] 3.3 Write a failing test proving an unreachable endpoint never throws into the caller and logs at most once per minute
+- [x] 3.4 Implement `backend/src/telemetry/` (consent cache, lazy providers, `recordProviderCall`, `recordError`, `recordProductEvent`, flush on shutdown) until 3.2–3.3 pass
 
 ## 4. Backend: Hooks into provider recording and the process (TDD, D4)
 
