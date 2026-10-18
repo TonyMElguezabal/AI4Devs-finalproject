@@ -148,7 +148,7 @@
 - [x] 14.5 `docs/development_guide.md`: how to point telemetry at a local OTLP receiver; the relay deploy; the dashboard import
 - [x] 14.6 Draft the PRD addendum (consent prompt and privacy note) for product-owner approval
 - [x] 14.7 Run `graphify update .` after the code changes
-- [ ] 14.8 Write `PRIVACY.md` at the repository root, in English, as the spec's "Published privacy policy" requires
-- [ ] 14.9 Update `docs/frontend-standards.md` (dialog: policy link, "Not now" records an answer) and `docs/data-model.md` (`answered_at` is also set by a dismissal), then rewrite the PRD addendum draft to the decided behaviour
+- [x] 14.8 Write `PRIVACY.md` at the repository root, in English, as the spec's "Published privacy policy" requires
+- [x] 14.9 Update `docs/frontend-standards.md` (dialog: policy link, "Not now" records an answer) and `docs/data-model.md` (`answered_at` is also set by a dismissal), then rewrite the PRD addendum draft to the decided behaviour
 - [x] 14.10 Run `graphify update .` again after the code changes of 7.7
 
