@@ -88,6 +88,8 @@
 - [x] 7.3 Implement `TelemetryConsentDialog.tsx`, and add the "Privacy" button to `TopBar.tsx` that reopens it
 - [x] 7.4 Write failing tests for `UpdateBanner`: hidden when not available; shown with the release link when available; Dismiss hides it
 - [x] 7.5 Implement `UpdateBanner.tsx` and mount both components in `App.tsx`
+- [x] 7.6 Write failing tests: "Not now" and Escape on an unanswered consent send all-off and close; on an answered consent they send nothing and keep the choices; a failed request still closes; the dialog contains the privacy-policy link opening in a new tab
+- [x] 7.7 Add the `onDismiss` prop and the policy link to `TelemetryConsentDialog.tsx`, and the dismissal handling to `App.tsx`
 
 ## 8. Dashboards (D12)
 
@@ -111,6 +113,7 @@
 - [x] 11.3 Run the full suites: `backend` `npx tsc --noEmit && npx vitest run`; `frontend` `npm run typecheck && npm test`; `infra/telemetry-relay` `npx vitest run`
 - [x] 11.4 Verify the post-test state matches the baseline, and restore it if not
 - [x] 11.5 Create the report `openspec/changes/add-observability-telemetry/reports/YYYY-MM-DD-step-11-unit-test-and-db-verification.md`
+- [x] 11.7 Re-run the frontend suite (`npm run typecheck && npm test`) after 7.7 and append the result to the step 11 report (the backend is untouched by this change)
 - [x] 11.6 Mark this step complete only after the tests pass and the report exists
 
 ## 12. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
@@ -130,6 +133,7 @@
 - [x] 13.3 Turn on two signals and save; reload; confirm the dialog stays closed; reopen it from "Privacy" and confirm the saved values
 - [x] 13.4 Restart the backend with `VID4YOU_CHANNEL=production` and an old tag; confirm the update banner and its link; dismiss it
 - [x] 13.5 Check keyboard access: focus is trapped in the dialog and Escape closes it without saving
+- [x] 13.7 Repeat 13.2 and 13.5 in the browser against the new behaviour: the policy link is present; "Not now" and Escape on a fresh store record an answer and the dialog does not return after a reload; on an answered store they change nothing; append the result to the step 13 report
 - [x] 13.6 Restore the environment and document the run in `reports/YYYY-MM-DD-step-13-e2e-browser.md`
 
 ## 14. Update Technical Documentation (MANDATORY)
@@ -144,3 +148,7 @@
 - [x] 14.5 `docs/development_guide.md`: how to point telemetry at a local OTLP receiver; the relay deploy; the dashboard import
 - [x] 14.6 Draft the PRD addendum (consent prompt and privacy note) for product-owner approval
 - [x] 14.7 Run `graphify update .` after the code changes
+- [ ] 14.8 Write `PRIVACY.md` at the repository root, in English, as the spec's "Published privacy policy" requires
+- [ ] 14.9 Update `docs/frontend-standards.md` (dialog: policy link, "Not now" records an answer) and `docs/data-model.md` (`answered_at` is also set by a dismissal), then rewrite the PRD addendum draft to the decided behaviour
+- [x] 14.10 Run `graphify update .` again after the code changes of 7.7
+

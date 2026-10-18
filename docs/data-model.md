@@ -117,7 +117,7 @@ The pause after a scene is **derived, never stored**: the scene's `narration_end
 One row per install (`id = 1`, enforced by a CHECK), created by the migration with every signal off. It belongs to the install, not to a session, so no other table references it.
 
 - `errors`, `provider_usage`, `product_usage` (INTEGER, 0 or 1, default 0): the three consent flags, one per signal. A signal is exported only while its flag is 1; the flags are checked when a record is made, so a change applies at once.
-- `answered_at` (nullable TEXT): when the User first answered the consent dialog. `NULL` means "never asked", and the frontend opens the dialog while it is `NULL`. Saving the dialog with every box off still sets it, so the User is not asked again.
+- `answered_at` (nullable TEXT): when the User first answered the consent dialog. `NULL` means "never asked", and the frontend opens the dialog while it is `NULL`. Saving the dialog with every box off still sets it, and so does "Not now" or Escape the first time (the client sends an all-off save), so the User is not asked again.
 - `install_id` (TEXT, a ULID created by the migration): a random identifier for this install, sent as the `service.instance.id` resource attribute so installs can be counted. It is never returned by the API and is not derived from the machine or the User.
 
 Mutable on purpose, like `scene_pause_edits`: it holds the User's intent, not generated output. Written only by `saveTelemetryConsent`; read by `getTelemetrySettings`.

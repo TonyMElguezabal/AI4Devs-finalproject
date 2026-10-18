@@ -142,7 +142,9 @@ It uses `AbortSignal.timeout(5000)` and keeps the promise in memory. `GET /app/u
 The check is done in the backend rather than the page so there's one call per launch however many tabs are open, the logic is unit-testable, and the page keeps calling only its own origin.
 
 ### D10 — Frontend: native `<dialog>` for consent, a banner for updates
-- `TelemetryConsentDialog.tsx` is a native `<dialog>` opened with `showModal()` when `GET /telemetry/consent` says `answered: false`. It has three labelled checkboxes, all unchecked, a privacy sentence and a Save button.
+- `TelemetryConsentDialog.tsx` is a native `<dialog>` opened with `showModal()` when `GET /telemetry/consent` says `answered: false`. It has three labelled checkboxes, all unchecked, a privacy sentence, a link to the privacy policy (`PRIVACY.md` on GitHub, new tab) and Save and "Not now" buttons.
+- "Not now" and Escape call `onDismiss`. `App.tsx` answers it by sending all-off through `PUT /telemetry/consent` only while `answered` is false, then closes; when consent is already answered it only closes, so a saved choice is never overwritten by a dismissal. If that request fails the dialog still closes and asks again next launch. The backend is unchanged. (Product owner decision, 2026-10-18: dismissing counts as an answer.)
+- `PRIVACY.md` is the published policy; its retention statement is "as long as the free tier allows".
 - A "Privacy" button in `TopBar.tsx` reopens it.
 - `UpdateBanner.tsx` calls `GET /app/update` once on load. It is dismissed into component state only, so it comes back on the next launch.
 

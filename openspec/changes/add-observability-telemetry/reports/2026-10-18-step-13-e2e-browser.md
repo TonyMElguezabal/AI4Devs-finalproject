@@ -17,3 +17,9 @@ The repository has no GitHub release yet, so the real check answers 404 and `/ap
 ## Not checked
 - Dialog and banner CSS were judged from one screenshot at desktop width; the third option's description sits close to the buttons. No narrow-width or light-theme check.
 - Whether the dismissal survives a reload (not specified by the change; the banner returns on the next launch).
+
+## Re-check after the product owner's decisions (13.7)
+Decisions of 2026-10-18: "Not now" counts as an answer, and the dialog links to a published privacy policy. Rebuilt executable, fresh store (`1|0|0|0||<id>`), port 3197.
+- The dialog shows a **Privacy policy** link → `https://github.com/TonyMElguezabal/AI4Devs-finalproject/blob/main/PRIVACY.md`, `target=_blank`, `rel=noreferrer`. It gives a 404 until `PRIVACY.md` reaches `main`.
+- **Escape** on the fresh store: the row became `1|0|0|0|2026-10-18T23:40:46Z|<id>` (all off, `answered_at` set); after a reload the dialog stays closed.
+- On an answered store: ticked *error reports* + **Save** → `errors:true`; reopened from **Privacy**, ticked another box, pressed **Not now** → dialog closed, server still `errors:true, providerUsage:false, productUsage:false, answered:true` (nothing changed).

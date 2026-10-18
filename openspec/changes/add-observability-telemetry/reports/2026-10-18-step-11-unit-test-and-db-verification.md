@@ -20,3 +20,6 @@ Same tables, 0 runs. The `telemetry_settings` row differs only in its `answered_
 
 ## Notes
 - The intermittent `orchestrator.test.ts` failure seen earlier did not reproduce in the three full backend runs of this session.
+
+## Re-run after the "Not now" and privacy-link change (11.7)
+Frontend: `npm run typecheck && npm test` → 3 files, 248 tests passed (4 new). Backend untouched by this change; its suite was not re-run.

@@ -7,6 +7,8 @@ interface Props {
   consent: TelemetryConsent | undefined;
   onSave: (choices: TelemetryChoices) => Promise<void>;
   onClose: () => void;
+  /** "Not now" or Escape. The owner decides whether that records an answer; the dialog never saves by itself. */
+  onDismiss: () => void;
 }
 
 const SIGNALS: Array<{ key: keyof TelemetryChoices; label: string; help: string }> = [
@@ -19,7 +21,9 @@ const SIGNALS: Array<{ key: keyof TelemetryChoices; label: string; help: string 
  * add-observability-telemetry (JOS-199), design Decision 10 — a native <dialog>: the browser traps focus and Escape
  * closes it without saving. Every box starts unchecked; nothing is sent until the user saves a choice.
  */
-export function TelemetryConsentDialog({ open, consent, onSave, onClose }: Props) {
+const PRIVACY_POLICY_URL = "https://github.com/TonyMElguezabal/AI4Devs-finalproject/blob/main/PRIVACY.md";
+
+export function TelemetryConsentDialog({ open, consent, onSave, onClose, onDismiss }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const [choices, setChoices] = useState<TelemetryChoices>({ errors: false, providerUsage: false, productUsage: false });
   const [error, setError] = useState<string | undefined>(undefined);
@@ -60,12 +64,16 @@ export function TelemetryConsentDialog({ open, consent, onSave, onClose }: Props
       aria-labelledby="privacy-dialog-title"
       onCancel={(event) => {
         event.preventDefault();
-        onClose();
+        onDismiss();
       }}
     >
       <form onSubmit={handleSubmit}>
         <h2 id="privacy-dialog-title">Help improve Vid4You</h2>
-        <p>Nothing is sent unless you turn it on here. No script, media, file name or key is ever sent. You can change this at any time from Privacy.</p>
+        <p>Nothing is sent unless you turn it on here. No script, media, file name or key is ever sent. You can change this at any time from Privacy.{" "}
+          <a href={PRIVACY_POLICY_URL} target="_blank" rel="noreferrer">
+            Privacy policy
+          </a>
+        </p>
         {SIGNALS.map(({ key, label, help }) => (
           <div className="privacy-choice" key={key}>
             <input
@@ -80,7 +88,7 @@ export function TelemetryConsentDialog({ open, consent, onSave, onClose }: Props
         ))}
         {error && <p role="alert">{error}</p>}
         <div className="privacy-actions">
-          <button type="button" onClick={onClose}>
+          <button type="button" onClick={onDismiss}>
             Not now
           </button>
           <button type="submit" className="primary" disabled={saving}>

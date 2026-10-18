@@ -58,6 +58,17 @@ export default function App() {
         consent={consent}
         onSave={async (choices) => setConsent(await saveTelemetryConsent(choices))}
         onClose={() => setPrivacyOpen(false)}
+        onDismiss={async () => {
+          // "Not now" counts as an answer, but only the first time: an answered consent keeps its saved choices.
+          if (consent && !consent.answered) {
+            try {
+              setConsent(await saveTelemetryConsent({ errors: false, providerUsage: false, productUsage: false }));
+            } catch {
+              // still closes; the prompt returns on the next launch
+            }
+          }
+          setPrivacyOpen(false);
+        }}
       />
     </>
   );

@@ -35,15 +35,34 @@ The application SHALL support exactly three telemetry signals: `errors`, `provid
 - **THEN** nothing more is exported for that signal from that moment on, without restarting the application
 
 ### Requirement: Consent prompt and settings on the page
-The page SHALL show a consent prompt the first time it loads with an unanswered consent. The prompt SHALL have one labelled toggle per signal, all off by default, and a sentence saying that no script, media, file name or key is sent. Saving SHALL store the answer. The user SHALL be able to reopen the same choices from the page at any time.
+The page SHALL show a consent prompt the first time it loads with an unanswered consent. The prompt SHALL have one labelled toggle per signal, all off by default, and a sentence saying that no script, media, file name or key is sent, and a link to the privacy policy. Saving SHALL store the answer. Closing the prompt without saving ("Not now" or Escape) while consent is unanswered SHALL also store an answer with every signal off, so the prompt is never shown again on its own; closing it when consent is already answered SHALL change nothing. The user SHALL be able to reopen the same choices from the page at any time.
 
 #### Scenario: Prompt shown once
 - **WHEN** the page loads and consent is unanswered
 - **THEN** the consent prompt is shown, and after the user saves it is not shown again on later loads
 
+#### Scenario: Not now counts as an answer
+- **WHEN** the prompt is shown for an unanswered consent and the user chooses "Not now" or presses Escape
+- **THEN** the client sends `PUT /telemetry/consent` with every signal `false`, the prompt closes, and it is not shown again on later loads
+
+#### Scenario: Closing an answered prompt keeps the choices
+- **WHEN** the user reopens the prompt from the page, which already holds saved choices, and chooses "Not now" or presses Escape
+- **THEN** no request is sent and the saved choices are unchanged
+
+#### Scenario: Privacy policy link
+- **WHEN** the prompt is shown
+- **THEN** it contains a link to the published privacy policy (`PRIVACY.md` in the repository), which opens in a new tab
+
 #### Scenario: Choices can be changed later
 - **WHEN** the user opens the telemetry settings from the page and changes a toggle
 - **THEN** the change is saved through `PUT /telemetry/consent`
+
+### Requirement: Published privacy policy
+The repository SHALL contain `PRIVACY.md`, in English, stating: that nothing leaves the computer unless the user turns a signal on; the three signals and exactly what each sends; what is never sent; the local log file; the relay and the observability service that receive the data; that the data is kept for as long as the service's free tier allows; and how to turn each signal off.
+
+#### Scenario: Policy matches the signals
+- **WHEN** the policy is read
+- **THEN** it lists the same three signals and the same attribute names as the spec's allowlist, and says the data is kept as long as the free tier allows
 
 ### Requirement: Error reports
 When `errors` is on, the application SHALL export one OpenTelemetry log record at severity `ERROR` for each of these:
