@@ -88,6 +88,8 @@ Every screen traces to a PRD section; none was invented beyond what the PRD impl
 | Scene details | §3, §7.2, AC23 | `PROMPT`/`IMAGE`/`VIDEO`, narration interval, requested duration, speed factor + warning, provider + attempts |
 | Correction form | §10.3, AC09 | Present only on a failed image or video stage; never exposes `ID`, `PROMPT`, or order |
 | Pause / continue | §8.1, §9, AC07 | Session-level control; the paused marker shown on top of current state, distinct from a generation still running; `held` and `running` stages and counts shown as separate lines in the header when paused ("Still generating" / "Nothing is generating", "Waiting for continue"); a held scene row shows "waiting for continue", a non-held generating scene shows "still generating" (`pause-and-continue-session`, JOS-152; `distinguish-paused-session`, JOS-153) |
+| Privacy dialog | JOS-199 (PRD addendum pending) | A native `<dialog>`, opened on first launch and from the top bar's **Privacy** button: one checkbox per signal (error reports, provider usage and cost counts, anonymous usage counts), all off by default; **Save** stores the choices, **Not now** and Escape close it without saving. Focus stays inside it while open |
+| Update banner | JOS-199 | A bar under the top bar, "A new version of Vid4You is available", a **View release** link (new tab) and **Dismiss**; shown only when `GET /app/update` says a newer release exists |
 | Downloads | §12.3 | Per-scene image/clip during processing; final MP4 only at `final-video`; nothing offered for MP3, timestamps or generated texts |
 
 **Recorded gap, not invented:** no project-list screen exists anywhere in the PRD or backlog (§12.3 describes reaching a session only by identifier) — see [Not Yet Decided](#not-yet-decided).

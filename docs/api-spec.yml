@@ -104,6 +104,10 @@
 # final video exists. Nothing else changed. It is a POST, not a PUT, because the API has
 # no PUT, PATCH or DELETE by design (content lock, AC1). The 422/503 descriptions of
 # `POST /sessions` that JOS-187 wrote by hand are kept as they were.
+# add-observability-telemetry (JOS-199): added GET and PUT /telemetry/consent (the three consent flags and
+# `answered`; strict body, 400 on a missing or non-boolean key) and GET /app/update (`{ available: false }` or
+# `{ available: true, tag, url }`). PUT is allowed here because consent is a setting, not session content;
+# the content-lock rule (AC1) is about sessions. Nothing else changed.
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -2120,6 +2124,104 @@ paths:
                   - applied
                   - note
                 additionalProperties: false
+  /telemetry/consent:
+    get:
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: boolean
+                  providerUsage:
+                    type: boolean
+                  productUsage:
+                    type: boolean
+                  answered:
+                    type: boolean
+                required:
+                  - errors
+                  - providerUsage
+                  - productUsage
+                  - answered
+                additionalProperties: false
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                errors:
+                  type: boolean
+                providerUsage:
+                  type: boolean
+                productUsage:
+                  type: boolean
+              required:
+                - errors
+                - providerUsage
+                - productUsage
+              additionalProperties: false
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  errors:
+                    type: boolean
+                  providerUsage:
+                    type: boolean
+                  productUsage:
+                    type: boolean
+                  answered:
+                    type: boolean
+                required:
+                  - errors
+                  - providerUsage
+                  - productUsage
+                  - answered
+                additionalProperties: false
+  /app/update:
+    get:
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - type: object
+                    properties:
+                      available:
+                        type: boolean
+                        enum:
+                          - false
+                    required:
+                      - available
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      available:
+                        type: boolean
+                        enum:
+                          - true
+                      tag:
+                        type: string
+                      url:
+                        type: string
+                    required:
+                      - available
+                      - tag
+                      - url
+                    additionalProperties: false
   /events:
     get:
       responses:

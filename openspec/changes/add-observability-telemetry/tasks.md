@@ -134,13 +134,13 @@
 
 ## 14. Update Technical Documentation (MANDATORY)
 
-- [ ] 14.1 `docs/api-spec.yml`: add `GET/PUT /telemetry/consent` and `GET /app/update`
-- [ ] 14.2 `docs/data-model.md`: add `telemetry_settings`
-- [ ] 14.3 `docs/backend-standards.md`:
+- [x] 14.1 `docs/api-spec.yml`: add `GET/PUT /telemetry/consent` and `GET /app/update`
+- [x] 14.2 `docs/data-model.md`: add `telemetry_settings`
+- [x] 14.3 `docs/backend-standards.md`:
   - in § Logging and Diagnostics: the log files, telemetry through `telemetry/` only, and what a signal may never contain;
   - in § Technology Stack: the OpenTelemetry packages;
   - in § Deployment: the `VID4YOU_*` build variables
-- [ ] 14.4 `docs/frontend-standards.md`: the consent dialog and the update banner in the screen inventory
-- [ ] 14.5 `docs/development_guide.md`: how to point telemetry at a local OTLP receiver; the relay deploy; the dashboard import
-- [ ] 14.6 Draft the PRD addendum (consent prompt and privacy note) for product-owner approval
-- [ ] 14.7 Run `graphify update .` after the code changes
+- [x] 14.4 `docs/frontend-standards.md`: the consent dialog and the update banner in the screen inventory
+- [x] 14.5 `docs/development_guide.md`: how to point telemetry at a local OTLP receiver; the relay deploy; the dashboard import
+- [x] 14.6 Draft the PRD addendum (consent prompt and privacy note) for product-owner approval
+- [x] 14.7 Run `graphify update .` after the code changes

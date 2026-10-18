@@ -49,6 +49,7 @@ The stack decision, its rejected alternatives, and the live evidence behind it a
 - **Node.js** — runtime. Modern versions run TypeScript source directly (type-stripped) without a separate build step for development; a `tsc` compile step is used for the type-check gate and for producing what actually ships.
 - **TypeScript**, `strict: true` — per `docs/base-standards.md`'s project-wide "all code must be fully typed."
 - **Fastify** — HTTP framework. Chosen over AdonisJS/NestJS as the lighter-ceremony option for a backend that is primarily a background orchestrator with an HTTP surface, not a CRUD API (ADR 0001).
+- **OpenTelemetry** (`@opentelemetry/api`, `sdk-metrics`, `sdk-logs`, the OTLP/HTTP JSON exporters, `resources`) and **Pino** with file rotation — opt-in telemetry and the local log file (JOS-199). Manual instrumentation only: no auto-instrumentation package, because it patches modules in ways a single-executable bundle cannot rely on. Versions are pinned exactly.
 - **Zod**, via `fastify-type-provider-zod` — request/response validation, with types inferred from the same schemas (no separate DTO duplication).
 - **`@fastify/swagger`** + **`@fastify/swagger-ui`** — OpenAPI generated from the Zod schemas, served at `/docs`.
 - **Vitest** — unit testing.
@@ -355,6 +356,14 @@ Structured JSON logging (Fastify's built-in Pino logger), one event per line, ne
 
 **Script text is never logged.** The script is the User's content and may be long or private, so neither the voice-over phase nor any adapter writes it, a prefix of it, or the provider's response body to a log line or to a failure cause. The voice-over phase logs only `scriptLength` and `scriptSha256` (a fingerprint that identifies a script without revealing it) beside `sessionId`, `stage`, `provider`, `attemptNumber`, `providerRequestId`, `outcome`, `latencyMs` and a `reason` written for a person (`VoiceOverLogEntry`, `setVoiceOverLogger`). The same rule holds for the failure cause the API returns. A new phase that sends the script to a provider follows it.
 
+### Telemetry and local log files (`add-observability-telemetry`, JOS-199)
+
+- **Local log file.** Pino writes to stdout and to a rotating file, `logs/vid4you.log` beside the store (10 MB, 5 files kept). The rotation is plain streams, no worker thread, so it works inside the single-executable bundle.
+- **One door.** Telemetry leaves the process only through `backend/src/telemetry/`. Callers use `recordProviderCall`, `recordError` and `recordProductEvent`; nothing else imports an OpenTelemetry package. `completeStageAttempt` and `insertProviderRequest` in `db.ts` report provider calls, so the callers of those two never report by hand.
+- **Consent per signal.** Errors, provider usage and product usage each have a flag in `telemetry_settings`, checked at the moment of recording. With a flag off nothing is created, queued or sent.
+- **What a signal may never contain.** No script, title, narration, prompt, file name, path, user name or credential. Metric attributes are limited to `stage`, `provider`, `outcome` and `unit`; resource attributes to `service.name`, `service.version`, `deployment.environment`, `os.type`, `host.arch` and `service.instance.id`. Error records carry a code, a message and a stack trace, all passed through `util/redactPaths.ts` (home folder, drive, UNC and POSIX paths, and the user name). The same list is enforced a second time by the relay (`infra/telemetry-relay/src/allowlist.ts`); add an attribute to both or neither.
+- **Never blocks the app.** Export failures are caught and warned at most once a minute; the update check has a 5 s timeout and runs once per launch.
+
 ## Security and Configuration
 
 - Provider credentials are read from the local environment or a local secrets file excluded from version control — never hardcoded, never committed (PRD §12.3, §11).
@@ -372,6 +381,7 @@ Decided by `docs/adr/0007-deployment.md` (JOS-194): Vid4You ships as one executa
 - **Local exposure.** Listen on `127.0.0.1` only, and accept a request only when its `Origin` (if present) is the app's own origin and its `Host` is the loopback address and port, SSE included: any website the user opens can send requests to `127.0.0.1`. Never use CORS `origin: true`.
 - **Release safety.** A packaged build ignores `ALLOW_TEST_ENDPOINTS` and every `USE_STUB_*` and serves no `/docs`. In development, leave those variables **unset** rather than set to a falsy string: any non-empty value enables them today.
 - **Binaries.** ffmpeg and ffprobe are resolved as: `FFMPEG_PATH`/`FFPROBE_PATH`, then the binaries beside the executable, then `PATH`. The hard-coded Homebrew path is a known gap (story S2).
+- **Build identity.** `config/build.ts` reads `VID4YOU_VERSION` (default `0.0.0-dev`), `VID4YOU_CHANNEL` (`development`, `uat` or `production`; anything else is `development`), `VID4YOU_RELEASE_TAG` (the tag this build was cut from; without it the update check does nothing) and `VID4YOU_TELEMETRY_ENDPOINT` (default `https://otel.vid4you.download`, the relay). The release bundler sets them at build time. The packaged entry point must call `initTelemetry()`, `installProcessErrorHandlers()`, `startUpdateCheck()` and shut telemetry down on SIGINT/SIGTERM, as `server.ts` does, because the bundler drops `server.ts`'s own bootstrap.
 - **Known gaps** before a release: the `Origin`/`Host` guard does not exist yet (L3). The real assembly tool is registered at start-up and decomposition starts after the narration (`run-session-end-to-end`, JOS-195).
 
 ## Development Workflow
