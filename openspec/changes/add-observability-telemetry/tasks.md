@@ -97,7 +97,7 @@
 
 ## 9. Packaging check
 
-- [ ] 9.1 Bundle the backend with the L6 proof-of-concept builder (`openspec/changes/define-production-deployment/poc/local/build.mjs`), run the executable with a local OTLP receiver as `VID4YOU_TELEMETRY_ENDPOINT` and every signal on, and confirm that metrics and an error record arrive and that the log file is written. Record the result in `reports/`
+- [x] 9.1 Bundle the backend with the L6 proof-of-concept builder (`openspec/changes/define-production-deployment/poc/local/build.mjs`), run the executable with a local OTLP receiver as `VID4YOU_TELEMETRY_ENDPOINT` and every signal on, and confirm that metrics and an error record arrive and that the log file is written. Record the result in `reports/`
 
 ## 10. Backend: Review and Update Existing Unit Tests (MANDATORY)
 

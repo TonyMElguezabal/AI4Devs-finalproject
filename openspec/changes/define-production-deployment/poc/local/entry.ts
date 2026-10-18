@@ -5,7 +5,10 @@ import { existsSync, readFileSync } from "node:fs";
 import http from "node:http";
 import { extname, join } from "node:path";
 import sea from "node:sea";
-import { buildApp, bootLogFields, configureAssemblyTool } from "../../../../../backend/src/server.ts";
+import { buildApp, bootLogFields, configureAssemblyTool, initTelemetry } from "../../../../../backend/src/server.ts";
+import { installProcessErrorHandlers } from "../../../../../backend/src/telemetry/processHandlers.ts";
+import { shutdownTelemetry } from "../../../../../backend/src/telemetry/index.ts";
+import { startUpdateCheck } from "../../../../../backend/src/telemetry/updateCheck.ts";
 import { recoverOnBoot } from "../../../../../backend/src/orchestrator.ts";
 import { setDecompositionLogger } from "../../../../../backend/src/decompositionPhase.ts";
 import * as concurrency from "../../../../../backend/src/concurrency.ts";
@@ -110,6 +113,11 @@ async function main(): Promise<void> {
     openBrowser(appUrl);
     return;
   }
+  // JOS-199: the bootstrap server.ts skips in a bundle also starts telemetry, so the packaged entry must.
+  initTelemetry();
+  installProcessErrorHandlers();
+  startUpdateCheck();
+  for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, () => void shutdownTelemetry().finally(() => process.exit(0)));
   concurrency.setLimit(STAGE, Number(process.env.STAGE_CONCURRENCY_LIMIT ?? MAX_SIMULTANEOUS_REQUESTS.image));
   const app = await buildApp();
   setVoiceOverLogger(app.log);
