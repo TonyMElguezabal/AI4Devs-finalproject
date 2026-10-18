@@ -115,13 +115,13 @@
 
 ## 12. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 12.1 Start the backend on a separate `DB_PATH` and `PROJECTS_ROOT`, and capture the `telemetry_settings` row
-- [ ] 12.2 `curl` `GET /telemetry/consent` and confirm the defaults
-- [ ] 12.3 `curl` `PUT /telemetry/consent` with a valid body, then with invalid bodies (missing key, non-boolean); confirm `200` and `400`, then restore the original row
-- [ ] 12.4 `curl` `GET /app/update` with the channel `development`, then with `VID4YOU_CHANNEL=production` and an old `VID4YOU_RELEASE_TAG`; confirm both responses
-- [ ] 12.5 With a local OTLP receiver and every signal on, run one stubbed session to `final-video`. Confirm the provider-call, billed-unit and final-video metrics arrive and that the attributes contain no title, script or path
-- [ ] 12.6 Confirm the log file exists under `logs/` beside the store
-- [ ] 12.7 Document every command and response in `reports/YYYY-MM-DD-step-12-curl-endpoint-testing.md`, and verify the store matches the baseline
+- [x] 12.1 Start the backend on a separate `DB_PATH` and `PROJECTS_ROOT`, and capture the `telemetry_settings` row
+- [x] 12.2 `curl` `GET /telemetry/consent` and confirm the defaults
+- [x] 12.3 `curl` `PUT /telemetry/consent` with a valid body, then with invalid bodies (missing key, non-boolean); confirm `200` and `400`, then restore the original row
+- [x] 12.4 `curl` `GET /app/update` with the channel `development`, then with `VID4YOU_CHANNEL=production` and an old `VID4YOU_RELEASE_TAG`; confirm both responses
+- [x] 12.5 With a local OTLP receiver and every signal on, run one stubbed session to `final-video`. Confirm the provider-call, billed-unit and final-video metrics arrive and that the attributes contain no title, script or path
+- [x] 12.6 Confirm the log file exists under `logs/` beside the store
+- [x] 12.7 Document every command and response in `reports/YYYY-MM-DD-step-12-curl-endpoint-testing.md`, and verify the store matches the baseline
 
 ## 13. Frontend: E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 

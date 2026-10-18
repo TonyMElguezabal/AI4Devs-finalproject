@@ -14,6 +14,7 @@ import { setDecompositionLogger } from "../../../../../backend/src/decomposition
 import * as concurrency from "../../../../../backend/src/concurrency.ts";
 import { STAGE } from "../../../../../backend/src/types.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "../../../../../backend/src/config/providers.ts";
+import { setScriptModerator } from "../../../../../backend/src/scriptModeration.ts";
 import { setVoiceOverLogger } from "../../../../../backend/src/voiceOverPhase.ts";
 import { rebuildScheduler } from "../../../../../backend/src/retry/retryScheduler.ts";
 import { startAttemptTimeoutWatcher } from "../../../../../backend/src/retry/attemptTimeoutWatcher.ts";
@@ -69,6 +70,7 @@ const alreadyRunning = (): Promise<boolean> => new Promise((resolve) => {
 
 // ---- PoC stub mode (never in a release): the providers the stubbed experiments need ----
 if (process.env.POC_MODE === "stub") {
+  setScriptModerator({ moderate: async () => ({ kind: "clean" }) }); // no OpenAI key in stub mode
   setDecompositionDependencies({
     // The stub narration is about 1 s long; spread the script's characters over 0.95 s so the product's own
     // timestamp validation (the last character must end within the narration) accepts them.
