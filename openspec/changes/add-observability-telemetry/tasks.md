@@ -125,12 +125,12 @@
 
 ## 13. Frontend: E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 13.1 Start the backend and frontend on a fresh store
-- [ ] 13.2 Load the page; confirm the consent dialog shows with all boxes unchecked and the privacy sentence
-- [ ] 13.3 Turn on two signals and save; reload; confirm the dialog stays closed; reopen it from "Privacy" and confirm the saved values
-- [ ] 13.4 Restart the backend with `VID4YOU_CHANNEL=production` and an old tag; confirm the update banner and its link; dismiss it
-- [ ] 13.5 Check keyboard access: focus is trapped in the dialog and Escape closes it without saving
-- [ ] 13.6 Restore the environment and document the run in `reports/YYYY-MM-DD-step-13-e2e-browser.md`
+- [x] 13.1 Start the backend and frontend on a fresh store
+- [x] 13.2 Load the page; confirm the consent dialog shows with all boxes unchecked and the privacy sentence
+- [x] 13.3 Turn on two signals and save; reload; confirm the dialog stays closed; reopen it from "Privacy" and confirm the saved values
+- [x] 13.4 Restart the backend with `VID4YOU_CHANNEL=production` and an old tag; confirm the update banner and its link; dismiss it
+- [x] 13.5 Check keyboard access: focus is trapped in the dialog and Escape closes it without saving
+- [x] 13.6 Restore the environment and document the run in `reports/YYYY-MM-DD-step-13-e2e-browser.md`
 
 ## 14. Update Technical Documentation (MANDATORY)
 
