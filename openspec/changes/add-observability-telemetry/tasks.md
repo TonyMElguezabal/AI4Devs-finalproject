@@ -101,8 +101,8 @@
 
 ## 10. Backend: Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 10.1 Review the tests that touch `completeStageAttempt`, `insertProviderRequest`, `buildApp` and the assembly-failure cause strings. Update any that assert the old `redactPaths` output or the logger options
-- [ ] 10.2 Make sure every new test uses an isolated `DB_PATH` and resets state in `beforeEach`
+- [x] 10.1 Review the tests that touch `completeStageAttempt`, `insertProviderRequest`, `buildApp` and the assembly-failure cause strings. Update any that assert the old `redactPaths` output or the logger options
+- [x] 10.2 Make sure every new test uses an isolated `DB_PATH` and resets state in `beforeEach`
 
 ## 11. Backend: Run Unit Tests and Verify Database State (MANDATORY - AGENT MUST EXECUTE)
 
