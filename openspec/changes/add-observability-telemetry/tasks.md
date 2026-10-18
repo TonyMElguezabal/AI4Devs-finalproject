@@ -106,12 +106,12 @@
 
 ## 11. Backend: Run Unit Tests and Verify Database State (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 11.1 Capture a pre-test baseline of the manual-testing store: table list, `telemetry_settings` row, run count
-- [ ] 11.2 Run the targeted tests (`redact-paths`, `telemetry`, `log-file`, `update-check`, the consent routes, the relay)
-- [ ] 11.3 Run the full suites: `backend` `npx tsc --noEmit && npx vitest run`; `frontend` `npm run typecheck && npm test`; `infra/telemetry-relay` `npx vitest run`
-- [ ] 11.4 Verify the post-test state matches the baseline, and restore it if not
-- [ ] 11.5 Create the report `openspec/changes/add-observability-telemetry/reports/YYYY-MM-DD-step-11-unit-test-and-db-verification.md`
-- [ ] 11.6 Mark this step complete only after the tests pass and the report exists
+- [x] 11.1 Capture a pre-test baseline of the manual-testing store: table list, `telemetry_settings` row, run count
+- [x] 11.2 Run the targeted tests (`redact-paths`, `telemetry`, `log-file`, `update-check`, the consent routes, the relay)
+- [x] 11.3 Run the full suites: `backend` `npx tsc --noEmit && npx vitest run`; `frontend` `npm run typecheck && npm test`; `infra/telemetry-relay` `npx vitest run`
+- [x] 11.4 Verify the post-test state matches the baseline, and restore it if not
+- [x] 11.5 Create the report `openspec/changes/add-observability-telemetry/reports/YYYY-MM-DD-step-11-unit-test-and-db-verification.md`
+- [x] 11.6 Mark this step complete only after the tests pass and the report exists
 
 ## 12. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
