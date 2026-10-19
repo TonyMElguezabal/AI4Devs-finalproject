@@ -18,7 +18,7 @@
     }
   ],
   "uid": "vid4you-providers",
-  "title": "Vid4You \u2014 providers and cost",
+  "title": "Vid4You — providers and cost",
   "description": "Provider attempts, latency, retry and error rate per stage, and estimated cost per final video.",
   "tags": [
     "vid4you"
@@ -138,7 +138,7 @@
       "title": "",
       "options": {
         "mode": "markdown",
-        "content": "**Cost is an estimate.** It multiplies billed units (clip seconds requested, images generated, voice characters sent, counted on success only) by the price constants of this dashboard (Settings \u2192 Variables). Failed calls that a provider still bills, and per-resolution price tiers, are not counted. Update the prices when a provider changes them."
+        "content": "**Cost is an estimate.** It multiplies billed units (clip seconds requested, images generated, voice characters sent, counted on success only) by the price constants of this dashboard (Settings → Variables). Failed calls that a provider still bills, and per-resolution price tiers, are not counted. Update the prices when a provider changes them."
       },
       "id": 1,
       "gridPos": {
@@ -342,7 +342,7 @@
     {
       "type": "stat",
       "title": "Estimated cost in range (USD)",
-      "description": "Estimate \u2014 see the note at the top.",
+      "description": "Estimate — see the note at the top.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
@@ -448,7 +448,9 @@
         }
       ],
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "decimals": 0
+        },
         "overrides": []
       },
       "options": {
@@ -490,7 +492,9 @@
         }
       ],
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "decimals": 0
+        },
         "overrides": []
       },
       "options": {
@@ -532,7 +536,9 @@
         }
       ],
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "decimals": 0
+        },
         "overrides": []
       },
       "options": {
@@ -574,7 +580,9 @@
         }
       ],
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "decimals": 0
+        },
         "overrides": []
       },
       "options": {
