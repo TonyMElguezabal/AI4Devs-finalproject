@@ -131,6 +131,6 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 ## 12. Close out
 
 - [ ] 12.1 Ask the user before commenting on the US-24 to US-27 tickets that the route pattern and the `phaseActions` extension point are ready to follow.
-- [ ] 12.2 Ask before pushing. Open the PR with a description linking to JOS-155. Target `feature/jos-168-view-progress-by-phase` while JOS-168's PR is open, then retarget to `feature/entrega-2-JAME`, or open the follow-up PR there, so the work reaches the integration branch.
-- [ ] 12.3 Obtain review by at least one human, not only AI agents.
-- [ ] 12.4 Archive the OpenSpec change after merge.
+- [x] 12.2 Ask before pushing. Open the PR with a description linking to JOS-155. Target `feature/jos-168-view-progress-by-phase` while JOS-168's PR is open, then retarget to `feature/entrega-2-JAME`, or open the follow-up PR there, so the work reaches the integration branch. Done: pushed with an explicit `git push -u origin`, PR #57 merged into `feature/entrega-2-JAME` on 2026-10-19 (merge commit `42422882`).
+- [ ] 12.3 Obtain review by at least one human, not only AI agents. **Accepted exception (MVP closure, JOS-203):** PR #57 was merged with no review recorded; the product owner signs off on all open human-review tasks once, in JOS-203.
+- [x] 12.4 Archive the OpenSpec change after merge
