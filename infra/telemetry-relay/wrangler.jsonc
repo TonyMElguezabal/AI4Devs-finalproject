@@ -1,0 +1,10 @@
+{
+  "name": "vid4you-telemetry-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  // The custom domain is created on deploy; the zone vid4you.download must be on the same Cloudflare account.
+  "routes": [{ "pattern": "otel.vid4you.download", "custom_domain": true }],
+  // 60 requests per 60 seconds per client IP (design Decision 6).
+  "ratelimits": [{ "name": "RATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } }]
+  // Secrets, set once with `wrangler secret put`: GRAFANA_OTLP_URL, GRAFANA_OTLP_AUTH (base64 "instance:token").
+}

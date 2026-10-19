@@ -94,6 +94,7 @@ import {
   type SessionState,
   type StageAttempt,
 } from "./types.ts";
+import { redactPaths } from "./util/redactPaths.ts";
 
 /** 1 initial attempt + this many automatic retries, per PRD §10.1 (C2). */
 export const RETRY_BUDGET = 3;
@@ -489,12 +490,6 @@ export function getAssemblyTool(): AssemblyTool | undefined {
   return _assemblyTool;
 }
 
-/** retry-final-assembly (JOS-159), design Decision 1 — one cause string, never a raw filesystem path. A loose
- * redaction, since a provider/tool error message is the only source that could ever contain one; this project's
- * own pre-check messages below never embed a path to begin with. */
-function redactPaths(text: string): string {
-  return text.replace(/\/\S+/g, "[path]");
-}
 
 /** retry-final-assembly (JOS-159), design Decision 1 — the one place an assembly failure is written, from either
  * a completed attempt (`attempt` carries its real `cycle`/`sequenceInCycle`) or a pre-attempt refusal (no tool, no

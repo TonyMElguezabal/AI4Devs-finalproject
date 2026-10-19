@@ -320,6 +320,75 @@ button.toggle[aria-expanded="true"] .icon {
   margin-left: 0;
 }
 
+/* ---------- Privacy dialog and update banner (add-observability-telemetry, JOS-199) ---------- */
+
+.top-bar > .privacy-button {
+  margin-left: auto;
+}
+
+.connection ~ .privacy-button,
+.top-bar > .privacy-button + button {
+  margin-left: 0;
+}
+
+.privacy-dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  padding: var(--space-5);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--extrude-lift);
+}
+
+.privacy-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.privacy-dialog h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-lg);
+}
+
+.privacy-choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: var(--space-3);
+  margin-block: var(--space-3);
+}
+
+.privacy-choice input {
+  width: auto;
+  align-self: center;
+}
+
+.privacy-choice small {
+  grid-column: 2;
+  color: var(--color-muted);
+}
+
+.privacy-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.update-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) max(16px, var(--space-5));
+  background: color-mix(in srgb, var(--color-accent) var(--tint-callout), var(--color-surface));
+  box-shadow: 0 1px 0 var(--color-border);
+  font-size: var(--font-size-sm);
+}
+
+.update-banner button {
+  margin-left: auto;
+}
+
 .app-main {
   max-width: 1240px;
   margin: 0 auto;

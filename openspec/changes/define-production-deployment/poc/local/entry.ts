@@ -5,12 +5,16 @@ import { existsSync, readFileSync } from "node:fs";
 import http from "node:http";
 import { extname, join } from "node:path";
 import sea from "node:sea";
-import { buildApp, bootLogFields, configureAssemblyTool } from "../../../../../backend/src/server.ts";
+import { buildApp, bootLogFields, configureAssemblyTool, initTelemetry } from "../../../../../backend/src/server.ts";
+import { installProcessErrorHandlers } from "../../../../../backend/src/telemetry/processHandlers.ts";
+import { shutdownTelemetry } from "../../../../../backend/src/telemetry/index.ts";
+import { startUpdateCheck } from "../../../../../backend/src/telemetry/updateCheck.ts";
 import { recoverOnBoot } from "../../../../../backend/src/orchestrator.ts";
 import { setDecompositionLogger } from "../../../../../backend/src/decompositionPhase.ts";
 import * as concurrency from "../../../../../backend/src/concurrency.ts";
 import { STAGE } from "../../../../../backend/src/types.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "../../../../../backend/src/config/providers.ts";
+import { setScriptModerator } from "../../../../../backend/src/scriptModeration.ts";
 import { setVoiceOverLogger } from "../../../../../backend/src/voiceOverPhase.ts";
 import { rebuildScheduler } from "../../../../../backend/src/retry/retryScheduler.ts";
 import { startAttemptTimeoutWatcher } from "../../../../../backend/src/retry/attemptTimeoutWatcher.ts";
@@ -66,6 +70,7 @@ const alreadyRunning = (): Promise<boolean> => new Promise((resolve) => {
 
 // ---- PoC stub mode (never in a release): the providers the stubbed experiments need ----
 if (process.env.POC_MODE === "stub") {
+  setScriptModerator({ moderate: async () => ({ kind: "clean" }) }); // no OpenAI key in stub mode
   setDecompositionDependencies({
     // The stub narration is about 1 s long; spread the script's characters over 0.95 s so the product's own
     // timestamp validation (the last character must end within the narration) accepts them.
@@ -110,6 +115,11 @@ async function main(): Promise<void> {
     openBrowser(appUrl);
     return;
   }
+  // JOS-199: the bootstrap server.ts skips in a bundle also starts telemetry, so the packaged entry must.
+  initTelemetry();
+  installProcessErrorHandlers();
+  startUpdateCheck();
+  for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, () => void shutdownTelemetry().finally(() => process.exit(0)));
   concurrency.setLimit(STAGE, Number(process.env.STAGE_CONCURRENCY_LIMIT ?? MAX_SIMULTANEOUS_REQUESTS.image));
   const app = await buildApp();
   setVoiceOverLogger(app.log);

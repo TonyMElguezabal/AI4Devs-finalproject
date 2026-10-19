@@ -9,3 +9,5 @@ backend/.secrets.json
 backend/data/
 backend/node_modules/
 frontend/node_modules/
+infra/*/node_modules/
+infra/*/.wrangler/

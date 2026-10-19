@@ -11,6 +11,8 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
+import { getConsent, normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
+import { ulid } from "./util/ulid.ts";
 import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import type {
@@ -36,7 +38,7 @@ import { STUB_PROVIDER_NAME } from "./types.ts";
 
 export type { NarrationTimestampsInput, VoiceOverInput } from "./types.ts";
 
-const DB_PATH = process.env.DB_PATH ?? "data/skeleton.sqlite";
+export const DB_PATH = process.env.DB_PATH ?? "data/skeleton.sqlite";
 mkdirSync(dirname(DB_PATH), { recursive: true });
 
 /** PRD §12.2 — local per-project folders, never deleted, never expiring. */
@@ -556,6 +558,23 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       target.exec(FINAL_VIDEO_BUILDS_NO_DELETE_TRIGGER_DDL);
     },
   },
+  {
+    version: 17,
+    description: "add the single-row telemetry_settings table, every signal off (add-observability-telemetry, JOS-199)",
+    up: (target) => {
+      target.exec(`
+        CREATE TABLE telemetry_settings (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          errors INTEGER NOT NULL DEFAULT 0 CHECK (errors IN (0, 1)),
+          provider_usage INTEGER NOT NULL DEFAULT 0 CHECK (provider_usage IN (0, 1)),
+          product_usage INTEGER NOT NULL DEFAULT 0 CHECK (product_usage IN (0, 1)),
+          answered_at TEXT,
+          install_id TEXT NOT NULL
+        );
+      `);
+      target.prepare("INSERT INTO telemetry_settings (id, install_id) VALUES (1, ?)").run(ulid());
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -582,6 +601,29 @@ export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Nu
 }
 
 export const migrationsAppliedOnBoot = applyMigrationsTo(db);
+
+// ---- add-observability-telemetry (JOS-199), Decision 3: opt-in consent, one toggle per signal ----
+
+export type TelemetryConsent = { errors: boolean; providerUsage: boolean; productUsage: boolean };
+export type TelemetrySettings = TelemetryConsent & { answered: boolean; installId: string };
+
+export function getTelemetrySettings(target: DatabaseSync = db): TelemetrySettings {
+  const row = target.prepare("SELECT * FROM telemetry_settings WHERE id = 1").get() as any;
+  return {
+    errors: row.errors === 1,
+    providerUsage: row.provider_usage === 1,
+    productUsage: row.product_usage === 1,
+    answered: row.answered_at !== null,
+    installId: row.install_id,
+  };
+}
+
+export function saveTelemetryConsent(consent: TelemetryConsent, target: DatabaseSync = db): TelemetrySettings {
+  target
+    .prepare("UPDATE telemetry_settings SET errors = ?, provider_usage = ?, product_usage = ?, answered_at = ? WHERE id = 1")
+    .run(Number(consent.errors), Number(consent.providerUsage), Number(consent.productUsage), new Date().toISOString());
+  return getTelemetrySettings(target);
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -1316,19 +1358,54 @@ export function completeStageAttempt(
   if ((outcome.outcome as StageAttemptOutcome) === "in-flight") {
     throw new Error("cannot complete an attempt with the in-flight outcome");
   }
-  const result = db
+  const row = db
     .prepare(
-      "UPDATE stage_attempts SET outcome = ?, finished_at = ?, external_request_id = ?, error_code = ?, error_message = ? WHERE id = ? AND outcome = 'in-flight'",
+      "UPDATE stage_attempts SET outcome = ?, finished_at = ?, external_request_id = ?, error_code = ?, error_message = ? WHERE id = ? AND outcome = 'in-flight' RETURNING run_id, stage, provider_id, sent_at",
     )
-    .run(
+    .get(
       outcome.outcome,
       outcome.finishedAt,
       outcome.externalRequestId ?? null,
       outcome.errorCode ?? null,
       outcome.errorMessage ?? null,
       attemptId,
-    );
-  return Number(result.changes) > 0;
+    ) as { run_id: string; stage: string; provider_id: string | null; sent_at: string | null } | undefined;
+  if (!row) return false;
+  // add-observability-telemetry (JOS-199) Decision 4 — only the completion that changed a row reports, so the
+  // `outcome = 'in-flight'` guard above also prevents double counting.
+  reportStageAttempt(row, outcome);
+  return true;
+}
+
+function reportStageAttempt(
+  row: { run_id: string; stage: string; provider_id: string | null; sent_at: string | null },
+  outcome: { outcome: string; finishedAt: string; errorCode?: string; errorMessage?: string },
+): void {
+  try {
+    const consent = getConsent();
+    if (!consent.providerUsage && !consent.errors) return;
+    const provider = row.provider_id ?? "unknown";
+    const normalized = normalizeOutcome(outcome.outcome);
+    let billed: BilledUnit | undefined;
+    if (normalized === "success" && row.stage === "voice-over") {
+      const script = db.prepare("SELECT length(script) AS characters FROM runs WHERE id = ?").get(row.run_id) as any;
+      if (script) billed = { unit: "voice_characters", amount: script.characters };
+    }
+    const sentAt = row.sent_at ? Date.parse(row.sent_at) : NaN;
+    const latencyMs = Number.isNaN(sentAt) ? 0 : Math.max(0, Date.parse(outcome.finishedAt) - sentAt);
+    recordProviderCall({ stage: row.stage, provider, outcome: outcome.outcome, latencyMs, billed });
+    if (normalized === "not-retryable") {
+      recordError({
+        stage: row.stage,
+        provider,
+        errorCode: outcome.errorCode,
+        outcome: normalized,
+        message: outcome.errorMessage ?? "stage attempt failed",
+      });
+    }
+  } catch {
+    // Telemetry must never fail a database write.
+  }
 }
 
 /**
@@ -1367,7 +1444,9 @@ export function getStageAttempts(runId: string, stage: AttemptStage): StageAttem
  */
 export function setFinalVideoPath(runId: string, relativePath: string): boolean {
   const result = db.prepare("UPDATE runs SET final_video_path = ? WHERE id = ? AND final_video_path IS NULL").run(relativePath, runId);
-  return Number(result.changes) > 0;
+  const changed = Number(result.changes) > 0;
+  if (changed) recordProductEvent("final_video"); // JOS-199 — only the transition from none to a first final video counts
+  return changed;
 }
 
 /** Records that a rebuild was asked for. `false` when one is already outstanding or the session has no final video. */
@@ -1688,7 +1767,31 @@ export function insertProviderRequest(
   db.prepare(
     "INSERT INTO provider_requests (id, scene_id, sent_at, latency_ms, mode, attempt_number, resolved, stage) VALUES (?, ?, ?, ?, ?, ?, 0, ?)",
   ).run(id, sceneId, sentAt, latencyMs, mode, attemptNumber, stage);
+  reportProviderRequest(sceneId, latencyMs, mode, stage);
   return { id, sceneId, sentAt, latencyMs, mode, attemptNumber, resolved: 0, stage };
+}
+
+/** add-observability-telemetry (JOS-199) Decision 4 — the image and clip stages report here, not through stage attempts. */
+function reportProviderRequest(sceneId: string, latencyMs: number, mode: ProviderOutcomeMode, stage: "image" | "video"): void {
+  try {
+    const consent = getConsent();
+    if (!consent.providerUsage && !consent.errors) return;
+    const scene = db
+      .prepare("SELECT provider, video_provider, requested_duration_seconds FROM scenes WHERE id = ?")
+      .get(sceneId) as any;
+    if (!scene) return;
+    const provider: string = (stage === "video" ? scene.video_provider : scene.provider) ?? "unknown";
+    const normalized = normalizeOutcome(mode);
+    let billed: BilledUnit | undefined;
+    if (stage === "image") billed = { unit: "images", amount: 1 };
+    else if (typeof scene.requested_duration_seconds === "number") billed = { unit: "clip_seconds", amount: scene.requested_duration_seconds };
+    recordProviderCall({ stage, provider, outcome: mode, latencyMs, billed });
+    if (normalized === "not-retryable") {
+      recordError({ stage, provider, outcome: normalized, message: `${stage} request failed (${mode})` });
+    }
+  } catch {
+    // Telemetry must never fail a database write.
+  }
 }
 
 export function getProviderRequest(id: string): ProviderRequestRow | undefined {

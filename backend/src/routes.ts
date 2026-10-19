@@ -1,4 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
+import { recordProductEvent, setConsent } from "./telemetry/index.ts";
+import { getUpdateResult } from "./telemetry/updateCheck.ts";
 import { z } from "zod";
 import { jsonSchemaTransform, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
@@ -20,6 +22,9 @@ import {
   resolveArtefactPath,
   writeArtefactOnce,
   insertVoiceOver,
+  getTelemetrySettings,
+  saveTelemetryConsent,
+  type TelemetrySettings,
 } from "./db.ts";
 import {
   continueSession,
@@ -275,6 +280,16 @@ const snapshotResponseSchema = z.object({
 const okSchema = z.object({ ok: z.boolean() });
 const conflictSchema = z.object({ ok: z.boolean(), reason: z.string() });
 const retryAcceptedSchema = z.object({ ok: z.literal(true), held: z.boolean().describe("True while the session is paused: the retry is accepted and waits for continue.") });
+// add-observability-telemetry (JOS-199) — the install ID stays in the store and is never returned.
+const telemetryConsentBodySchema = z.object({ errors: z.boolean(), providerUsage: z.boolean(), productUsage: z.boolean() }).strict();
+const telemetryConsentResponseSchema = telemetryConsentBodySchema.extend({ answered: z.boolean() });
+function consentView({ errors, providerUsage, productUsage, answered }: TelemetrySettings) {
+  return { errors, providerUsage, productUsage, answered };
+}
+const appUpdateResponseSchema = z.union([
+  z.object({ available: z.literal(false) }),
+  z.object({ available: z.literal(true), tag: z.string(), url: z.string() }),
+]);
 const emptyBodySchema = z.object({}).strict().nullish();
 // adjust-scene-pause (JOS-190) — a number only; whether it is on the 0.1 s grid and inside the scene's range depends on
 // the scene, so it is answered 422 with a sentence by the handler rather than rejected by the schema.
@@ -292,6 +307,24 @@ export const routes: FastifyPluginAsync = async (app) => {
   // start-video-project (JOS-134) Decision 5 — the frontend fetches this
   // list rather than restating it; see config/providers.ts (JOS-165) for
   // the verified list and how it was derived.
+  typed.get(
+    "/telemetry/consent",
+    { schema: { response: { 200: telemetryConsentResponseSchema } } },
+    async () => consentView(getTelemetrySettings()),
+  );
+
+  typed.put(
+    "/telemetry/consent",
+    { schema: { body: telemetryConsentBodySchema, response: { 200: telemetryConsentResponseSchema } } },
+    async (request) => {
+      const saved = saveTelemetryConsent(request.body);
+      setConsent(saved); // applies at once, without a restart (spec: Per-signal opt-in consent)
+      return consentView(saved);
+    },
+  );
+
+  typed.get("/app/update", { schema: { response: { 200: appUpdateResponseSchema } } }, async () => getUpdateResult());
+
   typed.get("/languages", { schema: { response: { 200: languageResponseSchema } } }, async () => [
     ...SUPPORTED_LANGUAGES,
   ]);
@@ -327,6 +360,7 @@ export const routes: FastifyPluginAsync = async (app) => {
       }
       const sessionId = ulid();
       createRun(sessionId, request.body.title, request.body.script, request.body.language);
+      recordProductEvent("session_started");
       reply.code(201);
       const snapshot = toSnapshot(sessionId);
       // generate-voice-over (JOS-136) Decision 1 — the session is committed; the

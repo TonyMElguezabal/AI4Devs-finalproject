@@ -1,4 +1,4 @@
-import type { SceneEventPayload, SessionSnapshot } from "../types";
+import type { AppUpdate, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -89,4 +89,21 @@ export function resolveResultUrl(path: string): string {
 
 export function eventsUrl(sessionId: string): string {
   return `${API_BASE}/events?sessionId=${encodeURIComponent(sessionId)}`;
+}
+
+/** add-observability-telemetry (JOS-199) */
+export function getTelemetryConsent(): Promise<TelemetryConsent> {
+  return fetch(`${API_BASE}/telemetry/consent`).then(asJson<TelemetryConsent>);
+}
+
+export function saveTelemetryConsent(choices: TelemetryChoices): Promise<TelemetryConsent> {
+  return fetch(`${API_BASE}/telemetry/consent`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(choices),
+  }).then(asJson<TelemetryConsent>);
+}
+
+export function getAppUpdate(): Promise<AppUpdate> {
+  return fetch(`${API_BASE}/app/update`).then(asJson<AppUpdate>);
 }

@@ -98,6 +98,22 @@ These exist for manual endpoint testing and **must never be set in UAT or produc
 | `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_ASSEMBLY_TOOL` | replace a provider with a stub (values are listed in `backend/src/server.ts`) |
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | shorten retry delays |
 
+### Telemetry (opt-in)
+
+Nothing is sent until the User ticks a box in the Privacy dialog. To see what would be sent without any account, point the build at a local receiver and turn the signals on:
+
+```bash
+# any server that answers 200 on POST /v1/metrics and /v1/logs works; log what it receives
+VID4YOU_TELEMETRY_ENDPOINT=http://127.0.0.1:4318 npm start     # backend/
+curl -X PUT http://127.0.0.1:3100/telemetry/consent -H 'content-type: application/json' \
+  -d '{"errors":true,"providerUsage":true,"productUsage":true}'
+```
+
+Metrics are exported every 60 s and on SIGINT/SIGTERM. `VID4YOU_CHANNEL=production` with `VID4YOU_RELEASE_TAG=<old tag>` turns on the update check against the GitHub Releases API. The rotating log is `logs/vid4you.log` beside the store.
+
+- **Relay.** `infra/telemetry-relay/` is a Cloudflare Worker that filters attributes and forwards to Grafana Cloud. `npx vitest run` tests it; `.github/workflows/telemetry-relay.yml` deploys it with the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, and the Worker needs `GRAFANA_OTLP_URL` and `GRAFANA_OTLP_AUTH` (`wrangler secret put`).
+- **Dashboards.** Import the JSON files in `infra/grafana/dashboards/` as described in `infra/grafana/README.md`. The cost panels use placeholder prices that must be replaced first.
+
 ## Test
 
 ```bash

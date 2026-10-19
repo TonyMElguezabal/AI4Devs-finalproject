@@ -112,6 +112,16 @@ The pause after a scene is **derived, never stored**: the scene's `narration_end
 - **Pending edits** = the stored edits differ from the latest build's `pauses` (`{}` for version 1). Derived on every read.
 - The effective intervals of a rebuild are a pure function of the stored intervals and the edits (`applyPauseEdits`): the stored intervals are never written. Each rebuild is an `assembly` stage attempt in a new cycle; a failed rebuild is recorded on its attempt only and never as `runs.failure`.
 
+### 4d. Telemetry settings (`telemetry_settings` table) — `add-observability-telemetry`, JOS-199, migration 17
+
+One row per install (`id = 1`, enforced by a CHECK), created by the migration with every signal off. It belongs to the install, not to a session, so no other table references it.
+
+- `errors`, `provider_usage`, `product_usage` (INTEGER, 0 or 1, default 0): the three consent flags, one per signal. A signal is exported only while its flag is 1; the flags are checked when a record is made, so a change applies at once.
+- `answered_at` (nullable TEXT): when the User first answered the consent dialog. `NULL` means "never asked", and the frontend opens the dialog while it is `NULL`. Saving the dialog with every box off still sets it, and so does "Not now" or Escape the first time (the client sends an all-off save), so the User is not asked again.
+- `install_id` (TEXT, a ULID created by the migration): a random identifier for this install, sent as the `service.instance.id` resource attribute so installs can be counted. It is never returned by the API and is not derived from the machine or the User.
+
+Mutable on purpose, like `scene_pause_edits`: it holds the User's intent, not generated output. Written only by `saveTelemetryConsent`; read by `getTelemetrySettings`.
+
 ### 5. Schema migrations (`schema_migrations` table)
 
 Tracks which versioned migrations have been applied, so an existing session's data survives a schema upgrade (§11.2, Decision 6). Fields: `version` (Primary Key), `applied_at`. Migration 5 adds the three session-content triggers and migration 6 the two voice-over triggers (`lock-script-and-narration`, JOS-137); migration 7 adds `prompt`, `image_instruction` and `video_instruction` to `scenes`, the unique chunk-number index and the four chunk triggers (`assign-scene-identifiers`, JOS-144); migrations 5 and 6 are separate because a database that had already applied 5 must still receive the voice-over triggers, and an applied migration is never edited. Migration 8 adds `narration_timestamps` and its two triggers (`obtain-narration-timestamps`, JOS-139). Migration 9 adds `scenes.narration_start_seconds` and `scenes.narration_end_seconds` with one lock trigger each (`assign-narration-intervals`, JOS-143); its triggers are built from their own constant, not from the array migration 7 uses, so migration 7 is unchanged. Migration 10 adds `scenes.requested_duration_seconds` and `scenes.duration_warning` with one lock trigger each (`request-admitted-clip-duration`, JOS-147), built from a constant of its own for the same reason migration 9's was. Migration 11 adds `scenes.speed_factor` and `scenes.speed_factor_warning` with one lock trigger each (`record-speed-adjustment-factor`, JOS-148), the same pattern again. Migration 12 (`generate-chunk-video`, JOS-146) adds `scenes.video_provider` (nullable TEXT) and `scenes.video_result` (nullable TEXT), a `stage` column (NOT NULL DEFAULT `'image'`, TEXT) to `provider_requests`, and the `scene_video_results` table — the clip idempotency guard — with a Foreign Key on `scene_id`.
@@ -229,6 +239,14 @@ What must never change is refused by the store itself (`lock-script-and-narratio
 
 ```mermaid
 erDiagram
+    TelemetrySettings {
+        Integer id PK "always 1"
+        Boolean errors
+        Boolean provider_usage
+        Boolean product_usage
+        String answered_at "nullable"
+        String install_id "ULID"
+    }
     Session {
         String id PK "ULID"
         String title
