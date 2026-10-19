@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.8  
+**Versión:** 1.9  
 **Alcance:** MVP  
-**Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.7.md`.
+**Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.8.md`.
 
 ## 1. Objetivo del producto
 
@@ -359,6 +359,20 @@ Las sesiones se consultan mediante su identificador. La separación de datos ent
 
 The application accepts requests only from its own interface on the same computer: it listens on the local loopback address and rejects requests coming from other web pages open in the user's browser. Admitting more than one person, or reaching the application from another computer, is outside the MVP (§2.3).
 
+### 12.4 Telemetría y privacidad
+
+1. **Consentimiento previo.** Vid4You no envía ningún dato fuera del equipo del usuario sin su permiso. En el primer arranque se muestra un aviso con tres casillas, todas desmarcadas: *informes de errores*, *conteos de uso de proveedores y costes* y *conteos anónimos de uso*. El usuario guarda sus elecciones con **Save**, o cierra el aviso con **Not now** o Escape; en ambos casos se registra una respuesta (con "Not now", todo desactivado) y el aviso no vuelve a aparecer solo. El aviso incluye un enlace a la política de privacidad. Puede cambiarlas en cualquier momento desde el botón **Privacidad**.
+2. **Qué se envía, cuando está activado.**
+   - *Errores:* código, mensaje y traza del error, con rutas de archivo y nombre de usuario eliminados.
+   - *Proveedores y costes:* cuántas llamadas se hicieron por etapa y proveedor, su resultado (éxito, transitorio, no reintentable), cuánto tardaron y las unidades facturadas (imágenes, segundos de clip, caracteres de voz).
+   - *Uso:* cuántas veces se abre la aplicación, cuántas sesiones se inician y cuántos vídeos finales se generan.
+   - En todos los casos: versión, canal (UAT/PROD), sistema operativo, arquitectura y un identificador aleatorio de la instalación.
+3. **Qué nunca se envía.** Título, guion, narración, prompts, imágenes, clips, nombres o rutas de archivo, nombre de usuario, claves de proveedores ni ningún dato personal.
+4. **Registro local.** Independientemente del consentimiento, la aplicación guarda un registro local rotativo (10 MB × 5 archivos) en la carpeta de datos del usuario; no sale del equipo.
+5. **Aviso de nueva versión.** En UAT y PROD, al arrancar, la aplicación consulta una vez la última versión publicada en GitHub y, si hay una distinta de la instalada, muestra un aviso con un enlace a la publicación. No descarga ni instala nada. No depende del consentimiento de telemetría.
+6. **Política de privacidad publicada.** El repositorio incluye `PRIVACY.md` (en inglés), enlazada desde el aviso, con lo anterior y el plazo de conservación: los datos se conservan mientras lo permita la capa gratuita del servicio de observabilidad.
+7. **Destino.** Los datos pasan por un relé propio (`otel.vid4you.download`) que descarta cualquier atributo no permitido antes de reenviarlos al servicio de observabilidad.
+
 ## 13. Criterios de aceptación del MVP
 
 | ID | Resultado verificable |
@@ -439,6 +453,14 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
+
+### From version 1.8 to 1.9
+
+Origin: `add-observability-telemetry` (JOS-199), 2026-10-19.
+
+| Change | Origin |
+|---|---|
+| New §12.4: opt-in telemetry (errors, provider usage and cost counts, anonymous usage counts) behind a first-launch consent with three unchecked boxes; "Not now" counts as an answer with everything off; a published privacy policy (`PRIVACY.md`) linked from the notice; retention as long as the observability service's free tier allows; a local rotating log; and a new-version notice on UAT and PROD. | Product owner, JOS-199 |
 
 ### From version 1.7 to 1.8
 

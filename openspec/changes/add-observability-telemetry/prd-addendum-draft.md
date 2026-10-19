@@ -1,6 +1,6 @@
 # Borrador de adenda al PRD — telemetría opcional (JOS-199)
 
-**Estado: borrador con las decisiones del Product Owner del 2026-10-18 incorporadas; pendiente de su aprobación final y de aplicarlo a `docs/PRD.md`.**
+**Estado: aprobado por el Product Owner y aplicado a `docs/PRD.md` (v1.9, §12.4) el 2026-10-19. Queda pendiente solo un enlace estable a `PRIVACY.md` (hoy apunta a `main`).**
 
 ## Propuesta de texto
 
