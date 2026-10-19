@@ -32,7 +32,7 @@
 
 ## 5. Packaged app serving (design Decision 7)
 
-- [ ] 5.1 If JOS-194's static frontend serving is on the base branch: write a failing test that `GET /admin` returns the frontend page while `GET /admin/access` stays the API, then make it pass. If it is not: comment on JOS-194 that `GET /admin` must serve the frontend page, and record that here.
+- [x] 5.1 If JOS-194's static frontend serving is on the base branch: write a failing test that `GET /admin` returns the frontend page while `GET /admin/access` stays the API, then make it pass. If it is not: comment on JOS-194 that `GET /admin` must serve the frontend page, and record that here. **Recorded 2026-10-19:** the base has no static frontend serving in product code (`GET /` returns the backend skeleton page), so the requirement is commented on JOS-194, naming follow-up story L6 (the backend serves the built frontend, and must answer `GET /admin` too) and L3 (the origin guard). No test here: nothing in this change serves the page.
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
