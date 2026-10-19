@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.9  
+**Versión:** 1.10  
 **Alcance:** MVP  
-**Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.8.md`.
+**Status (v1.10, awaiting the product owner's approval):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous versions are kept in `docs/PRD-v1.9.md` and `docs/PRD-v1.8.md`.
 
 ## 1. Objetivo del producto
 
@@ -20,7 +20,7 @@ El usuario puede consultar el progreso por fase y por escena, descargar resultad
 |---|---|
 | User (*Usuario*) | Enter a title, a script, and the script's language; follow progress and per-scene diagnostics; pause and continue the session; download results; retry failed stages. |
 
-The MVP has a single role: the User. Providers and all generation parameters are hardcoded in the application (§11); the MVP has no configuration files, no administration interface, and no Administrator role. Provider credentials (API keys) are read from the process environment or from a credentials file in the user's application-data folder; they are never hardcoded, never part of the application download, and never shown in the interface or logs. An Administrator role (configuration, diagnostics, provider changes, and reports on `/admin`) is deferred post-MVP.
+The MVP has a single role: the User. Providers and generation parameters are read at start-up from local settings files (§11): a default file that ships with the application and an optional per-user file that overrides it. A change takes effect after the application restarts. The MVP has no administration interface and no Administrator role, so settings are edited by hand and are not editable through the application. Provider credentials (API keys) are read from the process environment or from a credentials file in the user's application-data folder; they are never part of a settings file, never part of the application download, and never shown in the interface or logs. An Administrator role (a password for changing settings, diagnostics, and reports on `/admin`) is deferred post-MVP.
 
 ### 2.2 Incluido en el MVP
 
@@ -47,8 +47,8 @@ The MVP has a single role: the User. Providers and all generation parameters are
 - Regeneración de imágenes o clips exitosos por preferencia estética.
 - Cancelación de solicitudes ya enviadas a un proveedor.
 - Montajes que omitan escenas del guion.
-- Configuration files or any runtime configuration of providers and parameters (hardcoded in the MVP, §11).
-- Administrator role and any provider change, manual or automatic, including moving failed stages to another provider (§11.2).
+- Changing providers or parameters from the application (interface or API), applying a change without a restart, and the Administrator password (§11).
+- Administrator role and any provider change, manual or automatic, including moving failed stages to another provider (§11.2). Choosing a provider in the settings file is not a provider change in this sense (§11.2).
 - Session expiry (§12.2).
 - Size or budget limits per session (§4.1).
 - A product-level content policy; providers' own content filters apply (§4.1).
@@ -83,7 +83,7 @@ Cada etapa conserva la identificación del proveedor utilizado y los intentos re
 
 El usuario introduce un título y un guion no vacíos. No necesita proporcionar identificadores, etiquetas, delimitadores ni instrucciones de imagen o video.
 
-The User also selects the script's language from the hardcoded list of supported languages (§11.3: **English, Spanish**). Only supported languages can be chosen, and a project cannot start without a selected language; no provider is called before that.
+The User also selects the script's language from the configured list of supported languages (§11; shipped default §11.3: **English, Spanish**). Only supported languages can be chosen, and a project cannot start without a selected language; no provider is called before that.
 
 No existe un límite funcional de palabras establecido por el producto. Un guion de aproximadamente 1500 palabras es una referencia habitual, no una restricción ni una duración obligatoria. La duración del video depende de la narración real del guion. The MVP sets no limit on script words, number of scenes, or provider calls per session.
 
@@ -135,13 +135,13 @@ La segmentación se ejecuta después de disponer del voice-over y de sus marcas 
 
 - **Criterio de corte.** Los cortes coinciden con fronteras de oración. Un chunk agrupa una o más oraciones consecutivas completas.
 - **Cota superior.** La duración narrada de un chunk no supera la duración máxima admitida por el proveedor de video activo.
-- **Lower bound.** A chunk's narrated duration does not fall below the hardcoded lower bound. A sentence that does not reach it is grouped with the following sentence; if it is the script's last sentence, it is grouped with the previous one (see §6.1.1 for edge cases).
+- **Lower bound.** A chunk's narrated duration does not fall below the configured lower bound. A sentence that does not reach it is grouped with the following sentence; if it is the script's last sentence, it is grouped with the previous one (see §6.1.1 for edge cases).
 - **Excepción.** Una oración cuya narración supere por sí sola la cota superior se divide en frontera de cláusula, marcada por coma, punto y coma o conjunción. Es la única división permitida dentro de una oración.
 - **Optimización.** Entre las agrupaciones que cumplen ambas cotas, el sistema prefiere aquellas cuya duración narrada quede más próxima a una duración admitida por el proveedor de video, para reducir el ajuste de velocidad de §7.3.
 
 La regla no altera §4.2: los fragmentos unidos en orden siguen reconstruyendo el guion original.
 
-La cota inferior existe porque el proveedor de video impone una duración mínima de clip. Sin ella, un fragmento muy breve obligaría a un factor de aceleración elevado. Its value is hardcoded (§11.3: **5 seconds**) and matches the shortest duration admitted by the video provider, by construction.
+La cota inferior existe porque el proveedor de video impone una duración mínima de clip. Sin ella, un fragmento muy breve obligaría a un factor de aceleración elevado. Its value is configured (§11.3: shipped default **5 seconds**) and matches the shortest duration admitted by the video provider, by construction.
 
 El incumplimiento de estas reglas por una descomposición generada por el sistema constituye un fallo de descomposición, no un error del guion introducido por el usuario.
 
@@ -163,12 +163,12 @@ Cada clip utiliza la imagen generada y la instrucción `VIDEO`. La duración sol
 
 - El sistema solicita la duración admitida por el proveedor **más próxima** al intervalo narrado. Se admite que la duración solicitada sea menor que el intervalo, lo que implica ralentizar el clip durante el montaje. "Closest" means the admitted duration requiring the smallest speed change (speed-up or slow-down ratio) to match the interval, not the fewest seconds; an exact tie goes to the longer duration.
 - Cuando el intervalo narrado es inferior a la menor duración admitida, se solicita esa menor duración.
-- El sistema no debe asumir que todos los proveedores admiten las mismas duraciones ni cualquier valor intermedio. The set of admitted durations is hardcoded for the video provider (§11).
-- El máximo habitual previsto es de 15 segundos; un proveedor que admita 20 segundos puede utilizar ese máximo. **Recorded (§11.3): the hardcoded video provider's measured admitted range is 5-15 seconds** — the "usual" 15-second expectation is exactly the measured maximum, not just a placeholder guess.
+- El sistema no debe asumir que todos los proveedores admiten las mismas duraciones ni cualquier valor intermedio. The set of admitted durations is configured for the video provider (§11).
+- El máximo habitual previsto es de 15 segundos; un proveedor que admita 20 segundos puede utilizar ese máximo. **Recorded (§11.3): the video provider's measured admitted range, the shipped default, is 5-15 seconds** — the "usual" 15-second expectation is exactly the measured maximum, not just a placeholder guess.
 
 The §6.1 upper bound ensures that no narrated interval exceeds the video provider's maximum, except for a sentence that cannot be split (§6.1.1). That clip is requested at the maximum admitted duration and slowed down to fit, with a speed-factor warning. No trimming policy is required.
 
-El factor de ajuste de velocidad no es un parámetro independiente: resulta de la regla de segmentación de §6.1 y de la selección de duración descrita arriba. The system records the resulting factor for each scene with its result and shows it, with the requested duration, in the scene details. The acceptable limit is hardcoded (§11); when a scene exceeds it, a diagnosable warning is recorded, not a failure.
+El factor de ajuste de velocidad no es un parámetro independiente: resulta de la regla de segmentación de §6.1 y de la selección de duración descrita arriba. The system records the resulting factor for each scene with its result and shows it, with the requested duration, in the scene details. The acceptable limit is configured (§11); when a scene exceeds it, a diagnosable warning is recorded, not a failure.
 
 ### 7.3 Sincronización y montaje final
 
@@ -184,7 +184,7 @@ El montaje debe conservar todo el contenido narrado y la secuencia de escenas, s
 
 El video final solo puede generarse cuando todas las escenas estén en `chunk-complete`. Una sesión con una escena fallida o pendiente no puede alcanzar `final-video`.
 
-**Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are hardcoded (expected 1920×1080 at 30 fps), with H.264 video and AAC audio.
+**Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are configured (shipped default 1920×1080 at 30 fps), with H.264 video and AAC audio.
 
 Si falla el montaje, se conserva el audio y las escenas exitosas. El reintento se aplica al montaje, sin volver a generar los componentes ya completados.
 
@@ -247,11 +247,11 @@ Ante un fallo transitorio, el sistema permite hasta **tres reintentos automátic
 
 A failure the provider reports as not retryable (for example, a content-filter rejection) skips automatic retries and goes directly to `failed` with its cause shown. A disallowed script never reaches the pipeline: it is refused at submission (§4.1, JOS-187). Corrected `IMAGE`/`VIDEO` instructions (§10.3) are not moderated.
 
-Each stage has a hardcoded maximum of simultaneous provider requests, shared across all sessions. Requests beyond it wait their turn and are sent first come, first served, regardless of session. Waiting counts neither as a failed attempt nor as execution time.
+Each stage has a configured maximum of simultaneous provider requests, shared across all sessions. Requests beyond it wait their turn and are sent first come, first served, regardless of session. Waiting counts neither as a failed attempt nor as execution time.
 
 Al agotar el límite, la etapa queda en `failed`. La interfaz muestra un error comprensible y la opción de reintento manual cuando corresponda. La política debe evitar que mecanismos internos de recuperación multipliquen inadvertidamente el límite funcional.
 
-La espera previa al inicio de una etapa no debe confundirse con el tiempo de ejecución ni provocar un fallo prematuro de escenas que comienzan más tarde. Per-phase maximum times are hardcoded (§11).
+La espera previa al inicio de una etapa no debe confundirse con el tiempo de ejecución ni provocar un fallo prematuro de escenas que comienzan más tarde. Per-phase maximum times are configured (§11).
 
 ### 10.2 Reintentos manuales
 
@@ -274,7 +274,7 @@ Ninguna recuperación permite cambiar `ID`, `PROMPT`, el orden narrativo o un vo
 
 ## 11. Proveedores y operación
 
-In the MVP, the provider for each stage (reasoning, voice, alignment, image, video) and all generation parameters are hardcoded in the application. Hardcoded parameters: narration voice, quality, and speed; video admitted durations and maximum; segmentation lower bound; acceptable speed-factor limit; per-phase maximum times; output resolution and frame rate; supported script languages; and maximum simultaneous requests per stage. Their concrete values were defined by `define-provider-configuration` (JOS-165) and are recorded in §11.3. Provider credentials are read from the process environment or from a credentials file in the user's application-data folder, never hardcoded. There is one provider per stage.
+In the MVP, the provider for each stage (reasoning, voice, alignment, image, video) and all generation parameters come from local settings files, read and validated once when the application starts. Configurable parameters: narration voice, quality, and speed; video admitted durations (minimum and maximum); segmentation lower bound; acceptable speed-factor limit; per-phase maximum times; output resolution and frame rate; supported script languages; and maximum simultaneous requests per stage. The application ships a default file holding the values recorded in §11.3; an optional file in the user's application-data folder replaces any subset of them. If the settings are missing a value, have a wrongly typed or out-of-range value, contain an unknown key, or are inconsistent, the application does not start and lists every problem. Editing a file while the application runs changes nothing until the next start. Provider credentials are read from the process environment or from a credentials file in the user's application-data folder, never from a settings file. There is one provider per stage, and it must be one for which the application ships an adapter.
 
 | Etapa | Capacidad requerida |
 |---|---|
@@ -282,7 +282,7 @@ In the MVP, the provider for each stage (reasoning, voice, alignment, image, vid
 | Voz | Producir la narración completa en MP3 con voz, calidad y velocidad preconfiguradas, y entregar marcas de tiempo del audio generado con granularidad suficiente para situar cada fragmento del guion. Verified: ElevenLabs, character-level native timestamps (§11.3). |
 | Alignment | Derive the timestamps by aligning the generated MP3 against the script when the voice provider's native timestamps are not available or are unusable (§11.1). Verified: ElevenLabs Forced Alignment, same account as Voice (§11.3). |
 | Imagen | Generar imágenes desde texto en 16:9 y con resolución mínima de 1920 × 1080. Verified: Fal.ai `fal-ai/flux/dev` (§11.3). |
-| Video | Animate a reference image with a requested duration within its capabilities. Its admitted durations and maximum are hardcoded (§11.3: 5-15 seconds). Verified: RunningHub, MiniMax-H3 "Hailuo-03" (§11.3). |
+| Video | Animate a reference image with a requested duration within its capabilities. Its admitted durations and maximum are configured (§11.3: shipped default 5-15 seconds). Verified: RunningHub, MiniMax-H3 "Hailuo-03" (§11.3). |
 
 ### 11.1 Marcas de tiempo y mecanismo de respaldo
 
@@ -291,23 +291,23 @@ Las marcas de tiempo son una capacidad requerida de la etapa de voz. Se obtienen
 1. **Marcas de tiempo nativas.** El proveedor de voz las entrega junto al MP3.
 2. **Alineación forzada.** Si el proveedor activo no las entrega, el sistema las deriva alineando el MP3 generado contra el guion conocido. Forced alignment is performed by the alignment stage and its own provider; it is also used when native timestamps are returned but unusable.
 
-La alineación forzada es el mecanismo de respaldo declarado del producto y no sustituye la preferencia por marcas de tiempo nativas. Verifying which of the two applies to the hardcoded voice provider is a task prior to implementing the decomposition phase.
+La alineación forzada es el mecanismo de respaldo declarado del producto y no sustituye la preferencia por marcas de tiempo nativas. Verifying which of the two applies to the configured voice provider is a task prior to implementing the decomposition phase.
 
 La imposibilidad de obtener los intervalos por cualquiera de los dos mecanismos constituye un fallo de descomposición, se refleja en `chunk-decomposing` y sigue la política de reintentos de §10.1.
 
 ### 11.2 Vinculación y cambio de proveedor
 
-In the MVP there is no provider change of any kind: providers are hardcoded, and there is no manual or automatic switching. Manual provider changes and moving failed stages to another provider are deferred post-MVP.
+In the MVP there is no provider change at run time: there is no manual or automatic switching, and a settings file cannot change a stage's provider while the application runs. The provider named in the settings when the application starts is the one used for new work. Manual provider changes and moving failed stages to another provider are deferred post-MVP.
 
 La etapa conserva el proveedor utilizado para sus reintentos automáticos y manuales. En voz, esta asociación pertenece a la sesión; en imagen y video, al chunk y a la etapa correspondiente.
 
 A stage tied to a provider that is unavailable keeps retrying that same provider until it recovers. Completed results are never regenerated.
 
-A change to the hardcoded admitted durations in a later version of the application does not alter the intervals or chunks already established in existing sessions.
+A change to the configured admitted durations, languages, or any other setting, after a restart, does not alter what existing sessions have already established: intervals, chunks, requested durations, speed factors, warnings, the session's language, and completed results stay as they were. A stage that already has a bound provider keeps it for its retries.
 
 ### 11.3 Recorded providers and parameter values (JOS-165)
 
-Defined by `define-provider-configuration` (JOS-165), verified against real calls per Decision 2 of its design (never from documentation alone). Full evidence and provenance: `docs/adr/0005-provider-selection.md` and `openspec/changes/define-provider-configuration/reports/`.
+Defined by `define-provider-configuration` (JOS-165) and, since v1.10, shipped as the default settings file (`backend/config/settings.default.json`). The values below are those defaults; a per-user override file can replace them (§11). Verified against real calls per Decision 2 of its design (never from documentation alone). Full evidence and provenance: `docs/adr/0005-provider-selection.md` and `openspec/changes/define-provider-configuration/reports/`.
 
 | Stage | Provider | Identifier |
 |---|---|---|
@@ -394,7 +394,7 @@ The application accepts requests only from its own interface on the same compute
 | AC15 | Los archivos locales no se eliminan automáticamente y dos proyectos con el mismo título no sobrescriben sus resultados. |
 | AC16 | El MVP permite pausas y descargas parciales sin requerir una interfaz de administración o reportes. |
 | AC17 | Los cortes entre chunks coinciden con fronteras de oración, salvo la excepción de oración larga prevista en §6.1. |
-| AC18 | No chunk exceeds the video provider's maximum or falls below the hardcoded lower bound, except for a whole script shorter than the lower bound and a sentence that cannot be split (§6.1.1). |
+| AC18 | No chunk exceeds the video provider's maximum or falls below the configured lower bound, except for a whole script shorter than the lower bound and a sentence that cannot be split (§6.1.1). |
 | AC19 | Los intervalos de los chunks son contiguos, no se solapan y cubren el voice-over desde el segundo 0 hasta su duración total, con cada silencio asignado a la escena anterior (D11, §7.3). |
 | AC20 | El sistema obtiene los intervalos mediante marcas de tiempo nativas o, en su ausencia, mediante alineación forzada; la imposibilidad de obtenerlos se reporta como fallo de descomposición y no como fallo de voz. |
 | AC21 | La interfaz muestra, por fase y por escena, el estado vigente, los resultados disponibles, los errores y las acciones aplicables, y refleja el avance durante el procesamiento. |
@@ -453,6 +453,17 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
+
+### From version 1.9 to 1.10
+
+Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.3, §11: providers and generation parameters are read from a shipped default settings file plus an optional per-user override, validated at start-up (every problem listed, unknown keys rejected, credentials excluded), and applied only after a restart. They are no longer hardcoded and "no configuration files" is removed from the MVP exclusions. The sentences in §4.1, §6.1, §7.2, §7.3, §10.1, §11.1 and AC18 that called them hardcoded now say configured. | Product owner, JOS-174 |
+| §11.2: a changed setting does not alter established work (intervals, chunks, durations, speed factors, warnings, language, results); a bound provider is kept for retries. | Product owner, JOS-174 |
+| §11.3: its values are now the shipped defaults. | JOS-174 |
+| The Administrator password is deferred to the story that adds `/admin` and the Administrator role. | Product owner decision, 2026-10-19 |
 
 ### From version 1.8 to 1.9
 

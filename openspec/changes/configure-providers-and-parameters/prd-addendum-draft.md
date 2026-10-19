@@ -33,6 +33,10 @@ Last paragraph: "A change to the configured admitted durations, languages, or an
 
 "Defined by `define-provider-configuration` (JOS-165) and, since v1.10, shipped as the default settings file (`backend/config/settings.default.json`). The values below are those defaults; a per-user override file can replace them (§11)." The tables do not change.
 
+### Other sentences made consistent (one word each: "hardcoded" becomes "configured")
+
+§4.1 (the list of supported languages), §6.1 (the lower bound, in the rule and in its rationale), §7.2 (the set of admitted durations, the speed-factor limit, and the "recorded" note, which now says the range is the shipped default), §7.3 (resolution and frame rate), §10.1 (the request maximum and the per-phase maximum times), §11.1 (the voice provider) and AC18. The closed product decisions (D03, D08, D09), the gap table and the change-log entries of earlier versions are history and stay as they were.
+
 ### 16 Registro de cambios (new entry)
 
 **From version 1.9 to 1.10.** Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19.

@@ -69,7 +69,7 @@
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [ ] 9.1 `docs/PRD.md` → v1.10 (keep v1.9 as `docs/PRD-v1.9.md`): §2.1 and §2.3 no longer exclude configuration files; §11 states the values come from local settings files and apply after a restart; §11.3's values are the shipped defaults; §16 change log entry. The Administrator password stays deferred with `/admin`.
+- [x] 9.1 `docs/PRD.md` → v1.10 (keep v1.9 as `docs/PRD-v1.9.md`): §2.1 and §2.3 no longer exclude configuration files; §11 states the values come from local settings files and apply after a restart; §11.3's values are the shipped defaults; §16 change log entry. The Administrator password stays deferred with `/admin`.
 - [ ] 9.2 `docs/backend-standards.md` "Constants": AC3 values come from `backend/config/settings.default.json` plus the override, read through `providers.ts`. Values outside AC3 stay literals in `providers.ts`.
 - [ ] 9.3 `docs/development_guide.md`: where the two files live, every key with its rule (design Decision 5), "restart to apply", the start-up error list, and that credentials never go in these files.
 - [ ] 9.4 `docs/api-spec.yml`: the `language` request enum is the configured list (English and Spanish by default).
