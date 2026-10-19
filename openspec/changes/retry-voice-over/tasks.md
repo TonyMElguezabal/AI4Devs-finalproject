@@ -97,19 +97,19 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the real server on a scratch store and scratch projects folder, with the stub voice provider configured to fail not-retryably first; confirm `GET /health`.
-- [ ] 9.2 `POST /sessions` and wait for `failed` in voice-over. List the project folder. Then:
+- [x] 9.1 Start the real server on a scratch store and scratch projects folder, with the stub voice provider configured to fail not-retryably first; confirm `GET /health`.
+- [x] 9.2 `POST /sessions` and wait for `failed` in voice-over. List the project folder. Then:
   - set the stub to succeed;
   - `curl -X POST /sessions/:id/voice-over/retry` → 200 `{ ok: true, held: false }`;
   - `curl GET /sessions/:id` reaches `voice-over-complete`;
   - the folder has gained one MP3 and lost nothing.
-- [ ] 9.3 Error cases, each with `curl`:
+- [x] 9.3 Error cases, each with `curl`:
   - the retry again on the completed session → 409;
   - an unknown id → 404;
   - a body `{"script":"x"}` → 400;
   - a paused failed session → 200 `{ held: true }`, and then `POST /continue` sends it.
-- [ ] 9.4 `curl GET /docs/json` documents the route.
-- [ ] 9.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/retry-voice-over/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
+- [x] 9.4 `curl GET /docs/json` documents the route.
+- [x] 9.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/retry-voice-over/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
