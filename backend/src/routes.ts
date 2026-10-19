@@ -39,7 +39,7 @@ import {
 import { PROVIDER_OUTCOME_MODES } from "./types.ts";
 import { SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES } from "./config/providers.ts";
 import { ulid } from "./util/ulid.ts";
-import { registerAdminGate } from "./adminAccess.ts";
+import { adminDeniedSchema, registerAdminGate } from "./adminAccess.ts";
 
 /** Provisional — the real value is set by define-live-updates' idle experiment (Decision 7); this keeps the stream alive meanwhile. */
 const HEARTBEAT_MS = 15_000;
@@ -756,6 +756,19 @@ export const routes: FastifyPluginAsync = async (app) => {
   await app.register(
     async (admin) => {
       registerAdminGate(admin);
+      const typedAdmin = admin.withTypeProvider<ZodTypeProvider>();
+
+      // Design Decision 4 — the gate has already answered 401 for every other case, so this handler only runs
+      // for the correct password. The /admin page asks the 401 reason which of its states to show.
+      typedAdmin.get(
+        "/access",
+        {
+          schema: {
+            response: { 200: z.object({ configured: z.literal(true), granted: z.literal(true) }), 401: adminDeniedSchema },
+          },
+        },
+        async () => ({ configured: true as const, granted: true as const }),
+      );
     },
     { prefix: "/admin" },
   );

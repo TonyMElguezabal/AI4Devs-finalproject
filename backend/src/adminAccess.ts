@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, onRequestAsyncHookHandler } from "fastify";
+import { z } from "zod";
 import { loadCredential } from "./config/credentials.ts";
 
 // protect-admin-with-password (JOS-173), design Decisions 1 and 3 — the Administrator gate. The password is
@@ -8,6 +9,12 @@ import { loadCredential } from "./config/credentials.ts";
 // before its body is parsed, so a route added later is protected without any code of its own.
 
 export type AdminDenialReason = "not-configured" | "password-required" | "wrong-password";
+
+/** The 401 body of every Administrator endpoint, for their route schemas and the API document. */
+export const adminDeniedSchema = z.object({
+  ok: z.literal(false),
+  reason: z.enum(["not-configured", "password-required", "wrong-password"]),
+});
 
 /** `undefined` when no password is configured. An unreadable secrets file counts as none, so the gate stays closed. */
 export function readAdminPassword(options: { secretsPath?: string } = {}): string | undefined {

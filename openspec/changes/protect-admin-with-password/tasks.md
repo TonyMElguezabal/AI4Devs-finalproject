@@ -18,10 +18,10 @@
 
 ## 3. Backend: `GET /admin/access` and regular routes (TDD; design Decision 4, spec AC1–AC3)
 
-- [ ] 3.1 Write failing tests: `GET /admin/access` with the correct password → `200 { configured: true, granted: true }`; the three `401` reasons as in 2.2; the response schema is zod-validated and appears in `/docs/json`.
-- [ ] 3.2 Write a test that, with `ADMIN_PASSWORD` set, `GET /languages`, `POST /sessions` and `GET /sessions/:id` succeed with no `Authorization` header (AC3), and that the app starts and serves them with no password configured.
-- [ ] 3.3 Implement `GET /admin/access` with its zod schemas and the `administratorPassword` bearer security scheme in the OpenAPI registration. Make 3.1 and 3.2 pass.
-- [ ] 3.4 Write a test that runs the app with request logging written to a buffer (add an optional logger parameter to `buildApp` only if there is no existing way), sends a wrong and a correct sentinel password, and asserts neither sentinel appears in the buffer (design Decision 6).
+- [x] 3.1 Write failing tests: `GET /admin/access` with the correct password → `200 { configured: true, granted: true }`; the three `401` reasons as in 2.2; the response schema is zod-validated and appears in `/docs/json`.
+- [x] 3.2 Write a test that, with `ADMIN_PASSWORD` set, `GET /languages`, `POST /sessions` and `GET /sessions/:id` succeed with no `Authorization` header (AC3), and that the app starts and serves them with no password configured.
+- [x] 3.3 Implement `GET /admin/access` with its zod schemas and the `administratorPassword` bearer security scheme in the OpenAPI registration. Make 3.1 and 3.2 pass.
+- [x] 3.4 Write a test that runs the app with request logging written to a buffer (add an optional logger parameter to `buildApp` only if there is no existing way), sends a wrong and a correct sentinel password, and asserts neither sentinel appears in the buffer (design Decision 6).
 
 ## 4. Frontend: `/admin` page (TDD; design Decisions 2 and 5)
 
