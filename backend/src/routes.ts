@@ -63,7 +63,7 @@ const createSessionBodySchema = z.object({
   // made (Decision 5). The list comes from the settings files
   // (configure-providers-and-parameters, JOS-174), whose schema requires at least one language,
   // so the cast to a non-empty tuple holds.
-  language: z.enum(SUPPORTED_LANGUAGE_CODES as readonly [string, ...string[]]).describe("Immutable once the session is registered (PRD §4.1, §4.2)."),
+  language: z.enum(SUPPORTED_LANGUAGE_CODES as readonly [string, ...string[]]).describe("Immutable once the session is registered (PRD §4.1, §4.2). One of the configured supported languages (`GET /languages`); English and Spanish by default."),
 });
 
 // start-video-project (JOS-134) Decision 3 — session identifiers are ULIDs

@@ -4,6 +4,8 @@
 - Date: 2026-09-27
 - Change: `define-provider-configuration` (JOS-165, US-33)
 
+> **Note (JOS-174, 2026-10-19).** Since PRD v1.10 the providers and parameter values recorded in this ADR are the **shipped defaults** in `backend/config/settings.default.json`, and an installation can override them in a settings file (`docs/development_guide.md`, "Settings files"). The evidence and the decisions below are unchanged; they describe why those values were chosen, not where they are read from.
+
 ## Context
 
 PRD §11 requires one provider per stage — reasoning/decomposition, voice, alignment,

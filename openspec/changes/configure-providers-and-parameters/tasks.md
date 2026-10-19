@@ -70,9 +70,9 @@
 ## 9. Update Technical Documentation (MANDATORY)
 
 - [x] 9.1 `docs/PRD.md` → v1.10 (keep v1.9 as `docs/PRD-v1.9.md`): §2.1 and §2.3 no longer exclude configuration files; §11 states the values come from local settings files and apply after a restart; §11.3's values are the shipped defaults; §16 change log entry. The Administrator password stays deferred with `/admin`.
-- [ ] 9.2 `docs/backend-standards.md` "Constants": AC3 values come from `backend/config/settings.default.json` plus the override, read through `providers.ts`. Values outside AC3 stay literals in `providers.ts`.
-- [ ] 9.3 `docs/development_guide.md`: where the two files live, every key with its rule (design Decision 5), "restart to apply", the start-up error list, and that credentials never go in these files.
-- [ ] 9.4 `docs/api-spec.yml`: the `language` request enum is the configured list (English and Spanish by default).
-- [ ] 9.5 `docs/adr/0005-provider-selection.md`: add a note that its values are now the shipped defaults in `settings.default.json`.
-- [ ] 9.6 Comment on JOS-174 with the deferral of the Administrator password, and confirm the `/admin` story's acceptance criteria include it.
-- [ ] 9.7 Run `graphify update .`.
+- [x] 9.2 `docs/backend-standards.md` "Constants": AC3 values come from `backend/config/settings.default.json` plus the override, read through `providers.ts`. Values outside AC3 stay literals in `providers.ts`.
+- [x] 9.3 `docs/development_guide.md`: where the two files live, every key with its rule (design Decision 5), "restart to apply", the start-up error list, and that credentials never go in these files.
+- [x] 9.4 `docs/api-spec.yml`: the `language` request enum is the configured list (English and Spanish by default).
+- [x] 9.5 `docs/adr/0005-provider-selection.md`: add a note that its values are now the shipped defaults in `settings.default.json`.
+- [x] 9.6 Comment on JOS-174 with the deferral of the Administrator password, and confirm the `/admin` story's acceptance criteria include it.
+- [x] 9.7 Run `graphify update .`.

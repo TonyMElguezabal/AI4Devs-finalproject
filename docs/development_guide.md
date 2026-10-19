@@ -88,6 +88,47 @@ Never put a key in the repository. A missing key fails the stage with a message 
 
 `backend/data/` is git-ignored. Two checkouts that share it share its sessions and migrations, so point `DB_PATH` and `PROJECTS_ROOT` at separate directories when running a second checkout or the tests.
 
+### Settings files
+
+Providers and generation parameters are not compiled into the code. They are read **once, when the backend starts**, from two JSON files, and a change takes effect only after a restart (editing a file while the app runs changes nothing).
+
+| File | Role |
+|---|---|
+| `backend/config/settings.default.json` | ships with the app and holds a complete, valid value for every setting (the values recorded in PRD §11.3). Do not edit it to configure an installation. |
+| `SETTINGS_PATH` (default `data/settings.json`, relative to the backend working directory) | optional. Holds only the settings you want to change. It is merged over the defaults: objects merge key by key, and a list (`languages`) is replaced whole. |
+
+Example `data/settings.json` that offers English only and lowers the video request cap:
+
+```json
+{ "languages": [{ "code": "en", "label": "English" }], "maxSimultaneousRequests": { "video": 1 } }
+```
+
+| Setting | Rule |
+|---|---|
+| `decomposition`, `voice`, `alignment`, `image`, `video` `.name` | the provider; must be one the build ships an adapter for (today `OpenAI`, `ElevenLabs`, `ElevenLabs`, `Fal.ai`, `RunningHub`) |
+| `decomposition.model`, `image.model`, `voice.model`, `voice.voiceId`, `voice.voiceName`, `voice.outputFormat`, `alignment.endpoint`, `video.endpoint` | non-empty text. The provider's acceptance is not checked at start-up; a wrong value fails the first call |
+| `voice.speed` | `"default"` or a number from 0.7 to 1.2 |
+| `video.admittedDurationSeconds.min` / `.max` | whole seconds, at least 1, `min` not above `max` |
+| `segmentation.lowerBoundSeconds` | positive, not below `video.admittedDurationSeconds.min` |
+| `speedFactorLimit` | a number of at least 1 (the unsigned factor) |
+| `maxTimeSeconds.<stage>` | for `decomposition`, `image`, `voice`, `alignment`, `video`, `assembly`: a positive number of seconds, or `null` for "not timed". The key is required |
+| `maxSimultaneousRequests.<stage>` | whole number of at least 1, for `decomposition`, `image`, `voice`, `alignment`, `video` |
+| `output.width` / `.height` / `.fps` | positive whole numbers; width and height even (H.264). An output above 2560×1440 is upscaled |
+| `languages` | a non-empty list of `{ "code": two lowercase letters, "label": text }`, codes unique |
+
+If anything is missing, empty, the wrong type, out of range, unknown, or inconsistent, the backend **does not start** and prints one line per problem, each naming its setting, for example:
+
+```
+Error: Invalid settings, the application cannot start:
+  - languages: must have at least 1 item(s)
+  - openaiApiKey: unknown setting
+  - segmentation.lowerBoundSeconds: must not be shorter than video.admittedDurationSeconds.min
+```
+
+A problem never prints a value. **Credentials never go in these files**: a key such as `openaiApiKey` is rejected as an unknown setting. Keys stay in the environment or `.secrets.json` (see "Provider credentials"). Values outside this list (content check, image generation size, video generation tier, retry budget and delays) stay in `backend/src/config/providers.ts`. The Administrator password is not a setting yet: it arrives with the `/admin` story.
+
+What a change does and does not touch: sessions already running keep their recorded durations, speed factors, warnings and language, and a scene already bound to a provider keeps that provider (bindings store the provider name, so a retry uses the *current* model or endpoint). A language removed from the list can no longer start a new session, but existing sessions in it still work.
+
 ### Development-only switches
 
 These exist for manual endpoint testing and **must never be set in UAT or production**. The backend treats any non-empty value, including `false` and `0`, as enabled, so leave them unset.

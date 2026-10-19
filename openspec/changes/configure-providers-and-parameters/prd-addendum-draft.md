@@ -1,6 +1,6 @@
 # PRD addendum draft — providers and parameters in settings files (JOS-174)
 
-**Status: awaiting the product owner's approval.** Nothing below is in `docs/PRD.md` yet. After approval, task 9.1 applies it as PRD v1.10 and keeps v1.9 as `docs/PRD-v1.9.md`. The change must not be merged before the approval is recorded here.
+**Status: awaiting the product owner's approval.** The text below was applied to `docs/PRD.md` as v1.10 (task 9.1), whose status line and change-log entry say "awaiting the product owner's approval"; v1.9 is kept as `docs/PRD-v1.9.md`. The change must not be merged before the approval is recorded here, and the "awaiting" markers are removed from the PRD at that point.
 
 ## Proposed text
 
