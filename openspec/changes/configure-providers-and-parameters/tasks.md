@@ -32,9 +32,9 @@
 
 ## 4. Backend: behaviour follows the settings, established work does not change (TDD; spec scenarios)
 
-- [ ] 4.1 Clip duration with admitted durations of 6–10 s: a 12.3 s interval requests 10 s (spec `clip-duration-request`, "Configured admitted durations"). Segmentation uses the configured lower bound.
-- [ ] 4.2 A stage whose `maxTimeSeconds` is `null` is never timed out: `phaseTimeoutMs` returns `undefined`, each adapter sends its request with no timeout, and `attemptDeadline` gives no deadline. A configured value is the deadline (spec `stage-execution-time-limit`).
-- [ ] 4.3 Restart with different admitted durations: an existing session's chunks keep their requested durations, speed factors and warnings. Restart with Spanish removed: an existing Spanish session can still be read, continued and retried, and `POST /sessions` with `es` is rejected with 400.
+- [x] 4.1 Clip duration with admitted durations of 6–10 s: a 12.3 s interval requests 10 s (spec `clip-duration-request`, "Configured admitted durations"). Segmentation uses the configured lower bound.
+- [x] 4.2 A stage whose `maxTimeSeconds` is `null` is never timed out: `phaseTimeoutMs` returns `undefined`, each adapter sends its request with no timeout, and `attemptDeadline` gives no deadline. A configured value is the deadline (spec `stage-execution-time-limit`).
+- [x] 4.3 Restart with different admitted durations: an existing session's chunks keep their requested durations, speed factors and warnings. Restart with Spanish removed: an existing Spanish session can still be read, continued and retried, and `POST /sessions` with `es` is rejected with 400.
 - [ ] 4.4 The configured model identifier and voice settings reach the provider request (adapter tests with a fake `fetch`).
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
