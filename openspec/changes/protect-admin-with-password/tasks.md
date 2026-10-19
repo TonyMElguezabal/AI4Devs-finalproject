@@ -25,10 +25,10 @@
 
 ## 4. Frontend: `/admin` page (TDD; design Decisions 2 and 5)
 
-- [ ] 4.1 Write failing tests in `frontend/test/admin-page.test.tsx` with a mocked `fetch`: not configured → the "No Administrator password is configured" text with `ADMIN_PASSWORD` and "restart", and no password field; locked → a password field and "Unlock"; a wrong password → "Wrong password" and no Administrator area (AC2); the correct password → the Administrator area with "No Administrator tools yet" (AC1); a later `401` while unlocked → back to locked.
-- [ ] 4.2 Write a failing test that after unlocking, the password is in neither `localStorage` nor `sessionStorage`, and that `adminFetch` sends `Authorization: Bearer <password>`.
-- [ ] 4.3 Write a failing test that `App` renders `AdminPage` at `/admin`, and that `/` and `/?sessionId=` render as before with no password field and no `/admin` link in the top bar (AC3).
-- [ ] 4.4 Implement `adminFetch` and `getAdminAccess` in `frontend/src/api/client.ts`, `frontend/src/components/AdminPage.tsx` (existing tokens and styles, no new dependency), and the `/admin` branch in `App.tsx`. Make 4.1–4.3 pass with `npm run typecheck` clean.
+- [x] 4.1 Write failing tests in `frontend/test/admin-page.test.tsx` with a mocked `fetch`: not configured → the "No Administrator password is configured" text with `ADMIN_PASSWORD` and "restart", and no password field; locked → a password field and "Unlock"; a wrong password → "Wrong password" and no Administrator area (AC2); the correct password → the Administrator area with "No Administrator tools yet" (AC1); a later `401` while unlocked → back to locked.
+- [x] 4.2 Write a failing test that after unlocking, the password is in neither `localStorage` nor `sessionStorage`, and that `adminFetch` sends `Authorization: Bearer <password>`.
+- [x] 4.3 Write a failing test that `App` renders `AdminPage` at `/admin`, and that `/` and `/?sessionId=` render as before with no password field and no `/admin` link in the top bar (AC3).
+- [x] 4.4 Implement `adminFetch` and `getAdminAccess` in `frontend/src/api/client.ts`, `frontend/src/components/AdminPage.tsx` (existing tokens and styles, no new dependency), and the `/admin` branch in `App.tsx`. Make 4.1–4.3 pass with `npm run typecheck` clean.
 
 ## 5. Packaged app serving (design Decision 7)
 

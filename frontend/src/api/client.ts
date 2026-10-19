@@ -107,3 +107,30 @@ export function saveTelemetryConsent(choices: TelemetryChoices): Promise<Telemet
 export function getAppUpdate(): Promise<AppUpdate> {
   return fetch(`${API_BASE}/app/update`).then(asJson<AppUpdate>);
 }
+
+/** protect-admin-with-password (JOS-173) — why the backend refused an Administrator request (design Decision 3). */
+export type AdminDenial = "not-configured" | "password-required" | "wrong-password";
+
+export type AdminAccessResult = { kind: "granted" } | { kind: "denied"; reason: AdminDenial };
+
+/**
+ * protect-admin-with-password (JOS-173), design Decision 2 — every Administrator request carries the password as
+ * `Authorization: Bearer <password>`; the backend keeps no login state. JOS-171 and JOS-172 call this too. The
+ * caller holds the password in memory only; this never stores it.
+ */
+export function adminFetch(path: string, password: string | undefined, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (password) headers.set("Authorization", `Bearer ${password}`);
+  return fetch(`${API_BASE}${path}`, { ...init, headers });
+}
+
+const ADMIN_DENIALS: readonly string[] = ["not-configured", "password-required", "wrong-password"];
+
+/** `GET /admin/access`: granted, or the reason it was refused. Any other failure rejects. */
+export async function getAdminAccess(password?: string): Promise<AdminAccessResult> {
+  const response = await adminFetch("/admin/access", password);
+  if (response.ok) return { kind: "granted" };
+  const body = await response.json().catch(() => ({}));
+  if (response.status === 401 && ADMIN_DENIALS.includes(body.reason)) return { kind: "denied", reason: body.reason as AdminDenial };
+  throw new Error(`request failed with ${response.status}`);
+}
