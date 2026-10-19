@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as concurrency from "../src/concurrency.ts";
-import { PER_PHASE_MAX_TIME_SECONDS } from "../src/config/providers.ts";
+import { limitSeconds } from "./phaseLimit.ts";
 import {
   commitSceneResult,
   createRun,
@@ -84,7 +84,7 @@ async function sceneWithPendingClip(): Promise<string> {
 
 describe("the video stage's time limit", () => {
   it("is 1200 s", () => {
-    expect(PER_PHASE_MAX_TIME_SECONDS.video).toBe(1200);
+    expect(limitSeconds("video")).toBe(1200);
   });
 
   const failedRequests = (sceneId: string) =>
@@ -105,11 +105,11 @@ describe("the video stage's time limit", () => {
   it("fails a clip that is still generating past the limit and starts the next attempt", async () => {
     const sceneId = await sceneWithPendingClip();
 
-    await vi.advanceTimersByTimeAsync((PER_PHASE_MAX_TIME_SECONDS.video + 1) * 1000 + POLL_INTERVAL_MS);
+    await vi.advanceTimersByTimeAsync((limitSeconds("video") + 1) * 1000 + POLL_INTERVAL_MS);
 
     const failed = failedRequests(sceneId);
     expect(failed).toHaveLength(1);
-    expect(failed[0]!.latencyMs).toBeGreaterThan(PER_PHASE_MAX_TIME_SECONDS.video * 1000);
+    expect(failed[0]!.latencyMs).toBeGreaterThan(limitSeconds("video") * 1000);
     expect(getScene(sceneId)!.attempts).toBe(2);
   });
 });

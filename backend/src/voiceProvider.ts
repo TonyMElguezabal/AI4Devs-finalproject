@@ -1,5 +1,5 @@
 import { loadCredential } from "./config/credentials.ts";
-import { PER_PHASE_MAX_TIME_SECONDS, VOICE_PROVIDER } from "./config/providers.ts";
+import { phaseTimeoutMs, VOICE_PROVIDER } from "./config/providers.ts";
 
 // generate-voice-over (JOS-136) Decision 4 — the voice stage's provider (PRD
 // §11): ElevenLabs text-to-speech with timestamps. The adapter makes exactly
@@ -125,9 +125,9 @@ export type StubVoiceProviderMode =
   /** stage-execution-time-limit (JOS-185), manual testing: every call succeeds, but only after the maximum time has passed. */
   | "success-after-limit";
 
-/** How long `success-after-limit` waits by default: the voice stage's maximum time plus two seconds. */
+/** How long `success-after-limit` waits by default: the voice stage's maximum time plus two seconds (two seconds when the stage is not timed). */
 export function lateAnswerDelayMs(): number {
-  return (PER_PHASE_MAX_TIME_SECONDS.voice + 2) * 1000;
+  return (phaseTimeoutMs("voice") ?? 0) + 2000;
 }
 
 const MP3_FRAME_BYTES = 417; // MPEG-1 Layer III, 44.1 kHz, 128 kbit/s, no padding: 1152 samples, about 26.1 ms

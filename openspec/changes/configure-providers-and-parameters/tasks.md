@@ -26,14 +26,14 @@
 
 ## 3. Backend: `providers.ts` reads the settings (TDD; design Decision 3)
 
-- [ ] 3.1 Write failing tests: with `SETTINGS_PATH` pointing to an override that changes the video cap, a maximum time, the admitted range plus lower bound, and the languages, a fresh import of `providers.ts` (`vi.resetModules`) exports those values. `VIDEO_ADMITTED_DURATIONS_SECONDS` and `SEGMENTATION_UPPER_BOUND_SECONDS` follow the configured range.
-- [ ] 3.2 Change `providers.ts` to load the settings at module load and derive the AC3 exports from them. Keep values outside AC3 as literals. Throw one `Error` listing every problem when loading fails. Widen `SupportedLanguageCode` to `string` and fix `routes.ts`'s `z.enum`. Make 3.1 pass with `npm run typecheck` clean.
-- [ ] 3.3 Extend `backend/test/server-runtime-load.test.ts`: a real `node src/server.ts` with an invalid override exits non-zero before listening, and stderr lists every problem. With no override, it still starts.
+- [x] 3.1 Write failing tests: with `SETTINGS_PATH` pointing to an override that changes the video cap, a maximum time, the admitted range plus lower bound, and the languages, a fresh import of `providers.ts` (`vi.resetModules`) exports those values. `VIDEO_ADMITTED_DURATIONS_SECONDS` and `SEGMENTATION_UPPER_BOUND_SECONDS` follow the configured range.
+- [x] 3.2 Change `providers.ts` to load the settings at module load and derive the AC3 exports from them. Keep values outside AC3 as literals. Map a `null` maximum time to `"undetermined"`, add `phaseTimeoutMs(stage)`, and use it at the five places that multiply a maximum time (design Decision 3). Throw one `Error` listing every problem when loading fails. Widen `SupportedLanguageCode` to `string` and fix `routes.ts`'s `z.enum`. Pin `SETTINGS_PATH` to a missing file in `vitest.config.ts`, so a local override cannot change a test's outcome. Make 3.1 pass with `npm run typecheck` clean.
+- [x] 3.3 Extend `backend/test/server-runtime-load.test.ts`: a real `node src/server.ts` with an invalid override exits non-zero before listening, and stderr lists every problem. With no override, it still starts.
 
 ## 4. Backend: behaviour follows the settings, established work does not change (TDD; spec scenarios)
 
 - [ ] 4.1 Clip duration with admitted durations of 6–10 s: a 12.3 s interval requests 10 s (spec `clip-duration-request`, "Configured admitted durations"). Segmentation uses the configured lower bound.
-- [ ] 4.2 A stage whose `maxTimeSeconds` is `null` is never timed out. A configured value is the deadline (spec `stage-execution-time-limit`).
+- [ ] 4.2 A stage whose `maxTimeSeconds` is `null` is never timed out: `phaseTimeoutMs` returns `undefined`, each adapter sends its request with no timeout, and `attemptDeadline` gives no deadline. A configured value is the deadline (spec `stage-execution-time-limit`).
 - [ ] 4.3 Restart with different admitted durations: an existing session's chunks keep their requested durations, speed factors and warnings. Restart with Spanish removed: an existing Spanish session can still be read, continued and retried, and `POST /sessions` with `es` is rejected with 400.
 - [ ] 4.4 The configured model identifier and voice settings reach the provider request (adapter tests with a fake `fetch`).
 

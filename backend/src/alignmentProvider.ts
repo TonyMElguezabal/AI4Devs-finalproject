@@ -1,5 +1,5 @@
 import { loadCredential } from "./config/credentials.ts";
-import { PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
+import { phaseTimeoutMs } from "./config/providers.ts";
 import { parseAlignedCharacters, type TimestampCharacter } from "./narrationTimestamps.ts";
 
 // obtain-narration-timestamps (JOS-139) Decision 6 — the alignment stage's
@@ -31,7 +31,7 @@ export function createElevenLabsAlignmentProvider(
 ): AlignmentProvider {
   const fetchFn = options.fetchFn ?? fetch;
   const loadKey = options.loadKey ?? (() => loadCredential("ELEVENLABS_KEY"));
-  const timeoutMs = options.timeoutMs ?? PER_PHASE_MAX_TIME_SECONDS.alignment * 1000;
+  const timeoutMs = options.timeoutMs ?? phaseTimeoutMs("alignment");
 
   return {
     async align(audio, script) {
@@ -55,10 +55,10 @@ export function createElevenLabsAlignmentProvider(
           method: "POST",
           headers: { "xi-api-key": apiKey },
           body: form,
-          signal: AbortSignal.timeout(timeoutMs),
+          signal: timeoutMs === undefined ? undefined : AbortSignal.timeout(timeoutMs),
         });
       } catch (err) {
-        const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+        const timedOut = timeoutMs !== undefined && err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
         return {
           kind: "failed_transient",
           reason: timedOut

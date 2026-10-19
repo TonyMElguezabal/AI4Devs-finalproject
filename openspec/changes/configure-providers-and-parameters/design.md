@@ -15,7 +15,7 @@ Two product decisions were made on 2026-10-19 while this change was being propos
 
 - Every AC3 value is read from settings files at start-up. A change applies after a restart.
 - Invalid settings stop start-up with a complete list of problems.
-- The code that reads `providers.ts` does not change: the same export names, now holding validated values.
+- The code that reads `providers.ts` keeps the same export names, now holding validated values. The only code that changes is the five places that turn a maximum time into a timeout (Decision 3).
 - Credentials stay out of settings files.
 
 **Non-Goals:**
@@ -60,6 +60,8 @@ The settings fill the existing exports:
 - `SUPPORTED_LANGUAGES` / `SUPPORTED_LANGUAGE_CODES`
 - `FINAL_OUTPUT` (width, height and fps come from settings; the codecs stay literal)
 - `MAX_SIMULTANEOUS_REQUESTS`, `PER_PHASE_MAX_TIME_SECONDS`, `SPEED_FACTOR_LIMIT`
+
+A maximum time of `null` ("not timed") becomes `"undetermined"` in `PER_PHASE_MAX_TIME_SECONDS`, the marker `retry/attemptDeadline.ts` already treats as "no deadline". Five places multiply a maximum time by 1000 to get a timeout: `imageProvider.ts`, `alignmentProvider.ts`, `visualInstructions.ts`, the video phase check in `orchestrator.ts`, and the late-answer delay of the voice stub in `voiceProvider.ts`. With a `null` setting they would compute 0 ms, an immediate timeout, which is the opposite of the spec. They call one helper, `phaseTimeoutMs(stage)` in `providers.ts`, that returns `undefined` for a stage that is not timed, and each site treats `undefined` as "no timeout".
 
 The derived values stay derived: `VIDEO_ADMITTED_DURATIONS_SECONDS` and `SEGMENTATION_UPPER_BOUND_SECONDS` still come from the admitted range, so they cannot drift apart. Values outside AC3 keep their literals in the same module.
 

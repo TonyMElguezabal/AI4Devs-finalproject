@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { loadCredential } from "./config/credentials.ts";
-import { DECOMPOSITION_PROVIDER, PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
+import { DECOMPOSITION_PROVIDER, phaseTimeoutMs } from "./config/providers.ts";
 
 // assign-scene-identifiers (JOS-144) Decision 4 — the IMAGE and VIDEO
 // instructions for every fragment come from the reasoning provider (PRD §11,
@@ -56,7 +56,7 @@ export function createOpenAiVisualInstructionGenerator(
 ): VisualInstructionGenerator {
   const fetchFn = options.fetchFn ?? fetch;
   const loadKey = options.loadKey ?? (() => loadCredential("OPENAI_KEY"));
-  const timeoutMs = options.timeoutMs ?? PER_PHASE_MAX_TIME_SECONDS.decomposition * 1000;
+  const timeoutMs = options.timeoutMs ?? phaseTimeoutMs("decomposition");
 
   return {
     async generate(fragmentTexts, language) {
@@ -86,10 +86,10 @@ export function createOpenAiVisualInstructionGenerator(
               { role: "user", content: userMessage },
             ],
           }),
-          signal: AbortSignal.timeout(timeoutMs),
+          signal: timeoutMs === undefined ? undefined : AbortSignal.timeout(timeoutMs),
         });
       } catch (err) {
-        const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+        const timedOut = timeoutMs !== undefined && err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
         return {
           kind: "failed_transient",
           reason: timedOut
