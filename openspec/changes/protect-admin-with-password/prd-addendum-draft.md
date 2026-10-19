@@ -1,6 +1,6 @@
 # PRD addendum draft — an Administrator password protects /admin (JOS-173)
 
-**Status: awaiting the product owner's approval.** Nothing below is in `docs/PRD.md` yet. After approval, task 10.1 applies it as the next free PRD version (v1.12 at the time of writing) and keeps the previous one as `docs/PRD-v<previous>.md`. The change must not be merged before the approval is recorded here.
+**Status: awaiting the product owner's approval.** The text below was applied to `docs/PRD.md` as v1.12 (task 10.1), whose status line and change-log entry say "awaiting the product owner's approval"; this branch's previous version is v1.9, kept as `docs/PRD-v1.9.md`. The change must not be merged before the approval is recorded here, and the "awaiting" markers are removed from the PRD at that point.
 
 **Version numbering.** JOS-174 drafts v1.10 (providers and parameters in settings files) and JOS-171 drafts v1.11 (change the active provider from `/admin`). This change is v1.12. The three drafts edit the same paragraphs of §2.1 and §2.3, so whichever merges second and third rebases its text onto the version before it. The numbers follow merge order, not ticket order.
 

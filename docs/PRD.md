@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.9  
+**Versión:** 1.12  
 **Alcance:** MVP  
-**Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.8.md`.
+**Status (v1.12, awaiting the product owner's approval):** one shared Administrator password protects `/admin` (`protect-admin-with-password`, JOS-173, §2.1, §2.3, §12.3); v1.10 (JOS-174) and v1.11 (JOS-171) are drafted on their own branches. **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous versions are kept in `docs/PRD-v1.9.md` and `docs/PRD-v1.8.md`.
 
 ## 1. Objetivo del producto
 
@@ -19,8 +19,9 @@ El usuario puede consultar el progreso por fase y por escena, descargar resultad
 | Rol | Responsabilidad |
 |---|---|
 | User (*Usuario*) | Enter a title, a script, and the script's language; follow progress and per-scene diagnostics; pause and continue the session; download results; retry failed stages. |
+| Administrator | Unlock `/admin` with the Administrator password. The Administrator tools themselves are added by later stories (change the active provider, move a failed stage); this version only has the gate. A User never needs the password. |
 
-The MVP has a single role: the User. Providers and all generation parameters are hardcoded in the application (§11); the MVP has no configuration files, no administration interface, and no Administrator role. Provider credentials (API keys) are read from the process environment or from a credentials file in the user's application-data folder; they are never hardcoded, never part of the application download, and never shown in the interface or logs. An Administrator role (configuration, diagnostics, provider changes, and reports on `/admin`) is deferred post-MVP.
+The MVP has a single role: the User. Providers and all generation parameters are hardcoded in the application (§11); the MVP has no configuration files and no administration tools. The product has two roles. The User needs no login. The Administrator unlocks `/admin` with one shared password, not an account. The password is a local secret, read from `ADMIN_PASSWORD` in the process environment or, when the environment has none, from the credentials file in the user's application-data folder; it is never part of a settings file, never part of the application download, and never shown in the interface, a response or a log. When no password is configured the application still starts, and `/admin` says so and explains how to set one. `/admin` is not linked from the User's pages. Provider credentials (API keys) are read from the process environment or from a credentials file in the user's application-data folder; they are never hardcoded, never part of the application download, and never shown in the interface or logs. The Administrator tools (configuration, diagnostics, provider changes, and reports on `/admin`) are deferred post-MVP.
 
 ### 2.2 Incluido en el MVP
 
@@ -39,7 +40,7 @@ The MVP has a single role: the User. Providers and all generation parameters are
 
 ### 2.3 Fuera del MVP
 
-- Interfaz de administración, incluida la ruta `/admin`.
+- Administrator tools on `/admin`: the page exists behind the password, but each tool (changing the active provider, moving a failed stage, reports) is its own story.
 - User accounts, authentication and authorization, any multi-user access, and any hosted (server) deployment. The MVP is an application that runs on the user's own computer (§12.3).
 - Reportes de uso o costos.
 - Importación o edición libre de chunks.
@@ -48,7 +49,7 @@ The MVP has a single role: the User. Providers and all generation parameters are
 - Cancelación de solicitudes ya enviadas a un proveedor.
 - Montajes que omitan escenas del guion.
 - Configuration files or any runtime configuration of providers and parameters (hardcoded in the MVP, §11).
-- Administrator role and any provider change, manual or automatic, including moving failed stages to another provider (§11.2).
+- Any provider change, manual or automatic, including moving failed stages to another provider (§11.2), until its story is built; more than one Administrator, user accounts, changing the password from the interface, login sessions and lock-out after failed attempts.
 - Session expiry (§12.2).
 - Size or budget limits per session (§4.1).
 - A product-level content policy; providers' own content filters apply (§4.1).
@@ -351,7 +352,7 @@ La conservación de archivos es independiente de la vigencia de la sesión. Sess
 
 ### 12.3 Modelo de acceso, descargas y aislamiento
 
-The MVP is a **single-user application installed on the user's own computer**. It is delivered as an executable that needs no other software installed; it runs the interface and all processing locally and calls the cloud AI providers (§11) over the internet. The application has no accounts, authentication or authorization rules.
+The MVP is a **single-user application installed on the user's own computer**. It is delivered as an executable that needs no other software installed; it runs the interface and all processing locally and calls the cloud AI providers (§11) over the internet. The application has no accounts. The only credential is one shared Administrator password that unlocks `/admin` and every Administrator endpoint (`/admin/…`); the User's pages and endpoints need no login, whether or not a password is configured.
 
 El usuario puede descargar imágenes y clips exitosos individualmente mientras otras escenas siguen procesándose o presentan fallos. El MP4 final solo está disponible después de completarse el montaje. In-app downloads are limited to per-scene images, per-scene clips, and the final MP4; the MP3, timestamps, script, and generated texts are stored locally (§12.2) but cannot be downloaded from the app.
 
@@ -453,6 +454,17 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
+
+### From version 1.11 to 1.12
+
+Origin: `protect-admin-with-password` (JOS-173), 2026-10-19. **Awaiting the product owner's approval.** v1.10 (JOS-174) and v1.11 (JOS-171) are drafted on their own branches and are not on this branch yet, so the previous version here is v1.9; the three drafts edit the same paragraphs of §2.1 and §2.3, and whichever merges second or third rebases its text.
+
+| Change | Origin |
+|---|---|
+| §2.1: an Administrator role with one shared password that unlocks `/admin`; the password is a local secret (`ADMIN_PASSWORD`, environment or credentials file), never logged or returned; when it is missing the application still starts and `/admin` stays locked. | Product owner, JOS-173 |
+| §2.3: `/admin` is no longer out of scope as a page; each Administrator tool, accounts, several passwords, password change from the interface, sessions and lock-out still are. | Product owner, JOS-173 |
+| §12.3: "no authentication" becomes "no accounts; one shared Administrator password for `/admin`". | JOS-173 |
+| US-39's rule "a missing Administrator password stops the application at start-up" is superseded: a fresh installation must start. | Product owner decision, 2026-10-19 |
 
 ### From version 1.8 to 1.9
 

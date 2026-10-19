@@ -66,10 +66,10 @@
 
 ## 10. Update Technical Documentation (MANDATORY)
 
-- [ ] 10.1 `docs/PRD.md` → the next version (keep the previous one as `docs/PRD-v<previous>.md`): §2.1 adds the Administrator role with a password-gated `/admin`; §2.3 drops `/admin` and the Administrator role from out-of-scope; §12.3 adds one shared Administrator password, not accounts, and that regular pages need no login; §16 change log entry.
-- [ ] 10.2 `docs/api-spec.yml`: `GET /admin/access`, the three `401` reasons, and the `administratorPassword` bearer security scheme that every `/admin/` endpoint uses.
-- [ ] 10.3 `docs/backend-standards.md`: under Security, "Administrator endpoints go inside the `/admin` child plugin and add no authentication of their own"; replace "No accounts, sessions, or authentication" with the single-password exception; add the password-guessing risk next to the L3 gap.
-- [ ] 10.4 `docs/frontend-standards.md`: the `/admin` route, `adminFetch`, and "the password lives in page memory only".
-- [ ] 10.5 `docs/development_guide.md`: how to set `ADMIN_PASSWORD` (environment or secrets file), restart to apply, and a strong password recommended.
-- [ ] 10.6 Comment on JOS-173 with the product owner's 2026-10-19 decision (secret, app starts when it is missing) and on JOS-174 that US-39's "missing password stops start-up" rule is superseded. Comment on JOS-171 that its routes go in the `/admin` child plugin and its section receives the password from `AdminPage`.
-- [ ] 10.7 Run `graphify update .`.
+- [x] 10.1 `docs/PRD.md` → the next version (keep the previous one as `docs/PRD-v<previous>.md`): §2.1 adds the Administrator role with a password-gated `/admin`; §2.3 drops `/admin` and the Administrator role from out-of-scope; §12.3 adds one shared Administrator password, not accounts, and that regular pages need no login; §16 change log entry.
+- [x] 10.2 `docs/api-spec.yml`: `GET /admin/access`, the three `401` reasons, and the `administratorPassword` bearer security scheme that every `/admin/` endpoint uses.
+- [x] 10.3 `docs/backend-standards.md`: under Security, "Administrator endpoints go inside the `/admin` child plugin and add no authentication of their own"; replace "No accounts, sessions, or authentication" with the single-password exception; add the password-guessing risk next to the L3 gap.
+- [x] 10.4 `docs/frontend-standards.md`: the `/admin` route, `adminFetch`, and "the password lives in page memory only".
+- [x] 10.5 `docs/development_guide.md`: how to set `ADMIN_PASSWORD` (environment or secrets file), restart to apply, and a strong password recommended.
+- [x] 10.6 Comment on JOS-173 with the product owner's 2026-10-19 decision (secret, app starts when it is missing) and on JOS-174 that US-39's "missing password stops start-up" rule is superseded. Comment on JOS-171 that its routes go in the `/admin` child plugin and its section receives the password from `AdminPage`.
+- [x] 10.7 Run `graphify update .`.
