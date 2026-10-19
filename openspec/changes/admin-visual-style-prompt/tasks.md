@@ -72,10 +72,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 9. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start frontend and backend with the test `DB_PATH` and `PROJECTS_ROOT`.
-- [ ] 9.2 Open the app, follow the Admin link, save the "Warry" prompt, reload and see it; upload an image, see the preview after reload, remove it.
-- [ ] 9.3 Test the error states: over 8,000 characters, an unsupported file, the backend stopped during a save.
-- [ ] 9.4 Restore the settings and database, close the browser, and save the scenarios and a screenshot in `reports/YYYY-MM-DD-step-9-e2e-playwright.md`.
+- [x] 9.1 Start frontend and backend with the test `DB_PATH` and `PROJECTS_ROOT`.
+- [x] 9.2 Open the app, follow the Admin link, save the "Warry" prompt, reload and see it; upload an image, see the preview after reload, remove it.
+- [x] 9.3 Test the error states: over 8,000 characters, an unsupported file, the backend stopped during a save.
+- [x] 9.4 Restore the settings and database, close the browser, and save the scenarios and a screenshot in `reports/YYYY-MM-DD-step-9-e2e-playwright.md`.
 
 ## 10. Manual checks with the real script (MANDATORY)
 
