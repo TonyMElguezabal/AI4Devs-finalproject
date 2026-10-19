@@ -51,11 +51,11 @@
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Start the real server on a scratch store and scratch projects folder with stub providers and no `ADMIN_PASSWORD`. `GET /health` and `GET /languages` work; `GET /admin/access` returns `401 not-configured`, with and without a header.
-- [ ] 8.2 Restart with `ADMIN_PASSWORD` set to a scratch value. `GET /admin/access` returns `401 password-required` with no header, `401 wrong-password` with a wrong one, and `200 { configured: true, granted: true }` with the right one.
-- [ ] 8.3 With the password set, `POST /sessions` and `GET /sessions/:id` work with no header (AC3).
-- [ ] 8.4 Search the server's log file and stdout for both passwords used; neither appears.
-- [ ] 8.5 Delete the created sessions and the scratch store and folder. Confirm the default store is untouched. Save `openspec/changes/protect-admin-with-password/reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`.
+- [x] 8.1 Start the real server on a scratch store and scratch projects folder with stub providers and no `ADMIN_PASSWORD`. `GET /health` and `GET /languages` work; `GET /admin/access` returns `401 not-configured`, with and without a header.
+- [x] 8.2 Restart with `ADMIN_PASSWORD` set to a scratch value. `GET /admin/access` returns `401 password-required` with no header, `401 wrong-password` with a wrong one, and `200 { configured: true, granted: true }` with the right one.
+- [x] 8.3 With the password set, `POST /sessions` and `GET /sessions/:id` work with no header (AC3).
+- [x] 8.4 Search the server's log file and stdout for both passwords used; neither appears.
+- [x] 8.5 Delete the created sessions and the scratch store and folder. Confirm the default store is untouched. Save `openspec/changes/protect-admin-with-password/reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`.
 
 ## 9. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
