@@ -82,18 +82,18 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review the tests from JOS-136 (voice-over phase), JOS-184 (cycles), JOS-152 (held work) and JOS-168 (phase actions return nothing for voice-over) for assumptions this change breaks; update them. In particular, JOS-168's "`phaseActions` returns no action for every phase" now has a voice-over exception.
-- [ ] 7.2 Confirm every scenario in `specs/voice-over-manual-retry/spec.md` has at least one test, and map ticket AC1-AC3 to tests; list both in the step 8 report.
-- [ ] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 7.1 Review the tests from JOS-136 (voice-over phase), JOS-184 (cycles), JOS-152 (held work) and JOS-168 (phase actions return nothing for voice-over) for assumptions this change breaks; update them. In particular, JOS-168's "`phaseActions` returns no action for every phase" now has a voice-over exception.
+- [x] 7.2 Confirm every scenario in `specs/voice-over-manual-retry/spec.md` has at least one test, and map ticket AC1-AC3 to tests; list both in the step 8 report.
+- [x] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit). Not measured: no coverage provider is installed in `backend`; every new branch has a test (see the step 8 report).
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test baseline of the default store: row counts per table (`runs`, `stage_attempts`, `voice_overs`), applied migrations, trigger list, and `data/projects/` contents.
-- [ ] 8.2 Run the targeted tests: `voice-over-retry`, `phase-progress`, `session-api-surface`, `components`.
-- [ ] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`. Run the backend suite once more in a fresh worktree without `backend/.secrets.json`, so local credentials cannot mask a provider-dependent failure.
-- [ ] 8.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 8.5 Create the report `openspec/changes/retry-voice-over/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`.
-- [ ] 8.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 8.1 Capture the pre-test baseline of the default store: row counts per table (`runs`, `stage_attempts`, `voice_overs`), applied migrations, trigger list, and `data/projects/` contents.
+- [x] 8.2 Run the targeted tests: `voice-over-retry`, `phase-progress`, `session-api-surface`, `components`.
+- [x] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`. Run the backend suite once more in a fresh worktree without `backend/.secrets.json`, so local credentials cannot mask a provider-dependent failure.
+- [x] 8.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 8.5 Create the report `openspec/changes/retry-voice-over/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`.
+- [x] 8.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
