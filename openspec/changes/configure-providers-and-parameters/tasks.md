@@ -7,8 +7,8 @@
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm the base still matches design.md § Context: `providers.ts` exports the values listed in Decision 3, and `routes.ts` builds the request `language` enum from `SUPPORTED_LANGUAGE_CODES` while the response field is `z.string()`. If JOS-194 has merged and moved `DB_PATH` to the OS application-data folder, place the override path next to it (Decision 1), and update design.md first.
-- [ ] 1.2 PRD v1.10 draft (§2.1, §2.3, §11, §11.2, §11.3, §16) written and marked as awaiting the product owner's approval, before any code.
+- [x] 1.1 `git fetch`. Confirm the base still matches design.md § Context: `providers.ts` exports the values listed in Decision 3, and `routes.ts` builds the request `language` enum from `SUPPORTED_LANGUAGE_CODES` while the response field is `z.string()`. If JOS-194 has merged and moved `DB_PATH` to the OS application-data folder, place the override path next to it (Decision 1), and update design.md first.
+- [x] 1.2 PRD v1.10 draft (§2.1, §2.3, §11, §11.2, §11.3, §16) written and marked as awaiting the product owner's approval, before any code.
 
 ## 2. Backend: settings loader and schema (TDD; design Decisions 1, 2, 4, 5)
 
