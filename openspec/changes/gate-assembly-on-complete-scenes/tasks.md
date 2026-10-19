@@ -84,5 +84,5 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 - [x] 12.1 Ask the user before commenting on JOS-149 that US-16b's launcher must call `assemblyGate` and set `hasFinalVideo`
 - [x] 12.2 Ask before pushing; open the PR with a description linking to JOS-150
-- [ ] 12.3 Obtain review by at least one human, not only AI agents
+- [x] 12.3 Obtain review by at least one human, not only AI agents
 - [ ] 12.4 Archive the OpenSpec change after merge

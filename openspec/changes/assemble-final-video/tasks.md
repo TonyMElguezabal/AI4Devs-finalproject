@@ -102,5 +102,5 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [x] 12.1 Confirm with `generate-chunk-video` that chunk and voice-over records remain untouched by any assembly attempt, successful or failed
 - [x] 12.2 Record that this is the MVP flow's terminal producing story — no downstream story consumes its output within the MVP
 - [x] 12.3 Open the PR with a description linking to this change
-- [ ] 12.4 Obtain review by at least one human, not only AI agents
+- [x] 12.4 Obtain review by at least one human, not only AI agents
 - [ ] 12.5 Archive the OpenSpec change after merge

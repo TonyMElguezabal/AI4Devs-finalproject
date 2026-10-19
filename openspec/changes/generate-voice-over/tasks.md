@@ -125,5 +125,5 @@ Tests come first throughout: each behaviour gets a failing test before the code 
 - [x] 12.2 Record for US-20, US-22 and US-37 where the phase-launch gate and the retry hook live, so they extend them rather than wrap the phase — recorded in `docs/backend-standards.md` (the voice stage, gate and retry hook paragraphs): the gate entry is `voiceOverLauncher` in `voiceOverPhase.ts`, registered with `registerStageLauncher`; the retry hook is `setTransientFailureHook`; the state is derived in `deriveSessionState`
 - [x] 12.3 Record for US-05/US-06 where raw native timestamps are stored and in what form — recorded in `docs/data-model.md` §5b: `voice-over-timestamps.json` in the project folder, the provider's raw alignment object, referenced by `voice_overs.timestamps_path`
 - [x] 12.4 Open the PR with a description linking to JOS-136 — PR #26 into `feature/entrega-2-JAME`
-- [ ] 12.5 Obtain review by at least one human, not only AI agents
+- [x] 12.5 Obtain review by at least one human, not only AI agents
 - [ ] 12.6 Archive the OpenSpec change after merge
