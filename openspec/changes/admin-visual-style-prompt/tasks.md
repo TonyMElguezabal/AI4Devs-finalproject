@@ -54,12 +54,12 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 7.1 Capture the pre-test database baseline (row counts of `runs`, `scenes`, `app_settings`, and the schema version) for the test `DB_PATH`.
-- [ ] 7.2 Run the targeted tests for the changed modules (`visualInstructions`, `admin-settings`, `decomposition-*`, migration, `AdminPage`).
-- [ ] 7.3 Run the full backend and frontend suites (`npm test` in each), and run the backend suite again in a fresh worktree so a local `.secrets.json` cannot hide a failure.
-- [ ] 7.4 Verify the post-test database state against 7.1 and restore if needed.
-- [ ] 7.5 Create `reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md` using the template in `docs/openspec-tasks-mandatory-steps.md`.
-- [ ] 7.6 Mark this step complete only after tests pass and the report exists.
+- [x] 7.1 Capture the pre-test database baseline (row counts of `runs`, `scenes`, `app_settings`, and the schema version) for the test `DB_PATH`.
+- [x] 7.2 Run the targeted tests for the changed modules (`visualInstructions`, `admin-settings`, `decomposition-*`, migration, `AdminPage`).
+- [x] 7.3 Run the full backend and frontend suites (`npm test` in each), and run the backend suite again in a fresh worktree so a local `.secrets.json` cannot hide a failure.
+- [x] 7.4 Verify the post-test database state against 7.1 and restore if needed.
+- [x] 7.5 Create `reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md` using the template in `docs/openspec-tasks-mandatory-steps.md`.
+- [x] 7.6 Mark this step complete only after tests pass and the report exists.
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
