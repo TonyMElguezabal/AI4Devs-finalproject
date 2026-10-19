@@ -75,7 +75,7 @@
   - the token never appears in any response
 - [x] 6.3 Implement `infra/telemetry-relay/src/index.ts` until the tests pass
 - [x] 6.4 Add `.github/workflows/telemetry-relay.yml` (push to `main` on `infra/telemetry-relay/**` and `workflow_dispatch`: `npm ci`, `vitest run`, `wrangler deploy`), with action versions pinned to commit SHAs
-- [ ] 6.5 Once the product owner has created the Grafana stack, the token and the GitHub secrets (Open Questions), deploy, then `curl` the relay with a sample export and confirm it appears in Grafana Explore. Record the result in `reports/`
+- [x] 6.5 Once the product owner has created the Grafana stack, the token and the GitHub secrets (Open Questions), deploy, then `curl` the relay with a sample export and confirm it appears in Grafana Explore. Record the result in `reports/`
 
 ## 7. Frontend: Consent dialog and update banner (TDD, D10)
 
