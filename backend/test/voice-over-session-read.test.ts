@@ -123,7 +123,9 @@ describe("No download of the MP3 (6.4)", () => {
   it("offers no route that serves the narration", async () => {
     const { sessionId } = await sessionAfterVoicePhase("success");
 
-    expect(app.printRoutes({ commonPrefix: false })).not.toMatch(/voice|narration|audio|mp3/i);
+    // retry-voice-over (JOS-155): the retry route takes no input and serves nothing, so it is the one allowed name.
+    const routes = app.printRoutes({ commonPrefix: false }).split("\n").filter((line) => !line.includes("voice-over/retry")).join("\n");
+    expect(routes).not.toMatch(/voice|narration|audio|mp3/i);
     for (const path of ["voice-over", "voice-over.mp3", "narration", "audio"]) {
       const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}/${path}` });
       expect(res.statusCode).toBe(404);
