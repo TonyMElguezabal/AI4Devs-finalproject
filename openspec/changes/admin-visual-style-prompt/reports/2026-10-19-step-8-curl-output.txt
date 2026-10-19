@@ -1,0 +1,68 @@
+### 8.2 prompt
+$ GET /admin/settings (fresh)
+{"visualStylePrompt":"","referenceImage":null,"updatedAt":"2026-10-19T20:40:03.518Z"}
+HTTP 200
+$ PUT visual-style-prompt "  Warry, a 2D cartoon  "
+{"visualStylePrompt":"Warry, a 2D cartoon","referenceImage":null,"updatedAt":"2026-10-19T20:40:34.000Z"}
+HTTP 200
+$ GET /admin/settings (read back)
+{"visualStylePrompt":"Warry, a 2D cartoon","referenceImage":null,"updatedAt":"2026-10-19T20:40:34.000Z"}
+HTTP 200
+$ PUT 8001 chars
+{"statusCode":400,"code":"FST_ERR_VALIDATION","error":"Bad Request","message":"body/visualStylePrompt String must contain at most 8000 character(s)"}
+HTTP 400
+$ GET (unchanged after the rejected save)
+{"visualStylePrompt":"Warry, a 2D cartoon","referenceImage":null,"updatedAt":"2026-10-19T20:40:34.000Z"}
+HTTP 200
+$ PUT {} (missing field)
+{"statusCode":400,"code":"FST_ERR_VALIDATION","error":"Bad Request","message":"body/visualStylePrompt Required"}
+HTTP 400
+
+### 8.3 image
+$ PUT a.png as image/png
+{"visualStylePrompt":"Warry, a 2D cartoon","referenceImage":{"contentType":"image/png","sizeBytes":69,"updatedAt":"2026-10-19T20:40:34.048Z"},"updatedAt":"2026-10-19T20:40:34.048Z"}
+HTTP 200
+GET returns identical bytes (a.png)
+$ PUT b.jpg as image/jpeg
+{"visualStylePrompt":"Warry, a 2D cartoon","referenceImage":{"contentType":"image/jpeg","sizeBytes":66,"updatedAt":"2026-10-19T20:40:34.067Z"},"updatedAt":"2026-10-19T20:40:34.067Z"}
+HTTP 200
+GET returns identical bytes (b.jpg)
+$ PUT c.webp as image/webp
+{"visualStylePrompt":"Warry, a 2D cartoon","referenceImage":{"contentType":"image/webp","sizeBytes":42,"updatedAt":"2026-10-19T20:40:34.085Z"},"updatedAt":"2026-10-19T20:40:34.085Z"}
+HTTP 200
+GET returns identical bytes (c.webp)
+$ PUT d.gif as image/gif
+{"ok":false,"reason":"the image must be image/png, image/jpeg or image/webp"}
+HTTP 400
+$ PUT fake.png (text) as image/png
+{"ok":false,"reason":"the file is not a valid image/png image"}
+HTTP 400
+$ PUT a.png with no Content-Type
+{"ok":false,"reason":"the image must be image/png, image/jpeg or image/webp"}
+HTTP 400
+$ PUT big.png (6 MB) as image/png
+{"statusCode":413,"code":"FST_ERR_CTP_BODY_TOO_LARGE","error":"Payload Too Large","message":"Request body is too large"}
+HTTP 413
+$ GET /admin/settings (previous image kept: webp)
+{"visualStylePrompt":"Warry, a 2D cartoon","referenceImage":{"contentType":"image/webp","sizeBytes":42,"updatedAt":"2026-10-19T20:40:34.085Z"},"updatedAt":"2026-10-19T20:40:34.085Z"}
+HTTP 200
+$ GET image headers
+HTTP/1.1 200 OK
+vary: Origin
+content-type: image/webp
+$ files in <app data dir>/admin
+reference-image.webp
+$ DELETE #1
+
+HTTP 204
+$ DELETE #2
+
+HTTP 204
+$ GET image after delete
+{"ok":false,"reason":"no reference image is stored"}
+HTTP 404
+$ GET /admin/settings after delete
+{"visualStylePrompt":"Warry, a 2D cartoon","referenceImage":null,"updatedAt":"2026-10-19T20:40:34.167Z"}
+HTTP 200
+$ files in <app data dir>/admin
+       0

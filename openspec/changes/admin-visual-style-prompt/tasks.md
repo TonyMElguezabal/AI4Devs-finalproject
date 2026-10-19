@@ -63,12 +63,12 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Start the backend with a separate `DB_PATH` and `PROJECTS_ROOT`.
-- [ ] 8.2 `GET /admin/settings` on a fresh database; `PUT` a prompt and read it back; `PUT` 8,001 characters and confirm 400 and no change.
-- [ ] 8.3 Upload a valid PNG, a JPEG and a WebP; `GET` the image and compare bytes; upload a GIF, a text file named `.png`, and a 6 MB file and confirm 400/400/413 with the previous image kept; `DELETE` twice and confirm 204 both times and 404 on `GET`.
-- [ ] 8.4 Create a session after saving a prompt and confirm `runs.visual_style_prompt` holds it; save a different prompt and confirm the run is unchanged.
-- [ ] 8.5 Restore the database state (empty prompt, no image, delete the test sessions) and verify it matches the baseline.
-- [ ] 8.6 Save all commands and responses in `reports/YYYY-MM-DD-step-8-curl.md`.
+- [x] 8.1 Start the backend with a separate `DB_PATH` and `PROJECTS_ROOT`.
+- [x] 8.2 `GET /admin/settings` on a fresh database; `PUT` a prompt and read it back; `PUT` 8,001 characters and confirm 400 and no change.
+- [x] 8.3 Upload a valid PNG, a JPEG and a WebP; `GET` the image and compare bytes; upload a GIF, a text file named `.png`, and a 6 MB file and confirm 400/400/413 with the previous image kept; `DELETE` twice and confirm 204 both times and 404 on `GET`.
+- [x] 8.4 Create a session after saving a prompt and confirm `runs.visual_style_prompt` holds it; save a different prompt and confirm the run is unchanged.
+- [x] 8.5 Restore the database state (empty prompt, no image, delete the test sessions) and verify it matches the baseline.
+- [x] 8.6 Save all commands and responses in `reports/YYYY-MM-DD-step-8-curl.md`.
 
 ## 9. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
