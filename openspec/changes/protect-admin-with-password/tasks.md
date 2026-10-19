@@ -42,12 +42,12 @@
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 7.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, `data/projects/` contents.
-- [ ] 7.2 Run the targeted tests from 2–5.
-- [ ] 7.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` and no `ADMIN_PASSWORD` in the environment, then once more in a fresh worktree.
-- [ ] 7.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 7.5 Create the report `openspec/changes/protect-admin-with-password/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`.
-- [ ] 7.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 7.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, `data/projects/` contents.
+- [x] 7.2 Run the targeted tests from 2–5.
+- [x] 7.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` and no `ADMIN_PASSWORD` in the environment, then once more in a fresh worktree.
+- [x] 7.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 7.5 Create the report `openspec/changes/protect-admin-with-password/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`.
+- [x] 7.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
