@@ -982,13 +982,18 @@ describe("Phase actions, status classes and labels (JOS-168)", () => {
     expect(phaseActions({ phase: "assembly", status: "failed", heldCount: 0, stages: [], failure: { cause: "x", retryable: true } })).toEqual({ retry: true });
     expect(phaseActions({ phase: "assembly", status: "failed", heldCount: 0, stages: [], failure: { cause: "x", retryable: false } })).toEqual({ retry: true });
     expect(phaseActions({ phase: "assembly", status: "complete", heldCount: 0, stages: [] })).toEqual({ retry: false });
-    expect(phaseActions({ phase: "voice-over", status: "failed", heldCount: 0, stages: [], failure: { cause: "x", retryable: true } })).toEqual({ retry: false });
   });
 
-  it("phaseActions offers nothing for a decomposition or assembly phase that has not failed, or for any other phase at all (voice-over and scenes have no phase-level retry)", () => {
+  it("phaseActions offers retry for a failed voice-over phase only when its failure is retryable (JOS-155)", () => {
+    expect(phaseActions({ phase: "voice-over", status: "failed", heldCount: 0, stages: [], failure: { cause: "x", retryable: true } })).toEqual({ retry: true });
+    expect(phaseActions({ phase: "voice-over", status: "failed", heldCount: 0, stages: [], failure: { cause: "x", retryable: false } })).toEqual({ retry: false });
+    expect(phaseActions({ phase: "voice-over", status: "failed", heldCount: 0, stages: [] })).toEqual({ retry: false });
+  });
+
+  it("phaseActions offers nothing for a voice-over, decomposition or assembly phase that has not failed, or for the scenes phase at all (it has no phase-level retry)", () => {
     for (const phase of PHASE_ORDER) {
       for (const status of statuses) {
-        if ((phase === "decomposition" || phase === "assembly") && status === "failed") continue;
+        if ((phase === "voice-over" || phase === "decomposition" || phase === "assembly") && status === "failed") continue;
         expect(phaseActions({ phase, status, heldCount: 0, stages: [], failure: status === "failed" ? { cause: "x", retryable: true } : undefined })).toEqual({ retry: false });
       }
     }
@@ -1981,5 +1986,83 @@ describe("The Final video section's rebuild (JOS-190)", () => {
     const section = within(screen.getByRole("region", { name: "Final video phase" }));
     expect(section.getByText(/new version is being built/i)).toBeInTheDocument();
     expect(section.getByRole("link", { name: "Download final video" })).toBeInTheDocument();
+  });
+});
+
+// retry-voice-over (JOS-155), group 6 — design Decision 8.
+describe("The Voice-over section offers a retry (JOS-155)", () => {
+  const noop = () => {};
+  const cause = "The voice provider is not reachable.";
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {} };
+
+  function failedVoiceOver(retryable: boolean) {
+    const session = makeSession({
+      state: "failed",
+      failedPhase: "voice-over",
+      phases: makePhases({ "voice-over": "failed" }, { "voice-over": { failure: { cause, retryable } } }),
+    });
+    return { session, scenes: [] };
+  }
+
+  const voiceOverSection = () => within(screen.getByRole("region", { name: "Voice-over phase" }));
+
+  it("shows Retry voice-over when the phase failed and the failure is retryable", () => {
+    render(<SessionPage {...baseProps} onRetryPhase={vi.fn()} snapshot={failedVoiceOver(true)} />);
+
+    expect(voiceOverSection().getByRole("button", { name: "Retry voice-over" })).toBeEnabled();
+  });
+
+  it("shows no button for a failure that is not retryable, and still shows the cause", () => {
+    render(<SessionPage {...baseProps} onRetryPhase={vi.fn()} snapshot={failedVoiceOver(false)} />);
+
+    expect(screen.queryByRole("button", { name: /Retry voice-over/ })).not.toBeInTheDocument();
+    expect(voiceOverSection().getByRole("alert")).toHaveTextContent(cause);
+  });
+
+  it("shows no button while the phase is in progress", () => {
+    const session = makeSession({ state: "voice-over-generating", phases: makePhases({ "voice-over": "in-progress" }) });
+    render(<SessionPage {...baseProps} onRetryPhase={vi.fn()} snapshot={{ session, scenes: [] }} />);
+
+    expect(screen.queryByRole("button", { name: /Retry voice-over/ })).not.toBeInTheDocument();
+  });
+
+  it("calls the retry for the voice-over phase on a click, and disables the button until the answer", async () => {
+    const user = userEvent.setup();
+    let answer: (value: { ok: true; held: boolean }) => void = () => {};
+    const onRetryPhase = vi.fn(() => new Promise<{ ok: true; held: boolean }>((resolve) => (answer = resolve)));
+    render(<SessionPage {...baseProps} onRetryPhase={onRetryPhase} snapshot={failedVoiceOver(true)} />);
+
+    await user.click(voiceOverSection().getByRole("button", { name: "Retry voice-over" }));
+
+    expect(onRetryPhase).toHaveBeenCalledExactlyOnceWith("voice-over");
+    expect(voiceOverSection().getByRole("button", { name: "Retry voice-over" })).toBeDisabled();
+    answer({ ok: true, held: false });
+    await waitFor(() => expect(voiceOverSection().getByRole("button", { name: "Retry voice-over" })).toBeEnabled());
+  });
+
+  it("changes nothing before a snapshot arrives: the failure and the status stay", async () => {
+    const user = userEvent.setup();
+    render(<SessionPage {...baseProps} onRetryPhase={vi.fn().mockResolvedValue({ ok: true, held: true })} snapshot={failedVoiceOver(true)} />);
+
+    await user.click(voiceOverSection().getByRole("button", { name: "Retry voice-over" }));
+
+    await waitFor(() => expect(voiceOverSection().getByRole("button", { name: "Retry voice-over" })).toBeEnabled());
+    expect(voiceOverSection().getByText("Failed")).toBeInTheDocument();
+    expect(voiceOverSection().getByRole("alert")).toHaveTextContent(cause);
+  });
+
+  it.each([
+    ["retry-already-pending", "A retry is already waiting or running."],
+    ["not-failed-in-voice-over", "The voice-over has not failed, so it cannot be retried."],
+    ["narration-complete", "The voice-over was already generated, so there is nothing to retry."],
+    ["not-retryable", "This failure cannot be retried."],
+  ])("shows the sentence for the refusal %s", async (reason, sentence) => {
+    const user = userEvent.setup();
+    render(<SessionPage {...baseProps} onRetryPhase={vi.fn().mockRejectedValue(new Error(reason))} snapshot={failedVoiceOver(true)} />);
+
+    await user.click(voiceOverSection().getByRole("button", { name: "Retry voice-over" }));
+
+    expect(await voiceOverSection().findByText(sentence)).toBeInTheDocument();
+    expect(voiceOverSection().getByRole("button", { name: "Retry voice-over" })).toBeEnabled();
   });
 });

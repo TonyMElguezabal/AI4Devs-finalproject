@@ -72,13 +72,13 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. Frontend: retry action (TDD; design Decision 8)
 
-- [ ] 6.1 Write failing tests in `test/components.test.tsx`:
+- [x] 6.1 Write failing tests in `test/components.test.tsx`:
   - `phaseActions` returns retry for a failed voice-over phase only when `retryable` is true, and nothing for any other status or phase;
   - the Voice-over section shows `Retry voice-over` only when failed;
   - a click calls `retryVoiceOver`, and the button is disabled until the answer;
   - a 409 reason is shown as its sentence and the button is enabled again;
   - no state change happens on the page before a snapshot arrives.
-- [ ] 6.2 Implement `retryVoiceOver` in `api/client.ts`, the action in `phaseActions.ts`, and the button, pending state and refusal text in `PhaseSection.tsx`, with one reason-to-sentence table; make 6.1 pass.
+- [x] 6.2 Implement `retryVoiceOver` in `api/client.ts`, the action in `phaseActions.ts`, and the button, pending state and refusal text in `PhaseSection.tsx`, with one reason-to-sentence table; make 6.1 pass.
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
