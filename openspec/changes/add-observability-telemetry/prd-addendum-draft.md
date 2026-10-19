@@ -1,6 +1,6 @@
 # Borrador de adenda al PRD — telemetría opcional (JOS-199)
 
-**Estado: aplicado a `docs/PRD.md` (v1.9, §12.4) a la espera de la aprobación del Product Owner, que la registrará en este archivo. Queda pendiente un enlace estable a `PRIVACY.md` (hoy apunta a `main`).**
+**Estado: aprobado por el Product Owner y aplicado a `docs/PRD.md` (v1.9, §12.4). El enlace a `PRIVACY.md` apunta a `main` y se acepta así; funcionará cuando el archivo se integre.**
 
 ## Propuesta de texto
 
@@ -25,5 +25,5 @@
 - "Not now" cuenta como respuesta (todo desactivado) y no se vuelve a preguntar; sobre una respuesta ya guardada no cambia nada.
 
 ## Pendiente
-- Aprobación final del texto y su incorporación a `docs/PRD.md`.
-- Un enlace estable a `PRIVACY.md`: hoy apunta a la rama `main`, donde el archivo existirá tras la primera integración.
+- Aprobación final del texto y su incorporación a `docs/PRD.md`. -Approved
+- Un enlace estable a `PRIVACY.md`: hoy apunta a la rama `main`, donde el archivo existirá tras la primera integración. -Approved
