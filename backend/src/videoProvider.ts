@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { loadCredential } from "./config/credentials.ts";
-import { VIDEO_PROVIDER, VIDEO_GENERATION_SETTING } from "./config/providers.ts";
+import { LEGACY_VIDEO_PROVIDER_IDENTIFIER, VIDEO_PROVIDER, VIDEO_GENERATION_SETTING } from "./config/providers.ts";
 
 // generate-chunk-video (JOS-146) — the video stage's provider port (Decision 3):
 // RunningHub's async submit-and-poll shape. Unlike Fal.ai's image stage (one
@@ -249,9 +249,11 @@ export interface VideoProviderRegistry {
 }
 
 function defaultRegistry(): VideoProviderRegistry {
+  // Bound by provider name (JOS-174, design Decision 7); the endpoint an earlier build stored resolves to the same adapter.
+  const adapter = createRunningHubVideoProvider();
   return {
-    defaultIdentifier: VIDEO_PROVIDER.endpoint,
-    adapters: { [VIDEO_PROVIDER.endpoint]: createRunningHubVideoProvider() },
+    defaultIdentifier: VIDEO_PROVIDER.name,
+    adapters: { [VIDEO_PROVIDER.name]: adapter, [LEGACY_VIDEO_PROVIDER_IDENTIFIER]: adapter },
   };
 }
 

@@ -35,7 +35,8 @@
 - [x] 4.1 Clip duration with admitted durations of 6–10 s: a 12.3 s interval requests 10 s (spec `clip-duration-request`, "Configured admitted durations"). Segmentation uses the configured lower bound.
 - [x] 4.2 A stage whose `maxTimeSeconds` is `null` is never timed out: `phaseTimeoutMs` returns `undefined`, each adapter sends its request with no timeout, and `attemptDeadline` gives no deadline. A configured value is the deadline (spec `stage-execution-time-limit`).
 - [x] 4.3 Restart with different admitted durations: an existing session's chunks keep their requested durations, speed factors and warnings. Restart with Spanish removed: an existing Spanish session can still be read, continued and retried, and `POST /sessions` with `es` is rejected with 400.
-- [ ] 4.4 The configured model identifier and voice settings reach the provider request (adapter tests with a fake `fetch`).
+- [x] 4.4 The configured model identifiers, endpoints and voice settings reach the provider request (adapter tests with a fake `fetch`): reasoning model, voice id, model, output format and speed, image model, alignment endpoint (the adapter builds its URL from `ALIGNMENT_PROVIDER.endpoint`), video endpoint.
+- [x] 4.5 Bind image and video scenes by provider name (design Decision 7), tests first: a new scene is bound to `Fal.ai` / `RunningHub`; a scene bound by an earlier build (`fal-ai/flux/dev`, the old endpoint path) still resolves to the same adapter; after the model is changed, a retry of a bound scene is sent with the new model; a bound name with no adapter still fails as not retryable. Update the stage diagnostics map to show the name-bound providers.
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 

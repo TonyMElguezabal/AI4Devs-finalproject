@@ -89,11 +89,19 @@ Each stage's `name` is validated against the names of the adapters that stage sh
 
 ### Decision 6 — Established work is untouched by construction
 
-Requested durations, speed factors, warnings, intervals and language are stored per chunk and per session when they are established, and they are never recomputed from the constants. Provider bindings (`runs.voice_provider_id`, `scenes.video_provider`) store the provider name, which only one adapter per stage can have. This change therefore adds no migration. It adds tests proving that a restart with different settings leaves an existing session's stored values unchanged.
+Requested durations, speed factors, warnings, intervals and language are stored per chunk and per session when they are established, and they are never recomputed from the constants. Voice binds by provider name (`runs.voice_provider_id`). Image (`scenes.provider`) and video (`scenes.video_provider`) did not: they stored the model and the endpoint path, so a changed model or endpoint would leave every bound scene without an adapter (Decision 7). This change adds no migration. It adds tests proving that a restart with different settings leaves an existing session's stored values unchanged.
+
+### Decision 7 — Image and video bind by provider name
+
+A scene is now bound to the stage's provider **name** (`Fal.ai`, `RunningHub`), as voice already is. The registry resolves a name to the one adapter the build ships for it, and that adapter reads the configured model or endpoint. A retry of a bound scene therefore goes to the same provider with the current model, which is what PRD §11.2 promises ("the stage keeps the provider"). Before this change the stored value was the model (`fal-ai/flux/dev`) or the endpoint path (`/openapi/v2/minimax/hailuo-h3/image-to-video`). Those were the only values any build wrote, because nothing was configurable. The default registries therefore also register their adapter under that one legacy value, so a scene bound by an earlier build still resolves.
+
+**Alternatives:** (a) rewrite the stored values in a migration. Rejected: the local database is shared by every checkout of the repository, so a migration applied by this branch would leave other branches' bound scenes without an adapter. (b) Fall back to the current adapter whenever a bound identifier is unknown. Rejected: it would hide the "no adapter in the running build" case (generate-chunk-image AC4), which must stay a visible, not retryable failure. (c) Document that the model must not change while sessions exist. Rejected by the product owner (2026-10-19): it leaves the PRD promise broken.
+
+The configured alignment endpoint also reaches the request: the alignment adapter builds its URL from `ALIGNMENT_PROVIDER.endpoint`, which was an unused setting.
 
 ## Risks / Trade-offs
 
-- **A changed model id applies to the retries of an already-bound stage.** The binding stores the provider name, not the model. §11.2 binds the *provider*, so this is compliant, but a retry may run on a different model than the first attempt. → Documented in the development guide. Storing the model per binding is left until it causes a real problem.
+- **A changed model id applies to the retries of an already-bound stage.** Bindings store the provider name (Decision 7), not the model. §11.2 binds the *provider*, so this is compliant, but a retry may run on a different model than the first attempt. → Documented in the development guide. Storing the model per binding is left until it causes a real problem.
 - **Provider-specific values are not checked against the provider at start-up** (output format, model id, voice id). → A wrong value fails the first call, visibly, through the existing retry and failure path. Checking at start-up would need network calls and credentials at boot.
 - **JSON has no comments.** → `docs/development_guide.md` documents every key, and the defaults file is the worked example.
 - **A throw at import time crashes test files that import `providers.ts` if the defaults file is broken.** → One test validates the shipped defaults file itself. A broken default fails loudly in CI, which is the intent.

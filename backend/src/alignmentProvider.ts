@@ -1,5 +1,5 @@
 import { loadCredential } from "./config/credentials.ts";
-import { phaseTimeoutMs } from "./config/providers.ts";
+import { ALIGNMENT_PROVIDER, phaseTimeoutMs } from "./config/providers.ts";
 import { parseAlignedCharacters, type TimestampCharacter } from "./narrationTimestamps.ts";
 
 // obtain-narration-timestamps (JOS-139) Decision 6 — the alignment stage's
@@ -19,7 +19,8 @@ export interface AlignmentProvider {
   align(audio: Uint8Array, script: string): Promise<AlignmentResult>;
 }
 
-const ELEVENLABS_FORCED_ALIGNMENT_URL = "https://api.elevenlabs.io/v1/forced-alignment";
+// The path is configurable (JOS-174); the host belongs to the adapter, which is ElevenLabs'.
+const ELEVENLABS_FORCED_ALIGNMENT_URL = `https://api.elevenlabs.io${ALIGNMENT_PROVIDER.endpoint}`;
 
 /** Product owner rule (as for voice): not retryable for 4xx except 408 and 429; transient otherwise. */
 function classifyHttpStatus(status: number): "failed_transient" | "failed_not_retryable" {

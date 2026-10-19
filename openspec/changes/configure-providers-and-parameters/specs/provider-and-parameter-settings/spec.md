@@ -105,6 +105,19 @@ Changing a setting and restarting SHALL NOT alter what an existing session has a
 - **WHEN** the admitted durations are changed to 6–10 seconds and the app restarts
 - **THEN** that session's chunks keep their requested durations and speed factors
 
+#### Scenario: The image model changes while scenes are bound
+
+- **GIVEN** scenes already bound to the image provider, some bound by an earlier build that stored the model identifier
+- **WHEN** the image model is changed and the app restarts
+- **THEN** a retry of each of those scenes is sent to the same provider with the new model
+- **AND** it is not refused for lack of an adapter
+
+#### Scenario: A bound provider the build does not ship
+
+- **GIVEN** a scene bound to a provider name no adapter in the running build has
+- **WHEN** its stage is retried
+- **THEN** the attempt fails as not retryable, naming the missing adapter
+
 #### Scenario: A language is removed while a session uses it
 
 - **GIVEN** an existing Spanish session

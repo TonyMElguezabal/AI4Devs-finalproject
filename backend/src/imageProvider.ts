@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { loadCredential } from "./config/credentials.ts";
-import { IMAGE_GENERATION_SIZE, IMAGE_PROVIDER, phaseTimeoutMs } from "./config/providers.ts";
+import { IMAGE_GENERATION_SIZE, IMAGE_PROVIDER, LEGACY_IMAGE_PROVIDER_IDENTIFIER, phaseTimeoutMs } from "./config/providers.ts";
 
 // generate-chunk-image (JOS-145) — the image stage's provider (PRD §7.1,
 // §11.3): Fal.ai `fal-ai/flux/dev`. The adapter makes exactly one request:
@@ -132,7 +132,9 @@ export interface ImageProviderRegistry {
 }
 
 function defaultRegistry(): ImageProviderRegistry {
-  return { defaultIdentifier: IMAGE_PROVIDER.model, adapters: { [IMAGE_PROVIDER.model]: createFalAiImageProvider() } };
+  // Bound by provider name (JOS-174, design Decision 7); the model an earlier build stored resolves to the same adapter.
+  const adapter = createFalAiImageProvider();
+  return { defaultIdentifier: IMAGE_PROVIDER.name, adapters: { [IMAGE_PROVIDER.name]: adapter, [LEGACY_IMAGE_PROVIDER_IDENTIFIER]: adapter } };
 }
 
 let registry: ImageProviderRegistry = defaultRegistry();

@@ -72,6 +72,16 @@ export const IMAGE_PROVIDER = { name: settings.image.name, model: settings.image
  */
 export const VIDEO_PROVIDER = { name: settings.video.name, endpoint: settings.video.endpoint };
 
+/**
+ * configure-providers-and-parameters (JOS-174), design Decision 7 — image and video scenes are bound to the
+ * provider's name. Before that, a scene was bound to the model (image) or the endpoint path (video), and the
+ * only values any build wrote were these two shipped defaults, because nothing was configurable. They stay
+ * as a second key for the same adapter so a scene bound by an earlier build still resolves. They are
+ * literals on purpose: they name what was stored, not what is configured now.
+ */
+export const LEGACY_IMAGE_PROVIDER_IDENTIFIER = "fal-ai/flux/dev";
+export const LEGACY_VIDEO_PROVIDER_IDENTIFIER = "/openapi/v2/minimax/hailuo-h3/image-to-video";
+
 // ---- Supported languages (§4.1, D09) — replaces the placeholder in ./languages.ts ----
 // The shipped defaults list the languages verified across all three chain
 // stages (voice, alignment, decomposition), not an advertised list (Decision 4;
