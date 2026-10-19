@@ -42,16 +42,19 @@ export const adminSettingsImageRoutes: FastifyPluginAsync = async (app) => {
       const directory = join(APP_DATA_DIR, "admin");
       mkdirSync(directory, { recursive: true });
       const fileName = `reference-image${IMAGE_TYPES[declared].extension}`;
-      const temporary = join(directory, `${fileName}.${randomUUID()}.tmp`);
+      const temporaryPath = join(directory, `${fileName}.${randomUUID()}.tmp`);
       const previous = getReferenceImageFile();
       try {
-        writeFileSync(temporary, bytes);
-        renameSync(temporary, join(directory, fileName));
+        writeFileSync(temporaryPath, bytes);
+        renameSync(temporaryPath, join(directory, fileName));
       } finally {
-        rmSync(temporary, { force: true });
+        rmSync(temporaryPath, { force: true });
       }
       const saved = saveReferenceImage(`admin/${fileName}`, declared);
-      if (previous && previous.path !== join(directory, fileName)) rmSync(previous.path, { force: true });
+      if (previous && previous.path !== join(directory, fileName)) {
+        const referenceImagePath = previous.path; // the replaced image, in the app data directory, never a project file
+        rmSync(referenceImagePath, { force: true });
+      }
       return saved;
     },
   );
@@ -64,7 +67,10 @@ export const adminSettingsImageRoutes: FastifyPluginAsync = async (app) => {
 
   typed.delete("/admin/settings/reference-image", async (_request, reply) => {
     const stored = getReferenceImageFile();
-    if (stored) rmSync(stored.path, { force: true });
+    if (stored) {
+      const referenceImagePath = stored.path;
+      rmSync(referenceImagePath, { force: true });
+    }
     clearReferenceImage();
     return reply.code(204).send();
   });

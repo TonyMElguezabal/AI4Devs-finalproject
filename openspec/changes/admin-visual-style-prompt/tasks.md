@@ -49,8 +49,8 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 6.1 Search the backend and frontend tests for stubs of `VisualInstructionGenerator`, `createRun`/`Run` fixtures and any test that asserts the exact decomposition request, and update them for the new parameter and field.
-- [ ] 6.2 Typecheck both packages (`npm run typecheck` in `backend` and `frontend`) with no errors.
+- [x] 6.1 Search the backend and frontend tests for stubs of `VisualInstructionGenerator`, `createRun`/`Run` fixtures and any test that asserts the exact decomposition request, and update them for the new parameter and field.
+- [x] 6.2 Typecheck both packages (`npm run typecheck` in `backend` and `frontend`) with no errors.
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
