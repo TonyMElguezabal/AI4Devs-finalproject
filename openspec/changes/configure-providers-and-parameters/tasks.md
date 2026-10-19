@@ -46,12 +46,12 @@
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 6.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, `data/projects/` contents, and whether `data/settings.json` exists.
-- [ ] 6.2 Run the targeted tests from 2–4.
-- [ ] 6.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` and no `backend/data/settings.json` in the checkout.
-- [ ] 6.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 6.5 Create the report `openspec/changes/configure-providers-and-parameters/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`.
-- [ ] 6.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 6.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, `data/projects/` contents, and whether `data/settings.json` exists.
+- [x] 6.2 Run the targeted tests from 2–4.
+- [x] 6.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` and no `backend/data/settings.json` in the checkout.
+- [x] 6.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 6.5 Create the report `openspec/changes/configure-providers-and-parameters/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`.
+- [x] 6.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
