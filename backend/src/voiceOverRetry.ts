@@ -1,5 +1,5 @@
 import { getRun, getStageAttempts } from "./db.ts";
-import { toSnapshot } from "./orchestrator.ts";
+import { broadcast, toSnapshot } from "./orchestrator.ts";
 import { releaseSessionAttempts } from "./retry/retryScheduler.ts";
 import { startNewCycle } from "./retry/stageAttemptRecorder.ts";
 import { canLaunchVoiceOver } from "./voiceLaunchGuard.ts";
@@ -42,5 +42,7 @@ export function retryVoiceOver(sessionId: string): VoiceOverRetryResult {
   }
 
   const sent = releaseSessionAttempts(sessionId);
+  // A held retry runs no step, so nothing else would publish the cleared failure (design Decision 7).
+  broadcast(sessionId);
   return { ok: true, held: sent === 0 };
 }

@@ -9,6 +9,7 @@ import { getScriptModerator } from "./scriptModeration.ts";
 import { launchVoiceOverFor } from "./voiceOverPhase.ts";
 import { retryDecomposition } from "./decompositionRetry.ts";
 import { retryAssembly } from "./assemblyRetry.ts";
+import { retryVoiceOver } from "./voiceOverRetry.ts";
 import { rebuildFinalVideo } from "./finalVideoRebuild.ts";
 import { setScenePause } from "./scenePauseEdit.ts";
 import { randomUUID } from "node:crypto";
@@ -444,6 +445,26 @@ export const routes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const { sessionId } = request.params;
       const result = ulidPattern.test(sessionId) ? retryDecomposition(sessionId) : ({ ok: false, reason: "session-not-found" } as const);
+      if (result.ok) return result;
+      reply.code(result.reason === "session-not-found" ? 404 : 409);
+      return { ok: false, reason: result.reason };
+    },
+  );
+
+  // retry-voice-over (JOS-155) — the manual retry of a failed voice-over. Same script and provider, nothing deleted;
+  // the body is strictly empty so no input can change what is sent.
+  typed.post(
+    "/sessions/:sessionId/voice-over/retry",
+    {
+      schema: {
+        params: looseSessionParamsSchema,
+        body: emptyBodySchema,
+        response: { 200: retryAcceptedSchema, 404: conflictSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const { sessionId } = request.params;
+      const result = ulidPattern.test(sessionId) ? retryVoiceOver(sessionId) : ({ ok: false, reason: "session-not-found" } as const);
       if (result.ok) return result;
       reply.code(result.reason === "session-not-found" ? 404 : 409);
       return { ok: false, reason: result.reason };

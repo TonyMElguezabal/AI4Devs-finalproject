@@ -88,6 +88,8 @@ JOS-168 Decision 5 derives the in-progress state from a failure plus an in-fligh
 
 This matches the scene behaviour. A retried scene goes back to `submitted`, and its session reads `chunks-processing` even while paused. While paused, the Voice-over phase shows `In progress` together with `Waiting for you to continue (1 held)`. That works as merged: the voice-over launcher's `heldWork` counts one unit when the session has no failure, no voice-over record, no chunks and no in-flight attempt, and a scheduled manual attempt meets all four. A test pins it, and `launch` releases the scheduled attempt through `releaseSessionAttempts`.
 
+The command publishes the session's new state itself, once the retry is accepted (as `retryDecomposition` does, JOS-156). A sent retry would publish when its attempt starts, but a held one runs no step, so without this the page would keep showing the cleared failure and its Retry button. Found in the browser pass (group 10).
+
 *Alternative rejected:* keeping `failed` until the request is sent. The page would keep offering Retry for a retry already accepted. The second click would get 409, which is correct but confusing.
 
 **Decision 8 — The page offers Retry exactly when the backend can accept it.**

@@ -43,88 +43,90 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 3. Backend: same script, same provider, nothing deleted (TDD; design Decisions 4-6)
 
-- [ ] 3.1 Write a failing test: the stub receives, on the retry, text byte-identical to the stored script and to the first attempt's text; the stored script, title and language are unchanged.
-- [ ] 3.2 Write a failing test: a session bound to provider A, with the registry's default set to B, is retried and the request goes to A, and the binding stays A. Write a second test: a bound id with no adapter fails as not retryable, with no request sent and no credential in the cause.
-- [ ] 3.3 Write failing tests that snapshot the project folder listing (with file hashes) and the session's `runs`, `stage_attempts` and `voice_overs` rows, then:
+- [x] 3.1 Write a failing test: the stub receives, on the retry, text byte-identical to the stored script and to the first attempt's text; the stored script, title and language are unchanged.
+- [x] 3.2 Write a failing test: a session bound to provider A, with the registry's default set to B, is retried and the request goes to A, and the binding stays A. Write a second test: a bound id with no adapter fails as not retryable, with no request sent and no credential in the cause.
+- [x] 3.3 Write failing tests that snapshot the project folder listing (with file hashes) and the session's `runs`, `stage_attempts` and `voice_overs` rows, then:
   - after a failed retry, everything earlier is unchanged except `runs.failure`;
   - after a successful retry, one MP3 is added and nothing earlier is removed.
-- [ ] 3.4 Make 3.1-3.3 pass. Expect most to pass through JOS-136's phase. Fix any gap in the phase, not in the retry service.
+- [x] 3.4 Make 3.1-3.3 pass. Expect most to pass through JOS-136's phase. Fix any gap in the phase, not in the retry service.
 
 ## 4. Backend: cycles, pause and derived state (TDD; design Decision 7)
 
-- [ ] 4.1 Write a failing test: a retried session whose next four attempts fail transiently is `failed` again after the fourth, with all eight attempts recorded across two cycles.
-- [ ] 4.2 Write failing tests for a retry during a pause:
+- [x] 4.1 Write a failing test: a retried session whose next four attempts fail transiently is `failed` again after the fourth, with all eight attempts recorded across two cycles.
+- [x] 4.2 Write failing tests for a retry during a pause:
   - it is accepted with `held: true` and sends nothing;
   - the voice-over phase has `heldCount` 1;
   - continue sends exactly one request.
-- [ ] 4.3 Write failing tests in `phase-progress.test.ts`: an accepted retry derives `voice-over-generating` while scheduled, held, or in flight, with the voice-over phase `in-progress` and no `failure`. JOS-168's existing in-flight tests must still pass.
-- [ ] 4.4 Make `voiceAttemptInFlight` count a `scheduled` or `in-flight` `voice-over` attempt, since `startNewCycle` clears the failure (design Decision 7). Confirm the voice-over launcher's `heldWork` already counts a held manual attempt, with a test. Make 4.1-4.3 pass.
+- [x] 4.3 Write failing tests (in `voice-over-retry.test.ts`, through `toSnapshot`, since `phase-progress.test.ts` only covers the pure derivation functions): an accepted retry derives `voice-over-generating` while scheduled, held, or in flight, with the voice-over phase `in-progress` and no `failure`. JOS-168's existing in-flight tests must still pass.
+- [x] 4.4 Make `voiceAttemptInFlight` count a `scheduled` or `in-flight` `voice-over` attempt, since `startNewCycle` clears the failure (design Decision 7). Confirm the voice-over launcher's `heldWork` already counts a held manual attempt, with a test. Make 4.1-4.3 pass.
+
+- [x] 4.5 Write failing tests that an accepted retry is published to live subscribers before the command returns, held and sent, with the voice-over phase `in-progress` and no `failure`. Publish the state from `retryVoiceOver` after the retry is released, then make them pass.
 
 ## 5. Backend: route (TDD; design Decision 1)
 
-- [ ] 5.1 Write failing tests in `session-api-surface.test.ts` for `POST /sessions/:sessionId/voice-over/retry`:
+- [x] 5.1 Write failing tests in `session-api-surface.test.ts` for `POST /sessions/:sessionId/voice-over/retry`:
   - 200 `{ ok: true, held }`;
   - 404 for an unknown session and for a malformed id;
   - 409 `{ ok: false, reason }` for each reason;
   - 400 for any body field;
   - the route is in `/docs/json` with its responses.
-- [ ] 5.2 Add the route and Zod schemas (params, strict empty body, 200/404/409 responses) in `routes.ts`; make 5.1 pass.
+- [x] 5.2 Add the route and Zod schemas (params, strict empty body, 200/404/409 responses) in `routes.ts`; make 5.1 pass.
 
 ## 6. Frontend: retry action (TDD; design Decision 8)
 
-- [ ] 6.1 Write failing tests in `test/components.test.tsx`:
+- [x] 6.1 Write failing tests in `test/components.test.tsx`:
   - `phaseActions` returns retry for a failed voice-over phase only when `retryable` is true, and nothing for any other status or phase;
   - the Voice-over section shows `Retry voice-over` only when failed;
   - a click calls `retryVoiceOver`, and the button is disabled until the answer;
   - a 409 reason is shown as its sentence and the button is enabled again;
   - no state change happens on the page before a snapshot arrives.
-- [ ] 6.2 Implement `retryVoiceOver` in `api/client.ts`, the action in `phaseActions.ts`, and the button, pending state and refusal text in `PhaseSection.tsx`, with one reason-to-sentence table; make 6.1 pass.
+- [x] 6.2 Implement `retryVoiceOver` in `api/client.ts`, the action in `phaseActions.ts`, and the button, pending state and refusal text in `PhaseSection.tsx`, with one reason-to-sentence table; make 6.1 pass.
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review the tests from JOS-136 (voice-over phase), JOS-184 (cycles), JOS-152 (held work) and JOS-168 (phase actions return nothing for voice-over) for assumptions this change breaks; update them. In particular, JOS-168's "`phaseActions` returns no action for every phase" now has a voice-over exception.
-- [ ] 7.2 Confirm every scenario in `specs/voice-over-manual-retry/spec.md` has at least one test, and map ticket AC1-AC3 to tests; list both in the step 8 report.
-- [ ] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 7.1 Review the tests from JOS-136 (voice-over phase), JOS-184 (cycles), JOS-152 (held work) and JOS-168 (phase actions return nothing for voice-over) for assumptions this change breaks; update them. In particular, JOS-168's "`phaseActions` returns no action for every phase" now has a voice-over exception.
+- [x] 7.2 Confirm every scenario in `specs/voice-over-manual-retry/spec.md` has at least one test, and map ticket AC1-AC3 to tests; list both in the step 8 report.
+- [x] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit). Not measured: no coverage provider is installed in `backend`; every new branch has a test (see the step 8 report).
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test baseline of the default store: row counts per table (`runs`, `stage_attempts`, `voice_overs`), applied migrations, trigger list, and `data/projects/` contents.
-- [ ] 8.2 Run the targeted tests: `voice-over-retry`, `phase-progress`, `session-api-surface`, `components`.
-- [ ] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`. Run the backend suite once more in a fresh worktree without `backend/.secrets.json`, so local credentials cannot mask a provider-dependent failure.
-- [ ] 8.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 8.5 Create the report `openspec/changes/retry-voice-over/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`.
-- [ ] 8.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 8.1 Capture the pre-test baseline of the default store: row counts per table (`runs`, `stage_attempts`, `voice_overs`), applied migrations, trigger list, and `data/projects/` contents.
+- [x] 8.2 Run the targeted tests: `voice-over-retry`, `phase-progress`, `session-api-surface`, `components`.
+- [x] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`. Run the backend suite once more in a fresh worktree without `backend/.secrets.json`, so local credentials cannot mask a provider-dependent failure.
+- [x] 8.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 8.5 Create the report `openspec/changes/retry-voice-over/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`.
+- [x] 8.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the real server on a scratch store and scratch projects folder, with the stub voice provider configured to fail not-retryably first; confirm `GET /health`.
-- [ ] 9.2 `POST /sessions` and wait for `failed` in voice-over. List the project folder. Then:
+- [x] 9.1 Start the real server on a scratch store and scratch projects folder, with the stub voice provider configured to fail not-retryably first; confirm `GET /health`.
+- [x] 9.2 `POST /sessions` and wait for `failed` in voice-over. List the project folder. Then:
   - set the stub to succeed;
   - `curl -X POST /sessions/:id/voice-over/retry` → 200 `{ ok: true, held: false }`;
   - `curl GET /sessions/:id` reaches `voice-over-complete`;
   - the folder has gained one MP3 and lost nothing.
-- [ ] 9.3 Error cases, each with `curl`:
+- [x] 9.3 Error cases, each with `curl`:
   - the retry again on the completed session → 409;
   - an unknown id → 404;
   - a body `{"script":"x"}` → 400;
   - a paused failed session → 200 `{ held: true }`, and then `POST /continue` sends it.
-- [ ] 9.4 `curl GET /docs/json` documents the route.
-- [ ] 9.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/retry-voice-over/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
+- [x] 9.4 `curl GET /docs/json` documents the route.
+- [x] 9.5 Clean up the scratch store and folder; confirm the default store is untouched; save `openspec/changes/retry-voice-over/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: a new button and flow on the session page, so it applies.
-- [ ] 10.2 Run backend (scratch store, stub voice failing first) and frontend. Open the failed session: the Voice-over phase section shows `Failed`, the cause and `Retry voice-over`.
-- [ ] 10.3 Set the stub to succeed and click `Retry voice-over`. The section moves to `In progress`, then `Complete`, without a reload, and the button disappears.
-- [ ] 10.4 On a second failed session, pause, then retry. The section shows `In progress` with `Waiting for you to continue (1 held)`. Continue, and it completes.
-- [ ] 10.5 Restore the environment and save `openspec/changes/retry-voice-over/reports/YYYY-MM-DD-step-10-e2e.md`.
+- [x] 10.1 Decide applicability: a new button and flow on the session page, so it applies.
+- [x] 10.2 Run backend (scratch store, stub voice failing first) and frontend. Open the failed session: the Voice-over phase section shows `Failed`, the cause and `Retry voice-over`.
+- [x] 10.3 Set the stub to succeed and click `Retry voice-over`. The section moves to `In progress`, then `Complete`, without a reload, and the button disappears.
+- [x] 10.4 On a second failed session, pause, then retry. The section shows `In progress` with `Waiting for you to continue (1 held)`. Continue, and it completes.
+- [x] 10.5 Restore the environment and save `openspec/changes/retry-voice-over/reports/YYYY-MM-DD-step-10-e2e.md`.
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is the new route.
-- [ ] 11.2 `docs/data-model.md`: record that a manual voice retry adds a cycle and attempts and deletes nothing, and that the pending retry is JOS-184's scheduled attempt (no new table).
-- [ ] 11.3 `docs/backend-standards.md`: record the per-phase retry route pattern (`POST /sessions/:sessionId/<phase>/retry`, strict empty body, 200/404/409 with a reason code), all checks before any send, for US-24 to US-27 to follow.
-- [ ] 11.4 `docs/frontend-standards.md`: add `Retry voice-over` to the naming table, and record the reason-to-sentence table for retry refusals.
+- [x] 11.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is the new route. The committed file already differs from a fresh generation (JOS-199's `/telemetry/consent` and `/app/update` paths in another place, kept descriptions), so only the generated block for the new route was inserted, with a header note; the file parses and the rest is unchanged.
+- [x] 11.2 `docs/data-model.md`: record that a manual voice retry adds a cycle and attempts and deletes nothing, and that the pending retry is JOS-184's scheduled attempt (no new table).
+- [x] 11.3 `docs/backend-standards.md`: record the per-phase retry route pattern (`POST /sessions/:sessionId/<phase>/retry`, strict empty body, 200/404/409 with a reason code), all checks before any send, for US-24 to US-27 to follow.
+- [x] 11.4 `docs/frontend-standards.md`: add `Retry voice-over` to the naming table, and record the reason-to-sentence table for retry refusals.
 
 ## 12. Close out
 

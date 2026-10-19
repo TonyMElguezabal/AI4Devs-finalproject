@@ -132,6 +132,13 @@ From the moment a voice-over retry is accepted until its cycle ends, the session
 - **WHEN** a voice-over retry is accepted
 - **THEN** the session derives `voice-over-generating` and remains paused, and the voice-over phase shows its held unit
 
+#### Scenario: The accepted retry is published
+
+- **WHEN** a voice-over retry is accepted, whether it is held or sent
+- **THEN** the session's new state is published to live subscribers before the command returns, with the voice-over phase `in-progress` and no `failure`
+
+A held retry runs no step, so nothing else would publish the cleared failure, and the page would keep showing it and offering Retry.
+
 ### Requirement: The page offers the retry on a failed voice-over phase
 
 `phaseActions` SHALL return a retry action for the voice-over phase when it is `failed` and its failure is retryable, and none otherwise. The Voice-over phase section SHALL show a `Retry voice-over` button for it. A click SHALL call the retry command, and the button SHALL be disabled while the request is outstanding. A 409 refusal SHALL be shown in the section as a readable sentence. The new state SHALL come from the live update, not from an optimistic change on the page.
