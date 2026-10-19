@@ -59,10 +59,10 @@
 
 ## 9. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Run the backend (scratch store, stub providers, no password) and the frontend. `/admin` shows the "not configured" message and no form.
-- [ ] 9.2 Restart the backend with `ADMIN_PASSWORD`. On `/admin`: a wrong password shows "Wrong password" and no Administrator area (AC2); the right one shows the Administrator area (AC1). Reload: the form is back, and browser storage holds no password.
-- [ ] 9.3 Open `/` and start a project, then open its session page: no password is asked (AC3).
-- [ ] 9.4 Restore the environment and save `openspec/changes/protect-admin-with-password/reports/YYYY-MM-DD-step-9-e2e.md` with screenshots.
+- [x] 9.1 Run the backend (scratch store, stub providers, no password) and the frontend. `/admin` shows the "not configured" message and no form.
+- [x] 9.2 Restart the backend with `ADMIN_PASSWORD`. On `/admin`: a wrong password shows "Wrong password" and no Administrator area (AC2); the right one shows the Administrator area (AC1). Reload: the form is back, and browser storage holds no password.
+- [x] 9.3 Open `/` and start a project, then open its session page: no password is asked (AC3).
+- [x] 9.4 Restore the environment and save `openspec/changes/protect-admin-with-password/reports/YYYY-MM-DD-step-9-e2e.md` with screenshots.
 
 ## 10. Update Technical Documentation (MANDATORY)
 

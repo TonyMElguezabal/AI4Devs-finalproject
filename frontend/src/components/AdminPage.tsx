@@ -119,7 +119,7 @@ export function AdminPage({ tools }: Props) {
       )}
 
       {state.kind === "unlocked" && (
-        <section aria-label="Administrator tools" className="card pop">
+        <section aria-label="Administrator tools" className="start-form card pop">
           {tools ? tools({ password: state.password, onDenied: () => setState({ kind: "locked", message: "Enter the password again" }) }) : <p>No Administrator tools yet</p>}
         </section>
       )}
