@@ -12,9 +12,9 @@
 
 ## 2. Backend: password reading and the gate (TDD; design Decisions 1 and 3)
 
-- [ ] 2.1 Write failing tests in `backend/test/admin-access.test.ts` for `readAdminPassword()` with a scratch secrets file: environment wins over the file; the file is used when the environment has none; neither, or an empty value, gives `undefined`.
-- [ ] 2.2 Write failing tests, through `buildApp()` and `.inject()`, for a test-only route registered inside the `/admin` child plugin (spec "A later Administrator endpoint is protected by default"): no password configured → `401 not-configured`; configured and no header → `401 password-required`; a wrong password → `401 wrong-password`; the correct one → the handler runs. In every `401` case the handler's side effect did not happen, and the body contains neither password.
-- [ ] 2.3 Implement `backend/src/adminAccess.ts` (`readAdminPassword`, SHA-256 plus `timingSafeEqual`, the `requireAdministrator` `onRequest` hook) and the `/admin` child plugin in `routes.ts`. Make 2.1 and 2.2 pass with `npm run typecheck` clean.
+- [x] 2.1 Write failing tests in `backend/test/admin-access.test.ts` for `readAdminPassword()` with a scratch secrets file: environment wins over the file; the file is used when the environment has none; neither, or an empty value, gives `undefined`.
+- [x] 2.2 Write failing tests, through `buildApp()` and `.inject()`, for a test-only route registered inside the `/admin` child plugin (spec "A later Administrator endpoint is protected by default"): no password configured → `401 not-configured`; configured and no header → `401 password-required`; a wrong password → `401 wrong-password`; the correct one → the handler runs. In every `401` case the handler's side effect did not happen, and the body contains neither password.
+- [x] 2.3 Implement `backend/src/adminAccess.ts` (`readAdminPassword`, SHA-256 plus `timingSafeEqual`, the `requireAdministrator` `onRequest` hook) and the `/admin` child plugin in `routes.ts`. Make 2.1 and 2.2 pass with `npm run typecheck` clean.
 
 ## 3. Backend: `GET /admin/access` and regular routes (TDD; design Decision 4, spec AC1–AC3)
 
