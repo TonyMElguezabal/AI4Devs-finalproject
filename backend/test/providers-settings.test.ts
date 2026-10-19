@@ -141,3 +141,43 @@ describe("An invalid override stops the module from loading", () => {
     await expect(importProviders("{ not json")).rejects.toThrow(/could not be parsed as JSON/);
   });
 });
+
+// JOS-174 AC4 and spec "Settings take effect only after a restart".
+describe("Settings are read once, at start-up", () => {
+  it("ignores an edit to the override file made while the app is running, until it restarts", async () => {
+    const providers = await importProviders({ maxSimultaneousRequests: { video: 2 }, maxTimeSeconds: { image: 40 } });
+    expect(providers.MAX_SIMULTANEOUS_REQUESTS.video).toBe(2);
+    expect(providers.phaseTimeoutMs("image")).toBe(40_000);
+
+    writeFileSync(join(dir, "settings.json"), JSON.stringify({ maxSimultaneousRequests: { video: 1 }, maxTimeSeconds: { image: 90 } }));
+
+    // The running process: the already-loaded module, and a plain re-import of it, both keep the start-up values.
+    expect(providers.MAX_SIMULTANEOUS_REQUESTS.video).toBe(2);
+    expect(providers.phaseTimeoutMs("image")).toBe(40_000);
+    const sameModule = await import("../src/config/providers.ts");
+    expect(sameModule.MAX_SIMULTANEOUS_REQUESTS.video).toBe(2);
+
+    // A restart (a fresh module graph) reads the edited file.
+    vi.resetModules();
+    const restarted = await import("../src/config/providers.ts");
+    expect(restarted.MAX_SIMULTANEOUS_REQUESTS.video).toBe(1);
+    expect(restarted.phaseTimeoutMs("image")).toBe(90_000);
+  });
+
+  it("offers no route to read or change the settings through the application", async () => {
+    await importProviders();
+    const { buildApp } = await import("../src/server.ts");
+    const app = await buildApp();
+    try {
+      await app.ready();
+      for (const method of ["GET", "PUT", "POST", "PATCH", "DELETE"] as const) {
+        for (const url of ["/settings", "/admin", "/admin/settings", "/config", "/providers"]) {
+          const response = await app.inject({ method, url, payload: method === "GET" ? undefined : { maxSimultaneousRequests: { video: 1 } } });
+          expect(response.statusCode, `${method} ${url}`).toBe(404);
+        }
+      }
+    } finally {
+      await app.close();
+    }
+  });
+});

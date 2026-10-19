@@ -40,9 +40,9 @@
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Review the tests that import `providers.ts` values or assume the `"en" | "es"` type: `segmentation`, `admitted-durations`, `concurrency`, `attempt-timeout`, `routes`/`sessions`, `voice-over-*`, `languages`. Update any that relied on a literal that is now configured.
-- [ ] 5.2 Map every scenario in `specs/provider-and-parameter-settings/spec.md`, `specs/clip-duration-request/spec.md` and `specs/stage-execution-time-limit/spec.md`, and JOS-174 AC1–AC5 (AC3 without the Administrator password, which is deferred), to at least one test. List the mapping in the step 6 report.
-- [ ] 5.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 5.1 Review the tests that import `providers.ts` values or assume the `"en" | "es"` type: `segmentation`, `admitted-durations`, `concurrency`, `attempt-timeout`, `routes`/`sessions`, `voice-over-*`, `languages`. Update any that relied on a literal that is now configured.
+- [x] 5.2 Map every scenario in `specs/provider-and-parameter-settings/spec.md`, `specs/clip-duration-request/spec.md` and `specs/stage-execution-time-limit/spec.md`, and JOS-174 AC1–AC5 (AC3 without the Administrator password, which is deferred), to at least one test. List the mapping in the step 6 report.
+- [x] 5.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
