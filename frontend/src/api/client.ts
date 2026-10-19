@@ -1,4 +1,4 @@
-import type { AppUpdate, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AppSettings, AppUpdate, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -106,4 +106,39 @@ export function saveTelemetryConsent(choices: TelemetryChoices): Promise<Telemet
 
 export function getAppUpdate(): Promise<AppUpdate> {
   return fetch(`${API_BASE}/app/update`).then(asJson<AppUpdate>);
+}
+
+/** admin-visual-style-prompt (JOS-201) */
+export const MAX_VISUAL_STYLE_PROMPT_CHARS = 8000;
+export const MAX_REFERENCE_IMAGE_BYTES = 5 * 1024 * 1024;
+export const REFERENCE_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
+export function getAppSettings(): Promise<AppSettings> {
+  return fetch(`${API_BASE}/admin/settings`).then(asJson<AppSettings>);
+}
+
+export function saveVisualStylePrompt(visualStylePrompt: string): Promise<AppSettings> {
+  return fetch(`${API_BASE}/admin/settings/visual-style-prompt`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ visualStylePrompt }),
+  }).then(asJson<AppSettings>);
+}
+
+export function uploadReferenceImage(file: File): Promise<AppSettings> {
+  return fetch(`${API_BASE}/admin/settings/reference-image`, {
+    method: "PUT",
+    headers: { "Content-Type": file.type },
+    body: file,
+  }).then(asJson<AppSettings>);
+}
+
+export async function deleteReferenceImage(): Promise<void> {
+  const response = await fetch(`${API_BASE}/admin/settings/reference-image`, { method: "DELETE" });
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+}
+
+/** `version` busts the browser cache when the image is replaced. */
+export function referenceImageUrl(version: string): string {
+  return `${API_BASE}/admin/settings/reference-image?v=${encodeURIComponent(version)}`;
 }

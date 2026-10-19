@@ -70,9 +70,9 @@ The decomposition attempt logs `visual_style_prompt_chars` (the length). The tex
 The ticket's resolved question asks for a side-by-side of the 5-sentence "Warry" script: (a) style prompt only, (b) a short fixed prefix (≤ 60 words) added to each Fal `prompt`. For (b) the prefix is added by hand for the experiment only (a scratch script outside the app), never committed to `imageProvider.ts`. The image sets and the decision are saved under the change's `reports/`. A regression test pins the Fal request body unchanged (AC 8).
 
 **Decision 9 — Frontend by pathname.**
-`App.tsx` renders `AdminPage` when `window.location.pathname === "/admin"`, and otherwise what it renders today. A small "Admin" link in `TopBar` navigates there with a full page load (`<a href="/admin">`). `AdminPage` loads `GET /admin/settings`, shows a character counter (8,000), the preview (`<img src="/admin/settings/reference-image?v={updatedAt}">`), and success or error text after each save. The textarea has a hint that the pipeline rules win on conflicts.
+`App.tsx` renders `AdminPage` when `window.location.pathname === "/admin"`, and otherwise what it renders today. A small "Admin" link in `TopBar` navigates there with a full page load (`<a href="/admin">`). `AdminPage` loads `GET /admin/settings`, shows a character counter (8,000), the preview (`<img src="${API_BASE}/admin/settings/reference-image?v={updatedAt}">`, since the frontend and the backend are different origins), and success or error text after each save. The textarea has a hint that the pipeline rules win on conflicts.
 
-The Vite dev server and the packaged server must answer `/admin` with the app shell. Task 1.2 verifies how each serves unknown paths; if one does not fall back to `index.html`, that is fixed in the same task.
+The Vite dev server answers `/admin` with the app shell (its default SPA fallback). This tree has no packaged server for the frontend (the backend serves only a skeleton page at `/`), so there is nothing to change for packaging; whichever server later serves the built app must fall back to `index.html`.
 
 *Alternative rejected:* adding a router dependency for one page.
 

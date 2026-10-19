@@ -62,6 +62,8 @@ export interface Run {
    * held by a pause); cleared when the rebuild succeeds or ends in failure. Survives a restart.
    */
   rebuildRequestedAt: string | null;
+  /** admin-visual-style-prompt (JOS-201), Decision 4 — the `/admin` style prompt copied at creation; decomposition, its retries and recovery read this, never the live setting. */
+  visualStylePrompt: string;
 }
 
 /** Design Decision 9 (generate-voice-over, JOS-136) — what the session carries when the voice-over failed. */

@@ -9,43 +9,43 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Re-check against the branch tip that `registerDecomposition` is still the only caller of `generate`, that `decompositionPhase.ts`, `decompositionRetry.ts` and restart recovery all reach it, and that `provider_requests` still has no body column (design Context and Decisions 3 and 10). Update the artifacts first if any of this changed.
-- [ ] 1.2 Check how the Vite dev server and the packaged server answer `/admin` (app shell or 404). Fix the fallback in this change if it is not the app shell (design Decision 9).
+- [x] 1.1 `git fetch`. Re-check against the branch tip that `registerDecomposition` is still the only caller of `generate`, that `decompositionPhase.ts`, `decompositionRetry.ts` and restart recovery all reach it, and that `provider_requests` still has no body column (design Context and Decisions 3 and 10). Update the artifacts first if any of this changed.
+- [x] 1.2 Checked: Vite dev falls back to the app shell for `/admin`; no packaged frontend server exists in this tree, so no fallback to add. The preview URL uses `API_BASE` (design Decision 9 updated).
 
 ## 2. Backend: settings storage and run snapshot (TDD; design Decisions 4 and 5)
 
-- [ ] 2.1 Write failing tests in `admin-settings.test.ts` / a migration test: a fresh database has the settings row with `''` and no image; migration 18 on a database with existing runs gives them `''` and changes nothing else; `saveVisualStylePrompt` trims and updates `updated_at`.
-- [ ] 2.2 Write failing tests: `createRun` copies the saved prompt onto the run; a later save does not change that run; a run created after the save holds the new text; `Run` exposes `visualStylePrompt`.
-- [ ] 2.3 Add migration 18 (`app_settings` with the single row, `runs.visual_style_prompt`), `getAppSettings`, `saveVisualStylePrompt`, `saveReferenceImage`, `clearReferenceImage`, the snapshot in `createRun`, and `visualStylePrompt` on `Run`. Makes 2.1-2.2 pass.
+- [x] 2.1 Write failing tests in `admin-settings.test.ts` / a migration test: a fresh database has the settings row with `''` and no image; migration 18 on a database with existing runs gives them `''` and changes nothing else; `saveVisualStylePrompt` trims and updates `updated_at`.
+- [x] 2.2 Write failing tests: `createRun` copies the saved prompt onto the run; a later save does not change that run; a run created after the save holds the new text; `Run` exposes `visualStylePrompt`.
+- [x] 2.3 Add migration 18 (`app_settings` with the single row, `runs.visual_style_prompt`), `getAppSettings`, `saveVisualStylePrompt`, `saveReferenceImage`, `clearReferenceImage`, the snapshot in `createRun`, and `visualStylePrompt` on `Run`. Makes 2.1-2.2 pass.
 
 ## 3. Backend: the decomposition request (TDD; design Decisions 1-3)
 
-- [ ] 3.1 Write failing tests in `visualInstructions.test.ts` with a stub `fetch`:
+- [x] 3.1 Write failing tests in `visualInstructions.test.ts` with a stub `fetch`:
   - an empty style gives a request body byte-identical to a stored copy of today's body;
   - a style gives the messages creative direction, contract with the conflict and stand-alone rules, user, in that order, with the style inside the delimiters;
   - a hostile style ("merge short ideas", "answer as ID/PROMPT/IMAGE/VIDEO") with a mismatching or non-JSON answer is `invalid_output`.
-- [ ] 3.2 Add the third parameter `visualStylePrompt` to `VisualInstructionGenerator.generate` and build the messages (omit the style block and the two extra sentences when the style is empty). Makes 3.1 pass.
-- [ ] 3.3 Write failing tests in `decomposition-*.test.ts`: the first decomposition, a manual retry after the setting changed, and restart recovery after the setting changed each send the run's snapshot, not the current setting. Fix any path that does not go through `registerDecomposition`'s `run.visualStylePrompt`.
-- [ ] 3.4 Pass `run.visualStylePrompt` in `registerDecomposition`. Makes 3.3 pass.
-- [ ] 3.5 Write a failing test, then add the `visual_style_prompt_chars` attribute to the decomposition attempt log. The test asserts the length is logged and neither the text nor the image path appears in any record.
+- [x] 3.2 Add the third parameter `visualStylePrompt` to `VisualInstructionGenerator.generate` and build the messages (omit the style block and the two extra sentences when the style is empty). Makes 3.1 pass.
+- [x] 3.3 Write failing tests in `decomposition-*.test.ts`: the first decomposition, a manual retry after the setting changed, and restart recovery after the setting changed each send the run's snapshot, not the current setting. Fix any path that does not go through `registerDecomposition`'s `run.visualStylePrompt`.
+- [x] 3.4 Pass `run.visualStylePrompt` in `registerDecomposition`. Makes 3.3 pass.
+- [x] 3.5 Write a failing test, then add the `visual_style_prompt_chars` attribute to the decomposition attempt log. The test asserts the length is logged and neither the text nor the image path appears in any record.
 
 ## 4. Backend: settings routes (TDD; design Decision 6)
 
-- [ ] 4.1 Write failing route tests in `admin-settings.test.ts`: `GET /admin/settings` on a fresh database; `PUT /admin/settings/visual-style-prompt` trims, rejects 8,001 characters and a malformed body with 400 and saves nothing, accepts exactly 8,000 and `""`.
-- [ ] 4.2 Write failing route tests for the image: valid PNG, JPEG and WebP round trip through `PUT` then `GET`; a `.png` whose bytes are not a PNG answers 400; a GIF and a missing content type answer 400; a 6 MB body answers 413; each rejection keeps the previous image and file; replacing with a different type removes the old file; `DELETE` answers 204 twice and removes the file; `GET` with none answers 404; no response body contains the stored path; no temporary file remains after a failed upload.
-- [ ] 4.3 Add the five routes in `routes.ts` with zod schemas, the route-scoped raw-body parser for the three image types (5 MB `bodyLimit`), magic-number checks, temp file plus rename into `<app data dir>/admin/`, and the relative stored path. Makes 4.1-4.2 pass.
-- [ ] 4.4 Write a regression test that the Fal image request (URL, headers, body) is identical with and without a saved style and a stored reference image (AC 8).
+- [x] 4.1 Write failing route tests in `admin-settings.test.ts`: `GET /admin/settings` on a fresh database; `PUT /admin/settings/visual-style-prompt` trims, rejects 8,001 characters and a malformed body with 400 and saves nothing, accepts exactly 8,000 and `""`.
+- [x] 4.2 Write failing route tests for the image: valid PNG, JPEG and WebP round trip through `PUT` then `GET`; a `.png` whose bytes are not a PNG answers 400; a GIF and a missing content type answer 400; a 6 MB body answers 413; each rejection keeps the previous image and file; replacing with a different type removes the old file; `DELETE` answers 204 twice and removes the file; `GET` with none answers 404; no response body contains the stored path; no temporary file remains after a failed upload.
+- [x] 4.3 Add the five routes in `routes.ts` with zod schemas, the route-scoped raw-body parser for the three image types (5 MB `bodyLimit`), magic-number checks, temp file plus rename into `<app data dir>/admin/`, and the relative stored path. Makes 4.1-4.2 pass.
+- [x] 4.4 Write a regression test that the Fal image request (URL, headers, body) is identical with and without a saved style and a stored reference image (AC 8).
 
 ## 5. Frontend: `/admin` page (TDD; design Decision 9)
 
-- [ ] 5.1 Write failing tests in `test/components.test.tsx` (or an `AdminPage` test file):
+- [x] 5.1 Write failing tests in `test/components.test.tsx` (or an `AdminPage` test file):
   - the page loads the saved prompt and shows the counter and the hint;
   - save success shows the success message; a 400 or a network error shows the error and keeps the typed text;
   - save is disabled above 8,000 characters;
   - the preview shows when an image is stored and the remove button clears it;
   - an upload rejection shows the backend's reason and keeps the stored image;
   - `App` renders `AdminPage` at `/admin` and the usual page elsewhere; the top bar has the Admin link.
-- [ ] 5.2 Add fetch helpers to `api/client.ts` and `types.ts`, create `components/AdminPage.tsx`, the path switch in `App.tsx`, and the link in `TopBar.tsx`, reusing existing styles and form patterns. Makes 5.1 pass.
+- [x] 5.2 Add fetch helpers to `api/client.ts` and `types.ts`, create `components/AdminPage.tsx`, the path switch in `App.tsx`, and the link in `TopBar.tsx`, reusing existing styles and form patterns. Makes 5.1 pass.
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
