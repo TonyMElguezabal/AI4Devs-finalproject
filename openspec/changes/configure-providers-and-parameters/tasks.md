@@ -12,7 +12,7 @@
 
 ## 2. Backend: settings loader and schema (TDD; design Decisions 1, 2, 4, 5)
 
-- [ ] 2.1 Write failing tests in `backend/test/settings.test.ts` for `loadSettings({ defaultsPath, overridePath })`, using scratch files:
+- [x] 2.1 Write failing tests in `backend/test/settings.test.ts` for `loadSettings({ defaultsPath, overridePath })`, using scratch files:
   - no override file → `ok: true` with the defaults;
   - a partial override replaces only its keys, and an override array replaces the default array whole;
   - a non-JSON override → one problem naming its path;
@@ -21,8 +21,8 @@
   - several problems at once → all are listed;
   - a missing `maxTimeSeconds.<stage>` key is a problem, while `null` is accepted as "not timed";
   - an unknown key such as `openaiApiKey` with a secret value → a problem naming the key, and the value appears nowhere in the output.
-- [ ] 2.2 Implement `backend/src/config/settings.ts`: the strict zod schema, the cross-field `superRefine`, the merge, and issue formatting without received values. Make 2.1 pass.
-- [ ] 2.3 Create `backend/config/settings.default.json` holding exactly today's `providers.ts` values for every AC3 setting (`maxTimeSeconds.assembly: null`). Add a test that the shipped defaults file loads with `ok: true` and matches today's literals.
+- [x] 2.2 Implement `backend/src/config/settings.ts`: the strict zod schema, the cross-field `superRefine`, the merge, and issue formatting without received values. Make 2.1 pass.
+- [x] 2.3 Create `backend/config/settings.default.json` holding exactly today's `providers.ts` values for every AC3 setting (`maxTimeSeconds.assembly: null`). Add a test that the shipped defaults file loads with `ok: true` and matches today's literals.
 
 ## 3. Backend: `providers.ts` reads the settings (TDD; design Decision 3)
 
