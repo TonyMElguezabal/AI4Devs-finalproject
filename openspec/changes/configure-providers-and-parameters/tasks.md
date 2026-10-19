@@ -63,9 +63,9 @@
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Applicability: no frontend code changes, but the new-session language selector reads the configured list, so this step applies.
-- [ ] 8.2 Run the backend (scratch store, override with English only) and the frontend. The new-session form offers English only. Restart with no override: it offers English and Spanish.
-- [ ] 8.3 Restore the environment and save `openspec/changes/configure-providers-and-parameters/reports/YYYY-MM-DD-step-8-e2e.md`.
+- [x] 8.1 Applicability: no frontend code changes, but the new-session language selector reads the configured list, so this step applies.
+- [x] 8.2 Run the backend (scratch store, override with English only) and the frontend. The new-session form offers English only. Restart with no override: it offers English and Spanish.
+- [x] 8.3 Restore the environment and save `openspec/changes/configure-providers-and-parameters/reports/YYYY-MM-DD-step-8-e2e.md`.
 
 ## 9. Update Technical Documentation (MANDATORY)
 
