@@ -55,11 +55,11 @@
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the real server on a scratch store and scratch projects folder with stub providers and no override. Confirm `GET /health`, and that the languages endpoint returns English and Spanish.
-- [ ] 7.2 Restart with a scratch override (`SETTINGS_PATH`) that removes Spanish and lowers the video cap to 1. The languages endpoint returns English only. `POST /sessions` with `es` returns 400, and with `en` returns 201. The boot log shows video `limit: 1`.
-- [ ] 7.3 Restart with an override holding three problems (a lower bound below the minimum, an unknown `openaiApiKey` with a fake value, an empty language list). The server does not start, all three are printed, and the fake value is not.
-- [ ] 7.4 Edit the override while the server runs; confirm nothing changes until restart.
-- [ ] 7.5 Delete the created sessions and the scratch store, folder and override. Confirm the default store is untouched. Save `openspec/changes/configure-providers-and-parameters/reports/YYYY-MM-DD-step-7-manual-endpoint-testing.md`.
+- [x] 7.1 Start the real server on a scratch store and scratch projects folder with stub providers and no override. Confirm `GET /health`, and that the languages endpoint returns English and Spanish.
+- [x] 7.2 Restart with a scratch override (`SETTINGS_PATH`) that removes Spanish and lowers the video cap to 1. The languages endpoint returns English only. `POST /sessions` with `es` returns 400, and with `en` returns 201. The boot log shows video `limit: 1`.
+- [x] 7.3 Restart with an override holding three problems (a lower bound below the minimum, an unknown `openaiApiKey` with a fake value, an empty language list). The server does not start, all three are printed, and the fake value is not.
+- [x] 7.4 Edit the override while the server runs; confirm nothing changes until restart.
+- [x] 7.5 Delete the created sessions and the scratch store, folder and override. Confirm the default store is untouched. Save `openspec/changes/configure-providers-and-parameters/reports/YYYY-MM-DD-step-7-manual-endpoint-testing.md`.
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
