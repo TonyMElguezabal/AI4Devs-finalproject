@@ -36,9 +36,9 @@
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 6.1 Review the tests that build the app or assume no Authorization (`session-creation`, `server-runtime-load`, `credentials`, frontend `components`), and any that would break if `ADMIN_PASSWORD` is present in the developer's environment or `backend/.secrets.json`. Make the admin tests set and clear the value themselves.
-- [ ] 6.2 Map every scenario in `specs/administrator-access/spec.md`, and JOS-173 AC1–AC3, to at least one test. List the mapping in the step 7 report.
-- [ ] 6.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 6.1 Review the tests that build the app or assume no Authorization (`session-creation`, `server-runtime-load`, `credentials`, frontend `components`), and any that would break if `ADMIN_PASSWORD` is present in the developer's environment or `backend/.secrets.json`. Make the admin tests set and clear the value themselves.
+- [x] 6.2 Map every scenario in `specs/administrator-access/spec.md`, and JOS-173 AC1–AC3, to at least one test. List the mapping in the step 7 report.
+- [x] 6.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
