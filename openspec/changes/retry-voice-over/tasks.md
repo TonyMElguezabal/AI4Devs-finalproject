@@ -123,10 +123,10 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is the new route.
-- [ ] 11.2 `docs/data-model.md`: record that a manual voice retry adds a cycle and attempts and deletes nothing, and that the pending retry is JOS-184's scheduled attempt (no new table).
-- [ ] 11.3 `docs/backend-standards.md`: record the per-phase retry route pattern (`POST /sessions/:sessionId/<phase>/retry`, strict empty body, 200/404/409 with a reason code), all checks before any send, for US-24 to US-27 to follow.
-- [ ] 11.4 `docs/frontend-standards.md`: add `Retry voice-over` to the naming table, and record the reason-to-sentence table for retry refusals.
+- [x] 11.1 `docs/api-spec.yml`: regenerate from `GET /docs/json`; confirm the only change is the new route. The committed file already differs from a fresh generation (JOS-199's `/telemetry/consent` and `/app/update` paths in another place, kept descriptions), so only the generated block for the new route was inserted, with a header note; the file parses and the rest is unchanged.
+- [x] 11.2 `docs/data-model.md`: record that a manual voice retry adds a cycle and attempts and deletes nothing, and that the pending retry is JOS-184's scheduled attempt (no new table).
+- [x] 11.3 `docs/backend-standards.md`: record the per-phase retry route pattern (`POST /sessions/:sessionId/<phase>/retry`, strict empty body, 200/404/409 with a reason code), all checks before any send, for US-24 to US-27 to follow.
+- [x] 11.4 `docs/frontend-standards.md`: add `Retry voice-over` to the naming table, and record the reason-to-sentence table for retry refusals.
 
 ## 12. Close out
 
