@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.9  
+**Versión:** 1.10  
 **Alcance:** MVP  
-**Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.8.md`.
+**Status (v1.10):** a minimal `/admin` page is added for one visual style prompt and an optional reference image, applied to the instructions of every new session (`admin-visual-style-prompt`, JOS-201, §2.1, §11.4); the rest of the Administrator role stays deferred. **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.9.md`.
 
 ## 1. Objetivo del producto
 
@@ -20,7 +20,7 @@ El usuario puede consultar el progreso por fase y por escena, descargar resultad
 |---|---|
 | User (*Usuario*) | Enter a title, a script, and the script's language; follow progress and per-scene diagnostics; pause and continue the session; download results; retry failed stages. |
 
-The MVP has a single role: the User. Providers and all generation parameters are hardcoded in the application (§11); the MVP has no configuration files, no administration interface, and no Administrator role. Provider credentials (API keys) are read from the process environment or from a credentials file in the user's application-data folder; they are never hardcoded, never part of the application download, and never shown in the interface or logs. An Administrator role (configuration, diagnostics, provider changes, and reports on `/admin`) is deferred post-MVP.
+The MVP has a single role: the User. Providers and all generation parameters are hardcoded in the application (§11); the MVP has no configuration files and no Administrator role. The one exception is the `/admin` page, which holds a single visual style setting (§11.4) and requires no sign-in, like every other page of the application. Provider credentials (API keys) are read from the process environment or from a credentials file in the user's application-data folder; they are never hardcoded, never part of the application download, and never shown in the interface or logs. The rest of an Administrator role (configuration, diagnostics, provider changes, and reports on `/admin`) is deferred post-MVP.
 
 ### 2.2 Incluido en el MVP
 
@@ -35,11 +35,12 @@ The MVP has a single role: the User. Providers and all generation parameters are
 - Partial downloads (per-scene images and clips, §12.3) and download of the final video.
 - Reintentos automáticos y manuales ante fallos.
 - Corrección del prompt visual correspondiente a una etapa fallida.
+- Visual style setting on `/admin`: one prompt, and an optional reference image that is stored for later use (§11.4).
 - Persistencia de sesiones, estados y resultados.
 
 ### 2.3 Fuera del MVP
 
-- Interfaz de administración, incluida la ruta `/admin`.
+- Administration interface beyond the visual style setting on `/admin` (§11.4).
 - User accounts, authentication and authorization, any multi-user access, and any hosted (server) deployment. The MVP is an application that runs on the user's own computer (§12.3).
 - Reportes de uso o costos.
 - Importación o edición libre de chunks.
@@ -329,6 +330,16 @@ Defined by `define-provider-configuration` (JOS-165), verified against real call
 
 **Not-retryable failure signal**: tested against all four provider-calling stages with disallowed instructional content — **none produced a distinguishable rejection** (`docs/adr/0005-provider-selection.md`, Decision 5). **Resolved at the entry point by JOS-187**: the script is checked by OpenAI's moderation endpoint before a session exists. Moderation model `omni-moderation-2024-09-26`, maximum time 10 seconds (measured 0.12–2.2 s). The downstream stages still have no content signal, and corrected `IMAGE`/`VIDEO` instructions (§10.3) remain unmoderated.
 
+### 11.4 Visual style setting (`/admin`, JOS-201)
+
+The `/admin` page holds one **visual style prompt** (text, 0 to 8,000 characters; empty means no style) and one optional **reference image** (PNG, JPEG or WebP, up to 5 MB).
+
+- Each new session keeps a copy of the prompt as it was when the session was created. The first decomposition, any retry of it and a restart all use that copy, so saving `/admin` never changes a session already in progress.
+- The prompt is sent to the reasoning provider as separate creative direction (style, recurring characters, tone) before the fixed rules. If it conflicts with those rules (one image and one video instruction per fragment, no merging or skipping, the required output format), the rules win. Because the image provider receives only each scene's image instruction, every image instruction must repeat the full description of any recurring character.
+- The prompt is user text sent to a provider: its content is never logged, only its length.
+- The reference image is **stored only**. No provider receives it in this version: the verified image model (§11.3) is text-to-image only, and a reference-capable model must first be verified (quality, latency, cost, output size) before it is recorded in §11.3. The video stage already starts from the scene's generated image and gets no reference image.
+- Several styles, a style chosen per session, a fixed style prefix on the image request, authentication and an Administrator role are out of this version.
+
 ## 12. Persistencia, archivos y descargas
 
 ### 12.1 Conservación del proyecto
@@ -453,6 +464,15 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
+
+### From version 1.9 to 1.10
+
+Origin: `admin-visual-style-prompt` (JOS-201), 2026-10-19.
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.2, §2.3: `/admin` moves from deferred to delivered, limited to the visual style setting. The Administrator role, configuration files, diagnostics, provider changes and reports stay deferred. | Product owner, JOS-201 |
+| New §11.4: one visual style prompt (0 to 8,000 characters) and one optional reference image (PNG, JPEG or WebP, up to 5 MB). A session keeps the prompt it was created with, through retries and restarts. The prompt guides the reasoning request that writes the instructions; the pipeline rules win on any conflict. The image is stored but not sent to any provider yet (a spike must first verify a reference-capable image model, §11). | Product owner, JOS-201 |
 
 ### From version 1.8 to 1.9
 

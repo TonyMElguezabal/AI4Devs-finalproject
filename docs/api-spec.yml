@@ -108,6 +108,15 @@
 # `answered`; strict body, 400 on a missing or non-boolean key) and GET /app/update (`{ available: false }` or
 # `{ available: true, tag, url }`). PUT is allowed here because consent is a setting, not session content;
 # the content-lock rule (AC1) is about sessions. Nothing else changed.
+# admin-visual-style-prompt (JOS-201): added GET /admin/settings, PUT /admin/settings/visual-style-prompt
+# (`{ visualStylePrompt }`, at most 8,000 characters after trimming, 400 otherwise) and, for the optional
+# reference image, PUT (raw bytes, `image/png`, `image/jpeg` or `image/webp`, at most 5 MB: 400 for another type or
+# bytes that do not match the type, 413 when too large), GET (the stored bytes, 404 when none) and DELETE (204,
+# also when none) on /admin/settings/reference-image. All answer the same settings body
+# (`visualStylePrompt`, `referenceImage` or null, `updatedAt`); the image's file path is never returned.
+# PUT and DELETE are allowed here for the same reason as consent: these are app settings, not session content.
+# The image routes are hand-described below because their body is raw bytes, which the route schema cannot
+# express. Nothing else changed.
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -2232,3 +2241,196 @@ paths:
       responses:
         "200":
           description: Default Response
+  /admin/settings:
+    get:
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  visualStylePrompt:
+                    type: string
+                  referenceImage:
+                    type: object
+                    properties:
+                      contentType:
+                        type: string
+                      sizeBytes:
+                        type: integer
+                      updatedAt:
+                        type: string
+                    required:
+                      - contentType
+                      - sizeBytes
+                      - updatedAt
+                    additionalProperties: false
+                    nullable: true
+                  updatedAt:
+                    type: string
+                required:
+                  - visualStylePrompt
+                  - referenceImage
+                  - updatedAt
+                additionalProperties: false
+  /admin/settings/visual-style-prompt:
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                visualStylePrompt:
+                  allOf:
+                    - type: string
+                    - type: string
+                      maxLength: 8000
+              required:
+                - visualStylePrompt
+              additionalProperties: false
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  visualStylePrompt:
+                    type: string
+                  referenceImage:
+                    type: object
+                    properties:
+                      contentType:
+                        type: string
+                      sizeBytes:
+                        type: integer
+                      updatedAt:
+                        type: string
+                    required:
+                      - contentType
+                      - sizeBytes
+                      - updatedAt
+                    additionalProperties: false
+                    nullable: true
+                  updatedAt:
+                    type: string
+                required:
+                  - visualStylePrompt
+                  - referenceImage
+                  - updatedAt
+                additionalProperties: false
+  /admin/settings/reference-image:
+    put:
+      description: Stores the optional reference image (raw bytes, replacing any earlier one). The bytes must match the
+        declared type's magic numbers. The image is stored only; no provider receives it yet.
+      requestBody:
+        required: true
+        content:
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/webp:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: The settings, with the stored image's content type and size.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  visualStylePrompt:
+                    type: string
+                  referenceImage:
+                    type: object
+                    properties:
+                      contentType:
+                        type: string
+                      sizeBytes:
+                        type: integer
+                      updatedAt:
+                        type: string
+                    required:
+                      - contentType
+                      - sizeBytes
+                      - updatedAt
+                    additionalProperties: false
+                    nullable: true
+                  updatedAt:
+                    type: string
+                required:
+                  - visualStylePrompt
+                  - referenceImage
+                  - updatedAt
+                additionalProperties: false
+        "400":
+          description: Another content type (or none), or bytes that do not match the declared type. The previous image is kept.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "413":
+          description: The image is larger than 5 MB. The previous image is kept.
+    get:
+      description: Streams the stored image with its content type.
+      responses:
+        "200":
+          description: The image bytes.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: No reference image is stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+    delete:
+      description: Removes the stored image and its file. Answers 204 also when there is none.
+      responses:
+        "204":
+          description: Removed (or nothing to remove).

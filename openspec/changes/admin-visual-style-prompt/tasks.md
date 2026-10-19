@@ -85,8 +85,8 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/api-spec.yml`: the five `/admin/settings` endpoints, bodies, 400/413/404/204 responses.
-- [ ] 11.2 `docs/data-model.md`: `app_settings`, `runs.visual_style_prompt`, and the reference image file location.
-- [ ] 11.3 `docs/PRD.md` §2.1, §2.3 and §11: move the `/admin` visual style setting from deferred to delivered and keep the rest of the Administrator role deferred.
-- [ ] 11.4 Add the correction about `provider_requests` (no body column) wherever the ticket's claim could be repeated, if any doc says it.
-- [ ] 11.5 Run `graphify update .` from the repository root.
+- [x] 11.1 `docs/api-spec.yml`: the five `/admin/settings` endpoints, bodies, 400/413/404/204 responses.
+- [x] 11.2 `docs/data-model.md`: `app_settings`, `runs.visual_style_prompt`, and the reference image file location.
+- [x] 11.3 `docs/PRD.md` §2.1, §2.3 and §11: move the `/admin` visual style setting from deferred to delivered and keep the rest of the Administrator role deferred.
+- [x] 11.4 Checked the docs for the ticket's claim that `provider_requests` holds the decomposition request: none repeats it, so no correction was needed.
+- [x] 11.5 Run `graphify update .` from the repository root.
