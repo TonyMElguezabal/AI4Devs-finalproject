@@ -1,8 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { createRun, getRun, getStageAttempts, insertVoiceOver, resetAll, setRunFailure } from "../src/db.ts";
-import { events, pauseSession, toSnapshot } from "../src/orchestrator.ts";
+import { createRun, getRun, getStageAttempts, getVoiceOver, insertVoiceOver, resetAll, resolveArtefactPath, setRunFailure } from "../src/db.ts";
+import { continueSession, events, pauseSession, toSnapshot } from "../src/orchestrator.ts";
 import { buildApp } from "../src/server.ts";
 import { createDecompositionFailure } from "../src/sessionStateMachine.ts";
 import { generateVoiceOver } from "../src/voiceOverPhase.ts";
@@ -199,5 +201,189 @@ describe("Acceptance (2.2)", () => {
     expect(cycleTwo).toHaveLength(1);
     expect(cycleTwo[0]).toMatchObject({ trigger: "manual", sequenceInCycle: 1, outcome: "success" });
     expect(getRun(runId)?.failure).toBeNull();
+  });
+});
+
+// retry-voice-over (JOS-155), group 3 — design Decisions 4-6: the retry changes nothing about the inputs
+// (script, provider) and deletes nothing.
+
+/** Every file under the project folder with its content hash, so a later listing can be compared byte for byte. */
+function folderSnapshot(runId: string): Record<string, string> {
+  const root = resolveArtefactPath(getRun(runId)!.projectFolder, ".");
+  const files: Record<string, string> = {};
+  const walk = (directory: string): void => {
+    for (const name of readdirSync(directory)) {
+      const full = join(directory, name);
+      if (statSync(full).isDirectory()) walk(full);
+      else files[full.slice(root.length)] = createHash("sha256").update(readFileSync(full)).digest("hex");
+    }
+  };
+  walk(root);
+  return files;
+}
+
+describe("Same script (3.1)", () => {
+  it("sends text byte-identical to the stored script and to the first attempt, leaving the session inputs unchanged", async () => {
+    const runId = register();
+    const first = await failRetryably(runId);
+    const before = getRun(runId)!;
+    const retryStub = useStub("success");
+
+    expect(retryVoiceOver(runId)).toEqual({ ok: true, held: false });
+    await waitFor(() => stateOf(runId) === "voice-over-complete");
+
+    expect(retryStub.calls).toHaveLength(1);
+    expect(retryStub.calls[0]!.text).toBe(SCRIPT);
+    expect(retryStub.calls[0]!.text).toBe(first.calls[0]!.text);
+    const after = getRun(runId)!;
+    expect({ script: after.script, title: after.title, language: after.language }).toEqual({
+      script: before.script,
+      title: before.title,
+      language: before.language,
+    });
+  });
+});
+
+describe("Same provider (3.2)", () => {
+  it("sends the retry to the provider bound on the first attempt, even when the default changed", async () => {
+    const runId = register();
+    await failRetryably(runId);
+    expect(getRun(runId)!.voiceProviderId).toBe("stub-voice");
+    const bound = createStubVoiceProvider("success");
+    const other = createStubVoiceProvider("success");
+    setVoiceProviderRegistry({ defaultIdentifier: "other-voice", adapters: { "stub-voice": bound, "other-voice": other } });
+
+    expect(retryVoiceOver(runId)).toEqual({ ok: true, held: false });
+    await waitFor(() => stateOf(runId) === "voice-over-complete");
+
+    expect(bound.calls).toHaveLength(1);
+    expect(other.calls).toHaveLength(0);
+    expect(getRun(runId)!.voiceProviderId).toBe("stub-voice");
+  });
+
+  it("fails as not retryable, sending nothing, when the bound provider has no adapter", async () => {
+    const runId = register();
+    await failRetryably(runId);
+    const other = createStubVoiceProvider("success");
+    setVoiceProviderRegistry({ defaultIdentifier: "other-voice", adapters: { "other-voice": other } });
+
+    expect(retryVoiceOver(runId)).toEqual({ ok: true, held: false });
+    await waitFor(() => getRun(runId)?.failure?.manualRetryAvailable === false);
+
+    expect(other.calls).toHaveLength(0);
+    expect(stateOf(runId)).toBe("failed");
+    expect(getRun(runId)!.voiceProviderId).toBe("stub-voice");
+    expect(getRun(runId)!.failure?.cause).toContain("stub-voice");
+  });
+});
+
+describe("Nothing is deleted (3.3)", () => {
+  it("after a failed retry, leaves every earlier file and record unchanged except the session failure", async () => {
+    const runId = register();
+    await failRetryably(runId);
+    const folderBefore = folderSnapshot(runId);
+    const attemptsBefore = getStageAttempts(runId, "voice-over");
+    const runBefore = getRun(runId)!;
+    useStub("transient-failure");
+
+    expect(retryVoiceOver(runId)).toEqual({ ok: true, held: false });
+    await waitFor(() => getStageAttempts(runId, "voice-over").some((attempt) => attempt.cycle === 2 && attempt.outcome !== "in-flight"));
+
+    expect(folderSnapshot(runId)).toEqual(folderBefore);
+    expect(getVoiceOver(runId)).toBeUndefined();
+    const earlier = getStageAttempts(runId, "voice-over").filter((attempt) => attempt.cycle === 1);
+    expect(earlier).toEqual(attemptsBefore);
+    const runAfter = getRun(runId)!;
+    expect({ ...runAfter, failure: null }).toEqual({ ...runBefore, failure: null });
+  });
+
+  it("after a successful retry, adds one MP3 and removes nothing", async () => {
+    const runId = register();
+    await failRetryably(runId);
+    const folderBefore = folderSnapshot(runId);
+    const attemptsBefore = getStageAttempts(runId, "voice-over");
+    useStub("success");
+
+    expect(retryVoiceOver(runId)).toEqual({ ok: true, held: false });
+    await waitFor(() => stateOf(runId) === "voice-over-complete");
+
+    const folderAfter = folderSnapshot(runId);
+    for (const [path, hash] of Object.entries(folderBefore)) expect(folderAfter[path]).toBe(hash);
+    const added = Object.keys(folderAfter).filter((path) => !(path in folderBefore));
+    expect(added.filter((path) => path.endsWith(".mp3"))).toHaveLength(1);
+    expect(getStageAttempts(runId, "voice-over").filter((attempt) => attempt.cycle === 1)).toEqual(attemptsBefore);
+    expect(getVoiceOver(runId)).toBeDefined();
+  });
+});
+
+// retry-voice-over (JOS-155), group 4 — design Decision 7: a retry opens a new cycle, a pause holds it, and the
+// session shows progress from the moment the retry is accepted.
+
+function voiceOverPhase(runId: string) {
+  return toSnapshot(runId)!.session.phases!.find((phase) => phase.phase === "voice-over")!;
+}
+
+describe("A new cycle (4.1)", () => {
+  it("fails again after the fourth attempt of the new cycle, with all eight attempts recorded across two cycles", async () => {
+    const runId = register();
+    await failRetryably(runId);
+    useStub("transient-failure");
+
+    expect(retryVoiceOver(runId)).toEqual({ ok: true, held: false });
+    for (let attempt = 2; attempt <= 4; attempt++) {
+      await waitFor(() => getStageAttempts(runId, "voice-over").some((entry) => entry.outcome === "scheduled"));
+      await sendScheduledRetry(runId);
+    }
+
+    expect(stateOf(runId)).toBe("failed");
+    const attempts = getStageAttempts(runId, "voice-over");
+    expect(attempts).toHaveLength(8);
+    expect(attempts.filter((attempt) => attempt.cycle === 1)).toHaveLength(4);
+    expect(attempts.filter((attempt) => attempt.cycle === 2)).toHaveLength(4);
+  });
+});
+
+describe("A retry during a pause (4.2)", () => {
+  it("is accepted as held, sends nothing, counts one held request, and continue sends exactly one", async () => {
+    const runId = register();
+    await failRetryably(runId);
+    const stub = useStub("success");
+    pauseSession(runId);
+
+    expect(retryVoiceOver(runId)).toEqual({ ok: true, held: true });
+
+    expect(stub.calls).toHaveLength(0);
+    expect(voiceOverPhase(runId).heldCount).toBe(1);
+
+    expect(continueSession(runId).ok).toBe(true);
+    await waitFor(() => stateOf(runId) === "voice-over-complete");
+    expect(stub.calls).toHaveLength(1);
+  });
+});
+
+describe("Derived state of an accepted retry (4.3)", () => {
+  it("derives voice-over-generating, in progress and without a failure, while the retry is held", async () => {
+    const runId = register();
+    await failRetryably(runId);
+    useStub("success");
+    pauseSession(runId);
+    retryVoiceOver(runId);
+
+    expect(stateOf(runId)).toBe("voice-over-generating");
+    expect(voiceOverPhase(runId)).toMatchObject({ status: "in-progress" });
+    expect(voiceOverPhase(runId).failure).toBeUndefined();
+  });
+
+  it("derives voice-over-generating while the retry is in flight", async () => {
+    const runId = register();
+    await failRetryably(runId);
+    const stub = useStub("hang");
+    retryVoiceOver(runId);
+    await waitFor(() => stub.calls.length === 1);
+
+    expect(stateOf(runId)).toBe("voice-over-generating");
+    expect(voiceOverPhase(runId)).toMatchObject({ status: "in-progress" });
+    expect(voiceOverPhase(runId).failure).toBeUndefined();
+    stub.release();
   });
 });

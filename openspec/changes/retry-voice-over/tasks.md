@@ -43,22 +43,22 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 3. Backend: same script, same provider, nothing deleted (TDD; design Decisions 4-6)
 
-- [ ] 3.1 Write a failing test: the stub receives, on the retry, text byte-identical to the stored script and to the first attempt's text; the stored script, title and language are unchanged.
-- [ ] 3.2 Write a failing test: a session bound to provider A, with the registry's default set to B, is retried and the request goes to A, and the binding stays A. Write a second test: a bound id with no adapter fails as not retryable, with no request sent and no credential in the cause.
-- [ ] 3.3 Write failing tests that snapshot the project folder listing (with file hashes) and the session's `runs`, `stage_attempts` and `voice_overs` rows, then:
+- [x] 3.1 Write a failing test: the stub receives, on the retry, text byte-identical to the stored script and to the first attempt's text; the stored script, title and language are unchanged.
+- [x] 3.2 Write a failing test: a session bound to provider A, with the registry's default set to B, is retried and the request goes to A, and the binding stays A. Write a second test: a bound id with no adapter fails as not retryable, with no request sent and no credential in the cause.
+- [x] 3.3 Write failing tests that snapshot the project folder listing (with file hashes) and the session's `runs`, `stage_attempts` and `voice_overs` rows, then:
   - after a failed retry, everything earlier is unchanged except `runs.failure`;
   - after a successful retry, one MP3 is added and nothing earlier is removed.
-- [ ] 3.4 Make 3.1-3.3 pass. Expect most to pass through JOS-136's phase. Fix any gap in the phase, not in the retry service.
+- [x] 3.4 Make 3.1-3.3 pass. Expect most to pass through JOS-136's phase. Fix any gap in the phase, not in the retry service.
 
 ## 4. Backend: cycles, pause and derived state (TDD; design Decision 7)
 
-- [ ] 4.1 Write a failing test: a retried session whose next four attempts fail transiently is `failed` again after the fourth, with all eight attempts recorded across two cycles.
-- [ ] 4.2 Write failing tests for a retry during a pause:
+- [x] 4.1 Write a failing test: a retried session whose next four attempts fail transiently is `failed` again after the fourth, with all eight attempts recorded across two cycles.
+- [x] 4.2 Write failing tests for a retry during a pause:
   - it is accepted with `held: true` and sends nothing;
   - the voice-over phase has `heldCount` 1;
   - continue sends exactly one request.
-- [ ] 4.3 Write failing tests in `phase-progress.test.ts`: an accepted retry derives `voice-over-generating` while scheduled, held, or in flight, with the voice-over phase `in-progress` and no `failure`. JOS-168's existing in-flight tests must still pass.
-- [ ] 4.4 Make `voiceAttemptInFlight` count a `scheduled` or `in-flight` `voice-over` attempt, since `startNewCycle` clears the failure (design Decision 7). Confirm the voice-over launcher's `heldWork` already counts a held manual attempt, with a test. Make 4.1-4.3 pass.
+- [x] 4.3 Write failing tests (in `voice-over-retry.test.ts`, through `toSnapshot`, since `phase-progress.test.ts` only covers the pure derivation functions): an accepted retry derives `voice-over-generating` while scheduled, held, or in flight, with the voice-over phase `in-progress` and no `failure`. JOS-168's existing in-flight tests must still pass.
+- [x] 4.4 Make `voiceAttemptInFlight` count a `scheduled` or `in-flight` `voice-over` attempt, since `startNewCycle` clears the failure (design Decision 7). Confirm the voice-over launcher's `heldWork` already counts a held manual attempt, with a test. Make 4.1-4.3 pass.
 
 ## 5. Backend: route (TDD; design Decision 1)
 
