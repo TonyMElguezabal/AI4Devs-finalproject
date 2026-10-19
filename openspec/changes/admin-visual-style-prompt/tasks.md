@@ -81,7 +81,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 - [ ] 10.1 Save the example "Warry" prompt on `/admin`, submit a 5-sentence test script, and confirm each generated `IMAGE` instruction repeats the Warry description (acceptance criterion in the ticket). Record the instructions in `reports/`.
 - [ ] 10.2 Run the same script twice: (a) style prompt only; (b) the same, with a short fixed prefix (≤ 60 words, for example "clean 2D cartoon, bold outlines, white background") added by hand to each Fal `prompt` in a scratch script outside the app. Save both image sets in `reports/`, record which keeps the character more consistent, and record the decision. Only if (b) is clearly better, note the follow-up ticket for an admin prefix field. Do not change `imageProvider.ts`.
-- [ ] 10.3 Confirm JOS-202 exists and is linked as the follow-up for sending the reference image to the image provider.
+- [x] 10.3 Confirmed on Linear: JOS-202 "Use the admin reference image in image generation" exists and JOS-201 blocks it.
 
 ## 11. Update Technical Documentation (MANDATORY)
 
