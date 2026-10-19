@@ -7,8 +7,8 @@
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm the base still matches design.md § Context: `loadCredential` in `backend/src/config/credentials.ts`, all routes in the `routes.ts` plugin, `App.tsx` with no router. Check whether JOS-194's static frontend serving, JOS-171 or JOS-174 has merged; if so, update design.md (Decisions 3, 5 and 7) first.
-- [ ] 1.2 PRD draft (next free version after JOS-174's and JOS-171's; §2.1, §2.3, §12.3, §16) written and marked as awaiting the product owner's approval, before any code.
+- [x] 1.1 `git fetch`. Confirm the base still matches design.md § Context: `loadCredential` in `backend/src/config/credentials.ts`, all routes in the `routes.ts` plugin, `App.tsx` with no router. Check whether JOS-194's static frontend serving, JOS-171 or JOS-174 has merged; if so, update design.md (Decisions 3, 5 and 7) first.
+- [x] 1.2 PRD draft (next free version after JOS-174's and JOS-171's; §2.1, §2.3, §12.3, §16) written and marked as awaiting the product owner's approval, before any code.
 
 ## 2. Backend: password reading and the gate (TDD; design Decisions 1 and 3)
 
