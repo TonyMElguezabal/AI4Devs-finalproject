@@ -387,3 +387,32 @@ describe("Derived state of an accepted retry (4.3)", () => {
     stub.release();
   });
 });
+
+describe("An accepted retry is published to live subscribers (4.5)", () => {
+  const lastVoiceOverPhase = (runId: string) => published.filter((snapshot) => snapshot.session.sessionId === runId).at(-1)?.session.phases?.find((phase) => phase.phase === "voice-over");
+
+  it("publishes the voice-over in progress, with one held unit and no failure, when the retry is held", async () => {
+    const runId = register();
+    await failRetryably(runId);
+    useStub("success");
+    pauseSession(runId);
+    published.length = 0;
+
+    expect(retryVoiceOver(runId)).toEqual({ ok: true, held: true });
+
+    expect(lastVoiceOverPhase(runId)).toMatchObject({ status: "in-progress", heldCount: 1 });
+    expect(lastVoiceOverPhase(runId)).not.toHaveProperty("failure");
+  });
+
+  it("publishes the voice-over in progress before the command returns when the retry is sent", async () => {
+    const runId = register();
+    await failRetryably(runId);
+    useStub("hang");
+    published.length = 0;
+
+    expect(retryVoiceOver(runId)).toEqual({ ok: true, held: false });
+
+    expect(lastVoiceOverPhase(runId)?.status).toBe("in-progress");
+    expect(lastVoiceOverPhase(runId)).not.toHaveProperty("failure");
+  });
+});

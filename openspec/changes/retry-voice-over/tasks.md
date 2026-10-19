@@ -60,6 +60,8 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 - [x] 4.3 Write failing tests (in `voice-over-retry.test.ts`, through `toSnapshot`, since `phase-progress.test.ts` only covers the pure derivation functions): an accepted retry derives `voice-over-generating` while scheduled, held, or in flight, with the voice-over phase `in-progress` and no `failure`. JOS-168's existing in-flight tests must still pass.
 - [x] 4.4 Make `voiceAttemptInFlight` count a `scheduled` or `in-flight` `voice-over` attempt, since `startNewCycle` clears the failure (design Decision 7). Confirm the voice-over launcher's `heldWork` already counts a held manual attempt, with a test. Make 4.1-4.3 pass.
 
+- [x] 4.5 Write failing tests that an accepted retry is published to live subscribers before the command returns, held and sent, with the voice-over phase `in-progress` and no `failure`. Publish the state from `retryVoiceOver` after the retry is released, then make them pass.
+
 ## 5. Backend: route (TDD; design Decision 1)
 
 - [x] 5.1 Write failing tests in `session-api-surface.test.ts` for `POST /sessions/:sessionId/voice-over/retry`:
@@ -113,11 +115,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Decide applicability: a new button and flow on the session page, so it applies.
-- [ ] 10.2 Run backend (scratch store, stub voice failing first) and frontend. Open the failed session: the Voice-over phase section shows `Failed`, the cause and `Retry voice-over`.
-- [ ] 10.3 Set the stub to succeed and click `Retry voice-over`. The section moves to `In progress`, then `Complete`, without a reload, and the button disappears.
-- [ ] 10.4 On a second failed session, pause, then retry. The section shows `In progress` with `Waiting for you to continue (1 held)`. Continue, and it completes.
-- [ ] 10.5 Restore the environment and save `openspec/changes/retry-voice-over/reports/YYYY-MM-DD-step-10-e2e.md`.
+- [x] 10.1 Decide applicability: a new button and flow on the session page, so it applies.
+- [x] 10.2 Run backend (scratch store, stub voice failing first) and frontend. Open the failed session: the Voice-over phase section shows `Failed`, the cause and `Retry voice-over`.
+- [x] 10.3 Set the stub to succeed and click `Retry voice-over`. The section moves to `In progress`, then `Complete`, without a reload, and the button disappears.
+- [x] 10.4 On a second failed session, pause, then retry. The section shows `In progress` with `Waiting for you to continue (1 held)`. Continue, and it completes.
+- [x] 10.5 Restore the environment and save `openspec/changes/retry-voice-over/reports/YYYY-MM-DD-step-10-e2e.md`.
 
 ## 11. Update Technical Documentation (MANDATORY)
 
