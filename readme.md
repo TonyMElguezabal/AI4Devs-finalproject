@@ -154,6 +154,22 @@ Vid4You se distribuye como un ejecutable por plataforma que sirve el frontend y 
 
 **Copia de seguridad y vuelta atrás.** Los datos de usuario están en la carpeta de datos (SQLite y proyectos); copiarla entera con la aplicación cerrada es una copia de seguridad completa. Para volver a una versión anterior, cerrar la aplicación, restaurar la copia de la carpeta de datos y volver a instalar el ejecutable o la rama anterior. No se ha verificado que una versión antigua del programa pueda abrir una base de datos migrada por una versión más nueva; por eso la copia previa a cada actualización es necesaria.
 
+### **1.6. Limitaciones conocidas**
+
+Estado del MVP a 20-oct-2026. Ninguna impide generar un video; todas están registradas para tratarlas después.
+
+| Limitación | Efecto | Seguimiento |
+|---|---|---|
+| Un clip cuyo intento agota el tiempo se vuelve a pedir al proveedor, y la tarea anterior sigue en marcha y se factura. | Una escena puede costar varias tareas de video (el 14-oct-2026, los clips de 14 s agotaron el tiempo en 8 de 8 intentos). Una sesión corta con clips de 6 s y 11 s sí terminó. | JOS-204 |
+| Los tiempos máximos por fase (voz y razonamiento 600 s, video 1200 s) son provisionales: solo se midió una sesión de 2 escenas con la compilación actual. | Una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips) puede agotar el tiempo. | JOS-209 |
+| Los límites reales de peticiones por etapa de RunningHub y ElevenLabs, y los casos límite de la división por cláusulas (§6.1), no están verificados. | El límite de peticiones simultáneas usa los valores de `config/providers.ts`, sin contrastar con los límites reales. | JOS-188, JOS-189 (posteriores al MVP) |
+| La comprobación del guion muestra un único mensaje genérico para cuatro causas distintas (falta `OPENAI_KEY`, fichero de claves ilegible, sin red hacia OpenAI, error de OpenAI). | El usuario debe revisar la tabla de la sección 1.5 para descubrir cuál es. | Aplazada por el propietario del producto |
+| El ejecutable no está firmado. | Windows (SmartScreen) y macOS (Gatekeeper) muestran una advertencia al abrirlo. | JOS-207 |
+| El ejecutable se construye con scripts de prueba de concepto y no hay flujo de publicación (ver 2.4). | No hay versiones publicadas ni actualización automática. | JOS-205, JOS-206 |
+| No se ha verificado que una versión anterior abra una base de datos migrada por una posterior. | Volver a una versión anterior exige restaurar la copia de la carpeta de datos (ver arriba). | JOS-210 |
+| No hay herramienta de lint ni análisis estático, y las pruebas de contrato con proveedores reales no se ejecutan en CI (ver 2.6). | Los fallos de estilo y de tipos laxos (`any`) no se detectan automáticamente. | JOS-208 |
+| Algunas revisiones humanas de los cambios archivados (por ejemplo, la 17.7 de `define-provider-configuration`) se aceptaron como excepción y no se realizaron. | Esos cambios tienen evidencia de pruebas automáticas pero no revisión humana. | JOS-203, M7 |
+
 ---
 
 ## 2. Arquitectura del Sistema
@@ -244,7 +260,7 @@ Los ficheros `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` y `codex.md` apuntan a los es
 - **Integración continua**: `.github/workflows/ci.yml` ejecuta, en cada PR hacia `feature/entrega-2-JAME` o `main` y en cada push a `main` o a la rama de integración, el chequeo de tipos y las pruebas de backend (con ffmpeg instalado) y de frontend, sobre Node 24. Las pruebas nunca usan una base de datos ni un proveedor reales.
 - **Telemetría**: un relé (`infra/telemetry-relay/`, despliegue en `.github/workflows/telemetry-relay.yml`) recibe los datos opt-in, los filtra y los reenvía a Grafana Cloud.
 
-**Limitaciones conocidas del despliegue**
+**Limitaciones conocidas del despliegue** (la lista completa está en la sección 1.6)
 
 - El ejecutable empaquetado se construyó con scripts de prueba de concepto archivados (`openspec/changes/archive/2026-10-19-define-production-deployment/poc/local/`), no con un proceso integrado en el repositorio. El flujo de publicación automática (construir todas las plataformas por árbol de código, publicar como pre-release en UAT y promover los mismos ficheros en `main`) está descrito en ese mismo directorio (`poc/workflows/release.yml`) como boceto y **no está activado** en `.github/workflows/`.
 - El ejecutable no está firmado.
