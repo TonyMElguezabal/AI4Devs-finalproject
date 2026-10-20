@@ -287,11 +287,12 @@ npm test            # vitest run
 npm run build       # solo frontend: tsc --noEmit && vite build
 ```
 
-- **Unitarias e integración (vitest)**: en la última validación completa (rama de integración `f4b6e492` más esta documentación, 20-oct-2026) pasaron 1.719 pruebas de backend (5 omitidas) y 258 de frontend, con chequeo de tipos limpio y compilación del frontend correcta. CI ejecuta lo mismo en cada PR.
+- **Unitarias e integración (vitest)**: en la última validación completa (`main` en `3d0334c9`, 20-oct-2026) pasaron 1.720 pruebas de backend (4 omitidas, las de contrato con proveedores) y 258 de frontend, con chequeo de tipos limpio y compilación del frontend correcta. CI ejecuta lo mismo en cada PR.
 - **Pruebas de contrato con proveedores reales**: existen cuatro ficheros (`backend/test/*.contract.test.ts`) que llaman a las APIs reales y solo se ejecutan con `RUN_PROVIDER_CONTRACT_TESTS=1` y claves reales; no se ejecutan en CI.
 - **Pruebas manuales de endpoints con curl y E2E en navegador (Playwright)**: las ejecuta el agente por cada cambio y deja un informe en `openspec/changes/archive/<cambio>/reports/`.
 - **Sesión real de extremo a extremo**: el 20-oct-2026 una sesión corta con los cuatro proveedores reales llegó a `final-video` con un intento por etapa, y el ejecutable de Windows generó un video completo (informes en `openspec/changes/archive/2026-10-19-raise-video-time-limit/reports/` y `…/define-production-deployment/reports/`).
-- **No ejecutado**: no hay herramienta de lint ni análisis estático configurada, y las pruebas de contrato no se ejecutan en CI.
+- **Lint y análisis estático**: no hay herramienta configurada (JOS-208). Una pasada puntual de ESLint 9 con las reglas `recommended` de typescript-eslint (20-oct-2026, sin cambios en el repositorio) dio 110 errores en el backend (68 `no-explicit-any`, 40 `no-unused-vars`, 1 `no-useless-escape`, 1 `prefer-const`; 37 de los `no-unused-vars` y 18 de los `no-explicit-any` están en pruebas) y 1 en el frontend (una variable sin usar en una prueba). Ninguna regla de seguridad falló.
+- **No ejecutado**: las pruebas de contrato no se ejecutan en CI, y el ejecutable empaquetado no tiene un script de construcción integrado (ver 1.6).
 
 La estrategia sigue TDD y los pasos obligatorios de `docs/openspec-tasks-mandatory-steps.md`.
 
@@ -471,7 +472,7 @@ flowchart LR
 La plantilla pide 3 historias principales; aquí se documentan las **8** que representan el flujo MVP completo de principio a fin (`docs/PRD.md` §5), en orden. Cada una tiene ya su change de OpenSpec con especificación completa en Given/When/Then (`openspec/changes/<slug>/specs/`); esta sección resume cada historia en el formato estándar y enlaza al detalle técnico en vez de duplicarlo. Los criterios de aceptación referencian las entidades reales de la sección 3 (`Session`, `Chunk`, `StageExecution`), no `docs/data-model.md` (contenido heredado de otro proyecto, aún sin actualizar).
 
 **Historia de Usuario 1 — Iniciar un proyecto de video**
-_Detalle técnico: [`openspec/changes/start-video-project`](../openspec/changes/start-video-project)_
+_Detalle técnico: [`openspec/changes/start-video-project`](openspec/changes/archive/2026-10-19-start-video-project)_
 
 Como usuario, quiero iniciar un proyecto con un título, un guion y un idioma, para que el sistema comience a generar mi video narrado.
 
@@ -482,7 +483,7 @@ Criterios de aceptación:
 - **Given** una sesión ya registrada, **when** se consulta su título, guion o idioma, **then** son exactamente lo enviado y no pueden modificarse después.
 
 **Historia de Usuario 2 — Generar la narración completa (voice-over)**
-_Detalle técnico: [`openspec/changes/generate-voice-over`](../openspec/changes/generate-voice-over)_
+_Detalle técnico: [`openspec/changes/generate-voice-over`](openspec/changes/archive/2026-10-19-generate-voice-over)_
 
 Como usuario, quiero que el sistema narre automáticamente mi guion completo en un único audio, para no tener que grabar ni contratar una voz.
 
@@ -493,7 +494,7 @@ Criterios de aceptación:
 - **Given** una narración ya completada, **when** llega una segunda confirmación de éxito, **then** no se crea un segundo voice-over ni se relanza ninguna fase.
 
 **Historia de Usuario 3 — Descomponer el guion en escenas**
-_Detalle técnico: [`openspec/changes/decompose-script-into-chunks`](../openspec/changes/decompose-script-into-chunks)_
+_Detalle técnico: [`openspec/changes/decompose-script-into-chunks`](openspec/changes/archive/2026-10-19-decompose-script-into-chunks)_
 
 Como usuario, quiero que el sistema divida automáticamente mi guion narrado en escenas con sus instrucciones visuales, para no tener que segmentarlo ni describir cada imagen manualmente.
 
@@ -505,7 +506,7 @@ Criterios de aceptación:
 - **Given** una oración que no cabe en las cotas de duración y no tiene frontera de cláusula, **when** se segmenta, **then** se conserva entera con una advertencia de factor de velocidad, sin que esto sea un fallo.
 
 **Historia de Usuario 4 — Generar la imagen de una escena**
-_Detalle técnico: [`openspec/changes/generate-chunk-image`](../openspec/changes/generate-chunk-image)_
+_Detalle técnico: [`openspec/changes/generate-chunk-image`](openspec/changes/archive/2026-10-19-generate-chunk-image)_
 
 Como usuario, quiero que el sistema genere automáticamente la imagen de cada escena a partir de su instrucción visual, para no tener que crear ni subir imágenes manualmente.
 
@@ -516,7 +517,7 @@ Criterios de aceptación:
 - **Given** una escena que falla en esta etapa, **when** otras escenas de la sesión siguen procesando, **then** no se ven afectadas por ese fallo.
 
 **Historia de Usuario 5 — Generar el clip de video de una escena**
-_Detalle técnico: [`openspec/changes/generate-chunk-video`](../openspec/changes/generate-chunk-video)_
+_Detalle técnico: [`openspec/changes/generate-chunk-video`](openspec/changes/archive/2026-10-19-generate-chunk-video)_
 
 Como usuario, quiero que el sistema anime automáticamente la imagen de cada escena ajustando su duración a lo narrado, para obtener un clip sincronizado sin animarlo manualmente.
 
@@ -528,7 +529,7 @@ Criterios de aceptación:
 - **Given** un clip exitoso, **when** otras escenas siguen procesando o han fallado, **then** ese clip puede descargarse individualmente.
 
 **Historia de Usuario 6 — Montar el video final**
-_Detalle técnico: [`openspec/changes/assemble-final-video`](../openspec/changes/assemble-final-video)_
+_Detalle técnico: [`openspec/changes/assemble-final-video`](openspec/changes/archive/2026-10-19-assemble-final-video)_
 
 Como usuario, quiero que el sistema una automáticamente todas mis escenas completas con la narración en un único MP4, para obtener un video listo para publicar sin editarlo manualmente.
 
@@ -541,7 +542,7 @@ Criterios de aceptación:
 - **Given** una sesión en `final-video`, **when** se consulta, **then** el MP4 final está disponible para descarga (el MP3, las marcas de tiempo y los textos generados nunca lo están).
 
 **Historia de Usuario 7 — Consultar el progreso de una sesión**
-_Detalle técnico: [`openspec/changes/consult-session`](../openspec/changes/consult-session)_
+_Detalle técnico: [`openspec/changes/consult-session`](openspec/changes/archive/2026-10-19-consult-session)_
 
 Como usuario, quiero consultar el progreso, los resultados y los errores de mi sesión por su identificador, para hacer seguimiento de mi video sin necesitar una cuenta.
 
@@ -553,7 +554,7 @@ Criterios de aceptación:
 - **Given** una página de sesión abierta, **when** cambia el estado de una fase o escena, **then** se refleja en vivo sin recargar la página.
 
 **Historia de Usuario 8 — Reintentar automáticamente ante fallos transitorios**
-_Detalle técnico: [`openspec/changes/bounded-retry-policy`](../openspec/changes/bounded-retry-policy) y [`openspec/changes/stage-execution-time-limit`](../openspec/changes/stage-execution-time-limit)_
+_Detalle técnico: [`openspec/changes/bounded-retry-policy`](openspec/changes/archive/2026-10-19-bounded-retry-policy) y [`openspec/changes/stage-execution-time-limit`](openspec/changes/archive/2026-10-05-stage-execution-time-limit)_
 
 Como usuario, quiero que el sistema reintente automáticamente una etapa que falla por una causa temporal, para no perder mi progreso ante errores pasajeros de los proveedores.
 
