@@ -29,7 +29,7 @@ Create environment files for both backend and frontend:
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=LTIdbUser
-DB_PASSWORD=D1ymf8wyQEGthFR1E9xhCq
+DB_PASSWORD=<your-db-password>
 DB_NAME=LTIdb
 
 # Application Configuration
@@ -37,7 +37,7 @@ PORT=3000
 NODE_ENV=development
 
 # Prisma Database URL
-DATABASE_URL="postgresql://LTIdbUser:D1ymf8wyQEGthFR1E9xhCq@localhost:5432/LTIdb"
+DATABASE_URL="postgresql://LTIdbUser:<your-db-password>@localhost:5432/LTIdb"
 ```
 
 **Frontend Environment** (`frontend/.env`):
@@ -62,7 +62,7 @@ The PostgreSQL database will be available at:
 - **Port**: `5432`
 - **Database**: `LTIdb`
 - **Username**: `LTIdbUser`
-- **Password**: `D1ymf8wyQEGthFR1E9xhCq`
+- **Password**: `<your-db-password>`
 
 ### 4. Backend Setup
 
