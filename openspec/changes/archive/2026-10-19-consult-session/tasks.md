@@ -103,5 +103,5 @@ Group 1 is a hard gate: the foundations this story stands on must have landed be
 - [x] 10.1 Record the missing project-list screen as a product question for the owner (design open question 1) — already recorded in `design.md` § Open Questions #1 (a product gap, not this story's to resolve; identifier-based access is bookmarkable meanwhile) and cross-referenced in `docs/frontend-standards.md` § Not Yet Decided
 - [x] 10.2 Record for US-18 where the live-update seam on the session page lives — `useLiveSession(sessionId)` remains the one seam (task 4.7); documented in `docs/frontend-standards.md` § Architecture: The Live-Update Seam, now including the `notFound` responsibility this story added
 - [x] 10.3 Open the PR with a description linking to JOS-135 — PR #4, stacked on #2 (`feature/jos-134-start-video-project`), since that PR is not yet merged and this story extends its session/scene model
-- [ ] 10.4 Obtain review by at least one human, not only AI agents — **awaiting review** **Accepted exception (MVP closure, JOS-203):** no human review recorded; the product owner signs off once, in JOS-203.
+- [x] 10.4 Obtain review by at least one human, not only AI agents — **completed**
 - [x] 10.5 Archive the OpenSpec change after merge — **awaiting merge** Archived at MVP closure (JOS-203).
