@@ -1493,8 +1493,7 @@ function settleImageInFlight(): SettleSummary {
     const req = getProviderRequest(requestId);
     if (req) {
       const remainingMs = Math.max(0, new Date(req.sentAt).getTime() + req.latencyMs - Date.now());
-      const timer = setTimeout(() => handleProviderResult(requestId), remainingMs);
-      timer.unref();
+      provider.deliverWhenReady(requestId, remainingMs, handleProviderResult);
     }
     stillPending++;
   }
