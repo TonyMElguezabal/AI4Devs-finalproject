@@ -57,35 +57,102 @@ Vid4You es una aplicación web que convierte un guion de texto en un video narra
 - Descarga parcial de resultados (imágenes y clips de escenas individuales) durante el procesamiento, y descarga del video final al completarse.
 - Reintentos automáticos (hasta 3 por etapa) y reintento manual ante fallos.
 - Corrección del prompt visual (imagen o video) de una escena que haya fallado, sin alterar el guion ni el orden narrativo.
-- Persistencia de sesiones, estados y resultados, incluso tras reinicios del sistema.
+- Persistencia de sesiones, estados y resultados, incluso tras reinicios del sistema: el trabajo en curso se retoma solo al volver a arrancar.
+- Ajuste manual de la pausa que sigue a una escena y reconstrucción del video final, que conserva las versiones anteriores.
+- Aplicación local para macOS y Windows (un ejecutable que abre el navegador), con telemetría opcional y desactivada por defecto.
 
 ### **1.3. Diseño y experiencia de usuario:**
 
-_Pendiente. Aún no existen mockups, wireframes ni capturas de la interfaz, ya que el frontend todavía no se ha implementado. Esta sección se completará con imágenes y/o un videotutorial de la experiencia de usuario una vez el frontend esté definido y construido. (TBD mockups after frontend)_
+La interfaz es una aplicación web de una sola página (React) que se abre en el navegador, en `http://localhost:5173` en desarrollo y en `http://127.0.0.1:3100` en la aplicación empaquetada. El flujo de usuario es:
+
+1. **Alta de sesión**: el usuario escribe un título, pega el guion y elige el idioma (inglés o español). Antes de crear la sesión, el guion pasa una comprobación de contenido (moderación de OpenAI); si no pasa, se rechaza y el formulario conserva el texto para editarlo.
+2. **Página de sesión**: muestra el título, el guion, el estado de la sesión y el avance por fase (voz, descomposición, escenas, montaje) y por escena, con su proveedor, número de intentos, errores legibles y resultados disponibles. Se actualiza en vivo sin recargar (Server-Sent Events, ADR 0003).
+3. **Acciones disponibles**: pausar y continuar toda la sesión, reintentar la fase o escena que falló, corregir solo la instrucción `IMAGE` o `VIDEO` de una escena fallida, descargar la imagen o el clip de una escena durante el proceso, ajustar la pausa que sigue a una escena y reconstruir el video final, y descargar el MP4 final.
+4. **Privacidad**: en el primer arranque se pregunta, con tres casillas desmarcadas, si se activan los informes de errores, el conteo de uso de proveedores y el conteo de uso anónimo. Todo está desactivado por defecto (`PRIVACY.md`).
+
+Las capturas de pantalla no están incluidas en este fichero; los informes de verificación en navegador de cada cambio (con capturas) están en `openspec/changes/archive/*/reports/`.
 
 ### **1.4. Instrucciones de instalación:**
 
-_Borrador — pendiente de actualizar cuando se cierre la decisión de stack (backend y frontend) y de persistencia del proyecto._
+**Requisitos previos**
+
+- Node.js **24 o superior** (el backend ejecuta TypeScript de forma nativa y usa `node:sqlite`; CI usa Node 24).
+- `ffmpeg` y `ffprobe` accesibles. El backend los busca, por este orden, en las variables `FFMPEG_PATH` / `FFPROBE_PATH`, en `/opt/homebrew/bin` y en el `PATH`. En macOS: `brew install ffmpeg`; en Windows o Linux, instalarlos y añadirlos al `PATH`.
+- Claves de API de los cuatro proveedores (ver "Credenciales" más abajo). Sin la clave de OpenAI no se puede crear ninguna sesión, porque la comprobación de contenido del guion la necesita.
+
+**Instalación y arranque en desarrollo**
 
 ```bash
-# 1. Clonar el repositorio
-git clone <URL_DEL_REPOSITORIO>
+# 1. Clonar el repositorio y entrar en la rama de integración
+git clone https://github.com/TonyMElguezabal/AI4Devs-finalproject.git
 cd AI4Devs-finalproject
+git checkout feature/entrega-2-JAME
 
-# 2. Instalar dependencias
-# TBD — comando exacto pendiente de la decisión de stack (backend y frontend)
+# 2. Backend (API en http://127.0.0.1:3100)
+cd backend
+npm ci
+# Crear backend/.secrets.json con las credenciales (ver "Credenciales")
+npm start
 
-# 3. Configurar variables de entorno
-# Crear un archivo .env local (no versionado) con, como mínimo, las credenciales de los
-# proveedores de IA usados por cada etapa (razonamiento, voz, alineación, imagen y video).
-# TBD — nombres exactos de las variables, pendientes de la decisión de stack
-
-# 4. Base de datos (si aplica)
-# TBD — pendiente de la decisión de persistencia
-
-# 5. Arrancar el proyecto
-# TBD — comando de arranque pendiente de la decisión de stack
+# 3. Frontend (otra terminal, http://localhost:5173)
+cd frontend
+npm ci
+npm run dev
 ```
+
+Abrir `http://localhost:5173`. La documentación interactiva de la API está en `http://127.0.0.1:3100/docs` (solo en desarrollo) y la comprobación de salud en `http://127.0.0.1:3100/health`.
+
+**Credenciales**
+
+Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en el repositorio, que ya lo ignora). Los nombres son:
+
+```json
+{
+  "OPENAI_KEY": "…",
+  "FAL_API_KEY": "…",
+  "RUNNINGHUB_API_KEY": "…",
+  "ELEVENLABS_KEY": "…"
+}
+```
+
+- En desarrollo el fichero es `backend/.secrets.json`.
+- En la aplicación empaquetada es `.secrets.json` dentro de la carpeta de datos del usuario (ver más abajo).
+- En Windows, comprobar que el fichero se llama exactamente `.secrets.json` (el Bloc de notas puede guardarlo como `.secrets.json.txt`) y que está en UTF-8 sin BOM; en caso contrario las claves no se leen y la creación de sesiones falla con el mensaje "The content check is temporarily unavailable".
+
+**Variables de entorno**
+
+| Variable | Valor por defecto | Para qué sirve |
+|---|---|---|
+| `PORT` | `3100` | Puerto del backend (solo escucha en `127.0.0.1`). |
+| `DB_PATH` | `data/skeleton.sqlite` | Fichero SQLite (relativo a `backend/`). |
+| `PROJECTS_ROOT` | `data/projects` | Carpeta donde se guardan las carpetas de proyecto (guion, MP3, imágenes, clips, MP4). |
+| `FFMPEG_PATH`, `FFPROBE_PATH` | resolución automática | Ruta a `ffmpeg` y `ffprobe`. |
+| `CORS_ALLOWED_ORIGINS` | vacío | Orígenes adicionales permitidos (lista separada por comas). Por defecto solo el servidor Vite y el propio backend. |
+| `STAGE_CONCURRENCY_LIMIT` | límites de `config/providers.ts` | Sustituye el límite de peticiones simultáneas de la etapa de imagen (solo pruebas manuales). |
+| `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | 2 y 30 | Acortan la espera entre reintentos para pruebas manuales. |
+| `BODY_LIMIT_BYTES` | 50 MiB | Tamaño máximo del cuerpo de una petición. |
+| `ALLOW_TEST_ENDPOINTS`, `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `VOICE_STUB_DELAY_MS` | desactivadas | Solo para pruebas: activan endpoints de prueba y proveedores simulados. La aplicación empaquetada las ignora. |
+
+**Datos y reinicio**
+
+Todo se guarda en local: la base de datos SQLite y las carpetas de proyecto (en desarrollo, bajo `backend/data/`, ignorado por Git). Para empezar de cero basta con parar el backend y borrar esa carpeta. Los registros están en `data/logs/` junto a la base de datos.
+
+**Aplicación empaquetada (macOS y Windows)**
+
+Vid4You se distribuye como un ejecutable por plataforma que sirve el frontend y la API en `http://127.0.0.1:3100`, abre el navegador y guarda sus datos en la carpeta del usuario: `~/Library/Application Support/Vid4You` en macOS y `%APPDATA%\Vid4You` en Windows (ADR 0007). Un segundo arranque abre la instancia que ya está en marcha. Va junto a `ffmpeg` y `ffprobe`. El ejecutable de Windows se ha ejecutado una vez con éxito en un portátil Windows, de principio a fin con proveedores reales (`openspec/changes/archive/2026-10-19-define-production-deployment/reports/2026-10-20-step-6e-windows-run.md`). Hoy no está firmado: Windows SmartScreen o macOS Gatekeeper pedirán confirmación la primera vez. Ver "Limitaciones conocidas" en la sección 2.4 para el estado del proceso de construcción.
+
+### **1.5. Solución de problemas y recuperación**
+
+| Síntoma | Causa probable | Qué hacer |
+|---|---|---|
+| "The content check is temporarily unavailable. Submit the script again in a moment." al crear una sesión | Falta `OPENAI_KEY`, el fichero de claves no se puede leer (nombre o BOM en Windows), no hay red hacia `api.openai.com` o OpenAI respondió con error | Revisar el fichero de claves (ver arriba), la conexión y reintentar. El mensaje no distingue la causa. |
+| El navegador no abre la página en el ejecutable | Puerto 3100 ocupado por otro programa | Cerrar el otro programa o abrir `http://127.0.0.1:3100` a mano. |
+| Una fase queda en `failed` | Se agotaron los 3 reintentos automáticos o el fallo no es reintentable | Pulsar el reintento manual de esa fase o escena (abre un ciclo nuevo de hasta 3 reintentos). Lo ya generado se conserva. |
+| La sesión no avanza y está pausada | Hay una pausa de sesión | Pulsar "Continuar". Una pausa no cancela las peticiones ya enviadas. |
+| Se cerró la aplicación a mitad de una generación | — | Volver a abrirla: las sesiones, el progreso y las peticiones en vuelo se recuperan solos (`openspec/specs/restart-recovery/spec.md`). Una petición a un proveedor se espera o se registra como intento fallido y sigue la política de reintentos. |
+| El video final tiene una pausa demasiado larga o corta | Pausa original tras una escena | Ajustar la pausa de esa escena y reconstruir el video final; los intentos anteriores se conservan como versiones. |
+
+**Copia de seguridad y vuelta atrás.** Los datos de usuario están en la carpeta de datos (SQLite y proyectos); copiarla entera con la aplicación cerrada es una copia de seguridad completa. Para volver a una versión anterior, cerrar la aplicación, restaurar la copia de la carpeta de datos y volver a instalar el ejecutable o la rama anterior. No se ha verificado que una versión antigua del programa pueda abrir una base de datos migrada por una versión más nueva; por eso la copia previa a cada actualización es necesaria.
 
 ---
 
@@ -93,108 +160,145 @@ cd AI4Devs-finalproject
 
 ### **2.1. Diagrama de arquitectura:**
 
-> El stack concreto (backend, frontend, base de datos) todavía no está decidido — está pendiente de los spikes `define-backend-stack`, `define-frontend-stack` y `define-persistence` en `openspec/changes/`. Por eso el diagrama y la justificación describen el **patrón** de arquitectura y los componentes por su responsabilidad, no la tecnología concreta.
+El stack está decidido y documentado en los ADR de `docs/adr/`: backend en TypeScript sobre Node.js con Fastify y Zod (ADR 0001), persistencia en SQLite embebido mediante `node:sqlite` (ADR 0002), actualizaciones en vivo con Server-Sent Events (ADR 0003), frontend en React 18 con Vite (ADR 0004), montaje de video con ffmpeg (ADR 0005) y distribución como aplicación local empaquetada (ADR 0007).
 
 ```mermaid
 flowchart TD
     Usuario(["Usuario (navegador)"])
 
-    subgraph Externos["Externos"]
-        ProvRazonamiento["Proveedor de Razonamiento"]
-        ProvVoz["Proveedor de Voz"]
-        ProvAlignment["Proveedor de Alignment"]
-        ProvImagen["Proveedor de Imagen"]
-        ProvVideo["Proveedor de Video"]
+    subgraph Externos["Proveedores de IA (nube)"]
+        ProvRazonamiento["OpenAI\nRazonamiento (gpt-6-astra)\n+ moderación del guion"]
+        ProvVoz["ElevenLabs\nVoz (eleven_multilingual_v2)"]
+        ProvAlignment["ElevenLabs\nForced Alignment"]
+        ProvImagen["Fal.ai\nImagen (flux/dev)"]
+        ProvVideo["RunningHub\nVideo (Hailuo-03)"]
     end
 
-    subgraph Vid4You["Sistema Vid4You (host único — stack por decidir)"]
-        Frontend["Frontend (SPA — stack TBD)"]
-        Backend["Backend / Orquestador de etapas\n(API + máquina de estados — stack TBD)"]
-        DB[("Base de datos / persistencia\n(motor TBD, ver define-persistence)")]
-        Files[("Almacenamiento de archivos\nguion, MP3, marcas de tiempo,\nimágenes, clips, MP4 final")]
+    subgraph Vid4You["Aplicación Vid4You (equipo del usuario, 127.0.0.1)"]
+        Frontend["Frontend (React 18 + Vite)"]
+        Backend["Backend / orquestador de etapas\n(Fastify + Zod, máquina de estados,\nreintentos, límite por etapa)"]
+        DB[("SQLite (node:sqlite)\nsesiones, escenas, intentos")]
+        Files[("Carpetas de proyecto\nguion, MP3, marcas de tiempo,\nimágenes, clips, MP4 final")]
+        FFmpeg["ffmpeg / ffprobe\n(montaje y medición de audio)"]
     end
 
-    Usuario -->|HTTPS| Frontend
-    Frontend <-->|API + actualizaciones en vivo| Backend
+    Usuario -->|HTTP local| Frontend
+    Frontend <-->|API REST + SSE| Backend
     Backend --> DB
     Backend --> Files
-    Backend --> ProvRazonamiento
-    Backend --> ProvVoz
-    Backend --> ProvAlignment
-    Backend --> ProvImagen
-    Backend --> ProvVideo
+    Backend --> FFmpeg
+    Backend -->|HTTPS| ProvRazonamiento
+    Backend -->|HTTPS| ProvVoz
+    Backend -->|HTTPS| ProvAlignment
+    Backend -->|HTTPS| ProvImagen
+    Backend -->|HTTPS| ProvVideo
 ```
 
-**Patrón.** Arquitectura cliente-servidor en capas, con el backend actuando como orquestador de un pipeline de etapas con estado (una máquina de estados por sesión y por escena). Se elige por los propios requisitos funcionales del PRD: cada etapa tiene su propio presupuesto de reintentos y su límite de concurrencia compartido entre sesiones (`docs/PRD.md` §10.1, §11), una pausa afecta a la sesión completa deteniendo el lanzamiento de nuevas etapas (§9), y el progreso se refleja en vivo sin recargar la página (§8.3). Centralizar esa lógica en un backend orquestador es lo que permite cumplir esas reglas de forma consistente.
+**Patrón.** Arquitectura cliente-servidor en capas, con el backend actuando como orquestador de un pipeline de etapas con estado (una máquina de estados por sesión y por escena). Se elige por los propios requisitos del PRD: cada etapa tiene su propio presupuesto de reintentos y su límite de concurrencia compartido entre sesiones, y el sistema debe sobrevivir a reinicios sin perder trabajo ni enviar dos veces una petición.
 
-**Beneficios.** Separación clara de responsabilidades (interfaz / orquestación y reglas de negocio / persistencia y archivos / proveedores externos); encaja de forma natural con la máquina de estados de sesión y chunk ya definida en el PRD (§8); es una arquitectura simple de operar para una instalación de un único host, como es este MVP.
+**Beneficios.** Separación clara de responsabilidades (interfaz / orquestación y reglas de negocio / persistencia y archivos / proveedores externos); encaja con la máquina de estados de sesión y escena del PRD (§8); es simple de operar en un único equipo, sin cola de mensajes ni servidor de base de datos.
 
-**Sacrificios.** Un solo backend concentra tanto la API como la orquestación de etapas (no hay separación en workers o colas de trabajo independientes); no está pensada para multiusuario ni para alta concurrencia entre sesiones de distintos usuarios.
+**Sacrificios.** Un solo proceso concentra la API y la orquestación (no hay workers ni colas independientes); está pensado para un único usuario local, no para multiusuario ni alta concurrencia.
 
-**Evolución si creciera el uso** (mención orientativa, sin comprometerse a implementarla ahora): si el volumen de sesiones o escenas concurrentes creciera, el orquestador de etapas podría separarse del servidor de API en workers o colas de trabajo independientes, escalables por separado.
+**Evolución si creciera el uso** (orientativa, sin compromiso): separar el orquestador del servidor de API en workers o colas de trabajo, y cambiar SQLite por un servidor de base de datos.
 
 ### **2.2. Descripción de componentes principales:**
 
-| Componente | Responsabilidad |
-|---|---|
-| Frontend (SPA, stack por decidir) | Interfaz de usuario: alta de sesión, progreso por fase y por escena en vivo, descargas parciales y del video final, formularios de corrección de prompt ante fallo (`docs/PRD.md` §8.3, §10.3). |
-| Backend / orquestador de etapas (stack por decidir) | Expone la API, aplica la máquina de estados de sesión y chunk, la política de reintentos y el límite de concurrencia por etapa, gestiona la pausa/continuación, y llama a los proveedores de IA (§8–§11). |
-| Base de datos / persistencia (motor por decidir, ver `define-persistence`) | Persistencia de sesiones, chunks, estados y referencias a resultados, resiliente a reinicios (§12.1). |
-| Almacenamiento de archivos | Guion, voice-over completo (MP3), marcas de tiempo, imágenes y clips por escena, y MP4 final, organizados por carpeta de proyecto (§12.2). |
-| Integraciones con proveedores de IA (externos) | Un proveedor por etapa — razonamiento, voz, alignment, imagen y video — hardcodeado en el MVP, con credenciales vía entorno o fichero local de secretos (§11). |
+| Componente | Responsabilidad | Ubicación |
+|---|---|---|
+| Frontend (React 18 + TypeScript + Vite) | Alta de sesión, progreso por fase y por escena en vivo (`EventSource`), pausa y continuación, reintentos y corrección de instrucciones, descargas parciales y del video final, diálogo de privacidad. | `frontend/` |
+| Backend / orquestador (Fastify + Zod) | Expone la API REST y el flujo SSE; aplica la máquina de estados, la política de reintentos (1 intento + 3 automáticos por ciclo), el límite de peticiones simultáneas por etapa, la pausa de sesión y la recuperación tras reinicios; llama a los proveedores. | `backend/src/` |
+| Persistencia (SQLite) | Sesiones (`runs`), escenas, intentos de etapa, resultados, marcas de tiempo, ediciones de pausa, versiones del video final y ajustes de telemetría. Las migraciones se registran en `schema_migrations`. | `backend/src/db.ts` |
+| Carpetas de proyecto | Guion, voice-over (MP3), marcas de tiempo, imágenes, clips y MP4 final por proyecto; nunca se sobrescriben ni caducan. | `PROJECTS_ROOT` |
+| Montaje (ffmpeg) | Ajusta la velocidad de cada clip a su intervalo, los une en orden ascendente y añade la narración como única pista de audio; salida 1920×1080 a 30 fps, H.264. | `backend/src/ffmpegAssemblyTool.ts` |
+| Proveedores de IA (externos) | Un proveedor por etapa, fijado en el código (`backend/src/config/providers.ts`); credenciales por entorno o `.secrets.json`. | PRD §11.3 |
+| Telemetría (opcional) | Informes de errores y conteos, solo si el usuario los activa; se envían por HTTPS a un relé del proyecto. | `backend/src/telemetry/`, `infra/telemetry-relay/` |
 
 ### **2.3. Descripción de alto nivel del proyecto y estructura de ficheros**
 
-Estructura **actual** del repositorio:
-
 ```
 AI4Devs-finalproject/
-├── docs/            # PRD, estándares (backend/frontend/documentación), spec de API y modelo de datos
-├── ai-specs/        # Fuente canónica de skills y agentes reutilizables entre herramientas de IA
-├── openspec/        # Propuestas, specs y cambios gestionados con OpenSpec (spec-driven development)
-├── packages/
-│   └── specboot/    # Tooling de arranque de OpenSpec para este y otros proyectos
-├── AGENTS.md, CLAUDE.md, GEMINI.md, codex.md   # Symlinks → docs/base-standards.md
+├── backend/          # API Fastify, orquestador, proveedores, SQLite, pruebas (vitest)
+│   ├── src/          #   código (TypeScript sin compilar, ejecutado por Node)
+│   ├── src/config/   #   proveedores, límites, credenciales, ffmpeg
+│   ├── src/retry/    #   política de reintentos, planificador, límite de tiempo por intento
+│   ├── src/telemetry/#   telemetría opt-in y aviso de nueva versión
+│   └── test/         #   pruebas unitarias y de integración
+├── frontend/         # SPA React + Vite y sus pruebas
+├── docs/             # PRD (y versiones anteriores), ADR, spec de API, modelo de datos, estándares
+├── openspec/         # Specs vigentes (specs/) y cambios archivados con sus informes (changes/archive/)
+├── infra/            # Relé de telemetría y paneles de Grafana
+├── packages/specboot # Utilidad de arranque de OpenSpec
+├── ai-specs/         # Skills y agentes reutilizables (fuente canónica)
+├── .github/workflows # CI (typecheck y pruebas) y despliegue del relé de telemetría
+├── PRIVACY.md        # Política de privacidad de la telemetría
 └── readme.md
 ```
 
-Estructura **planeada**, aún no creada: carpetas `backend/` y `frontend/` en la raíz, cuyo contenido y convenciones concretas se fijarán al cerrar los spikes `define-backend-stack` y `define-frontend-stack`. En ese momento se reescribirán `docs/backend-standards.md` y `docs/frontend-standards.md` (hoy documentan el stack de un proyecto anterior, no aplicable a Vid4You) para que describan la estructura interna real de cada carpeta.
+Los ficheros `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` y `codex.md` apuntan a los estándares del proyecto para las distintas herramientas de IA.
 
 ### **2.4. Infraestructura y despliegue**
 
-> Borrador — varias piezas dependen de decisiones aún no tomadas (`define-backend-stack`, `define-frontend-stack`, `define-persistence`). No se ha decidido ningún pipeline de CI/CD; el despliegue actual, si lo hay, es manual.
+- **Dónde se ejecuta**: en el equipo del usuario, escuchando solo en `127.0.0.1`; llama a los proveedores de IA en la nube. No hay servidor central ni cuentas (ADR 0007).
+- **Entornos**: UAT y producción son canales de publicación, no servidores. La rama `feature/entrega-2-JAME` es el canal UAT y `main` el de producción.
+- **Integración continua**: `.github/workflows/ci.yml` ejecuta, en cada PR hacia `feature/entrega-2-JAME` o `main` y en cada push a la rama de integración, el chequeo de tipos y las pruebas de backend (con ffmpeg instalado) y de frontend, sobre Node 24. Las pruebas nunca usan una base de datos ni un proveedor reales.
+- **Telemetría**: un relé (`infra/telemetry-relay/`, despliegue en `.github/workflows/telemetry-relay.yml`) recibe los datos opt-in, los filtra y los reenvía a Grafana Cloud.
 
-- **Host**: una única instancia de servidor (por ejemplo, una EC2 o similar; el proveedor concreto está pendiente), accesible mediante una URL pública. En esta entrega no hay login: cualquiera con la URL puede acceder a la aplicación (ver §2.5, aclarado explícitamente por el propietario del producto).
-- **Variables de entorno**: gestionadas vía un fichero `.env` no versionado en el host, con al menos las credenciales de los proveedores de IA de cada etapa (`docs/PRD.md` §11). Los nombres exactos de las variables quedan pendientes de la decisión de stack.
-- **Base de datos y despliegue de la app**: pendientes de `define-persistence`, `define-backend-stack` y `define-frontend-stack`.
+**Limitaciones conocidas del despliegue**
+
+- El ejecutable empaquetado se construyó con scripts de prueba de concepto archivados (`openspec/changes/archive/2026-10-19-define-production-deployment/poc/local/`), no con un proceso integrado en el repositorio. El flujo de publicación automática (construir todas las plataformas por árbol de código, publicar como pre-release en UAT y promover los mismos ficheros en `main`) está descrito en ese mismo directorio (`poc/workflows/release.yml`) como boceto y **no está activado** en `.github/workflows/`.
+- El ejecutable no está firmado.
+- Aún no se han medido tiempos con una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips): los límites máximos por fase (voz y razonamiento 600 s, video 1200 s) son provisionales.
 
 ### **2.5. Seguridad**
 
-- **Modelo de acceso del MVP actual**: sin cuentas ni autenticación; cualquiera que tenga la URL puede acceder a la aplicación (aclaración explícita del propietario del producto). El aislamiento entre sesiones es un requisito de integridad funcional, no un control de seguridad de acceso (`docs/PRD.md` §12.3): evita que una sesión sobrescriba o muestre datos de otra, pero no protege frente a terceros.
-- **Gestión de secretos**: credenciales de los proveedores de IA gestionadas vía `.env` con permisos de fichero restringidos en el host; nunca hardcodeadas en el código (§11).
-- **Transporte**: HTTPS en el host de despliegue, con certificados gestionados vía Certbot.
-- **Evolución futura** (explícitamente fuera de esta entrega, aclarado por el propietario del producto): autenticación con Google OAuth y autorización por roles, gestionada por un rol Administrador — alineado con el rol Administrador que el PRD ya prevé como post-MVP (§2.1, §11.2: configuración, diagnóstico, cambio de proveedor y reportes en `/admin`).
-- No se añaden controles de seguridad multiusuario (RBAC granular, límites de tasa por usuario, etc.) mientras el modelo de acceso siga siendo de instalación única sin cuentas.
+- **Modelo de acceso**: aplicación local de un solo usuario, sin cuentas ni autenticación (PRD §12.3). El backend solo escucha en `127.0.0.1`.
+- **Protección frente a páginas web externas**: cualquier sitio que visite el usuario podría enviar peticiones a `127.0.0.1`. Por eso el backend rechaza toda petición cuyo `Origin` no sea el propio de la aplicación (o el servidor Vite en desarrollo) o cuyo `Host` no sea la dirección de bucle local y el puerto (`backend/src/originPolicy.ts`), incluido el flujo SSE.
+- **Secretos**: las claves de los proveedores se leen del entorno o de `.secrets.json`; el fichero está en `.gitignore`, nunca se ha confirmado en el historial de Git, y los mensajes de error nombran la credencial que falta sin mostrar su valor. En la aplicación empaquetada viven en la carpeta de datos del usuario, nunca en el ejecutable.
+- **Contenido del guion**: se comprueba con el endpoint de moderación de OpenAI antes de crear la sesión; si no se puede comprobar, se rechaza (nunca se registra un guion sin comprobar).
+- **Compilaciones empaquetadas**: no exponen endpoints de prueba ni proveedores simulados, ni `/docs`, sea cual sea el entorno del usuario.
+- **Dependencias**: `npm audit --omit=dev` no informa vulnerabilidades en backend ni en frontend (octubre de 2026).
+- **Privacidad**: la telemetría está desactivada por defecto y solo envía los datos descritos en `PRIVACY.md` (nunca guiones, narración, prompts, rutas ni claves).
+- **Evolución futura** (fuera del MVP): autenticación y roles (el rol Administrador previsto en PRD §2.1 y §11.2) si algún día se expone fuera del equipo local.
 
 ### **2.6. Tests**
 
-> En esta entrega todavía no hay código de aplicación, por lo que esto describe la **estrategia planificada**, no resultados de ejecución.
+Comandos, desde `backend/` y `frontend/`:
 
-La estrategia sigue el principio de TDD ya fijado en los estándares del proyecto (`docs/base-standards.md` §1) y los pasos obligatorios que cada tarea OpenSpec debe cumplir, detallados en `docs/openspec-tasks-mandatory-steps.md` (no se duplican aquí):
+```bash
+npm run typecheck   # tsc --noEmit
+npm test            # vitest run
+npm run build       # solo frontend: tsc --noEmit && vite build
+```
 
-- **Tests unitarios**, junto con verificación del estado de la base de datos, antes de dar una tarea por completada.
-- **Pruebas manuales de los endpoints con curl**, ejecutadas por el propio agente antes de cerrar la tarea.
-- **Tests E2E con Playwright MCP**, ejecutados por el propio agente sobre el flujo completo de usuario, cuando la tarea afecta a la interfaz.
+- **Unitarias e integración (vitest)**: en la última validación completa (rama de integración `f4b6e492` más esta documentación, 20-oct-2026) pasaron 1.719 pruebas de backend (5 omitidas) y 258 de frontend, con chequeo de tipos limpio y compilación del frontend correcta. CI ejecuta lo mismo en cada PR.
+- **Pruebas de contrato con proveedores reales**: existen cuatro ficheros (`backend/test/*.contract.test.ts`) que llaman a las APIs reales y solo se ejecutan con `RUN_PROVIDER_CONTRACT_TESTS=1` y claves reales; no se ejecutan en CI.
+- **Pruebas manuales de endpoints con curl y E2E en navegador (Playwright)**: las ejecuta el agente por cada cambio y deja un informe en `openspec/changes/archive/<cambio>/reports/`.
+- **Sesión real de extremo a extremo**: el 20-oct-2026 una sesión corta con los cuatro proveedores reales llegó a `final-video` con un intento por etapa, y el ejecutable de Windows generó un video completo (informes en `openspec/changes/archive/2026-10-19-raise-video-time-limit/reports/` y `…/define-production-deployment/reports/`).
+- **No ejecutado**: no hay herramienta de lint ni análisis estático configurada, y las pruebas de contrato no se ejecutan en CI.
 
-La ejecución real de estos tests comenzará cuando exista código de aplicación, tras cerrarse las decisiones de `define-backend-stack` y `define-frontend-stack`.
+La estrategia sigue TDD y los pasos obligatorios de `docs/openspec-tasks-mandatory-steps.md`.
 
 ---
 
 ## 3. Modelo de Datos
 
-> El motor de persistencia concreto todavía no está decidido (pendiente de `define-persistence`, ver sección 2). Por eso los tipos de dato son aproximados y los identificadores se muestran como `string` genérico; se afinarán al cerrar esa decisión. Las entidades `User` y `Role`, y el campo `Session.owner_id`, son diseño **a futuro**: el MVP no implementa autenticación ni cuentas (`docs/PRD.md` §2.1, §2.3, §12.3; ver también sección 2.5 del README), pero el modelo se prepara para soportarlo sin necesitar una migración disruptiva más adelante.
+> El motor de persistencia está decidido: SQLite embebido mediante `node:sqlite` (ADR 0002). El modelo **implementado** es el que describe `docs/data-model.md` (tablas `runs`, `scenes`, `provider_requests`, `stage_attempts`, `voice_overs`, `narration_timestamps`, `scene_results`, `scene_video_results`, `scene_pause_edits`, `final_video_builds`, `telemetry_settings` y `schema_migrations`); la tabla de equivalencias de la sección 3.0 lo relaciona con el diagrama conceptual de la Entrega 1 (3.1), que se conserva como referencia de diseño. Las entidades `User` y `Role`, y el campo `Session.owner_id`, siguen siendo diseño **a futuro**: el MVP no implementa autenticación ni cuentas (`docs/PRD.md` §2.1, §2.3, §12.3).
 
-### **3.1. Diagrama del modelo de datos:**
+### **3.0. Modelo implementado (resumen)**
+
+| Concepto del diagrama conceptual | Tabla(s) reales | Notas |
+|---|---|---|
+| `Session` | `runs` | Título, guion e idioma inmutables; estado derivado de los registros (no hay columna de estado de voz); marca de pausa; ruta del video final. |
+| `Chunk` | `scenes` | Estados: `submitted`, `image-generating`, `image-complete`, `video-generating`, `chunk-complete`, `failed`. Guarda intervalo de narración, instrucciones `IMAGE`/`VIDEO`, duración solicitada y factor de velocidad. |
+| `StageExecution` | `stage_attempts` (voz, marcas de tiempo, descomposición, montaje) y `provider_requests` (imagen y video) | Cada intento queda registrado con ciclo, secuencia dentro del ciclo, disparador (`initial`, `automatic`, `manual`), resultado y causa. La restricción única `(stageInstanceKey, cycle, sequenceInCycle)` impide pasar de 4 intentos por ciclo. |
+| Resultados | `voice_overs`, `narration_timestamps`, `scene_results`, `scene_video_results` | Confirmaciones idempotentes: una repetición de éxito no duplica ni sobrescribe. |
+| — (añadidas después) | `scene_pause_edits`, `final_video_builds` | Ajuste manual de pausas y versiones del video final (`final-video-2.mp4`, …). |
+| — | `telemetry_settings`, `schema_migrations` | Consentimiento de telemetría y migraciones aplicadas. |
+
+El estado de la sesión (`submitted`, `voice-over-generating`, `voice-over-complete`, `chunk-decomposing`, `chunks-processing`, `final-video-generating`, `final-video`, `failed`) se deriva de estos registros; la pausa es una marca adicional, no un estado (`docs/PRD.md` §8–§9).
+
+### **3.1. Diagrama conceptual del modelo de datos (Entrega 1, referencia de diseño):**
 
 ```mermaid
 erDiagram
@@ -282,49 +386,67 @@ erDiagram
 
 ## 4. Especificación de la API
 
-Vid4You no expone ninguna API propia para ser consumida por terceros. Es un sistema **consumidor**: llama a los servicios de varios proveedores de IA externos, uno por etapa (`docs/PRD.md` §11). Por eso, en lugar de una especificación OpenAPI de endpoints propios, esta sección documenta el mapeo de las integraciones salientes actualmente contempladas.
+El backend expone una API REST local (JSON, más un flujo SSE) que consume el frontend. Es la **fuente de verdad** de los contratos: `docs/api-spec.yml` (OpenAPI), que además se genera en vivo en `http://127.0.0.1:3100/docs` en desarrollo. Esta sección resume las operaciones; los esquemas de petición y respuesta están en la especificación.
 
-> Los proveedores concretos detrás de cada capacidad no están nombrados aquí: razonamiento, voz y alignment siguen abiertos, y aunque imagen y video ya están decididos con credenciales obtenidas (`openspec/changes/define-provider-configuration/`), esa propuesta todavía no cierra con un ADR publicado en el repo. El mapeo se documenta por capacidad, no por vendor, hasta que esa decisión quede registrada formalmente.
+| Método y ruta | Qué hace | Errores habituales |
+|---|---|---|
+| `GET /health` | Comprobación de salud (`{"ok":true}`). | — |
+| `GET /languages` | Idiomas admitidos del guion (`en`, `es`). | — |
+| `POST /sessions` | Crea una sesión con `title`, `script` y `language` (inmutables). El guion pasa antes la comprobación de contenido. | 422 guion marcado por la moderación; 503 comprobación no disponible. |
+| `GET /sessions/{id}` | Estado completo de la sesión: fases, escenas, intentos, errores, acciones disponibles. | 404 sesión inexistente. |
+| `GET /events` | Flujo SSE con los cambios de las sesiones abiertas (al reconectar, el cliente vuelve a pedir el estado). | — |
+| `POST /sessions/{id}/pause`, `POST /sessions/{id}/continue` | Pausa o reanuda toda la sesión; una pausa retiene lo que aún no se ha enviado. | 404 sesión inexistente. |
+| `POST /sessions/{id}/voice-over/retry`, `…/decomposition/retry`, `…/assembly/retry` | Reintento manual de la fase fallida (abre un ciclo nuevo). | 404, 409 si la fase no está fallida. |
+| `POST /sessions/{id}/scenes/{sceneId}/retry` | Reintento manual de la imagen o del clip fallido de una escena. | 404, 409. |
+| `POST /sessions/{id}/scenes/{sceneId}/correct` | Corrige solo la instrucción `IMAGE` o `VIDEO` de una escena fallida y la relanza. | 404, 409. |
+| `POST /sessions/{id}/scenes/{sceneId}/pause` | Ajusta (segundos) la pausa que sigue a una escena. | 404, 409, 422 fuera de rango. |
+| `POST /sessions/{id}/final-video/rebuild` | Reconstruye el video final con las pausas ajustadas (nueva versión del fichero). Responde 202. | 404, 409. |
+| `GET /sessions/{id}/scenes/{sceneId}/image`, `…/download/{kind}` | Imagen de la escena y descarga de su imagen o clip durante el proceso. | 404, 409 (descarga de clip o imagen aún no disponible). |
+| `GET /sessions/{id}/download/final-video` | Descarga el MP4 final. | 404, 409 si aún no existe. |
+| `GET` y `PUT /telemetry/consent` | Lee o guarda el consentimiento de telemetría. | — |
+| `GET /app/update` | Indica si hay una versión nueva publicada. | — |
+| `POST /internal/provider-callback/{requestId}` | Entrada interna para resultados de proveedores. No es parte de la API pública. | — |
+
+**Reglas comunes.** Las rutas con `{id}` de otra sesión nunca devuelven datos ajenos (aislamiento entre sesiones). Los fallos devuelven un cuerpo con la causa legible; los errores de credenciales nunca incluyen el valor de la clave.
+
+### 4.1. Servicios externos consumidos
+
+La aplicación también es **cliente** de un proveedor por etapa, fijados en el código (`backend/src/config/providers.ts`, valores verificados con llamadas reales en `docs/PRD.md` §11.3 y `docs/adr/0005-provider-selection.md`):
 
 ```mermaid
 flowchart LR
     Backend["Backend / orquestador de etapas"]
 
-    subgraph Externos["Servicios externos consumidos (uno por etapa, PRD §11)"]
-        Razonamiento["Razonamiento
-capacidad ≥ Sonnet 4.6
-proveedor: pendiente"]
-        Voz["Voz
-proveedor: pendiente"]
-        Alignment["Alignment
-proveedor: pendiente"]
-        Imagen["Imagen
-proveedor: decidido
-(credenciales obtenidas)"]
-        Video["Video
-proveedor: decidido
-(credenciales obtenidas)"]
+    subgraph Externos["Servicios externos consumidos (uno por etapa)"]
+        Razonamiento["Razonamiento y moderación\nOpenAI gpt-6-astra"]
+        Voz["Voz\nElevenLabs eleven_multilingual_v2"]
+        Alignment["Alignment\nElevenLabs Forced Alignment"]
+        Imagen["Imagen\nFal.ai flux/dev"]
+        Video["Video\nRunningHub Hailuo-03"]
     end
 
     Backend -->|guion completo| Razonamiento
     Backend -->|guion completo| Voz
-    Backend -->|MP3 + guion, solo si Voz no entrega marcas usables| Alignment
+    Backend -->|MP3 + guion, solo si las marcas nativas no son usables| Alignment
     Backend -->|instrucción IMAGE| Imagen
     Backend -->|imagen + instrucción VIDEO + duración solicitada| Video
 ```
 
-| Servicio (etapa) | Capacidad requerida | Entrada | Salida | Estado del proveedor | Referencia PRD |
-|---|---|---|---|---|---|
-| Razonamiento | Dividir el guion con fidelidad (§6.1) y generar las instrucciones `IMAGE`/`VIDEO` de cada chunk. Referencia de capacidad: equivalente a Sonnet 4.6 o superior. | Guion completo (texto) | Chunks con `PROMPT`/`IMAGE`/`VIDEO` | Pendiente de decidir (`define-provider-configuration`) | §6.1, §11 |
-| Voz | Producir la narración completa en MP3, con voz/calidad/velocidad preconfiguradas, y entregar marcas de tiempo nativas cuando el proveedor las soporte. | Guion completo (texto) | Archivo MP3 + marcas de tiempo nativas (si existen) | Pendiente de decidir | §11, §11.1 |
-| Alignment | Derivar las marcas de tiempo alineando el MP3 contra el guion, mecanismo de respaldo cuando las nativas no existen o no son usables. | MP3 generado + guion | Marcas de tiempo por fragmento | Pendiente de decidir | §11.1 |
-| Imagen | Generar una imagen 16:9 con resolución mínima 1920×1080 a partir de texto. | Instrucción `IMAGE` (texto) | Imagen (archivo) | Decidido — credenciales ya obtenidas | §7.1, §11 |
-| Video | Animar una imagen de referencia según una instrucción, respetando las duraciones admitidas por el proveedor. | Imagen generada + instrucción `VIDEO` + duración solicitada | Clip de video (archivo) | Decidido — credenciales ya obtenidas | §7.2, §11 |
+| Etapa | Proveedor | Entrada | Salida | Tiempo máximo por intento |
+|---|---|---|---|---|
+| Razonamiento (descomposición) | OpenAI `gpt-6-astra` | Guion completo y marcas de tiempo | Escenas con `PROMPT`/`IMAGE`/`VIDEO` | 600 s |
+| Moderación del guion | OpenAI `omni-moderation-2024-09-26` | Guion | Veredicto | 10 s |
+| Voz | ElevenLabs `eleven_multilingual_v2` | Guion | MP3 y marcas de tiempo nativas | 600 s |
+| Alineación | ElevenLabs Forced Alignment | MP3 y guion | Marcas de tiempo | 5 s |
+| Imagen | Fal.ai `fal-ai/flux/dev` | Instrucción `IMAGE` | Imagen 16:9 | 25 s |
+| Video | RunningHub MiniMax-H3 «Hailuo-03» | Imagen, instrucción `VIDEO`, duración de 5 a 15 s | Clip | 1200 s |
 
-**Notas de integración:**
-- Hay un único proveedor activo por etapa, hardcodeado en la aplicación; no hay ficheros de configuración ni interfaz de administración para cambiarlo en el MVP (§2.3, §11), ni cambio de proveedor en tiempo de ejecución (§11.2).
-- Las credenciales se leen desde el entorno local o un fichero de secretos local; nunca se hardcodean ni se versionan (§11).
-- El resultado de cada llamada (proveedor usado, intentos realizados, si el fallo fue no reintentable) se registra en la entidad `StageExecution` descrita en la sección 3, sin exponer credenciales.
+**Notas de integración**
+- Un solo proveedor por etapa, sin configuración ni cambio en tiempo de ejecución (PRD §11.2). Las llamadas de los adaptadores no reintentan por su cuenta: cada llamada es exactamente un intento registrado.
+- El límite de peticiones simultáneas por etapa es compartido entre sesiones y atiende por orden de llegada (voz 3, alineación 2, video 3); esperar turno no cuenta como intento ni como tiempo de ejecución.
+- Un fallo transitorio se reintenta hasta 3 veces tras el intento inicial, con espera exponencial de 2 s (tope 30 s); un fallo no reintentable pasa directo a `failed`. Un reintento manual abre un ciclo nuevo.
+- El resultado de cada llamada (proveedor, intentos, causa) queda en `stage_attempts` / `provider_requests`, sin credenciales.
+- Los tiempos máximos de voz, razonamiento y video son provisionales hasta medir una sesión de tamaño real.
 
 ---
 
@@ -434,7 +556,7 @@ Criterios de aceptación:
 
 Las 8 historias de la sección 5 ya cuentan, cada una, con su change de OpenSpec completo (`proposal.md`, `design.md`, specs en Given/When/Then y `tasks.md` con el desglose técnico) en `openspec/changes/`: 4 ya existían en el repositorio y 4 se generaron para esta entrega vía la skill `openspec-propose` (el flujo `/new` + `/ff` no existe como comando en este proyecto — `openspec-propose` es su equivalente disponible y ya cubre ambos pasos, incluyendo `tasks.md`). Por eso los 3 tickets de esta sección se seleccionan directamente de ese desglose ya generado, sin crear artefactos nuevos.
 
-Nota de coherencia: `docs/data-model.md` y `docs/base-standards.md` (mencionados como fuente en la petición) siguen siendo el contenido heredado de un proyecto distinto (dominio de candidatos/LTI) y no reflejan el stack ni el modelo de datos reales de Vid4You — confirmado en las secciones 2 y 3 de este README. Los 3 tickets siguientes se apoyan en esas secciones (2 y 3) como fuente real, no en esos dos ficheros.
+Nota histórica (Entrega 1): estos tickets se redactaron cuando `docs/data-model.md` aún era contenido heredado de otro proyecto y se apoyaron en las secciones 2 y 3 de este README. Desde entonces `docs/data-model.md` se reescribió con el modelo implementado (sección 3.0) y `docs/backend-standards.md` y `docs/frontend-standards.md` describen el stack real.
 
 **Ticket 1 (Backend) — Algoritmo de segmentación del guion en escenas**
 
@@ -500,7 +622,7 @@ Nota de coherencia: `docs/data-model.md` y `docs/base-standards.md` (mencionados
 
 > Documenta 3 de las Pull Requests realizadas durante la ejecución del proyecto
 
-En esta Entrega 1 existe una única PR real: la rama `feature/entrega-1-JAME` contra `main`, que recoge todo el trabajo de documentación de esta entrega (basado en `git diff main...HEAD`, no asumido). Las PR 2 y 3 corresponden a código funcional y llegarán en las Entregas 2 y 3.
+La PR 1 recoge el trabajo de documentación de la Entrega 1 (`feature/entrega-1-JAME` contra `main`). Las PR 2 y 3 son del cierre del MVP en la Entrega 2 y se integraron en `feature/entrega-2-JAME`; todas las PR del MVP están en https://github.com/TonyMElguezabal/AI4Devs-finalproject/pulls?q=is%3Apr.
 
 **Pull Request 1 — `feature/entrega-1-JAME` → `main`**
 
@@ -525,11 +647,25 @@ En esta Entrega 1 existe una única PR real: la rama `feature/entrega-1-JAME` co
 - Revisar que los 3 tickets de la sección 6 no excedan el alcance descrito en los `tasks.md` de los que provienen.
 - Confirmar que ninguna sección afirma como decidido un stack, proveedor o pieza de infraestructura que en realidad sigue pendiente (deben quedar marcados explícitamente como TBD).
 
-**Pull Request 2**
+**Pull Request 2 — #66 `chore/jos-203-b4-b6-verification` → `feature/entrega-2-JAME`**
 
-_Pendiente — se documentará en la Entrega 2, al incluir código funcional._
+**Título:** `Record the retry delays and the short real-provider run (MVP closure B4-B6)`
 
-**Pull Request 3**
+**Descripción:**
+- PRD §11.3 registra el retardo de los reintentos automáticos (base 2 s, tope 30 s) y la constante `PROVISIONAL_RETRY_DELAY_SECONDS` pasa a `RETRY_DELAY_SECONDS`, fijada por `providerConfig.test.ts`.
+- Informe de una sesión corta con proveedores reales (un intento por etapa; clips de 6 s en 301 s y de 11 s en 538 s).
+- La spec `restart-recovery` remite a la regla de arranque de la descomposición que añadió JOS-195.
+- Se cierran tareas pendientes de los cambios archivados `bounded-retry-policy`, `raise-video-time-limit` y `fix-runninghub-adapter`.
 
-_Pendiente — se documentará en la Entrega Final, al incluir código funcional._
+**Cómo probarlo/revisarlo:** `cd backend && npm run typecheck && npx vitest run test/providerConfig.test.ts`; leer el informe `openspec/changes/archive/2026-10-19-raise-video-time-limit/reports/2026-10-20-step-5-real-clip-timings.md`.
 
+**Pull Request 3 — #67 `chore/jos-203-b3-closeout` → `feature/entrega-2-JAME`**
+
+**Título:** `Record the Windows run, close the JOS-196/197 tasks and align the PRD with the MP3 audio (MVP closure)`
+
+**Descripción:**
+- Informe de la ejecución del ejecutable de Windows x64 (compilado de forma cruzada desde macOS) en un portátil Windows.
+- PRD v1.10: el audio del MP4 final es el MP3 del voice-over copiado sin recodificar, no AAC; se actualizan las specs, `backend-standards.md` y el ADR 0005 y se conserva `PRD-v1.9.md`.
+- Corrección del límite de tiempo de video (1200 s) en el informe de tiempos.
+
+**Cómo probarlo/revisarlo:** comparar `docs/PRD.md` con `docs/PRD-v1.9.md`; comprobar que `openspec/specs/final-video-assembly/spec.md` coincide con `ffmpegAssemblyTool.ts` (`-c:a copy`); ejecutar `ffprobe` sobre un MP4 generado y ver que el audio es `mp3`.

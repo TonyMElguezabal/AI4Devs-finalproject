@@ -12,5 +12,8 @@
 - The first submission was refused with "The content check is temporarily unavailable. Submit the script again in a moment." The product maps four causes (no credential, unreadable credentials file, network failure, HTTP error from OpenAI) to that one message and shows none of them. The tester fixed it on the laptop; the cause was not reported back, but a missing or unreadable `.secrets.json` is the likely one (on Windows a text editor can save it as `.secrets.json.txt` or with a byte-order mark). Improving the message is deferred by the product owner.
 - SmartScreen is expected for an unsigned executable; not reported either way.
 
+## Outcome
+The product owner confirmed that the video completed successfully on Windows.
+
 ## Not reported
-`/health`, a second launch opening the running instance, and the end of the generation (video completed or not). Update this report when the run finishes.
+`/health` and a second launch opening the running instance were not reported separately.

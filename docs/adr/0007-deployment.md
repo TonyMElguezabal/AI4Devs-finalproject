@@ -18,7 +18,7 @@ Full evidence: `openspec/changes/define-production-deployment/` (`design.md` § 
 
 - **Executable:** the backend is bundled into a Node single executable application (built from the official Node release binary). It serves the built frontend on `127.0.0.1` and opens the default browser. Static ffmpeg and ffprobe ship beside it. The user installs nothing else. Targets: macOS arm64 and x64, Windows x64.
 - **Data:** the SQLite store, project folders and the credentials file live in the per-user data folder (`~/Library/Application Support/Vid4You`, `%APPDATA%\Vid4You`), never in the install folder, so upgrades keep every session and video.
-- **Credentials:** read from the environment, then from `credentials.json` in the data folder. They are never in the executable, the repository or logs.
+- **Credentials:** read from the environment, then from `.secrets.json` in the data folder. They are never in the executable, the repository or logs.
 - **Reachable only by the local user:** the backend listens on loopback only and rejects any request whose `Origin` is not the app's own or whose `Host` is not the loopback address and port, SSE included. This matters because any website the user visits can send requests to `127.0.0.1`.
 - **One instance per user:** a second launch opens the running instance.
 - **Release builds are safe:** test endpoints, stub providers and `/docs` are unavailable whatever the user's environment says.
