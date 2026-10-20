@@ -27,6 +27,8 @@ jobs:
           node-version: 24 # backend runs TypeScript natively (strip-only)
           cache: npm
           cache-dependency-path: ${{ matrix.package }}/package-lock.json
+      - if: matrix.package == 'backend'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg # ffprobe validates the voice-over audio
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
