@@ -30,11 +30,21 @@ export function send(
 ): string {
   const requestId = randomUUID();
   insertProviderRequest(requestId, sceneId, latencyMs, mode, attemptNumber);
-  if (mode !== "unrecoverable") {
-    const timer = setTimeout(() => onDeliver(requestId), latencyMs);
-    timer.unref();
-  }
+  if (mode !== "unrecoverable") deliverWhenReady(requestId, latencyMs, onDeliver);
   return requestId;
+}
+
+/**
+ * Arms the push delivery for `delayMs`, then delivers only once `pollResult` says the request is
+ * resolved. A Node timer can fire a millisecond before the wall clock reaches `sentAt + latencyMs`;
+ * delivering then is a no-op ("provider result not ready") and the result would be lost for good.
+ */
+export function deliverWhenReady(requestId: string, delayMs: number, onDeliver: (requestId: string) => void): void {
+  const timer = setTimeout(() => {
+    if (pollResult(requestId).status === "pending") return deliverWhenReady(requestId, 1, onDeliver);
+    onDeliver(requestId);
+  }, delayMs);
+  timer.unref();
 }
 
 export function pollResult(requestId: string): PollOutcome {
