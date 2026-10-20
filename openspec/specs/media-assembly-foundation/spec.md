@@ -91,7 +91,7 @@ The pipeline SHALL normalise each clip to the target resolution and frame rate b
 #### Scenario: Sources differ in shape
 
 - **WHEN** clips of differing resolutions and frame rates are assembled
-- **THEN** the output is one 16:9 MP4 at the target resolution and frame rate, with H.264 video and AAC audio
+- **THEN** the output is one 16:9 MP4 at the target resolution and frame rate, with H.264 video and the voice-over's audio stream copied unchanged
 - **AND** no artefact is present at the joins
 
 ### Requirement: Committed fixture for assembly tests

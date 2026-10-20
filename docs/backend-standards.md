@@ -409,7 +409,7 @@ The assembly design and measurements are recorded in [ADR 0005](adr/0005-media-a
 
 - **Clip ordering**: scenes sorted by ascending `index`; each clip's `cumulativeStartFrame` and `frameCount` come from persisted `narration_start_seconds` / `narration_end_seconds` (never recomputed from clip duration).
 - **Audio replacement**: clip audio excluded at input (`-map 0:v:0`); voice-over muxed as the only audio track via stream copy (`-c:a copy`).
-- **Output format**: H.264 video, AAC audio, hardcoded resolution/frame rate from `FINAL_OUTPUT` in `config/providers.ts`.
+- **Output format**: H.264 video, the voice-over's audio stream copied unchanged (MP3; AAC only when narration edits force a re-encode), hardcoded resolution/frame rate from `FINAL_OUTPUT` in `config/providers.ts`.
 - **Retry policy**: `RETRY_BUDGET = 3` (4 attempts total); transient failures retry, not-retryable failures stop. `provider_id` is NULL in `stage_attempts` for assembly (no external provider). On success, `runs.final_video_path` is set and the session transitions to `final-video`.
 - **Isolation**: assembly attempts never modify chunk records, voice-over records, or timestamps.
 

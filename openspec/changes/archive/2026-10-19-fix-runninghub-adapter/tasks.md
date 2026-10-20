@@ -47,5 +47,5 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 8. Close
 
-- [ ] 8.1 Comment on JOS-196 with the shapes fixed, the live check and the PR link; open the PR into `feature/entrega-2-JAME` after the user's go-ahead **Left open at MVP closure; tracked in JOS-203.**
+- [x] 8.1 Comment on JOS-196 with the shapes fixed, the live check and the PR link; open the PR into `feature/entrega-2-JAME` after the user's go-ahead — done in JOS-203: comment posted on JOS-196 (PR #49).
 - [x] 8.2 After merge, archive with `/opsx:archive` Archived at MVP closure (JOS-203).

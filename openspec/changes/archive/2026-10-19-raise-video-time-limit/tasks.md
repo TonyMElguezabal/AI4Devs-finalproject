@@ -46,11 +46,11 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 8. Close
 
-- [ ] 8.1 Comment on JOS-197 with the change, the timings and the PR link; open the PR after JOS-194's, after the user's go-ahead **Left open at MVP closure; tracked in JOS-203.**
+- [x] 8.1 Comment on JOS-197 with the change, the timings and the PR link; open the PR after JOS-194's, after the user's go-ahead — done in JOS-203: comment posted on JOS-197 (PR #51), follow-up recorded as JOS-204.
 - [x] 8.2 After merge, archive with `/opsx:archive` Archived at MVP closure (JOS-203).
 
 ## 9. Second pass: the video limit at the longest admitted clip (2026-10-14)
 
 - [x] 9.1 After the 11-scene real run, raise the video limit from 600 s to 1200 s (clips of 14 s exceeded 600 s on every attempt; 15 s is admitted): spec requirement and scenarios, design Decision 1, `providers.ts`, the config floor (610 s x 1.5), the stage test (a 14 s clip pending after 640 s), the deadline tests (voice and decomposition 600 s, video 1200 s), PRD v1.8 row, status line and changelog, ADR 0005 and `data-model.md`; backend 1488 passed, typecheck clean
 - [x] 9.2 With RunningHub topped up by the product owner, retry the three failed scenes (5, 6, 8) from the page on the rebuilt executable and let the session assemble — done 2026-10-14: the three 14 s clips took 661, 719 and 730 s, the session assembled in about 76 s and reached `final-video` (1920x1080 h264 + mp3, 129.13 s, 24.8 MB); recorded in the step 5 report
-- [ ] 9.3 Record as a follow-up story (not built here): a timed-out clip keeps being polled instead of being resubmitted, so one scene costs one task **Left open at MVP closure; tracked in JOS-203.**
+- [x] 9.3 Record as a follow-up story (not built here): a timed-out clip keeps being polled instead of being resubmitted, so one scene costs one task — done in JOS-203: comment posted on JOS-197 (PR #51), follow-up recorded as JOS-204.
