@@ -29,7 +29,7 @@ Create environment files for both backend and frontend:
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=LTIdbUser
-DB_PASSWORD=D1ymf8wyQEGthFR1E9xhCq
+DB_PASSWORD=<your-db-password>
 DB_NAME=LTIdb
 
 # Application Configuration
