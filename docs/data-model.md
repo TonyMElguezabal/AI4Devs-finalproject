@@ -101,6 +101,27 @@ The clip-specific idempotency guarantee, mirroring `scene_results` for the video
 
 **Why per-scene artefacts are two columns, not a table.** `scenes.result` (image) and `scenes.video_result` (clip), each guarded by its own commit table (`scene_results`, `scene_video_results`), because the PRD fixes exactly one image and one clip per scene and the final video belongs to the session (`runs.final_video_path`). A generic artefacts table would only pay off if a scene could hold a variable number of artefacts, which nothing in the PRD asks for (`harden-backend-foundation`, JOS-186, Decision 5; recorded in `docs/adr/0002-persistence.md` § Risks).
 
+### 4c. Pause edits (`scene_pause_edits` table) and rebuilt final videos (`final_video_builds` table) — `adjust-scene-pause`, JOS-190, migration 16
+
+The pause after a scene is **derived, never stored**: the scene's `narration_end_seconds` minus the end of its last spoken character, found by locating the scene's `prompt` in the script and reading the stored character timestamps (`backend/src/scenePause.ts`, `sessionPauses.ts`). The last scene's interval ends at the voice-over's end, so its pause runs to the audio's end. A scene with no `prompt`, or whose timestamps do not match the script, has no pause and cannot be edited.
+
+- `scene_pause_edits`: `scene_id` (PK, FK to `scenes`), `run_id` (FK to `runs`, indexed), `pause_seconds` (REAL, ≥ 0), `updated_at`. **The only mutable timing data in the model, on purpose:** it holds User intent (the dial is meant to be turned more than once), never generated output, and no locked column is read from or written to by it. Setting a scene back to its original pause deletes the row, so "no row" always means "the original pause".
+- `final_video_builds`: `run_id` (FK), `version` (≥ 2), `path`, `pauses` (JSON, scene id → the pause that build applied), `created_at`; primary key `(run_id, version)`. **Write-once** (no-update and no-delete triggers). The original `final-video.mp4` is version 1 and has no row (no backfill).
+- `runs.final_video_path` keeps pointing at the **current** version. A rebuild moves it with a compare-and-set (`UPDATE … WHERE final_video_path = <the path the rebuild saw>`), so two rebuilds that both finish cannot both become current; the loser's attempt ends as `superseded`. This relaxes "written once" for this one column, only through `replaceFinalVideoPath`.
+- `runs.rebuild_requested_at` (nullable TEXT): a rebuild asked for and not yet finished, possibly held by a pause. Set by `requestFinalVideoRebuild` (only while a final video exists and none is outstanding), cleared when the rebuild succeeds, ends in failure, or is settled by a restart.
+- **Pending edits** = the stored edits differ from the latest build's `pauses` (`{}` for version 1). Derived on every read.
+- The effective intervals of a rebuild are a pure function of the stored intervals and the edits (`applyPauseEdits`): the stored intervals are never written. Each rebuild is an `assembly` stage attempt in a new cycle; a failed rebuild is recorded on its attempt only and never as `runs.failure`.
+
+### 4d. Telemetry settings (`telemetry_settings` table) — `add-observability-telemetry`, JOS-199, migration 17
+
+One row per install (`id = 1`, enforced by a CHECK), created by the migration with every signal off. It belongs to the install, not to a session, so no other table references it.
+
+- `errors`, `provider_usage`, `product_usage` (INTEGER, 0 or 1, default 0): the three consent flags, one per signal. A signal is exported only while its flag is 1; the flags are checked when a record is made, so a change applies at once.
+- `answered_at` (nullable TEXT): when the User first answered the consent dialog. `NULL` means "never asked", and the frontend opens the dialog while it is `NULL`. Saving the dialog with every box off still sets it, and so does "Not now" or Escape the first time (the client sends an all-off save), so the User is not asked again.
+- `install_id` (TEXT, a ULID created by the migration): a random identifier for this install, sent as the `service.instance.id` resource attribute so installs can be counted. It is never returned by the API and is not derived from the machine or the User.
+
+Mutable on purpose, like `scene_pause_edits`: it holds the User's intent, not generated output. Written only by `saveTelemetryConsent`; read by `getTelemetrySettings`.
+
 ### 5. Schema migrations (`schema_migrations` table)
 
 Tracks which versioned migrations have been applied, so an existing session's data survives a schema upgrade (§11.2, Decision 6). Fields: `version` (Primary Key), `applied_at`. Migration 5 adds the three session-content triggers and migration 6 the two voice-over triggers (`lock-script-and-narration`, JOS-137); migration 7 adds `prompt`, `image_instruction` and `video_instruction` to `scenes`, the unique chunk-number index and the four chunk triggers (`assign-scene-identifiers`, JOS-144); migrations 5 and 6 are separate because a database that had already applied 5 must still receive the voice-over triggers, and an applied migration is never edited. Migration 8 adds `narration_timestamps` and its two triggers (`obtain-narration-timestamps`, JOS-139). Migration 9 adds `scenes.narration_start_seconds` and `scenes.narration_end_seconds` with one lock trigger each (`assign-narration-intervals`, JOS-143); its triggers are built from their own constant, not from the array migration 7 uses, so migration 7 is unchanged. Migration 10 adds `scenes.requested_duration_seconds` and `scenes.duration_warning` with one lock trigger each (`request-admitted-clip-duration`, JOS-147), built from a constant of its own for the same reason migration 9's was. Migration 11 adds `scenes.speed_factor` and `scenes.speed_factor_warning` with one lock trigger each (`record-speed-adjustment-factor`, JOS-148), the same pattern again. Migration 12 (`generate-chunk-video`, JOS-146) adds `scenes.video_provider` (nullable TEXT) and `scenes.video_result` (nullable TEXT), a `stage` column (NOT NULL DEFAULT `'image'`, TEXT) to `provider_requests`, and the `scene_video_results` table — the clip idempotency guard — with a Foreign Key on `scene_id`.
@@ -120,6 +141,8 @@ Tracks which versioned migrations have been applied, so an existing session's da
 The MP3 and the timestamps file are written once (`writeArtefactOnce`) before the record is inserted, and the record is locked against update and delete (see *Store-enforced locks*). A success confirmation that arrives twice, or concurrently, leaves one record and one MP3 (Decision 8). The API exposes `provider`, `durationSeconds`, `nativeTimestampsAvailable` and `completedAt` on the session read, and never the file paths, the request id or the audio itself (Decision 11, PRD §12.3).
 
 **Stage attempts** (`stage_attempts`) record every attempt of a stage instance before its request is sent (Decision 2); only the outcome columns are filled in afterwards. Fields: `id` (Primary Key), `run_id` (Foreign Key), `stage` (`voice-over`, `timestamps`, `decomposition`, `image` or `video`), `scene_id` (null for the session-level stages), `stage_instance_key` (`<session>:<stage>`, or `<session>:<scene>:<stage>` for `image` and `video`; the unit the retry budget belongs to, `bounded-retry-policy` Decision 1), `cycle` (from 1; a manual retry opens the next one), `sequence_in_cycle` (1 to 4, checked by the store), `attempt_trigger` (`initial`, `automatic` or `manual`), `provider_id` (nullable until the attempt is sent), `attempt_number` (unique per `run_id` and `stage`), `queued_at`, `sent_at` (null while `scheduled`), `due_at` (when a scheduled attempt may be sent), `outcome` (`scheduled`, `in-flight`, `success`, `transient`, `not-retryable`, `timed-out`, `late-success`, `superseded` or `cancelled`, checked by the store), `finished_at`, `external_request_id`, `error_code` and `error_message` (a cause written for a person, never the script text or a credential), and `late_result_at` (when a result arrived for an attempt that had already timed out; null otherwise). `(stage_instance_key, cycle, sequence_in_cycle)` is unique, so no mechanism can record a fifth attempt in a cycle (`bounded-retry-policy` Decision 3, migration 14; migration 13 belongs to JOS-149). A `voice-over` attempt with outcome `in-flight` is what makes the session `voice-over-generating`; an automatic retry waiting for its delay is `scheduled`, which adds no state: the session stays in progress and shows no failure until the cycle is spent. The attempt that confirms the voice-over finishes with `success`. Attempts are never updated except to complete them, and earlier cycles stay readable.
+
+**A manual voice-over retry** (`retry-voice-over`, JOS-155) adds data but never removes any. It opens the next cycle on the session's `voice-over` stage instance with one `scheduled` attempt whose `trigger` is `manual` (JOS-184's `startNewCycle`), and clears `runs.failure`. That scheduled attempt is the pending retry: there is no retry table or flag. The retry sends the stored script to the provider bound in `runs.voice_provider_id` (write-once, never rebound). A successful retry adds the one MP3 and the `voice_overs` row; a failed one leaves everything earlier unchanged and writes a new `runs.failure`. Earlier attempts stay for diagnostics.
 
 **Waiting for a slot** (`limit-provider-requests-per-stage`, JOS-167). A session-level attempt (`voice-over`, `timestamps`, `decomposition`) is recorded `scheduled` with trigger `initial` and `due_at = queued_at`, then sent through its stage's slot. While it is `scheduled` with trigger `initial` and no `sent_at`, it is waiting for a slot: `queued_at` is when it became ready and `sent_at` is stamped when it takes its slot, so waiting is neither an attempt used nor execution time. No new column or outcome.
 
@@ -174,7 +197,7 @@ An attempt left `in-flight` by a restart ends as `transient` with the message "i
 
 `ignore-repeated-success-confirmations` (JOS-161, US-29). A refused confirmation changes nothing else: no scene or session state, no stored reference, no launch.
 
-- `runs.final_video_path` is written once. `setFinalVideoPath` updates only while the path is null and reports whether it recorded it. A refused assembly success ends its attempt as `superseded`.
+- `runs.final_video_path` is first written once. `setFinalVideoPath` updates only while the path is null and reports whether it recorded it. A refused assembly success ends its attempt as `superseded`. After that, only `replaceFinalVideoPath` moves it (a rebuild, JOS-190), and only from the path the caller saw.
 - An assembly attempt starts only when the session has no final video and no `assembly` attempt is in flight.
 - The image stage writes the scene's state only after `scene_results` accepts the result.
 
@@ -201,6 +224,8 @@ What must never change is refused by the store itself (`lock-script-and-narratio
 | `scenes_duration_warning_locked` | `scenes` | `UPDATE OF duration_warning` | `locked: scenes.duration_warning cannot be modified once the chunk is established` |
 | `scenes_speed_factor_locked` | `scenes` | `UPDATE OF speed_factor` | `locked: scenes.speed_factor cannot be modified once the chunk is established` |
 | `scenes_speed_factor_warning_locked` | `scenes` | `UPDATE OF speed_factor_warning` | `locked: scenes.speed_factor_warning cannot be modified once the chunk is established` |
+| `final_video_builds_no_update` | `final_video_builds` | any `UPDATE` | `locked: final_video_builds cannot be modified once recorded` |
+| `final_video_builds_no_delete` | `final_video_builds` | any `DELETE` | `locked: final_video_builds cannot be deleted once recorded` |
 
 - `UPDATE OF <column>` fires whenever the column appears in a `SET` list, **even for an identical value**: nothing legitimate writes these columns after the `INSERT`, so any write is a bug worth failing loudly. Updating the other `runs` columns (`paused`, `project_folder`, `voice_provider_id`, `failure`) is unaffected.
 - The four `scenes` triggers come from `assign-scene-identifiers` (JOS-144, migration 7): an established chunk is never split, merged, deleted or reordered (PRD §6). `image_instruction`, `video_instruction`, `instruction` and `status` stay writable, since §10.3 lets the visual instructions be corrected and the stages move the status. A duplicate chunk number is refused by the unique index `scenes_run_id_idx_unique`.
@@ -216,6 +241,14 @@ What must never change is refused by the store itself (`lock-script-and-narratio
 
 ```mermaid
 erDiagram
+    TelemetrySettings {
+        Integer id PK "always 1"
+        Boolean errors
+        Boolean provider_usage
+        Boolean product_usage
+        String answered_at "nullable"
+        String install_id "ULID"
+    }
     Session {
         String id PK "ULID"
         String title

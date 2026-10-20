@@ -3,9 +3,7 @@
 ## Purpose
 
 Requirements established by choosing the frontend stack. These govern the project's user-facing foundation, not product behaviour — the behaviours this change's prototype exercises are specified by their own stories: US-18 and US-19 (progress by phase and by scene), US-21 (paused distinguishable from running), US-25 and US-26 (correction on failure only), US-31 and US-32 (downloads).
-
 ## Requirements
-
 ### Requirement: Single documented frontend stack
 
 The project SHALL record exactly one chosen frontend framework and build tooling in `docs/frontend-standards.md`, together with an ADR stating the rejected alternatives and the evidence for the choice. The document SHALL describe this product and SHALL contain no content inherited from another application's template. Implementation work SHALL follow that record rather than selecting technology per ticket.
@@ -60,17 +58,22 @@ Before implementation stories start, the project SHALL hold recorded evidence th
 
 ### Requirement: Editing surface derived from stage state
 
-The correction form for a visual instruction SHALL be rendered only when that stage is failed, and SHALL be absent — not merely disabled — otherwise. The scene identifier, narration prompt and scene order SHALL NOT be rendered as editable inputs in any state.
+The correction form for a visual instruction SHALL be rendered only when its corresponding stage is failed, and SHALL be absent—not merely disabled—otherwise. An image-stage failure SHALL expose only `IMAGE` correction; a video-stage failure SHALL expose only `VIDEO` correction. The scene identifier, narration prompt and scene order SHALL NOT be rendered as editable inputs in any state.
 
-#### Scenario: A stage succeeded
+#### Scenario: A visual stage succeeded
+- **WHEN** a scene's image or video stage has completed successfully
+- **THEN** no correction form for that successful stage's instruction is present
 
-- **WHEN** a scene's image stage has completed successfully
-- **THEN** no form for editing its image instruction is present
-
-#### Scenario: A stage failed
-
+#### Scenario: The image stage failed
 - **WHEN** a scene's image stage is failed
 - **THEN** a form for correcting its image instruction is present
+- **AND** no form for correcting its video instruction is present
+- **AND** no input for the scene identifier, narration prompt or scene order is present
+
+#### Scenario: The video stage failed
+- **WHEN** a scene's video stage is failed
+- **THEN** a form for correcting its video instruction is present
+- **AND** no form for correcting its image instruction is present
 - **AND** no input for the scene identifier, narration prompt or scene order is present
 
 ### Requirement: An open page recovers from a lost connection
@@ -81,3 +84,4 @@ The chosen stack SHALL keep an open session page correct across a dropped push c
 
 - **WHEN** the push connection is lost, state changes occur, and the connection is restored
 - **THEN** the open page reaches the current state without a manual reload
+

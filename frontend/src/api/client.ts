@@ -1,4 +1,4 @@
-import type { SessionSnapshot } from "../types";
+import type { AppUpdate, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -48,12 +48,30 @@ export function continueSession(sessionId: string): Promise<{ ok: boolean }> {
   return fetch(`${API_BASE}/sessions/${sessionId}/continue`, { method: "POST" }).then(asJson<{ ok: boolean }>);
 }
 
+export function retryVoiceOver(sessionId: string): Promise<{ ok: true; held: boolean }> {
+  return fetch(`${API_BASE}/sessions/${sessionId}/voice-over/retry`, { method: "POST" }).then(asJson<{ ok: true; held: boolean }>);
+}
+
 export function retryDecomposition(sessionId: string): Promise<{ ok: true; held: boolean }> {
   return fetch(`${API_BASE}/sessions/${sessionId}/decomposition/retry`, { method: "POST" }).then(asJson<{ ok: true; held: boolean }>);
 }
 
 export function retryAssembly(sessionId: string): Promise<{ ok: true; held: boolean }> {
   return fetch(`${API_BASE}/sessions/${sessionId}/assembly/retry`, { method: "POST" }).then(asJson<{ ok: true; held: boolean }>);
+}
+
+/** adjust-scene-pause (JOS-190) — sets the silence after a scene; resolves with the updated scene, rejects with the sentence or reason. */
+export function setScenePause(sessionId: string, sceneId: string, seconds: number): Promise<SceneEventPayload> {
+  return fetch(`${API_BASE}/sessions/${sessionId}/scenes/${sceneId}/pause`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ seconds }),
+  }).then(asJson<SceneEventPayload>);
+}
+
+/** adjust-scene-pause (JOS-190) — assembles a new version of the final video with the stored pause edits. */
+export function rebuildFinalVideo(sessionId: string): Promise<{ ok: true; held: boolean }> {
+  return fetch(`${API_BASE}/sessions/${sessionId}/final-video/rebuild`, { method: "POST" }).then(asJson<{ ok: true; held: boolean }>);
 }
 
 export function retryScene(sessionId: string, sceneId: string): Promise<{ ok: boolean }> {
@@ -75,4 +93,21 @@ export function resolveResultUrl(path: string): string {
 
 export function eventsUrl(sessionId: string): string {
   return `${API_BASE}/events?sessionId=${encodeURIComponent(sessionId)}`;
+}
+
+/** add-observability-telemetry (JOS-199) */
+export function getTelemetryConsent(): Promise<TelemetryConsent> {
+  return fetch(`${API_BASE}/telemetry/consent`).then(asJson<TelemetryConsent>);
+}
+
+export function saveTelemetryConsent(choices: TelemetryChoices): Promise<TelemetryConsent> {
+  return fetch(`${API_BASE}/telemetry/consent`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(choices),
+  }).then(asJson<TelemetryConsent>);
+}
+
+export function getAppUpdate(): Promise<AppUpdate> {
+  return fetch(`${API_BASE}/app/update`).then(asJson<AppUpdate>);
 }

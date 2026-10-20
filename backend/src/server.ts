@@ -1,10 +1,11 @@
 import { readFile } from "node:fs/promises";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyBaseLogger, type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { routes } from "./routes.ts";
+import { allowedOrigins, registerOriginPolicy } from "./originPolicy.ts";
 import { recoverOnBoot, setAssemblyTool } from "./orchestrator.ts";
 import { stagesWithoutRestartRecovery } from "./launchGate.ts";
 import * as concurrency from "./concurrency.ts";
@@ -12,6 +13,12 @@ import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
 import { STAGE } from "./types.ts";
 import { setDecompositionLogger } from "./decompositionPhase.ts";
 import { setVoiceOverLogger } from "./voiceOverPhase.ts";
+import { DB_PATH, getTelemetrySettings } from "./db.ts";
+import { createAppLogger } from "./telemetry/logFile.ts";
+import { dirname, join } from "node:path";
+import { recordProductEvent, setConsent, shutdownTelemetry } from "./telemetry/index.ts";
+import { startUpdateCheck } from "./telemetry/updateCheck.ts";
+import { installProcessErrorHandlers } from "./telemetry/processHandlers.ts";
 import { rebuildScheduler } from "./retry/retryScheduler.ts";
 import { startAttemptTimeoutWatcher } from "./retry/attemptTimeoutWatcher.ts";
 import { setRetryDelayConfig } from "./retry/stageAttemptRecorder.ts";
@@ -41,14 +48,19 @@ const BODY_LIMIT_BYTES = Number(process.env.BODY_LIMIT_BYTES ?? 50 * 1024 * 1024
  * only caller that also calls `.listen()`.
  */
 export async function buildApp(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: process.env.NODE_ENV !== "test", bodyLimit: BODY_LIMIT_BYTES });
+  // add-observability-telemetry (JOS-199) Decision 5 — stdout as before, plus a rotating file in `logs` beside the store.
+  // Logging stays off under test, as before.
+  const loggerOptions: { loggerInstance?: FastifyBaseLogger; logger?: false } =
+    process.env.NODE_ENV !== "test" ? { loggerInstance: createAppLogger({ dir: join(dirname(DB_PATH), "logs") }) } : { logger: false };
+  const app = Fastify({ ...loggerOptions, bodyLimit: BODY_LIMIT_BYTES });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-  // The frontend (define-frontend-stack, JOS-180) runs on its own Vite dev
-  // server port; CORS lets it call this backend directly with no proxy
-  // config. Fine for a local single-user install (no auth layer, C9).
-  await app.register(cors, { origin: true });
+  // The frontend (define-frontend-stack, JOS-180) runs on its own Vite dev server port; CORS lets it call this
+  // backend directly with no proxy config. There is no auth layer (C9), so only the app's own origins are allowed
+  // (originPolicy.ts); any other web page gets a 403 before a route runs.
+  registerOriginPolicy(app, PORT);
+  await app.register(cors, { origin: allowedOrigins(PORT) });
 
   await app.register(swagger, {
     openapi: {
@@ -71,6 +83,12 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   return app;
+}
+
+/** add-observability-telemetry (JOS-199) — load the stored consent, then count the start. Everything stays off until the user opts in. */
+export function initTelemetry(): void {
+  setConsent(getTelemetrySettings());
+  recordProductEvent("app_start");
 }
 
 /** The boot log fields: the settle summary, each stage's in-flight count and limit, and the stages with no restart recovery. */
@@ -149,6 +167,12 @@ if (isMainModule) {
   // `slow-success` (JOS-161) answers success after ASSEMBLY_STUB_DELAY_MS (default 15000), so a pause can land during assembly.
   // Without it the real ffmpeg adapter is registered (run-session-end-to-end, JOS-195).
   configureAssemblyTool();
+  initTelemetry();
+  installProcessErrorHandlers();
+  startUpdateCheck(); // not awaited: the answer is read by GET /app/update, and listen is never delayed
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => void shutdownTelemetry().finally(() => process.exit(0)));
+  }
   const app = await buildApp();
   setVoiceOverLogger(app.log);
   setDecompositionLogger(app.log);

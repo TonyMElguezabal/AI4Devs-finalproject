@@ -11,6 +11,7 @@ import {
   completeStageAttempt,
   db,
   getAllInFlightScenes,
+  getFinalVideoBuilds,
   getAllVideoGeneratingScenes,
   getImageCompleteScenesForRun,
   getProviderRequest,
@@ -20,6 +21,7 @@ import {
   getSceneForRun,
   getScenesForRun,
   countProviderRequestsByScene,
+  clearFinalVideoRebuildRequest,
   clearRunFailure,
   correctImageInstruction,
   correctLegacyInstruction,
@@ -28,6 +30,8 @@ import {
   getStageAttempts,
   getSubmittedScenesForRun,
   getVoiceOver,
+  getScenePauseEdits,
+  insertFinalVideoBuild,
   insertProviderRequest,
   isReadableMp4,
   markChunkComplete,
@@ -41,8 +45,10 @@ import {
   markSceneVideoRetry,
   markVideoGenerating,
   moveAssemblyOutput,
+  nextFinalVideoVersion,
   PROJECTS_ROOT,
   recordStageAttempt,
+  replaceFinalVideoPath,
   resetAttemptsForVideoStart,
   resolveArtefactPath,
   sceneCurrentRequestId,
@@ -52,7 +58,9 @@ import {
   writeArtefact,
   writeArtefactOnce,
 } from "./db.ts";
-import type { AssemblyTool } from "./assemblyTool.ts";
+import type { AssemblyTool, NarrationEdit } from "./assemblyTool.ts";
+import { applyPauseEdits } from "./scenePause.ts";
+import { hasPendingPauseEdits, loadSessionPauses, scenePauseViews } from "./sessionPauses.ts";
 import * as concurrency from "./concurrency.ts";
 import { admitLaunch, launchHeldWork, registerStageLauncher, relaunchPendingWork, RESTART_CAUSE, sessionHeldWork, sessionRunningWork, settleAllInFlight, type SettleSummary, type StageLauncher } from "./launchGate.ts";
 import { describeProvider, diagnosticStageOf, type StageDiagnostic } from "./stageDiagnostics.ts";
@@ -71,18 +79,22 @@ import {
   STAGE,
   STUB_PROVIDER_NAME,
   type AttemptStage,
+  type NarrationInterval,
   type Phase,
   type PhaseProgress,
   type PhaseStatus,
   type ProviderOutcome,
+  type FinalVideoStatus,
   type Scene,
   type SceneEventPayload,
+  type ScenePauseView,
   type SessionFailure,
   type SessionEventPayload,
   type SessionSnapshot,
   type SessionState,
   type StageAttempt,
 } from "./types.ts";
+import { redactPaths } from "./util/redactPaths.ts";
 
 /** 1 initial attempt + this many automatic retries, per PRD §10.1 (C2). */
 export const RETRY_BUDGET = 3;
@@ -168,6 +180,8 @@ export interface SessionProgress {
   voiceAttemptInFlight?: boolean;
   /** A `timestamps` attempt was recorded, or the timestamps are stored. */
   timestampsStarted?: boolean;
+  /** adjust-scene-pause (JOS-190), Decision 7 — a rebuild attempt is running while a final video exists: the session is generating one again. */
+  rebuildInFlight?: boolean;
   /** A final video exists (US-16b records it). Defaults to false: all scenes complete is `final-video-generating`, not `final-video`. */
   hasFinalVideo?: boolean;
   /** view-progress-by-phase (JOS-168), Decision 5: the failed phase has an attempt in flight that was queued no earlier than the recorded failure. */
@@ -230,7 +244,7 @@ export function deriveSessionState(
     // retry-final-assembly (JOS-159), design Decision 1 — mirrors the zero-scenes branch's own
     // `if (failure && progress.retryInFlight) … else if (failure) …` pattern one-for-one.
     if (failure?.phase === "assembly" && !progress.retryInFlight) return { state: "failed", failedPhase: "assembly" };
-    return { state: progress.hasFinalVideo ? "final-video" : "final-video-generating" };
+    return { state: progress.hasFinalVideo && !progress.rebuildInFlight ? "final-video" : "final-video-generating" };
   }
   if (gate.processingSceneIndexes.length > 0) return { state: "chunks-processing" };
   return { state: "failed", failedPhase: "scenes", failedSceneIndexes: gate.failedSceneIndexes };
@@ -324,15 +338,40 @@ export function derivePhaseProgress(input: {
   });
 }
 
+/**
+ * adjust-scene-pause (JOS-190), Decision 9 — where the current final video sits in its history, whether the User's
+ * pause edits differ from what it was built with, and why the latest rebuild failed (derived from its attempt, never
+ * stored: a failed rebuild is not the session's failure, Decision 6).
+ */
+function finalVideoStatus(runId: string, finalVideoPath: string): FinalVideoStatus {
+  const builds = getFinalVideoBuilds(runId);
+  const status: FinalVideoStatus = {
+    version: builds.at(-1)?.version ?? 1,
+    pendingPauseEdits: hasPendingPauseEdits(runId),
+  };
+  const latest = getStageAttempts(runId, "assembly").at(-1);
+  const failed = latest !== undefined && (latest.outcome === "transient" || latest.outcome === "not-retryable");
+  if (failed && finalVideoPath) {
+    const reason = latest.errorMessage ?? "an unknown error";
+    status.rebuildFailure = {
+      cause: `The new version could not be built: ${redactPaths(reason)}. Your current final video (version ${status.version}) is kept.`,
+    };
+  }
+  return status;
+}
+
 export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const run = getRun(runId);
   if (!run) return undefined;
   const scenes = getScenesForRun(runId);
   const { state, failedPhase, failedSceneIndexes } = deriveSessionState(scenes, run.failure, {
     hasVoiceOver: getVoiceOver(runId) !== undefined,
-    voiceAttemptInFlight: getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight"),
+    // retry-voice-over (JOS-155), Decision 7 — `startNewCycle` clears the failure, so a retry that is accepted but not yet
+    // sent (scheduled, or held by a pause) must already show the phase as running.
+    voiceAttemptInFlight: getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight" || attempt.outcome === "scheduled"),
     timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
     hasFinalVideo: run.finalVideoPath != null,
+    rebuildInFlight: run.finalVideoPath != null && getStageAttempts(runId, "assembly").some((attempt) => attempt.outcome === "in-flight"),
     retryInFlight: isRetryInFlight(runId, run.failure),
   });
   const voiceOver = getVoiceOver(runId);
@@ -368,10 +407,17 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     createdAt: run.createdAt,
     updatedAt: new Date().toISOString(),
     finalVideoUrl: run.finalVideoPath != null ? `/sessions/${run.id}/download/final-video` : undefined,
+    finalVideo: run.finalVideoPath != null ? finalVideoStatus(runId, run.finalVideoPath) : undefined,
   };
+  // adjust-scene-pause (JOS-190), Decision 9 — each scene's dial, only once there is a final video to rebuild.
+  const pauseViews = run.finalVideoPath != null ? scenePauseViews(runId) : new Map<string, ScenePauseView>();
   return {
     session,
-    scenes: scenes.map((s) => ({ ...sceneToPayload(s, requestCounts.get(s.id)), held: heldSceneIds.has(s.id) || undefined })),
+    scenes: scenes.map((s) => ({
+      ...sceneToPayload(s, requestCounts.get(s.id)),
+      held: heldSceneIds.has(s.id) || undefined,
+      pause: pauseViews.get(s.id),
+    })),
   };
 }
 
@@ -446,12 +492,6 @@ export function getAssemblyTool(): AssemblyTool | undefined {
   return _assemblyTool;
 }
 
-/** retry-final-assembly (JOS-159), design Decision 1 — one cause string, never a raw filesystem path. A loose
- * redaction, since a provider/tool error message is the only source that could ever contain one; this project's
- * own pre-check messages below never embed a path to begin with. */
-function redactPaths(text: string): string {
-  return text.replace(/\/\S+/g, "[path]");
-}
 
 /** retry-final-assembly (JOS-159), design Decision 1 — the one place an assembly failure is written, from either
  * a completed attempt (`attempt` carries its real `cycle`/`sequenceInCycle`) or a pre-attempt refusal (no tool, no
@@ -474,6 +514,26 @@ function recordAssemblyFailure(
 }
 
 /**
+ * adjust-scene-pause (JOS-190), Decision 6 — a rebuild that cannot even start (no tool, no stored narration, unreadable
+ * timestamps). Recorded as a failed assembly attempt of its own cycle, so the read can say why, and never as the
+ * session's failure: the previous final video is still the session's final video.
+ */
+function refuseRebuild(runId: string, detail: string): void {
+  const now = new Date().toISOString();
+  const attempt = recordStageAttempt({
+    runId,
+    stage: "assembly",
+    providerId: null,
+    queuedAt: now,
+    sentAt: now,
+    cycle: (getStageAttempts(runId, "assembly").at(-1)?.cycle ?? 0) + 1,
+  });
+  completeStageAttempt(attempt.id, { outcome: "not-retryable", finishedAt: now, errorMessage: redactPaths(detail) });
+  clearFinalVideoRebuildRequest(runId);
+  broadcast(runId);
+}
+
+/**
  * Runs one assembly attempt; retries on transient failure up to RETRY_BUDGET. A manual retry (`assemblyRetry.ts`)
  * goes through this same function via `assemblyStageLauncher.launch`/`launchAssemblyPhase`, exactly like a first
  * run — it records its own fresh `stage_attempts` row and gets a full new budget (`attemptNumber` starts at 1
@@ -486,14 +546,17 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
   // ignore-repeated-success-confirmations (JOS-161), design Decision 3 — no assembly for a session that already has its
   // final video, or while one is in flight. No await precedes the attempt record below, so this check and the record
   // cannot interleave with another launch.
-  if (run.finalVideoPath || getStageAttempts(runId, "assembly").some((attempt) => attempt.outcome === "in-flight")) {
+  // adjust-scene-pause (JOS-190), design Decision 6 — a rebuild is a requested assembly of a session that already has a
+  // final video; it is the only reason this function may run when one is recorded.
+  const rebuild = run.finalVideoPath !== null && run.rebuildRequestedAt !== null;
+  if ((run.finalVideoPath && !rebuild) || getStageAttempts(runId, "assembly").some((attempt) => attempt.outcome === "in-flight")) {
     return;
   }
 
   // retry-final-assembly (JOS-159), design Decision 2 — adopt a final-video.mp4 already on disk with no recorded
   // path (e.g. a crash between an earlier attempt's move and its database write) instead of generating a duplicate.
   const finalPath = resolveArtefactPath(run.projectFolder, "final-video.mp4");
-  if (existsSync(finalPath) && isReadableMp4(finalPath)) {
+  if (!rebuild && existsSync(finalPath) && isReadableMp4(finalPath)) {
     setFinalVideoPath(runId, "final-video.mp4");
     clearRunFailure(runId);
     broadcast(runId);
@@ -502,6 +565,7 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
 
   const tool = getAssemblyTool();
   if (!tool) {
+    if (rebuild) return refuseRebuild(runId, "no assembly tool is configured");
     recordAssemblyFailure(runId, "no assembly tool is configured", false, null);
     broadcast(runId);
     return;
@@ -509,12 +573,27 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
 
   const voiceOver = getVoiceOver(runId);
   if (!voiceOver) {
+    if (rebuild) return refuseRebuild(runId, "the session has no stored voice-over");
     recordAssemblyFailure(runId, "the session has no stored voice-over", false, null);
     broadcast(runId);
     return;
   }
 
   const scenes = getScenesForRun(runId).sort((a, b) => a.index - b.index);
+
+  // adjust-scene-pause (JOS-190), Decisions 4 and 6 — the edits are snapshotted once, here, and applied as shifted
+  // intervals; the stored intervals are read, never written. No edits (or a first assembly): the stored ones.
+  let intervalOf = (scene: Scene): NarrationInterval => scene.narrationInterval!;
+  let appliedEdits: ReadonlyMap<string, number> = new Map();
+  let narrationEdits: NarrationEdit[] = [];
+  if (rebuild) {
+    const session = loadSessionPauses(runId);
+    if (!session) return refuseRebuild(runId, "the narration's timestamps could not be read to apply the pause edits");
+    appliedEdits = getScenePauseEdits(runId);
+    const edited = applyPauseEdits(session.scenes, appliedEdits, session.voiceOverDurationSeconds);
+    intervalOf = (scene) => edited.intervals.get(scene.id) ?? scene.narrationInterval!;
+    narrationEdits = edited.edits;
+  }
   // design Decision 1 — no eager existsSync check for a missing clip file here: many existing tests complete a
   // scene's clip at the store level only (e.g. `deliverClipSuccessForTests`), with no real file, by design. A
   // genuinely missing or unreadable clip file surfaces the same way any other tool failure does: the real ffmpeg
@@ -527,7 +606,7 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
   // Build cumulative frame geometry (ADR 0005, Decision 4).
   let prevEndFrame = 0;
   const clips = scenes.map((scene) => {
-    const interval = scene.narrationInterval!;
+    const interval = intervalOf(scene);
     const cumEndFrame = Math.round(interval.endSeconds * fps);
     const frameCount = cumEndFrame - prevEndFrame;
     prevEndFrame = cumEndFrame;
@@ -569,12 +648,30 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
       fps: FINAL_OUTPUT.fps,
       width: FINAL_OUTPUT.width,
       height: FINAL_OUTPUT.height,
+      ...(narrationEdits.length > 0 ? { narrationEdits } : {}),
     });
   } catch (err: unknown) {
     result = { kind: "failed_transient" as const, reason: err instanceof Error ? err.message : String(err) };
   }
 
   const finishedAt = new Date().toISOString();
+
+  if (result.kind === "success" && rebuild) {
+    // adjust-scene-pause (JOS-190), Decision 6 — a new versioned file next to the old one, then its record, then the
+    // compare-and-set of the current path; whichever of the three is refused discards this result as superseded.
+    const version = nextFinalVideoVersion(runId);
+    const fileName = `final-video-${version}.mp4`;
+    const moved = moveAssemblyOutput(run.projectFolder, tempOutputPath, fileName);
+    rmSync(work, { recursive: true, force: true });
+    const recorded =
+      moved &&
+      insertFinalVideoBuild({ runId, version, path: fileName, pauses: Object.fromEntries(appliedEdits), createdAt: finishedAt }) &&
+      replaceFinalVideoPath(runId, run.finalVideoPath!, fileName);
+    completeStageAttempt(attemptId, recorded ? { outcome: "success", finishedAt } : { outcome: "superseded", finishedAt });
+    clearFinalVideoRebuildRequest(runId);
+    broadcast(runId);
+    return;
+  }
 
   if (result.kind === "success") {
     // A refused move/write means another assembly recorded the final video first: this result is discarded (JOS-161, Decision 2).
@@ -591,7 +688,9 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
 
   if (result.kind === "failed_not_retryable") {
     completeStageAttempt(attemptId, { outcome: "not-retryable", finishedAt, errorMessage: result.reason });
-    recordAssemblyFailure(runId, result.reason, false, attempt);
+    // A failed rebuild never becomes the session's failure: the previous final video is still there (Decision 6).
+    if (rebuild) clearFinalVideoRebuildRequest(runId);
+    else recordAssemblyFailure(runId, result.reason, false, attempt);
     broadcast(runId);
     return;
   }
@@ -599,7 +698,8 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
   // Transient failure — retry if budget remains.
   completeStageAttempt(attemptId, { outcome: "transient", finishedAt, errorMessage: result.reason });
   if (attemptNumber >= 1 + RETRY_BUDGET) {
-    recordAssemblyFailure(runId, result.reason, true, attempt);
+    if (rebuild) clearFinalVideoRebuildRequest(runId);
+    else recordAssemblyFailure(runId, result.reason, true, attempt);
     broadcast(runId);
     return;
   }
@@ -616,7 +716,9 @@ function launchAssemblyPhase(runId: string): void {
   if (!admitLaunch(runId).admitted) return;
   assemblyLaunches.set(runId, (assemblyLaunches.get(runId) ?? 0) + 1);
   // A launch after a restart continues the attempt sequence the lost attempt belonged to, so its budget is not reset.
-  void runAssemblyAttempt(runId, (restartSettledAssemblyAttempt(runId)?.sequenceInCycle ?? 0) + 1);
+  // A rebuild is the User's explicit request and always opens a fresh cycle (adjust-scene-pause, JOS-190, Decision 6).
+  const rebuild = getRun(runId)?.rebuildRequestedAt != null;
+  void runAssemblyAttempt(runId, rebuild ? 1 : (restartSettledAssemblyAttempt(runId)?.sequenceInCycle ?? 0) + 1);
 }
 
 /** Called after every chunk reaches chunk-complete or failed; launches assembly
@@ -1005,7 +1107,9 @@ export const assemblyStageLauncher: StageLauncher = {
     // service claims its own cycle synchronously (Decision 3), so continue must never silently relaunch a failed,
     // non-retrying assembly on its own. A session paused mid-attempt is unaffected: `inFlight` already covers it.
     const blockedByFailure = run?.failure?.phase === "assembly";
-    const count = run && !run.finalVideoPath && gate.open && !inFlight && !blockedByFailure ? 1 : 0;
+    // adjust-scene-pause (JOS-190), Decision 6 — a rebuild asked for while paused is held work like a first assembly.
+    const rebuildPending = run?.finalVideoPath != null && run.rebuildRequestedAt != null;
+    const count = run && (!run.finalVideoPath || rebuildPending) && gate.open && !inFlight && !blockedByFailure ? 1 : 0;
     return { count, sceneIds: [] };
   },
   // Stricter than `heldWork` (restart-recovery, Decision 3): boot must not relaunch an assembly whose budget is spent
@@ -1389,8 +1493,7 @@ function settleImageInFlight(): SettleSummary {
     const req = getProviderRequest(requestId);
     if (req) {
       const remainingMs = Math.max(0, new Date(req.sentAt).getTime() + req.latencyMs - Date.now());
-      const timer = setTimeout(() => handleProviderResult(requestId), remainingMs);
-      timer.unref();
+      provider.deliverWhenReady(requestId, remainingMs, handleProviderResult);
     }
     stillPending++;
   }
@@ -1444,6 +1547,14 @@ function settleAssemblyInFlight(): SettleSummary {
   for (const attempt of getInFlightAttempts()) {
     if (attempt.stage !== "assembly") continue;
     completeStageAttempt(attempt.id, { outcome: "transient", finishedAt: new Date().toISOString(), errorMessage: RESTART_CAUSE });
+    // adjust-scene-pause (JOS-190), Decision 8 — an interrupted rebuild is not relaunched (a rebuild is the User's
+    // decision, and `pendingAtBoot` needs no final video); its request is cleared so Rebuild can be pressed again.
+    if (getRun(attempt.runId)?.finalVideoPath) {
+      clearFinalVideoRebuildRequest(attempt.runId);
+      broadcast(attempt.runId);
+      recordedFailedAttempt++;
+      continue;
+    }
     // retry-final-assembly (JOS-159) — if this was the cycle's last attempt, `pendingAtBoot` will not relaunch it
     // (its own budget check), so nothing else would ever record the failure; do it here, where the settle result
     // is known, rather than leaving the session silently stuck in `final-video-generating`.

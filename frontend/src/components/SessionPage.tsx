@@ -22,6 +22,10 @@ interface Props {
   onCorrect: (sceneId: string, instruction: string) => Promise<unknown>;
   /** Retries a failed phase; rejects with the refusal reason (retry-decomposition, JOS-156). */
   onRetryPhase: (phase: Phase) => Promise<unknown>;
+  /** Sets the silence after a scene (adjust-scene-pause, JOS-190). */
+  onSetPause?: (sceneId: string, seconds: number) => Promise<unknown>;
+  /** Rebuilds the final video with the stored pause edits (adjust-scene-pause, JOS-190). */
+  onRebuildFinalVideo?: () => Promise<unknown>;
 }
 
 /** "14 Oct, 10:42" in the User's own locale and time zone; the instant stays machine-readable on the element. */
@@ -51,6 +55,8 @@ export function SessionPage({
   onRetry,
   onCorrect,
   onRetryPhase,
+  onSetPause,
+  onRebuildFinalVideo,
 }: Props) {
   if (notFound) {
     return (
@@ -116,9 +122,17 @@ export function SessionPage({
         <PhaseStepper phases={session.phases} />
         {session.phases.map((progress) => (
           <PhaseSection key={progress.phase} progress={progress} onRetry={() => onRetryPhase(progress.phase)}>
-            {progress.phase === "scenes" && <SceneList scenes={scenes} paused={session.paused} onRetry={onRetry} onCorrect={onCorrect} />}
+            {progress.phase === "scenes" && (
+              <SceneList scenes={scenes} paused={session.paused} onRetry={onRetry} onCorrect={onCorrect} onSetPause={onSetPause} />
+            )}
             {progress.phase === "assembly" && (
-              <FinalVideoDownload url={session.finalVideoUrl ? resolveResultUrl(session.finalVideoUrl) : undefined} />
+              <FinalVideoDownload
+                url={session.finalVideoUrl ? resolveResultUrl(session.finalVideoUrl) : undefined}
+                finalVideo={session.finalVideo}
+                // A session that already has a final video and is generating one again is rebuilding (JOS-190, Decision 7).
+                rebuilding={session.state === "final-video-generating" && Boolean(session.finalVideoUrl)}
+                onRebuild={onRebuildFinalVideo}
+              />
             )}
           </PhaseSection>
         ))}

@@ -11,6 +11,8 @@
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
+import { getConsent, normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
+import { ulid } from "./util/ulid.ts";
 import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import type {
@@ -36,7 +38,7 @@ import { STUB_PROVIDER_NAME } from "./types.ts";
 
 export type { NarrationTimestampsInput, VoiceOverInput } from "./types.ts";
 
-const DB_PATH = process.env.DB_PATH ?? "data/skeleton.sqlite";
+export const DB_PATH = process.env.DB_PATH ?? "data/skeleton.sqlite";
 mkdirSync(dirname(DB_PATH), { recursive: true });
 
 /** PRD §12.2 — local per-project folders, never deleted, never expiring. */
@@ -204,6 +206,18 @@ export const NARRATION_TIMESTAMPS_NO_UPDATE_TRIGGER_DDL = `CREATE TRIGGER narrat
 export const NARRATION_TIMESTAMPS_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER narration_timestamps_no_delete BEFORE DELETE ON narration_timestamps
   BEGIN
     SELECT RAISE(ABORT, 'locked: narration_timestamps cannot be deleted once obtained');
+  END;`;
+
+// adjust-scene-pause (JOS-190), Decision 3 — a rebuilt final video's record (its version, file and the pause edits it
+// was built with) is written once. `resetAll()` (test-only) lifts the delete trigger inside its transaction.
+export const FINAL_VIDEO_BUILDS_NO_UPDATE_TRIGGER_DDL = `CREATE TRIGGER final_video_builds_no_update BEFORE UPDATE ON final_video_builds
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: final_video_builds cannot be modified once recorded');
+  END;`;
+
+export const FINAL_VIDEO_BUILDS_NO_DELETE_TRIGGER_DDL = `CREATE TRIGGER final_video_builds_no_delete BEFORE DELETE ON final_video_builds
+  BEGIN
+    SELECT RAISE(ABORT, 'locked: final_video_builds cannot be deleted once recorded');
   END;`;
 
 // ---- Versioned migrations (Decision 6) — applied on top of the baseline ----
@@ -511,6 +525,56 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       }
     },
   },
+  {
+    version: 16,
+    description:
+      "add scene_pause_edits (the User's mutable pause intent) and final_video_builds (write-once record of each rebuilt final video) (adjust-scene-pause, JOS-190)",
+    up: (target) => {
+      // A rebuild the User asked for and that has not finished (possibly held by a pause); see Run.rebuildRequestedAt.
+      target.exec("ALTER TABLE runs ADD COLUMN rebuild_requested_at TEXT");
+      // Mutable on purpose, and the only mutable timing data: the dial is meant to be turned more than once. It holds
+      // User intent only; no locked record is read from or written to here. "No row" means "the original pause".
+      target.exec(`
+        CREATE TABLE scene_pause_edits (
+          scene_id TEXT PRIMARY KEY REFERENCES scenes(id),
+          run_id TEXT NOT NULL REFERENCES runs(id),
+          pause_seconds REAL NOT NULL CHECK (pause_seconds >= 0),
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX scene_pause_edits_run_id ON scene_pause_edits (run_id);
+      `);
+      // Version 1 is the original final-video.mp4 and has no row (no backfill); a rebuild is version 2 onwards.
+      target.exec(`
+        CREATE TABLE final_video_builds (
+          run_id TEXT NOT NULL REFERENCES runs(id),
+          version INTEGER NOT NULL CHECK (version >= 2),
+          path TEXT NOT NULL,
+          pauses TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (run_id, version)
+        );
+      `);
+      target.exec(FINAL_VIDEO_BUILDS_NO_UPDATE_TRIGGER_DDL);
+      target.exec(FINAL_VIDEO_BUILDS_NO_DELETE_TRIGGER_DDL);
+    },
+  },
+  {
+    version: 17,
+    description: "add the single-row telemetry_settings table, every signal off (add-observability-telemetry, JOS-199)",
+    up: (target) => {
+      target.exec(`
+        CREATE TABLE telemetry_settings (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          errors INTEGER NOT NULL DEFAULT 0 CHECK (errors IN (0, 1)),
+          provider_usage INTEGER NOT NULL DEFAULT 0 CHECK (provider_usage IN (0, 1)),
+          product_usage INTEGER NOT NULL DEFAULT 0 CHECK (product_usage IN (0, 1)),
+          answered_at TEXT,
+          install_id TEXT NOT NULL
+        );
+      `);
+      target.prepare("INSERT INTO telemetry_settings (id, install_id) VALUES (1, ?)").run(ulid());
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -537,6 +601,29 @@ export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Nu
 }
 
 export const migrationsAppliedOnBoot = applyMigrationsTo(db);
+
+// ---- add-observability-telemetry (JOS-199), Decision 3: opt-in consent, one toggle per signal ----
+
+export type TelemetryConsent = { errors: boolean; providerUsage: boolean; productUsage: boolean };
+export type TelemetrySettings = TelemetryConsent & { answered: boolean; installId: string };
+
+export function getTelemetrySettings(target: DatabaseSync = db): TelemetrySettings {
+  const row = target.prepare("SELECT * FROM telemetry_settings WHERE id = 1").get() as any;
+  return {
+    errors: row.errors === 1,
+    providerUsage: row.provider_usage === 1,
+    productUsage: row.product_usage === 1,
+    answered: row.answered_at !== null,
+    installId: row.install_id,
+  };
+}
+
+export function saveTelemetryConsent(consent: TelemetryConsent, target: DatabaseSync = db): TelemetrySettings {
+  target
+    .prepare("UPDATE telemetry_settings SET errors = ?, provider_usage = ?, product_usage = ?, answered_at = ? WHERE id = 1")
+    .run(Number(consent.errors), Number(consent.providerUsage), Number(consent.productUsage), new Date().toISOString());
+  return getTelemetrySettings(target);
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -702,7 +789,7 @@ export function createRun(id: string, title: string, script: string, language: s
   db.prepare(
     "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script) VALUES (?, ?, ?, 0, ?, ?, ?)",
   ).run(id, title, createdAt, language, projectFolder, script);
-  return { id, title, script, createdAt, paused: false, language, projectFolder, voiceProviderId: null, failure: null, finalVideoPath: null };
+  return { id, title, script, createdAt, paused: false, language, projectFolder, voiceProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
 }
 
 export function setRunProjectFolder(runId: string, projectFolder: string): void {
@@ -790,6 +877,7 @@ function rowToRun(row: any): Run {
     voiceProviderId: row.voice_provider_id ?? null,
     failure: row.failure ? (JSON.parse(row.failure) as SessionFailure) : null,
     finalVideoPath: row.final_video_path ?? null,
+    rebuildRequestedAt: row.rebuild_requested_at ?? null,
   };
 }
 
@@ -1270,19 +1358,54 @@ export function completeStageAttempt(
   if ((outcome.outcome as StageAttemptOutcome) === "in-flight") {
     throw new Error("cannot complete an attempt with the in-flight outcome");
   }
-  const result = db
+  const row = db
     .prepare(
-      "UPDATE stage_attempts SET outcome = ?, finished_at = ?, external_request_id = ?, error_code = ?, error_message = ? WHERE id = ? AND outcome = 'in-flight'",
+      "UPDATE stage_attempts SET outcome = ?, finished_at = ?, external_request_id = ?, error_code = ?, error_message = ? WHERE id = ? AND outcome = 'in-flight' RETURNING run_id, stage, provider_id, sent_at",
     )
-    .run(
+    .get(
       outcome.outcome,
       outcome.finishedAt,
       outcome.externalRequestId ?? null,
       outcome.errorCode ?? null,
       outcome.errorMessage ?? null,
       attemptId,
-    );
-  return Number(result.changes) > 0;
+    ) as { run_id: string; stage: string; provider_id: string | null; sent_at: string | null } | undefined;
+  if (!row) return false;
+  // add-observability-telemetry (JOS-199) Decision 4 — only the completion that changed a row reports, so the
+  // `outcome = 'in-flight'` guard above also prevents double counting.
+  reportStageAttempt(row, outcome);
+  return true;
+}
+
+function reportStageAttempt(
+  row: { run_id: string; stage: string; provider_id: string | null; sent_at: string | null },
+  outcome: { outcome: string; finishedAt: string; errorCode?: string; errorMessage?: string },
+): void {
+  try {
+    const consent = getConsent();
+    if (!consent.providerUsage && !consent.errors) return;
+    const provider = row.provider_id ?? "unknown";
+    const normalized = normalizeOutcome(outcome.outcome);
+    let billed: BilledUnit | undefined;
+    if (normalized === "success" && row.stage === "voice-over") {
+      const script = db.prepare("SELECT length(script) AS characters FROM runs WHERE id = ?").get(row.run_id) as any;
+      if (script) billed = { unit: "voice_characters", amount: script.characters };
+    }
+    const sentAt = row.sent_at ? Date.parse(row.sent_at) : NaN;
+    const latencyMs = Number.isNaN(sentAt) ? 0 : Math.max(0, Date.parse(outcome.finishedAt) - sentAt);
+    recordProviderCall({ stage: row.stage, provider, outcome: outcome.outcome, latencyMs, billed });
+    if (normalized === "not-retryable") {
+      recordError({
+        stage: row.stage,
+        provider,
+        errorCode: outcome.errorCode,
+        outcome: normalized,
+        message: outcome.errorMessage ?? "stage attempt failed",
+      });
+    }
+  } catch {
+    // Telemetry must never fail a database write.
+  }
 }
 
 /**
@@ -1321,7 +1444,87 @@ export function getStageAttempts(runId: string, stage: AttemptStage): StageAttem
  */
 export function setFinalVideoPath(runId: string, relativePath: string): boolean {
   const result = db.prepare("UPDATE runs SET final_video_path = ? WHERE id = ? AND final_video_path IS NULL").run(relativePath, runId);
+  const changed = Number(result.changes) > 0;
+  if (changed) recordProductEvent("final_video"); // JOS-199 — only the transition from none to a first final video counts
+  return changed;
+}
+
+/** Records that a rebuild was asked for. `false` when one is already outstanding or the session has no final video. */
+export function requestFinalVideoRebuild(runId: string): boolean {
+  const result = db
+    .prepare("UPDATE runs SET rebuild_requested_at = ? WHERE id = ? AND final_video_path IS NOT NULL AND rebuild_requested_at IS NULL")
+    .run(nowIso(), runId);
   return Number(result.changes) > 0;
+}
+
+export function clearFinalVideoRebuildRequest(runId: string): void {
+  db.prepare("UPDATE runs SET rebuild_requested_at = NULL WHERE id = ?").run(runId);
+}
+
+/**
+ * adjust-scene-pause (JOS-190), Decision 3 — moves the current final video to a rebuilt file, only from the path the
+ * caller saw, so two rebuilds that both finish cannot both become current (the loser's file is left unreferenced).
+ */
+export function replaceFinalVideoPath(runId: string, expectedPath: string, newPath: string): boolean {
+  const result = db.prepare("UPDATE runs SET final_video_path = ? WHERE id = ? AND final_video_path = ?").run(newPath, runId, expectedPath);
+  return Number(result.changes) > 0;
+}
+
+// ---- Pause edits and rebuilt final videos (adjust-scene-pause, JOS-190) ----
+
+/** Stores or replaces the User's pause for a scene. Callers have already validated it against the scene's range. */
+export function setScenePauseEdit(runId: string, sceneId: string, pauseSeconds: number): void {
+  db.prepare(
+    "INSERT INTO scene_pause_edits (scene_id, run_id, pause_seconds, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(scene_id) DO UPDATE SET pause_seconds = excluded.pause_seconds, updated_at = excluded.updated_at",
+  ).run(sceneId, runId, pauseSeconds, nowIso());
+}
+
+/** Back to the original pause: the edit is removed, never stored as an equal value. */
+export function clearScenePauseEdit(sceneId: string): void {
+  db.prepare("DELETE FROM scene_pause_edits WHERE scene_id = ?").run(sceneId);
+}
+
+/** Scene id → the User's pause, for every edited scene of the session. */
+export function getScenePauseEdits(runId: string): Map<string, number> {
+  const rows = db.prepare("SELECT scene_id, pause_seconds FROM scene_pause_edits WHERE run_id = ?").all(runId) as Array<{
+    scene_id: string;
+    pause_seconds: number;
+  }>;
+  return new Map(rows.map((row) => [row.scene_id, row.pause_seconds]));
+}
+
+export interface FinalVideoBuild {
+  runId: string;
+  /** 2 onwards; the original `final-video.mp4` is version 1 and has no record. */
+  version: number;
+  path: string;
+  /** Scene id → the pause that build applied (only edited scenes). */
+  pauses: Record<string, number>;
+  createdAt: string;
+}
+
+export function nextFinalVideoVersion(runId: string): number {
+  const row = db.prepare("SELECT MAX(version) AS v FROM final_video_builds WHERE run_id = ?").get(runId) as { v: number | null };
+  return (row.v ?? 1) + 1;
+}
+
+/** Records a rebuild once. `false` when that version already exists (another rebuild recorded it first). */
+export function insertFinalVideoBuild(build: FinalVideoBuild): boolean {
+  const result = db
+    .prepare("INSERT OR IGNORE INTO final_video_builds (run_id, version, path, pauses, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(build.runId, build.version, build.path, JSON.stringify(build.pauses), build.createdAt);
+  return Number(result.changes) > 0;
+}
+
+export function getFinalVideoBuilds(runId: string): FinalVideoBuild[] {
+  const rows = db.prepare("SELECT * FROM final_video_builds WHERE run_id = ? ORDER BY version ASC").all(runId) as any[];
+  return rows.map((row) => ({
+    runId: row.run_id,
+    version: row.version,
+    path: row.path,
+    pauses: JSON.parse(row.pauses) as Record<string, number>,
+    createdAt: row.created_at,
+  }));
 }
 
 export function getAllInFlightScenes(): Scene[] {
@@ -1564,7 +1767,31 @@ export function insertProviderRequest(
   db.prepare(
     "INSERT INTO provider_requests (id, scene_id, sent_at, latency_ms, mode, attempt_number, resolved, stage) VALUES (?, ?, ?, ?, ?, ?, 0, ?)",
   ).run(id, sceneId, sentAt, latencyMs, mode, attemptNumber, stage);
+  reportProviderRequest(sceneId, latencyMs, mode, stage);
   return { id, sceneId, sentAt, latencyMs, mode, attemptNumber, resolved: 0, stage };
+}
+
+/** add-observability-telemetry (JOS-199) Decision 4 — the image and clip stages report here, not through stage attempts. */
+function reportProviderRequest(sceneId: string, latencyMs: number, mode: ProviderOutcomeMode, stage: "image" | "video"): void {
+  try {
+    const consent = getConsent();
+    if (!consent.providerUsage && !consent.errors) return;
+    const scene = db
+      .prepare("SELECT provider, video_provider, requested_duration_seconds FROM scenes WHERE id = ?")
+      .get(sceneId) as any;
+    if (!scene) return;
+    const provider: string = (stage === "video" ? scene.video_provider : scene.provider) ?? "unknown";
+    const normalized = normalizeOutcome(mode);
+    let billed: BilledUnit | undefined;
+    if (stage === "image") billed = { unit: "images", amount: 1 };
+    else if (typeof scene.requested_duration_seconds === "number") billed = { unit: "clip_seconds", amount: scene.requested_duration_seconds };
+    recordProviderCall({ stage, provider, outcome: mode, latencyMs, billed });
+    if (normalized === "not-retryable") {
+      recordError({ stage, provider, outcome: normalized, message: `${stage} request failed (${mode})` });
+    }
+  } catch {
+    // Telemetry must never fail a database write.
+  }
 }
 
 export function getProviderRequest(id: string): ProviderRequestRow | undefined {
@@ -1640,12 +1867,14 @@ export function resetAll(): void {
     db.exec("DROP TRIGGER voice_overs_no_delete");
     db.exec("DROP TRIGGER scenes_no_delete");
     db.exec("DROP TRIGGER narration_timestamps_no_delete");
+    db.exec("DROP TRIGGER final_video_builds_no_delete");
     db.exec(
-      "DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
+      "DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
     );
     db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
     db.exec(SCENE_NO_DELETE_TRIGGER_DDL);
     db.exec(NARRATION_TIMESTAMPS_NO_DELETE_TRIGGER_DDL);
+    db.exec(FINAL_VIDEO_BUILDS_NO_DELETE_TRIGGER_DDL);
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");

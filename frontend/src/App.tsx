@@ -2,8 +2,25 @@ import { useCallback, useEffect, useState } from "react";
 import { StartProjectForm, type StartProjectValues, type SupportedLanguage } from "./components/StartProjectForm";
 import { SessionPage } from "./components/SessionPage";
 import { TopBar } from "./components/TopBar";
+import { TelemetryConsentDialog } from "./components/TelemetryConsentDialog";
+import { UpdateBanner } from "./components/UpdateBanner";
+import type { TelemetryConsent } from "./types";
 import { useLiveSession } from "./api/useLiveSession";
-import { correctScene, createSession, continueSession, fetchLanguages, pauseSession, retryAssembly, retryDecomposition, retryScene } from "./api/client";
+import {
+  correctScene,
+  createSession,
+  continueSession,
+  fetchLanguages,
+  getTelemetryConsent,
+  saveTelemetryConsent,
+  pauseSession,
+  rebuildFinalVideo,
+  retryAssembly,
+  retryDecomposition,
+  retryScene,
+  retryVoiceOver,
+  setScenePause,
+} from "./api/client";
 
 /**
  * No project-list screen exists in the PRD or backlog (design.md § Open
@@ -21,6 +38,41 @@ export default function App() {
   const [startError, setStartError] = useState<string | undefined>(undefined);
   const [languages, setLanguages] = useState<SupportedLanguage[]>([]);
   const { snapshot, connected, notFound } = useLiveSession(sessionId);
+
+  // add-observability-telemetry (JOS-199) — the consent prompt opens once, while the answer is still missing; the
+  // "Privacy" button reopens it. A failed request leaves it closed: telemetry stays off.
+  const [consent, setConsent] = useState<TelemetryConsent | undefined>(undefined);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  useEffect(() => {
+    getTelemetryConsent()
+      .then((loaded) => {
+        setConsent(loaded);
+        if (!loaded.answered) setPrivacyOpen(true);
+      })
+      .catch(() => setConsent(undefined));
+  }, []);
+  const privacy = (
+    <>
+      <UpdateBanner />
+      <TelemetryConsentDialog
+        open={privacyOpen}
+        consent={consent}
+        onSave={async (choices) => setConsent(await saveTelemetryConsent(choices))}
+        onClose={() => setPrivacyOpen(false)}
+        onDismiss={async () => {
+          // "Not now" counts as an answer, but only the first time: an answered consent keeps its saved choices.
+          if (consent && !consent.answered) {
+            try {
+              setConsent(await saveTelemetryConsent({ errors: false, providerUsage: false, productUsage: false }));
+            } catch {
+              // still closes; the prompt returns on the next launch
+            }
+          }
+          setPrivacyOpen(false);
+        }}
+      />
+    </>
+  );
 
   // start-video-project (JOS-134) Decision 5 — fetched from the backend,
   // never a second hardcoded copy.
@@ -60,7 +112,8 @@ export default function App() {
   if (!sessionId) {
     return (
       <>
-        <TopBar />
+        <TopBar onOpenPrivacy={() => setPrivacyOpen(true)} />
+        {privacy}
         <main className="app-main">
           <StartProjectForm onStart={handleStart} languages={languages} submitting={starting} error={startError} />
         </main>
@@ -70,7 +123,8 @@ export default function App() {
 
   return (
     <>
-      <TopBar connected={notFound ? undefined : connected} onNewProject={handleStartNew} />
+      <TopBar connected={notFound ? undefined : connected} onNewProject={handleStartNew} onOpenPrivacy={() => setPrivacyOpen(true)} />
+      {privacy}
       <main className="app-main">
         <SessionPage
           sessionId={sessionId}
@@ -81,7 +135,10 @@ export default function App() {
           onContinue={() => continueSession(sessionId)}
           onRetry={(sceneId) => retryScene(sessionId, sceneId)}
           onCorrect={(sceneId, instruction) => correctScene(sessionId, sceneId, instruction)}
+          onSetPause={(sceneId, seconds) => setScenePause(sessionId, sceneId, seconds)}
+          onRebuildFinalVideo={() => rebuildFinalVideo(sessionId)}
           onRetryPhase={(phase) => {
+            if (phase === "voice-over") return retryVoiceOver(sessionId);
             if (phase === "decomposition") return retryDecomposition(sessionId);
             if (phase === "assembly") return retryAssembly(sessionId);
             return Promise.reject(new Error("not-retryable"));

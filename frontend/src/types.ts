@@ -66,9 +66,31 @@ export interface SessionEventPayload {
   phases: PhaseProgress[];
   /** download-final-video (JOS-164) — present only once the final video exists; the page offers the download for exactly this, never derived from `state`. */
   finalVideoUrl?: string;
+  /** adjust-scene-pause (JOS-190) — present once the session has a final video; the page never derives the version or "pending" itself. */
+  finalVideo?: FinalVideoStatus;
   /** ISO-8601 instant the session was registered (documented in `docs/api-spec.yml`, always present). */
   createdAt: string;
   updatedAt: string;
+}
+
+/** The current final video's place in its history, and what a rebuild would change (adjust-scene-pause, JOS-190). */
+export interface FinalVideoStatus {
+  /** 1 for the original `final-video.mp4`; 2 onwards for each rebuild. */
+  version: number;
+  /** True when the User's pause edits differ from those the current version was built with. */
+  pendingPauseEdits: boolean;
+  /** Present only while the latest rebuild attempt ended in failure; the current version is kept. */
+  rebuildFailure?: { cause: string };
+}
+
+/** What the pause dial may do for one scene, all in seconds (adjust-scene-pause, JOS-190). */
+export interface ScenePauseView {
+  originalSeconds: number;
+  seconds: number;
+  minSeconds: number;
+  maxSeconds: number;
+  /** True when the speed-factor limit, not the 0.2 s floor or the 3.0 s cap, set either bound. */
+  limitedBySpeedFactor: boolean;
 }
 
 export interface SceneEventPayload {
@@ -101,6 +123,8 @@ export interface SceneEventPayload {
   /** Set only when the factor exceeds the hardcoded acceptable limit. Independent of durationWarning. */
   speedFactorWarning?: "exceeds-limit";
   held?: boolean;
+  /** adjust-scene-pause (JOS-190) — present only once the session has a final video and this scene's pause can be derived. */
+  pause?: ScenePauseView;
   updatedAt: string;
 }
 
@@ -114,3 +138,16 @@ export interface SessionSnapshot {
 // runtime (src/api/client.ts's `fetchLanguages`), which is itself provisional
 // pending `define-provider-configuration` (US-33, JOS-165) — see
 // backend/src/config/languages.ts for that note. One source, not two.
+
+/** add-observability-telemetry (JOS-199) — one opt-in toggle per signal; `answered` is false until the user saves once. */
+export interface TelemetryChoices {
+  errors: boolean;
+  providerUsage: boolean;
+  productUsage: boolean;
+}
+export interface TelemetryConsent extends TelemetryChoices {
+  answered: boolean;
+}
+
+/** `GET /app/update`: a newer build exists on this build's channel. */
+export type AppUpdate = { available: false } | { available: true; tag: string; url: string };

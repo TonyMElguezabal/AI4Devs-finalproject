@@ -1,0 +1,17 @@
+{
+  "name": "vid4you-telemetry-relay",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Cloudflare Worker that filters OTLP/HTTP JSON from the Vid4You app and forwards it to Grafana Cloud (add-observability-telemetry, JOS-199).",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "3.2.7",
+    "wrangler": "4.146.0"
+  }
+}

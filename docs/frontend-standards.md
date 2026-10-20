@@ -53,6 +53,7 @@ frontend/
 │   │   ├── PhaseStepper.tsx      # the four phases at a glance (a group, not a list)
 │   │   ├── PhaseSection.tsx
 │   │   ├── PhaseRetryButton.tsx
+│   │   ├── PauseDial.tsx         # the silence after a scene (adjust-scene-pause, JOS-190)
 │   │   ├── SceneList.tsx
 │   │   ├── SceneRow.tsx          # a scene card
 │   │   ├── FinalVideoDownload.tsx
@@ -63,6 +64,7 @@ frontend/
 │   │   ├── app.css              # layout + motion, consumes tokens.css only
 │   │   └── status.ts            # the one state→status-class (and →icon) mapping every component uses
 │   ├── phaseLabels.ts            # phase and phase-status words
+│   ├── pauseRefusals.ts          # pause/rebuild refusal reasons as sentences
 │   ├── statusLabels.ts           # scene and session state words, affected stage, warning sentences
 │   ├── types.ts                 # mirrors the backend's wire contract (see Not Yet Decided)
 │   └── App.tsx                  # identifier-based routing via a URL query param
@@ -86,6 +88,8 @@ Every screen traces to a PRD section; none was invented beyond what the PRD impl
 | Scene details | §3, §7.2, AC23 | `PROMPT`/`IMAGE`/`VIDEO`, narration interval, requested duration, speed factor + warning, provider + attempts |
 | Correction form | §10.3, AC09 | Present only on a failed image or video stage; never exposes `ID`, `PROMPT`, or order |
 | Pause / continue | §8.1, §9, AC07 | Session-level control; the paused marker shown on top of current state, distinct from a generation still running; `held` and `running` stages and counts shown as separate lines in the header when paused ("Still generating" / "Nothing is generating", "Waiting for continue"); a held scene row shows "waiting for continue", a non-held generating scene shows "still generating" (`pause-and-continue-session`, JOS-152; `distinguish-paused-session`, JOS-153) |
+| Privacy dialog | JOS-199 (PRD addendum pending) | A native `<dialog>`, opened on first launch and from the top bar's **Privacy** button: one checkbox per signal (error reports, provider usage and cost counts, anonymous usage counts), all off by default; a link to the privacy policy (`PRIVACY.md`, new tab); **Save** stores the choices. **Not now** and Escape close it; the first time (consent unanswered) that also records an all-off answer so it is never shown again on its own, and on an answered consent it changes nothing. Focus stays inside it while open |
+| Update banner | JOS-199 | A bar under the top bar, "A new version of Vid4You is available", a **View release** link (new tab) and **Dismiss**; shown only when `GET /app/update` says a newer release exists |
 | Downloads | §12.3 | Per-scene image/clip during processing; final MP4 only at `final-video`; nothing offered for MP3, timestamps or generated texts |
 
 **Recorded gap, not invented:** no project-list screen exists anywhere in the PRD or backlog (§12.3 describes reaching a session only by identifier) — see [Not Yet Decided](#not-yet-decided).
@@ -116,7 +120,7 @@ Naming, typing, TDD and English-only rules are inherited from `docs/base-standar
 - **Downloads are the one exception: the page shows exactly what the session read offers, never a flag it derives from `state` itself** (`download-scene-results`, JOS-163, design Decision 3; `download-final-video`, JOS-164, design Decision 2, applying the same rule to the final video). `SceneRow` renders a download link only for the entries present in `scene.downloads` (`imageUrl`/`clipUrl`); `FinalVideoDownload` takes the single `url: string | undefined` the session read publishes (`session.finalVideoUrl`) and renders nothing when it is absent — neither component computes availability from `state` (`scene.state === "chunk-complete"`, `session.state === "final-video"`) or any other state check, because state alone cannot say whether a file actually exists (both backends proved this the hard way: a state-only gate let the page offer a link the route would then refuse). The server is the only place that decides availability; a new downloadable artefact adds a field to the read, not a state check in a component.
 - **Scene actions are derived in one place, `sceneActions(scene)`** (`frontend/src/sceneActions.ts`; `show-scene-results-and-actions`, JOS-151, Decision 4; `retry-or-correct-clip`, JOS-158). It maps `(state, affectedStage)` to stage-appropriate retry and correction actions: image retry/`IMAGE` correction only on an image failure, video retry/`VIDEO` correction only on a video failure, and no recovery actions in other states. `SceneRow` renders from this helper instead of testing `state === "failed"` itself. Changes belong in this helper and its tests, not as conditions scattered across components. The visible correction form and draft are selected from the failed stage's stored instruction.
 - **Phase actions are derived in one place, `phaseActions(progress)`** (`frontend/src/phaseActions.ts`; `view-progress-by-phase`, JOS-168, Decision 7), mirroring `sceneActions`. It returns no action for any phase and status today, because no manual-retry endpoint exists for voice-over, decomposition or assembly and the scenes phase acts per scene. `PhaseSection` renders from it, so US-23 to US-27 add their retry actions by extending this function and its tests, not by adding a condition in a component; the page must not offer an action the backend would reject. `PhaseSection` also derives nothing else: the status, `heldCount` and `failure` come from `session.phases`, and the status classes and labels from `styles/status.ts` and `phaseLabels.ts`.
-- **A rejected retry or correction shows as a sentence from a reason-to-sentence table, never the raw backend code.** (`retry-or-correct-image`, JOS-157; `retry-or-correct-clip`, JOS-158; `frontend/src/sceneRecoveryRefusals.ts` mirrors `retryRefusals.ts`'s pattern for decomposition retry.) `SceneRow` disables the triggering control while the call is outstanding and shows a mapped sentence on a refusal (`role="status"`, not an alert — a refusal is an answer, not a problem the page caused); the scene's new state, on success, arrives through the live update, and the row never applies it itself. A code the table does not list falls back to one generic sentence rather than leaking the code. Add a new refusal reason to the table and its test, never as a one-off string in the component.
+- **A rejected retry or correction shows as a sentence from a reason-to-sentence table, never the raw backend code.** (`retry-or-correct-image`, JOS-157; `retry-or-correct-clip`, JOS-158; `frontend/src/sceneRecoveryRefusals.ts` mirrors `retryRefusals.ts`'s pattern for decomposition retry; `retryRefusals.ts` also holds the voice-over reasons `not-failed-in-voice-over` and `narration-complete`, JOS-155.) `SceneRow` disables the triggering control while the call is outstanding and shows a mapped sentence on a refusal (`role="status"`, not an alert — a refusal is an answer, not a problem the page caused); the scene's new state, on success, arrives through the live update, and the row never applies it itself. A code the table does not list falls back to one generic sentence rather than leaking the code. Add a new refusal reason to the table and its test, never as a one-off string in the component.
 
 ## Accessible Naming Convention
 
@@ -130,6 +134,7 @@ Fixed here as a documented convention, not left to per-story judgement (`docs/ad
 | The phase stepper (JOS-198) | `Pipeline progress` (`role="group"`, deliberately not a list: scene rows are the page's only list items besides stage lists) | `Pipeline progress` |
 | Scenes done (JOS-198) | `Scenes done` (a native `<progress>`; present only when scenes exist) | — |
 | Retry a failed scene | `Retry scene {index}` | `Retry scene 7` |
+| Retry a failed voice-over (JOS-155) | `Retry voice-over` (the same shared `PhaseRetryButton`; offered only when the failure is `retryable`) | `Retry voice-over` |
 | Retry a failed decomposition | `Retry decomposition` (the shared `PhaseRetryButton`, rendered by `PhaseSection` from `phaseActions`) | `Retry decomposition` |
 | Retry a failed assembly (JOS-159) | `Retry final video` (the same shared `PhaseRetryButton`; offered whatever `retryable` is — Decision 7) | `Retry final video` |
 | The correction form | `Correct scene {index} image instruction` (`aria-label` on the `<form>`) | `Correct scene 7 image instruction` |
@@ -137,7 +142,9 @@ Fixed here as a documented convention, not left to per-story judgement (`docs/ad
 | A scene's stage diagnostics (JOS-166) | `Scene {index} image diagnostics` / `Scene {index} clip diagnostics` (`role="group"` with an `aria-label`; the text is `Image: Fal.ai (fal-ai/flux/dev), 2 attempts`) | `Scene 7 image diagnostics` |
 | A phase's stage list (JOS-166) | `{Phase} stages` (`aria-label` on the `<ul>`; rendered only when a stage has run) | `Decomposition stages` |
 | Per-scene downloads | `Download scene {index} image` / `Download scene {index} video` | `Download scene 7 image` |
-| The final video download | `Download final video` | — |
+| The final video download | `Download final video` (always the current version, including while a rebuild runs) | — |
+| The pause dial (JOS-190) | `Pause after scene {index}` (a number field in the expanded card, present only when the read carries `pause`) / `Reset scene {index} pause` | `Pause after scene 3` |
+| Rebuild the final video (JOS-190) | `Rebuild final video` (present only while pause edits are pending and no rebuild runs) | — |
 | Session control | `Pause session` / `Continue session` | — |
 | Start-form fields | Plain `<label htmlFor>` — `Title`, `Script`, `Language` | — |
 

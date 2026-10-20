@@ -1,4 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
+import { recordProductEvent, setConsent } from "./telemetry/index.ts";
+import { getUpdateResult } from "./telemetry/updateCheck.ts";
 import { z } from "zod";
 import { jsonSchemaTransform, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
@@ -7,6 +9,9 @@ import { getScriptModerator } from "./scriptModeration.ts";
 import { launchVoiceOverFor } from "./voiceOverPhase.ts";
 import { retryDecomposition } from "./decompositionRetry.ts";
 import { retryAssembly } from "./assemblyRetry.ts";
+import { retryVoiceOver } from "./voiceOverRetry.ts";
+import { rebuildFinalVideo } from "./finalVideoRebuild.ts";
+import { setScenePause } from "./scenePauseEdit.ts";
 import { randomUUID } from "node:crypto";
 import {
   createRun,
@@ -18,6 +23,9 @@ import {
   resolveArtefactPath,
   writeArtefactOnce,
   insertVoiceOver,
+  getTelemetrySettings,
+  saveTelemetryConsent,
+  type TelemetrySettings,
 } from "./db.ts";
 import {
   continueSession,
@@ -166,6 +174,18 @@ const sceneResponseSchema = z.object({
       "PRD §7.2: set when the speed-adjustment factor exceeds the hardcoded acceptable limit. Not a failure, and independent of durationWarning. Read-only and immutable once the chunk is established.",
     ),
   held: z.boolean().optional().describe("True while the session is paused and this scene has pending work waiting to be launched."),
+  pause: z
+    .object({
+      originalSeconds: z.number().describe("The silence after this scene in the narration as generated: its interval's end minus the end of its last spoken character."),
+      seconds: z.number().describe("The pause the User has set; equals originalSeconds when unchanged."),
+      minSeconds: z.number().describe("The least the pause may be: the 0.2 s floor, raised when a shorter pause would speed this scene's clip past the speed-factor limit."),
+      maxSeconds: z.number().describe("The most the pause may be: the 3.0 s cap, lowered when a longer pause would slow this scene's clip past the speed-factor limit."),
+      limitedBySpeedFactor: z.boolean().describe("True when the speed-factor limit, not the floor or the cap, set either bound."),
+    })
+    .optional()
+    .describe(
+      "adjust-scene-pause (JOS-190): the dial for the silence after this scene. Present only once the session has a final video and this scene's pause can be derived. Derived on every read; the stored interval is never changed.",
+    ),
   updatedAt: z.string(),
 });
 
@@ -238,6 +258,17 @@ const sessionResponseSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   finalVideoUrl: z.string().optional().describe("Route to download the assembled MP4; present only when state is final-video (JOS-149)."),
+  finalVideo: z
+    .object({
+      version: z.number().int().min(1).describe("1 for the original final-video.mp4; 2 onwards for each rebuild. finalVideoUrl always serves this version."),
+      pendingPauseEdits: z.boolean().describe("True when the User's pause edits differ from those this version was built with, so a rebuild would change it."),
+      rebuildFailure: z
+        .object({ cause: z.string() })
+        .optional()
+        .describe("Present only while the latest rebuild attempt ended in failure. The current version is kept and a rebuild can be requested again."),
+    })
+    .optional()
+    .describe("adjust-scene-pause (JOS-190): present once the session has a final video. Derived on every read, never stored."),
 });
 
 const languageResponseSchema = z.array(z.object({ code: z.string(), label: z.string() }));
@@ -250,7 +281,20 @@ const snapshotResponseSchema = z.object({
 const okSchema = z.object({ ok: z.boolean() });
 const conflictSchema = z.object({ ok: z.boolean(), reason: z.string() });
 const retryAcceptedSchema = z.object({ ok: z.literal(true), held: z.boolean().describe("True while the session is paused: the retry is accepted and waits for continue.") });
+// add-observability-telemetry (JOS-199) — the install ID stays in the store and is never returned.
+const telemetryConsentBodySchema = z.object({ errors: z.boolean(), providerUsage: z.boolean(), productUsage: z.boolean() }).strict();
+const telemetryConsentResponseSchema = telemetryConsentBodySchema.extend({ answered: z.boolean() });
+function consentView({ errors, providerUsage, productUsage, answered }: TelemetrySettings) {
+  return { errors, providerUsage, productUsage, answered };
+}
+const appUpdateResponseSchema = z.union([
+  z.object({ available: z.literal(false) }),
+  z.object({ available: z.literal(true), tag: z.string(), url: z.string() }),
+]);
 const emptyBodySchema = z.object({}).strict().nullish();
+// adjust-scene-pause (JOS-190) — a number only; whether it is on the 0.1 s grid and inside the scene's range depends on
+// the scene, so it is answered 422 with a sentence by the handler rather than rejected by the schema.
+const pauseBodySchema = z.object({ seconds: z.number().finite().min(0) });
 // A malformed id is answered 404 by the handler, as the session read does, so it is not rejected by the schema.
 const looseSessionParamsSchema = z.object({ sessionId: z.string() });
 
@@ -264,6 +308,24 @@ export const routes: FastifyPluginAsync = async (app) => {
   // start-video-project (JOS-134) Decision 5 — the frontend fetches this
   // list rather than restating it; see config/providers.ts (JOS-165) for
   // the verified list and how it was derived.
+  typed.get(
+    "/telemetry/consent",
+    { schema: { response: { 200: telemetryConsentResponseSchema } } },
+    async () => consentView(getTelemetrySettings()),
+  );
+
+  typed.put(
+    "/telemetry/consent",
+    { schema: { body: telemetryConsentBodySchema, response: { 200: telemetryConsentResponseSchema } } },
+    async (request) => {
+      const saved = saveTelemetryConsent(request.body);
+      setConsent(saved); // applies at once, without a restart (spec: Per-signal opt-in consent)
+      return consentView(saved);
+    },
+  );
+
+  typed.get("/app/update", { schema: { response: { 200: appUpdateResponseSchema } } }, async () => getUpdateResult());
+
   typed.get("/languages", { schema: { response: { 200: languageResponseSchema } } }, async () => [
     ...SUPPORTED_LANGUAGES,
   ]);
@@ -299,6 +361,7 @@ export const routes: FastifyPluginAsync = async (app) => {
       }
       const sessionId = ulid();
       createRun(sessionId, request.body.title, request.body.script, request.body.language);
+      recordProductEvent("session_started");
       reply.code(201);
       const snapshot = toSnapshot(sessionId);
       // generate-voice-over (JOS-136) Decision 1 — the session is committed; the
@@ -388,6 +451,26 @@ export const routes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  // retry-voice-over (JOS-155) — the manual retry of a failed voice-over. Same script and provider, nothing deleted;
+  // the body is strictly empty so no input can change what is sent.
+  typed.post(
+    "/sessions/:sessionId/voice-over/retry",
+    {
+      schema: {
+        params: looseSessionParamsSchema,
+        body: emptyBodySchema,
+        response: { 200: retryAcceptedSchema, 404: conflictSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const { sessionId } = request.params;
+      const result = ulidPattern.test(sessionId) ? retryVoiceOver(sessionId) : ({ ok: false, reason: "session-not-found" } as const);
+      if (result.ok) return result;
+      reply.code(result.reason === "session-not-found" ? 404 : 409);
+      return { ok: false, reason: result.reason };
+    },
+  );
+
   // retry-final-assembly (JOS-159) — the manual retry of a failed final assembly. Design Decision 7 — assembly
   // always offers a retry, whatever `retryable` is, so there is no `not-retryable` 409 reason here.
   typed.post(
@@ -403,6 +486,59 @@ export const routes: FastifyPluginAsync = async (app) => {
       const { sessionId } = request.params;
       const result = ulidPattern.test(sessionId) ? retryAssembly(sessionId) : ({ ok: false, reason: "session-not-found" } as const);
       if (result.ok) return result;
+      reply.code(result.reason === "session-not-found" ? 404 : 409);
+      return { ok: false, reason: result.reason };
+    },
+  );
+
+  // adjust-scene-pause (JOS-190), design Decision 9 — the dial for the silence after one scene. A POST like every other
+  // mutation here (the content-lock tests pin that the API has no PUT, PATCH or DELETE). Only while the session has a
+  // final video and nothing is assembling; a value off the 0.1 s grid or outside the scene's range answers 422 with a sentence.
+  typed.post(
+    "/sessions/:sessionId/scenes/:sceneId/pause",
+    {
+      schema: {
+        params: looseSessionParamsSchema.extend({ sceneId: z.string() }),
+        body: pauseBodySchema,
+        response: { 200: sceneResponseSchema, 404: conflictSchema, 409: conflictSchema, 422: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const { sessionId, sceneId } = request.params;
+      const result = ulidPattern.test(sessionId)
+        ? setScenePause(sessionId, sceneId, request.body.seconds)
+        : ({ ok: false, reason: "session-not-found" } as const);
+      if (result.ok) {
+        const scene = toSnapshot(sessionId)?.scenes.find((candidate) => candidate.sceneId === sceneId);
+        return scene as z.infer<typeof sceneResponseSchema>;
+      }
+      if (result.reason === "out-of-range") {
+        reply.code(422);
+        return { ok: false, reason: result.message };
+      }
+      reply.code(result.reason === "session-not-found" || result.reason === "unknown-scene" ? 404 : 409);
+      return { ok: false, reason: result.reason };
+    },
+  );
+
+  // adjust-scene-pause (JOS-190), design Decision 6 — assemble a new version of the final video with the stored pause
+  // edits. 202: the work happens after the answer, like every assembly.
+  typed.post(
+    "/sessions/:sessionId/final-video/rebuild",
+    {
+      schema: {
+        params: looseSessionParamsSchema,
+        body: emptyBodySchema,
+        response: { 202: retryAcceptedSchema, 404: conflictSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const { sessionId } = request.params;
+      const result = ulidPattern.test(sessionId) ? rebuildFinalVideo(sessionId) : ({ ok: false, reason: "session-not-found" } as const);
+      if (result.ok) {
+        reply.code(202);
+        return result;
+      }
       reply.code(result.reason === "session-not-found" ? 404 : 409);
       return { ok: false, reason: result.reason };
     },
@@ -612,8 +748,9 @@ export const routes: FastifyPluginAsync = async (app) => {
       // Writing to `reply.raw` bypasses Fastify's reply pipeline entirely,
       // so the @fastify/cors plugin's onSend hook never runs for this route
       // — found by the frontend prototype's browser actually refusing the
-      // response with no CORS header. Set it explicitly here instead.
-      "Access-Control-Allow-Origin": request.headers.origin ?? "*",
+      // response with no CORS header. Set it explicitly here instead. Foreign origins never get here
+      // (originPolicy.ts refuses them), so the request's own origin can be echoed.
+      ...(request.headers.origin ? { "Access-Control-Allow-Origin": request.headers.origin } : {}),
     });
     reply.raw.write(": connected\n\n");
 

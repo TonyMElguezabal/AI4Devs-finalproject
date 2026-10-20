@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.8  
+**Versión:** 1.10  
 **Alcance:** MVP  
-**Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.7.md`.
+**Status (v1.10):** the final MP4's audio is the voice-over's MP3 stream copied unchanged, not AAC (§7.3, D08), and the automatic-retry delay (2 s base, 30 s cap) is recorded (§11.3) (JOS-203). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.9.md`.
 
 ## 1. Objetivo del producto
 
@@ -180,9 +180,11 @@ Los intervalos de narración de los chunks forman una **partición del eje tempo
 
 El montaje debe conservar todo el contenido narrado y la secuencia de escenas, sin omisiones, duplicaciones ni huecos visuales. Debe cubrir también las pausas existentes en la narración.
 
+**Ajuste manual de una pausa (JOS-190, product owner decision 2026-10-15).** Una vez existe el video final, el usuario puede acortar o alargar el silencio que sigue a una escena y reconstruir el video final. El silencio se mueve entre 0.2 y 3.0 segundos en pasos de 0.1 s, acotado además para que el clip de esa escena no supere el límite de factor de velocidad; el valor inicial es la pausa original. El silencio se recorta o se amplía por el centro de la pausa: el habla y su velocidad no cambian, las escenas posteriores se desplazan en consecuencia y el MP3 almacenado no se modifica. Cada reconstrucción escribe un archivo nuevo (`final-video-<versión>.mp4`, versión 2 en adelante) y conserva los anteriores; ningún clip se vuelve a generar y los intervalos almacenados de los chunks, y la regla D11, no cambian. Es la única excepción a «el audio no se modifica» de este apartado.
+
 El video final solo puede generarse cuando todas las escenas estén en `chunk-complete`. Una sesión con una escena fallida o pendiente no puede alcanzar `final-video`.
 
-**Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are hardcoded (expected 1920×1080 at 30 fps), with H.264 video and AAC audio.
+**Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are hardcoded (expected 1920×1080 at 30 fps), with H.264 video. The audio is the voice-over's MP3 stream copied into the MP4 without re-encoding; only a rebuild with an adjusted pause re-encodes it (to AAC).
 
 Si falla el montaje, se conserva el audio y las escenas exitosas. El reintento se aplica al montaje, sin volver a generar los componentes ya completados.
 
@@ -319,10 +321,11 @@ Defined by `define-provider-configuration` (JOS-165), verified against real call
 |---|---|---|
 | Video admitted durations | 5-15 seconds | Both ends measured with real calls |
 | Segmentation lower bound (§6.1) | 5 seconds | = video provider's measured minimum |
-| Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264/AAC | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
+| Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264 video, voice-over MP3 audio copied unchanged | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
 | Supported script languages (§4.1, D09) | English, Spanish | Each verified independently across voice, alignment and reasoning |
 | Acceptable speed-factor limit | **Provisional** | `define-media-assembly` (JOS-182) recommends 0.5x-2.0x (its ADR, Decision 5); `decide-silence-allocation` (JOS-142) verified D11's adopted rule against that recommendation (max 1.08x observed). Not yet the fixed constant: US-33 records it, and JOS-182's own PR is not yet merged into this branch's history. |
 | Per-phase maximum times | Reasoning 600s, Image 25s, Voice 600s, Alignment 5s, Video 1200s, Assembly provisional | Set above the observed slow tail; assembly depends on JOS-182. Re-measured at the product's real script size in v1.8 (2026-10-13/14): reasoning 208.6 s for 67 fragments (was 20 s), voice 151 s for 10,217 characters (was 10 s), video clips at 2K 394 s for 7 s, 528 s for 12 s, 546 s for 13 s and above 610 s for 14 s (was 240 s; 15 s is admitted); provisional until a full-size session (1,500-1,800 words, 30-50 chunks) has been timed |
+| Automatic-retry delay | Base 2 s, cap 30 s | Exponential: `min(2 s × 2^(attempt−1), 30 s)` between attempts of a cycle; a provider's Retry-After is never undercut. Accepted by the product owner (JOS-203 B5) |
 | Maximum simultaneous requests per stage | Reasoning 50, Image 200 (provisional), Voice 3, Alignment 2, Video 3 (`limit-provider-requests-per-stage`, JOS-167) | Voice and alignment add up to the 5 concurrent requests ElevenLabs documents for the Creator tier; that value is documented, not measured. Video 3 is the highest concurrency measured with no slowdown (JOS-165, step 8.2) |
 
 **Not-retryable failure signal**: tested against all four provider-calling stages with disallowed instructional content — **none produced a distinguishable rejection** (`docs/adr/0005-provider-selection.md`, Decision 5). **Resolved at the entry point by JOS-187**: the script is checked by OpenAI's moderation endpoint before a session exists. Moderation model `omni-moderation-2024-09-26`, maximum time 10 seconds (measured 0.12–2.2 s). The downstream stages still have no content signal, and corrected `IMAGE`/`VIDEO` instructions (§10.3) remain unmoderated.
@@ -356,6 +359,20 @@ El usuario puede descargar imágenes y clips exitosos individualmente mientras o
 Las sesiones se consultan mediante su identificador. La separación de datos entre sesiones es un **requisito funcional de integridad, no un control de seguridad**: impide que un proyecto muestre o sobrescriba resultados de otro, y no protege frente a accesos de terceros.
 
 The application accepts requests only from its own interface on the same computer: it listens on the local loopback address and rejects requests coming from other web pages open in the user's browser. Admitting more than one person, or reaching the application from another computer, is outside the MVP (§2.3).
+
+### 12.4 Telemetría y privacidad
+
+1. **Consentimiento previo.** Vid4You no envía ningún dato fuera del equipo del usuario sin su permiso. En el primer arranque se muestra un aviso con tres casillas, todas desmarcadas: *informes de errores*, *conteos de uso de proveedores y costes* y *conteos anónimos de uso*. El usuario guarda sus elecciones con **Save**, o cierra el aviso con **Not now** o Escape; en ambos casos se registra una respuesta (con "Not now", todo desactivado) y el aviso no vuelve a aparecer solo. El aviso incluye un enlace a la política de privacidad. Puede cambiarlas en cualquier momento desde el botón **Privacidad**.
+2. **Qué se envía, cuando está activado.**
+   - *Errores:* código, mensaje y traza del error, con rutas de archivo y nombre de usuario eliminados.
+   - *Proveedores y costes:* cuántas llamadas se hicieron por etapa y proveedor, su resultado (éxito, transitorio, no reintentable), cuánto tardaron y las unidades facturadas (imágenes, segundos de clip, caracteres de voz).
+   - *Uso:* cuántas veces se abre la aplicación, cuántas sesiones se inician y cuántos vídeos finales se generan.
+   - En todos los casos: versión, canal (UAT/PROD), sistema operativo, arquitectura y un identificador aleatorio de la instalación.
+3. **Qué nunca se envía.** Título, guion, narración, prompts, imágenes, clips, nombres o rutas de archivo, nombre de usuario, claves de proveedores ni ningún dato personal.
+4. **Registro local.** Independientemente del consentimiento, la aplicación guarda un registro local rotativo (10 MB × 5 archivos) en la carpeta de datos del usuario; no sale del equipo.
+5. **Aviso de nueva versión.** En UAT y PROD, al arrancar, la aplicación consulta una vez la última versión publicada en GitHub y, si hay una distinta de la instalada, muestra un aviso con un enlace a la publicación. No descarga ni instala nada. No depende del consentimiento de telemetría.
+6. **Política de privacidad publicada.** El repositorio incluye `PRIVACY.md` (en inglés), enlazada desde el aviso, con lo anterior y el plazo de conservación: los datos se conservan mientras lo permita la capa gratuita del servicio de observabilidad.
+7. **Destino.** Los datos pasan por un relé propio (`otel.vid4you.download`) que descarta cualquier atributo no permitido antes de reenviarlos al servicio de observabilidad.
 
 ## 13. Criterios de aceptación del MVP
 
@@ -400,7 +417,7 @@ Las decisiones marcadas como abiertas no están aprobadas y deben cerrarse antes
 | D05 | Dependencia de enlaces temporales del proveedor. | **Closed (v1.3)** | Every temporary-link result, images included, is saved locally before its link expires (§12.2). |
 | D06 | Continuación de otras escenas tras un fallo y reintentos posteriores a una acción manual. | **Closed (v1.3)** | Other scenes keep generating; each manual retry starts a new cycle of up to three automatic retries (§10.2). |
 | D07 | Autorización y acceso a las sesiones. | **Cerrada (revisada en v1.7)** | Aplicación monousuario instalada en el equipo del usuario; sin cuentas ni autorización; solo la propia interfaz local puede usar la aplicación. La separación entre sesiones es integridad funcional, no seguridad (§12.3). |
-| D08 | Parámetros de salida del MP4 final. | **Closed (v1.3)** | Voice-over-only audio (clip sound removed); hardcoded resolution and frame rate (expected 1920×1080 at 30 fps); H.264 video and AAC audio (§7.3). |
+| D08 | Parámetros de salida del MP4 final. | **Closed (v1.3)** | Voice-over-only audio (clip sound removed); hardcoded resolution and frame rate (expected 1920×1080 at 30 fps); H.264 video; audio is the voice-over MP3 copied unchanged, AAC only after a pause adjustment (§7.3, v1.10). |
 | D09 | Idiomas admitidos. | **Closed (v1.3)** | Hardcoded list of supported languages; the User selects the script language from that list when starting a project, and no provider is called before that (§4.1). |
 | D10 | Momento exacto del bloqueo del guion durante la generación de voz. | **Closed (v1.3)** | The script is locked when the User starts the project (§4.2). |
 | D11 | Asignación de los silencios de la narración a una escena. | **Cerrada (JOS-142, 2026-09-29)** | La escena previa absorbe el silencio posterior (comparada frente a repartir el silencio entre escenas contiguas, la regla interina de JOS-140, ahora descartada). Umbral: hasta 2 s aceptable, 3 s empieza a sentirse lento; ningún guion real supera 1.26 s. Verificado según §14.1. |
@@ -437,6 +454,23 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
+
+### From version 1.9 to 1.10
+
+Origin: MVP closure (JOS-203), 2026-10-20.
+
+| Change | Origin |
+|---|---|
+| §7.3, §11.3 and D08: the final MP4's audio is the voice-over's MP3 stream copied without re-encoding (ADR 0005, Decision 4b), not AAC. A real-provider run showed the MP4 carried `mp3` audio; the PRD wording is aligned with the built behaviour. Only a rebuild with an adjusted pause (JOS-190) re-encodes the narration, to AAC. | JOS-203 B4 finding, product owner decision |
+| §11.3: the automatic-retry delay is recorded: base 2 s, cap 30 s. | JOS-203 B5 (this row was added to v1.9 without a version bump) |
+
+### From version 1.8 to 1.9
+
+Origin: `add-observability-telemetry` (JOS-199), 2026-10-19.
+
+| Change | Origin |
+|---|---|
+| New §12.4: opt-in telemetry (errors, provider usage and cost counts, anonymous usage counts) behind a first-launch consent with three unchecked boxes; "Not now" counts as an answer with everything off; a published privacy policy (`PRIVACY.md`) linked from the notice; retention as long as the observability service's free tier allows; a local rotating log; and a new-version notice on UAT and PROD. | Product owner, JOS-199 |
 
 ### From version 1.7 to 1.8
 
@@ -506,7 +540,7 @@ Origin: backlog decomposition clarification session, 2026-09-15.
 | Segmentation edge cases: short whole script, clause split of the following sentence, sentence that cannot be split (§6.1.1, §7.2, AC18). | Clarification |
 | "Closest" admitted duration defined as smallest speed change; ties go to the longer duration (§7.2, AC06). | Clarification |
 | Alignment added as a fifth stage; retries switch to it when native timestamps are unusable (§10.3, §11, §11.1). | Clarification |
-| Final MP4 output: voice-over-only audio, hardcoded resolution and frame rate, H.264/AAC (§7.3). | D08 |
+| Final MP4 output: voice-over-only audio, hardcoded resolution and frame rate, H.264 with the voice-over's MP3 audio unchanged (§7.3). | D08 |
 | Session state rules: `failed` only after other scenes finish, return to phase state on manual retry, pause as a marker (§8.1). | Gaps 1 and 3 |
 | Live progress updates without reloading; diagnostics shown in scene details and phase sections (§3, §7.2, §8.3, AC23). | Gap 7, clarification |
 | Session-wide pause that also holds retries (§9). | D01 |
