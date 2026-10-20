@@ -60,12 +60,12 @@ The system SHALL discard each clip's own audio track. The final video's audio SH
 
 ### Requirement: The output format is fixed
 
-The system SHALL produce the final video as H.264 video with AAC audio, at the hardcoded resolution and frame rate (expected 1920×1080 at 30 fps). This format SHALL NOT be configurable per session.
+The system SHALL produce the final video as H.264 video whose audio is the voice-over's stream copied unchanged (MP3), at the hardcoded resolution and frame rate (expected 1920×1080 at 30 fps). This format SHALL NOT be configurable per session.
 
 #### Scenario: A final video is produced
 
 - **WHEN** assembly succeeds for a session
-- **THEN** the resulting file is H.264 video with AAC audio at the hardcoded resolution and frame rate
+- **THEN** the resulting file is H.264 video and the voice-over's own audio stream at the hardcoded resolution and frame rate
 
 ### Requirement: The result preserves every narrated moment and every scene without omission, duplication, or gap
 

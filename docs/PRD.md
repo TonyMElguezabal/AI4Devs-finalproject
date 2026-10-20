@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.9  
+**Versión:** 1.10  
 **Alcance:** MVP  
-**Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.8.md`.
+**Status (v1.10):** the final MP4's audio is the voice-over's MP3 stream copied unchanged, not AAC (§7.3, D08), and the automatic-retry delay (2 s base, 30 s cap) is recorded (§11.3) (JOS-203). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.9.md`.
 
 ## 1. Objetivo del producto
 
@@ -184,7 +184,7 @@ El montaje debe conservar todo el contenido narrado y la secuencia de escenas, s
 
 El video final solo puede generarse cuando todas las escenas estén en `chunk-complete`. Una sesión con una escena fallida o pendiente no puede alcanzar `final-video`.
 
-**Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are hardcoded (expected 1920×1080 at 30 fps), with H.264 video and AAC audio.
+**Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are hardcoded (expected 1920×1080 at 30 fps), with H.264 video. The audio is the voice-over's MP3 stream copied into the MP4 without re-encoding; only a rebuild with an adjusted pause re-encodes it (to AAC).
 
 Si falla el montaje, se conserva el audio y las escenas exitosas. El reintento se aplica al montaje, sin volver a generar los componentes ya completados.
 
@@ -321,7 +321,7 @@ Defined by `define-provider-configuration` (JOS-165), verified against real call
 |---|---|---|
 | Video admitted durations | 5-15 seconds | Both ends measured with real calls |
 | Segmentation lower bound (§6.1) | 5 seconds | = video provider's measured minimum |
-| Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264/AAC | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
+| Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264 video, voice-over MP3 audio copied unchanged | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
 | Supported script languages (§4.1, D09) | English, Spanish | Each verified independently across voice, alignment and reasoning |
 | Acceptable speed-factor limit | **Provisional** | `define-media-assembly` (JOS-182) recommends 0.5x-2.0x (its ADR, Decision 5); `decide-silence-allocation` (JOS-142) verified D11's adopted rule against that recommendation (max 1.08x observed). Not yet the fixed constant: US-33 records it, and JOS-182's own PR is not yet merged into this branch's history. |
 | Per-phase maximum times | Reasoning 600s, Image 25s, Voice 600s, Alignment 5s, Video 1200s, Assembly provisional | Set above the observed slow tail; assembly depends on JOS-182. Re-measured at the product's real script size in v1.8 (2026-10-13/14): reasoning 208.6 s for 67 fragments (was 20 s), voice 151 s for 10,217 characters (was 10 s), video clips at 2K 394 s for 7 s, 528 s for 12 s, 546 s for 13 s and above 610 s for 14 s (was 240 s; 15 s is admitted); provisional until a full-size session (1,500-1,800 words, 30-50 chunks) has been timed |
@@ -417,7 +417,7 @@ Las decisiones marcadas como abiertas no están aprobadas y deben cerrarse antes
 | D05 | Dependencia de enlaces temporales del proveedor. | **Closed (v1.3)** | Every temporary-link result, images included, is saved locally before its link expires (§12.2). |
 | D06 | Continuación de otras escenas tras un fallo y reintentos posteriores a una acción manual. | **Closed (v1.3)** | Other scenes keep generating; each manual retry starts a new cycle of up to three automatic retries (§10.2). |
 | D07 | Autorización y acceso a las sesiones. | **Cerrada (revisada en v1.7)** | Aplicación monousuario instalada en el equipo del usuario; sin cuentas ni autorización; solo la propia interfaz local puede usar la aplicación. La separación entre sesiones es integridad funcional, no seguridad (§12.3). |
-| D08 | Parámetros de salida del MP4 final. | **Closed (v1.3)** | Voice-over-only audio (clip sound removed); hardcoded resolution and frame rate (expected 1920×1080 at 30 fps); H.264 video and AAC audio (§7.3). |
+| D08 | Parámetros de salida del MP4 final. | **Closed (v1.3)** | Voice-over-only audio (clip sound removed); hardcoded resolution and frame rate (expected 1920×1080 at 30 fps); H.264 video; audio is the voice-over MP3 copied unchanged, AAC only after a pause adjustment (§7.3, v1.10). |
 | D09 | Idiomas admitidos. | **Closed (v1.3)** | Hardcoded list of supported languages; the User selects the script language from that list when starting a project, and no provider is called before that (§4.1). |
 | D10 | Momento exacto del bloqueo del guion durante la generación de voz. | **Closed (v1.3)** | The script is locked when the User starts the project (§4.2). |
 | D11 | Asignación de los silencios de la narración a una escena. | **Cerrada (JOS-142, 2026-09-29)** | La escena previa absorbe el silencio posterior (comparada frente a repartir el silencio entre escenas contiguas, la regla interina de JOS-140, ahora descartada). Umbral: hasta 2 s aceptable, 3 s empieza a sentirse lento; ningún guion real supera 1.26 s. Verificado según §14.1. |
@@ -454,6 +454,15 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
+
+### From version 1.9 to 1.10
+
+Origin: MVP closure (JOS-203), 2026-10-20.
+
+| Change | Origin |
+|---|---|
+| §7.3, §11.3 and D08: the final MP4's audio is the voice-over's MP3 stream copied without re-encoding (ADR 0005, Decision 4b), not AAC. A real-provider run showed the MP4 carried `mp3` audio; the PRD wording is aligned with the built behaviour. Only a rebuild with an adjusted pause (JOS-190) re-encodes the narration, to AAC. | JOS-203 B4 finding, product owner decision |
+| §11.3: the automatic-retry delay is recorded: base 2 s, cap 30 s. | JOS-203 B5 (this row was added to v1.9 without a version bump) |
 
 ### From version 1.8 to 1.9
 
@@ -531,7 +540,7 @@ Origin: backlog decomposition clarification session, 2026-09-15.
 | Segmentation edge cases: short whole script, clause split of the following sentence, sentence that cannot be split (§6.1.1, §7.2, AC18). | Clarification |
 | "Closest" admitted duration defined as smallest speed change; ties go to the longer duration (§7.2, AC06). | Clarification |
 | Alignment added as a fifth stage; retries switch to it when native timestamps are unusable (§10.3, §11, §11.1). | Clarification |
-| Final MP4 output: voice-over-only audio, hardcoded resolution and frame rate, H.264/AAC (§7.3). | D08 |
+| Final MP4 output: voice-over-only audio, hardcoded resolution and frame rate, H.264 with the voice-over's MP3 audio unchanged (§7.3). | D08 |
 | Session state rules: `failed` only after other scenes finish, return to phase state on manual retry, pause as a marker (§8.1). | Gaps 1 and 3 |
 | Live progress updates without reloading; diagnostics shown in scene details and phase sections (§3, §7.2, §8.3, AC23). | Gap 7, clarification |
 | Session-wide pause that also holds retries (§9). | D01 |
