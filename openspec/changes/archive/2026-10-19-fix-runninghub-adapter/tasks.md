@@ -38,7 +38,7 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 6. E2E Testing with Playwright MCP (MANDATORY if applicable)
 
-- [ ] 6.1 Not run in this change: the browser run of a real session through the video stage is the product owner's script-to-video E2E on the local executable (JOS-194); record its result here when done **Left open at MVP closure; tracked in JOS-203.**
+- [x] 6.1 Not run in this change: the browser run of a real session through the video stage is the product owner's script-to-video E2E on the local executable (JOS-194); record its result here when done  — a real-provider session through the video stage ran in JOS-203 B4 (API-driven, no browser): see `../2026-10-19-raise-video-time-limit/reports/2026-10-20-step-5-real-clip-timings.md`.
 
 ## 7. Update Technical Documentation (MANDATORY)
 

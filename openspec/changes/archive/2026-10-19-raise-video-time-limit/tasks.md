@@ -32,12 +32,12 @@ Every code change starts with a failing test (TDD), and every scenario in `specs
 
 ## 5. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 5.1 Not a separate run: the real clip timing is observed in the product owner's script-to-video E2E (JOS-194); record the first clips' generation times and whether any attempt was timed out in this change's report, and whether 600 s needs revisiting — partly done: the real timings so far are in `reports/2026-10-14-step-5-real-clip-timings.md` (voice 151 s, decomposition 208.6 s, a 5 s clip 344 s); the full-size session's timings come from the product owner's E2E **Left open at MVP closure; tracked in JOS-203.**
-- [ ] 5.2 Save `reports/YYYY-MM-DD-step-5-real-clip-timings.md` **Left open at MVP closure; tracked in JOS-203.**
+- [x] 5.1 Not a separate run: the real clip timing is observed in the product owner's script-to-video E2E (JOS-194); record the first clips' generation times and whether any attempt was timed out in this change's report, and whether 600 s needs revisiting — partly done: the real timings so far are in `reports/2026-10-14-step-5-real-clip-timings.md` (voice 151 s, decomposition 208.6 s, a 5 s clip 344 s); the full-size session's timings come from the product owner's E2E  — done in JOS-203 B4, see `reports/2026-10-20-step-5-real-clip-timings.md` (API-driven, no browser; 14 s clips not sampled).
+- [x] 5.2 Save `reports/YYYY-MM-DD-step-5-real-clip-timings.md`  — done in JOS-203 B4, see `reports/2026-10-20-step-5-real-clip-timings.md` (API-driven, no browser; 14 s clips not sampled).
 
 ## 6. E2E Testing with Playwright MCP (MANDATORY if applicable)
 
-- [ ] 6.1 Covered by the same E2E run (browser, real providers); record the result in the report of 5.2 **Left open at MVP closure; tracked in JOS-203.**
+- [x] 6.1 Covered by the same E2E run (browser, real providers); record the result in the report of 5.2  — done in JOS-203 B4, see `reports/2026-10-20-step-5-real-clip-timings.md` (API-driven, no browser; 14 s clips not sampled).
 
 ## 7. Update Technical Documentation (MANDATORY)
 
