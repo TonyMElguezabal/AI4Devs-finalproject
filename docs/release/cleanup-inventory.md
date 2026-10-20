@@ -1,20 +1,20 @@
 # Repository cleanup inventory (MVP closure, JOS-203 item I5)
 
 - Taken from `origin/main` @ `f6a4638a` plus the merged follow-ups, on 2026-10-20. 1,864 tracked files.
-- **Nothing in this list has been removed.** Each removal needs the product owner's approval (JOS-203 I6). Removing files does not shrink Git history, and no history rewrite is proposed.
+- **Decision (product owner, 2026-10-20):** R1 removed (a one-page note stays), R2 made portable instead of removed, R3 removed. Done in the pull request "Remove the media-assembly work folder, make the hook paths portable". Everything else in this list is unchanged. Removing files does not shrink Git history, and no history rewrite is proposed.
 - A removal is safe only if nothing in the application, tests, CI or documentation references the file. The "References" column says what was checked.
 
 ## Correction
 
 The earlier Phase 4 cleanup commit `802d22ca` ("untrack per-developer config, drop the media-assembly work dir, index the ADRs") exists only on a local branch (`chore/phase4-cleanup`). It was never pushed and is **not in `main`**, so neither the media-assembly work folder nor the per-developer config was removed there. `JOS-203` and `docs/release/mvp-release-gates.md` said it was done; that was wrong and is corrected. Items R1 and R2 below would reuse that commit.
 
-## Proposed removals (need approval)
+## Removals and fixes (approved 2026-10-20)
 
 | ID | Item | Size / evidence | References | Proposed action | Risk |
 |---|---|---|---|---|---|
-| R1 | `openspec/changes/archive/2026-09-26-define-media-assembly/work/` | 343 files, about 60 MB of the 64 MB under `openspec/`: scratch media, sweep clips, long-session assemblies, fixtures from the assembly spike | One mention in `archive/2026-10-19-retime-and-join-scene-clips/tasks.md` and in the generated `graphify-out` files. The spike's reports and ADR 0005 stay. | Remove the folder, keep a one-page `work-removed.md` note (what it held, where the evidence lives). Commit `802d22ca` already does this. | Low to medium: raw experiment evidence disappears from the working tree (it stays in history). The reports keep the numbers. |
-| R2 | `.claude/settings.json` (tracked) | Holds two hook commands with an absolute path to one developer's home folder, so they fail on any other machine | Read by Claude Code on this project; not used by the app, tests or CI | Untrack and ignore it (as `802d22ca` does), or replace the absolute path with the bare `graphify` command | Medium: the graphify guard hooks stop being shared. Decide whether they should be. |
-| R3 | `.vscode/settings.json` (tracked) | An empty `{}` | None | Remove | None |
+| R1 (approved: remove, keep the note) | `openspec/changes/archive/2026-09-26-define-media-assembly/work/` | 343 files, about 60 MB of the 64 MB under `openspec/`: scratch media, sweep clips, long-session assemblies, fixtures from the assembly spike | One mention in `archive/2026-10-19-retime-and-join-scene-clips/tasks.md` and in the generated `graphify-out` files. The spike's reports and ADR 0005 stay. | Remove the folder, keep a one-page `work-removed.md` note (what it held, where the evidence lives). Commit `802d22ca` already does this. | Low to medium: raw experiment evidence disappears from the working tree (it stays in history). The reports keep the numbers. |
+| R2 (approved: make portable) | `.claude/settings.json` (tracked) | Holds two hook commands with an absolute path to one developer's home folder, so they fail on any other machine | Read by Claude Code on this project; not used by the app, tests or CI | Done: the absolute path is replaced with the bare `graphify` command, so the hooks work on any machine that has graphify on its PATH (the file stays tracked) | Medium: the graphify guard hooks stop being shared. Decide whether they should be. |
+| R3 (approved: remove) | `.vscode/settings.json` (tracked) | An empty `{}` | None | Remove | None |
 
 ## Findings that are not removals
 
