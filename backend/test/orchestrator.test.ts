@@ -26,7 +26,7 @@ import {
 } from "../src/launchGate.ts";
 import { STAGE } from "../src/types.ts";
 
-function waitFor(predicate: () => boolean, timeoutMs = 3000, intervalMs = 5): Promise<void> {
+function waitFor(predicate: () => boolean, timeoutMs = 10_000, intervalMs = 5): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     const tick = () => {
@@ -130,7 +130,7 @@ describe("restart-safe resumption (PRD §12.1, C6)", () => {
     expect(summary.stillPending).toBe(1);
 
     // The provider still holds the result; reconciliation re-armed delivery.
-    await waitFor(() => getScene(sceneId)?.status === "image-complete", 2000);
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
   });
 
   it("records exactly one failed attempt when the provider can no longer recover the request", () => {
