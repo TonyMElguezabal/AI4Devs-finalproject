@@ -65,7 +65,7 @@ Coverage did not decrease on any metric.
 Same situation as recorded for JOS-153 (`distinguish-paused-session`, step 8 report): `backend/src/db.ts` defaults `DB_PATH`/`PROJECTS_ROOT` to `data/skeleton.sqlite`/`data/projects` when unset, and this worktree's `backend/data/` (gitignored, worktree-local, not copied by `git worktree add`) is what every `npm test` run here wrote to. Confirmed the main checkout's real database is untouched:
 
 ```
-stat -f "%Sm" /Users/josemunoz/Software/Vid4You/AI4Devs-finalproject/backend/data/skeleton.sqlite
+stat -f "%Sm" /Users/<user>/Software/Vid4You/AI4Devs-finalproject/backend/data/skeleton.sqlite
 # Oct 4 22:39:07 2026 — unchanged throughout this session's work
 ```
 

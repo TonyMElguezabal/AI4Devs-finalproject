@@ -27,7 +27,9 @@ El sistema es una plataforma de generación de contenido End to End, la imagen y
 
 ### **0.4. URL del proyecto:**
 
-TBD
+https://vid4you.download
+
+Vid4You es una aplicación local (ver 2.4), por lo que todavía no hay un sitio público. El dominio aloja hoy el relé de telemetría (`otel.vid4you.download`, que responde 404 a una petición normal por diseño) y será el de las descargas de las versiones publicadas (JOS-205, JOS-206).
 
 ### 0.5. URL o archivo comprimido del repositorio
 
