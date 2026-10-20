@@ -3,6 +3,7 @@
 - Status: Accepted (product-owner decision, 2026-10-13)
 - Date: 2026-10-13 (evaluation started 2026-10-12)
 - Change: `define-production-deployment` (JOS-194)
+- Amended: 2026-10-20 (JOS-203), product-owner decision: `main` is the single official environment; the UAT/production split below is superseded. See the amended bullet under *Decision*.
 
 ## Context
 
@@ -22,7 +23,7 @@ Full evidence: `openspec/changes/define-production-deployment/` (`design.md` § 
 - **Reachable only by the local user:** the backend listens on loopback only and rejects any request whose `Origin` is not the app's own or whose `Host` is not the loopback address and port, SSE included. This matters because any website the user visits can send requests to `127.0.0.1`.
 - **One instance per user:** a second launch opens the running instance.
 - **Release builds are safe:** test endpoints, stub providers and `/docs` are unavailable whatever the user's environment says.
-- **UAT and production are release channels:** a push to `feature/entrega-2-JAME` builds every platform once per source tree as a pre-release. A push to `main` publishes **the same files** as a release, after a reviewer approves and only if a pre-release exists for `main`'s tree hash (fail closed). GitHub merges create new commit SHAs, which is why the key is the tree hash.
+- **`main` is the official environment** (amended 2026-10-20). The MVP integration branch `feature/entrega-2-JAME` was promoted to `main` by pull request #71 and every release comes from `main`. The original decision of 2026-10-13 had two release channels: UAT fed by `feature/entrega-2-JAME` (a pre-release built once per source tree on every push) and production fed by `main` (the same files published as a release after a reviewer approves and only if a pre-release exists for `main`'s tree hash, failing closed; the key is the tree hash because GitHub merges create new commit SHAs). That two-channel flow is **superseded**; it was never enabled (the sketch is `openspec/changes/archive/2026-10-19-define-production-deployment/poc/workflows/release.yml`, and there is no release workflow in `.github/workflows/` yet, see JOS-205 and JOS-206). Until a release workflow exists nothing is published automatically. The application still knows the build channels `development`, `uat` and `production` (`backend/src/config/build.ts`); how they map to the single environment is part of JOS-206.
 
 ## Options evaluated
 
