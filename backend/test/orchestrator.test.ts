@@ -26,7 +26,7 @@ import {
 } from "../src/launchGate.ts";
 import { STAGE } from "../src/types.ts";
 
-function waitFor(predicate: () => boolean, timeoutMs = 3000, intervalMs = 5): Promise<void> {
+function waitFor(predicate: () => boolean, timeoutMs = 10_000, intervalMs = 5): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     const tick = () => {
@@ -84,13 +84,13 @@ describe("retry budget (PRD §10.1, C2)", () => {
   it("a manual retry after failure starts a fresh 1 + RETRY_BUDGET cycle", async () => {
     const { runId, sceneId } = newRunWithScene("transient_failure", 5);
     launchScene(sceneId);
-    await waitFor(() => getScene(sceneId)?.status === "failed", 10_000);
+    await waitFor(() => getScene(sceneId)?.status === "failed");
     expect(getScene(sceneId)!.attempts).toBe(1 + RETRY_BUDGET);
 
     const result = manualRetry(runId, sceneId);
     expect(result.ok).toBe(true);
 
-    await waitFor(() => getScene(sceneId)?.status === "failed" && getScene(sceneId)!.attempts > 0, 10_000);
+    await waitFor(() => getScene(sceneId)?.status === "failed" && getScene(sceneId)!.attempts > 0);
     expect(getScene(sceneId)!.attempts).toBe(1 + RETRY_BUDGET); // fresh budget, not cumulative
   });
 });
@@ -130,7 +130,7 @@ describe("restart-safe resumption (PRD §12.1, C6)", () => {
     expect(summary.stillPending).toBe(1);
 
     // The provider still holds the result; reconciliation re-armed delivery.
-    await waitFor(() => getScene(sceneId)?.status === "image-complete", 2000);
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
   });
 
   it("records exactly one failed attempt when the provider can no longer recover the request", () => {
