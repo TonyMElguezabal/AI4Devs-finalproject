@@ -86,7 +86,7 @@ Las capturas de pantalla no están incluidas en este fichero; los informes de ve
 # 1. Clonar el repositorio y entrar en la rama de integración
 git clone https://github.com/TonyMElguezabal/AI4Devs-finalproject.git
 cd AI4Devs-finalproject
-git checkout feature/entrega-2-JAME
+git checkout main
 
 # 2. Backend (API en http://127.0.0.1:3100)
 cd backend
@@ -240,8 +240,8 @@ Los ficheros `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` y `codex.md` apuntan a los es
 ### **2.4. Infraestructura y despliegue**
 
 - **Dónde se ejecuta**: en el equipo del usuario, escuchando solo en `127.0.0.1`; llama a los proveedores de IA en la nube. No hay servidor central ni cuentas (ADR 0007).
-- **Entornos**: UAT y producción son canales de publicación, no servidores. La rama `feature/entrega-2-JAME` es el canal UAT y `main` el de producción.
-- **Integración continua**: `.github/workflows/ci.yml` ejecuta, en cada PR hacia `feature/entrega-2-JAME` o `main` y en cada push a la rama de integración, el chequeo de tipos y las pruebas de backend (con ffmpeg instalado) y de frontend, sobre Node 24. Las pruebas nunca usan una base de datos ni un proveedor reales.
+- **Entorno**: `main` es el entorno oficial (decisión del propietario del producto, 20-oct-2026; ADR 0007 enmendado). La rama `feature/entrega-2-JAME` fue la rama de integración del MVP y se promovió a `main` mediante la PR #71. Mientras no exista un flujo de publicación (JOS-205, JOS-206) no se publica nada automáticamente.
+- **Integración continua**: `.github/workflows/ci.yml` ejecuta, en cada PR hacia `feature/entrega-2-JAME` o `main` y en cada push a `main` o a la rama de integración, el chequeo de tipos y las pruebas de backend (con ffmpeg instalado) y de frontend, sobre Node 24. Las pruebas nunca usan una base de datos ni un proveedor reales.
 - **Telemetría**: un relé (`infra/telemetry-relay/`, despliegue en `.github/workflows/telemetry-relay.yml`) recibe los datos opt-in, los filtra y los reenvía a Grafana Cloud.
 
 **Limitaciones conocidas del despliegue**
