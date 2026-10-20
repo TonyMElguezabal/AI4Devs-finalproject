@@ -31,18 +31,25 @@ function waitFor(predicate: () => boolean, timeoutMs = 10_000, intervalMs = 5): 
     const start = Date.now();
     const tick = () => {
       if (predicate()) return resolve();
-      if (Date.now() - start > timeoutMs) return reject(new Error("waitFor timed out"));
+      if (Date.now() - start > timeoutMs) {
+        const dump = { node: process.version, cpus: (globalThis as any).navigator?.hardwareConcurrency, stats: concurrency.stats(STAGE), scenes: diagSceneIds.map((id) => getScene(id)) };
+        console.error("DIAG waitFor timed out " + JSON.stringify(dump));
+        return reject(new Error("waitFor timed out"));
+      }
       setTimeout(tick, intervalMs);
     };
     tick();
   });
 }
 
+const diagSceneIds: string[] = [];
 function newRunWithScene(mode: Parameters<typeof createScene>[3], latencyMs: number) {
   const runId = randomUUID();
   createRun(runId, `test run ${runId}`, "test script", "en");
   const sceneId = randomUUID();
   createScene(sceneId, runId, 1, mode, latencyMs);
+  diagSceneIds.push(sceneId);
+  if (diagSceneIds.length > 3) diagSceneIds.shift();
   return { runId, sceneId };
 }
 
