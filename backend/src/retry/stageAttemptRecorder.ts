@@ -8,7 +8,7 @@ import {
   stageInstanceKeyOf,
   timeOutAttempt,
 } from "../db.ts";
-import { PROVISIONAL_RETRY_DELAY_SECONDS } from "../config/providers.ts";
+import { RETRY_DELAY_SECONDS } from "../config/providers.ts";
 import type { AttemptStage, StageAttempt } from "../types.ts";
 import { armScheduledAttempt } from "./retryScheduler.ts";
 import { decideRetry, retryDelaySeconds, type RetryDelayConfig } from "./retryPolicy.ts";
@@ -37,7 +37,7 @@ export interface RecorderOptions {
 }
 
 // PROVISIONAL until US-33 records the real values in PRD §11 (JOS-184 task 1.4).
-const DEFAULT_DELAY: RetryDelayConfig = { baseSeconds: PROVISIONAL_RETRY_DELAY_SECONDS.base, capSeconds: PROVISIONAL_RETRY_DELAY_SECONDS.cap };
+const DEFAULT_DELAY: RetryDelayConfig = { baseSeconds: RETRY_DELAY_SECONDS.base, capSeconds: RETRY_DELAY_SECONDS.cap };
 
 let configuredDelay: RetryDelayConfig = DEFAULT_DELAY;
 
