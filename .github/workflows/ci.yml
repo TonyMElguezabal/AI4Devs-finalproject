@@ -1,0 +1,37 @@
+# Minimal CI for the MVP (JOS-203 G1): typecheck and unit tests on every PR into, and push to, the integration branch.
+name: CI
+
+on:
+  pull_request:
+    branches: [feature/entrega-2-JAME, main]
+  push:
+    branches: [feature/entrega-2-JAME]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [backend, frontend]
+    defaults:
+      run:
+        working-directory: ${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24 # backend runs TypeScript natively (strip-only)
+          cache: npm
+          cache-dependency-path: ${{ matrix.package }}/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+        env:
+          # Tests must never reuse a developer database or a real provider.
+          DB_PATH: ${{ runner.temp }}/vid4you-test.db
+          PROJECTS_ROOT: ${{ runner.temp }}/vid4you-projects
+          USE_STUB_VOICE_PROVIDER: "1"

@@ -84,13 +84,13 @@ describe("retry budget (PRD §10.1, C2)", () => {
   it("a manual retry after failure starts a fresh 1 + RETRY_BUDGET cycle", async () => {
     const { runId, sceneId } = newRunWithScene("transient_failure", 5);
     launchScene(sceneId);
-    await waitFor(() => getScene(sceneId)?.status === "failed");
+    await waitFor(() => getScene(sceneId)?.status === "failed", 10_000);
     expect(getScene(sceneId)!.attempts).toBe(1 + RETRY_BUDGET);
 
     const result = manualRetry(runId, sceneId);
     expect(result.ok).toBe(true);
 
-    await waitFor(() => getScene(sceneId)?.status === "failed" && getScene(sceneId)!.attempts > 0);
+    await waitFor(() => getScene(sceneId)?.status === "failed" && getScene(sceneId)!.attempts > 0, 10_000);
     expect(getScene(sceneId)!.attempts).toBe(1 + RETRY_BUDGET); // fresh budget, not cumulative
   });
 });
