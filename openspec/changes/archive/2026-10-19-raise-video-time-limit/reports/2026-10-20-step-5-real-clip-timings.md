@@ -20,7 +20,7 @@ The session reached `final-video` with **one attempt per stage and no retry, tim
 
 Whole session: 9 min 50 s, almost all of it the video stage (cap 3 in flight; both clips ran in parallel).
 
-Clip times against the earlier samples: 11 s took 538 s here and 538 s / 485 s on 2026-10-14; a 6 s clip took 301 s (5 s took 344 s on 2026-10-14). Both are under the 600 s limit. **Not sampled again: 14 s clips**, which exceeded 600 s on 8 of 8 uncut attempts on 2026-10-14. The 600 s limit still does not cover them, and 15 s is admitted.
+Clip times against the earlier samples: 11 s took 538 s here and 538 s / 485 s on 2026-10-14; a 6 s clip took 301 s (5 s took 344 s on 2026-10-14). Both are well under the video limit, which is **1200 s** since task 9.1. **Not sampled again: 14-15 s clips**; on 2026-10-14 the 14 s clips took 661, 719 and 730 s (task 9.2), so 1200 s leaves about 1.6x margin for them.
 
 ## Output checks
 
@@ -32,5 +32,5 @@ Clip times against the earlier samples: 11 s took 538 s here and 538 s / 485 s o
 ## Findings
 
 1. **The final MP4 carries MP3 audio, not AAC.** PRD §7.3 says "H.264 video and AAC audio"; the unedited build muxes the voice-over with `-c:a copy` (`ffmpegAssemblyTool.ts`, ADR 0005 Decision 4b: never re-encode), so the audio stream is `mp3` at 44.1 kHz mono. Only the edited-narration path (JOS-190 rebuilds) re-encodes to AAC 192k. One of the two needs a decision: change the PRD wording or re-encode. Not changed here.
-2. The 600 s video limit stays provisional until a 14–15 s clip has been timed.
+2. The 1200 s video limit stays provisional until a full-size session (30–50 clips, with 14–15 s clips) has been timed.
 3. Follow-up story (task 9.3): a timed-out clip keeps being polled instead of being resubmitted, so one scene costs one task. See the task list.
