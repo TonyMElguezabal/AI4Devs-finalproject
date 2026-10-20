@@ -748,8 +748,9 @@ export const routes: FastifyPluginAsync = async (app) => {
       // Writing to `reply.raw` bypasses Fastify's reply pipeline entirely,
       // so the @fastify/cors plugin's onSend hook never runs for this route
       // — found by the frontend prototype's browser actually refusing the
-      // response with no CORS header. Set it explicitly here instead.
-      "Access-Control-Allow-Origin": request.headers.origin ?? "*",
+      // response with no CORS header. Set it explicitly here instead. Foreign origins never get here
+      // (originPolicy.ts refuses them), so the request's own origin can be echoed.
+      ...(request.headers.origin ? { "Access-Control-Allow-Origin": request.headers.origin } : {}),
     });
     reply.raw.write(": connected\n\n");
 

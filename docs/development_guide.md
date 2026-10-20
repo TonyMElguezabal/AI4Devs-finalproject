@@ -97,6 +97,7 @@ These exist for manual endpoint testing and **must never be set in UAT or produc
 | `ALLOW_TEST_ENDPOINTS` | enables `POST /internal/test/quick-voice-over` and `POST /internal/test/quick-scene` |
 | `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_ASSEMBLY_TOOL` | replace a provider with a stub (values are listed in `backend/src/server.ts`) |
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | shorten retry delays |
+| `CORS_ALLOWED_ORIGINS` | comma-separated extra origins allowed to call the API. By default only `http://127.0.0.1:5173`, `http://localhost:5173` and the backend's own address are; any other web page gets a 403 |
 
 ### Telemetry (opt-in)
 
