@@ -55,7 +55,7 @@ Marked the scene `image-complete` out of band (the same store-function technique
 Browser closed (`playwright-cli close`). Backend and `vite` dev server processes killed. Scratch store (`/tmp/jos157-e2e/`) removed. Confirmed the default store untouched:
 
 ```
-stat -f "%Sm" /Users/josemunoz/Software/Vid4You/AI4Devs-finalproject/backend/data/skeleton.sqlite
+stat -f "%Sm" /Users/<user>/Software/Vid4You/AI4Devs-finalproject/backend/data/skeleton.sqlite
 # Oct 4 22:39:07 2026 — unchanged
 ```
 

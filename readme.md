@@ -27,7 +27,9 @@ El sistema es una plataforma de generación de contenido End to End, la imagen y
 
 ### **0.4. URL del proyecto:**
 
-TBD
+https://vid4you.download
+
+Vid4You es una aplicación local (ver 2.4), por lo que todavía no hay un sitio público. El dominio aloja hoy el relé de telemetría (`otel.vid4you.download`, que responde 404 a una petición normal por diseño) y será el de las descargas de las versiones publicadas (JOS-205, JOS-206).
 
 ### 0.5. URL o archivo comprimido del repositorio
 
@@ -154,6 +156,22 @@ Vid4You se distribuye como un ejecutable por plataforma que sirve el frontend y 
 
 **Copia de seguridad y vuelta atrás.** Los datos de usuario están en la carpeta de datos (SQLite y proyectos); copiarla entera con la aplicación cerrada es una copia de seguridad completa. Para volver a una versión anterior, cerrar la aplicación, restaurar la copia de la carpeta de datos y volver a instalar el ejecutable o la rama anterior. No se ha verificado que una versión antigua del programa pueda abrir una base de datos migrada por una versión más nueva; por eso la copia previa a cada actualización es necesaria.
 
+### **1.6. Limitaciones conocidas**
+
+Estado del MVP a 20-oct-2026. Ninguna impide generar un video; todas están registradas para tratarlas después.
+
+| Limitación | Efecto | Seguimiento |
+|---|---|---|
+| Un clip cuyo intento agota el tiempo se vuelve a pedir al proveedor, y la tarea anterior sigue en marcha y se factura. | Una escena puede costar varias tareas de video (el 14-oct-2026, los clips de 14 s agotaron el tiempo en 8 de 8 intentos). Una sesión corta con clips de 6 s y 11 s sí terminó. | JOS-204 |
+| Los tiempos máximos por fase (voz y razonamiento 600 s, video 1200 s) son provisionales: solo se midió una sesión de 2 escenas con la compilación actual. | Una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips) puede agotar el tiempo. | JOS-209 |
+| Los límites reales de peticiones por etapa de RunningHub y ElevenLabs, y los casos límite de la división por cláusulas (§6.1), no están verificados. | El límite de peticiones simultáneas usa los valores de `config/providers.ts`, sin contrastar con los límites reales. | JOS-188, JOS-189 (posteriores al MVP) |
+| La comprobación del guion muestra un único mensaje genérico para cuatro causas distintas (falta `OPENAI_KEY`, fichero de claves ilegible, sin red hacia OpenAI, error de OpenAI). | El usuario debe revisar la tabla de la sección 1.5 para descubrir cuál es. | Aplazada por el propietario del producto |
+| El ejecutable no está firmado. | Windows (SmartScreen) y macOS (Gatekeeper) muestran una advertencia al abrirlo. | JOS-207 |
+| El ejecutable se construye con scripts de prueba de concepto y no hay flujo de publicación (ver 2.4). | No hay versiones publicadas ni actualización automática. | JOS-205, JOS-206 |
+| No se ha verificado que una versión anterior abra una base de datos migrada por una posterior. | Volver a una versión anterior exige restaurar la copia de la carpeta de datos (ver arriba). | JOS-210 |
+| No hay herramienta de lint ni análisis estático, y las pruebas de contrato con proveedores reales no se ejecutan en CI (ver 2.6). | Los fallos de estilo y de tipos laxos (`any`) no se detectan automáticamente. | JOS-208 |
+| Algunas revisiones humanas de los cambios archivados (por ejemplo, la 17.7 de `define-provider-configuration`) se aceptaron como excepción y no se realizaron. | Esos cambios tienen evidencia de pruebas automáticas pero no revisión humana. | JOS-203, M7 |
+
 ---
 
 ## 2. Arquitectura del Sistema
@@ -244,7 +262,7 @@ Los ficheros `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` y `codex.md` apuntan a los es
 - **Integración continua**: `.github/workflows/ci.yml` ejecuta, en cada PR hacia `feature/entrega-2-JAME` o `main` y en cada push a `main` o a la rama de integración, el chequeo de tipos y las pruebas de backend (con ffmpeg instalado) y de frontend, sobre Node 24. Las pruebas nunca usan una base de datos ni un proveedor reales.
 - **Telemetría**: un relé (`infra/telemetry-relay/`, despliegue en `.github/workflows/telemetry-relay.yml`) recibe los datos opt-in, los filtra y los reenvía a Grafana Cloud.
 
-**Limitaciones conocidas del despliegue**
+**Limitaciones conocidas del despliegue** (la lista completa está en la sección 1.6)
 
 - El ejecutable empaquetado se construyó con scripts de prueba de concepto archivados (`openspec/changes/archive/2026-10-19-define-production-deployment/poc/local/`), no con un proceso integrado en el repositorio. El flujo de publicación automática (construir todas las plataformas por árbol de código, publicar como pre-release en UAT y promover los mismos ficheros en `main`) está descrito en ese mismo directorio (`poc/workflows/release.yml`) como boceto y **no está activado** en `.github/workflows/`.
 - El ejecutable no está firmado.
@@ -271,11 +289,13 @@ npm test            # vitest run
 npm run build       # solo frontend: tsc --noEmit && vite build
 ```
 
-- **Unitarias e integración (vitest)**: en la última validación completa (rama de integración `f4b6e492` más esta documentación, 20-oct-2026) pasaron 1.719 pruebas de backend (5 omitidas) y 258 de frontend, con chequeo de tipos limpio y compilación del frontend correcta. CI ejecuta lo mismo en cada PR.
+- **Unitarias e integración (vitest)**: en la última validación completa (`main` en `3d0334c9`, 20-oct-2026) pasaron 1.720 pruebas de backend (4 omitidas, las de contrato con proveedores) y 258 de frontend, con chequeo de tipos limpio y compilación del frontend correcta. CI ejecuta lo mismo en cada PR.
 - **Pruebas de contrato con proveedores reales**: existen cuatro ficheros (`backend/test/*.contract.test.ts`) que llaman a las APIs reales y solo se ejecutan con `RUN_PROVIDER_CONTRACT_TESTS=1` y claves reales; no se ejecutan en CI.
 - **Pruebas manuales de endpoints con curl y E2E en navegador (Playwright)**: las ejecuta el agente por cada cambio y deja un informe en `openspec/changes/archive/<cambio>/reports/`.
 - **Sesión real de extremo a extremo**: el 20-oct-2026 una sesión corta con los cuatro proveedores reales llegó a `final-video` con un intento por etapa, y el ejecutable de Windows generó un video completo (informes en `openspec/changes/archive/2026-10-19-raise-video-time-limit/reports/` y `…/define-production-deployment/reports/`).
-- **No ejecutado**: no hay herramienta de lint ni análisis estático configurada, y las pruebas de contrato no se ejecutan en CI.
+- **Lint y análisis estático**: no hay herramienta configurada (JOS-208). Una pasada puntual de ESLint 9 con las reglas `recommended` de typescript-eslint (20-oct-2026, sin cambios en el repositorio) dio 110 errores en el backend (68 `no-explicit-any`, 40 `no-unused-vars`, 1 `no-useless-escape`, 1 `prefer-const`; 37 de los `no-unused-vars` y 18 de los `no-explicit-any` están en pruebas) y 1 en el frontend (una variable sin usar en una prueba). Ninguna regla de seguridad falló.
+- **Ejecutable empaquetado (macOS arm64, 20-oct-2026)**: construido con el script de la prueba de concepto desde una copia temporal y arrancado en otro puerto con una carpeta de datos vacía: `/health` y la página responden 200, un `Origin` o `Host` ajeno recibe 403, `/docs` y los endpoints de prueba responden 404 aunque `ALLOW_TEST_ENDPOINTS=1` esté definida, y un segundo arranque detecta la instancia en marcha y sale. No se probó una sesión completa con este binario (sí en Windows, ver arriba).
+- **No ejecutado**: las pruebas de contrato con proveedores reales no se ejecutan en CI ni se han ejecutado para este cierre, y el ejecutable empaquetado no tiene un script de construcción integrado (ver 1.6).
 
 La estrategia sigue TDD y los pasos obligatorios de `docs/openspec-tasks-mandatory-steps.md`.
 
@@ -455,7 +475,7 @@ flowchart LR
 La plantilla pide 3 historias principales; aquí se documentan las **8** que representan el flujo MVP completo de principio a fin (`docs/PRD.md` §5), en orden. Cada una tiene ya su change de OpenSpec con especificación completa en Given/When/Then (`openspec/changes/<slug>/specs/`); esta sección resume cada historia en el formato estándar y enlaza al detalle técnico en vez de duplicarlo. Los criterios de aceptación referencian las entidades reales de la sección 3 (`Session`, `Chunk`, `StageExecution`), no `docs/data-model.md` (contenido heredado de otro proyecto, aún sin actualizar).
 
 **Historia de Usuario 1 — Iniciar un proyecto de video**
-_Detalle técnico: [`openspec/changes/start-video-project`](../openspec/changes/start-video-project)_
+_Detalle técnico: [`openspec/changes/start-video-project`](openspec/changes/archive/2026-10-19-start-video-project)_
 
 Como usuario, quiero iniciar un proyecto con un título, un guion y un idioma, para que el sistema comience a generar mi video narrado.
 
@@ -466,7 +486,7 @@ Criterios de aceptación:
 - **Given** una sesión ya registrada, **when** se consulta su título, guion o idioma, **then** son exactamente lo enviado y no pueden modificarse después.
 
 **Historia de Usuario 2 — Generar la narración completa (voice-over)**
-_Detalle técnico: [`openspec/changes/generate-voice-over`](../openspec/changes/generate-voice-over)_
+_Detalle técnico: [`openspec/changes/generate-voice-over`](openspec/changes/archive/2026-10-19-generate-voice-over)_
 
 Como usuario, quiero que el sistema narre automáticamente mi guion completo en un único audio, para no tener que grabar ni contratar una voz.
 
@@ -477,7 +497,7 @@ Criterios de aceptación:
 - **Given** una narración ya completada, **when** llega una segunda confirmación de éxito, **then** no se crea un segundo voice-over ni se relanza ninguna fase.
 
 **Historia de Usuario 3 — Descomponer el guion en escenas**
-_Detalle técnico: [`openspec/changes/decompose-script-into-chunks`](../openspec/changes/decompose-script-into-chunks)_
+_Detalle técnico: [`openspec/changes/decompose-script-into-chunks`](openspec/changes/archive/2026-10-19-decompose-script-into-chunks)_
 
 Como usuario, quiero que el sistema divida automáticamente mi guion narrado en escenas con sus instrucciones visuales, para no tener que segmentarlo ni describir cada imagen manualmente.
 
@@ -489,7 +509,7 @@ Criterios de aceptación:
 - **Given** una oración que no cabe en las cotas de duración y no tiene frontera de cláusula, **when** se segmenta, **then** se conserva entera con una advertencia de factor de velocidad, sin que esto sea un fallo.
 
 **Historia de Usuario 4 — Generar la imagen de una escena**
-_Detalle técnico: [`openspec/changes/generate-chunk-image`](../openspec/changes/generate-chunk-image)_
+_Detalle técnico: [`openspec/changes/generate-chunk-image`](openspec/changes/archive/2026-10-19-generate-chunk-image)_
 
 Como usuario, quiero que el sistema genere automáticamente la imagen de cada escena a partir de su instrucción visual, para no tener que crear ni subir imágenes manualmente.
 
@@ -500,7 +520,7 @@ Criterios de aceptación:
 - **Given** una escena que falla en esta etapa, **when** otras escenas de la sesión siguen procesando, **then** no se ven afectadas por ese fallo.
 
 **Historia de Usuario 5 — Generar el clip de video de una escena**
-_Detalle técnico: [`openspec/changes/generate-chunk-video`](../openspec/changes/generate-chunk-video)_
+_Detalle técnico: [`openspec/changes/generate-chunk-video`](openspec/changes/archive/2026-10-19-generate-chunk-video)_
 
 Como usuario, quiero que el sistema anime automáticamente la imagen de cada escena ajustando su duración a lo narrado, para obtener un clip sincronizado sin animarlo manualmente.
 
@@ -512,7 +532,7 @@ Criterios de aceptación:
 - **Given** un clip exitoso, **when** otras escenas siguen procesando o han fallado, **then** ese clip puede descargarse individualmente.
 
 **Historia de Usuario 6 — Montar el video final**
-_Detalle técnico: [`openspec/changes/assemble-final-video`](../openspec/changes/assemble-final-video)_
+_Detalle técnico: [`openspec/changes/assemble-final-video`](openspec/changes/archive/2026-10-19-assemble-final-video)_
 
 Como usuario, quiero que el sistema una automáticamente todas mis escenas completas con la narración en un único MP4, para obtener un video listo para publicar sin editarlo manualmente.
 
@@ -525,7 +545,7 @@ Criterios de aceptación:
 - **Given** una sesión en `final-video`, **when** se consulta, **then** el MP4 final está disponible para descarga (el MP3, las marcas de tiempo y los textos generados nunca lo están).
 
 **Historia de Usuario 7 — Consultar el progreso de una sesión**
-_Detalle técnico: [`openspec/changes/consult-session`](../openspec/changes/consult-session)_
+_Detalle técnico: [`openspec/changes/consult-session`](openspec/changes/archive/2026-10-19-consult-session)_
 
 Como usuario, quiero consultar el progreso, los resultados y los errores de mi sesión por su identificador, para hacer seguimiento de mi video sin necesitar una cuenta.
 
@@ -537,7 +557,7 @@ Criterios de aceptación:
 - **Given** una página de sesión abierta, **when** cambia el estado de una fase o escena, **then** se refleja en vivo sin recargar la página.
 
 **Historia de Usuario 8 — Reintentar automáticamente ante fallos transitorios**
-_Detalle técnico: [`openspec/changes/bounded-retry-policy`](../openspec/changes/bounded-retry-policy) y [`openspec/changes/stage-execution-time-limit`](../openspec/changes/stage-execution-time-limit)_
+_Detalle técnico: [`openspec/changes/bounded-retry-policy`](openspec/changes/archive/2026-10-19-bounded-retry-policy) y [`openspec/changes/stage-execution-time-limit`](openspec/changes/archive/2026-10-05-stage-execution-time-limit)_
 
 Como usuario, quiero que el sistema reintente automáticamente una etapa que falla por una causa temporal, para no perder mi progreso ante errores pasajeros de los proveedores.
 

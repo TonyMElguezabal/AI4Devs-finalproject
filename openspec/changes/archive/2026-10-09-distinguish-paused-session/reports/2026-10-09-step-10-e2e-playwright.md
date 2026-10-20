@@ -55,7 +55,7 @@ The marker, running and held lines are gone; `Continue session` is replaced by `
 Browser closed (`playwright-cli close`). Backend and `vite` dev server processes killed. Scratch store (`/tmp/jos153-e2e/`) removed. Confirmed the default store untouched:
 
 ```
-stat -f "%Sm" /Users/josemunoz/Software/Vid4You/AI4Devs-finalproject/backend/data/skeleton.sqlite
+stat -f "%Sm" /Users/<user>/Software/Vid4You/AI4Devs-finalproject/backend/data/skeleton.sqlite
 # Oct 4 22:39:07 2026 — unchanged
 ```
 

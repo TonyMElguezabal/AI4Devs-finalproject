@@ -58,7 +58,7 @@ POST /sessions/:id/scenes/:sceneId/correct -d '{"instruction":"  a corrected lig
 ```
 pkill -f "node src/server.ts"
 rm -rf /tmp/jos157-manual
-stat -f "%Sm" /Users/josemunoz/Software/Vid4You/AI4Devs-finalproject/backend/data/skeleton.sqlite
+stat -f "%Sm" /Users/<user>/Software/Vid4You/AI4Devs-finalproject/backend/data/skeleton.sqlite
 # Oct 4 22:39:07 2026 — unchanged
 ```
 
