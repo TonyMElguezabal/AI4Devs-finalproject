@@ -67,6 +67,7 @@ After settling, for every session that is not paused, the system SHALL launch, t
 - scenes waiting for their image;
 - scenes whose image is complete and whose clip has not been sent;
 - the final assembly, when all scenes are complete, there is no final video, nothing is in flight, and the latest assembly attempt was settled by the restart with attempts left in its budget.
+- the decomposition of a narrated session that never started it, as `pipeline-handoffs` specifies (JOS-195, `narration-handoff-boot.test.ts`).
 
 Paused sessions SHALL launch nothing (§9, §12.1).
 
