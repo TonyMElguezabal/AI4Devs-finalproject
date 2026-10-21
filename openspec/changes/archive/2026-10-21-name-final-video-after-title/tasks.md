@@ -63,6 +63,6 @@ Every code change starts with a failing test (TDD). Each scenario in `specs/fina
 ## 9. Close out
 
 - [x] 9.1 Run `graphify update .`
-- [ ] 9.2 Commit the finished work on the feature branch; ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-193
+- [x] 9.2 Commit the finished work on the feature branch; ask before pushing; open the PR against `feature/entrega-2-JAME` with a description linking to JOS-193 PR #80: https://github.com/TonyMElguezabal/AI4Devs-finalproject/pull/80
 - [ ] 9.3 Obtain review by at least one human, not only AI agents
-- [ ] 9.4 Archive the OpenSpec change after merge
+- [x] 9.4 Archive the OpenSpec change after merge Archived on 2026-10-21.
