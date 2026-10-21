@@ -605,6 +605,26 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       `);
     },
   },
+  {
+    version: 19,
+    description: "add the provider_profiles table (manage-providers-from-admin, JOS-218); the first profiles are seeded at start-up from the settings",
+    up: (target) => {
+      target.exec(`
+        CREATE TABLE provider_profiles (
+          id TEXT PRIMARY KEY,
+          stage TEXT NOT NULL,
+          adapter_type TEXT NOT NULL,
+          label TEXT NOT NULL,
+          parameters TEXT NOT NULL,
+          api_key_encrypted TEXT,
+          retired_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX provider_profiles_stage ON provider_profiles (stage);
+      `);
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -1915,7 +1935,7 @@ export function resetAll(): void {
     db.exec("DROP TRIGGER narration_timestamps_no_delete");
     db.exec("DROP TRIGGER final_video_builds_no_delete");
     db.exec(
-      "DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs; DELETE FROM active_providers;",
+      "DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs; DELETE FROM active_providers; DELETE FROM provider_profiles;",
     );
     db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
     db.exec(SCENE_NO_DELETE_TRIGGER_DDL);
@@ -1926,6 +1946,7 @@ export function resetAll(): void {
     db.exec("ROLLBACK");
     throw err;
   }
+  for (const listener of storeResetListeners) listener();
   // Tests create real project folders on disk (Decision 4); wipe them too,
   // or a second test run collides with the previous run's leftover folders
   // (found by running the suite twice in a row during this change's own
@@ -1945,4 +1966,11 @@ export function upsertActiveProviderChoice(stage: string, providerId: string, ch
   db.prepare(
     "INSERT INTO active_providers (stage, provider_id, changed_at) VALUES (?, ?, ?) ON CONFLICT(stage) DO UPDATE SET provider_id = excluded.provider_id, changed_at = excluded.changed_at",
   ).run(stage, providerId, changedAt);
+}
+
+// manage-providers-from-admin (JOS-218) — something that derives state from the stored provider profiles (the adapter
+// registries) must start again after a test resets the store. A callback, because the profile module imports this one.
+const storeResetListeners: Array<() => void> = [];
+export function onStoreReset(listener: () => void): void {
+  storeResetListeners.push(listener);
 }

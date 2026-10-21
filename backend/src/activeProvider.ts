@@ -3,13 +3,13 @@ import { getAlignmentProviderRegistry, getReasoningProviderRegistry } from "./de
 import { getImageProviderRegistry } from "./imageProvider.ts";
 import { getVideoProviderRegistry } from "./videoProvider.ts";
 import { getVoiceProviderRegistry } from "./voiceProvider.ts";
+import type { ProviderStage } from "./providerTypes.ts";
 
 // change-active-provider-from-admin (JOS-171), design Decisions 1 and 2 — one function decides the provider every
 // stage binds to on its first attempt: the Administrator's choice when it names a shipped adapter, else the
 // registry's settings default. It reads SQLite on every call, so a change applies to the next bind with no restart.
 
-export const PROVIDER_STAGES = ["reasoning", "voice", "alignment", "image", "video"] as const;
-export type ProviderStage = (typeof PROVIDER_STAGES)[number];
+export { PROVIDER_STAGES, type ProviderStage } from "./providerTypes.ts";
 
 /** The shape every stage's adapter registry shares. `aliases` resolve but are never offered as a choice. */
 export interface ProviderRegistry<Adapter> {

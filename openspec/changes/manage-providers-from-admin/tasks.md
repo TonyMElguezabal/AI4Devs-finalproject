@@ -12,10 +12,10 @@
 
 ## 2. Backend: storage and the first profiles (TDD; design Decisions 1, 8)
 
-- [ ] 2.1 Write failing migration tests: `provider_profiles` exists with the columns of Decision 1; migration 19 inserts no rows.
-- [ ] 2.2 Add migration 19. Make 2.1 pass.
-- [ ] 2.3 Write failing tests for `seedProviderProfiles(settings)`: a stage with no profile gets one with the stored id of Decision 1 (`ElevenLabs`, `Fal.ai`, `RunningHub`, `openai-decomposition`, `elevenlabs-forced-alignment`), the adapter type of its stage, the label from `name` and the parameters without `name`; a second call changes nothing; a changed settings file after the first start changes no profile and logs one notice; the legacy image and video aliases still resolve.
-- [ ] 2.4 Implement the profile repository (list, get, insert, update, retire, remove, references check) and `seedProviderProfiles`, called at start-up after the migrations. Make 2.3 pass.
+- [x] 2.1 Write failing migration tests: `provider_profiles` exists with the columns of Decision 1; migration 19 inserts no rows.
+- [x] 2.2 Add migration 19. Make 2.1 pass.
+- [x] 2.3 Write failing tests for `seedProviderProfiles(settings)`: a stage with no profile gets one with the stored id of Decision 1 (`ElevenLabs`, `Fal.ai`, `RunningHub`, `openai-decomposition`, `elevenlabs-forced-alignment`), the adapter type of its stage, the label from `name` and the parameters without `name`; a second call changes nothing; a changed settings file after the first start changes no profile and logs one notice; the legacy image and video aliases still resolve.
+- [x] 2.4 Implement the profile repository (list, get, insert, update, retire, remove, references check) and `seedProviderProfiles`, called at start-up after the migrations. Make 2.3 pass.
 
 ## 3. Backend: the key store (TDD; design Decision 5)
 
