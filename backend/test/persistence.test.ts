@@ -126,7 +126,7 @@ describe("The only rmSync calls remove temporary work, never a project file (JOS
 
   function findRmSyncCalls(): Array<{ file: string; line: number; target: string | null }> {
     const calls: Array<{ file: string; line: number; target: string | null }> = [];
-    for (const entry of readdirSync(srcDir, { recursive: true } as any) as string[]) {
+    for (const entry of readdirSync(srcDir, { recursive: true } as any)) {
       if (!entry.endsWith(".ts")) continue;
       const text = readFileSync(join(srcDir, entry), "utf8");
       text.split("\n").forEach((lineText, index) => {

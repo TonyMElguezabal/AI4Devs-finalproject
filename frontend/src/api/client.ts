@@ -3,11 +3,11 @@ import type { AppUpdate, SceneEventPayload, SessionSnapshot, TelemetryChoices, T
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
 // ports via an env var, but defaults to the skeleton's documented port.
-export const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:3100";
+export const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "http://127.0.0.1:3100";
 
 async function asJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
+    const body = (await response.json().catch(() => ({}))) as { reason?: string; message?: string; error?: string };
     // `reason` (this app's own {ok:false, reason} shape) first, then Zod's
     // validation `message` (the actual cause — start-video-project, JOS-134,
     // Decision 6/§4.1 requires the cause named, not swallowed by Fastify's

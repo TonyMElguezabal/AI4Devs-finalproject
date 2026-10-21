@@ -99,6 +99,7 @@ export function createStubImageProvider(
   const calls: string[] = [];
   return {
     calls,
+    // eslint-disable-next-line @typescript-eslint/require-await -- implements the async image provider contract
     async generate(instruction) {
       calls.push(instruction);
       switch (mode) {

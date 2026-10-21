@@ -59,6 +59,7 @@ export default function App() {
         consent={consent}
         onSave={async (choices) => setConsent(await saveTelemetryConsent(choices))}
         onClose={() => setPrivacyOpen(false)}
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- the handler catches its own failure
         onDismiss={async () => {
           // "Not now" counts as an answer, but only the first time: an answered consent keeps its saved choices.
           if (consent && !consent.answered) {
@@ -115,6 +116,7 @@ export default function App() {
         <TopBar onOpenPrivacy={() => setPrivacyOpen(true)} />
         {privacy}
         <main className="app-main">
+          {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- handleStart catches its own failure */}
           <StartProjectForm onStart={handleStart} languages={languages} submitting={starting} error={startError} />
         </main>
       </>
@@ -131,7 +133,9 @@ export default function App() {
           snapshot={snapshot}
           notFound={notFound}
           onStartNew={handleStartNew}
+          // eslint-disable-next-line @typescript-eslint/no-misused-promises -- a failed pause is not surfaced yet (JOS-208 PR note)
           onPause={() => pauseSession(sessionId)}
+          // eslint-disable-next-line @typescript-eslint/no-misused-promises -- a failed continue is not surfaced yet (JOS-208 PR note)
           onContinue={() => continueSession(sessionId)}
           onRetry={(sceneId) => retryScene(sessionId, sceneId)}
           onCorrect={(sceneId, instruction) => correctScene(sessionId, sceneId, instruction)}

@@ -37,15 +37,12 @@ import {
   pauseSession,
   toSnapshot,
 } from "./orchestrator.ts";
-import { PROVIDER_OUTCOME_MODES } from "./types.ts";
 import { SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES } from "./config/providers.ts";
 import { ulid } from "./util/ulid.ts";
 import { contentDisposition, downloadFilename } from "./util/downloadFilename.ts";
 
 /** Provisional — the real value is set by define-live-updates' idle experiment (Decision 7); this keeps the stream alive meanwhile. */
 const HEARTBEAT_MS = 15_000;
-
-const providerModeSchema = z.enum(PROVIDER_OUTCOME_MODES);
 
 // start-video-project (JOS-134) Decision 1 — emptiness is judged on a
 // trimmed view; the raw value is what gets stored (never the trimmed one).
@@ -91,8 +88,9 @@ const IMAGE_CONTENT_TYPES: Record<string, string> = {
  * therefore its actual response) is unchanged; this affects only `/docs/json`.
  */
 function binaryFileSwaggerTransform(contentType: string, description: string) {
-  return ({ schema, url }: { schema: any; url: string }) => {
-    const { schema: transformed, url: transformedUrl } = jsonSchemaTransform({ schema, url });
+  return ({ schema, url }: Parameters<typeof jsonSchemaTransform>[0]) => {
+    const { schema: transformedSchema, url: transformedUrl } = jsonSchemaTransform({ schema, url });
+    const transformed = transformedSchema as { response: Record<string, unknown> };
     transformed.response["200"] = {
       description,
       content: { [contentType]: { schema: { type: "string", format: "binary" } } },
@@ -299,9 +297,11 @@ const pauseBodySchema = z.object({ seconds: z.number().finite().min(0) });
 // A malformed id is answered 404 by the handler, as the session read does, so it is not rejected by the schema.
 const looseSessionParamsSchema = z.object({ sessionId: z.string() });
 
+// eslint-disable-next-line @typescript-eslint/require-await -- a Fastify plugin must be async
 export const routes: FastifyPluginAsync = async (app) => {
   const typed = app.withTypeProvider<ZodTypeProvider>();
 
+  // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
   typed.get("/health", { schema: { response: { 200: z.object({ ok: z.boolean() }) } } }, async () => ({
     ok: true,
   }));
@@ -312,12 +312,14 @@ export const routes: FastifyPluginAsync = async (app) => {
   typed.get(
     "/telemetry/consent",
     { schema: { response: { 200: telemetryConsentResponseSchema } } },
+    // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
     async () => consentView(getTelemetrySettings()),
   );
 
   typed.put(
     "/telemetry/consent",
     { schema: { body: telemetryConsentBodySchema, response: { 200: telemetryConsentResponseSchema } } },
+    // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
     async (request) => {
       const saved = saveTelemetryConsent(request.body);
       setConsent(saved); // applies at once, without a restart (spec: Per-signal opt-in consent)
@@ -327,6 +329,7 @@ export const routes: FastifyPluginAsync = async (app) => {
 
   typed.get("/app/update", { schema: { response: { 200: appUpdateResponseSchema } } }, async () => getUpdateResult());
 
+  // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
   typed.get("/languages", { schema: { response: { 200: languageResponseSchema } } }, async () => [
     ...SUPPORTED_LANGUAGES,
   ]);
@@ -511,7 +514,7 @@ export const routes: FastifyPluginAsync = async (app) => {
         : ({ ok: false, reason: "session-not-found" } as const);
       if (result.ok) {
         const scene = toSnapshot(sessionId)?.scenes.find((candidate) => candidate.sceneId === sceneId);
-        return scene as z.infer<typeof sceneResponseSchema>;
+        return scene;
       }
       if (result.reason === "out-of-range") {
         reply.code(422);
@@ -725,6 +728,7 @@ export const routes: FastifyPluginAsync = async (app) => {
         response: { 200: z.object({ applied: z.boolean(), note: z.string() }) },
       },
     },
+    // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
     async (request) => {
       return handleProviderResult(request.params.requestId);
     },

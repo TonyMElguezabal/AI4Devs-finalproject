@@ -138,7 +138,7 @@ if (isMainModule) {
   if (STAGE_CONCURRENCY_OVERRIDE) concurrency.setLimit(STAGE, Number(STAGE_CONCURRENCY_OVERRIDE));
   // USE_STUB_VIDEO_PROVIDER=success|success-bytes|pending|request-lost|transient-failure|not-retryable-failure — manual endpoint testing only.
   // `pending` leaves every clip unfinished, so a restart can be watched resuming it; `success` is an alias of `success-bytes`.
-  const stubVideoMode = process.env.USE_STUB_VIDEO_PROVIDER as string | undefined;
+  const stubVideoMode = process.env.USE_STUB_VIDEO_PROVIDER;
   if (stubVideoMode) {
     const bytes = Buffer.from("00000000667479706d703432", "hex"); // minimal ftyp mp4
     const resolvedMode: StubVideoProviderMode = stubVideoMode === "success" ? "success-bytes"

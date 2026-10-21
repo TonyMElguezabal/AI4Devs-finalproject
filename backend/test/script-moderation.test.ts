@@ -70,29 +70,29 @@ describe("No verdict is unavailable, and says nothing it should not", () => {
       name: "a timeout",
       fetchFn: (async () => {
         throw new DOMException("timed out", "TimeoutError");
-      }) as typeof fetch,
+      }),
     },
     {
       name: "a network error",
       fetchFn: (async () => {
         throw new TypeError("fetch failed");
-      }) as typeof fetch,
+      }),
     },
     ...[429, 500, 400].map((status) => ({
       name: `HTTP ${status}`,
-      fetchFn: (async () => new Response(RAW_BODY, { status })) as typeof fetch,
+      fetchFn: (async () => new Response(RAW_BODY, { status })),
     })),
     {
       name: "a 200 without results[0].flagged",
-      fetchFn: (async () => json({ results: [{ categories: {} }], note: RAW_BODY })) as typeof fetch,
+      fetchFn: (async () => json({ results: [{ categories: {} }], note: RAW_BODY })),
     },
     {
       name: "a 200 that is not JSON",
-      fetchFn: (async () => new Response("<html>", { status: 200 })) as typeof fetch,
+      fetchFn: (async () => new Response("<html>", { status: 200 })),
     },
     {
       name: "a missing credential",
-      fetchFn: (async () => json({ results: [{ flagged: false, categories: {} }] })) as typeof fetch,
+      fetchFn: (async () => json({ results: [{ flagged: false, categories: {} }] })),
       loadKey: () => {
         throw new Error("missing credential 'OPENAI_KEY': set it in the local environment or in the local secrets file");
       },

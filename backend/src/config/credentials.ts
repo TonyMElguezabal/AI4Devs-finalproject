@@ -23,7 +23,7 @@ let cachedSecretsPath: string | undefined;
 function readSecretsFile(secretsPath: string): Record<string, unknown> {
   if (cachedSecretsPath === secretsPath && cachedSecrets) return cachedSecrets;
   const secrets: Record<string, unknown> = existsSync(secretsPath)
-    ? JSON.parse(readFileSync(secretsPath, "utf8"))
+    ? JSON.parse(readFileSync(secretsPath, "utf8")) as Record<string, unknown>
     : {};
   cachedSecrets = secrets;
   cachedSecretsPath = secretsPath;

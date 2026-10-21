@@ -35,6 +35,7 @@ export type CapturedAssemblyInput = AssemblyInput;
 /** Stub that records every AssemblyInput it receives (for test assertions on what the phase builds). */
 export function createCapturingAssemblyTool(captures: CapturedAssemblyInput[]): AssemblyTool {
   return {
+    // eslint-disable-next-line @typescript-eslint/require-await -- implements the async AssemblyTool contract
     async assemble(input: AssemblyInput): Promise<AssemblyResult> {
       captures.push({ ...input, clips: [...input.clips], ...(input.narrationEdits ? { narrationEdits: [...input.narrationEdits] } : {}) });
       return { kind: "success", outputPath: input.outputPath };
