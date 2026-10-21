@@ -151,3 +151,10 @@ export interface TelemetryConsent extends TelemetryChoices {
 
 /** `GET /app/update`: a newer build exists on this build's channel. */
 export type AppUpdate = { available: false } | { available: true; tag: string; url: string };
+
+/** admin-visual-style-prompt (JOS-201) — `GET /admin/settings`. The image's file path is never exposed. */
+export interface AppSettings {
+  visualStylePrompt: string;
+  referenceImage: { contentType: string; sizeBytes: number; updatedAt: string } | null;
+  updatedAt: string;
+}

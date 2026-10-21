@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { StartProjectForm, type StartProjectValues, type SupportedLanguage } from "./components/StartProjectForm";
 import { SessionPage } from "./components/SessionPage";
+import { AdminPage } from "./components/AdminPage";
 import { TopBar } from "./components/TopBar";
 import { TelemetryConsentDialog } from "./components/TelemetryConsentDialog";
 import { UpdateBanner } from "./components/UpdateBanner";
@@ -31,7 +32,24 @@ function sessionIdFromUrl(): string | undefined {
   return new URLSearchParams(window.location.search).get("sessionId") ?? undefined;
 }
 
+const ADMIN_LINK = { href: "/admin", label: "Admin" };
+
+/** admin-visual-style-prompt (JOS-201), Decision 9 — `/admin` is chosen by path, with no router dependency. */
 export default function App() {
+  if (window.location.pathname === "/admin") {
+    return (
+      <>
+        <TopBar link={{ href: "/", label: "Projects" }} />
+        <main className="app-main">
+          <AdminPage />
+        </main>
+      </>
+    );
+  }
+  return <ProjectsApp />;
+}
+
+function ProjectsApp() {
   const [sessionId, setSessionId] = useState<string | undefined>(sessionIdFromUrl);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | undefined>(undefined);
@@ -111,7 +129,7 @@ export default function App() {
   if (!sessionId) {
     return (
       <>
-        <TopBar onOpenPrivacy={() => setPrivacyOpen(true)} />
+        <TopBar onOpenPrivacy={() => setPrivacyOpen(true)} link={ADMIN_LINK} />
         {privacy}
         <main className="app-main">
           <StartProjectForm onStart={handleStart} languages={languages} submitting={starting} error={startError} />
@@ -122,7 +140,7 @@ export default function App() {
 
   return (
     <>
-      <TopBar connected={notFound ? undefined : connected} onNewProject={handleStartNew} onOpenPrivacy={() => setPrivacyOpen(true)} />
+      <TopBar connected={notFound ? undefined : connected} onNewProject={handleStartNew} onOpenPrivacy={() => setPrivacyOpen(true)} link={ADMIN_LINK} />
       {privacy}
       <main className="app-main">
         <SessionPage

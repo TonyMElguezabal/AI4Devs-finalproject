@@ -55,10 +55,12 @@ describe("The API offers no operation that modifies the locked content (AC1)", (
 
   it("offers no PUT, PATCH or DELETE route at all", () => {
     // add-observability-telemetry (JOS-199): the one deliberate exception is the app-level consent setting, which
-    // touches no session content. Any other mutating route still fails here.
+    // touches no session content. admin-visual-style-prompt (JOS-201) adds the /admin settings the same way.
+    // Any other mutating route still fails here.
     const routes = offeredRoutes()
       .split("\n")
-      .filter((line) => !line.includes("consent"))
+      // The route tree prints the /admin/settings children without their prefix.
+      .filter((line) => !["consent", "/visual-style-prompt", "/reference-image"].some((exception) => line.includes(exception)))
       .join("\n");
     expect(routes).not.toMatch(/\bPUT\b/);
     expect(routes).not.toMatch(/\bPATCH\b/);

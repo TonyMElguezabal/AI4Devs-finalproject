@@ -122,7 +122,8 @@ describe("Script file written at session creation (JOS-162, Decision 1)", () => 
 // so a reviewer sees it, rather than silently deleting a project file.
 describe("The only rmSync calls remove temporary work, never a project file (JOS-162, AC2)", () => {
   const srcDir = join(dirname(fileURLToPath(import.meta.url)), "..", "src");
-  const ALLOWED_TARGETS = new Set(["temporaryPath", "tempPath", "folder", "work", "PROJECTS_ROOT"]);
+  // admin-visual-style-prompt (JOS-201): `referenceImagePath` is the /admin reference image under the app data directory, not a project file.
+  const ALLOWED_TARGETS = new Set(["temporaryPath", "tempPath", "folder", "work", "PROJECTS_ROOT", "referenceImagePath"]);
 
   function findRmSyncCalls(): Array<{ file: string; line: number; target: string | null }> {
     const calls: Array<{ file: string; line: number; target: string | null }> = [];
@@ -146,9 +147,9 @@ describe("The only rmSync calls remove temporary work, never a project file (JOS
     }
   });
 
-  it("finds exactly the call sites design.md's Context table lists (db.ts, voiceOverPhase.ts, orchestrator.ts, ffmpegAssemblyTool.ts)", () => {
+  it("finds exactly the call sites design.md's Context table lists (db.ts, voiceOverPhase.ts, orchestrator.ts, ffmpegAssemblyTool.ts, adminSettingsRoutes.ts)", () => {
     const files = new Set(findRmSyncCalls().map((call) => call.file));
-    expect(files).toEqual(new Set(["db.ts", "voiceOverPhase.ts", "orchestrator.ts", "ffmpegAssemblyTool.ts"]));
+    expect(files).toEqual(new Set(["db.ts", "voiceOverPhase.ts", "orchestrator.ts", "ffmpegAssemblyTool.ts", "adminSettingsRoutes.ts"]));
   });
 });
 

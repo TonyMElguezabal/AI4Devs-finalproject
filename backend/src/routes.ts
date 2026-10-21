@@ -8,6 +8,8 @@ import { extname } from "node:path";
 import { getScriptModerator } from "./scriptModeration.ts";
 import { launchVoiceOverFor } from "./voiceOverPhase.ts";
 import { retryDecomposition } from "./decompositionRetry.ts";
+import { adminSettingsImageRoutes } from "./adminSettingsRoutes.ts";
+import { appSettingsResponseSchema, visualStylePromptBodySchema } from "./adminSettingsSchemas.ts";
 import { retryAssembly } from "./assemblyRetry.ts";
 import { rebuildFinalVideo } from "./finalVideoRebuild.ts";
 import { setScenePause } from "./scenePauseEdit.ts";
@@ -23,6 +25,8 @@ import {
   writeArtefactOnce,
   insertVoiceOver,
   getTelemetrySettings,
+  getAppSettings,
+  saveVisualStylePrompt,
   saveTelemetryConsent,
   type TelemetrySettings,
 } from "./db.ts";
@@ -322,6 +326,15 @@ export const routes: FastifyPluginAsync = async (app) => {
       return consentView(saved);
     },
   );
+
+  // admin-visual-style-prompt (JOS-201) — the style prompt; the reference image routes are their own plugin (raw-body parser).
+  typed.get("/admin/settings", { schema: { response: { 200: appSettingsResponseSchema } } }, async () => getAppSettings());
+  typed.put(
+    "/admin/settings/visual-style-prompt",
+    { schema: { body: visualStylePromptBodySchema, response: { 200: appSettingsResponseSchema } } },
+    async (request) => saveVisualStylePrompt(request.body.visualStylePrompt),
+  );
+  await app.register(adminSettingsImageRoutes);
 
   typed.get("/app/update", { schema: { response: { 200: appUpdateResponseSchema } } }, async () => getUpdateResult());
 
