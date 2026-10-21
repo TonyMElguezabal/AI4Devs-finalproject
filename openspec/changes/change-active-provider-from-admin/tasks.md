@@ -13,9 +13,9 @@
 
 ## 2. Backend: storage (TDD; design Decisions 2, 3)
 
-- [ ] 2.1 Write failing migration tests: `active_providers` exists; `runs.decomposition_provider_id` and `runs.alignment_provider_id` exist; a pre-migration run with decomposition and alignment attempts is backfilled from its earliest attempt of each stage; `elevenlabs-native` attempts do not backfill alignment; a run with no attempts stays `NULL`.
-- [ ] 2.2 Add the migration. Make 2.1 pass.
-- [ ] 2.3 Write failing tests for `bindDecompositionProvider` and `bindAlignmentProvider`: the first call binds and returns `true`, and a second call with another id changes nothing. Then implement them, following `bindVoiceProvider`.
+- [x] 2.1 Write failing migration tests: `active_providers` exists; `runs.decomposition_provider_id` and `runs.alignment_provider_id` exist; a pre-migration run with decomposition and alignment attempts is backfilled from its earliest attempt of each stage; `elevenlabs-native` attempts do not backfill alignment; a run with no attempts stays `NULL`.
+- [x] 2.2 Add the migration. Make 2.1 pass.
+- [x] 2.3 Write failing tests for `bindDecompositionProvider` and `bindAlignmentProvider`: the first call binds and returns `true`, and a second call with another id changes nothing. Then implement them, following `bindVoiceProvider`.
 
 ## 3. Backend: registries and `activeProviderId` (TDD; design Decisions 1, 2)
 

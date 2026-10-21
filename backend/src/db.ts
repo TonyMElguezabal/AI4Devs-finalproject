@@ -575,6 +575,36 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       target.prepare("INSERT INTO telemetry_settings (id, install_id) VALUES (1, ?)").run(ulid());
     },
   },
+  {
+    version: 18,
+    description:
+      "add the active_providers table and runs.decomposition_provider_id / runs.alignment_provider_id, backfilled from each run's earliest attempt (change-active-provider-from-admin, JOS-171)",
+    up: (target) => {
+      target.exec(`
+        CREATE TABLE active_providers (
+          stage TEXT PRIMARY KEY,
+          provider_id TEXT NOT NULL,
+          changed_at TEXT NOT NULL
+        );
+      `);
+      target.exec("ALTER TABLE runs ADD COLUMN decomposition_provider_id TEXT");
+      target.exec("ALTER TABLE runs ADD COLUMN alignment_provider_id TEXT");
+      // Only one real adapter per stage has ever existed, so the earliest attempt names the provider the run started with.
+      // Native timestamps call no alignment provider, so they bind nothing.
+      target.exec(`
+        UPDATE runs SET decomposition_provider_id = (
+          SELECT provider_id FROM stage_attempts
+          WHERE run_id = runs.id AND stage = 'decomposition' AND provider_id IS NOT NULL
+          ORDER BY attempt_number LIMIT 1
+        );
+        UPDATE runs SET alignment_provider_id = (
+          SELECT provider_id FROM stage_attempts
+          WHERE run_id = runs.id AND stage = 'timestamps' AND provider_id IS NOT NULL AND provider_id <> 'elevenlabs-native'
+          ORDER BY attempt_number LIMIT 1
+        );
+      `);
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -789,7 +819,7 @@ export function createRun(id: string, title: string, script: string, language: s
   db.prepare(
     "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script) VALUES (?, ?, ?, 0, ?, ?, ?)",
   ).run(id, title, createdAt, language, projectFolder, script);
-  return { id, title, script, createdAt, paused: false, language, projectFolder, voiceProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
+  return { id, title, script, createdAt, paused: false, language, projectFolder, voiceProviderId: null, decompositionProviderId: null, alignmentProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
 }
 
 export function setRunProjectFolder(runId: string, projectFolder: string): void {
@@ -875,6 +905,8 @@ function rowToRun(row: any): Run {
     language: row.language ?? "",
     projectFolder: row.project_folder ?? "",
     voiceProviderId: row.voice_provider_id ?? null,
+    decompositionProviderId: row.decomposition_provider_id ?? null,
+    alignmentProviderId: row.alignment_provider_id ?? null,
     failure: row.failure ? (JSON.parse(row.failure) as SessionFailure) : null,
     finalVideoPath: row.final_video_path ?? null,
     rebuildRequestedAt: row.rebuild_requested_at ?? null,
@@ -988,6 +1020,20 @@ export function bindVoiceProvider(runId: string, providerId: string): boolean {
   const result = db
     .prepare("UPDATE runs SET voice_provider_id = ? WHERE id = ? AND voice_provider_id IS NULL")
     .run(providerId, runId);
+  return Number(result.changes) > 0;
+}
+
+/**
+ * change-active-provider-from-admin (JOS-171) Decision 3 — the same bind-once rule for the reasoning and the
+ * alignment stages, one provider per session.
+ */
+export function bindDecompositionProvider(runId: string, providerId: string): boolean {
+  const result = db.prepare("UPDATE runs SET decomposition_provider_id = ? WHERE id = ? AND decomposition_provider_id IS NULL").run(providerId, runId);
+  return Number(result.changes) > 0;
+}
+
+export function bindAlignmentProvider(runId: string, providerId: string): boolean {
+  const result = db.prepare("UPDATE runs SET alignment_provider_id = ? WHERE id = ? AND alignment_provider_id IS NULL").run(providerId, runId);
   return Number(result.changes) > 0;
 }
 
@@ -1869,7 +1915,7 @@ export function resetAll(): void {
     db.exec("DROP TRIGGER narration_timestamps_no_delete");
     db.exec("DROP TRIGGER final_video_builds_no_delete");
     db.exec(
-      "DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
+      "DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs; DELETE FROM active_providers;",
     );
     db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
     db.exec(SCENE_NO_DELETE_TRIGGER_DDL);
