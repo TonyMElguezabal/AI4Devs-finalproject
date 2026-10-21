@@ -19,10 +19,10 @@
 
 ## 3. Backend: the key store (TDD; design Decision 5)
 
-- [ ] 3.1 Write failing tests for the key store: a key written is not in the database in clear text; it reads back; each write uses a new IV; the master key file is created with mode `0600` at `PROVIDER_KEY_PATH` and is reused; a tampered ciphertext fails with an error that contains no key; an unreadable master key makes `keyFor` fail without printing a value.
-- [ ] 3.2 Implement the key store with `node:crypto` AES-256-GCM. Make 3.1 pass.
-- [ ] 3.3 Write failing tests for `keyFor(profileId)` and `stageApiKey(stage, boundId?)`: the stored key wins; a seeded profile falls back to its legacy environment name and then to `.secrets.json`; a profile added on `/admin` has no fallback; a missing key fails with a message naming the stage role and never a value; `stageApiKey` without a bound id uses the active profile.
-- [ ] 3.4 Implement `keyFor`, `stageApiKey` and the key status and hint (Decision 5). Make 3.3 pass.
+- [x] 3.1 Write failing tests for the key store: a key written is not in the database in clear text; it reads back; each write uses a new IV; the master key file is created with mode `0600` at `PROVIDER_KEY_PATH` and is reused; a tampered ciphertext fails with an error that contains no key; an unreadable master key makes `keyFor` fail without printing a value.
+- [x] 3.2 Implement the key store with `node:crypto` AES-256-GCM. Make 3.1 pass.
+- [x] 3.3 Write failing tests for `keyFor(profileId)` and `stageApiKey(stage, boundId?)`: the stored key wins; a seeded profile falls back to its legacy environment name and then to `.secrets.json`; a profile added on `/admin` has no fallback; a missing key fails with a message naming the stage role and never a value; `stageApiKey` without a bound id uses the active profile.
+- [x] 3.4 Implement `keyFor`, `stageApiKey` and the key status and hint (Decision 5). Make 3.3 pass.
 
 ## 4. Backend: adapter types and registries from profiles (TDD; design Decisions 2, 3, 4)
 
