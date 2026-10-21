@@ -19,13 +19,13 @@
 
 ## 3. Backend: registries and `activeProviderId` (TDD; design Decisions 1, 2)
 
-- [ ] 3.1 Add registries for reasoning and alignment with get/set seams, matching the voice registry. Give every registry entry a `label` and remove `defaultIdentifier`. Keep today's adapter ids.
-- [ ] 3.2 Write failing tests for `activeProviderId(stage)`:
-  - with no row, it is the settings default resolved by label;
+- [x] 3.1 Add registries for reasoning and alignment with get/set seams, matching the voice registry. Keep `defaultIdentifier` as the settings default and add the optional `labels` and `aliases` fields to every registry (design Decision 1). Keep today's adapter ids.
+- [x] 3.2 Write failing tests for `activeProviderId(stage)`:
+  - with no row, it is the registry's `defaultIdentifier`;
   - with a row naming a shipped adapter, it is that adapter;
   - with a row naming an adapter that is not shipped, it is the settings default, a warning is logged once, and nothing throws;
   - a write is visible to the next call with no restart.
-- [ ] 3.3 Implement `activeProviderId` and `setActiveProvider(stage, providerId)` (upsert with `changed_at`). Make 3.2 pass.
+- [x] 3.3 Implement `activeProviderId` and `setActiveProvider(stage, providerId)` (upsert with `changed_at`). Make 3.2 pass.
 
 ## 4. Backend: bind points use the active provider (TDD; spec scenarios)
 
@@ -36,7 +36,7 @@
   - an exhausted cycle stays bound to `stub-a` and sends nothing to `stub-b` (AC5);
   - two concurrent first attempts across a change both use the single stored binding;
   - native timestamps bind no alignment provider.
-- [ ] 4.2 Replace `registry.defaultIdentifier` with `activeProviderId(stage)` at the voice, image and video bind points. Add binding at the first decomposition and alignment attempts, so that their retries read the binding. Make 4.1 pass.
+- [ ] 4.2 Replace the direct use of `registry.defaultIdentifier` with `activeProviderId(stage)` at the voice, image and video bind points. Add binding at the first decomposition and alignment attempts, so that their retries read the binding. Make 4.1 pass.
 - [ ] 4.3 After a restart, a `stub-b` choice still applies to new binds and an existing `stub-a` binding still applies to its retries.
 
 ## 5. Backend: admin API (TDD; design Decision 5)

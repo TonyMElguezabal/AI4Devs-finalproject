@@ -129,12 +129,14 @@ export function createStubImageProvider(
 export interface ImageProviderRegistry {
   defaultIdentifier: string;
   adapters: Record<string, ImageProvider>;
+  labels?: Record<string, string>;
+  aliases?: readonly string[];
 }
 
 function defaultRegistry(): ImageProviderRegistry {
   // Bound by provider name (JOS-174, design Decision 7); the model an earlier build stored resolves to the same adapter.
   const adapter = createFalAiImageProvider();
-  return { defaultIdentifier: IMAGE_PROVIDER.name, adapters: { [IMAGE_PROVIDER.name]: adapter, [LEGACY_IMAGE_PROVIDER_IDENTIFIER]: adapter } };
+  return { defaultIdentifier: IMAGE_PROVIDER.name, adapters: { [IMAGE_PROVIDER.name]: adapter, [LEGACY_IMAGE_PROVIDER_IDENTIFIER]: adapter }, aliases: [LEGACY_IMAGE_PROVIDER_IDENTIFIER] };
 }
 
 let registry: ImageProviderRegistry = defaultRegistry();

@@ -1933,3 +1933,16 @@ export function resetAll(): void {
   rmSync(PROJECTS_ROOT, { recursive: true, force: true });
   mkdirSync(PROJECTS_ROOT, { recursive: true });
 }
+
+// ---- change-active-provider-from-admin (JOS-171), design Decision 2 — the Administrator's active-provider choices ----
+
+export function getActiveProviderChoice(stage: string): string | null {
+  const row = db.prepare("SELECT provider_id FROM active_providers WHERE stage = ?").get(stage) as { provider_id: string } | undefined;
+  return row?.provider_id ?? null;
+}
+
+export function upsertActiveProviderChoice(stage: string, providerId: string, changedAt: string): void {
+  db.prepare(
+    "INSERT INTO active_providers (stage, provider_id, changed_at) VALUES (?, ?, ?) ON CONFLICT(stage) DO UPDATE SET provider_id = excluded.provider_id, changed_at = excluded.changed_at",
+  ).run(stage, providerId, changedAt);
+}

@@ -46,7 +46,7 @@ Product owner decisions, 2026-10-19:
 
 ## Decisions
 
-### Decision 1 — Keep each registry's existing identifiers; drop `defaultIdentifier`
+### Decision 1 — Keep each registry's existing identifiers and its `defaultIdentifier`
 
 Adapter ids stay as they are stored today, so existing bindings and attempt rows keep resolving without a data migration:
 
@@ -54,7 +54,7 @@ Adapter ids stay as they are stored today, so existing bindings and attempt rows
 - reasoning: `"openai-decomposition"`
 - alignment: `"elevenlabs-forced-alignment"`
 
-Each registry entry gains a `label` for display (the provider name). `defaultIdentifier` is removed; the settings-file default for voice, image and video is the configured provider name itself, and for reasoning and alignment it is their single shipped adapter. Aliases are listed in a separate `aliases` set so `selectable` can exclude them.
+Each registry keeps `defaultIdentifier`, which already is the settings-file default (JOS-174 sets it to the configured provider name; reasoning and alignment get theirs from their single shipped adapter). `activeProviderId(stage)` falls back to it, so no existing registry shape or test has to change. A registry gains two optional fields: `labels` (display names, the id when absent) and `aliases` (ids that resolve but are never offered as a choice, such as the legacy image and video keys).
 
 **Alternative:** re-key every registry by provider name. Rejected: that needs a migration that rewrites stored bindings and attempt rows, for no behaviour gain.
 

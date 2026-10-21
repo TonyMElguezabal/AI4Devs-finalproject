@@ -246,6 +246,8 @@ export const STUB_VIDEO_PROVIDER_NAME = "stub-video-provider";
 export interface VideoProviderRegistry {
   defaultIdentifier: string;
   adapters: Record<string, VideoProvider>;
+  labels?: Record<string, string>;
+  aliases?: readonly string[];
 }
 
 function defaultRegistry(): VideoProviderRegistry {
@@ -254,6 +256,7 @@ function defaultRegistry(): VideoProviderRegistry {
   return {
     defaultIdentifier: VIDEO_PROVIDER.name,
     adapters: { [VIDEO_PROVIDER.name]: adapter, [LEGACY_VIDEO_PROVIDER_IDENTIFIER]: adapter },
+    aliases: [LEGACY_VIDEO_PROVIDER_IDENTIFIER],
   };
 }
 
