@@ -28,6 +28,7 @@ export function PauseDial({ sceneIndex, pause, onSetPause }: Props) {
   const saving = useRef(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the field when the saved pause changes
     setDraft(String(pause.seconds));
   }, [pause.seconds]);
 
