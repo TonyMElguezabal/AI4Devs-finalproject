@@ -166,8 +166,10 @@ describe("The stage diagnostics", () => {
     expect(describeProvider(stage, identifier)).toEqual(shown);
   });
 
-  it("show the configured image model for a scene bound by name", async () => {
+  it("show the configured image model for a scene bound by name, on the first start that creates the image profile", async () => {
     restartWith({ image: { model: "fal-ai/flux/pro" } });
+    // manage-providers-from-admin (JOS-218): the settings only seed the first profile, so this is a first start.
+    (await import("../src/db.ts")).resetAll();
     const { describeProvider } = await import("../src/stageDiagnostics.ts");
     expect(describeProvider("image", "Fal.ai")).toEqual({ name: "Fal.ai", model: "fal-ai/flux/pro" });
   });

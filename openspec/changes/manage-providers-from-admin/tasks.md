@@ -32,9 +32,9 @@
 - [x] 4.4 Change the five factories to take `(parameters, loadKey)`. Make 4.3 pass.
 - [x] 4.5 Write failing tests for the registries built from the profiles: one adapter per profile; a retired profile resolves but is not selectable; `defaultIdentifier` is the seeded profile; adding, editing, retiring or removing a profile or a key rebuilds the registries, so the next resolution uses the new parameters; an in-flight call keeps its instance; the stub seams still replace a registry.
 - [x] 4.6 Implement the registries from the profiles and `rebuildRegistries()`. Make 4.5 pass.
-- [ ] 4.7 Write failing tests that a bound stage retried after a parameter edit is sent with the new parameter and the same provider, that its earlier attempts and stored values are unchanged, and that `stageDiagnostics` shows the profile's display name and model (no "Unknown provider").
-- [ ] 4.8 Take the display name and model in `stageDiagnostics.ts` from the profile, and load every key through `stageApiKey`. Make 4.7 pass.
-- [ ] 4.9 Write failing tests that script moderation uses the active reasoning profile's key (stored key; environment fallback), then change `scriptModeration.ts` (design Decision 11).
+- [x] 4.7 Write failing tests that a bound stage retried after a parameter edit is sent with the new parameter and the same provider, that its earlier attempts and stored values are unchanged, and that `stageDiagnostics` shows the profile's display name and model (no "Unknown provider").
+- [x] 4.8 Take the display name and model in `stageDiagnostics.ts` from the profile, and load every key through `stageApiKey`. Make 4.7 pass.
+- [x] 4.9 Write failing tests that script moderation uses the active reasoning profile's key (stored key; environment fallback), then change `scriptModeration.ts` (design Decision 11).
 
 ## 5. Backend: admitted durations follow the active video provider (TDD; design Decision 4)
 
