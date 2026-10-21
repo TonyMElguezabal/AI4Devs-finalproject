@@ -56,9 +56,9 @@
 
 - [x] 9.1 Update `readme.md` section 2.6: add `npm run lint` next to the typecheck and test commands, update the test counts and CI sentence, remove the "no lint" limitation
 - [x] 9.2 Record the tool choice and rule set in `docs/backend-standards.md` and `docs/frontend-standards.md`, and note lint in the CI line of the `readme.md` directory tree (`.github/workflows`)
-- [ ] 9.3 Run `graphify update .`
+- [x] 9.3 Run `graphify update .`
 
 ## 10. Pull request
 
-- [ ] 10.1 Commit the work on the feature branch in separate commits: tooling and CI, backend fixes, frontend fixes, docs
+- [x] 10.1 Commit the work on the feature branch in separate commits: tooling and CI, backend fixes, frontend fixes, docs
 - [ ] 10.2 After approval, push and open the PR linking JOS-208, with the defect-findings list from 3.4, and a note that the check should be made required on `main` and `feature/entrega-2-JAME`
