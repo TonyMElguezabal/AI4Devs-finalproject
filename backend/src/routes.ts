@@ -40,6 +40,7 @@ import {
 import { PROVIDER_OUTCOME_MODES } from "./types.ts";
 import { SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES } from "./config/providers.ts";
 import { ulid } from "./util/ulid.ts";
+import { contentDisposition, downloadFilename } from "./util/downloadFilename.ts";
 
 /** Provisional — the real value is set by define-live-updates' idle experiment (Decision 7); this keeps the stream alive meanwhile. */
 const HEARTBEAT_MS = 15_000;
@@ -685,6 +686,8 @@ export const routes: FastifyPluginAsync = async (app) => {
     {
       config: { swaggerTransform: binaryFileSwaggerTransform("video/mp4", "The assembled MP4 file (video/mp4)") },
       schema: {
+        description:
+          "Content-Disposition names the file after the project title: `<title>.mp4`, with control characters and `/ \\ : * ? \" < > |` replaced by `_`, whitespace collapsed, leading/trailing dots and spaces stripped, Windows reserved device names prefixed with `_`, capped at 100 characters, `final-video` when nothing remains. The header carries an ASCII `filename` and an RFC 5987 `filename*` with the full name.",
         params: sessionParamsSchema,
         response: { 200: z.any().describe("The assembled MP4 file (video/mp4)"), 409: conflictSchema, 404: conflictSchema },
       },
@@ -705,7 +708,7 @@ export const routes: FastifyPluginAsync = async (app) => {
         return { ok: false, reason: "final video file not found on disk" };
       }
       const { size } = statSync(fullPath);
-      reply.header("Content-Disposition", `attachment; filename="final-video.mp4"`);
+      reply.header("Content-Disposition", contentDisposition(downloadFilename(run.title)));
       reply.header("Content-Length", size);
       reply.type("video/mp4");
       return reply.send(createReadStream(fullPath));

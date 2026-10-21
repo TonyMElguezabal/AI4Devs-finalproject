@@ -168,3 +168,13 @@ describe("Only image and video are accepted kinds (AC4, design Decision 4)", () 
     expect(res.statusCode).toBe(400);
   });
 });
+
+describe("Scene downloads keep their index-based names whatever the title (JOS-193, design Decision 4)", () => {
+  it("names the image and clip by scene index, not by the title", async () => {
+    const sessionId = await startSession('Café/海 "quoted"');
+    const sceneId = createSceneWith(sessionId, 3, { status: "chunk-complete", image: true, video: true });
+
+    expect((await download(sessionId, sceneId, "image")).headers["content-disposition"]).toBe('attachment; filename="scene-3-image.png"');
+    expect((await download(sessionId, sceneId, "video")).headers["content-disposition"]).toBe('attachment; filename="scene-3-clip.mp4"');
+  });
+});
