@@ -41,12 +41,12 @@
 
 ## 5. Backend: admin API (TDD; design Decision 5)
 
-- [ ] 5.1 Write failing route tests:
+- [x] 5.1 Write failing route tests:
   - `GET /admin/providers` returns five stages with `activeProviderId`, `activeLabel`, `source`, `selectable` and `orphanedChoice`;
   - `PUT /admin/providers/video` with `stub-b` returns 200 and the new view;
   - an unknown stage, or a provider that is not selectable, returns 400 with the selectable ids and leaves the active provider unchanged;
   - both routes return 401 without Administrator access and write nothing (AC2).
-- [ ] 5.2 Implement the routes with zod schemas behind JOS-173's gate. Make 5.1 pass, and confirm they appear in the generated OpenAPI document.
+- [x] 5.2 Implement the routes with zod schemas behind JOS-173's gate. Make 5.1 pass, and confirm they appear in the generated OpenAPI document.
 
 ## 6. Frontend: "Active providers" section on /admin (TDD; design Decision 6)
 

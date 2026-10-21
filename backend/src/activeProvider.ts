@@ -80,3 +80,27 @@ export function setActiveProvider(stage: ProviderStage, providerId: string, now:
 export function resolveBoundAdapter<Adapter>(registry: ProviderRegistry<Adapter>, boundId: string, injectedDefault: Adapter): Adapter | undefined {
   return boundId === registry.defaultIdentifier ? injectedDefault : registry.adapters[boundId];
 }
+
+export interface ProviderView {
+  stage: ProviderStage;
+  activeProviderId: string;
+  activeLabel: string;
+  source: "settings" | "admin";
+  selectable: Array<{ id: string; label: string }>;
+  orphanedChoice: string | null;
+}
+
+/** What `/admin` shows for one stage (design Decision 5). */
+export function providerView(stage: ProviderStage): ProviderView {
+  const registry = registryFor(stage);
+  const active = activeProviderId(stage);
+  const choice = getActiveProviderChoice(stage);
+  return {
+    stage,
+    activeProviderId: active,
+    activeLabel: registry.labels?.[active] ?? active,
+    source: choice !== null && choice === active ? "admin" : "settings",
+    selectable: selectableProviders(stage),
+    orphanedChoice: orphanedChoice(stage),
+  };
+}

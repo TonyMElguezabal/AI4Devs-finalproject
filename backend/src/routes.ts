@@ -41,6 +41,7 @@ import { PROVIDER_OUTCOME_MODES } from "./types.ts";
 import { SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES } from "./config/providers.ts";
 import { ulid } from "./util/ulid.ts";
 import { adminDeniedSchema, registerAdminGate } from "./adminAccess.ts";
+import { PROVIDER_STAGES, providerView, selectableProviders, setActiveProvider } from "./activeProvider.ts";
 
 /** Provisional — the real value is set by define-live-updates' idle experiment (Decision 7); this keeps the stream alive meanwhile. */
 const HEARTBEAT_MS = 15_000;
@@ -300,6 +301,15 @@ const emptyBodySchema = z.object({}).strict().nullish();
 const pauseBodySchema = z.object({ seconds: z.number().finite().min(0) });
 // A malformed id is answered 404 by the handler, as the session read does, so it is not rejected by the schema.
 const looseSessionParamsSchema = z.object({ sessionId: z.string() });
+
+const providerViewSchema = z.object({
+  stage: z.enum(PROVIDER_STAGES),
+  activeProviderId: z.string(),
+  activeLabel: z.string(),
+  source: z.enum(["settings", "admin"]),
+  selectable: z.array(z.object({ id: z.string(), label: z.string() })),
+  orphanedChoice: z.string().nullable(),
+});
 
 export const routes: FastifyPluginAsync = async (app) => {
   const typed = app.withTypeProvider<ZodTypeProvider>();
@@ -792,6 +802,39 @@ export const routes: FastifyPluginAsync = async (app) => {
           },
         },
         async () => ({ configured: true as const, granted: true as const }),
+      );
+
+      // change-active-provider-from-admin (JOS-171), design Decision 5.
+      typedAdmin.get(
+        "/providers",
+        { schema: { response: { 200: z.object({ providers: z.array(providerViewSchema) }), 401: adminDeniedSchema } } },
+        async () => ({ providers: PROVIDER_STAGES.map((stage) => providerView(stage)) }),
+      );
+
+      typedAdmin.put(
+        "/providers/:stage",
+        {
+          schema: {
+            params: z.object({ stage: z.enum(PROVIDER_STAGES) }),
+            body: z.object({ providerId: z.string().min(1) }),
+            response: {
+              200: providerViewSchema,
+              // Either this route's own refusal or Fastify's validation error for a malformed stage or body.
+              400: z.union([
+                z.object({ ok: z.literal(false), reason: z.literal("not-selectable"), selectable: z.array(z.string()) }),
+                z.object({ statusCode: z.number(), error: z.string(), message: z.string() }).passthrough(),
+              ]),
+              401: adminDeniedSchema,
+            },
+          },
+        },
+        async (request, reply) => {
+          const { stage } = request.params;
+          const selectable = selectableProviders(stage).map((provider) => provider.id);
+          if (!selectable.includes(request.body.providerId)) return reply.code(400).send({ ok: false as const, reason: "not-selectable" as const, selectable });
+          setActiveProvider(stage, request.body.providerId);
+          return providerView(stage);
+        },
       );
     },
     { prefix: "/admin" },
