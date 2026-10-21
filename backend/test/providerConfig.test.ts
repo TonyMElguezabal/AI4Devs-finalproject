@@ -17,7 +17,7 @@ import {
   PER_PHASE_MAX_TIME_SECONDS,
   SPEED_FACTOR_LIMIT,
   MAX_ATTEMPTS_PER_CYCLE,
-  PROVISIONAL_RETRY_DELAY_SECONDS,
+  RETRY_DELAY_SECONDS,
   SCRIPT_MODERATION,
   MODERATION_MAX_TIME_SECONDS,
 } from "../src/config/providers.ts";
@@ -163,12 +163,10 @@ describe("Retry policy constants (bounded-retry-policy, JOS-184)", () => {
     expect(MAX_ATTEMPTS_PER_CYCLE).toBe(4);
   });
 
-  // PRD §11 records no retry delay base or cap yet (task 1.4 waits for US-33).
-  // The values are named PROVISIONAL so no one mistakes them for PRD values;
-  // when US-33 records them, replace this test with an assertion against §11.
-  it("keeps the retry delays provisional and well-formed until the PRD records them", () => {
-    expect(PROVISIONAL_RETRY_DELAY_SECONDS).toEqual({ base: 2, cap: 30 });
-    expect(PROVISIONAL_RETRY_DELAY_SECONDS.cap).toBeGreaterThanOrEqual(PROVISIONAL_RETRY_DELAY_SECONDS.base);
+  // PRD §11.3: automatic-retry delay base 2 s, cap 30 s.
+  it("matches the retry delays recorded in PRD §11.3", () => {
+    expect(RETRY_DELAY_SECONDS).toEqual({ base: 2, cap: 30 });
+    expect(RETRY_DELAY_SECONDS.cap).toBeGreaterThanOrEqual(RETRY_DELAY_SECONDS.base);
   });
 });
 

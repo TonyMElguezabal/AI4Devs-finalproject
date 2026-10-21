@@ -22,6 +22,7 @@ alwaysApply: true
     - Configuration files and scripts
     - Git commit messages
     - Test names and descriptions
+- **Spanish exceptions**: `readme.md` and `docs/PRD.md` (with its archived versions) follow the course template and stay in Spanish. Everything else, including the technical sections added to the README, keeps the English-only rule for code and identifiers.
 
 ## 3. Specific standards
 

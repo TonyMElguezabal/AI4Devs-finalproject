@@ -1,4 +1,11 @@
-import { DECOMPOSITION_PROVIDER, IMAGE_PROVIDER, VIDEO_PROVIDER, VOICE_PROVIDER } from "./config/providers.ts";
+import {
+  DECOMPOSITION_PROVIDER,
+  IMAGE_PROVIDER,
+  LEGACY_IMAGE_PROVIDER_IDENTIFIER,
+  LEGACY_VIDEO_PROVIDER_IDENTIFIER,
+  VIDEO_PROVIDER,
+  VOICE_PROVIDER,
+} from "./config/providers.ts";
 import { STUB_PROVIDER_NAME, type AttemptStage } from "./types.ts";
 import { STUB_VIDEO_PROVIDER_NAME } from "./videoProvider.ts";
 
@@ -28,12 +35,14 @@ const stub = (identifier: string): ProviderDisplay => ({ name: "Stub provider", 
 // `provider_id` its attempts record. Identifiers that no stage stores have no entry on purpose.
 const DISPLAY: Record<DiagnosticStage, ReadonlyMap<string | null, ProviderDisplay>> = {
   image: new Map([
-    [IMAGE_PROVIDER.model, { name: IMAGE_PROVIDER.name, model: IMAGE_PROVIDER.model }],
+    [IMAGE_PROVIDER.name, { name: IMAGE_PROVIDER.name, model: IMAGE_PROVIDER.model }],
+    [LEGACY_IMAGE_PROVIDER_IDENTIFIER, { name: IMAGE_PROVIDER.name, model: IMAGE_PROVIDER.model }],
     [STUB_PROVIDER_NAME, stub(STUB_PROVIDER_NAME)],
   ]),
   // The endpoint path is configuration detail the User does not need, so the model is a fixed label.
   video: new Map([
-    [VIDEO_PROVIDER.endpoint, { name: VIDEO_PROVIDER.name, model: "minimax/hailuo-h3" }],
+    [VIDEO_PROVIDER.name, { name: VIDEO_PROVIDER.name, model: "minimax/hailuo-h3" }],
+    [LEGACY_VIDEO_PROVIDER_IDENTIFIER, { name: VIDEO_PROVIDER.name, model: "minimax/hailuo-h3" }],
     [STUB_VIDEO_PROVIDER_NAME, stub(STUB_VIDEO_PROVIDER_NAME)],
   ]),
   "voice-over": new Map([

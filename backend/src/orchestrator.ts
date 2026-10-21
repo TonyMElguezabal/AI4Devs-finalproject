@@ -66,7 +66,7 @@ import { admitLaunch, launchHeldWork, registerStageLauncher, relaunchPendingWork
 import { describeProvider, diagnosticStageOf, type StageDiagnostic } from "./stageDiagnostics.ts";
 import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
-import { FINAL_OUTPUT, PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
+import { FINAL_OUTPUT, phaseTimeoutMs } from "./config/providers.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
 import { downloadGeneratedImage, getImageProviderRegistry, type ImageGenerationResult } from "./imageProvider.ts";
 import {
@@ -366,7 +366,9 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const scenes = getScenesForRun(runId);
   const { state, failedPhase, failedSceneIndexes } = deriveSessionState(scenes, run.failure, {
     hasVoiceOver: getVoiceOver(runId) !== undefined,
-    voiceAttemptInFlight: getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight"),
+    // retry-voice-over (JOS-155), Decision 7 — `startNewCycle` clears the failure, so a retry that is accepted but not yet
+    // sent (scheduled, or held by a pause) must already show the phase as running.
+    voiceAttemptInFlight: getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight" || attempt.outcome === "scheduled"),
     timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
     hasFinalVideo: run.finalVideoPath != null,
     rebuildInFlight: run.finalVideoPath != null && getStageAttempts(runId, "assembly").some((attempt) => attempt.outcome === "in-flight"),
@@ -868,11 +870,12 @@ async function pollVideoRequestOnce(
   }
 
   const elapsed = Date.now() - sentAtMs;
-  if (elapsed > PER_PHASE_MAX_TIME_SECONDS.video * 1000) {
+  const videoTimeoutMs = phaseTimeoutMs("video");
+  if (videoTimeoutMs !== undefined && elapsed > videoTimeoutMs) {
     insertProviderRequest(requestId, sceneId, elapsed, "transient_failure", attemptNumber, "video");
     markProviderRequestResolved(requestId);
     concurrency.release(VIDEO_STAGE, sceneId);
-    applyVideoFailureOutcome(sceneId, { kind: "failed_transient", reason: `the clip request exceeded the ${PER_PHASE_MAX_TIME_SECONDS.video} s phase limit` }, attemptNumber);
+    applyVideoFailureOutcome(sceneId, { kind: "failed_transient", reason: `the clip request exceeded the ${videoTimeoutMs / 1000} s phase limit` }, attemptNumber);
     broadcast(fresh.runId);
     return;
   }
@@ -1491,8 +1494,7 @@ function settleImageInFlight(): SettleSummary {
     const req = getProviderRequest(requestId);
     if (req) {
       const remainingMs = Math.max(0, new Date(req.sentAt).getTime() + req.latencyMs - Date.now());
-      const timer = setTimeout(() => handleProviderResult(requestId), remainingMs);
-      timer.unref();
+      provider.deliverWhenReady(requestId, remainingMs, handleProviderResult);
     }
     stillPending++;
   }

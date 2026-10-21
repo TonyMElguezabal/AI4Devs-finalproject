@@ -9,6 +9,7 @@ import { getScriptModerator } from "./scriptModeration.ts";
 import { launchVoiceOverFor } from "./voiceOverPhase.ts";
 import { retryDecomposition } from "./decompositionRetry.ts";
 import { retryAssembly } from "./assemblyRetry.ts";
+import { retryVoiceOver } from "./voiceOverRetry.ts";
 import { rebuildFinalVideo } from "./finalVideoRebuild.ts";
 import { setScenePause } from "./scenePauseEdit.ts";
 import { randomUUID } from "node:crypto";
@@ -39,6 +40,7 @@ import {
 import { PROVIDER_OUTCOME_MODES } from "./types.ts";
 import { SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES } from "./config/providers.ts";
 import { ulid } from "./util/ulid.ts";
+import { adminDeniedSchema, registerAdminGate } from "./adminAccess.ts";
 
 /** Provisional — the real value is set by define-live-updates' idle experiment (Decision 7); this keeps the stream alive meanwhile. */
 const HEARTBEAT_MS = 15_000;
@@ -59,9 +61,11 @@ const createSessionBodySchema = z.object({
     "Stored exactly as submitted and immutable from registration onward, in every state (PRD §4.2, D10). No operation modifies it.",
   ),
   // PRD §4.1, D09 — a session cannot start without a language selected from
-  // the hardcoded supported list; refused regardless of how the request was
-  // made (Decision 5). See config/providers.ts (define-provider-configuration, JOS-165) for the verified list.
-  language: z.enum(SUPPORTED_LANGUAGE_CODES).describe("Immutable once the session is registered (PRD §4.1, §4.2)."),
+  // the configured supported list; refused regardless of how the request was
+  // made (Decision 5). The list comes from the settings files
+  // (configure-providers-and-parameters, JOS-174), whose schema requires at least one language,
+  // so the cast to a non-empty tuple holds.
+  language: z.enum(SUPPORTED_LANGUAGE_CODES as readonly [string, ...string[]]).describe("Immutable once the session is registered (PRD §4.1, §4.2). One of the configured supported languages (`GET /languages`); English and Spanish by default."),
 });
 
 // start-video-project (JOS-134) Decision 3 — session identifiers are ULIDs
@@ -450,6 +454,26 @@ export const routes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  // retry-voice-over (JOS-155) — the manual retry of a failed voice-over. Same script and provider, nothing deleted;
+  // the body is strictly empty so no input can change what is sent.
+  typed.post(
+    "/sessions/:sessionId/voice-over/retry",
+    {
+      schema: {
+        params: looseSessionParamsSchema,
+        body: emptyBodySchema,
+        response: { 200: retryAcceptedSchema, 404: conflictSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const { sessionId } = request.params;
+      const result = ulidPattern.test(sessionId) ? retryVoiceOver(sessionId) : ({ ok: false, reason: "session-not-found" } as const);
+      if (result.ok) return result;
+      reply.code(result.reason === "session-not-found" ? 404 : 409);
+      return { ok: false, reason: result.reason };
+    },
+  );
+
   // retry-final-assembly (JOS-159) — the manual retry of a failed final assembly. Design Decision 7 — assembly
   // always offers a retry, whatever `retryable` is, so there is no `not-retryable` 409 reason here.
   typed.post(
@@ -727,8 +751,9 @@ export const routes: FastifyPluginAsync = async (app) => {
       // Writing to `reply.raw` bypasses Fastify's reply pipeline entirely,
       // so the @fastify/cors plugin's onSend hook never runs for this route
       // — found by the frontend prototype's browser actually refusing the
-      // response with no CORS header. Set it explicitly here instead.
-      "Access-Control-Allow-Origin": request.headers.origin ?? "*",
+      // response with no CORS header. Set it explicitly here instead. Foreign origins never get here
+      // (originPolicy.ts refuses them), so the request's own origin can be echoed.
+      ...(request.headers.origin ? { "Access-Control-Allow-Origin": request.headers.origin } : {}),
     });
     reply.raw.write(": connected\n\n");
 
@@ -748,6 +773,29 @@ export const routes: FastifyPluginAsync = async (app) => {
       clearInterval(heartbeat);
     });
   });
+
+  // protect-admin-with-password (JOS-173), design Decision 3 — every Administrator endpoint lives in this child
+  // plugin, under the `/admin` prefix, and none adds authentication of its own: the gate registered first
+  // answers 401 before any body is parsed or handler runs. Other stories (JOS-171, JOS-172) add their routes here.
+  await app.register(
+    async (admin) => {
+      registerAdminGate(admin);
+      const typedAdmin = admin.withTypeProvider<ZodTypeProvider>();
+
+      // Design Decision 4 — the gate has already answered 401 for every other case, so this handler only runs
+      // for the correct password. The /admin page asks the 401 reason which of its states to show.
+      typedAdmin.get(
+        "/access",
+        {
+          schema: {
+            response: { 200: z.object({ configured: z.literal(true), granted: z.literal(true) }), 401: adminDeniedSchema },
+          },
+        },
+        async () => ({ configured: true as const, granted: true as const }),
+      );
+    },
+    { prefix: "/admin" },
+  );
 
   // Test-only endpoints for manual endpoint testing (task 9). Guarded by
   // ALLOW_TEST_ENDPOINTS env var; never available in production.

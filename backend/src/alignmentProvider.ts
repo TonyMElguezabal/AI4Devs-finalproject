@@ -1,5 +1,5 @@
 import { loadCredential } from "./config/credentials.ts";
-import { PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
+import { ALIGNMENT_PROVIDER, phaseTimeoutMs } from "./config/providers.ts";
 import { parseAlignedCharacters, type TimestampCharacter } from "./narrationTimestamps.ts";
 
 // obtain-narration-timestamps (JOS-139) Decision 6 — the alignment stage's
@@ -19,7 +19,8 @@ export interface AlignmentProvider {
   align(audio: Uint8Array, script: string): Promise<AlignmentResult>;
 }
 
-const ELEVENLABS_FORCED_ALIGNMENT_URL = "https://api.elevenlabs.io/v1/forced-alignment";
+// The path is configurable (JOS-174); the host belongs to the adapter, which is ElevenLabs'.
+const ELEVENLABS_FORCED_ALIGNMENT_URL = `https://api.elevenlabs.io${ALIGNMENT_PROVIDER.endpoint}`;
 
 /** Product owner rule (as for voice): not retryable for 4xx except 408 and 429; transient otherwise. */
 function classifyHttpStatus(status: number): "failed_transient" | "failed_not_retryable" {
@@ -31,7 +32,7 @@ export function createElevenLabsAlignmentProvider(
 ): AlignmentProvider {
   const fetchFn = options.fetchFn ?? fetch;
   const loadKey = options.loadKey ?? (() => loadCredential("ELEVENLABS_KEY"));
-  const timeoutMs = options.timeoutMs ?? PER_PHASE_MAX_TIME_SECONDS.alignment * 1000;
+  const timeoutMs = options.timeoutMs ?? phaseTimeoutMs("alignment");
 
   return {
     async align(audio, script) {
@@ -55,10 +56,10 @@ export function createElevenLabsAlignmentProvider(
           method: "POST",
           headers: { "xi-api-key": apiKey },
           body: form,
-          signal: AbortSignal.timeout(timeoutMs),
+          signal: timeoutMs === undefined ? undefined : AbortSignal.timeout(timeoutMs),
         });
       } catch (err) {
-        const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+        const timedOut = timeoutMs !== undefined && err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
         return {
           kind: "failed_transient",
           reason: timedOut

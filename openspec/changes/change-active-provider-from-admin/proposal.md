@@ -14,7 +14,7 @@ After JOS-174, the provider for each stage comes from the settings files and cha
 - **Admin API.** One endpoint reads the active provider, its source (settings files or `/admin`) and the selectable adapters per stage. Another endpoint changes the active provider. Both require the Administrator access from JOS-173; without it, the change is refused (AC2).
 - **`/admin` section "Active providers"**: one selector per stage, shown inside the `/admin` page that JOS-173 adds.
 - **Unchanged:** completed results are never regenerated (AC4). Exhausted retries never move a stage to another provider (AC5). Moving a failed stage manually is JOS-172.
-- **PRD change** (the version after JOS-174's v1.10): §2.1, §2.3 and §11.2 allow the Administrator to change the active provider on `/admin`. JOS-174's "settings are edited in the configuration files, not on `/admin`" gets one exception: the active provider. Needs the product owner's approval before merge.
+- **PRD change** (v1.13, the version after JOS-174's v1.12): §2.1, §2.3 and §11.2 allow the Administrator to change the active provider on `/admin`. JOS-174's "settings are edited in the configuration files, not on `/admin`" gets one exception: the active provider. Needs the product owner's approval before merge.
 
 ## Capabilities
 

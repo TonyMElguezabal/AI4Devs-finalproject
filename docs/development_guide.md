@@ -7,7 +7,7 @@ Vid4You is two packages in one repository: `backend/` (Fastify, `node:sqlite`, T
 ## Prerequisites
 
 - **Node.js 26.4.0**, the version the repository is developed and tested with. The backend needs a release that has `node:sqlite` and runs `.ts` files natively (strip-only type removal), so it does not work on older LTS lines. No `engines` field is declared yet.
-- **ffmpeg and ffprobe** (development only). The voice-over phase calls `ffprobe` from `PATH`; the assembly adapter calls `/opt/homebrew/bin/ffmpeg` and `/opt/homebrew/bin/ffprobe` (hard-coded; on macOS `brew install ffmpeg` puts them there). Both must exist, including on CI. The packaged app bundles both beside the executable and needs no install.
+- **ffmpeg and ffprobe** (development only). The voice-over probe and the assembly adapter both use one resolver (`backend/src/config/ffmpeg.ts`): `FFMPEG_PATH` / `FFPROBE_PATH` if set, otherwise `/opt/homebrew/bin/ffmpeg` and `ffprobe` when they exist (`brew install ffmpeg` on macOS), otherwise the name on `PATH` (Linux, CI). Both must be installed, including on CI. The packaged app bundles both beside the executable and needs no install.
 - **Git** and **npm**.
 
 ## Run it
@@ -79,6 +79,20 @@ Real provider calls need four keys. In development they are read from the enviro
 
 Never put a key in the repository. A missing key fails the stage with a message naming the variable, never its value.
 
+### Administrator password
+
+`/admin` is protected by one shared password. It is not needed for anything else: the start page and the session pages never ask for it.
+
+| Variable | Used by |
+|---|---|
+| `ADMIN_PASSWORD` | the `/admin` page and every `/admin/…` endpoint |
+
+- **Where to set it.** Like the provider keys: in the environment, or as `"ADMIN_PASSWORD"` in the same git-ignored `.secrets.json` (the environment wins). It is never a settings value, and a settings file that contains it is rejected as an unknown key.
+- **Restart to apply.** The app reads it when it starts (the secrets file is cached), so a new or changed password applies after a restart. While it is missing the app starts normally, `/admin` says "No Administrator password is configured" and every `/admin/…` endpoint answers `401`.
+- **Use a strong one.** The app has no lock-out after failed attempts, and until the `Origin`/`Host` guard exists (story L3) a website open in your browser could try passwords against `127.0.0.1`. A long random password costs nothing here and closes that risk in practice.
+- **Opening it.** Go to `/admin` directly (`http://127.0.0.1:5173/admin` in development). It is not linked from the regular pages. The page keeps the password in memory only, so a reload asks again. In the packaged app, serving `/admin` is part of story L6.
+- **Calling the API by hand.** Send `Authorization: Bearer <password>`, for example `curl -H "Authorization: Bearer $ADMIN_PASSWORD" http://127.0.0.1:3100/admin/access`. The answer is `200 { "configured": true, "granted": true }`, or `401` with `reason` `not-configured`, `password-required` or `wrong-password`.
+
 ### Local state
 
 | Variable | Default (relative to the backend working directory) | Holds |
@@ -87,6 +101,47 @@ Never put a key in the repository. A missing key fails the stage with a message 
 | `PROJECTS_ROOT` | `data/projects` | one folder per project: narration, images, clips, final MP4 |
 
 `backend/data/` is git-ignored. Two checkouts that share it share its sessions and migrations, so point `DB_PATH` and `PROJECTS_ROOT` at separate directories when running a second checkout or the tests.
+
+### Settings files
+
+Providers and generation parameters are not compiled into the code. They are read **once, when the backend starts**, from two JSON files, and a change takes effect only after a restart (editing a file while the app runs changes nothing).
+
+| File | Role |
+|---|---|
+| `backend/config/settings.default.json` | ships with the app and holds a complete, valid value for every setting (the values recorded in PRD §11.3). Do not edit it to configure an installation. |
+| `SETTINGS_PATH` (default `data/settings.json`, relative to the backend working directory) | optional. Holds only the settings you want to change. It is merged over the defaults: objects merge key by key, and a list (`languages`) is replaced whole. |
+
+Example `data/settings.json` that offers English only and lowers the video request cap:
+
+```json
+{ "languages": [{ "code": "en", "label": "English" }], "maxSimultaneousRequests": { "video": 1 } }
+```
+
+| Setting | Rule |
+|---|---|
+| `decomposition`, `voice`, `alignment`, `image`, `video` `.name` | the provider; must be one the build ships an adapter for (today `OpenAI`, `ElevenLabs`, `ElevenLabs`, `Fal.ai`, `RunningHub`) |
+| `decomposition.model`, `image.model`, `voice.model`, `voice.voiceId`, `voice.voiceName`, `voice.outputFormat`, `alignment.endpoint`, `video.endpoint` | non-empty text. The provider's acceptance is not checked at start-up; a wrong value fails the first call |
+| `voice.speed` | `"default"` or a number from 0.7 to 1.2 |
+| `video.admittedDurationSeconds.min` / `.max` | whole seconds, at least 1, `min` not above `max` |
+| `segmentation.lowerBoundSeconds` | positive, not below `video.admittedDurationSeconds.min` |
+| `speedFactorLimit` | a number of at least 1 (the unsigned factor) |
+| `maxTimeSeconds.<stage>` | for `decomposition`, `image`, `voice`, `alignment`, `video`, `assembly`: a positive number of seconds, or `null` for "not timed". The key is required |
+| `maxSimultaneousRequests.<stage>` | whole number of at least 1, for `decomposition`, `image`, `voice`, `alignment`, `video` |
+| `output.width` / `.height` / `.fps` | positive whole numbers; width and height even (H.264). An output above 2560×1440 is upscaled |
+| `languages` | a non-empty list of `{ "code": two lowercase letters, "label": text }`, codes unique |
+
+If anything is missing, empty, the wrong type, out of range, unknown, or inconsistent, the backend **does not start** and prints one line per problem, each naming its setting, for example:
+
+```
+Error: Invalid settings, the application cannot start:
+  - languages: must have at least 1 item(s)
+  - openaiApiKey: unknown setting
+  - segmentation.lowerBoundSeconds: must not be shorter than video.admittedDurationSeconds.min
+```
+
+A problem never prints a value. **Credentials never go in these files**: a key such as `openaiApiKey` is rejected as an unknown setting. Keys stay in the environment or `.secrets.json` (see "Provider credentials"). Values outside this list (content check, image generation size, video generation tier, retry budget and delays) stay in `backend/src/config/providers.ts`. The Administrator password is not a setting yet: it arrives with the `/admin` story.
+
+What a change does and does not touch: sessions already running keep their recorded durations, speed factors, warnings and language, and a scene already bound to a provider keeps that provider (bindings store the provider name, so a retry uses the *current* model or endpoint). A language removed from the list can no longer start a new session, but existing sessions in it still work.
 
 ### Development-only switches
 
@@ -97,6 +152,7 @@ These exist for manual endpoint testing and **must never be set in UAT or produc
 | `ALLOW_TEST_ENDPOINTS` | enables `POST /internal/test/quick-voice-over` and `POST /internal/test/quick-scene` |
 | `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_ASSEMBLY_TOOL` | replace a provider with a stub (values are listed in `backend/src/server.ts`) |
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | shorten retry delays |
+| `CORS_ALLOWED_ORIGINS` | comma-separated extra origins allowed to call the API. By default only `http://127.0.0.1:5173`, `http://localhost:5173` and the backend's own address are; any other web page gets a 403 |
 
 ### Telemetry (opt-in)
 

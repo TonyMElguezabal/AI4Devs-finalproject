@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as concurrency from "../src/concurrency.ts";
-import { PER_PHASE_MAX_TIME_SECONDS } from "../src/config/providers.ts";
+import { limitSeconds } from "./phaseLimit.ts";
 import { createRun, getScene, resetAll } from "../src/db.ts";
 import { createFalAiImageProvider, resetDownloadFetch, resetImageProviderRegistry, setDownloadFetch, setImageProviderRegistry } from "../src/imageProvider.ts";
 import { launchImageStage, resetVideoStageStartDelayMs, setVideoStageStartDelayMs } from "../src/orchestrator.ts";
@@ -79,7 +79,7 @@ describe("the Fal.ai adapter's limit", () => {
 
     await createFalAiImageProvider({ fetchFn: answersPromptly, loadKey: KEY }).generate("a lighthouse");
 
-    expect(timeout).toHaveBeenCalledWith(PER_PHASE_MAX_TIME_SECONDS.image * 1000);
+    expect(timeout).toHaveBeenCalledWith(limitSeconds("image") * 1000);
   });
 
   it("still takes an explicit limit", async () => {

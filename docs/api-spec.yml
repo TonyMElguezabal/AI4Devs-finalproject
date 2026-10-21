@@ -21,9 +21,23 @@
 # file (same
 # command) whenever a route changes, rather than hand-editing it out of sync.
 #
+# JOS-174 (configure-providers-and-parameters) - 2026-10-19: no new path. The `language`
+# request field of `POST /sessions` is validated against the configured list of supported
+# languages (the `languages` setting, `docs/development_guide.md` "Settings files"); the
+# enum below is the shipped default, English and Spanish. `GET /languages` returns the
+# configured list. A structural comparison with the generated document found only this
+# description, plus the hand-written 422/503 response descriptions of JOS-187.
+#
 # JOS-156 (retry-decomposition) — 2026-10-05: regenerated; the only change is the new
 # `POST /sessions/{sessionId}/decomposition/retry` (200 `{ ok, held }`, 404, 409
 # `{ ok, reason }`; a body field answers 400 from the strict empty body).
+#
+# JOS-155 (retry-voice-over) — 2026-10-19: the new
+# `POST /sessions/{sessionId}/voice-over/retry` (200 `{ ok, held }`, 404, 409
+# `{ ok, reason }` with reason one of `not-failed-in-voice-over`,
+# `narration-complete`, `not-retryable`, `retry-already-pending`; a body field
+# answers 400 from the strict empty body). The block was taken from the running
+# server's generated output; the rest of the file is unchanged.
 #
 # JOS-158 (retry-or-correct-clip): the existing scene retry/correct routes now
 # dispatch by the persisted failed stage. A failed video stage retries the clip
@@ -108,6 +122,15 @@
 # `answered`; strict body, 400 on a missing or non-boolean key) and GET /app/update (`{ available: false }` or
 # `{ available: true, tag, url }`). PUT is allowed here because consent is a setting, not session content;
 # the content-lock rule (AC1) is about sessions. Nothing else changed.
+#
+# JOS-173 (protect-admin-with-password) - 2026-10-19: new `GET /admin/access` (200
+# `{ configured: true, granted: true }`; 401 `{ ok: false, reason }` with reason
+# `not-configured`, `password-required` or `wrong-password`) and the
+# `administratorPassword` HTTP bearer security scheme (`Authorization: Bearer <password>`).
+# Every operation under `/admin/` is marked with that scheme by the OpenAPI transform in
+# `server.ts`, so a later Administrator route is documented as protected with no code of
+# its own. A structural comparison with the generated document found only these additions,
+# plus the hand-written 422/503 response descriptions of JOS-187.
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -118,6 +141,12 @@ info:
     Conventions) - never hand-written, to avoid drifting from the real
     validators.
 components:
+  securitySchemes:
+    administratorPassword:
+      type: http
+      scheme: bearer
+      description: The Administrator password (ADMIN_PASSWORD in the local environment
+        or secrets file).
   schemas: {}
 paths:
   /health:
@@ -176,7 +205,9 @@ paths:
                   enum:
                     - en
                     - es
-                  description: Immutable once the session is registered (PRD §4.1, §4.2).
+                  description: Immutable once the session is registered (PRD §4.1, §4.2). One of
+                    the configured supported languages (`GET /languages`);
+                    English and Spanish by default.
               required:
                 - title
                 - script
@@ -1312,6 +1343,75 @@ paths:
                   - ok
                   - reason
                 additionalProperties: false
+  /sessions/{sessionId}/voice-over/retry:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              anyOf:
+                - not: {}
+                - type: object
+                  properties: {}
+                  additionalProperties: false
+                  nullable: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: sessionId
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  held:
+                    type: boolean
+                    description: "True while the session is paused: the retry is accepted and waits
+                      for continue."
+                required:
+                  - ok
+                  - held
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
   /sessions/{sessionId}/decomposition/retry:
     post:
       requestBody:
@@ -2227,6 +2327,51 @@ paths:
       responses:
         "200":
           description: Default Response
+  /admin/access:
+    get:
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  configured:
+                    type: boolean
+                    enum:
+                      - true
+                  granted:
+                    type: boolean
+                    enum:
+                      - true
+                required:
+                  - configured
+                  - granted
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
   /:
     get:
       responses:
