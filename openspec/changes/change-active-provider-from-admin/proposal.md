@@ -28,7 +28,7 @@ None. The binding rules for voice, image and video live in change documents that
 
 ## Impact
 
-- **Depends on JOS-173** (the `/admin` page and its Administrator password gate) and **JOS-174** (the settings files that supply the default active provider). Neither is merged yet. Implementation is gated on both (tasks group 1).
+- **Depends on JOS-173** (the `/admin` page and its Administrator password gate) and **JOS-174** (the settings files that supply the default active provider). Both are merged into `main` (#83, #84), so group 1 only confirms the base.
 - **Backend:**
   - A new `active_providers` table.
   - New `runs.decomposition_provider_id` and `runs.alignment_provider_id` columns, which are additive migrations with no backfill.

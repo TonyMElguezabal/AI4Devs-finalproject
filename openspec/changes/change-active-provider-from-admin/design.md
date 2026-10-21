@@ -8,16 +8,20 @@ Today each of voice, image and video has an adapter registry `{ defaultIdentifie
 | image | `scenes.provider` (unbound sentinel = stub name) | `bindSceneImageProvider`, `orchestrator.ts` |
 | video | `scenes.video_provider` | `bindSceneVideoProvider`, `orchestrator.ts` |
 
-Every bind point passes `registry.defaultIdentifier`. Retries read the stored binding, or `attempt.providerId`, so they already stay on the bound provider.
+Every bind point passes `registry.defaultIdentifier`, which since JOS-174 is the provider name from the settings (`IMAGE_PROVIDER.name`, `VIDEO_PROVIDER.name`, `VOICE_PROVIDER.name`). Retries read the stored binding, or `attempt.providerId`, so they already stay on the bound provider.
 
 Reasoning and alignment have no registry and no binding. `decompositionPhase.ts` records `providerId: "openai-decomposition"` and `narrationTimestampsPhase.ts` records `"elevenlabs-forced-alignment"` (or `"elevenlabs-native"` when the voice provider's timestamps are used) on `stage_attempts`, and both call their adapter directly.
 
-The registry keys differ by stage: voice is keyed by provider name, image by model id (`fal-ai/flux/dev`) and video by endpoint path. Stored bindings use those keys.
+Since JOS-174 (verified in task 1.2) all three registries are keyed by provider name. Image and video also hold a second key for the same adapter (`LEGACY_IMAGE_PROVIDER_IDENTIFIER`, `LEGACY_VIDEO_PROVIDER_IDENTIFIER`) so scenes bound by an earlier build still resolve. The legacy keys are aliases, not choices.
 
-Prerequisites, neither merged yet:
+Reasoning and alignment are held in `decompositionDependencies.ts` as one instance each (`instructionGenerator`, `alignmentProvider`). Reaching them through registries is part of this change.
 
-- **JOS-173** adds `/admin` and its Administrator password gate.
-- **JOS-174** adds the settings files that name each stage's provider.
+JOS-173 exposes Administrator access as the `/admin` child plugin in `routes.ts`: `registerAdminGate` adds an `onRequest` hook that answers `401 { ok: false, reason }`, so routes registered inside it need no authentication of their own.
+
+Prerequisites, both now merged into `main`:
+
+- **JOS-173** adds `/admin` and its Administrator password gate (merged, PR #83).
+- **JOS-174** adds the settings files that name each stage's provider (merged, PR #84).
 
 Product owner decisions, 2026-10-19:
 
@@ -46,13 +50,11 @@ Product owner decisions, 2026-10-19:
 
 Adapter ids stay as they are stored today, so existing bindings and attempt rows keep resolving without a data migration:
 
-- voice: the provider name
-- image: the model id
-- video: the endpoint path
+- voice, image, video: the provider name from the settings (JOS-174). Image and video also keep their legacy aliases, which resolve but are never offered as a choice.
 - reasoning: `"openai-decomposition"`
 - alignment: `"elevenlabs-forced-alignment"`
 
-Each registry entry gains a `label` (the provider name from JOS-174's settings) for display. `defaultIdentifier` is removed. The settings-file default is resolved by matching `providers.<stage>.name` against the entries' labels.
+Each registry entry gains a `label` for display (the provider name). `defaultIdentifier` is removed; the settings-file default for voice, image and video is the configured provider name itself, and for reasoning and alignment it is their single shipped adapter. Aliases are listed in a separate `aliases` set so `selectable` can exclude them.
 
 **Alternative:** re-key every registry by provider name. Rejected: that needs a migration that rewrites stored bindings and attempt rows, for no behaviour gain.
 
@@ -98,7 +100,7 @@ Tests and the E2E step register two stub adapters (`stub-a`, `stub-b`) per stage
 - **The `/admin` selector is a single-option list for every stage until a second real provider ships.** → Accepted by the product owner. A follow-up ticket adds a verified second provider.
 - **A changed active provider can carry different parameters**, such as admitted durations, that JOS-174 configures once per stage rather than per provider. → Until a second real provider exists there is nothing to vary. The follow-up ticket must decide where per-provider parameters live, for example under `providers.<stage>.<id>` in the settings. Recorded as an open question.
 - **The backfill guesses the provider from the earliest attempt.** → Only one real adapter per stage has ever existed, so the guess cannot be wrong for real sessions.
-- **Depends on two unmerged changes.** → Tasks group 1 refuses to start until both are on the integration branch, and updates this design if their final shape differs.
+- **Depends on JOS-173 and JOS-174.** → Both are merged (#83, #84); task 1.2 confirmed the base and this design was updated for what JOS-174 changed (names as registry keys).
 
 ## Migration Plan
 

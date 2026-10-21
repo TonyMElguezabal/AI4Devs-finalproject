@@ -7,9 +7,9 @@
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm JOS-173 (`/admin` + Administrator gate) and JOS-174 (settings files) are merged into `origin/feature/entrega-2-JAME`, then rebase this branch onto it. If either is missing, stop.
-- [ ] 1.2 Confirm the base still matches design.md § Context: the five bind points, the registry shapes and keys, the attempt `providerId` values, how JOS-173 exposes Administrator access to routes and to the `/admin` page, and how JOS-174 exposes each stage's provider name. Update design.md first if anything differs.
-- [ ] 1.3 Draft the next PRD version (§2.1, §2.3, §11.2, §16, plus the exception to JOS-174's "files only" rule for the active provider) and mark it as awaiting the product owner's approval, before any code.
+- [x] 1.1 `git fetch`. Confirm JOS-173 (`/admin` + Administrator gate) and JOS-174 (settings files) are merged into `origin/feature/entrega-2-JAME`, then rebase this branch onto it. If either is missing, stop.
+- [x] 1.2 Confirm the base still matches design.md § Context: the five bind points, the registry shapes and keys, the attempt `providerId` values, how JOS-173 exposes Administrator access to routes and to the `/admin` page, and how JOS-174 exposes each stage's provider name. Update design.md first if anything differs.
+- [x] 1.3 Draft the next PRD version (§2.1, §2.3, §11.2, §16, plus the exception to JOS-174's "files only" rule for the active provider) and mark it as awaiting the product owner's approval, before any code.
 
 ## 2. Backend: storage (TDD; design Decisions 2, 3)
 
