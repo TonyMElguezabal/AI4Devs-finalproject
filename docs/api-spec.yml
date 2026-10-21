@@ -25,6 +25,13 @@
 # `POST /sessions/{sessionId}/decomposition/retry` (200 `{ ok, held }`, 404, 409
 # `{ ok, reason }`; a body field answers 400 from the strict empty body).
 #
+# JOS-155 (retry-voice-over) — 2026-10-19: the new
+# `POST /sessions/{sessionId}/voice-over/retry` (200 `{ ok, held }`, 404, 409
+# `{ ok, reason }` with reason one of `not-failed-in-voice-over`,
+# `narration-complete`, `not-retryable`, `retry-already-pending`; a body field
+# answers 400 from the strict empty body). The block was taken from the running
+# server's generated output; the rest of the file is unchanged.
+#
 # JOS-158 (retry-or-correct-clip): the existing scene retry/correct routes now
 # dispatch by the persisted failed stage. A failed video stage retries the clip
 # or corrects only VIDEO; the completed image and provider binding are retained.
@@ -1313,6 +1320,75 @@ paths:
                   - ok
                 additionalProperties: false
         "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /sessions/{sessionId}/voice-over/retry:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              anyOf:
+                - not: {}
+                - type: object
+                  properties: {}
+                  additionalProperties: false
+                  nullable: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: sessionId
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  held:
+                    type: boolean
+                    description: "True while the session is paused: the retry is accepted and waits
+                      for continue."
+                required:
+                  - ok
+                  - held
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
           description: Default Response
           content:
             application/json:

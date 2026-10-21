@@ -70,7 +70,7 @@ Coverage did not decrease on any metric. (The base run's test count fluctuated b
 Confirmed the main checkout's real database is untouched by anything done in this worktree:
 
 ```
-stat -f "%Sm" /Users/josemunoz/Software/Vid4You/AI4Devs-finalproject/backend/data/skeleton.sqlite
+stat -f "%Sm" /Users/<user>/Software/Vid4You/AI4Devs-finalproject/backend/data/skeleton.sqlite
 # Oct 4 22:39:07 2026 — unchanged throughout this session's work
 ```
 

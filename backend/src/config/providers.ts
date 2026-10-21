@@ -226,10 +226,5 @@ export const NOT_RETRYABLE_FAILURE_SIGNAL_CONFIRMED = false;
 /** §10.1: the initial attempt plus three automatic retries. */
 export const MAX_ATTEMPTS_PER_CYCLE = 4;
 
-/**
- * PROVISIONAL — PRD §11 records no retry delay base or cap for any stage
- * (JOS-184 task 1.4 is open; US-33 must record them). Replace these with the
- * PRD values, and drop the PROVISIONAL_ prefix, once they exist. Tests inject
- * their own values and never depend on these.
- */
-export const PROVISIONAL_RETRY_DELAY_SECONDS = { base: 2, cap: 30 } as const;
+/** PRD §11.3 (JOS-203 B5): delay is `min(base × 2^(attempt−1), cap)` seconds; a provider's Retry-After is never undercut. */
+export const RETRY_DELAY_SECONDS = { base: 2, cap: 30 } as const;

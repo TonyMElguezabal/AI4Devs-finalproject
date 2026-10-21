@@ -19,6 +19,7 @@ import {
   retryAssembly,
   retryDecomposition,
   retryScene,
+  retryVoiceOver,
   setScenePause,
 } from "./api/client";
 
@@ -157,6 +158,7 @@ function RegularApp() {
           onSetPause={(sceneId, seconds) => setScenePause(sessionId, sceneId, seconds)}
           onRebuildFinalVideo={() => rebuildFinalVideo(sessionId)}
           onRetryPhase={(phase) => {
+            if (phase === "voice-over") return retryVoiceOver(sessionId);
             if (phase === "decomposition") return retryDecomposition(sessionId);
             if (phase === "assembly") return retryAssembly(sessionId);
             return Promise.reject(new Error("not-retryable"));

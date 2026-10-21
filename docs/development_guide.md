@@ -7,7 +7,7 @@ Vid4You is two packages in one repository: `backend/` (Fastify, `node:sqlite`, T
 ## Prerequisites
 
 - **Node.js 26.4.0**, the version the repository is developed and tested with. The backend needs a release that has `node:sqlite` and runs `.ts` files natively (strip-only type removal), so it does not work on older LTS lines. No `engines` field is declared yet.
-- **ffmpeg and ffprobe** (development only). The voice-over phase calls `ffprobe` from `PATH`; the assembly adapter calls `/opt/homebrew/bin/ffmpeg` and `/opt/homebrew/bin/ffprobe` (hard-coded; on macOS `brew install ffmpeg` puts them there). Both must exist, including on CI. The packaged app bundles both beside the executable and needs no install.
+- **ffmpeg and ffprobe** (development only). The voice-over probe and the assembly adapter both use one resolver (`backend/src/config/ffmpeg.ts`): `FFMPEG_PATH` / `FFPROBE_PATH` if set, otherwise `/opt/homebrew/bin/ffmpeg` and `ffprobe` when they exist (`brew install ffmpeg` on macOS), otherwise the name on `PATH` (Linux, CI). Both must be installed, including on CI. The packaged app bundles both beside the executable and needs no install.
 - **Git** and **npm**.
 
 ## Run it
@@ -111,6 +111,7 @@ These exist for manual endpoint testing and **must never be set in UAT or produc
 | `ALLOW_TEST_ENDPOINTS` | enables `POST /internal/test/quick-voice-over` and `POST /internal/test/quick-scene` |
 | `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_ASSEMBLY_TOOL` | replace a provider with a stub (values are listed in `backend/src/server.ts`) |
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | shorten retry delays |
+| `CORS_ALLOWED_ORIGINS` | comma-separated extra origins allowed to call the API. By default only `http://127.0.0.1:5173`, `http://localhost:5173` and the backend's own address are; any other web page gets a 403 |
 
 ### Telemetry (opt-in)
 

@@ -9,6 +9,7 @@ import { getScriptModerator } from "./scriptModeration.ts";
 import { launchVoiceOverFor } from "./voiceOverPhase.ts";
 import { retryDecomposition } from "./decompositionRetry.ts";
 import { retryAssembly } from "./assemblyRetry.ts";
+import { retryVoiceOver } from "./voiceOverRetry.ts";
 import { rebuildFinalVideo } from "./finalVideoRebuild.ts";
 import { setScenePause } from "./scenePauseEdit.ts";
 import { randomUUID } from "node:crypto";
@@ -451,6 +452,26 @@ export const routes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  // retry-voice-over (JOS-155) — the manual retry of a failed voice-over. Same script and provider, nothing deleted;
+  // the body is strictly empty so no input can change what is sent.
+  typed.post(
+    "/sessions/:sessionId/voice-over/retry",
+    {
+      schema: {
+        params: looseSessionParamsSchema,
+        body: emptyBodySchema,
+        response: { 200: retryAcceptedSchema, 404: conflictSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const { sessionId } = request.params;
+      const result = ulidPattern.test(sessionId) ? retryVoiceOver(sessionId) : ({ ok: false, reason: "session-not-found" } as const);
+      if (result.ok) return result;
+      reply.code(result.reason === "session-not-found" ? 404 : 409);
+      return { ok: false, reason: result.reason };
+    },
+  );
+
   // retry-final-assembly (JOS-159) — the manual retry of a failed final assembly. Design Decision 7 — assembly
   // always offers a retry, whatever `retryable` is, so there is no `not-retryable` 409 reason here.
   typed.post(
@@ -728,8 +749,9 @@ export const routes: FastifyPluginAsync = async (app) => {
       // Writing to `reply.raw` bypasses Fastify's reply pipeline entirely,
       // so the @fastify/cors plugin's onSend hook never runs for this route
       // — found by the frontend prototype's browser actually refusing the
-      // response with no CORS header. Set it explicitly here instead.
-      "Access-Control-Allow-Origin": request.headers.origin ?? "*",
+      // response with no CORS header. Set it explicitly here instead. Foreign origins never get here
+      // (originPolicy.ts refuses them), so the request's own origin can be echoed.
+      ...(request.headers.origin ? { "Access-Control-Allow-Origin": request.headers.origin } : {}),
     });
     reply.raw.write(": connected\n\n");
 

@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-26
 - Change: `define-media-assembly` (JOS-182, US-42-adjacent spike)
+- Amended 2026-10-20 (JOS-203): the "AAC audio" requirement quoted below was reworded in PRD v1.10 to match Decision 4b: the voice-over MP3 is copied unchanged into the MP4; only a rebuild with an adjusted pause re-encodes to AAC.
 ## Context
 
 PRD v1.3 §7.3 and D08 fix the final artefact precisely — a 16:9 MP4 at (expected) 1920×1080/30fps, H.264 video, AAC audio, clips joined in ascending scene order with no gaps, each retimed to its narration interval without touching the voice-over, which is the only audio in the output. No tooling existed, and nobody had measured where retiming quality degrades — the number US-33 needs to hardcode the speed-factor limit.

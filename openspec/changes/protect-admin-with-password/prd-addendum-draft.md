@@ -1,14 +1,14 @@
 # PRD addendum draft — an Administrator password protects /admin (JOS-173)
 
-**Status: awaiting the product owner's approval.** The text below was applied to `docs/PRD.md` as v1.12 (task 10.1), whose status line and change-log entry say "awaiting the product owner's approval"; this branch's previous version is v1.9, kept as `docs/PRD-v1.9.md`. The change must not be merged before the approval is recorded here, and the "awaiting" markers are removed from the PRD at that point.
+**Status: awaiting the product owner's approval.** The text below was applied to `docs/PRD.md` as v1.11 (task 10.1), whose status line and change-log entry say "awaiting the product owner's approval"; this branch's previous version is v1.9, kept as `docs/PRD-v1.9.md`. The change must not be merged before the approval is recorded here, and the "awaiting" markers are removed from the PRD at that point.
 
-**Version numbering.** JOS-174 drafts v1.10 (providers and parameters in settings files) and JOS-171 drafts v1.11 (change the active provider from `/admin`). This change is v1.12. The three drafts edit the same paragraphs of §2.1 and §2.3, so whichever merges second and third rebases its text onto the version before it. The numbers follow merge order, not ticket order.
+**Version numbering.** JOS-174 drafts v1.12 (providers and parameters in settings files) and JOS-171 drafts v1.13 (change the active provider from `/admin`). This change is v1.11. The three drafts edit the same paragraphs of §2.1 and §2.3, so whichever merges second and third rebases its text onto the version before it. The numbers follow merge order, not ticket order.
 
 ## Proposed text
 
 ### Header (status line)
 
-**Versión:** 1.12. **Status (v1.12):** one shared Administrator password protects `/admin` (`protect-admin-with-password`, JOS-173, §2.1, §2.3, §12.3). All other product decisions remain closed.
+**Versión:** 1.11. **Status (v1.11):** one shared Administrator password protects `/admin` (`protect-admin-with-password`, JOS-173, §2.1, §2.3, §12.3). All other product decisions remain closed.
 
 ### 2.1 Roles (one row added to the table, and the paragraph after it changes)
 
@@ -31,7 +31,7 @@ Replace "The application has no accounts, authentication or authorization rules.
 
 ### 16 Registro de cambios (new entry)
 
-**From version 1.11 to 1.12.** Origin: `protect-admin-with-password` (JOS-173), 2026-10-19.
+**From version 1.10 to 1.11.** Origin: `protect-admin-with-password` (JOS-173), 2026-10-19.
 
 | Change | Origin |
 |---|---|

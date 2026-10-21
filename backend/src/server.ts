@@ -5,6 +5,7 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { routes } from "./routes.ts";
+import { allowedOrigins, registerOriginPolicy } from "./originPolicy.ts";
 import { recoverOnBoot, setAssemblyTool } from "./orchestrator.ts";
 import { stagesWithoutRestartRecovery } from "./launchGate.ts";
 import * as concurrency from "./concurrency.ts";
@@ -59,10 +60,11 @@ export async function buildApp(options: { logger?: FastifyBaseLogger } = {}): Pr
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-  // The frontend (define-frontend-stack, JOS-180) runs on its own Vite dev
-  // server port; CORS lets it call this backend directly with no proxy
-  // config. Fine for a local single-user install (no auth layer, C9).
-  await app.register(cors, { origin: true });
+  // The frontend (define-frontend-stack, JOS-180) runs on its own Vite dev server port; CORS lets it call this
+  // backend directly with no proxy config. There is no auth layer (C9), so only the app's own origins are allowed
+  // (originPolicy.ts); any other web page gets a 403 before a route runs.
+  registerOriginPolicy(app, PORT);
+  await app.register(cors, { origin: allowedOrigins(PORT) });
 
   await app.register(swagger, {
     openapi: {

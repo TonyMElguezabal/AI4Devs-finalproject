@@ -1,54 +1,36 @@
-# Backend stack walking skeleton (throwaway)
+# Vid4You backend
 
-Built for `define-backend-stack` (JOS-179) to prove the leading candidate — **TypeScript + Node.js + Fastify + Zod** — against the five PRD behaviours hardest to retrofit later. See `../design.md` § Candidate Evaluation for why this stack was chosen and `../tasks.md` §3–§8 for the experiment plan.
+Fastify + Zod API and stage orchestrator for Vid4You (TypeScript run natively by Node 24+, SQLite through `node:sqlite`). The product overview, installation, configuration, API and troubleshooting are in the repository `readme.md`; the contracts are in `docs/api-spec.yml`; the stack decisions are in `docs/adr/`.
 
-## What this is not
-
-- **Not the product.** It models one generic provider-backed stage ("IMAGE") instead of the PRD's five stages, and one flat list of scenes instead of the full session/chunk lifecycle. It exists to prove mechanisms, not to implement US-42's product stories.
-- **Not a persistence decision.** The SQLite store here is a disposable stand-in (Decision 4, `../design.md`). US-42c (JOS-181) chooses the real persistence engine and schema independently; nothing here should be read as pre-empting that choice. Every experiment report states which observations depend on this stand-in.
-- **Not exercising any real provider.** `src/provider.ts` is a deterministic, in-process stub with configurable latency and outcomes. No API keys, no network calls, no cost.
-
-## Architecture
-
-- `src/db.ts` — SQLite schema (`better-sqlite3`) for `runs`, `scenes`, `provider_requests`. This is the persistence stand-in.
-- `src/provider.ts` — the stubbed provider. `send()` persists a `provider_requests` row with a deterministic completion time (`sent_at + latency_ms`) instead of relying on an in-memory timer, so that **restarting this process does not lose the provider's own state** — exactly like a real external provider would keep working across our restarts. `pollResult()` recomputes the outcome from persisted data at any time (used for restart reconciliation). `scheduleDelivery()` additionally fires an in-process callback close to completion time, to model a provider that pushes its result (used for the normal, non-restart path and for the idempotency experiment).
-- `src/concurrency.ts` — a FIFO semaphore keyed by stage name, shared across all runs (proves C3).
-- `src/orchestrator.ts` — the state machine: launching a scene, applying the 1+3 retry budget, routing not-retryable failures straight to `failed`, handling (possibly duplicate) provider results idempotently, and reconciling in-flight scenes on boot (proves C1, C2, C6, C7).
-- `src/routes.ts` — the minimal HTTP surface: start a run, read state, manual retry, an SSE stream for live push, and an internal endpoint the provider stub uses to deliver results (also used directly by the idempotency experiment to send a duplicate).
-- `public/index.html` — a minimal page that opens the SSE stream and renders scene states without reloading (proves C8).
-- `test/orchestrator.test.ts` — automated tests covering experiments 4.1 (restart resumption, simulated in-process), 4.3 (retry budget) and 4.5 (idempotency), per tasks.md §5.2.
-
-## Running it
+## Commands
 
 ```bash
-cd openspec/changes/define-backend-stack/skeleton
-npm install
-npm run typecheck   # tsc --noEmit, fully-typed check
-npm test            # vitest run
-npm start           # starts the server on PORT (default 3100)
+npm ci
+npm start           # API on http://127.0.0.1:3100 (PORT), docs at /docs, health at /health
+npm run typecheck   # tsc --noEmit
+npm test            # vitest run (no real provider is ever called; test/setup.ts installs stubs)
 ```
 
-Voice-over tests (JOS-136, no real provider is ever called; `test/setup.ts` installs a stub before every test):
+Voice-over generation and the final assembly need `ffmpeg` and `ffprobe` (`FFMPEG_PATH` / `FFPROBE_PATH`, `/opt/homebrew/bin`, or the `PATH`).
+
+Opt-in contract tests that call the real providers (keys from the environment or `.secrets.json`):
 
 ```bash
-npx vitest run test/voice-over-phase.test.ts test/voice-over-session-state.test.ts test/voice-over-session-read.test.ts test/voice-provider.test.ts
-RUN_PROVIDER_CONTRACT_TESTS=1 npx vitest run test/voice-provider.contract.test.ts   # opt-in, calls the real ElevenLabs API with the key from the environment or .secrets.json
+RUN_PROVIDER_CONTRACT_TESTS=1 npx vitest run test/voice-provider.contract.test.ts
 ```
 
-Voice-over generation needs `ffprobe` on the `PATH` (it measures the returned MP3). To run the server without a real voice provider, start it with `USE_STUB_VOICE_PROVIDER=<mode>` (`success`, `success-without-timestamps`, `transient-failure`, `not-retryable-failure`, `undecodable-audio`, `empty-audio`, `hang`).
+## Layout
 
-Data lives in `data/skeleton.sqlite`, gitignored. Delete it to reset.
-
-## Restarting
-
-A restart is safe mid-processing (`preserve-progress-across-restarts`, JOS-160): the store keeps every session, scene, result and error, interrupted requests are awaited or recorded as failed attempts, and pending work continues without User action. The boot log line `boot recovery complete` reports `resumed`, `recordedFailedAttempt` (attempts settled as "interrupted by a restart"), `stillPending` (requests the provider still holds), each stage's in-flight count against its cap, and `noRestartRecovery` (stages with no launcher; empty when every stage is registered). Paused sessions stay paused and send nothing. See `docs/backend-standards.md`, *Restart recovery*.
+- `src/server.ts` builds the app; `src/routes.ts` holds the HTTP surface; `src/orchestrator.ts` the session and scene state machine, boot recovery and assembly; `src/launchGate.ts` the phase-launch gate (pause, request caps, retries).
+- `src/retry/` the retry policy, scheduler and per-attempt time limit; `src/config/` providers, limits, credentials and ffmpeg paths; `src/telemetry/` the opt-in telemetry.
+- `src/db.ts` the SQLite schema and migrations (`docs/data-model.md`).
 
 ## Environment
 
-- `PORT` — HTTP port (default `3100`)
-- `STAGE_CONCURRENCY_LIMIT` — max simultaneous provider requests for the `IMAGE` stage, shared across all runs (default `2`) — proves C3
-- `DB_PATH` — SQLite file path (default `data/skeleton.sqlite`)
+`PORT` (3100), `DB_PATH` (`data/skeleton.sqlite`), `PROJECTS_ROOT` (`data/projects`), `CORS_ALLOWED_ORIGINS`, `FFMPEG_PATH`, `FFPROBE_PATH`, and the test-only `ALLOW_TEST_ENDPOINTS`, `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS`, `STAGE_CONCURRENCY_LIMIT`. The full table is in the root `readme.md`.
 
-## Disposition
+## Restarting
 
-Undecided until tasks.md §11.1. This directory is discarded (deleted) if the skeleton is not kept as the project seed.
+A restart is safe mid-processing: the store keeps every session, scene, result and error; interrupted requests are awaited or recorded as failed attempts; pending work continues without user action; paused sessions stay paused. The boot log line `boot recovery complete` summarizes what was resumed. See `docs/backend-standards.md`, *Restart recovery*, and `openspec/specs/restart-recovery/spec.md`.
+
+Data lives under `data/` (git-ignored). Delete it to reset.

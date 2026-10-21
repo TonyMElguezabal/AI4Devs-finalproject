@@ -1,4 +1,9 @@
-## ADDED Requirements
+# session-pause Specification
+
+## Purpose
+What pausing a session holds, what it leaves running, and how continuing releases held work (PRD §9; US-20).
+
+## Requirements
 
 ### Requirement: A pause holds every launch not yet sent
 
