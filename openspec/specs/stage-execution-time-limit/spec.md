@@ -20,7 +20,7 @@ The execution time of an attempt SHALL be measured from the moment its request i
 
 ### Requirement: A stage without a defined maximum time is not timed
 
-A stage whose maximum time is not yet defined in the constants module SHALL have no deadline, and its attempts SHALL NOT be timed out. Defining the value SHALL be enough to start timing that stage.
+A stage whose maximum time is not set in the settings SHALL have no deadline, and its attempts SHALL NOT be timed out. Setting the value and restarting SHALL be enough to start timing that stage.
 
 #### Scenario: A stage with an undetermined limit
 
@@ -29,7 +29,7 @@ A stage whose maximum time is not yet defined in the constants module SHALL have
 
 ### Requirement: An attempt that exceeds the maximum time is a transient failure
 
-When a sent attempt has produced no result after its stage's hardcoded maximum time, the system SHALL record the attempt as timed out, SHALL classify it as a transient failure, and SHALL hand it to the retry policy, which schedules the next attempt or declares the cycle exhausted.
+When a sent attempt has produced no result after its stage's configured maximum time, the system SHALL record the attempt as timed out, SHALL classify it as a transient failure, and SHALL hand it to the retry policy, which schedules the next attempt or declares the cycle exhausted.
 
 #### Scenario: A sent attempt never answers
 
@@ -109,3 +109,4 @@ After a restart, the elapsed time of an attempt that was in flight SHALL be meas
 
 - **WHEN** the application restarts after an in-flight attempt's maximum time has already passed
 - **THEN** the attempt is recorded as timed out promptly after startup, unless its result is recovered first
+
