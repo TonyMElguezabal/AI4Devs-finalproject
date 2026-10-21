@@ -94,5 +94,5 @@
 - [x] 11.3 `docs/data-model.md`: `active_providers`, `runs.decomposition_provider_id`, `runs.alignment_provider_id`, and the binding rule for all five stages.
 - [x] 11.4 `docs/backend-standards.md`: bind points use `activeProviderId(stage)` and never read the active provider for an instance that is already bound.
 - [x] 11.5 `docs/development_guide.md`: how the `/admin` choice relates to the settings files, and how to register stub adapters for testing.
-- [ ] 11.6 Create the follow-up Linear ticket "Add and verify a second real provider" (assignee jose.elguezabal@gmail.com, label `type:feature`), including the per-provider parameters open question. Link it to JOS-171.
-- [ ] 11.7 Run `graphify update .`.
+- [x] 11.6 Create the follow-up Linear ticket "Add and verify a second real provider" (assignee jose.elguezabal@gmail.com, label `type:feature`), including the per-provider parameters open question. Link it to JOS-171.
+- [x] 11.7 Run `graphify update .`.
