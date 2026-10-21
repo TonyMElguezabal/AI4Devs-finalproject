@@ -323,9 +323,14 @@ Commands (run from `backend/`, or from `openspec/changes/define-backend-stack/sk
 
 ```bash
 npx tsc --noEmit      # fully-typed check
+npm run lint          # ESLint, type-aware; also runs in CI on every PR
 npx vitest run        # unit tests
 npm start             # start the server for manual/E2E testing
 ```
+
+### Static analysis
+
+ESLint 9 with `typescript-eslint` `recommendedTypeChecked` (JOS-208), configured in `backend/eslint.config.js`, covering `src` and `test`. The type-safety rules (`no-unsafe-*`, `no-explicit-any`) and `require-await`, `no-base-to-string`, `prefer-promise-reject-errors` are relaxed for `test/**` only, in one commented override. Type SQLite rows with the row interfaces in `db.ts` rather than `any`. Suppress a violation only on its own line: `// eslint-disable-next-line <rule> -- <reason>`; a stale suppression fails the lint.
 
 ### Unit Testing
 
