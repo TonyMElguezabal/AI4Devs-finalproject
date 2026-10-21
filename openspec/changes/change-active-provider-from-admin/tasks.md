@@ -50,12 +50,12 @@
 
 ## 6. Frontend: "Active providers" section on /admin (TDD; design Decision 6)
 
-- [ ] 6.1 Write failing component tests:
+- [x] 6.1 Write failing component tests:
   - one row per stage with its select set to the active provider and its source hint;
   - a single-option stage shows a disabled select;
   - changing a select sends the `PUT` and shows the returned view;
   - a 400 or 401 shows an error and keeps the previous value.
-- [ ] 6.2 Add the client calls and the section inside JOS-173's `/admin` page. Make 6.1 pass.
+- [x] 6.2 Add the client calls and the section inside JOS-173's `/admin` page. Make 6.1 pass.
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 

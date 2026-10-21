@@ -151,3 +151,16 @@ export interface TelemetryConsent extends TelemetryChoices {
 
 /** `GET /app/update`: a newer build exists on this build's channel. */
 export type AppUpdate = { available: false } | { available: true; tag: string; url: string };
+
+/** change-active-provider-from-admin (JOS-171) — one stage's row on `/admin`: `GET /admin/providers`. */
+export type ProviderStage = "reasoning" | "voice" | "alignment" | "image" | "video";
+export interface ProviderView {
+  stage: ProviderStage;
+  activeProviderId: string;
+  activeLabel: string;
+  /** Where the active provider comes from: the settings files, or a choice made on `/admin`. */
+  source: "settings" | "admin";
+  selectable: Array<{ id: string; label: string }>;
+  /** A stored choice this build no longer ships; the settings default is active meanwhile. */
+  orphanedChoice: string | null;
+}
