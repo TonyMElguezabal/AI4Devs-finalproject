@@ -40,6 +40,7 @@ import {
 import { PROVIDER_OUTCOME_MODES } from "./types.ts";
 import { SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES } from "./config/providers.ts";
 import { ulid } from "./util/ulid.ts";
+import { adminDeniedSchema, registerAdminGate } from "./adminAccess.ts";
 
 /** Provisional — the real value is set by define-live-updates' idle experiment (Decision 7); this keeps the stream alive meanwhile. */
 const HEARTBEAT_MS = 15_000;
@@ -770,6 +771,29 @@ export const routes: FastifyPluginAsync = async (app) => {
       clearInterval(heartbeat);
     });
   });
+
+  // protect-admin-with-password (JOS-173), design Decision 3 — every Administrator endpoint lives in this child
+  // plugin, under the `/admin` prefix, and none adds authentication of its own: the gate registered first
+  // answers 401 before any body is parsed or handler runs. Other stories (JOS-171, JOS-172) add their routes here.
+  await app.register(
+    async (admin) => {
+      registerAdminGate(admin);
+      const typedAdmin = admin.withTypeProvider<ZodTypeProvider>();
+
+      // Design Decision 4 — the gate has already answered 401 for every other case, so this handler only runs
+      // for the correct password. The /admin page asks the 401 reason which of its states to show.
+      typedAdmin.get(
+        "/access",
+        {
+          schema: {
+            response: { 200: z.object({ configured: z.literal(true), granted: z.literal(true) }), 401: adminDeniedSchema },
+          },
+        },
+        async () => ({ configured: true as const, granted: true as const }),
+      );
+    },
+    { prefix: "/admin" },
+  );
 
   // Test-only endpoints for manual endpoint testing (task 9). Guarded by
   // ALLOW_TEST_ENDPOINTS env var; never available in production.

@@ -47,11 +47,15 @@ const BODY_LIMIT_BYTES = Number(process.env.BODY_LIMIT_BYTES ?? 50 * 1024 * 1024
  * `test/session-creation.test.ts`). The real process bootstrap below is the
  * only caller that also calls `.listen()`.
  */
-export async function buildApp(): Promise<FastifyInstance> {
+export async function buildApp(options: { logger?: FastifyBaseLogger } = {}): Promise<FastifyInstance> {
   // add-observability-telemetry (JOS-199) Decision 5 — stdout as before, plus a rotating file in `logs` beside the store.
   // Logging stays off under test, as before.
-  const loggerOptions: { loggerInstance?: FastifyBaseLogger; logger?: false } =
-    process.env.NODE_ENV !== "test" ? { loggerInstance: createAppLogger({ dir: join(dirname(DB_PATH), "logs") }) } : { logger: false };
+  // A caller may pass its own logger (a test does, to read what is logged); the default is unchanged.
+  const loggerOptions: { loggerInstance?: FastifyBaseLogger; logger?: false } = options.logger
+    ? { loggerInstance: options.logger }
+    : process.env.NODE_ENV !== "test"
+      ? { loggerInstance: createAppLogger({ dir: join(dirname(DB_PATH), "logs") }) }
+      : { logger: false };
   const app = Fastify({ ...loggerOptions, bodyLimit: BODY_LIMIT_BYTES });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
@@ -70,8 +74,23 @@ export async function buildApp(): Promise<FastifyInstance> {
         description:
           "Local, single-user API for turning a script into a narrated MP4 (Vid4You). Generated from the Fastify + Zod route schemas in backend/src/routes.ts (docs/backend-standards.md, API and OpenAPI Conventions) - never hand-written, to avoid drifting from the real validators.",
       },
+      // protect-admin-with-password (JOS-173): every /admin/ endpoint takes the Administrator password as a bearer value.
+      components: {
+        securitySchemes: {
+          administratorPassword: {
+            type: "http",
+            scheme: "bearer",
+            description: "The Administrator password (ADMIN_PASSWORD in the local environment or secrets file).",
+          },
+        },
+      },
     },
-    transform: jsonSchemaTransform,
+    // Applied here, not per route, so an Administrator route added later is documented as protected with no code of its own.
+    transform: (args) => {
+      const result = jsonSchemaTransform(args);
+      if (!args.url.startsWith("/admin/")) return result;
+      return { ...result, schema: { ...result.schema, security: [{ administratorPassword: [] }] } };
+    },
   });
   await app.register(swaggerUi, { routePrefix: "/docs" });
 

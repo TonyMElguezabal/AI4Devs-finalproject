@@ -115,6 +115,15 @@
 # `answered`; strict body, 400 on a missing or non-boolean key) and GET /app/update (`{ available: false }` or
 # `{ available: true, tag, url }`). PUT is allowed here because consent is a setting, not session content;
 # the content-lock rule (AC1) is about sessions. Nothing else changed.
+#
+# JOS-173 (protect-admin-with-password) - 2026-10-19: new `GET /admin/access` (200
+# `{ configured: true, granted: true }`; 401 `{ ok: false, reason }` with reason
+# `not-configured`, `password-required` or `wrong-password`) and the
+# `administratorPassword` HTTP bearer security scheme (`Authorization: Bearer <password>`).
+# Every operation under `/admin/` is marked with that scheme by the OpenAPI transform in
+# `server.ts`, so a later Administrator route is documented as protected with no code of
+# its own. A structural comparison with the generated document found only these additions,
+# plus the hand-written 422/503 response descriptions of JOS-187.
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -125,6 +134,12 @@ info:
     Conventions) - never hand-written, to avoid drifting from the real
     validators.
 components:
+  securitySchemes:
+    administratorPassword:
+      type: http
+      scheme: bearer
+      description: The Administrator password (ADMIN_PASSWORD in the local environment
+        or secrets file).
   schemas: {}
 paths:
   /health:
@@ -2303,6 +2318,51 @@ paths:
       responses:
         "200":
           description: Default Response
+  /admin/access:
+    get:
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  configured:
+                    type: boolean
+                    enum:
+                      - true
+                  granted:
+                    type: boolean
+                    enum:
+                      - true
+                required:
+                  - configured
+                  - granted
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
   /:
     get:
       responses:

@@ -35,7 +35,7 @@ The stack decision, its rejected alternatives, and the live evidence behind it a
 - **Vite** — build tooling and dev server; replaces the previous (inherited) Create React App, which is unmaintained.
 - **Vitest + React Testing Library** — one test runner shared conceptually with the backend (`define-backend-stack` also uses Vitest), per `docs/base-standards.md`'s incremental-tooling preference. No Cypress — E2E verification for this project is agent-driven browser automation (see [Testing Standards](#testing-standards)), not a separate E2E framework.
 - **No UI component library** (no Bootstrap or equivalent) — plain semantic HTML and CSS. This was a deliberate choice from the start, not an oversight, and held once visual design was actually decided (see [Visual Design](#visual-design)): plain markup is the safest default for agent-driven automation (fewer opaque, framework-owned DOM structures to work around). The accessible-naming convention below did not change when styling was applied, exactly as anticipated here.
-- **No client-side router** — there is effectively one real page (the session view, reached by identifier) plus the start form; a router is unnecessary ceremony until the product-list gap (see [Not Yet Decided](#not-yet-decided)) is resolved and a second real route exists.
+- **No client-side router** — there is effectively one real page (the session view, reached by identifier) plus the start form; a router is unnecessary ceremony until the product-list gap (see [Not Yet Decided](#not-yet-decided)) is resolved and a second real route exists. The one exception is `/admin` (`protect-admin-with-password`, JOS-173): `App.tsx` checks `window.location.pathname === "/admin"` once, before any of the regular page's state exists, and renders `AdminPage` instead.
 
 ## Project Structure
 
@@ -88,6 +88,7 @@ Every screen traces to a PRD section; none was invented beyond what the PRD impl
 | Scene details | §3, §7.2, AC23 | `PROMPT`/`IMAGE`/`VIDEO`, narration interval, requested duration, speed factor + warning, provider + attempts |
 | Correction form | §10.3, AC09 | Present only on a failed image or video stage; never exposes `ID`, `PROMPT`, or order |
 | Pause / continue | §8.1, §9, AC07 | Session-level control; the paused marker shown on top of current state, distinct from a generation still running; `held` and `running` stages and counts shown as separate lines in the header when paused ("Still generating" / "Nothing is generating", "Waiting for continue"); a held scene row shows "waiting for continue", a non-held generating scene shows "still generating" (`pause-and-continue-session`, JOS-152; `distinguish-paused-session`, JOS-153) |
+| Administrator page | JOS-173 (PRD addendum pending) | `/admin`, not linked from the top bar. Three states from the backend's 401 reasons: no password configured (how to set `ADMIN_PASSWORD`, no form), locked (a password field and **Unlock**, "Wrong password" on a wrong one) and unlocked (the Administrator area, "No Administrator tools yet" until a story adds one) |
 | Privacy dialog | JOS-199 (PRD addendum pending) | A native `<dialog>`, opened on first launch and from the top bar's **Privacy** button: one checkbox per signal (error reports, provider usage and cost counts, anonymous usage counts), all off by default; a link to the privacy policy (`PRIVACY.md`, new tab); **Save** stores the choices. **Not now** and Escape close it; the first time (consent unanswered) that also records an all-off answer so it is never shown again on its own, and on an answered consent it changes nothing. Focus stays inside it while open |
 | Update banner | JOS-199 | A bar under the top bar, "A new version of Vid4You is available", a **View release** link (new tab) and **Dismiss**; shown only when `GET /app/update` says a newer release exists |
 | Downloads | §12.3 | Per-scene image/clip during processing; final MP4 only at `final-video`; nothing offered for MP3, timestamps or generated texts |
@@ -97,6 +98,15 @@ Every screen traces to a PRD section; none was invented beyond what the PRD impl
 ### The session page's address (`consult-session`, JOS-135, Decision 5)
 
 The session view is reached at `?sessionId=<id>` — a query-string parameter, not a client-side route. This is a deliberate reuse of the existing address scheme (already bookmarkable, already "contains the identifier" per §12.3), not an oversight: a router is introduced only once a second real route exists, which this isn't (one conceptual page, reached by identifier). `SessionPage` is the presentational component for this address; it renders three states from its props alone — a populated session, the "not yet available" empty-scenes case (Decision 6), and the not-found case (an unknown *or* malformed identifier look identical here too, matching the backend's Decision 4) with a "Start a new project" action that clears the query param back to the start form.
+
+### The Administrator page (`protect-admin-with-password`, JOS-173)
+
+`/admin` is chosen in `App` before the regular app's hooks run, so it never loads the privacy prompt, the languages or a live session. `AdminPage` asks `getAdminAccess()` (no password) once on load and reads the 401 reason: `not-configured` or `password-required`.
+
+- **The password lives in page memory only.** It is held in `AdminPage`'s state after a successful unlock and is never written to `localStorage`, `sessionStorage`, a cookie or the address; reloading the page asks again. A test records every storage write and fails on any.
+- **Every Administrator request goes through `adminFetch(path, password, init)`** (`api/client.ts`), which adds `Authorization: Bearer <password>`; nothing else builds that header. The backend keeps no login state.
+- **The slot for Administrator tools** is the `tools` render prop of `AdminPage`: it receives `{ password, onDenied }`. A tool calls `adminFetch` with that password and calls `onDenied()` on a 401 (for example after the password was changed), which returns the page to locked.
+- **Test environment.** Node 26 ships an experimental `localStorage` that is undefined without `--localstorage-file` and shadows jsdom's; tests that look at browser storage install their own recording stand-ins with `vi.stubGlobal`.
 
 ## Architecture: The Live-Update Seam
 
@@ -169,7 +179,7 @@ npm run dev        # start the dev server for manual/E2E testing (fixed local UR
 Decided by `docs/adr/0007-deployment.md` (JOS-194): the frontend is built once and embedded in the packaged executable, which serves it and the API from the same `http://127.0.0.1:<port>/` origin.
 
 - **API base.** Packaged builds use a same-origin API base (`VITE_API_BASE=""`); the default `http://127.0.0.1:3100` is for development with the Vite dev server only. Nothing in the build may depend on the machine it runs on.
-- **One page.** The app uses `/` with `?sessionId=`; adding routes is fine, but they must not collide with API paths, because both are served on one origin.
+- **One page.** The app uses `/` with `?sessionId=`; adding routes is fine, but they must not collide with API paths, because both are served on one origin. `/admin` is such a route: every Administrator endpoint is `/admin/…` and none is `GET /admin` itself, so the backend can answer `GET /admin` with the page.
 - **Live updates.** The SSE stream must recover by itself after the backend restarts (shown in the PoC after a `kill -9` and relaunch); keep the reconnect-and-resync behaviour of ADR 0003.
 - **No secrets in the frontend.** Provider credentials never reach the browser; the backend reads them from the user's data folder.
 
