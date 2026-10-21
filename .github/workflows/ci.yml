@@ -1,4 +1,4 @@
-# Minimal CI for the MVP (JOS-203 G1): typecheck and unit tests on every PR into, and push to, main and the integration branch.
+# Minimal CI for the MVP (JOS-203 G1, JOS-208): typecheck, lint and unit tests on every PR into, and push to, main and the integration branch.
 name: CI
 
 on:
@@ -31,6 +31,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg # ffprobe validates the voice-over audio
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run lint
       - run: npm test
         env:
           # Tests must never reuse a developer database or a real provider.
