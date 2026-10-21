@@ -82,10 +82,10 @@
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Applicability: a new `/admin` section, so this step applies.
-- [ ] 10.2 Run the backend (scratch store, two stub adapters per stage) and the frontend. Open `/admin` without the password: no provider change is possible. Enter the password: five rows, each from the settings files. Change video to `stub-b`: the row shows "set on /admin". Reload: it persists.
-- [ ] 10.3 Start a session and confirm in its scene diagnostics that the clips use `stub-b`, while a session started before the change stays on `stub-a`.
-- [ ] 10.4 Restore the environment and save `openspec/changes/change-active-provider-from-admin/reports/YYYY-MM-DD-step-10-e2e.md`.
+- [x] 10.1 Applicability: a new `/admin` section, so this step applies.
+- [x] 10.2 Run the backend (scratch store, two stub adapters per stage) and the frontend. Open `/admin` without the password: no provider change is possible. Enter the password: five rows, each from the settings files. Change video to `stub-b`: the row shows "set on /admin". Reload: it persists.
+- [x] 10.3 Start a session and confirm in its scene diagnostics that the clips use `stub-b`, while a session started before the change stays on `stub-a`.
+- [x] 10.4 Restore the environment and save `openspec/changes/change-active-provider-from-admin/reports/YYYY-MM-DD-step-10-e2e.md`.
 
 ## 11. Update Technical Documentation (MANDATORY)
 
