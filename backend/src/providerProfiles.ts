@@ -1,3 +1,4 @@
+import { SETTINGS } from "./config/providers.ts";
 import type { Settings } from "./config/settings.ts";
 import { db, onStoreReset } from "./db.ts";
 import { PROVIDER_STAGES, SEEDED_PROFILES, type ProviderStage } from "./providerTypes.ts";
@@ -85,6 +86,15 @@ export function removeProfile(id: string): void {
 /** The stage the settings call "decomposition" is the reasoning stage everywhere else. */
 function settingsSection(settings: Settings, stage: ProviderStage): { name: string } & Record<string, unknown> {
   return stage === "reasoning" ? settings.decomposition : settings[stage];
+}
+
+/**
+ * The start-up seeding, repeated lazily: a store that was emptied (a test reset) has no profile until something asks for
+ * one. Cheap when profiles exist: one count.
+ */
+export function ensureProfiles(): void {
+  const { n } = db.prepare("SELECT COUNT(*) AS n FROM provider_profiles").get() as { n: number };
+  if (n === 0) seedProviderProfiles(SETTINGS);
 }
 
 const warnedDrift = new Set<ProviderStage>();

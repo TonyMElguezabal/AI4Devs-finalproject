@@ -1,4 +1,4 @@
-import { loadCredential } from "./config/credentials.ts";
+import { stageApiKey } from "./keyStore.ts";
 import { phaseTimeoutMs, VOICE_PROVIDER } from "./config/providers.ts";
 
 // generate-voice-over (JOS-136) Decision 4 — the voice stage's provider (PRD
@@ -54,7 +54,7 @@ export function createElevenLabsVoiceProvider(
   options: { fetchFn?: typeof fetch; loadKey?: () => string; timeoutMs?: number } = {},
 ): VoiceProvider {
   const fetchFn = options.fetchFn ?? fetch;
-  const loadKey = options.loadKey ?? (() => loadCredential("ELEVENLABS_KEY"));
+  const loadKey = options.loadKey ?? (() => stageApiKey("voice"));
   const timeoutMs = options.timeoutMs;
 
   return {
@@ -64,7 +64,7 @@ export function createElevenLabsVoiceProvider(
         apiKey = loadKey();
       } catch (err) {
         // The loader's message names the credential and never contains a value.
-        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing credential 'ELEVENLABS_KEY'" };
+        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing API key for the voice role" };
       }
 
       const url = `${ELEVENLABS_BASE_URL}/${encodeURIComponent(request.voiceId)}/with-timestamps?output_format=${encodeURIComponent(request.outputFormat)}`;

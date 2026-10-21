@@ -1,11 +1,10 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { activeProviderId } from "./activeProvider.ts";
 import { LEGACY_IMAGE_PROVIDER_IDENTIFIER, LEGACY_VIDEO_PROVIDER_IDENTIFIER } from "./config/providers.ts";
 import { loadCredential } from "./config/credentials.ts";
-import { db, onStoreReset } from "./db.ts";
-import { getProfile } from "./providerProfiles.ts";
+import { db, getActiveProviderChoice, onStoreReset } from "./db.ts";
+import { ensureProfiles, getProfile } from "./providerProfiles.ts";
 import { SEEDED_PROFILES, type ProviderStage } from "./providerTypes.ts";
 
 // manage-providers-from-admin (JOS-218), design Decision 5 — an API key entered on /admin is stored encrypted in the
@@ -121,6 +120,7 @@ function legacyKey(profileId: string, stage: ProviderStage): string | undefined 
 
 /** The key of a profile: the stored one, else the legacy environment or secrets value of a seeded profile. */
 export function keyFor(profileId: string): string {
+  ensureProfiles();
   const profile = getProfile(profileId);
   if (!profile) throw new Error(`unknown provider profile "${profileId}"`);
   const blob = storedBlob(profileId);
@@ -130,9 +130,20 @@ export function keyFor(profileId: string): string {
   throw missingKeyError(profile.stage);
 }
 
+/**
+ * The provider a stage uses for a new request: the Administrator's choice when it is a profile that is not retired,
+ * else the profile created from the settings. The same answer `activeProviderId` gives, kept free of the adapter
+ * registries so the adapters can load their keys through this module without an import cycle.
+ */
+function activeProfileId(stage: ProviderStage): string {
+  const choice = getActiveProviderChoice(stage);
+  const profile = choice === null ? undefined : getProfile(choice);
+  return profile && profile.stage === stage && profile.retiredAt === null ? profile.id : SEEDED_PROFILES[stage].id;
+}
+
 /** The one entry point the application uses: the key of the profile the stage instance is bound to, else of the active one. */
 export function stageApiKey(stage: ProviderStage, boundId?: string): string {
-  return keyFor(resolveProfileId(stage, boundId ?? activeProviderId(stage)));
+  return keyFor(resolveProfileId(stage, boundId ?? activeProfileId(stage)));
 }
 
 export interface KeyStatus {
@@ -142,6 +153,7 @@ export interface KeyStatus {
 }
 
 export function keyStatusOf(profileId: string): KeyStatus {
+  ensureProfiles();
   const profile = getProfile(profileId);
   if (!profile) return { keyStatus: "missing", keyHint: null };
   const blob = storedBlob(profileId);

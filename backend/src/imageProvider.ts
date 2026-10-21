@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { loadCredential } from "./config/credentials.ts";
+import { stageApiKey } from "./keyStore.ts";
 import { IMAGE_GENERATION_SIZE, IMAGE_PROVIDER, LEGACY_IMAGE_PROVIDER_IDENTIFIER, phaseTimeoutMs } from "./config/providers.ts";
 
 // generate-chunk-image (JOS-145) — the image stage's provider (PRD §7.1,
@@ -23,7 +23,6 @@ export interface ImageProvider {
   generate(instruction: string): Promise<ImageGenerationResult>;
 }
 
-const FAL_RUN_URL = `https://fal.run/${IMAGE_PROVIDER.model}`;
 
 /** Product owner rule (as for voice, alignment and reasoning): not retryable for 4xx except 408 and 429; transient otherwise. */
 function classifyHttpStatus(status: number): "failed_transient" | "failed_not_retryable" {
@@ -35,10 +34,12 @@ const falResponseSchema = z.object({
 });
 
 export function createFalAiImageProvider(
-  options: { fetchFn?: typeof fetch; loadKey?: () => string; timeoutMs?: number } = {},
+  options: { fetchFn?: typeof fetch; loadKey?: () => string; timeoutMs?: number; parameters?: { model: string } } = {},
 ): ImageProvider {
   const fetchFn = options.fetchFn ?? fetch;
-  const loadKey = options.loadKey ?? (() => loadCredential("FAL_API_KEY"));
+  // manage-providers-from-admin (JOS-218): the model comes from the profile; without one, the settings' image model.
+  const falRunUrl = `https://fal.run/${(options.parameters ?? { model: IMAGE_PROVIDER.model }).model}`;
+  const loadKey = options.loadKey ?? (() => stageApiKey("image"));
   // stage-execution-time-limit (JOS-185) Decision 9 — the image stage records no attempt row, so its
   // maximum time is applied here, from the moment the call is made (after its request-cap slot was taken).
   const timeoutMs = options.timeoutMs ?? phaseTimeoutMs("image");
@@ -50,12 +51,12 @@ export function createFalAiImageProvider(
         apiKey = loadKey();
       } catch (err) {
         // The loader's message names the credential and never contains a value.
-        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing credential 'FAL_API_KEY'" };
+        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing API key for the image role" };
       }
 
       let response: Response;
       try {
-        response = await fetchFn(FAL_RUN_URL, {
+        response = await fetchFn(falRunUrl, {
           method: "POST",
           headers: { Authorization: `Key ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({ prompt: instruction, image_size: IMAGE_GENERATION_SIZE }),

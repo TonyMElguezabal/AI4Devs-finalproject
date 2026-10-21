@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { loadCredential } from "./config/credentials.ts";
+import { stageApiKey } from "./keyStore.ts";
 import { LEGACY_VIDEO_PROVIDER_IDENTIFIER, VIDEO_PROVIDER, VIDEO_GENERATION_SETTING } from "./config/providers.ts";
 
 // generate-chunk-video (JOS-146) — the video stage's provider port (Decision 3):
@@ -71,10 +71,12 @@ function providerErrorReason(step: string, envelope: { code?: number | undefined
 }
 
 export function createRunningHubVideoProvider(
-  options: { fetchFn?: typeof fetch; loadKey?: () => string } = {},
+  options: { fetchFn?: typeof fetch; loadKey?: () => string; parameters?: { endpoint: string } } = {},
 ): VideoProvider {
   const fetchFn = options.fetchFn ?? fetch;
-  const loadKey = options.loadKey ?? (() => loadCredential("RUNNINGHUB_API_KEY"));
+  // manage-providers-from-admin (JOS-218): the endpoint path comes from the profile; without one, the settings' video endpoint.
+  const endpoint = (options.parameters ?? { endpoint: VIDEO_PROVIDER.endpoint }).endpoint;
+  const loadKey = options.loadKey ?? (() => stageApiKey("video"));
 
   async function doUpload(imageBytes: Buffer, apiKey: string): Promise<{ ok: true; url: string } | { ok: false; kind: "failed_transient" | "failed_not_retryable"; reason: string }> {
     // multipart/form-data with a `file` part; the content type (with its boundary) is set by the form, not by us.
@@ -110,7 +112,7 @@ export function createRunningHubVideoProvider(
       try {
         apiKey = loadKey();
       } catch (err) {
-        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing credential 'RUNNINGHUB_API_KEY'" };
+        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing API key for the video role" };
       }
 
       const upload = await doUpload(imageBytes, apiKey);
@@ -118,7 +120,7 @@ export function createRunningHubVideoProvider(
 
       let response: Response;
       try {
-        response = await fetchFn(`${RUNNINGHUB_BASE}${VIDEO_PROVIDER.endpoint}`, {
+        response = await fetchFn(`${RUNNINGHUB_BASE}${endpoint}`, {
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -153,7 +155,7 @@ export function createRunningHubVideoProvider(
       try {
         apiKey = loadKey();
       } catch (err) {
-        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing credential 'RUNNINGHUB_API_KEY'" };
+        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing API key for the video role" };
       }
 
       let response: Response;
