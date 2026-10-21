@@ -25,9 +25,10 @@ Represents one video project. PRD §3, §4.1, §8.1, §9, §12.2.
 - `running` (not a column, response only): **derived**, never stored (`distinguish-paused-session`, JOS-153, Decision 2). `sessionRunningWork` in `launchGate.ts` reads it directly from current state, never from the launcher registry (unlike `held`): a scene counts under the `image` or `video` stage while its status is `image-generating` / `video-generating`; a session-level stage (`voice-over`, `decomposition`) counts while it has a `stage_attempts` row with `outcome = 'in-flight'`, with `timestamps` attempts also mapped to `decomposition`. Unlike `held`, it is computed and returned whether or not the session is paused — the page shows it only beside the paused marker (Decision 3). A unit is never both `running` and `held` by construction: a held scene has not been sent (`submitted`, or `image-complete` with no video request), and a running one has (its state or its attempt's outcome says so).
 - `failure`: the phase failure the session carries when it is `failed`, as JSON: `{ phase, cause, retryable, manualRetryAvailable, cycle, attemptsInCycle, occurredAt }` (the last three added by `bounded-retry-policy`, JOS-184: whether the User can start a new cycle, which cycle ended in this failure, and how many attempts it held) with `phase` one of `voice-over` (`generate-voice-over`, JOS-136, which added the column in migration 4), `decomposition` (JOS-144: a refused system-generated decomposition, whose cause never blames the User's script), or `assembly` (`retry-final-assembly`, JOS-159: assembly exhausting its attempts, failing not-retryably, or unable to start at all — no tool configured, or no stored voice-over). A session with no chunks and a failure derives to `failed` in that phase; once scenes exist and are all `chunk-complete`, an assembly failure derives `failed` the same way (§8.1's gate-open branch). A successful chunk registration clears it, a voice-over attempt that starts after a failure clears it in the same write that records the attempt, and a successful assembly attempt clears it.
 - `voice_provider_id`: the identifier of the voice provider bound to the session, nullable. Bound by the first voice-over attempt and read from here by every later attempt, so a later change of the default provider cannot split one narration across providers (`generate-voice-over`, JOS-136, Decision 3). It is written once: `bindVoiceProvider` only sets it while it is null and leaves an existing binding untouched.
+- `decomposition_provider_id`, `alignment_provider_id`: the identifiers of the reasoning and the alignment provider bound to the session, both nullable (`change-active-provider-from-admin`, JOS-171, migration 18). Each is bound once, by the same conditional write as `voice_provider_id`, at the first decomposition attempt and at the first attempt that actually calls the alignment provider; native timestamps bind no alignment provider. Migration 18 backfilled them for existing sessions from their earliest `decomposition` attempt, and their earliest `timestamps` attempt other than `elevenlabs-native`; a session with no such attempt stays `NULL`.
 - `project_folder`: the real per-project folder name under a configured root, named `<title> <YYYY-MM-DD HH-mm>` with a counter suffix on collision — §12.2 (Decision 4, `define-persistence`)
 
-**Not modelled** (no consumer yet — see the scope note): the alignment provider binding and the total narration duration as a session field (the duration lives on the voice-over record, §6 below) — these belong to stages this skeleton doesn't simulate.
+**Not modelled** (no consumer yet — see the scope note): the total narration duration as a session field (the duration lives on the voice-over record, §6 below) — these belong to stages this skeleton doesn't simulate.
 
 **Relationships:** one session has many scenes.
 
@@ -121,6 +122,18 @@ One row per install (`id = 1`, enforced by a CHECK), created by the migration wi
 - `install_id` (TEXT, a ULID created by the migration): a random identifier for this install, sent as the `service.instance.id` resource attribute so installs can be counted. It is never returned by the API and is not derived from the machine or the User.
 
 Mutable on purpose, like `scene_pause_edits`: it holds the User's intent, not generated output. Written only by `saveTelemetryConsent`; read by `getTelemetrySettings`.
+
+### 4e. Active providers (`active_providers` table) — `change-active-provider-from-admin`, JOS-171, migration 18
+
+One row per stage the Administrator has chosen a provider for on `/admin`; no row means the settings-file provider. It belongs to the install, not to a session.
+
+- `stage` (TEXT, Primary Key): `reasoning`, `voice`, `alignment`, `image` or `video`.
+- `provider_id` (TEXT): the adapter chosen. It must be an adapter the build ships for that stage; a row naming one it no longer ships is ignored (the settings default applies, with one warning) and `GET /admin/providers` reports it as `orphanedChoice`.
+- `changed_at` (TEXT): when the choice was made. No history is kept.
+
+Mutable on purpose, like `telemetry_settings`: it holds the Administrator's intent. Written only by `upsertActiveProviderChoice` (through `setActiveProvider`); read on every bind by `activeProviderId(stage)`, with no cache, so a change applies to the next bind with no restart.
+
+**The binding rule, for all five stages.** A stage instance is bound to a provider once, at its first attempt, to the provider `activeProviderId(stage)` returns at that moment: `runs.voice_provider_id`, `runs.decomposition_provider_id` and `runs.alignment_provider_id` per session, `scenes.provider` (image) and `scenes.video_provider` (video) per scene. The write only succeeds while the binding is unset, so it is never overwritten. Automatic and manual retries read the binding, never the active provider, and nothing switches a stage to another provider when its retries are exhausted. A change of the active provider never touches a completed result.
 
 ### 5. Schema migrations (`schema_migrations` table)
 
@@ -249,6 +262,11 @@ erDiagram
         String answered_at "nullable"
         String install_id "ULID"
     }
+    ActiveProviders {
+        String stage PK "reasoning, voice, alignment, image or video"
+        String provider_id
+        String changed_at
+    }
     Session {
         String id PK "ULID"
         String title
@@ -258,6 +276,8 @@ erDiagram
         Boolean paused
         String project_folder
         String voice_provider_id "nullable, bound on the first voice-over attempt"
+        String decomposition_provider_id "nullable, bound on the first decomposition attempt"
+        String alignment_provider_id "nullable, bound on the first alignment call"
         String failure "nullable JSON {phase, cause, retryable, manualRetryAvailable, cycle, attemptsInCycle, occurredAt}"
     }
     VoiceOver {

@@ -1,4 +1,4 @@
-import type { AppUpdate, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AppUpdate, ProviderStage, ProviderView, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -137,4 +137,31 @@ export async function getAdminAccess(password?: string): Promise<AdminAccessResu
   const body = await response.json().catch(() => ({}));
   if (response.status === 401 && ADMIN_DENIALS.includes(body.reason)) return { kind: "denied", reason: body.reason as AdminDenial };
   throw new Error(`request failed with ${response.status}`);
+}
+
+export type AdminProvidersResult = { kind: "ok"; providers: ProviderView[] } | { kind: "denied" };
+export type AdminProviderChangeResult = { kind: "ok"; view: ProviderView } | { kind: "denied" } | { kind: "refused"; selectable: string[] };
+
+/** change-active-provider-from-admin (JOS-171): `GET /admin/providers`. A 401 is `denied`; any other failure rejects. */
+export async function getAdminProviders(password: string): Promise<AdminProvidersResult> {
+  const response = await adminFetch("/admin/providers", password);
+  if (response.status === 401) return { kind: "denied" };
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "ok", providers: (await response.json()).providers as ProviderView[] };
+}
+
+/** `PUT /admin/providers/{stage}`: the stage's new view, a 401 (`denied`), or a 400 naming the selectable ids (`refused`). */
+export async function putAdminProvider(password: string, stage: ProviderStage, providerId: string): Promise<AdminProviderChangeResult> {
+  const response = await adminFetch(`/admin/providers/${stage}`, password, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ providerId }),
+  });
+  if (response.status === 401) return { kind: "denied" };
+  if (response.status === 400) {
+    const body = await response.json().catch(() => ({}));
+    return { kind: "refused", selectable: Array.isArray(body.selectable) ? body.selectable : [] };
+  }
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "ok", view: (await response.json()) as ProviderView };
 }

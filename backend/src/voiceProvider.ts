@@ -216,6 +216,8 @@ export function createStubVoiceProvider(
 export interface VoiceProviderRegistry {
   defaultIdentifier: string;
   adapters: Record<string, VoiceProvider>;
+  labels?: Record<string, string>;
+  aliases?: readonly string[];
 }
 
 function defaultRegistry(): VoiceProviderRegistry {
