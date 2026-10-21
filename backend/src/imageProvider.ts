@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { stageApiKey } from "./keyStore.ts";
+import { keyFor, stageApiKey } from "./keyStore.ts";
+import { buildProfileRegistry, profileRegistrySlot } from "./profileRegistry.ts";
 import { IMAGE_GENERATION_SIZE, IMAGE_PROVIDER, LEGACY_IMAGE_PROVIDER_IDENTIFIER, phaseTimeoutMs } from "./config/providers.ts";
 
 // generate-chunk-image (JOS-145) — the image stage's provider (PRD §7.1,
@@ -132,28 +133,30 @@ export interface ImageProviderRegistry {
   adapters: Record<string, ImageProvider>;
   labels?: Record<string, string>;
   aliases?: readonly string[];
+  retired?: readonly string[];
 }
 
 function defaultRegistry(): ImageProviderRegistry {
-  // Bound by provider name (JOS-174, design Decision 7); the model an earlier build stored resolves to the same adapter.
-  const adapter = createFalAiImageProvider();
-  return { defaultIdentifier: IMAGE_PROVIDER.name, adapters: { [IMAGE_PROVIDER.name]: adapter, [LEGACY_IMAGE_PROVIDER_IDENTIFIER]: adapter }, aliases: [LEGACY_IMAGE_PROVIDER_IDENTIFIER] };
+  // manage-providers-from-admin (JOS-218): one adapter per image profile, with the profile's model and its own key.
+  return buildProfileRegistry("image", (profile) =>
+    createFalAiImageProvider({ parameters: profile.parameters as { model: string }, loadKey: () => keyFor(profile.id) }),
+  );
 }
 
-let registry: ImageProviderRegistry = defaultRegistry();
+const slot = profileRegistrySlot<ImageProvider, ImageProviderRegistry>(defaultRegistry);
 
 export function getImageProviderRegistry(): ImageProviderRegistry {
-  return registry;
+  return slot.get();
 }
 
 /** Test-only: swap the registry for a stub-backed one. */
 export function setImageProviderRegistry(next: ImageProviderRegistry): void {
-  registry = next;
+  slot.set(next);
 }
 
-/** Test-only: restore the real Fal.ai adapter as the sole entry. */
+/** Test-only: put the registry built from the provider profiles back. */
 export function resetImageProviderRegistry(): void {
-  registry = defaultRegistry();
+  slot.reset();
 }
 
 // §12.2 — a temporary link (`GeneratedImage` with `source: "temporary-url"`)

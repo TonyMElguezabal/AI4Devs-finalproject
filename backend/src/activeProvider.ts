@@ -17,6 +17,8 @@ export interface ProviderRegistry<Adapter> {
   adapters: Record<string, Adapter>;
   labels?: Record<string, string>;
   aliases?: readonly string[];
+  /** Profiles that still resolve, for the work bound to them, but are no longer offered (JOS-218). */
+  retired?: readonly string[];
 }
 
 export function registryFor(stage: ProviderStage): ProviderRegistry<unknown> {
@@ -37,9 +39,9 @@ export function registryFor(stage: ProviderStage): ProviderRegistry<unknown> {
 /** The adapters the Administrator may choose for the stage: every key but the aliases. */
 export function selectableProviders(stage: ProviderStage): Array<{ id: string; label: string }> {
   const registry = registryFor(stage);
-  const aliases = new Set(registry.aliases ?? []);
+  const hidden = new Set([...(registry.aliases ?? []), ...(registry.retired ?? [])]);
   return Object.keys(registry.adapters)
-    .filter((id) => !aliases.has(id))
+    .filter((id) => !hidden.has(id))
     .map((id) => ({ id, label: registry.labels?.[id] ?? id }));
 }
 

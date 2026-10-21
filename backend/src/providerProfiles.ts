@@ -6,6 +6,17 @@ import { PROVIDER_STAGES, SEEDED_PROFILES, type ProviderStage } from "./provider
 // manage-providers-from-admin (JOS-218), design Decisions 1, 7 and 8 — the provider profiles stored in the database,
 // and the first ones, seeded from the settings with the identifiers the database already stores in its bindings.
 
+let version = 0;
+
+/** Bumped by every change to the profiles; the registries rebuild when it moves (design Decision 3). */
+export function profilesVersion(): number {
+  return version;
+}
+
+onStoreReset(() => {
+  version += 1;
+});
+
 export interface ProviderProfile {
   id: string;
   stage: ProviderStage;
@@ -68,19 +79,23 @@ export function insertProfile(profile: NewProfile, now: string): void {
   db.prepare(
     "INSERT INTO provider_profiles (id, stage, adapter_type, label, parameters, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
   ).run(profile.id, profile.stage, profile.adapterType, profile.label, JSON.stringify(profile.parameters), now, now);
+  version += 1;
 }
 
 export function updateProfile(id: string, change: { label: string; parameters: Record<string, unknown> }, now: string): void {
   db.prepare("UPDATE provider_profiles SET label = ?, parameters = ?, updated_at = ? WHERE id = ?").run(change.label, JSON.stringify(change.parameters), now, id);
+  version += 1;
 }
 
 /** A retired profile is no longer offered but still serves what is bound to it (Decision 7). */
 export function retireProfile(id: string, now: string): void {
   db.prepare("UPDATE provider_profiles SET retired_at = ?, updated_at = ? WHERE id = ?").run(now, now, id);
+  version += 1;
 }
 
 export function removeProfile(id: string): void {
   db.prepare("DELETE FROM provider_profiles WHERE id = ?").run(id);
+  version += 1;
 }
 
 /** The stage the settings call "decomposition" is the reasoning stage everywhere else. */

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { stageApiKey } from "./keyStore.ts";
+import { keyFor, stageApiKey } from "./keyStore.ts";
+import { buildProfileRegistry, profileRegistrySlot } from "./profileRegistry.ts";
 import { LEGACY_VIDEO_PROVIDER_IDENTIFIER, VIDEO_PROVIDER, VIDEO_GENERATION_SETTING } from "./config/providers.ts";
 
 // generate-chunk-video (JOS-146) — the video stage's provider port (Decision 3):
@@ -250,30 +251,28 @@ export interface VideoProviderRegistry {
   adapters: Record<string, VideoProvider>;
   labels?: Record<string, string>;
   aliases?: readonly string[];
+  retired?: readonly string[];
 }
 
 function defaultRegistry(): VideoProviderRegistry {
-  // Bound by provider name (JOS-174, design Decision 7); the endpoint an earlier build stored resolves to the same adapter.
-  const adapter = createRunningHubVideoProvider();
-  return {
-    defaultIdentifier: VIDEO_PROVIDER.name,
-    adapters: { [VIDEO_PROVIDER.name]: adapter, [LEGACY_VIDEO_PROVIDER_IDENTIFIER]: adapter },
-    aliases: [LEGACY_VIDEO_PROVIDER_IDENTIFIER],
-  };
+  // manage-providers-from-admin (JOS-218): one adapter per video profile, with the profile's endpoint path and its own key.
+  return buildProfileRegistry("video", (profile) =>
+    createRunningHubVideoProvider({ parameters: profile.parameters as { endpoint: string }, loadKey: () => keyFor(profile.id) }),
+  );
 }
 
-let registry: VideoProviderRegistry = defaultRegistry();
+const slot = profileRegistrySlot<VideoProvider, VideoProviderRegistry>(defaultRegistry);
 
 export function getVideoProviderRegistry(): VideoProviderRegistry {
-  return registry;
+  return slot.get();
 }
 
 export function setVideoProviderRegistry(next: VideoProviderRegistry): void {
-  registry = next;
+  slot.set(next);
 }
 
 export function resetVideoProviderRegistry(): void {
-  registry = defaultRegistry();
+  slot.reset();
 }
 
 // §12.2 — temporary links are resolved to bytes before success.

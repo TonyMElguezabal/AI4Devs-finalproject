@@ -1,4 +1,5 @@
-import { stageApiKey } from "./keyStore.ts";
+import { keyFor, stageApiKey } from "./keyStore.ts";
+import { buildProfileRegistry, profileRegistrySlot } from "./profileRegistry.ts";
 import { phaseTimeoutMs, VOICE_PROVIDER } from "./config/providers.ts";
 
 // generate-voice-over (JOS-136) Decision 4 — the voice stage's provider (PRD
@@ -218,25 +219,25 @@ export interface VoiceProviderRegistry {
   adapters: Record<string, VoiceProvider>;
   labels?: Record<string, string>;
   aliases?: readonly string[];
+  retired?: readonly string[];
 }
 
 function defaultRegistry(): VoiceProviderRegistry {
-  return {
-    defaultIdentifier: VOICE_PROVIDER.name,
-    adapters: { [VOICE_PROVIDER.name]: createElevenLabsVoiceProvider() },
-  };
+  // manage-providers-from-admin (JOS-218): one adapter per voice profile, with its own key. The voice parameters travel
+  // in the synthesis request, which the voice phase builds from the bound profile.
+  return buildProfileRegistry("voice", (profile) => createElevenLabsVoiceProvider({ loadKey: () => keyFor(profile.id) }));
 }
 
-let registry: VoiceProviderRegistry = defaultRegistry();
+const slot = profileRegistrySlot<VoiceProvider, VoiceProviderRegistry>(defaultRegistry);
 
 export function getVoiceProviderRegistry(): VoiceProviderRegistry {
-  return registry;
+  return slot.get();
 }
 
 export function setVoiceProviderRegistry(next: VoiceProviderRegistry): void {
-  registry = next;
+  slot.set(next);
 }
 
 export function resetVoiceProviderRegistry(): void {
-  registry = defaultRegistry();
+  slot.reset();
 }
