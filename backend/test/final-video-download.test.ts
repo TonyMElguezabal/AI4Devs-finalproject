@@ -146,9 +146,9 @@ beforeEach(async () => {
 describe("The published contract describes the final-video download as binary (JOS-164, design Decision 1)", () => {
   it("GET /docs/json describes the 200 response as video/mp4, not application/json", async () => {
     const res = await app.inject({ method: "GET", url: "/docs/json" });
-    const document = res.json() as {
+    const document = res.json<{
       paths: Record<string, Record<string, { responses?: Record<string, { content?: Record<string, unknown> }> }>>;
-    };
+    }>();
 
     const route = document.paths["/sessions/{sessionId}/download/final-video"]!.get!;
     const content = route.responses!["200"]!.content!;

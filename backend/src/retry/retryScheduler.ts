@@ -93,6 +93,7 @@ function dispatch<T>(
       try {
         called = Promise.resolve(send(claimed, releaseSlot));
       } catch (error) {
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- forwards whatever `send` threw, unchanged
         called = Promise.reject(error);
       }
       called.then(
@@ -104,7 +105,7 @@ function dispatch<T>(
           (error: unknown) => {
             dispatching.delete(attemptId);
             releaseSlot();
-            reject(error);
+            reject(error); // eslint-disable-line @typescript-eslint/prefer-promise-reject-errors -- forwards whatever `send` rejected with, unchanged
           },
         );
     };

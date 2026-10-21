@@ -882,13 +882,13 @@ async function pollVideoRequestOnce(
   let pollResult: VideoGenerationResult;
   try {
     pollResult = await adapter.poll(requestId);
-  } catch (err) {
+  } catch {
     pollResult = { kind: "failed_transient", reason: "the video provider threw during polling" };
   }
 
   if (pollResult.kind === "pending") {
     const timer = setTimeout(() => { void pollVideoRequestOnce(sceneId, requestId, attemptNumber, sentAtMs); }, videoPollIntervalMs);
-    if (typeof timer === "object" && timer !== null && "unref" in timer) (timer as NodeJS.Timeout).unref();
+    if (typeof timer === "object" && timer !== null && "unref" in timer) timer.unref();
     return;
   }
 
@@ -969,7 +969,7 @@ async function runVideoAttempt(sceneId: string): Promise<void> {
   if (videoStageStartDelayMs > 0) {
     await new Promise<void>(resolve => {
       const t = setTimeout(resolve, videoStageStartDelayMs);
-      if (typeof t === "object" && t !== null && "unref" in t) (t as NodeJS.Timeout).unref();
+      if (typeof t === "object" && t !== null && "unref" in t) t.unref();
     });
   }
 

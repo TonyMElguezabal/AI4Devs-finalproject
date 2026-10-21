@@ -85,7 +85,7 @@ export function segmentScript(
   }
 
   // best[i]: the best grouping of units i..count-1, or null when none is valid.
-  const best: Array<Grouping | null> = new Array(count + 1).fill(null);
+  const best: Array<Grouping | null> = new Array<Grouping | null>(count + 1).fill(null);
   best[count] = { shortEndCount: 0, totalSpeedChange: 0, fragmentCount: 0, firstFragmentLast: count - 1, next: null, exceptions: [] };
 
   for (let first = count - 1; first >= 0; first--) {

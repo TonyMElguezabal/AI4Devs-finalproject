@@ -9,7 +9,6 @@ import { createStubVoiceProvider } from "../src/voiceProvider.ts";
 import { installStubDecompositionDependencies, removeStubDecompositionDependencies } from "./decompositionStubs.ts";
 import {
   after,
-  createGatedVoiceProvider,
   register,
   sendFirstAttempt,
   sendScheduledRetry,

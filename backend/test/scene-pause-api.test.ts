@@ -166,10 +166,10 @@ describe("POST /sessions/:sessionId/final-video/rebuild", () => {
 
 describe("the session read (design Decision 9)", () => {
   async function read(sessionId: string) {
-    return (await app.inject({ method: "GET", url: `/sessions/${sessionId}` })).json() as {
+    return (await app.inject({ method: "GET", url: `/sessions/${sessionId}` })).json<{
       session: { finalVideo?: { version: number; pendingPauseEdits: boolean; rebuildFailure?: { cause: string } } };
       scenes: Array<{ pause?: { originalSeconds: number; seconds: number; minSeconds: number; maxSeconds: number; limitedBySpeedFactor: boolean } }>;
-    };
+    }>();
   }
 
   it("carries each scene's pause and the final video's version once a final video exists", async () => {
@@ -232,7 +232,7 @@ describe("the session read (design Decision 9)", () => {
 
 describe("the generated OpenAPI document", () => {
   it("documents both routes and the new read fields", async () => {
-    const document = (await app.inject({ method: "GET", url: "/docs/json" })).json() as { paths: Record<string, Record<string, unknown>> };
+    const document = (await app.inject({ method: "GET", url: "/docs/json" })).json<{ paths: Record<string, Record<string, unknown>> }>();
     const text = JSON.stringify(document);
 
     expect(document.paths["/sessions/{sessionId}/scenes/{sceneId}/pause"]?.post).toBeDefined();

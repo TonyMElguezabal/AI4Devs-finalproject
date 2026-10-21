@@ -14,7 +14,7 @@ export interface Sentence {
 
 const TERMINATORS: ReadonlySet<string> = new Set([".", "!", "?", "…"]);
 const CLOSERS: ReadonlySet<string> = new Set(['"', "'", "”", "’", ")", "]", "}", "»"]);
-const OPENERS = /^[("'“‘\[{«¿¡]+/u;
+const OPENERS = /^[("'“‘[{«¿¡]+/u;
 
 const ENGLISH_ABBREVIATIONS: ReadonlySet<string> = new Set([
   "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "vs", "etc", "e.g", "i.e", "no", "fig",

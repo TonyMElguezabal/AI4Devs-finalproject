@@ -211,6 +211,7 @@ export function createStubVideoProvider(
 
   return {
     calls,
+    // eslint-disable-next-line @typescript-eslint/require-await -- implements the async video provider contract
     async submit({ instruction }) {
       calls.push(instruction);
       // Unique across restarts, like a real provider task id: `provider_requests.id` is a primary key and survives a restart.
@@ -218,6 +219,7 @@ export function createStubVideoProvider(
       submitted.set(requestId, mode);
       return { kind: "submitted", requestId };
     },
+    // eslint-disable-next-line @typescript-eslint/require-await -- implements the async video provider contract
     async poll(requestId) {
       // An id from before a restart is unknown to this in-memory map; answer it from the mode.
       const m = submitted.get(requestId) ?? mode;

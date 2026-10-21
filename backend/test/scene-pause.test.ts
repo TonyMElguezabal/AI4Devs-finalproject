@@ -239,9 +239,9 @@ describe("applyPauseEdits (design Decision 4)", () => {
 
     expect(result.durationSeconds).toBeCloseTo(duration - 1.5, 9);
     expect(result.intervals.get("scene-1")).toEqual(scenes[0]!.narrationInterval);
-    expect(result.intervals.get("scene-2")!.startSeconds).toBe(scenes[1]!.narrationInterval!.startSeconds);
-    expect(result.intervals.get("scene-2")!.endSeconds).toBeCloseTo(scenes[1]!.narrationInterval!.endSeconds - 1.5, 9);
-    expect(result.intervals.get("scene-3")!.startSeconds).toBeCloseTo(scenes[2]!.narrationInterval!.startSeconds - 1.5, 9);
+    expect(result.intervals.get("scene-2")!.startSeconds).toBe(scenes[1]!.narrationInterval.startSeconds);
+    expect(result.intervals.get("scene-2")!.endSeconds).toBeCloseTo(scenes[1]!.narrationInterval.endSeconds - 1.5, 9);
+    expect(result.intervals.get("scene-3")!.startSeconds).toBeCloseTo(scenes[2]!.narrationInterval.startSeconds - 1.5, 9);
     expect(result.intervals.get("scene-4")!.endSeconds).toBeCloseTo(duration - 1.5, 9);
   });
 
@@ -251,8 +251,8 @@ describe("applyPauseEdits (design Decision 4)", () => {
     const result = applyPauseEdits(scenes, new Map([["scene-1", 1.5]]), duration);
 
     expect(result.durationSeconds).toBeCloseTo(duration + 0.5, 9);
-    expect(result.intervals.get("scene-1")!.endSeconds).toBeCloseTo(scenes[0]!.narrationInterval!.endSeconds + 0.5, 9);
-    expect(result.intervals.get("scene-2")!.startSeconds).toBeCloseTo(scenes[1]!.narrationInterval!.startSeconds + 0.5, 9);
+    expect(result.intervals.get("scene-1")!.endSeconds).toBeCloseTo(scenes[0]!.narrationInterval.endSeconds + 0.5, 9);
+    expect(result.intervals.get("scene-2")!.startSeconds).toBeCloseTo(scenes[1]!.narrationInterval.startSeconds + 0.5, 9);
   });
 
   it("accumulates several edits", () => {
@@ -261,8 +261,8 @@ describe("applyPauseEdits (design Decision 4)", () => {
     const result = applyPauseEdits(scenes, new Map([["scene-1", 1.5], ["scene-3", 0.2]]), duration); // +0.5 and -1.0
 
     expect(result.durationSeconds).toBeCloseTo(duration - 0.5, 9);
-    expect(result.intervals.get("scene-4")!.startSeconds).toBeCloseTo(scenes[3]!.narrationInterval!.startSeconds - 0.5, 9);
-    expect(result.intervals.get("scene-2")!.startSeconds).toBeCloseTo(scenes[1]!.narrationInterval!.startSeconds + 0.5, 9);
+    expect(result.intervals.get("scene-4")!.startSeconds).toBeCloseTo(scenes[3]!.narrationInterval.startSeconds - 0.5, 9);
+    expect(result.intervals.get("scene-2")!.startSeconds).toBeCloseTo(scenes[1]!.narrationInterval.startSeconds + 0.5, 9);
   });
 
   it("describes each change at the middle of the original pause, in the original timeline", () => {
@@ -272,7 +272,7 @@ describe("applyPauseEdits (design Decision 4)", () => {
 
     // Scene 2: interval 6.0..13.6 (pause 2.6 s, speech ends at 11.0) -> middle 12.3. Scene 4: ends at the voice-over's end.
     expect(result.edits).toHaveLength(2);
-    expect(result.edits[0]!.atSeconds).toBeCloseTo(scenes[1]!.narrationInterval!.endSeconds - 1.3, 9);
+    expect(result.edits[0]!.atSeconds).toBeCloseTo(scenes[1]!.narrationInterval.endSeconds - 1.3, 9);
     expect(result.edits[0]!.deltaSeconds).toBeCloseTo(-1.5, 9);
     expect(result.edits[1]!.atSeconds).toBeCloseTo(duration - 0.4, 9);
     expect(result.edits[1]!.deltaSeconds).toBeCloseTo(0.5, 9);

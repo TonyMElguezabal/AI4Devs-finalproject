@@ -177,9 +177,9 @@ export async function registerDecomposition(
   });
   try {
     insertRegisteredScenes(runId, scenes);
-  } catch (err: any) {
+  } catch (err) {
     // Another registration won the race; the unique (run_id, idx) index refused this one.
-    if (/UNIQUE constraint failed/i.test(String(err?.message))) return { ok: false, reason: "already-registered" };
+    if (/UNIQUE constraint failed/i.test(String((err as { message?: unknown } | null)?.message))) return { ok: false, reason: "already-registered" };
     throw err;
   }
   // keep-project-files-locally (JOS-162), Decision 2 — the generated texts,

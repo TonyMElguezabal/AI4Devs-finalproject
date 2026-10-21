@@ -451,7 +451,7 @@ describe("pause never reverts work (JOS-152, task 6.1)", () => {
 describe("pause isolation between sessions (JOS-152, task 6.3)", () => {
   it("pausing one session does not block another session's launch", async () => {
     const { runId: runId1, sceneId: sceneId1 } = newRunWithScene("success", 20);
-    const { runId: runId2, sceneId: sceneId2 } = newRunWithScene("success", 20);
+    const { sceneId: sceneId2 } = newRunWithScene("success", 20);
 
     pauseSession(runId1); // pause session 1 only
 

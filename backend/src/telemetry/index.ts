@@ -163,6 +163,7 @@ function warnOncePerMinute(message: string): void {
 }
 
 /** Wraps an exporter so a failed or throwing export becomes one throttled local warning instead of an error. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the log, metric and span exporters each take a different item type
 function reportFailures<T extends { export: (items: any, done: (result: { code: number }) => void) => void }>(exporter: T): T {
   return Object.create(exporter, {
     export: {
@@ -178,7 +179,7 @@ function reportFailures<T extends { export: (items: any, done: (result: { code: 
         }
       },
     },
-  });
+  }) as T;
 }
 
 function getProviders(): void {
