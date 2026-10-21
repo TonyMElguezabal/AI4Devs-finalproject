@@ -71,3 +71,12 @@ export function setActiveProvider(stage: ProviderStage, providerId: string, now:
   }
   upsertActiveProviderChoice(stage, providerId, now().toISOString());
 }
+
+/**
+ * The adapter a stage instance is bound to. Reasoning and alignment receive their default adapter as an injected
+ * instance (the decomposition dependencies), so that instance stands for the registry's default id; any other
+ * bound id is looked up in the registry. `undefined` means the build does not ship the bound adapter.
+ */
+export function resolveBoundAdapter<Adapter>(registry: ProviderRegistry<Adapter>, boundId: string, injectedDefault: Adapter): Adapter | undefined {
+  return boundId === registry.defaultIdentifier ? injectedDefault : registry.adapters[boundId];
+}

@@ -1,7 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
 import { z } from "zod";
+import { activeProviderId, resolveBoundAdapter } from "./activeProvider.ts";
 import type { AlignmentProvider } from "./alignmentProvider.ts";
 import {
+  bindAlignmentProvider,
   clearRunFailure,
   completeStageAttempt,
   getNarrationTimestamps,
@@ -14,6 +16,7 @@ import {
   setRunFailure,
   writeArtefactOnce,
 } from "./db.ts";
+import { getAlignmentProviderRegistry } from "./decompositionDependencies.ts";
 import {
   checkTimestamps,
   parseNativeTimestamps,
@@ -37,7 +40,6 @@ import type { DecompositionFailure, Run, StageAttempt, TimestampMechanism, Voice
 
 export const STORED_FILE = "narration-timestamps.json";
 const NATIVE_PROVIDER = "elevenlabs-native";
-const ALIGNMENT_PROVIDER = "elevenlabs-forced-alignment";
 /** Recorded on an attempt's `error_code` once native timestamps were judged unusable (Decision 5). */
 const NATIVE_UNUSABLE = "native-unusable";
 
@@ -107,6 +109,12 @@ function checkLeftoverFile(
     : { present: true, usable: false, reason: `a stored timestamps file exists without a record and is not usable: ${check.reason}` };
 }
 
+/** Binds the session's alignment provider to the one active now unless it is already bound, and returns the bound id. */
+function bindAlignmentProviderFor(runId: string): string {
+  bindAlignmentProvider(runId, activeProviderId("alignment"));
+  return getRun(runId)?.alignmentProviderId ?? getAlignmentProviderRegistry().defaultIdentifier;
+}
+
 export async function obtainNarrationTimestamps(
   runId: string,
   alignmentProvider: AlignmentProvider,
@@ -133,7 +141,7 @@ export async function obtainNarrationTimestamps(
     const recorded = scheduleStageAttempt({
       runId,
       stage: "timestamps",
-      providerId: nativePath ? NATIVE_PROVIDER : ALIGNMENT_PROVIDER,
+      providerId: nativePath ? NATIVE_PROVIDER : bindAlignmentProviderFor(runId),
       queuedAt: startedAt,
       dueAt: startedAt,
       trigger: "initial",
@@ -206,7 +214,11 @@ export async function obtainNarrationTimestamps(
     return fail("the stored narration file could not be read", false);
   }
 
-  const aligned = await alignmentProvider.align(audio, run.script);
+  // The first attempt that calls alignment binds the session (JOS-171, Decision 3); native timestamps bind nothing.
+  const boundAlignmentId = bindAlignmentProviderFor(runId);
+  const aligner = resolveBoundAdapter(getAlignmentProviderRegistry(), boundAlignmentId, alignmentProvider);
+  if (!aligner) return fail(`the alignment provider "${boundAlignmentId}" bound to this session is not shipped by this build`, false);
+  const aligned = await aligner.align(audio, run.script);
   releaseSlot();
   if (aligned.kind === "failed_not_retryable") return fail(aligned.reason, false);
   if (aligned.kind === "failed_transient" || aligned.kind === "invalid_output") return fail(aligned.reason, true);

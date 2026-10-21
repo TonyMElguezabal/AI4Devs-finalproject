@@ -58,6 +58,7 @@ import {
   writeArtefact,
   writeArtefactOnce,
 } from "./db.ts";
+import { activeProviderId } from "./activeProvider.ts";
 import type { AssemblyTool, NarrationEdit } from "./assemblyTool.ts";
 import { applyPauseEdits } from "./scenePause.ts";
 import { hasPendingPauseEdits, loadSessionPauses, scenePauseViews } from "./sessionPauses.ts";
@@ -1018,7 +1019,7 @@ async function runVideoAttempt(sceneId: string): Promise<void> {
   const isFirstAttempt = fresh.videoProvider === null;
   const registry = getVideoProviderRegistry();
   if (isFirstAttempt) {
-    bindSceneVideoProvider(sceneId, registry.defaultIdentifier);
+    bindSceneVideoProvider(sceneId, activeProviderId("video"));
     resetAttemptsForVideoStart(sceneId);
   }
   const reread = getScene(sceneId)!;
@@ -1151,7 +1152,7 @@ async function runImageAttempt(sceneId: string): Promise<void> {
 
   // design Decision 3 — bound once, atomically, and only if still unbound.
   const registry = getImageProviderRegistry();
-  bindSceneImageProvider(fresh.id, registry.defaultIdentifier);
+  bindSceneImageProvider(fresh.id, activeProviderId("image"));
   const boundIdentifier = getScene(fresh.id)!.provider;
   const adapter = registry.adapters[boundIdentifier];
 

@@ -29,15 +29,15 @@
 
 ## 4. Backend: bind points use the active provider (TDD; spec scenarios)
 
-- [ ] 4.1 Write failing tests with stub adapters `stub-a` and `stub-b` per stage:
+- [x] 4.1 Write failing tests with stub adapters `stub-a` and `stub-b` per stage:
   - for each of the five stages, after `setActiveProvider(stage, "stub-b")` the next first attempt binds to `stub-b` and is sent there (AC1);
   - a session or scene bound to `stub-a` keeps sending automatic retries to `stub-a` after the change, and so does a manual retry of an exhausted failure (AC3);
   - completed voice-over, timestamps, images and clips get no new request after a change (AC4);
   - an exhausted cycle stays bound to `stub-a` and sends nothing to `stub-b` (AC5);
   - two concurrent first attempts across a change both use the single stored binding;
   - native timestamps bind no alignment provider.
-- [ ] 4.2 Replace the direct use of `registry.defaultIdentifier` with `activeProviderId(stage)` at the voice, image and video bind points. Add binding at the first decomposition and alignment attempts, so that their retries read the binding. Make 4.1 pass.
-- [ ] 4.3 After a restart, a `stub-b` choice still applies to new binds and an existing `stub-a` binding still applies to its retries.
+- [x] 4.2 Replace the direct use of `registry.defaultIdentifier` with `activeProviderId(stage)` at the voice, image and video bind points. Add binding at the first decomposition and alignment attempts, so that their retries read the binding. Make 4.1 pass.
+- [x] 4.3 After a restart, a `stub-b` choice still applies to new binds and an existing `stub-a` binding still applies to its retries.
 
 ## 5. Backend: admin API (TDD; design Decision 5)
 

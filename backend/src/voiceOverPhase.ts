@@ -23,6 +23,7 @@ import {
   supersedeLateResult,
   writeArtefactOnce,
 } from "./db.ts";
+import { activeProviderId } from "./activeProvider.ts";
 import { FFPROBE } from "./config/ffmpeg.ts";
 import { VOICE_PROVIDER } from "./config/providers.ts";
 import { launchDecompositionFor } from "./decompositionPhase.ts";
@@ -192,7 +193,7 @@ export async function generateVoiceOver(runId: string, now: () => Date = () => n
   }
 
   // Decision 3 — the binding wins over whatever the build's default is today.
-  const providerId = run.voiceProviderId ?? getVoiceProviderRegistry().defaultIdentifier;
+  const providerId = run.voiceProviderId ?? activeProviderId("voice");
   // JOS-167 — recorded `scheduled` and sent through the stage's slot: sent at once when one is free, otherwise it waits
   // (neither an attempt used nor execution time) and `sentAt` is stamped when it takes its slot.
   const queuedAt = now().toISOString();
@@ -329,7 +330,7 @@ export async function sendVoiceAttempt(
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown-session" };
   const registry = getVoiceProviderRegistry();
-  const providerId = attempt.providerId ?? run.voiceProviderId ?? registry.defaultIdentifier;
+  const providerId = attempt.providerId ?? run.voiceProviderId ?? activeProviderId("voice");
   const startedAt = now();
   const fingerprint = scriptFingerprint(run.script);
 
