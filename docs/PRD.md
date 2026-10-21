@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.10  
+**Versión:** 1.12  
 **Alcance:** MVP  
-**Status (v1.10, awaiting the product owner's approval):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous versions are kept in `docs/PRD-v1.9.md` and `docs/PRD-v1.8.md`.
+**Status (v1.12, awaiting the product owner's approval):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3); v1.13 (JOS-171) is drafted on its own branch. **Status (v1.11, awaiting the product owner's approval):** one shared Administrator password protects `/admin` (`protect-admin-with-password`, JOS-173, §2.1, §2.3, §12.3). **Status (v1.10):** the final MP4's audio is the voice-over's MP3 stream copied unchanged, not AAC (§7.3, D08), and the automatic-retry delay (2 s base, 30 s cap) is recorded (§11.3) (JOS-203). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous versions are kept in `docs/PRD-v1.11.md` and `docs/PRD-v1.10.md`.
 
 ## 1. Objetivo del producto
 
@@ -19,8 +19,9 @@ El usuario puede consultar el progreso por fase y por escena, descargar resultad
 | Rol | Responsabilidad |
 |---|---|
 | User (*Usuario*) | Enter a title, a script, and the script's language; follow progress and per-scene diagnostics; pause and continue the session; download results; retry failed stages. |
+| Administrator | Unlock `/admin` with the Administrator password. The Administrator tools themselves are added by later stories (change the active provider, move a failed stage); this version only has the gate. A User never needs the password. |
 
-The MVP has a single role: the User. Providers and generation parameters are read at start-up from local settings files (§11): a default file that ships with the application and an optional per-user file that overrides it. A change takes effect after the application restarts. The MVP has no administration interface and no Administrator role, so settings are edited by hand and are not editable through the application. Provider credentials (API keys) are read from the process environment or from a credentials file in the user's application-data folder; they are never part of a settings file, never part of the application download, and never shown in the interface or logs. An Administrator role (a password for changing settings, diagnostics, and reports on `/admin`) is deferred post-MVP.
+The MVP has a single role: the User. Providers and generation parameters are read at start-up from local settings files (§11): a default file that ships with the application and an optional per-user file that overrides it. A change takes effect after the application restarts, and settings are edited by hand, not through the application. The product has two roles. The User needs no login. The Administrator unlocks `/admin` with one shared password, not an account. The password is a local secret, read from `ADMIN_PASSWORD` in the process environment or, when the environment has none, from the credentials file in the user's application-data folder; it is never part of a settings file, never part of the application download, and never shown in the interface, a response or a log. When no password is configured the application still starts, and `/admin` says so and explains how to set one. `/admin` is not linked from the User's pages. Provider credentials (API keys) are read from the process environment or from a credentials file in the user's application-data folder; they are never part of a settings file, never part of the application download, and never shown in the interface or logs. The Administrator tools (configuration, diagnostics, provider changes, and reports on `/admin`) are deferred post-MVP.
 
 ### 2.2 Incluido en el MVP
 
@@ -39,7 +40,7 @@ The MVP has a single role: the User. Providers and generation parameters are rea
 
 ### 2.3 Fuera del MVP
 
-- Interfaz de administración, incluida la ruta `/admin`.
+- Administrator tools on `/admin`: the page exists behind the password, but each tool (changing the active provider, moving a failed stage, reports) is its own story.
 - User accounts, authentication and authorization, any multi-user access, and any hosted (server) deployment. The MVP is an application that runs on the user's own computer (§12.3).
 - Reportes de uso o costos.
 - Importación o edición libre de chunks.
@@ -47,8 +48,8 @@ The MVP has a single role: the User. Providers and generation parameters are rea
 - Regeneración de imágenes o clips exitosos por preferencia estética.
 - Cancelación de solicitudes ya enviadas a un proveedor.
 - Montajes que omitan escenas del guion.
-- Changing providers or parameters from the application (interface or API), applying a change without a restart, and the Administrator password (§11).
-- Administrator role and any provider change, manual or automatic, including moving failed stages to another provider (§11.2). Choosing a provider in the settings file is not a provider change in this sense (§11.2).
+- Changing providers or parameters from the application (interface or API) and applying a change without a restart (§11).
+- Any provider change, manual or automatic, including moving failed stages to another provider (§11.2), until its story is built (choosing a provider in the settings file is not a provider change in this sense, §11.2); more than one Administrator, user accounts, changing the password from the interface, login sessions and lock-out after failed attempts.
 - Session expiry (§12.2).
 - Size or budget limits per session (§4.1).
 - A product-level content policy; providers' own content filters apply (§4.1).
@@ -184,7 +185,7 @@ El montaje debe conservar todo el contenido narrado y la secuencia de escenas, s
 
 El video final solo puede generarse cuando todas las escenas estén en `chunk-complete`. Una sesión con una escena fallida o pendiente no puede alcanzar `final-video`.
 
-**Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are configured (shipped default 1920×1080 at 30 fps), with H.264 video and AAC audio.
+**Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are configured (shipped default 1920×1080 at 30 fps), with H.264 video. The audio is the voice-over's MP3 stream copied into the MP4 without re-encoding; only a rebuild with an adjusted pause re-encodes it (to AAC).
 
 Si falla el montaje, se conserva el audio y las escenas exitosas. El reintento se aplica al montaje, sin volver a generar los componentes ya completados.
 
@@ -321,10 +322,11 @@ Defined by `define-provider-configuration` (JOS-165) and, since v1.10, shipped a
 |---|---|---|
 | Video admitted durations | 5-15 seconds | Both ends measured with real calls |
 | Segmentation lower bound (§6.1) | 5 seconds | = video provider's measured minimum |
-| Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264/AAC | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
+| Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264 video, voice-over MP3 audio copied unchanged | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
 | Supported script languages (§4.1, D09) | English, Spanish | Each verified independently across voice, alignment and reasoning |
 | Acceptable speed-factor limit | **Provisional** | `define-media-assembly` (JOS-182) recommends 0.5x-2.0x (its ADR, Decision 5); `decide-silence-allocation` (JOS-142) verified D11's adopted rule against that recommendation (max 1.08x observed). Not yet the fixed constant: US-33 records it, and JOS-182's own PR is not yet merged into this branch's history. |
 | Per-phase maximum times | Reasoning 600s, Image 25s, Voice 600s, Alignment 5s, Video 1200s, Assembly provisional | Set above the observed slow tail; assembly depends on JOS-182. Re-measured at the product's real script size in v1.8 (2026-10-13/14): reasoning 208.6 s for 67 fragments (was 20 s), voice 151 s for 10,217 characters (was 10 s), video clips at 2K 394 s for 7 s, 528 s for 12 s, 546 s for 13 s and above 610 s for 14 s (was 240 s; 15 s is admitted); provisional until a full-size session (1,500-1,800 words, 30-50 chunks) has been timed |
+| Automatic-retry delay | Base 2 s, cap 30 s | Exponential: `min(2 s × 2^(attempt−1), 30 s)` between attempts of a cycle; a provider's Retry-After is never undercut. Accepted by the product owner (JOS-203 B5) |
 | Maximum simultaneous requests per stage | Reasoning 50, Image 200 (provisional), Voice 3, Alignment 2, Video 3 (`limit-provider-requests-per-stage`, JOS-167) | Voice and alignment add up to the 5 concurrent requests ElevenLabs documents for the Creator tier; that value is documented, not measured. Video 3 is the highest concurrency measured with no slowdown (JOS-165, step 8.2) |
 
 **Not-retryable failure signal**: tested against all four provider-calling stages with disallowed instructional content — **none produced a distinguishable rejection** (`docs/adr/0005-provider-selection.md`, Decision 5). **Resolved at the entry point by JOS-187**: the script is checked by OpenAI's moderation endpoint before a session exists. Moderation model `omni-moderation-2024-09-26`, maximum time 10 seconds (measured 0.12–2.2 s). The downstream stages still have no content signal, and corrected `IMAGE`/`VIDEO` instructions (§10.3) remain unmoderated.
@@ -351,7 +353,7 @@ La conservación de archivos es independiente de la vigencia de la sesión. Sess
 
 ### 12.3 Modelo de acceso, descargas y aislamiento
 
-The MVP is a **single-user application installed on the user's own computer**. It is delivered as an executable that needs no other software installed; it runs the interface and all processing locally and calls the cloud AI providers (§11) over the internet. The application has no accounts, authentication or authorization rules.
+The MVP is a **single-user application installed on the user's own computer**. It is delivered as an executable that needs no other software installed; it runs the interface and all processing locally and calls the cloud AI providers (§11) over the internet. The application has no accounts. The only credential is one shared Administrator password that unlocks `/admin` and every Administrator endpoint (`/admin/…`); the User's pages and endpoints need no login, whether or not a password is configured.
 
 El usuario puede descargar imágenes y clips exitosos individualmente mientras otras escenas siguen procesándose o presentan fallos. El MP4 final solo está disponible después de completarse el montaje. In-app downloads are limited to per-scene images, per-scene clips, and the final MP4; the MP3, timestamps, script, and generated texts are stored locally (§12.2) but cannot be downloaded from the app.
 
@@ -416,7 +418,7 @@ Las decisiones marcadas como abiertas no están aprobadas y deben cerrarse antes
 | D05 | Dependencia de enlaces temporales del proveedor. | **Closed (v1.3)** | Every temporary-link result, images included, is saved locally before its link expires (§12.2). |
 | D06 | Continuación de otras escenas tras un fallo y reintentos posteriores a una acción manual. | **Closed (v1.3)** | Other scenes keep generating; each manual retry starts a new cycle of up to three automatic retries (§10.2). |
 | D07 | Autorización y acceso a las sesiones. | **Cerrada (revisada en v1.7)** | Aplicación monousuario instalada en el equipo del usuario; sin cuentas ni autorización; solo la propia interfaz local puede usar la aplicación. La separación entre sesiones es integridad funcional, no seguridad (§12.3). |
-| D08 | Parámetros de salida del MP4 final. | **Closed (v1.3)** | Voice-over-only audio (clip sound removed); hardcoded resolution and frame rate (expected 1920×1080 at 30 fps); H.264 video and AAC audio (§7.3). |
+| D08 | Parámetros de salida del MP4 final. | **Closed (v1.3)** | Voice-over-only audio (clip sound removed); hardcoded resolution and frame rate (expected 1920×1080 at 30 fps); H.264 video; audio is the voice-over MP3 copied unchanged, AAC only after a pause adjustment (§7.3, v1.10). |
 | D09 | Idiomas admitidos. | **Closed (v1.3)** | Hardcoded list of supported languages; the User selects the script language from that list when starting a project, and no provider is called before that (§4.1). |
 | D10 | Momento exacto del bloqueo del guion durante la generación de voz. | **Closed (v1.3)** | The script is locked when the User starts the project (§4.2). |
 | D11 | Asignación de los silencios de la narración a una escena. | **Cerrada (JOS-142, 2026-09-29)** | La escena previa absorbe el silencio posterior (comparada frente a repartir el silencio entre escenas contiguas, la regla interina de JOS-140, ahora descartada). Umbral: hasta 2 s aceptable, 3 s empieza a sentirse lento; ningún guion real supera 1.26 s. Verificado según §14.1. |
@@ -454,7 +456,7 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 
 ## 16. Registro de cambios
 
-### From version 1.9 to 1.10
+### From version 1.11 to 1.12
 
 Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19. **Awaiting the product owner's approval.**
 
@@ -463,7 +465,27 @@ Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19. **Awaiting t
 | §2.1, §2.3, §11: providers and generation parameters are read from a shipped default settings file plus an optional per-user override, validated at start-up (every problem listed, unknown keys rejected, credentials excluded), and applied only after a restart. They are no longer hardcoded and "no configuration files" is removed from the MVP exclusions. The sentences in §4.1, §6.1, §7.2, §7.3, §10.1, §11.1 and AC18 that called them hardcoded now say configured. | Product owner, JOS-174 |
 | §11.2: a changed setting does not alter established work (intervals, chunks, durations, speed factors, warnings, language, results); a bound provider is kept for retries. | Product owner, JOS-174 |
 | §11.3: its values are now the shipped defaults. | JOS-174 |
-| The Administrator password is deferred to the story that adds `/admin` and the Administrator role. | Product owner decision, 2026-10-19 |
+| The Administrator password is not part of this change; it arrived in v1.11 (JOS-173). | Product owner decision, 2026-10-19 |
+
+### From version 1.10 to 1.11
+
+Origin: `protect-admin-with-password` (JOS-173), 2026-10-19. **Awaiting the product owner's approval.** v1.12 (JOS-174) and v1.13 (JOS-171) are drafted on their own branches and are not on this branch yet; the three drafts edit the same paragraphs of §2.1 and §2.3, and whichever merges second or third rebases its text.
+
+| Change | Origin |
+|---|---|
+| §2.1: an Administrator role with one shared password that unlocks `/admin`; the password is a local secret (`ADMIN_PASSWORD`, environment or credentials file), never logged or returned; when it is missing the application still starts and `/admin` stays locked. | Product owner, JOS-173 |
+| §2.3: `/admin` is no longer out of scope as a page; each Administrator tool, accounts, several passwords, password change from the interface, sessions and lock-out still are. | Product owner, JOS-173 |
+| §12.3: "no authentication" becomes "no accounts; one shared Administrator password for `/admin`". | JOS-173 |
+| US-39's rule "a missing Administrator password stops the application at start-up" is superseded: a fresh installation must start. | Product owner decision, 2026-10-19 |
+
+### From version 1.9 to 1.10
+
+Origin: MVP closure (JOS-203), 2026-10-20.
+
+| Change | Origin |
+|---|---|
+| §7.3, §11.3 and D08: the final MP4's audio is the voice-over's MP3 stream copied without re-encoding (ADR 0005, Decision 4b), not AAC. A real-provider run showed the MP4 carried `mp3` audio; the PRD wording is aligned with the built behaviour. Only a rebuild with an adjusted pause (JOS-190) re-encodes the narration, to AAC. | JOS-203 B4 finding, product owner decision |
+| §11.3: the automatic-retry delay is recorded: base 2 s, cap 30 s. | JOS-203 B5 (this row was added to v1.9 without a version bump) |
 
 ### From version 1.8 to 1.9
 
@@ -541,7 +563,7 @@ Origin: backlog decomposition clarification session, 2026-09-15.
 | Segmentation edge cases: short whole script, clause split of the following sentence, sentence that cannot be split (§6.1.1, §7.2, AC18). | Clarification |
 | "Closest" admitted duration defined as smallest speed change; ties go to the longer duration (§7.2, AC06). | Clarification |
 | Alignment added as a fifth stage; retries switch to it when native timestamps are unusable (§10.3, §11, §11.1). | Clarification |
-| Final MP4 output: voice-over-only audio, hardcoded resolution and frame rate, H.264/AAC (§7.3). | D08 |
+| Final MP4 output: voice-over-only audio, hardcoded resolution and frame rate, H.264 with the voice-over's MP3 audio unchanged (§7.3). | D08 |
 | Session state rules: `failed` only after other scenes finish, return to phase state on manual retry, pause as a marker (§8.1). | Gaps 1 and 3 |
 | Live progress updates without reloading; diagnostics shown in scene details and phase sections (§3, §7.2, §8.3, AC23). | Gap 7, clarification |
 | Session-wide pause that also holds retries (§9). | D01 |

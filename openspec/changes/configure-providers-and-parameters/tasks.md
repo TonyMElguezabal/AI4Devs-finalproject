@@ -8,7 +8,7 @@
 ## 1. Gate
 
 - [x] 1.1 `git fetch`. Confirm the base still matches design.md § Context: `providers.ts` exports the values listed in Decision 3, and `routes.ts` builds the request `language` enum from `SUPPORTED_LANGUAGE_CODES` while the response field is `z.string()`. If JOS-194 has merged and moved `DB_PATH` to the OS application-data folder, place the override path next to it (Decision 1), and update design.md first.
-- [x] 1.2 PRD v1.10 draft (§2.1, §2.3, §11, §11.2, §11.3, §16) written and marked as awaiting the product owner's approval, before any code.
+- [x] 1.2 PRD v1.12 draft (§2.1, §2.3, §11, §11.2, §11.3, §16) written and marked as awaiting the product owner's approval, before any code.
 
 ## 2. Backend: settings loader and schema (TDD; design Decisions 1, 2, 4, 5)
 
@@ -69,7 +69,7 @@
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [x] 9.1 `docs/PRD.md` → v1.10 (keep v1.9 as `docs/PRD-v1.9.md`): §2.1 and §2.3 no longer exclude configuration files; §11 states the values come from local settings files and apply after a restart; §11.3's values are the shipped defaults; §16 change log entry. The Administrator password stays deferred with `/admin`.
+- [x] 9.1 `docs/PRD.md` → v1.12 (keep v1.11 as `docs/PRD-v1.11.md`): §2.1 and §2.3 no longer exclude configuration files; §11 states the values come from local settings files and apply after a restart; §11.3's values are the shipped defaults; §16 change log entry. The Administrator password stays deferred with `/admin`.
 - [x] 9.2 `docs/backend-standards.md` "Constants": AC3 values come from `backend/config/settings.default.json` plus the override, read through `providers.ts`. Values outside AC3 stay literals in `providers.ts`.
 - [x] 9.3 `docs/development_guide.md`: where the two files live, every key with its rule (design Decision 5), "restart to apply", the start-up error list, and that credentials never go in these files.
 - [x] 9.4 `docs/api-spec.yml`: the `language` request enum is the configured list (English and Spanish by default).

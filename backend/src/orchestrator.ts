@@ -366,7 +366,9 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const scenes = getScenesForRun(runId);
   const { state, failedPhase, failedSceneIndexes } = deriveSessionState(scenes, run.failure, {
     hasVoiceOver: getVoiceOver(runId) !== undefined,
-    voiceAttemptInFlight: getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight"),
+    // retry-voice-over (JOS-155), Decision 7 — `startNewCycle` clears the failure, so a retry that is accepted but not yet
+    // sent (scheduled, or held by a pause) must already show the phase as running.
+    voiceAttemptInFlight: getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight" || attempt.outcome === "scheduled"),
     timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
     hasFinalVideo: run.finalVideoPath != null,
     rebuildInFlight: run.finalVideoPath != null && getStageAttempts(runId, "assembly").some((attempt) => attempt.outcome === "in-flight"),
@@ -1492,8 +1494,7 @@ function settleImageInFlight(): SettleSummary {
     const req = getProviderRequest(requestId);
     if (req) {
       const remainingMs = Math.max(0, new Date(req.sentAt).getTime() + req.latencyMs - Date.now());
-      const timer = setTimeout(() => handleProviderResult(requestId), remainingMs);
-      timer.unref();
+      provider.deliverWhenReady(requestId, remainingMs, handleProviderResult);
     }
     stillPending++;
   }

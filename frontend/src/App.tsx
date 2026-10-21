@@ -4,6 +4,7 @@ import { SessionPage } from "./components/SessionPage";
 import { TopBar } from "./components/TopBar";
 import { TelemetryConsentDialog } from "./components/TelemetryConsentDialog";
 import { UpdateBanner } from "./components/UpdateBanner";
+import { AdminPage } from "./components/AdminPage";
 import type { TelemetryConsent } from "./types";
 import { useLiveSession } from "./api/useLiveSession";
 import {
@@ -18,6 +19,7 @@ import {
   retryAssembly,
   retryDecomposition,
   retryScene,
+  retryVoiceOver,
   setScenePause,
 } from "./api/client";
 
@@ -31,7 +33,26 @@ function sessionIdFromUrl(): string | undefined {
   return new URLSearchParams(window.location.search).get("sessionId") ?? undefined;
 }
 
+/**
+ * protect-admin-with-password (JOS-173), design Decision 5 — `/admin` is chosen before any of the regular page's
+ * state exists, so it never loads the privacy prompt, the languages or a live session. There is no router. The page
+ * is not linked from the top bar: the Administrator opens the address directly.
+ */
 export default function App() {
+  if (window.location.pathname === "/admin") {
+    return (
+      <>
+        <TopBar />
+        <main className="app-main">
+          <AdminPage />
+        </main>
+      </>
+    );
+  }
+  return <RegularApp />;
+}
+
+function RegularApp() {
   const [sessionId, setSessionId] = useState<string | undefined>(sessionIdFromUrl);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | undefined>(undefined);
@@ -137,6 +158,7 @@ export default function App() {
           onSetPause={(sceneId, seconds) => setScenePause(sessionId, sceneId, seconds)}
           onRebuildFinalVideo={() => rebuildFinalVideo(sessionId)}
           onRetryPhase={(phase) => {
+            if (phase === "voice-over") return retryVoiceOver(sessionId);
             if (phase === "decomposition") return retryDecomposition(sessionId);
             if (phase === "assembly") return retryAssembly(sessionId);
             return Promise.reject(new Error("not-retryable"));

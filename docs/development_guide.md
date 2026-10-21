@@ -7,7 +7,7 @@ Vid4You is two packages in one repository: `backend/` (Fastify, `node:sqlite`, T
 ## Prerequisites
 
 - **Node.js 26.4.0**, the version the repository is developed and tested with. The backend needs a release that has `node:sqlite` and runs `.ts` files natively (strip-only type removal), so it does not work on older LTS lines. No `engines` field is declared yet.
-- **ffmpeg and ffprobe** (development only). The voice-over phase calls `ffprobe` from `PATH`; the assembly adapter calls `/opt/homebrew/bin/ffmpeg` and `/opt/homebrew/bin/ffprobe` (hard-coded; on macOS `brew install ffmpeg` puts them there). Both must exist, including on CI. The packaged app bundles both beside the executable and needs no install.
+- **ffmpeg and ffprobe** (development only). The voice-over probe and the assembly adapter both use one resolver (`backend/src/config/ffmpeg.ts`): `FFMPEG_PATH` / `FFPROBE_PATH` if set, otherwise `/opt/homebrew/bin/ffmpeg` and `ffprobe` when they exist (`brew install ffmpeg` on macOS), otherwise the name on `PATH` (Linux, CI). Both must be installed, including on CI. The packaged app bundles both beside the executable and needs no install.
 - **Git** and **npm**.
 
 ## Run it
@@ -79,6 +79,20 @@ Real provider calls need four keys. In development they are read from the enviro
 
 Never put a key in the repository. A missing key fails the stage with a message naming the variable, never its value.
 
+### Administrator password
+
+`/admin` is protected by one shared password. It is not needed for anything else: the start page and the session pages never ask for it.
+
+| Variable | Used by |
+|---|---|
+| `ADMIN_PASSWORD` | the `/admin` page and every `/admin/…` endpoint |
+
+- **Where to set it.** Like the provider keys: in the environment, or as `"ADMIN_PASSWORD"` in the same git-ignored `.secrets.json` (the environment wins). It is never a settings value, and a settings file that contains it is rejected as an unknown key.
+- **Restart to apply.** The app reads it when it starts (the secrets file is cached), so a new or changed password applies after a restart. While it is missing the app starts normally, `/admin` says "No Administrator password is configured" and every `/admin/…` endpoint answers `401`.
+- **Use a strong one.** The app has no lock-out after failed attempts, and until the `Origin`/`Host` guard exists (story L3) a website open in your browser could try passwords against `127.0.0.1`. A long random password costs nothing here and closes that risk in practice.
+- **Opening it.** Go to `/admin` directly (`http://127.0.0.1:5173/admin` in development). It is not linked from the regular pages. The page keeps the password in memory only, so a reload asks again. In the packaged app, serving `/admin` is part of story L6.
+- **Calling the API by hand.** Send `Authorization: Bearer <password>`, for example `curl -H "Authorization: Bearer $ADMIN_PASSWORD" http://127.0.0.1:3100/admin/access`. The answer is `200 { "configured": true, "granted": true }`, or `401` with `reason` `not-configured`, `password-required` or `wrong-password`.
+
 ### Local state
 
 | Variable | Default (relative to the backend working directory) | Holds |
@@ -138,6 +152,7 @@ These exist for manual endpoint testing and **must never be set in UAT or produc
 | `ALLOW_TEST_ENDPOINTS` | enables `POST /internal/test/quick-voice-over` and `POST /internal/test/quick-scene` |
 | `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_ASSEMBLY_TOOL` | replace a provider with a stub (values are listed in `backend/src/server.ts`) |
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | shorten retry delays |
+| `CORS_ALLOWED_ORIGINS` | comma-separated extra origins allowed to call the API. By default only `http://127.0.0.1:5173`, `http://localhost:5173` and the backend's own address are; any other web page gets a 403 |
 
 ### Telemetry (opt-in)
 

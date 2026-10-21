@@ -114,4 +114,4 @@ The configured alignment endpoint also reaches the request: the alignment adapte
 
 ## Open Questions
 
-- PRD v1.10 (§2.1, §2.3, §11, §16) needs the product owner's approval before merge, as JOS-199's addendum did.
+- PRD v1.12 (§2.1, §2.3, §11, §16) needs the product owner's approval before merge, as JOS-199's addendum did.

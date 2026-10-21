@@ -1,9 +1,10 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { AssemblyInput } from "../src/assemblyTool.ts";
+import { FFMPEG, FFPROBE } from "../src/config/ffmpeg.ts";
 import { buildMuxArguments, buildNarrationFilter, createFfmpegAssemblyTool } from "../src/ffmpegAssemblyTool.ts";
 import { createCapturingAssemblyTool } from "../src/stubAssemblyTool.ts";
 
@@ -12,8 +13,6 @@ import { createCapturingAssemblyTool } from "../src/stubAssemblyTool.ts";
 // MEASURED: audio and video must agree within one frame or the attempt fails.
 
 const MONO_44K = { sampleRate: 44100, channelLayout: "mono" };
-const FFMPEG = "/opt/homebrew/bin/ffmpeg";
-const FFPROBE = "/opt/homebrew/bin/ffprobe";
 
 describe("buildNarrationFilter", () => {
   it("cuts silence out of a trimmed pause, around its midpoint", () => {
@@ -114,7 +113,7 @@ describe("the capturing stub", () => {
 
 // The fixture committed by define-media-assembly (JOS-182): five scene sources and a 14.4 s voice-over.
 const FIXTURE = join(process.cwd(), "..", "openspec", "changes", "archive", "2026-09-26-define-media-assembly", "fixture");
-const haveFfmpeg = existsSync(FFMPEG) && existsSync(FFPROBE) && existsSync(join(FIXTURE, "voice-over.m4a"));
+const haveFfmpeg = spawnSync(FFMPEG, ["-version"]).status === 0 && spawnSync(FFPROBE, ["-version"]).status === 0 && existsSync(join(FIXTURE, "voice-over.m4a"));
 
 function probe(path: string, entries: string, stream: string): string {
   return execFileSync(FFPROBE, ["-v", "error", "-select_streams", stream, "-show_entries", entries, "-of", "csv=p=0", path], { encoding: "utf8" }).trim();

@@ -1,12 +1,12 @@
 # PRD addendum draft — providers and parameters in settings files (JOS-174)
 
-**Status: awaiting the product owner's approval.** The text below was applied to `docs/PRD.md` as v1.10 (task 9.1), whose status line and change-log entry say "awaiting the product owner's approval"; v1.9 is kept as `docs/PRD-v1.9.md`. The change must not be merged before the approval is recorded here, and the "awaiting" markers are removed from the PRD at that point.
+**Status: awaiting the product owner's approval.** The text below was applied to `docs/PRD.md` as v1.12 (task 9.1), whose status line and change-log entry say "awaiting the product owner's approval"; v1.11 is kept as `docs/PRD-v1.11.md`. The change must not be merged before the approval is recorded here, and the "awaiting" markers are removed from the PRD at that point.
 
 ## Proposed text
 
 ### Header (status line)
 
-**Versión:** 1.10. **Status (v1.10):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3). All other product decisions remain closed. The previous version is kept in `docs/PRD-v1.9.md`.
+**Versión:** 1.12. **Status (v1.12):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3). All other product decisions remain closed. The previous version is kept in `docs/PRD-v1.11.md`.
 
 ### 2.1 Roles (replaces the paragraph after the table)
 
@@ -31,7 +31,7 @@ Last paragraph: "A change to the configured admitted durations, languages, or an
 
 ### 11.3 Recorded providers and parameter values (intro changes)
 
-"Defined by `define-provider-configuration` (JOS-165) and, since v1.10, shipped as the default settings file (`backend/config/settings.default.json`). The values below are those defaults; a per-user override file can replace them (§11)." The tables do not change.
+"Defined by `define-provider-configuration` (JOS-165) and, since v1.12, shipped as the default settings file (`backend/config/settings.default.json`). The values below are those defaults; a per-user override file can replace them (§11)." The tables do not change.
 
 ### Other sentences made consistent (one word each: "hardcoded" becomes "configured")
 
@@ -39,7 +39,7 @@ Last paragraph: "A change to the configured admitted durations, languages, or an
 
 ### 16 Registro de cambios (new entry)
 
-**From version 1.9 to 1.10.** Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19.
+**From version 1.11 to 1.12.** Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19.
 
 | Change | Origin |
 |---|---|

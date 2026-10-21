@@ -3,7 +3,6 @@
 ## Purpose
 Retrying a scene's failed image, or correcting only its `IMAGE` instruction and retrying (PRD §3, §10.2, §10.3 image row, §11.2, §12.3, AC09; US-25). The image stage is owned by `image-generation` (US-12), scene details by `scene-detail-view` (US-19), and retry cycles by `stage-retry-policy` (US-22). Established by `retry-or-correct-image` (JOS-157).
 ## Requirements
-
 ### Requirement: Scene commands act only within their session
 
 `POST /sessions/:sessionId/scenes/:sceneId/retry` and `POST /sessions/:sessionId/scenes/:sceneId/correct` SHALL look up the scene by both identifiers. An unknown session, an unknown scene, or a scene that belongs to another session SHALL answer 404 identically, and SHALL change nothing and launch nothing (§12.3, AC22).
@@ -71,23 +70,20 @@ A correction SHALL be accepted only for a scene that is `failed` with no stored 
 
 ### Requirement: No image action once the image succeeded
 
-A retry or correction SHALL be refused with 409 for a scene that is not `failed` (`not-failed`), and for a failed scene that has a stored image, meaning its clip failed (`image-already-generated`). A refusal SHALL change nothing and launch nothing. The page SHALL NOT offer image retry or `IMAGE` correction for such a scene (§3, AC09).
+An image-stage retry or correction SHALL be refused with 409 for a scene that is not `failed` (`not-failed`), and SHALL NOT change the image instruction or launch the image stage for a failed scene whose image has already succeeded. When such a scene is failed at the video stage, the shared retry and correction commands SHALL dispatch to clip recovery as specified by `clip-failure-recovery`; they SHALL NOT be refused as `image-already-generated` solely because the image exists. A refusal SHALL change nothing and launch nothing. The page SHALL NOT offer image retry or `IMAGE` correction for a video-stage failure (§3, AC09).
 
-#### Scenario: Image generated, clip failed
-
-- **GIVEN** a scene whose image is stored and whose clip failed
-- **WHEN** an image retry or correction is requested
-- **THEN** the command answers 409 with `image-already-generated` and the scene is unchanged
+#### Scenario: Failed clip is routed to clip recovery
+- **GIVEN** a scene whose image is stored and whose video stage failed
+- **WHEN** the User requests retry or correction through the existing scene recovery command
+- **THEN** the command is handled by clip recovery and does not change or regenerate the image
 
 #### Scenario: Image generated, scene still processing
-
 - **GIVEN** a scene in `image-complete`, `video-generating` or `chunk-complete`
-- **WHEN** an image retry or correction is requested
+- **WHEN** an image-stage retry or correction is requested
 - **THEN** the command answers 409 with `not-failed`
 
-#### Scenario: Nothing offered on the page
-
-- **GIVEN** a scene in any state other than `failed` at the image stage
+#### Scenario: No image action on a clip failure
+- **GIVEN** a scene failed at the video stage
 - **WHEN** its details are shown
 - **THEN** no image retry button and no `IMAGE` correction form are shown
 
@@ -106,3 +102,4 @@ The scene details SHALL show the scene's `PROMPT`, `IMAGE` and `VIDEO`. For a sc
 - **GIVEN** a retry answered 409 with `not-failed`
 - **WHEN** the answer arrives
 - **THEN** the row shows a sentence saying the scene is no longer failed
+

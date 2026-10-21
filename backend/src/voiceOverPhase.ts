@@ -23,6 +23,7 @@ import {
   supersedeLateResult,
   writeArtefactOnce,
 } from "./db.ts";
+import { FFPROBE } from "./config/ffmpeg.ts";
 import { VOICE_PROVIDER } from "./config/providers.ts";
 import { launchDecompositionFor } from "./decompositionPhase.ts";
 import { admitLaunch, registerStageLauncher, type StageLauncher } from "./launchGate.ts";
@@ -112,7 +113,7 @@ async function probeAudio(audio: Uint8Array): Promise<{ ok: true; durationSecond
     writeFileSync(file, audio);
     let stdout: string;
     try {
-      ({ stdout } = await execFileAsync("ffprobe", ["-v", "error", "-show_entries", "format=format_name,duration", "-of", "json", file]));
+      ({ stdout } = await execFileAsync(FFPROBE, ["-v", "error", "-show_entries", "format=format_name,duration", "-of", "json", file]));
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") {
         return { ok: false, unavailable: true, detail: "ffprobe is not installed, so the audio could not be checked" };

@@ -4,6 +4,11 @@
 # Provider credentials (define-provider-configuration, JOS-165, task 2.1) —
 # read from here or the local environment, never from the repository.
 backend/.secrets.json
+# Any credentials or environment file, anywhere (a copy in another folder or worktree must not be committed).
+.secrets.json
+.env
+.env.*
+!.env.example
 
 # Local SQLite store and generated project folders
 backend/data/
