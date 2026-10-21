@@ -74,11 +74,11 @@
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the real server on a scratch store and scratch projects folder, with two stub adapters per stage registered through the test seams, and `ALLOW_TEST_ENDPOINTS=1`.
-- [ ] 9.2 Call `GET /admin/providers` and `PUT /admin/providers/video` without Administrator access: both return 401 and the store is unchanged.
-- [ ] 9.3 With Administrator access: `GET` shows every stage from the settings. `PUT /admin/providers/video {"providerId":"stub-b"}` returns 200 and `source: "admin"`. An unknown stage or provider returns 400.
-- [ ] 9.4 Start session A before the change and session B after it. In `GET /sessions/:id` and the attempt rows, A's video stages are on `stub-a` (including a forced transient-failure retry) and B's are on `stub-b`. Restart: the choice holds.
-- [ ] 9.5 Delete the created sessions, the `active_providers` rows and the scratch store and folder. Confirm the default store is untouched. Save `openspec/changes/change-active-provider-from-admin/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
+- [x] 9.1 Start the real server on a scratch store and scratch projects folder, with two stub adapters per stage registered through the test seams, and `ALLOW_TEST_ENDPOINTS=1`.
+- [x] 9.2 Call `GET /admin/providers` and `PUT /admin/providers/video` without Administrator access: both return 401 and the store is unchanged.
+- [x] 9.3 With Administrator access: `GET` shows every stage from the settings. `PUT /admin/providers/video {"providerId":"stub-b"}` returns 200 and `source: "admin"`. An unknown stage or provider returns 400.
+- [x] 9.4 Start session A before the change and session B after it. In `GET /sessions/:id` and the attempt rows, A's video stages are on `stub-a` (including a forced transient-failure retry) and B's are on `stub-b`. Restart: the choice holds.
+- [x] 9.5 Delete the created sessions, the `active_providers` rows and the scratch store and folder. Confirm the default store is untouched. Save `openspec/changes/change-active-provider-from-admin/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 

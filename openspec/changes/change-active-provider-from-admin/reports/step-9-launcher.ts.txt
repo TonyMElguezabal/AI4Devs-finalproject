@@ -1,0 +1,39 @@
+// Scratch launcher for the manual endpoint test (JOS-171, task 9.1): the real server with two stub adapters per stage.
+import { setDecompositionDependencies, setAlignmentProviderRegistry, setReasoningProviderRegistry } from "../../../../backend/src/decompositionDependencies.ts";
+import { createStubImageProvider, setImageProviderRegistry } from "../../../../backend/src/imageProvider.ts";
+import { createStubVideoProvider, setVideoProviderRegistry } from "../../../../backend/src/videoProvider.ts";
+import { createStubVoiceProvider, setVoiceProviderRegistry } from "../../../../backend/src/voiceProvider.ts";
+import { setAssemblyTool, recoverOnBoot } from "../../../../backend/src/orchestrator.ts";
+import { createStubAssemblyTool } from "../../../../backend/src/stubAssemblyTool.ts";
+import { setRetryDelayConfig } from "../../../../backend/src/retry/stageAttemptRecorder.ts";
+import { rebuildScheduler } from "../../../../backend/src/retry/retryScheduler.ts";
+import { startAttemptTimeoutWatcher } from "../../../../backend/src/retry/attemptTimeoutWatcher.ts";
+import { setScriptModerator } from "../../../../backend/src/scriptModeration.ts";
+import { buildApp } from "../../../../backend/src/server.ts";
+
+const png = Buffer.alloc(29);
+png.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+png.writeUInt32BE(13, 8); png.write("IHDR", 12, "ascii"); png.writeUInt32BE(1920, 16); png.writeUInt32BE(1088, 20);
+const mp4 = Buffer.from("00000000667479706d703432", "hex");
+const STEP = 0.25;
+
+const alignment = () => ({ async align(_a: Uint8Array, script: string) { return { kind: "success" as const, characters: [...script].map((text, i) => ({ text, start: 0.1 + i * STEP, end: 0.1 + (i + 1) * STEP })) }; } });
+const generator = (tag: string) => ({ async generate(texts: readonly string[]) { return { kind: "success" as const, pairs: texts.map((_, i) => ({ image: tag + " image " + (i + 1), video: tag + " video " + (i + 1) })) }; } });
+const videoMode = (process.env.STUB_A_VIDEO_MODE ?? "success-bytes") as "success-bytes" | "transient-failure";
+
+setDecompositionDependencies({ alignmentProvider: alignment(), instructionGenerator: generator("a") });
+setAlignmentProviderRegistry({ defaultIdentifier: "elevenlabs-forced-alignment", adapters: { "elevenlabs-forced-alignment": alignment(), "stub-b": alignment() } });
+setReasoningProviderRegistry({ defaultIdentifier: "openai-decomposition", adapters: { "openai-decomposition": generator("a"), "stub-b": generator("b") } });
+setVoiceProviderRegistry({ defaultIdentifier: "stub-a", adapters: { "stub-a": createStubVoiceProvider("success-without-timestamps", { audioSeconds: 17 }), "stub-b": createStubVoiceProvider("success-without-timestamps", { audioSeconds: 17 }) } });
+setImageProviderRegistry({ defaultIdentifier: "stub-a", adapters: { "stub-a": createStubImageProvider("success-bytes", { bytes: png }), "stub-b": createStubImageProvider("success-bytes", { bytes: png }) } });
+setVideoProviderRegistry({ defaultIdentifier: "stub-a", adapters: { "stub-a": createStubVideoProvider(videoMode, { bytes: mp4 }), "stub-b": createStubVideoProvider("success-bytes", { bytes: mp4 }) } });
+setAssemblyTool(createStubAssemblyTool({ kind: "success" }));
+setRetryDelayConfig({ baseSeconds: 0.2, capSeconds: 0.5 });
+
+setScriptModerator({ async moderate() { return { kind: "clean" as const }; } });
+const app = await buildApp();
+recoverOnBoot();
+rebuildScheduler();
+startAttemptTimeoutWatcher();
+await app.listen({ port: 3171, host: "127.0.0.1" });
+console.log("listening on 3171");
