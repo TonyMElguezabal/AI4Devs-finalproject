@@ -5,10 +5,10 @@
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm JOS-171 (#86) is on `origin/main`, and that PR #87 (the archived `active-provider-selection` spec) is merged. If #87 is not merged, stop and ask for it.
-- [ ] 1.2 Confirm the base still matches design.md § Context: the five factories and their `loadKey` seams, the registries with `labels` and `aliases`, `activeProviderId`, the `/admin` child plugin, and the stored binding ids. Update design.md first if anything differs.
-- [ ] 1.3 Draft the next PRD version (v1.14: §2.1, §2.3, §11, §11.2, §12.3 and the credentials rule, plus the exceptions to JOS-174's "files only" rules for providers and keys) and mark it as awaiting the product owner's approval, before any code.
-- [ ] 1.4 Reword the requirement "Only a shipped adapter can be chosen" of `openspec/specs/active-provider-selection/spec.md` as "Only a usable provider can be chosen" in a MODIFIED delta of this change, using the full current block (design Decision 6).
+- [x] 1.1 `git fetch`. Confirm JOS-171 (#86) is on `origin/main`, and that PR #87 (the archived `active-provider-selection` spec) is merged. If #87 is not merged, stop and ask for it.
+- [x] 1.2 Confirm the base still matches design.md § Context: the five factories and their `loadKey` seams, the registries with `labels` and `aliases`, `activeProviderId`, the `/admin` child plugin, and the stored binding ids. Update design.md first if anything differs.
+- [x] 1.3 Draft the next PRD version (v1.14: §2.1, §2.3, §11, §11.2, §12.3 and the credentials rule, plus the exceptions to JOS-174's "files only" rules for providers and keys) and mark it as awaiting the product owner's approval, before any code.
+- [x] 1.4 Reword the requirement "Only a shipped adapter can be chosen" of `openspec/specs/active-provider-selection/spec.md` as "Only a usable provider can be chosen" in a MODIFIED delta of this change, using the full current block (design Decision 6).
 
 ## 2. Backend: storage and the first profiles (TDD; design Decisions 1, 8)
 
