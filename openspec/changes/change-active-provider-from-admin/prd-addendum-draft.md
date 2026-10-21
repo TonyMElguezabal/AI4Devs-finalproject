@@ -14,6 +14,10 @@
 
 | Administrator | Unlock `/admin` with the Administrator password and change the active provider of each stage there (§11.2). Further Administrator tools are added by later stories (moving a failed stage). A User never needs the password. |
 
+### 2.1 Roles — paragraph after the table
+
+Append to the sentence "A change takes effect after the application restarts, and settings are edited by hand, not through the application": "; the one exception is each stage's active provider, which the Administrator changes on `/admin` and which applies without a restart (§11.2)." Replace the last sentence with: "The other Administrator tools (diagnostics and reports on `/admin`) are deferred post-MVP."
+
 ### 2.3 Fuera del MVP
 
 Replace "Administrator tools on `/admin`: the page exists behind the password, but each tool (changing the active provider, moving a failed stage, reports) is its own story." with:
@@ -24,9 +28,7 @@ Replace "Changing providers or parameters from the application (interface or API
 
 - Changing a parameter from the application (interface or API) and applying a parameter change without a restart (§11). The active provider is the one exception (§11.2).
 
-Replace "Any provider change, manual or automatic, including moving failed stages ..." with:
-
-- Any automatic provider change, and moving a failed stage to another provider (§11.2), until its story is built; more than one Administrator, user accounts, changing the password from the interface, login sessions and lock-out after failed attempts.
+Replace "Any provider change, manual or automatic, including moving failed stages ..." with the same sentence as: "Any automatic provider change, and moving a failed stage to another provider (§11.2), until its story is built; more than one Administrator, user accounts, changing the password from the interface, login sessions and lock-out after failed attempts.
 
 ### 11 (opening paragraph, last sentence)
 
@@ -42,7 +44,7 @@ Replace the first paragraph with:
 
 Replace "La etapa conserva el proveedor utilizado..." with:
 
-"Every stage is bound to a provider at its first attempt, once and for good: reasoning, voice and alignment per session; image and video per chunk. The binding is the provider active at that moment. The stage keeps it for its automatic and manual retries, whatever the active provider is later. Changing the active provider never regenerates a completed result."
+"Every stage is bound to a provider at its first attempt, once and for good: reasoning, voice and alignment per session; image and video per chunk. The binding is the provider active at that moment. The stage keeps it for its automatic and manual retries, whatever the active provider is later. Changing the active provider never regenerates a completed result. A stage that used native timestamps binds no alignment provider."
 
 ### 16. Registro de cambios
 

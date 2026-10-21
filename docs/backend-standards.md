@@ -156,6 +156,14 @@ interface VideoProvider {
 
 **MP4 validation**: `completeVideoStage` checks the first 8 bytes of the downloaded clip for the `ftyp` box before writing it to disk — `bytes[4..7] === 'ftyp'` — and rejects non-MP4 data as a transient failure.
 
+### The active provider and the bind points (`change-active-provider-from-admin`, JOS-171)
+
+Every stage has an adapter registry (`getVoiceProviderRegistry`, `getImageProviderRegistry`, `getVideoProviderRegistry`, `getReasoningProviderRegistry`, `getAlignmentProviderRegistry`) of the shape `{ defaultIdentifier, adapters, labels?, aliases? }`. `defaultIdentifier` is the settings-file provider; `aliases` resolve but are never offered as a choice (the legacy image and video keys). `backend/src/activeProvider.ts` is the one place that decides which adapter a stage uses next: `activeProviderId(stage)` returns the Administrator's choice from `active_providers` when it names a shipped adapter, else `defaultIdentifier`.
+
+- **A bind point calls `activeProviderId(stage)` and nothing else.** Voice, image, video, reasoning and alignment each bind at their first attempt with a conditional write (`WHERE … IS NULL`) and then re-read the binding.
+- **Never read the active provider for an instance that is already bound.** Retries use the stored binding, or the attempt's `providerId`; reading the active provider there would silently move a running stage when the Administrator changes it.
+- Reasoning and alignment reach their adapter through `resolveBoundAdapter(registry, boundId, injected)`: the instance injected through `DecompositionDependencies` stands for the default id, any other bound id comes from the registry. A bound id the build does not ship fails the attempt as not retryable, with a message naming the id.
+
 ### Stage diagnostics: what may reach the page
 
 `see-provider-and-attempts` (JOS-166, PRD §3) shows, per scene stage and per phase, which provider was used and how many attempts were made. The rule for anything an attempt record could add to that:

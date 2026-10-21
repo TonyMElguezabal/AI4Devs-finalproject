@@ -89,10 +89,10 @@
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/PRD.md`: the next version (keep the previous one as `docs/PRD-v<prev>.md`) with §2.1, §2.3 and §11.2 changed, and a §16 change log entry.
-- [ ] 11.2 `docs/api-spec.yml`: `GET /admin/providers` and `PUT /admin/providers/{stage}`, with 200, 400 and 401.
-- [ ] 11.3 `docs/data-model.md`: `active_providers`, `runs.decomposition_provider_id`, `runs.alignment_provider_id`, and the binding rule for all five stages.
-- [ ] 11.4 `docs/backend-standards.md`: bind points use `activeProviderId(stage)` and never read the active provider for an instance that is already bound.
-- [ ] 11.5 `docs/development_guide.md`: how the `/admin` choice relates to the settings files, and how to register stub adapters for testing.
+- [x] 11.1 `docs/PRD.md`: the next version (keep the previous one as `docs/PRD-v<prev>.md`) with §2.1, §2.3 and §11.2 changed, and a §16 change log entry.
+- [x] 11.2 `docs/api-spec.yml`: `GET /admin/providers` and `PUT /admin/providers/{stage}`, with 200, 400 and 401.
+- [x] 11.3 `docs/data-model.md`: `active_providers`, `runs.decomposition_provider_id`, `runs.alignment_provider_id`, and the binding rule for all five stages.
+- [x] 11.4 `docs/backend-standards.md`: bind points use `activeProviderId(stage)` and never read the active provider for an instance that is already bound.
+- [x] 11.5 `docs/development_guide.md`: how the `/admin` choice relates to the settings files, and how to register stub adapters for testing.
 - [ ] 11.6 Create the follow-up Linear ticket "Add and verify a second real provider" (assignee jose.elguezabal@gmail.com, label `type:feature`), including the per-provider parameters open question. Link it to JOS-171.
 - [ ] 11.7 Run `graphify update .`.

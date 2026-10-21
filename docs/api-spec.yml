@@ -131,6 +131,11 @@
 # `server.ts`, so a later Administrator route is documented as protected with no code of
 # its own. A structural comparison with the generated document found only these additions,
 # plus the hand-written 422/503 response descriptions of JOS-187.
+# JOS-171 (change-active-provider-from-admin) - 2026-10-21: new `GET /admin/providers` (200 `{ providers }`, one view per stage:
+# `stage`, `activeProviderId`, `activeLabel`, `source` settings|admin, `selectable`, `orphanedChoice`) and
+# `PUT /admin/providers/{stage}` (body `{ providerId }`; 200 the stage's view; 400 `{ ok: false, reason: 'not-selectable',
+# selectable }` or the validation error; 401 as `/admin/access`). Both are behind the Administrator password. PUT is allowed
+# here because the active provider is an app-level setting, not session content (content lock, AC1).
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -2377,3 +2382,222 @@ paths:
       responses:
         "200":
           description: Default Response
+  /admin/providers:
+    get:
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        stage:
+                          type: string
+                          enum:
+                            - reasoning
+                            - voice
+                            - alignment
+                            - image
+                            - video
+                        activeProviderId:
+                          type: string
+                        activeLabel:
+                          type: string
+                        source:
+                          type: string
+                          enum:
+                            - settings
+                            - admin
+                        selectable:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              label:
+                                type: string
+                            required:
+                              - id
+                              - label
+                            additionalProperties: false
+                        orphanedChoice:
+                          type: string
+                          nullable: true
+                      required:
+                        - stage
+                        - activeProviderId
+                        - activeLabel
+                        - source
+                        - selectable
+                        - orphanedChoice
+                      additionalProperties: false
+                required:
+                  - providers
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /admin/providers/{stage}:
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                providerId:
+                  type: string
+                  minLength: 1
+              required:
+                - providerId
+              additionalProperties: false
+      parameters:
+        - schema:
+            type: string
+            enum:
+              - reasoning
+              - voice
+              - alignment
+              - image
+              - video
+          in: path
+          name: stage
+          required: true
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stage:
+                    type: string
+                    enum:
+                      - reasoning
+                      - voice
+                      - alignment
+                      - image
+                      - video
+                  activeProviderId:
+                    type: string
+                  activeLabel:
+                    type: string
+                  source:
+                    type: string
+                    enum:
+                      - settings
+                      - admin
+                  selectable:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        label:
+                          type: string
+                      required:
+                        - id
+                        - label
+                      additionalProperties: false
+                  orphanedChoice:
+                    type: string
+                    nullable: true
+                required:
+                  - stage
+                  - activeProviderId
+                  - activeLabel
+                  - source
+                  - selectable
+                  - orphanedChoice
+                additionalProperties: false
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - type: object
+                    properties:
+                      ok:
+                        type: boolean
+                        enum:
+                          - false
+                      reason:
+                        type: string
+                        enum:
+                          - not-selectable
+                      selectable:
+                        type: array
+                        items:
+                          type: string
+                    required:
+                      - ok
+                      - reason
+                      - selectable
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      statusCode:
+                        type: number
+                      error:
+                        type: string
+                      message:
+                        type: string
+                    required:
+                      - statusCode
+                      - error
+                      - message
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false

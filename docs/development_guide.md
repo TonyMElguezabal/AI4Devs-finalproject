@@ -143,6 +143,12 @@ A problem never prints a value. **Credentials never go in these files**: a key s
 
 What a change does and does not touch: sessions already running keep their recorded durations, speed factors, warnings and language, and a scene already bound to a provider keeps that provider (bindings store the provider name, so a retry uses the *current* model or endpoint). A language removed from the list can no longer start a new session, but existing sessions in it still work.
 
+### The active provider on `/admin`
+
+The settings files name the provider each stage uses. The Administrator can override that, per stage, on `/admin` ("Active providers", behind the Administrator password): the choice is stored in the database, survives a restart and applies without one, to every stage that is not yet bound to a provider. It is the only setting edited on `/admin`; every other value still comes from the settings files and needs a restart. Sessions and scenes already bound keep their provider for all their retries, and a result already produced is never regenerated.
+
+Each stage ships one real adapter today, so every selector has a single option until a second provider is added. To try the switch locally or write a test, register two stub adapters per stage through the registry seams (`setVoiceProviderRegistry`, `setImageProviderRegistry`, `setVideoProviderRegistry`, `setReasoningProviderRegistry`, `setAlignmentProviderRegistry`; reasoning and alignment fall back to `setDecompositionDependencies` for their default adapter), and reset them afterwards with the matching `reset…` function. `backend/test/active-provider-binding-*.test.ts` show the pattern for each stage.
+
 ### Development-only switches
 
 These exist for manual endpoint testing and **must never be set in UAT or production**. The backend treats any non-empty value, including `false` and `0`, as enabled, so leave them unset.
