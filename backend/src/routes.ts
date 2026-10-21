@@ -61,9 +61,11 @@ const createSessionBodySchema = z.object({
     "Stored exactly as submitted and immutable from registration onward, in every state (PRD §4.2, D10). No operation modifies it.",
   ),
   // PRD §4.1, D09 — a session cannot start without a language selected from
-  // the hardcoded supported list; refused regardless of how the request was
-  // made (Decision 5). See config/providers.ts (define-provider-configuration, JOS-165) for the verified list.
-  language: z.enum(SUPPORTED_LANGUAGE_CODES).describe("Immutable once the session is registered (PRD §4.1, §4.2)."),
+  // the configured supported list; refused regardless of how the request was
+  // made (Decision 5). The list comes from the settings files
+  // (configure-providers-and-parameters, JOS-174), whose schema requires at least one language,
+  // so the cast to a non-empty tuple holds.
+  language: z.enum(SUPPORTED_LANGUAGE_CODES as readonly [string, ...string[]]).describe("Immutable once the session is registered (PRD §4.1, §4.2). One of the configured supported languages (`GET /languages`); English and Spanish by default."),
 });
 
 // start-video-project (JOS-134) Decision 3 — session identifiers are ULIDs

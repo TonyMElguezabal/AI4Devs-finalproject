@@ -1,26 +1,44 @@
 /**
  * define-provider-configuration (JOS-165) — the one constants module holding
- * every hardcoded provider and parameter value PRD §11 defers to this spike
- * (backend-standards.md, "Constants"). A typed module compiled into the
- * application, not a configuration file or runtime configuration (Decision 8,
- * §2.3). Every value below traces to a real measurement recorded under
+ * every provider and parameter value PRD §11 defers to this spike
+ * (backend-standards.md, "Constants"). Every value below traces to a real
+ * measurement recorded under
  * `openspec/changes/define-provider-configuration/reports/`; nothing here is
  * invented — an item left `undetermined` says so explicitly rather than
  * carrying a guessed number (Decision 6).
  *
+ * configure-providers-and-parameters (JOS-174): the values PRD §11 lists as
+ * configurable (providers and their identifiers, voice, admitted durations,
+ * segmentation lower bound, speed-factor limit, maximum times, output size and
+ * frame rate, languages, request caps) are read once, when this module is
+ * first imported, from `backend/config/settings.default.json` merged with an
+ * optional override at `SETTINGS_PATH` (default `data/settings.json`). The
+ * export names are unchanged. The shipped defaults hold the measured values
+ * the earlier literals had. An invalid file throws here, so the server never
+ * starts. Everything not in that list stays a literal below.
+ *
  * This module holds no credential (task 10.3) — credentials load separately
- * via `loadCredential` (./credentials.ts).
+ * via `loadCredential` (./credentials.ts), and a settings file cannot carry one.
  */
+
+import { join } from "node:path";
+import { loadSettings } from "./settings.ts";
+
+const loadedSettings = loadSettings({
+  defaultsPath: join(import.meta.dirname, "../../config/settings.default.json"),
+  overridePath: process.env.SETTINGS_PATH ?? "data/settings.json",
+});
+if (!loadedSettings.ok) {
+  throw new Error(`Invalid settings, the application cannot start:\n${loadedSettings.problems.map((problem) => `  - ${problem}`).join("\n")}`);
+}
+const settings = loadedSettings.settings;
 
 // ---- Providers and version identifiers per stage (task 10.2) ----
 // Stage identifiers follow the PRD's own names (backend-standards.md), not
 // the capability-descriptive labels this spike's own tasks.md uses
 // ("reasoning" below is PRD's "decomposition" stage).
 
-export const DECOMPOSITION_PROVIDER = {
-  name: "OpenAI",
-  model: "gpt-6-astra",
-} as const;
+export const DECOMPOSITION_PROVIDER = settings.decomposition;
 
 /**
  * moderate-script-at-submission (JOS-187): the reasoning provider's own
@@ -32,51 +50,49 @@ export const SCRIPT_MODERATION = {
   model: "omni-moderation-2024-09-26",
 } as const;
 
-export const VOICE_PROVIDER = {
-  name: "ElevenLabs",
-  model: "eleven_multilingual_v2",
-  voiceId: "4YYIPFl9wE5c4L2eu2Gb",
-  voiceName: "Burt Reynolds™",
-  /** No separate "quality" tier beyond model + output encoding (report: step 4). */
-  outputFormat: "mp3_44100_128",
-  /** Not overridden — provider default (report: step 4). */
-  speed: "default" as const,
-} as const;
+/**
+ * "Quality" is the output format: there is no separate tier beyond model +
+ * output encoding (report: step 4). A `speed` of "default" is the provider's own.
+ */
+export const VOICE_PROVIDER = settings.voice;
 
 export const ALIGNMENT_PROVIDER = {
-  name: "ElevenLabs",
-  endpoint: "/v1/forced-alignment",
+  ...settings.alignment,
   /** Same account as VOICE_PROVIDER — task 7.5a: derive any shared cap jointly, not independently. */
   sharesAccountWith: "voice" as const,
 } as const;
 
-export const IMAGE_PROVIDER = {
-  name: "Fal.ai",
-  model: "fal-ai/flux/dev",
-} as const;
+export const IMAGE_PROVIDER = { name: settings.image.name, model: settings.image.model };
 
-export const VIDEO_PROVIDER = {
-  name: "RunningHub",
-  /**
-   * RunningHub versions by endpoint path, not a separate version field
-   * (report: step 3, task 3.4). A path retirement fails calls outright with
-   * no fallback (§11.2) — review RunningHub's model catalog periodically for
-   * a deprecation notice on this path.
-   */
-  endpoint: "/openapi/v2/minimax/hailuo-h3/image-to-video",
-} as const;
+/**
+ * RunningHub versions by endpoint path, not a separate version field
+ * (report: step 3, task 3.4). A path retirement fails calls outright with
+ * no fallback (§11.2) — review RunningHub's model catalog periodically for
+ * a deprecation notice on this path.
+ */
+export const VIDEO_PROVIDER = { name: settings.video.name, endpoint: settings.video.endpoint };
+
+/**
+ * configure-providers-and-parameters (JOS-174), design Decision 7 — image and video scenes are bound to the
+ * provider's name. Before that, a scene was bound to the model (image) or the endpoint path (video), and the
+ * only values any build wrote were these two shipped defaults, because nothing was configurable. They stay
+ * as a second key for the same adapter so a scene bound by an earlier build still resolves. They are
+ * literals on purpose: they name what was stored, not what is configured now.
+ */
+export const LEGACY_IMAGE_PROVIDER_IDENTIFIER = "fal-ai/flux/dev";
+export const LEGACY_VIDEO_PROVIDER_IDENTIFIER = "/openapi/v2/minimax/hailuo-h3/image-to-video";
 
 // ---- Supported languages (§4.1, D09) — replaces the placeholder in ./languages.ts ----
-// Verified per language across all three chain stages (voice, alignment,
-// decomposition), not adopted from an advertised list (Decision 4; report: step 6).
+// The shipped defaults list the languages verified across all three chain
+// stages (voice, alignment, decomposition), not an advertised list (Decision 4;
+// report: step 6). Adding one in a settings file is the Administrator's
+// responsibility: the application only checks that the code is two lowercase letters.
 
-export const SUPPORTED_LANGUAGE_CODES = ["en", "es"] as const;
-export type SupportedLanguageCode = (typeof SUPPORTED_LANGUAGE_CODES)[number];
+export type SupportedLanguageCode = string;
 
-export const SUPPORTED_LANGUAGES: ReadonlyArray<{ code: SupportedLanguageCode; label: string }> = [
-  { code: "en", label: "English" },
-  { code: "es", label: "Español" },
-];
+export const SUPPORTED_LANGUAGES: ReadonlyArray<{ code: SupportedLanguageCode; label: string }> = settings.languages;
+
+export const SUPPORTED_LANGUAGE_CODES: readonly SupportedLanguageCode[] = settings.languages.map((language) => language.code);
 
 /**
  * The decomposition prompt MUST include an explicit whitespace-preservation
@@ -94,7 +110,7 @@ export const DECOMPOSITION_REQUIRES_WHITESPACE_PRESERVATION_INSTRUCTION = true;
  * intermediate values and the out-of-range boundary were not individually
  * probed.
  */
-export const VIDEO_ADMITTED_DURATION_SECONDS = { min: 5, max: 15 } as const;
+export const VIDEO_ADMITTED_DURATION_SECONDS = settings.video.admittedDurationSeconds;
 
 /**
  * §6.1's segmentation lower bound, derived from VIDEO_ADMITTED_DURATION_SECONDS.min
@@ -119,7 +135,7 @@ export const VIDEO_ADMITTED_DURATIONS_SECONDS: readonly number[] = Array.from(
   (_, offset) => VIDEO_ADMITTED_DURATION_SECONDS.min + offset,
 );
 
-export const SEGMENTATION_LOWER_BOUND_SECONDS = VIDEO_ADMITTED_DURATION_SECONDS.min;
+export const SEGMENTATION_LOWER_BOUND_SECONDS = settings.segmentation.lowerBoundSeconds;
 export const SEGMENTATION_UPPER_BOUND_SECONDS = VIDEO_ADMITTED_DURATION_SECONDS.max;
 
 /**
@@ -147,9 +163,7 @@ export const IMAGE_GENERATION_SIZE = { width: 1920, height: 1088 } as const;
 // requirement, not an assumption.
 
 export const FINAL_OUTPUT = {
-  width: 1920,
-  height: 1080,
-  fps: 30,
+  ...settings.output,
   videoCodec: "H.264",
   audioCodec: "AAC",
 } as const;
@@ -161,27 +175,52 @@ export const FINAL_OUTPUT = {
 
 export type CappedStage = "decomposition" | "image" | "voice" | "alignment" | "video";
 
-export const MAX_SIMULTANEOUS_REQUESTS: Record<CappedStage, number> = {
-  decomposition: 50, // 500 req/min (OpenAI, measured) ÷ 10 headroom factor — provisional pending group 8 latency data
-  image: 200, // 2000 (Fal.ai, measured) ÷ 10 — provisional, the rate-limit window's time unit is unconfirmed
-  voice: 3, // ElevenLabs Creator tier documents 5 concurrent requests per account, shared with alignment: 3 + 2. Documented, not measured
-  alignment: 2, // the other 2 of that account limit of 5 (see ALIGNMENT_PROVIDER.sharesAccountWith)
-  video: 3, // RunningHub: the highest concurrency measured with no slowdown (JOS-165, step 8.2)
-};
+// Shipped defaults (backend/config/settings.default.json): decomposition 50 (500 req/min, OpenAI,
+// measured, ÷ 10 headroom factor — provisional pending group 8 latency data); image 200 (2000, Fal.ai,
+// measured, ÷ 10 — provisional, the rate-limit window's time unit is unconfirmed); voice 3 and alignment 2
+// (ElevenLabs Creator tier documents 5 concurrent requests per account, shared by both: 3 + 2, documented,
+// not measured — see ALIGNMENT_PROVIDER.sharesAccountWith); video 3 (RunningHub: the highest concurrency
+// measured with no slowdown, JOS-165 step 8.2).
+export const MAX_SIMULTANEOUS_REQUESTS: Record<CappedStage, number> = settings.maxSimultaneousRequests;
 
 // ---- Per-phase maximum times (§10.1, Decision 7) ----
 // Provisional — 4-7 real samples per stage (report: step 8), enough to see
 // rough spread, not a rigorous percentile study. Revisit if real-world
 // timeout failure rates suggest these margins are wrong.
 
-export const PER_PHASE_MAX_TIME_SECONDS = {
-  decomposition: 600, // 208.6 s for 67 fragments, 75 s for 11 (2026-10-13, real script size, JOS-197); 6.41-8.47 s on a short script (JOS-165). Provisional
-  image: 25, // observed 9.22-10.79s
-  voice: 600, // 151 s for 10,217 characters, about 12.8 min of narration (2026-10-13, JOS-197); 2.20-2.47 s on a 142-character script (JOS-165). Provisional
-  alignment: 5, // observed 0.26-0.48s
-  video: 1200, // grows with the clip's length at 2K: 394 s for 7 s, 528 s for 12 s, 546 s for 13 s, over 610 s for 14 s (2026-10-14, JOS-197); 141-159 s on early samples (JOS-165). 15 s is admitted. Provisional
-  assembly: "undetermined" as const, // define-media-assembly (JOS-182) not yet archived — report: step 8, task 8.5
-} as const;
+// Shipped defaults (backend/config/settings.default.json): decomposition 600 s (208.6 s for 67 fragments,
+// 75 s for 11, 2026-10-13, real script size, JOS-197; 6.41-8.47 s on a short script, JOS-165); image 25 s
+// (observed 9.22-10.79 s); voice 600 s (151 s for 10,217 characters, about 12.8 min of narration,
+// 2026-10-13, JOS-197; 2.20-2.47 s on a 142-character script, JOS-165); alignment 5 s (observed 0.26-0.48 s);
+// video 1200 s (grows with the clip's length at 2K: 394 s for 7 s, 528 s for 12 s, 546 s for 13 s, over 610 s
+// for 14 s, 2026-10-14, JOS-197; 141-159 s on early samples, JOS-165; 15 s is admitted); assembly has none
+// (define-media-assembly, JOS-182, report: step 8, task 8.5). All provisional.
+// A setting of `null` means the stage is not timed and is exported as "undetermined", the marker
+// `retry/attemptDeadline.ts` reads as "no deadline" (spec stage-execution-time-limit).
+type PhaseStage = "decomposition" | "image" | "voice" | "alignment" | "video" | "assembly";
+
+function phaseLimit(seconds: number | null): number | "undetermined" {
+  return seconds === null ? "undetermined" : seconds;
+}
+
+export const PER_PHASE_MAX_TIME_SECONDS: Record<PhaseStage, number | "undetermined"> = {
+  decomposition: phaseLimit(settings.maxTimeSeconds.decomposition),
+  image: phaseLimit(settings.maxTimeSeconds.image),
+  voice: phaseLimit(settings.maxTimeSeconds.voice),
+  alignment: phaseLimit(settings.maxTimeSeconds.alignment),
+  video: phaseLimit(settings.maxTimeSeconds.video),
+  assembly: phaseLimit(settings.maxTimeSeconds.assembly),
+};
+
+/**
+ * A stage's timeout in milliseconds, or `undefined` when the stage is not
+ * timed. Every place that turns a maximum time into a timeout uses this, so a
+ * stage with no maximum is never given a 0 ms one (design Decision 3).
+ */
+export function phaseTimeoutMs(stage: PhaseStage): number | undefined {
+  const seconds = PER_PHASE_MAX_TIME_SECONDS[stage];
+  return seconds === "undetermined" ? undefined : seconds * 1000;
+}
 
 /** Moderation runs while the User waits (JOS-187). Provisional: observed 0.12-2.2 s (report: step 1). */
 export const MODERATION_MAX_TIME_SECONDS = 10;
@@ -199,7 +238,7 @@ export const MODERATION_MAX_TIME_SECONDS = 10;
 // floor of 0.5x and a signed ceiling of 2.0x both map to the same unsigned
 // value — 1/0.5 = 2.0 and 2.0/1 = 2.0 — so one scalar limit on the unsigned
 // factor is sufficient; no direction-aware comparison is needed.
-export const SPEED_FACTOR_LIMIT: number = 2.0;
+export const SPEED_FACTOR_LIMIT: number = settings.speedFactorLimit;
 
 // ---- Not-retryable failure signal (§10.1, Decision 5) ----
 /**

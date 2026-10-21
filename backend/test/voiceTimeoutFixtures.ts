@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createRun, getStageAttempts } from "../src/db.ts";
-import { PER_PHASE_MAX_TIME_SECONDS } from "../src/config/providers.ts";
+import { limitSeconds } from "./phaseLimit.ts";
 import { generateVoiceOver } from "../src/voiceOverPhase.ts";
 import { releaseAttempt } from "../src/retry/retryScheduler.ts";
 import { createSilentMp3, setVoiceProviderRegistry, type VoiceProvider, type VoiceSynthesisResult } from "../src/voiceProvider.ts";
@@ -11,7 +11,7 @@ import * as concurrency from "../src/concurrency.ts";
 // injected: nothing waits for real time.
 
 export const SCRIPT = "The sun rose slowly over the quiet hills. Birds began to sing.";
-export const VOICE_LIMIT_MS = PER_PHASE_MAX_TIME_SECONDS.voice * 1000;
+export const VOICE_LIMIT_MS = limitSeconds("voice") * 1000;
 // A day ahead of the real clock: the scheduler arms a real timer for each scheduled retry, and a retry due in the real past would be sent at once.
 export const T0 = new Date(Date.now() + 86_400_000);
 export const after = (ms: number): Date => new Date(T0.getTime() + ms);

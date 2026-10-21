@@ -66,7 +66,7 @@ import { admitLaunch, launchHeldWork, registerStageLauncher, relaunchPendingWork
 import { describeProvider, diagnosticStageOf, type StageDiagnostic } from "./stageDiagnostics.ts";
 import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
-import { FINAL_OUTPUT, PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
+import { FINAL_OUTPUT, phaseTimeoutMs } from "./config/providers.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
 import { downloadGeneratedImage, getImageProviderRegistry, type ImageGenerationResult } from "./imageProvider.ts";
 import {
@@ -870,11 +870,12 @@ async function pollVideoRequestOnce(
   }
 
   const elapsed = Date.now() - sentAtMs;
-  if (elapsed > PER_PHASE_MAX_TIME_SECONDS.video * 1000) {
+  const videoTimeoutMs = phaseTimeoutMs("video");
+  if (videoTimeoutMs !== undefined && elapsed > videoTimeoutMs) {
     insertProviderRequest(requestId, sceneId, elapsed, "transient_failure", attemptNumber, "video");
     markProviderRequestResolved(requestId);
     concurrency.release(VIDEO_STAGE, sceneId);
-    applyVideoFailureOutcome(sceneId, { kind: "failed_transient", reason: `the clip request exceeded the ${PER_PHASE_MAX_TIME_SECONDS.video} s phase limit` }, attemptNumber);
+    applyVideoFailureOutcome(sceneId, { kind: "failed_transient", reason: `the clip request exceeded the ${videoTimeoutMs / 1000} s phase limit` }, attemptNumber);
     broadcast(fresh.runId);
     return;
   }

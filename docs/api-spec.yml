@@ -21,6 +21,13 @@
 # file (same
 # command) whenever a route changes, rather than hand-editing it out of sync.
 #
+# JOS-174 (configure-providers-and-parameters) - 2026-10-19: no new path. The `language`
+# request field of `POST /sessions` is validated against the configured list of supported
+# languages (the `languages` setting, `docs/development_guide.md` "Settings files"); the
+# enum below is the shipped default, English and Spanish. `GET /languages` returns the
+# configured list. A structural comparison with the generated document found only this
+# description, plus the hand-written 422/503 response descriptions of JOS-187.
+#
 # JOS-156 (retry-decomposition) — 2026-10-05: regenerated; the only change is the new
 # `POST /sessions/{sessionId}/decomposition/retry` (200 `{ ok, held }`, 404, 409
 # `{ ok, reason }`; a body field answers 400 from the strict empty body).
@@ -198,7 +205,9 @@ paths:
                   enum:
                     - en
                     - es
-                  description: Immutable once the session is registered (PRD §4.1, §4.2).
+                  description: Immutable once the session is registered (PRD §4.1, §4.2). One of
+                    the configured supported languages (`GET /languages`);
+                    English and Spanish by default.
               required:
                 - title
                 - script
