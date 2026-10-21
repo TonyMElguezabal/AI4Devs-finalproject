@@ -63,4 +63,32 @@ describe("voice binding to the active provider", () => {
     expect(stubB.calls).toHaveLength(0);
     expect(new Set(getStageAttempts(runId, "voice-over").map((attempt) => attempt.providerId))).toEqual(new Set(["stub-a"]));
   });
+
+  it("AC3: an automatic retry sent after the change goes to the bound provider", async () => {
+    const stubA = createStubVoiceProvider("transient-failure");
+    const stubB = createStubVoiceProvider("success");
+    setVoiceProviderRegistry({ defaultIdentifier: "stub-a", adapters: { "stub-a": stubA, "stub-b": stubB } });
+    const runId = newRun();
+    await generateVoiceOver(runId); // attempt 1 fails transiently and attempt 2 is scheduled
+
+    setActiveProvider("voice", "stub-b");
+    await sendScheduledRetry(runId);
+
+    expect(stubA.calls).toHaveLength(2);
+    expect(stubB.calls).toHaveLength(0);
+  });
+
+  it("AC5: when the retries are exhausted the session stays failed on its provider and nothing is sent to the other one", async () => {
+    const stubB = createStubVoiceProvider("success");
+    setVoiceProviderRegistry({ defaultIdentifier: "stub-a", adapters: { "stub-a": createStubVoiceProvider("transient-failure"), "stub-b": stubB } });
+    setActiveProvider("voice", "stub-a");
+    const runId = newRun();
+    await generateVoiceOver(runId);
+    setActiveProvider("voice", "stub-b");
+    for (let attempt = 2; attempt <= 4; attempt++) await sendScheduledRetry(runId);
+
+    expect(getStageAttempts(runId, "voice-over")).toHaveLength(4);
+    expect(getRun(runId)!.voiceProviderId).toBe("stub-a");
+    expect(stubB.calls).toHaveLength(0);
+  });
 });

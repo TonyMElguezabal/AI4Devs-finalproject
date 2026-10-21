@@ -59,18 +59,18 @@
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review the tests that build registries or rely on `defaultIdentifier`: `voice-over-*`, `image-stage`, `video-stage`, `decomposition-*`, `narration-timestamps-*`, `retry-scheduler`, `restart-*`, `orchestrator`, and the server stub wiring. Update them for the new registry shape.
-- [ ] 7.2 Map every scenario in `specs/active-provider-selection/spec.md` and JOS-171 AC1–AC5 to at least one test. List the mapping in the step 8 report.
-- [ ] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 7.1 Review the tests that build registries or rely on `defaultIdentifier`: `voice-over-*`, `image-stage`, `video-stage`, `decomposition-*`, `narration-timestamps-*`, `retry-scheduler`, `restart-*`, `orchestrator`, and the server stub wiring. Update them for the new registry shape.
+- [x] 7.2 Map every scenario in `specs/active-provider-selection/spec.md` and JOS-171 AC1–AC5 to at least one test. List the mapping in the step 8 report.
+- [x] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test baseline of the default store: row counts per table (including `active_providers`), the binding columns' non-null counts, applied migrations, and `data/projects/` contents.
-- [ ] 8.2 Run the targeted tests from groups 2–6.
-- [ ] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` and no settings override in the checkout.
-- [ ] 8.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 8.5 Create the report `openspec/changes/change-active-provider-from-admin/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`.
-- [ ] 8.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 8.1 Capture the pre-test baseline of the default store: row counts per table (including `active_providers`), the binding columns' non-null counts, applied migrations, and `data/projects/` contents.
+- [x] 8.2 Run the targeted tests from groups 2–6.
+- [x] 8.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json` and no settings override in the checkout.
+- [x] 8.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 8.5 Create the report `openspec/changes/change-active-provider-from-admin/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`.
+- [x] 8.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 

@@ -57,10 +57,12 @@ describe("The API offers no operation that modifies the locked content (AC1)", (
 
   it("offers no PUT, PATCH or DELETE route at all", () => {
     // add-observability-telemetry (JOS-199): the one deliberate exception is the app-level consent setting, which
-    // touches no session content. Any other mutating route still fails here.
+    // touches no session content. change-active-provider-from-admin (JOS-171) adds the second: the Administrator's
+    // active-provider choice, an app-level setting behind the Administrator gate. Any other mutating route still fails.
     const routes = offeredRoutes()
       .split("\n")
-      .filter((line) => !line.includes("consent"))
+      // The route tree prints `admin/providers` with its `/:stage (PUT)` child on the next line.
+      .filter((line, index, lines) => !line.includes("consent") && !line.includes("admin/providers") && !(line.includes("/:stage (PUT)") && lines[index - 1]?.includes("admin/providers")))
       .join("\n");
     expect(routes).not.toMatch(/\bPUT\b/);
     expect(routes).not.toMatch(/\bPATCH\b/);
