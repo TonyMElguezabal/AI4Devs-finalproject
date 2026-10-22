@@ -1,4 +1,4 @@
-import type { AdapterTypeInfo, AppUpdate, ProfileProblem, ProfileView, ProviderStage, ProviderView, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AdapterTypeInfo, AppUpdate, FailedStageRow, ProfileProblem, ProfileView, ProviderStage, ProviderView, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -221,4 +221,32 @@ export async function deleteProviderProfile(password: string, id: string): Promi
   }
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
   return (await response.json()).result === "retired" ? { kind: "retired" } : { kind: "removed" };
+}
+
+export type FailedStagesResult = { kind: "ok"; failedStages: FailedStageRow[] } | { kind: "denied" };
+export type MoveRefusalReason = "not-found" | "not-failed" | "already-on-active" | "retry-in-progress" | "not-retryable" | "not-usable";
+export type MoveStageResult = { kind: "moved" } | { kind: "denied" } | { kind: "refused"; reason: MoveRefusalReason };
+
+/** move-failed-stage-to-active-provider (JOS-172): `GET /admin/failed-stages`. A 401 is `denied`; any other failure rejects. */
+export async function getFailedStages(password: string): Promise<FailedStagesResult> {
+  const response = await adminFetch("/admin/failed-stages", password);
+  if (response.status === 401) return { kind: "denied" };
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "ok", failedStages: (await response.json()).failedStages as FailedStageRow[] };
+}
+
+/** `POST /admin/failed-stages/to-active-provider`: moved, a 401 (`denied`), or a refusal with its reason. */
+export async function moveFailedStage(password: string, row: Pick<FailedStageRow, "sessionId" | "stage" | "sceneId">): Promise<MoveStageResult> {
+  const response = await adminFetch("/admin/failed-stages/to-active-provider", password, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ sessionId: row.sessionId, stage: row.stage, ...(row.sceneId ? { sceneId: row.sceneId } : {}) }),
+  });
+  if (response.status === 401) return { kind: "denied" };
+  if (response.status === 404 || response.status === 409) {
+    const body = await response.json().catch(() => ({}));
+    return { kind: "refused", reason: (body.reason as MoveRefusalReason) ?? "not-found" };
+  }
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "moved" };
 }

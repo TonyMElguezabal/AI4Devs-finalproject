@@ -57,12 +57,12 @@
 
 ## 7. Frontend: the "Failed stages" section on /admin (TDD; design Decision 7)
 
-- [ ] 7.1 Write failing component tests:
+- [x] 7.1 Write failing component tests:
   - the list with the session title, the stage and scene, both providers' labels, the cause and the move button named `Move {stage} of {session} to {active}` (with the scene);
   - the empty state text;
   - a move sends the `POST`, shows "Moved. Retry it from the session page." with a link to the session, and reloads the list;
   - a 409 shows its reason in words and reloads; a 401 locks the page again.
-- [ ] 7.2 Add the client calls and the section inside the `/admin` tools. Make 7.1 pass.
+- [x] 7.2 Add the client calls and the section inside the `/admin` tools. Make 7.1 pass.
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
