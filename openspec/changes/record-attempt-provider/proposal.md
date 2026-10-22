@@ -1,3 +1,5 @@
+Linear-Issue: JOS-222
+
 ## Why
 
 An image or clip attempt (`provider_requests` row) does not say which provider it ran on; the only source is the scene's current binding (`scenes.provider`, `scenes.video_provider`). Since JOS-172 can move a failed stage to another provider, the earlier attempts are then attributed to the new provider. The JOS-175 scratch-store check found eight failed clip attempts counted for the provider the scene was moved to. The per-provider reports (JOS-223 usage, JOS-224 failures) need the provider on the attempt itself to be exact (JOS-222, ADR 0008, follow-up F1).
