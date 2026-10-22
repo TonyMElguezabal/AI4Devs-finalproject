@@ -84,14 +84,14 @@
 
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Start the real server on a scratch store, scratch projects folder and scratch `PROVIDER_KEY_PATH`, with two stub adapters per stage registered through the test seams, and `ALLOW_TEST_ENDPOINTS=1`. Start it once on an **old-shaped** store (migrated up to 18, with sessions bound to `Fal.ai` and `ElevenLabs`) to prove the upgrade.
-- [ ] 10.2 Upgrade check: after the first start the five seeded profiles exist with the stored ids, no key is stored, and a retry of an old session is sent through `Fal.ai` using the key from the environment.
-- [ ] 10.3 Call every new route without Administrator access: 401 and the store is unchanged.
-- [ ] 10.4 With Administrator access: add an image profile with a key; the list shows `keyStatus: "stored"` and the hint, and the key appears nowhere in the response, the SQLite file (`strings`) or the server log; edit its model; choose it as active; a new session's scenes are bound to it and their requests carry its model and key.
-- [ ] 10.5 Delete: the active profile is refused with 409; a profile with bound scenes is retired and still serves a manual retry; an unused one is removed.
-- [ ] 10.6 Duration rule: switch the active video profile to one that does not admit a scene's stored duration; the scene fails before binding with the message; switch back and retry.
-- [ ] 10.7 Restart: profiles, keys and the choice hold.
-- [ ] 10.8 Delete the created sessions, profiles, key file and the scratch store and folder. Confirm the default store is untouched. Save `openspec/changes/manage-providers-from-admin/reports/YYYY-MM-DD-step-10-manual-endpoint-testing.md`.
+- [x] 10.1 Start the real server on a scratch store, scratch projects folder and scratch `PROVIDER_KEY_PATH`, with two stub adapters per stage registered through the test seams, and `ALLOW_TEST_ENDPOINTS=1`. Start it once on an **old-shaped** store (migrated up to 18, with sessions bound to `Fal.ai` and `ElevenLabs`) to prove the upgrade.
+- [x] 10.2 Upgrade check: after the first start the five seeded profiles exist with the stored ids, no key is stored, and a retry of an old session is sent through `Fal.ai` using the key from the environment.
+- [x] 10.3 Call every new route without Administrator access: 401 and the store is unchanged.
+- [x] 10.4 With Administrator access: add an image profile with a key; the list shows `keyStatus: "stored"` and the hint, and the key appears nowhere in the response, the SQLite file (`strings`) or the server log; edit its model; choose it as active; a new session's scenes are bound to it and their requests carry its model and key.
+- [x] 10.5 Delete: the active profile is refused with 409; a profile with bound scenes is retired and still serves a manual retry; an unused one is removed.
+- [x] 10.6 Duration rule: switch the active video profile to one that does not admit a scene's stored duration; the scene fails before binding with the message; switch back and retry.
+- [x] 10.7 Restart: profiles, keys and the choice hold.
+- [x] 10.8 Delete the created sessions, profiles, key file and the scratch store and folder. Confirm the default store is untouched. Save `openspec/changes/manage-providers-from-admin/reports/YYYY-MM-DD-step-10-manual-endpoint-testing.md`.
 
 ## 11. E2E Testing with the browser (MANDATORY if applicable - AGENT MUST EXECUTE)
 
