@@ -1,9 +1,12 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { selectableProviders } from "../src/activeProvider.ts";
 import { resetAll } from "../src/db.ts";
 import { resetAlignmentProviderRegistry, resetReasoningProviderRegistry, getAlignmentProviderRegistry, getReasoningProviderRegistry, setDecompositionDependencies, resetDecompositionDependencies } from "../src/decompositionDependencies.ts";
 import { getImageProviderRegistry, resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
-import { storeProfileKey } from "../src/keyStore.ts";
+import { resetKeyStoreCache, storeProfileKey } from "../src/keyStore.ts";
 import { insertProfile, removeProfile, retireProfile, seedProviderProfiles, updateProfile } from "../src/providerProfiles.ts";
 import { SETTINGS } from "../src/config/providers.ts";
 import { getVideoProviderRegistry, resetVideoProviderRegistry } from "../src/videoProvider.ts";
@@ -15,12 +18,16 @@ import { LEGACY_IMAGE_PROVIDER_IDENTIFIER, LEGACY_VIDEO_PROVIDER_IDENTIFIER } fr
 
 const NOW = "2099-01-01T00:00:00.000Z"; // after the seeded profiles, so the listing order is the creation order
 let fetchedUrls: string[];
+let keyFolder: string;
 
 beforeEach(() => {
   resetVoiceProviderRegistry(); // test/setup.ts installs a stub for every test
   resetAll();
   seedProviderProfiles(SETTINGS);
   fetchedUrls = [];
+  keyFolder = mkdtempSync(join(tmpdir(), "vid4you-registry-keys-"));
+  process.env.PROVIDER_KEY_PATH = join(keyFolder, "provider-keys.key");
+  resetKeyStoreCache();
   vi.stubGlobal("fetch", async (url: string | URL | Request) => {
     fetchedUrls.push(String(url));
     return new Response("{}", { status: 500 });
@@ -29,6 +36,9 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  rmSync(keyFolder, { recursive: true, force: true });
+  delete process.env.PROVIDER_KEY_PATH;
+  resetKeyStoreCache();
   resetImageProviderRegistry();
   resetVideoProviderRegistry();
   resetVoiceProviderRegistry();
@@ -101,6 +111,18 @@ describe("the registries built from the profiles", () => {
     expect(getImageProviderRegistry().defaultIdentifier).toBe("stub");
     resetImageProviderRegistry();
     expect(getImageProviderRegistry().defaultIdentifier).toBe("Fal.ai");
+  });
+});
+
+describe("an upgraded store", () => {
+  it("resolves the stored bindings through the profiles the first start creates (no profile existed before)", () => {
+    resetAll(); // a database from before this change: sessions and scenes exist, the provider_profiles table is empty
+    expect(Object.keys(getImageProviderRegistry().adapters)).toContain("Fal.ai");
+    expect(Object.keys(getImageProviderRegistry().adapters)).toContain(LEGACY_IMAGE_PROVIDER_IDENTIFIER);
+    expect(Object.keys(getVideoProviderRegistry().adapters)).toContain("RunningHub");
+    expect(Object.keys(getVoiceProviderRegistry().adapters)).toContain("ElevenLabs");
+    expect(Object.keys(getReasoningProviderRegistry().adapters)).toContain("openai-decomposition");
+    expect(Object.keys(getAlignmentProviderRegistry().adapters)).toContain("elevenlabs-forced-alignment");
   });
 });
 

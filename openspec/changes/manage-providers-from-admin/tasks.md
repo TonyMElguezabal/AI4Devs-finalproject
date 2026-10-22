@@ -69,18 +69,18 @@
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 8.1 Review the tests that build registries, use the start-up constants or load vendor keys: `*-provider*`, `image-stage`, `video-stage`, `voice-over-*`, `decomposition-*`, `script-segmentation`, `clip-duration-*`, `scene-registration-*`, `script-moderation*`, `stage-diagnostics*`, `provider-config*`, `credentials*`, the `active-provider-*` tests and the server stub wiring. Update them for the new factory signatures and for `activeVideoDurations()`.
-- [ ] 8.2 Map every scenario in `specs/provider-profiles/spec.md`, `specs/provider-credentials/spec.md` and `specs/provider-and-parameter-settings/spec.md` and JOS-218 AC1–AC9 to at least one test. List the mapping in the step 9 report.
-- [ ] 8.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 8.1 Review the tests that build registries, use the start-up constants or load vendor keys: `*-provider*`, `image-stage`, `video-stage`, `voice-over-*`, `decomposition-*`, `script-segmentation`, `clip-duration-*`, `scene-registration-*`, `script-moderation*`, `stage-diagnostics*`, `provider-config*`, `credentials*`, the `active-provider-*` tests and the server stub wiring. Update them for the new factory signatures and for `activeVideoDurations()`.
+- [x] 8.2 Map every scenario in `specs/provider-profiles/spec.md`, `specs/provider-credentials/spec.md` and `specs/provider-and-parameter-settings/spec.md` and JOS-218 AC1–AC9 to at least one test. List the mapping in the step 9 report.
+- [x] 8.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
 ## 9. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 9.1 Capture the pre-test baseline of the default store: row counts per table (including `provider_profiles` and `active_providers`), applied migrations, the master key file's presence, and `data/projects/` contents.
-- [ ] 9.2 Run the targeted tests from groups 2–7.
-- [ ] 9.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json`, no settings override and no vendor key in the environment.
-- [ ] 9.4 Verify the post-test state matches the baseline (no `provider-keys.key` left in the checkout); restore it if not.
-- [ ] 9.5 Create the report `openspec/changes/manage-providers-from-admin/reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`.
-- [ ] 9.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 9.1 Capture the pre-test baseline of the default store: row counts per table (including `provider_profiles` and `active_providers`), applied migrations, the master key file's presence, and `data/projects/` contents.
+- [x] 9.2 Run the targeted tests from groups 2–7.
+- [x] 9.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json`, no settings override and no vendor key in the environment.
+- [x] 9.4 Verify the post-test state matches the baseline (no `provider-keys.key` left in the checkout); restore it if not.
+- [x] 9.5 Create the report `openspec/changes/manage-providers-from-admin/reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`.
+- [x] 9.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
