@@ -1,6 +1,6 @@
 # PRD addendum draft — manage providers, their parameters and their API keys from /admin (JOS-218)
 
-**Status: awaiting the product owner's approval.** This text becomes `docs/PRD.md` v1.14 at task 12.1 (the previous version is kept as `docs/PRD-v1.13.md`). The status line and change-log entry of v1.14 say "awaiting the product owner's approval", and the change must not be merged before the approval is recorded.
+**Status: approved by the product owner, 2026-10-22.** This text becomes `docs/PRD.md` v1.14 at task 12.1 (the previous version is kept as `docs/PRD-v1.13.md`). The status line and change-log entry of v1.14 say "awaiting the product owner's approval", and the change must not be merged before the approval is recorded.
 
 **Version numbering.** v1.11 (JOS-173), v1.12 (JOS-174) and v1.13 (JOS-171) are merged. This change is v1.14.
 
