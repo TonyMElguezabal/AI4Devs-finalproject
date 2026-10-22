@@ -66,18 +66,18 @@
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 8.1 Review the tests that rely on a retry copying the latest attempt's provider, on the locked columns or on the `/admin` route list: `retry-*`, `decomposition-*`, `voice-over-*`, `clip-duration-*`, `speed-factor-*`, `scene-registration-*`, `content-lock`, `session-api-surface`, the `admin-*` route tests. Update them where the new behaviour requires it.
-- [ ] 8.2 Map every scenario in `specs/failed-stage-move/spec.md`, the two modified specs and JOS-172 AC1–AC5 to at least one test. List the mapping in the step 9 report.
-- [ ] 8.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 8.1 Review the tests that rely on a retry copying the latest attempt's provider, on the locked columns or on the `/admin` route list: `retry-*`, `decomposition-*`, `voice-over-*`, `clip-duration-*`, `speed-factor-*`, `scene-registration-*`, `content-lock`, `session-api-surface`, the `admin-*` route tests. Update them where the new behaviour requires it.
+- [x] 8.2 Map every scenario in `specs/failed-stage-move/spec.md`, the two modified specs and JOS-172 AC1–AC5 to at least one test. List the mapping in the step 9 report.
+- [x] 8.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
 ## 9. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 9.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations and `data/projects/` contents.
-- [ ] 9.2 Run the targeted tests from groups 2–7.
-- [ ] 9.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json`, no settings override and no vendor key in the environment, and a scratch `DB_PATH`, `PROJECTS_ROOT` and `PROVIDER_KEY_PATH`.
-- [ ] 9.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 9.5 Create the report `openspec/changes/move-failed-stage-to-active-provider/reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`.
-- [ ] 9.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 9.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations and `data/projects/` contents.
+- [x] 9.2 Run the targeted tests from groups 2–7.
+- [x] 9.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json`, no settings override and no vendor key in the environment, and a scratch `DB_PATH`, `PROJECTS_ROOT` and `PROVIDER_KEY_PATH`.
+- [x] 9.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 9.5 Create the report `openspec/changes/move-failed-stage-to-active-provider/reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`.
+- [x] 9.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
