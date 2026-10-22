@@ -5,9 +5,9 @@
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm JOS-171 and JOS-218 (PR #88) are on `origin/main`, and rebase or merge `origin/main` into this branch. If either is missing, stop.
-- [ ] 1.2 Confirm the base still matches design.md § Context: where each binding lives, that `startNewCycle` copies the latest attempt's provider, how a failed scene's stage is told apart, the four lock triggers and their DDL constants, and `activeVideoDurations()`. Update design.md first if anything differs.
-- [ ] 1.3 Draft the next PRD version (v1.15: §11.2, §2.1, §2.3, §16, plus the exception to "a chunk's requested duration and speed factor never change") and mark it as awaiting the product owner's approval, before any code.
+- [x] 1.1 `git fetch`. Confirm JOS-171 and JOS-218 (PR #88) are on `origin/main`, and rebase or merge `origin/main` into this branch. If either is missing, stop.
+- [x] 1.2 Confirm the base still matches design.md § Context: where each binding lives, that `startNewCycle` copies the latest attempt's provider, how a failed scene's stage is told apart, the four lock triggers and their DDL constants, and `activeVideoDurations()`. Update design.md first if anything differs.
+- [x] 1.3 Draft the next PRD version (v1.15: §11.2, §2.1, §2.3, §16, plus the exception to "a chunk's requested duration and speed factor never change") and mark it as awaiting the product owner's approval, before any code.
 
 ## 2. Backend: the retry takes the stage's binding (TDD; design Decision 5)
 
