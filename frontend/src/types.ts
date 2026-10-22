@@ -164,3 +164,38 @@ export interface ProviderView {
   /** A stored choice this build no longer ships; the settings default is active meanwhile. */
   orphanedChoice: string | null;
 }
+
+/** manage-providers-from-admin (JOS-218) — the provider profiles `/admin` manages. */
+export interface ParameterFieldInfo {
+  path: string[];
+  label: string;
+  kind: "text" | "number" | "choice";
+  required: boolean;
+  help?: string;
+  choices?: string[];
+  /** A text field whose value is a number when it parses as one (the voice speed). */
+  acceptsNumber?: boolean;
+}
+export interface AdapterTypeInfo {
+  id: string;
+  stage: ProviderStage;
+  label: string;
+  fields: ParameterFieldInfo[];
+}
+export interface ProfileProblem {
+  field: string;
+  message: string;
+}
+export interface ProfileView {
+  id: string;
+  stage: ProviderStage;
+  adapterType: string;
+  label: string;
+  parameters: Record<string, unknown>;
+  keyStatus: "stored" | "environment" | "missing";
+  keyHint: string | null;
+  usable: boolean;
+  problems: ProfileProblem[];
+  active: boolean;
+  retired: boolean;
+}

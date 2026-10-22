@@ -58,14 +58,14 @@
 
 ## 7. Frontend: the "Providers" section on /admin (TDD; design Decision 10)
 
-- [ ] 7.1 Write failing component tests:
+- [x] 7.1 Write failing component tests:
   - per stage, the profiles with label, adapter type, key status with hint, and the reason when a profile is not usable;
   - the "Add provider" form is generated from the adapter type's field descriptors, its key field is a password input that starts empty, and a 400 shows every listed problem and keeps the input;
   - the edit form shows the current parameters, an empty key field, and an empty key keeps the key;
   - delete asks for confirmation inside the page, explains a `retired` answer, and shows the 409 stage message;
   - a 401 locks the page again;
   - the active-provider selectors of JOS-171 offer the non-retired profiles.
-- [ ] 7.2 Add the client calls and the section inside the `/admin` page. Make 7.1 pass.
+- [x] 7.2 Add the client calls and the section inside the `/admin` page. Make 7.1 pass.
 
 ## 8. Review and Update Existing Unit Tests (MANDATORY)
 

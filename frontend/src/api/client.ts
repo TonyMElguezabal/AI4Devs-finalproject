@@ -1,4 +1,4 @@
-import type { AppUpdate, ProviderStage, ProviderView, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AdapterTypeInfo, AppUpdate, ProfileProblem, ProfileView, ProviderStage, ProviderView, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -164,4 +164,61 @@ export async function putAdminProvider(password: string, stage: ProviderStage, p
   }
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
   return { kind: "ok", view: (await response.json()) as ProviderView };
+}
+
+export type ProfilesResult = { kind: "ok"; types: AdapterTypeInfo[]; profiles: ProfileView[] } | { kind: "denied" };
+export type ProfileWriteResult =
+  | { kind: "ok" }
+  | { kind: "denied" }
+  | { kind: "invalid"; problems: ProfileProblem[] }
+  | { kind: "not-found" }
+  | { kind: "active"; stage: ProviderStage };
+export type ProfileDeleteResult = { kind: "removed" } | { kind: "retired" } | Exclude<ProfileWriteResult, { kind: "ok" } | { kind: "invalid" }>;
+
+/** manage-providers-from-admin (JOS-218): the adapter types and the profiles. A 401 is `denied`; any other failure rejects. */
+export async function getProviderProfiles(password: string): Promise<ProfilesResult> {
+  const [types, profiles] = await Promise.all([adminFetch("/admin/provider-types", password), adminFetch("/admin/provider-profiles", password)]);
+  if (types.status === 401 || profiles.status === 401) return { kind: "denied" };
+  if (!types.ok || !profiles.ok) throw new Error(`request failed with ${types.ok ? profiles.status : types.status}`);
+  return { kind: "ok", types: (await types.json()).types as AdapterTypeInfo[], profiles: (await profiles.json()).profiles as ProfileView[] };
+}
+
+async function writeProfile(response: Response): Promise<ProfileWriteResult> {
+  if (response.status === 401) return { kind: "denied" };
+  if (response.status === 404) return { kind: "not-found" };
+  if (response.status === 400) {
+    const body = await response.json().catch(() => ({}));
+    return { kind: "invalid", problems: Array.isArray(body.problems) ? body.problems : [{ field: "", message: String(body.message ?? "the request is not valid") }] };
+  }
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "ok" };
+}
+
+export interface ProfileInput {
+  label: string;
+  parameters: Record<string, unknown>;
+  /** Left out to keep the key a profile already has. */
+  apiKey?: string;
+}
+
+const JSON_HEADERS = { "Content-Type": "application/json" };
+
+export async function createProviderProfile(password: string, input: ProfileInput & { stage: ProviderStage; adapterType: string }): Promise<ProfileWriteResult> {
+  return writeProfile(await adminFetch("/admin/provider-profiles", password, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(input) }));
+}
+
+export async function editProviderProfile(password: string, id: string, input: ProfileInput): Promise<ProfileWriteResult> {
+  return writeProfile(await adminFetch(`/admin/provider-profiles/${encodeURIComponent(id)}`, password, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify(input) }));
+}
+
+export async function deleteProviderProfile(password: string, id: string): Promise<ProfileDeleteResult> {
+  const response = await adminFetch(`/admin/provider-profiles/${encodeURIComponent(id)}`, password, { method: "DELETE" });
+  if (response.status === 401) return { kind: "denied" };
+  if (response.status === 404) return { kind: "not-found" };
+  if (response.status === 409) {
+    const body = await response.json().catch(() => ({}));
+    return { kind: "active", stage: body.stage as ProviderStage };
+  }
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return (await response.json()).result === "retired" ? { kind: "retired" } : { kind: "removed" };
 }

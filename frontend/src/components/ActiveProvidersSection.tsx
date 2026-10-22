@@ -14,6 +14,8 @@ interface Props {
   password: string;
   /** An Administrator request was refused with 401: the page locks again. */
   onDenied: () => void;
+  /** Changes when a provider was added, edited or deleted, so the selectors reload their options (JOS-218). */
+  refreshKey?: number;
 }
 
 /**
@@ -22,7 +24,7 @@ interface Props {
  * stage that is not yet bound; running stages keep their provider (PRD §11.2). The Administrator is the only
  * writer, so there is no live update.
  */
-export function ActiveProvidersSection({ password, onDenied }: Props) {
+export function ActiveProvidersSection({ password, onDenied, refreshKey = 0 }: Props) {
   const [views, setViews] = useState<ProviderView[] | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [busyStage, setBusyStage] = useState<ProviderStage | undefined>(undefined);
@@ -42,7 +44,7 @@ export function ActiveProvidersSection({ password, onDenied }: Props) {
       cancelled = true;
     };
     // The password and the lock callback do not change while the section is shown.
-  }, []);
+  }, [refreshKey]);
 
   async function handleChange(stage: ProviderStage, providerId: string) {
     setError(undefined);

@@ -4,7 +4,7 @@ import { SessionPage } from "./components/SessionPage";
 import { TopBar } from "./components/TopBar";
 import { TelemetryConsentDialog } from "./components/TelemetryConsentDialog";
 import { UpdateBanner } from "./components/UpdateBanner";
-import { ActiveProvidersSection } from "./components/ActiveProvidersSection";
+import { AdminTools } from "./components/AdminTools";
 import { AdminPage } from "./components/AdminPage";
 import type { TelemetryConsent } from "./types";
 import { useLiveSession } from "./api/useLiveSession";
@@ -45,7 +45,7 @@ export default function App() {
       <>
         <TopBar />
         <main className="app-main">
-          <AdminPage tools={(context) => <ActiveProvidersSection {...context} />} />
+          <AdminPage tools={(context) => <AdminTools {...context} />} />
         </main>
       </>
     );

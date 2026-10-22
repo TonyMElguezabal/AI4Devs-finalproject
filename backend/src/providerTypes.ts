@@ -57,6 +57,8 @@ export type ParameterField = {
   help?: string;
   /** For a `choice` field, the accepted values; a number field may also accept them as text (the voice speed). */
   choices?: string[];
+  /** A text field whose value is a number when it parses as one (the voice speed is `default` or a number). */
+  acceptsNumber?: boolean;
 };
 
 export interface AdapterType {
@@ -82,7 +84,7 @@ export const ADAPTER_TYPES: AdapterType[] = [
       { path: ["voiceId"], label: "Voice id", kind: "text", required: true },
       { path: ["voiceName"], label: "Voice name", kind: "text", required: true, help: "Shown in the interface only." },
       { path: ["outputFormat"], label: "Output format", kind: "text", required: true, help: "For example mp3_44100_128." },
-      { path: ["speed"], label: "Speed", kind: "text", required: true, help: 'Write default, or a number from 0.7 to 1.2.' },
+      { path: ["speed"], label: "Speed", kind: "text", required: true, acceptsNumber: true, help: "Write default, or a number from 0.7 to 1.2." },
     ],
   },
   {

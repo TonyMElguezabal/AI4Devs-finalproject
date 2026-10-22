@@ -35,6 +35,7 @@ const fieldSchema = z.object({
   required: z.boolean(),
   help: z.string().optional(),
   choices: z.array(z.string()).optional(),
+  acceptsNumber: z.boolean().optional(),
 });
 
 export function registerProviderProfileRoutes(admin: FastifyInstance): void {

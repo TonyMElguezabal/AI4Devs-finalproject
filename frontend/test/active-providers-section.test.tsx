@@ -120,4 +120,16 @@ describe("ActiveProvidersSection", () => {
     await waitFor(() => expect(onDenied).toHaveBeenCalledTimes(1));
     expect(screen.getByRole("combobox", { name: "Video provider" })).toHaveValue("video-default");
   });
+
+  it("reloads the selectors when a provider was added, edited or deleted (refreshKey changes)", async () => {
+    const calls = stubBackend();
+    const { rerender } = render(<ActiveProvidersSection password={PASSWORD} onDenied={() => undefined} refreshKey={0} />);
+    await screen.findByRole("region", { name: "Active providers" });
+    const loads = () => calls.filter((call) => call.url === `${API_BASE}/admin/providers`).length;
+    expect(loads()).toBe(1);
+
+    rerender(<ActiveProvidersSection password={PASSWORD} onDenied={() => undefined} refreshKey={1} />);
+
+    await waitFor(() => expect(loads()).toBe(2));
+  });
 });
