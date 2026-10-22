@@ -143,6 +143,11 @@
 # or 409 `{ reason: active, stage }`). `PUT /admin/providers/{stage}` (JOS-171) also answers 409 `not-usable` with the problems. No
 # response carries an API key. The routes are behind the Administrator password; PUT, POST and DELETE are allowed here because
 # providers are app-level settings, not session content (content lock, AC1).
+# JOS-172 (move-failed-stage-to-active-provider) - 2026-10-22: new `GET /admin/failed-stages` (the failed stages bound to a provider other than
+# the active one: `sessionId`, `sessionTitle`, `stage`, `sceneId`, `sceneNumber`, both providers' ids and labels, `cause`) and
+# `POST /admin/failed-stages/to-active-provider` (body `{ sessionId, stage, sceneId? }`; 200 `{ moved }`, with the new requested
+# duration for a clip; 400 validation; 401; 404 `not-found`; 409 `not-failed`, `already-on-active`, `retry-in-progress`,
+# `not-retryable` or `not-usable`). Both are behind the Administrator password. The move binds the stage and sends nothing.
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -3264,4 +3269,237 @@ paths:
                   - ok
                   - reason
                   - stage
+                additionalProperties: false
+  /admin/failed-stages:
+    get:
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  failedStages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        sessionId:
+                          type: string
+                        sessionTitle:
+                          type: string
+                        stage:
+                          type: string
+                          enum:
+                            - reasoning
+                            - voice
+                            - alignment
+                            - image
+                            - video
+                        sceneId:
+                          type: string
+                          nullable: true
+                        sceneNumber:
+                          type: number
+                          nullable: true
+                        boundProviderId:
+                          type: string
+                        boundProviderLabel:
+                          type: string
+                        activeProviderId:
+                          type: string
+                        activeProviderLabel:
+                          type: string
+                        cause:
+                          type: string
+                      required:
+                        - sessionId
+                        - sessionTitle
+                        - stage
+                        - sceneId
+                        - sceneNumber
+                        - boundProviderId
+                        - boundProviderLabel
+                        - activeProviderId
+                        - activeProviderLabel
+                        - cause
+                      additionalProperties: false
+                required:
+                  - failedStages
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /admin/failed-stages/to-active-provider:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                  minLength: 1
+                stage:
+                  type: string
+                  enum:
+                    - reasoning
+                    - voice
+                    - alignment
+                    - image
+                    - video
+                sceneId:
+                  type: string
+                  minLength: 1
+              required:
+                - sessionId
+                - stage
+              additionalProperties: false
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  moved:
+                    type: object
+                    properties:
+                      sessionId:
+                        type: string
+                      stage:
+                        type: string
+                        enum:
+                          - reasoning
+                          - voice
+                          - alignment
+                          - image
+                          - video
+                      sceneId:
+                        type: string
+                        nullable: true
+                      providerId:
+                        type: string
+                      providerLabel:
+                        type: string
+                      requestedDurationSeconds:
+                        type: number
+                        nullable: true
+                    required:
+                      - sessionId
+                      - stage
+                      - sceneId
+                      - providerId
+                      - providerLabel
+                      - requestedDurationSeconds
+                    additionalProperties: false
+                required:
+                  - moved
+                additionalProperties: false
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: number
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - statusCode
+                  - error
+                  - message
+                additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-found
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-failed
+                      - already-on-active
+                      - retry-in-progress
+                      - not-retryable
+                      - not-usable
+                required:
+                  - ok
+                  - reason
                 additionalProperties: false

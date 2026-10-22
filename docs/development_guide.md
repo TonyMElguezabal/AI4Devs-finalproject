@@ -159,6 +159,16 @@ On `/admin` (behind the Administrator password) the Administrator manages the pr
 
 To try the switch locally or write a test, register stub adapters through the registry seams (`setVoiceProviderRegistry`, `setImageProviderRegistry`, `setVideoProviderRegistry`, `setReasoningProviderRegistry`, `setAlignmentProviderRegistry`; reasoning and alignment fall back to `setDecompositionDependencies` for their default adapter) and reset them with the matching `reset…` function; or add profiles with `insertProfile` and let the default registries build from them. Tests that store a key set `PROVIDER_KEY_PATH` to a temporary folder. `backend/test/active-provider-binding-*.test.ts` and `backend/test/provider-registries.test.ts` show both patterns.
 
+### Unblocking a session whose provider is down
+
+When a stage failed on a provider that stays unavailable, the Administrator moves it on `/admin`:
+
+1. Make a working provider the active one for that stage ("Active providers"), after adding it and its key under "Providers" if needed.
+2. Open "Failed stages": it lists every failed stage that is bound to a provider other than the active one, with its cause. Click "Move … to {provider}". The move only binds the stage to the active provider; nothing is sent and nothing is regenerated.
+3. Open the session (the link after the move) and retry the stage with its usual button ("Retry voice-over", "Retry decomposition", "Retry scene"). The retry goes to the new provider.
+
+A moved clip chooses its requested duration again from the new provider's admitted durations, so its speed factor and warning can change; its narration interval does not. A failure that offers no manual retry is not listed, and a stage already on the active provider is not listed. Nothing moves by itself.
+
 ### Development-only switches
 
 These exist for manual endpoint testing and **must never be set in UAT or production**. The backend treats any non-empty value, including `false` and `0`, as enabled, so leave them unset.
