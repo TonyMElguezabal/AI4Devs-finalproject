@@ -11,6 +11,8 @@ interface Props {
   onDenied: () => void;
   /** A profile was added, edited or deleted: the active-provider selectors must reload. */
   onChanged: () => void;
+  /** Changes when the active provider of a stage was changed, so the list shows which provider is active. */
+  refreshKey?: number;
 }
 
 type FormState = { kind: "add"; stage: ProviderStage } | { kind: "edit"; profile: ProfileView };
@@ -46,7 +48,7 @@ function keyText(profile: ProfileView): string {
  * the forms to add, edit and delete one. The key field is never pre-filled and an empty one keeps the current key; the
  * API never returns a key, so there is nothing to show but its status and its last four characters.
  */
-export function ProviderProfilesSection({ password, onDenied, onChanged }: Props) {
+export function ProviderProfilesSection({ password, onDenied, onChanged, refreshKey = 0 }: Props) {
   const [types, setTypes] = useState<AdapterTypeInfo[]>([]);
   const [profiles, setProfiles] = useState<ProfileView[] | undefined>(undefined);
   const [form, setForm] = useState<FormState | undefined>(undefined);
@@ -70,7 +72,7 @@ export function ProviderProfilesSection({ password, onDenied, onChanged }: Props
   useEffect(() => {
     void load();
     // The password and the lock callback do not change while the section is shown.
-  }, []);
+  }, [refreshKey]);
 
   async function handleDelete(profile: ProfileView) {
     setError(undefined);

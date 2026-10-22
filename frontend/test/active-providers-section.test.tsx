@@ -86,12 +86,14 @@ describe("ActiveProvidersSection", () => {
 
   it("sends the PUT when a select changes and shows the returned view", async () => {
     const calls = stubBackend();
+    const onChanged = vi.fn();
     const user = userEvent.setup();
-    render(<ActiveProvidersSection password={PASSWORD} onDenied={() => undefined} />);
+    render(<ActiveProvidersSection password={PASSWORD} onDenied={() => undefined} onChanged={onChanged} />);
 
     await user.selectOptions(await screen.findByRole("combobox", { name: "Video provider" }), "stub-b");
 
     await waitFor(() => expect(screen.getByRole("combobox", { name: "Video provider" })).toHaveValue("stub-b"));
+    expect(onChanged).toHaveBeenCalledTimes(1);
     const put = calls.find((call) => call.init?.method === "PUT")!;
     expect(put.url).toBe(`${API_BASE}/admin/providers/video`);
     expect(JSON.parse(String(put.init!.body))).toEqual({ providerId: "stub-b" });

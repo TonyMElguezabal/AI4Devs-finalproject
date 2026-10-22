@@ -95,12 +95,12 @@
 
 ## 11. E2E Testing with the browser (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 11.1 Applicability: a new `/admin` section, so this step applies.
-- [ ] 11.2 Run the backend (scratch store and key file, two stub adapters per stage) and the frontend. Without the password: no provider management. With it: the profiles of every stage with their key status.
-- [ ] 11.3 Add a provider through the form (adapter type, name, parameters, key); the key field is empty again after saving and shows only status and hint; edit a parameter and keep the key by leaving the field empty; choose it as active; reload: everything persists.
-- [ ] 11.4 Delete the active provider (refused with the stage named), delete one with work bound to it (explained as retired), delete an unused one.
-- [ ] 11.5 Start a session and confirm in its scene diagnostics the new provider's display name.
-- [ ] 11.6 Restore the environment and save `openspec/changes/manage-providers-from-admin/reports/YYYY-MM-DD-step-11-e2e.md`.
+- [x] 11.1 Applicability: a new `/admin` section, so this step applies.
+- [x] 11.2 Run the backend (scratch store and key file, two stub adapters per stage) and the frontend. Without the password: no provider management. With it: the profiles of every stage with their key status.
+- [x] 11.3 Add a provider through the form (adapter type, name, parameters, key); the key field is empty again after saving and shows only status and hint; edit a parameter and keep the key by leaving the field empty; choose it as active; reload: everything persists.
+- [x] 11.4 Delete the active provider (refused with the stage named), delete one with work bound to it (explained as retired), delete an unused one.
+- [x] 11.5 Start a session and confirm in its scene diagnostics the new provider's display name.
+- [x] 11.6 Restore the environment and save `openspec/changes/manage-providers-from-admin/reports/YYYY-MM-DD-step-11-e2e.md`.
 
 ## 12. Update Technical Documentation (MANDATORY)
 

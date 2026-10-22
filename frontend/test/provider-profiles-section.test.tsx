@@ -106,6 +106,16 @@ describe("ProviderProfilesSection", () => {
     await section();
   });
 
+  it("reloads the list when the active provider changed (refreshKey changes)", async () => {
+    const calls = stubBackend();
+    const { rerender } = render(<ProviderProfilesSection password={PASSWORD} onDenied={() => undefined} onChanged={() => undefined} refreshKey={0} />);
+    await section();
+    const loads = () => calls.filter((call) => call.url === `${API_BASE}/admin/provider-profiles` && call.method === "GET").length;
+    expect(loads()).toBe(1);
+    rerender(<ProviderProfilesSection password={PASSWORD} onDenied={() => undefined} onChanged={() => undefined} refreshKey={1} />);
+    await waitFor(() => expect(loads()).toBe(2));
+  });
+
   it("sends the password with every request", async () => {
     const calls = stubBackend();
     render(<ProviderProfilesSection password={PASSWORD} onDenied={() => undefined} onChanged={() => undefined} />);
