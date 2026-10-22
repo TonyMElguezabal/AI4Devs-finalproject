@@ -96,8 +96,8 @@ Moving a failed video stage SHALL choose the clip's requested duration again fro
 #### Scenario: The new provider admits other durations
 
 - **GIVEN** a chunk with an 8 s interval and a stored requested duration of 8 s, whose clip failed on a provider admitting 5 to 15 s
-- **WHEN** it is moved to a provider admitting 10 to 12 s
-- **THEN** its requested duration becomes 10 s and its speed-adjustment factor 1.25
+- **WHEN** it is moved to a provider admitting 5 to 7 s
+- **THEN** its requested duration becomes 7 s, its speed-adjustment factor 8/7 (about 1.14) and its duration warning `exceeds-maximum`
 - **AND** its narration interval, instructions and image are unchanged
 
 #### Scenario: An interval beyond the new maximum

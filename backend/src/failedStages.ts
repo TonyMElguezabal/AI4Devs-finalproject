@@ -1,6 +1,25 @@
 import { activeProviderId, labelOf, type ProviderStage } from "./activeProvider.ts";
-import { countScenesForRun, getNarrationTimestamps, getRun, getScenesForRun, getStageInstanceAttempts, listRunIds, stageInstanceKeyOf } from "./db.ts";
+import { requestedClipDuration } from "./admittedDurations.ts";
+import { SPEED_FACTOR_LIMIT } from "./config/providers.ts";
+import {
+  countScenesForRun,
+  getNarrationTimestamps,
+  getRun,
+  getSceneForRun,
+  getScenesForRun,
+  getStageInstanceAttempts,
+  inTransaction,
+  listRunIds,
+  rebindFailedClip,
+  rebindSceneImageProvider,
+  rebindSessionStage,
+  stageInstanceKeyOf,
+} from "./db.ts";
 import { resolveProfileId } from "./keyStore.ts";
+import { broadcast } from "./orchestrator.ts";
+import { profileProblems } from "./providerAdmin.ts";
+import { getProfile } from "./providerProfiles.ts";
+import { activeVideoDurations } from "./videoDurations.ts";
 import { STUB_PROVIDER_NAME } from "./types.ts";
 
 // move-failed-stage-to-active-provider (JOS-172), design Decisions 2 and 3 — the failed stages `/admin` lists: those bound
@@ -83,4 +102,75 @@ export function failedStagesOfRun(sessionId: string): FailedStage[] {
 
 export function listFailedStages(): FailedStage[] {
   return listRunIds().flatMap(failedStagesOfRun);
+}
+
+export type MoveRefusal = "not-found" | "not-failed" | "already-on-active" | "retry-in-progress" | "not-retryable" | "not-usable";
+
+export type MoveResult =
+  | {
+      ok: true;
+      moved: { sessionId: string; stage: ProviderStage; sceneId: string | null; providerId: string; providerLabel: string; requestedDurationSeconds: number | null };
+    }
+  | { ok: false; reason: MoveRefusal };
+
+const refuse = (reason: MoveRefusal): MoveResult => ({ ok: false, reason });
+
+/**
+ * Design Decision 1 — binds one failed stage instance to the provider that is active now. It writes the binding (and, for a
+ * clip, the duration values of Decision 4) and nothing else: no request, no attempt, no state change. Every guard and the
+ * write run in one transaction with conditional updates, so a stale page or a race changes nothing.
+ */
+export function moveFailedStage(ref: FailedStageRef): MoveResult {
+  const moved = inTransaction((): MoveResult => {
+    const run = getRun(ref.sessionId);
+    if (!run) return refuse("not-found");
+    const isScene = ref.stage === "image" || ref.stage === "video";
+    const scene = isScene ? getSceneForRun(ref.sessionId, ref.sceneId ?? "") : undefined;
+    if (isScene && !scene) return refuse("not-found");
+
+    // 1. The stage is failed, bound, and (for a session stage) a retry exists after the move.
+    let bound: string | null | undefined;
+    if (ref.stage === "voice") {
+      if (run.failure?.phase !== "voice-over") return refuse("not-failed");
+      bound = run.voiceProviderId;
+    } else if (ref.stage === "alignment" || ref.stage === "reasoning") {
+      const alignmentStep = !getNarrationTimestamps(ref.sessionId);
+      if (run.failure?.phase !== "decomposition" || countScenesForRun(ref.sessionId) > 0 || alignmentStep !== (ref.stage === "alignment")) return refuse("not-failed");
+      bound = ref.stage === "alignment" ? run.alignmentProviderId : run.decompositionProviderId;
+    } else if (ref.stage === "image") {
+      if (scene!.status !== "failed" || scene!.result !== null) return refuse("not-failed");
+      bound = scene!.provider === STUB_PROVIDER_NAME ? null : scene!.provider;
+    } else {
+      if (scene!.status !== "failed" || scene!.result === null || scene!.videoResult !== null) return refuse("not-failed");
+      bound = scene!.videoProvider;
+    }
+    if (!bound) return refuse("not-failed");
+    if (!isScene) {
+      if (!run.failure?.manualRetryAvailable) return refuse("not-retryable");
+      if (hasPendingSessionAttempt(ref.sessionId, ref.stage as "voice" | "alignment" | "reasoning")) return refuse("retry-in-progress");
+    }
+
+    // 2. The active provider differs and can be used.
+    const active = activeProviderId(ref.stage);
+    if (resolveProfileId(ref.stage, bound) === active) return refuse("already-on-active");
+    const profile = getProfile(active);
+    if (profile && profileProblems(profile).length > 0) return refuse("not-usable");
+
+    // 3. The write, conditional on the binding that was read.
+    let requestedDurationSeconds: number | null = null;
+    if (ref.stage === "voice" || ref.stage === "alignment" || ref.stage === "reasoning") {
+      if (!rebindSessionStage(ref.sessionId, ref.stage, bound, active)) return refuse("not-failed");
+    } else if (ref.stage === "image") {
+      if (!rebindSceneImageProvider(scene!.id, bound, active)) return refuse("not-failed");
+    } else {
+      if (!scene!.narrationInterval) return refuse("not-failed"); // a registered chunk always has one
+      const { seconds, warning, factor } = requestedClipDuration(scene!.narrationInterval, activeVideoDurations().durations);
+      const values = { requestedDurationSeconds: seconds, durationWarning: warning, speedFactor: factor, speedFactorWarning: factor > SPEED_FACTOR_LIMIT ? ("exceeds-limit" as const) : null };
+      if (!rebindFailedClip(scene!.id, bound, active, values)) return refuse("not-failed");
+      requestedDurationSeconds = seconds;
+    }
+    return { ok: true, moved: { sessionId: ref.sessionId, stage: ref.stage, sceneId: scene?.id ?? null, providerId: active, providerLabel: labelOf(ref.stage, active), requestedDurationSeconds } };
+  });
+  if (moved.ok) broadcast(ref.sessionId);
+  return moved;
 }
