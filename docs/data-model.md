@@ -135,6 +135,19 @@ Mutable on purpose, like `telemetry_settings`: it holds the Administrator's inte
 
 **The binding rule, for all five stages.** A stage instance is bound to a provider once, at its first attempt, to the provider `activeProviderId(stage)` returns at that moment: `runs.voice_provider_id`, `runs.decomposition_provider_id` and `runs.alignment_provider_id` per session, `scenes.provider` (image) and `scenes.video_provider` (video) per scene. The write only succeeds while the binding is unset, so it is never overwritten. Automatic and manual retries read the binding, never the active provider, and nothing switches a stage to another provider when its retries are exhausted. A change of the active provider never touches a completed result.
 
+### 4f. Provider profiles (`provider_profiles` table) — `manage-providers-from-admin`, JOS-218, migration 19
+
+One row per provider the Administrator can choose for a stage. It belongs to the install, not to a session. The migration creates the table empty; the first start after it seeds one profile per stage from the settings (`seedProviderProfiles`), and seeds again lazily when a store was emptied.
+
+- `id` (TEXT, Primary Key): what a binding stores. The five profiles created from the settings keep the identifiers the database already stored (`openai-decomposition`, `ElevenLabs`, `elevenlabs-forced-alignment`, `Fal.ai`, `RunningHub`), so no stored binding or attempt changes; a profile added on `/admin` gets a ULID. The image model and the video endpoint path an earlier build stored are aliases of the seeded image and video profiles.
+- `stage` (TEXT): `reasoning`, `voice`, `alignment`, `image` or `video`. `adapter_type` (TEXT): an adapter type the build ships for that stage (`openai-reasoning`, `elevenlabs-voice`, `elevenlabs-alignment`, `fal-image`, `runninghub-video`). Neither changes after creation.
+- `label` (TEXT): the display name, unique within the stage (case-insensitive). `parameters` (TEXT, JSON): validated by the adapter type's schema; it never holds a host or a URL.
+- `api_key_encrypted` (nullable TEXT): `base64(iv ‖ ciphertext ‖ tag)` from AES-256-GCM with a new IV on every write. The 32-byte master key is a separate file (`PROVIDER_KEY_PATH`, default `data/provider-keys.key`, mode 0600), never in the database. No key is stored for a profile that relies on the legacy environment or secrets-file key.
+- `retired_at` (nullable TEXT): set when a profile that sessions, scenes or attempts are bound to is deleted. A retired profile is not offered and cannot be chosen, but still resolves, with its parameters and key, for what is bound to it.
+- `created_at`, `updated_at` (TEXT).
+
+Mutable on purpose: it holds the Administrator's configuration. Written by `providerProfiles.ts` and the key store (`keyStore.ts`); `active_providers.provider_id` refers to a profile `id`. The registries are built from it and rebuilt when it changes.
+
 ### 5. Schema migrations (`schema_migrations` table)
 
 Tracks which versioned migrations have been applied, so an existing session's data survives a schema upgrade (§11.2, Decision 6). Fields: `version` (Primary Key), `applied_at`. Migration 5 adds the three session-content triggers and migration 6 the two voice-over triggers (`lock-script-and-narration`, JOS-137); migration 7 adds `prompt`, `image_instruction` and `video_instruction` to `scenes`, the unique chunk-number index and the four chunk triggers (`assign-scene-identifiers`, JOS-144); migrations 5 and 6 are separate because a database that had already applied 5 must still receive the voice-over triggers, and an applied migration is never edited. Migration 8 adds `narration_timestamps` and its two triggers (`obtain-narration-timestamps`, JOS-139). Migration 9 adds `scenes.narration_start_seconds` and `scenes.narration_end_seconds` with one lock trigger each (`assign-narration-intervals`, JOS-143); its triggers are built from their own constant, not from the array migration 7 uses, so migration 7 is unchanged. Migration 10 adds `scenes.requested_duration_seconds` and `scenes.duration_warning` with one lock trigger each (`request-admitted-clip-duration`, JOS-147), built from a constant of its own for the same reason migration 9's was. Migration 11 adds `scenes.speed_factor` and `scenes.speed_factor_warning` with one lock trigger each (`record-speed-adjustment-factor`, JOS-148), the same pattern again. Migration 12 (`generate-chunk-video`, JOS-146) adds `scenes.video_provider` (nullable TEXT) and `scenes.video_result` (nullable TEXT), a `stage` column (NOT NULL DEFAULT `'image'`, TEXT) to `provider_requests`, and the `scene_video_results` table — the clip idempotency guard — with a Foreign Key on `scene_id`.
@@ -266,6 +279,17 @@ erDiagram
         String stage PK "reasoning, voice, alignment, image or video"
         String provider_id
         String changed_at
+    }
+    ProviderProfiles {
+        String id PK "seeded ids or a ULID"
+        String stage
+        String adapter_type
+        String label
+        String parameters "JSON"
+        String api_key_encrypted "nullable, AES-256-GCM"
+        String retired_at "nullable"
+        String created_at
+        String updated_at
     }
     Session {
         String id PK "ULID"

@@ -42,6 +42,9 @@ import { SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES } from "./config/provider
 import { ulid } from "./util/ulid.ts";
 import { adminDeniedSchema, registerAdminGate } from "./adminAccess.ts";
 import { PROVIDER_STAGES, providerView, selectableProviders, setActiveProvider } from "./activeProvider.ts";
+import { registerProviderProfileRoutes } from "./adminProviderRoutes.ts";
+import { profileProblems } from "./providerAdmin.ts";
+import { getProfile } from "./providerProfiles.ts";
 
 /** Provisional — the real value is set by define-live-updates' idle experiment (Decision 7); this keeps the stream alive meanwhile. */
 const HEARTBEAT_MS = 15_000;
@@ -825,6 +828,7 @@ export const routes: FastifyPluginAsync = async (app) => {
                 z.object({ statusCode: z.number(), error: z.string(), message: z.string() }).passthrough(),
               ]),
               401: adminDeniedSchema,
+              409: z.object({ ok: z.literal(false), reason: z.literal("not-usable"), problems: z.array(z.object({ field: z.string(), message: z.string() })) }),
             },
           },
         },
@@ -832,10 +836,18 @@ export const routes: FastifyPluginAsync = async (app) => {
           const { stage } = request.params;
           const selectable = selectableProviders(stage).map((provider) => provider.id);
           if (!selectable.includes(request.body.providerId)) return reply.code(400).send({ ok: false as const, reason: "not-selectable" as const, selectable });
+          // manage-providers-from-admin (JOS-218), Decision 6 — a provider profile that is not usable cannot be made active.
+          const profile = getProfile(request.body.providerId);
+          if (profile) {
+            const problems = profileProblems(profile);
+            if (problems.length > 0) return reply.code(409).send({ ok: false as const, reason: "not-usable" as const, problems });
+          }
           setActiveProvider(stage, request.body.providerId);
           return providerView(stage);
         },
       );
+
+      registerProviderProfileRoutes(admin);
     },
     { prefix: "/admin" },
   );

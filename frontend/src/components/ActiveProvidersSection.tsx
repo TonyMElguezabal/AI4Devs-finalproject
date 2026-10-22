@@ -14,6 +14,10 @@ interface Props {
   password: string;
   /** An Administrator request was refused with 401: the page locks again. */
   onDenied: () => void;
+  /** Changes when a provider was added, edited or deleted, so the selectors reload their options (JOS-218). */
+  refreshKey?: number;
+  /** The active provider of a stage was changed (JOS-218): the list of providers shows which one is active. */
+  onChanged?: () => void;
 }
 
 /**
@@ -22,7 +26,7 @@ interface Props {
  * stage that is not yet bound; running stages keep their provider (PRD §11.2). The Administrator is the only
  * writer, so there is no live update.
  */
-export function ActiveProvidersSection({ password, onDenied }: Props) {
+export function ActiveProvidersSection({ password, onDenied, refreshKey = 0, onChanged }: Props) {
   const [views, setViews] = useState<ProviderView[] | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [busyStage, setBusyStage] = useState<ProviderStage | undefined>(undefined);
@@ -42,7 +46,7 @@ export function ActiveProvidersSection({ password, onDenied }: Props) {
       cancelled = true;
     };
     // The password and the lock callback do not change while the section is shown.
-  }, []);
+  }, [refreshKey]);
 
   async function handleChange(stage: ProviderStage, providerId: string) {
     setError(undefined);
@@ -51,7 +55,10 @@ export function ActiveProvidersSection({ password, onDenied }: Props) {
       const result = await putAdminProvider(password, stage, providerId);
       if (result.kind === "denied") onDenied();
       else if (result.kind === "refused") setError(`${STAGE_LABELS[stage]}: that provider cannot be chosen. Available: ${result.selectable.join(", ")}.`);
-      else setViews((current) => current?.map((view) => (view.stage === stage ? result.view : view)));
+      else {
+        setViews((current) => current?.map((view) => (view.stage === stage ? result.view : view)));
+        onChanged?.();
+      }
     } catch {
       setError(`${STAGE_LABELS[stage]}: the change could not be saved. Is the app running?`);
     } finally {

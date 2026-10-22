@@ -1,4 +1,4 @@
-import { loadCredential } from "./config/credentials.ts";
+import { stageApiKey } from "./keyStore.ts";
 import { ALIGNMENT_PROVIDER, phaseTimeoutMs } from "./config/providers.ts";
 import { parseAlignedCharacters, type TimestampCharacter } from "./narrationTimestamps.ts";
 
@@ -20,7 +20,6 @@ export interface AlignmentProvider {
 }
 
 // The path is configurable (JOS-174); the host belongs to the adapter, which is ElevenLabs'.
-const ELEVENLABS_FORCED_ALIGNMENT_URL = `https://api.elevenlabs.io${ALIGNMENT_PROVIDER.endpoint}`;
 
 /** Product owner rule (as for voice): not retryable for 4xx except 408 and 429; transient otherwise. */
 function classifyHttpStatus(status: number): "failed_transient" | "failed_not_retryable" {
@@ -28,10 +27,12 @@ function classifyHttpStatus(status: number): "failed_transient" | "failed_not_re
 }
 
 export function createElevenLabsAlignmentProvider(
-  options: { fetchFn?: typeof fetch; loadKey?: () => string; timeoutMs?: number } = {},
+  options: { fetchFn?: typeof fetch; loadKey?: () => string; timeoutMs?: number; parameters?: { endpoint: string } } = {},
 ): AlignmentProvider {
   const fetchFn = options.fetchFn ?? fetch;
-  const loadKey = options.loadKey ?? (() => loadCredential("ELEVENLABS_KEY"));
+  // manage-providers-from-admin (JOS-218): the endpoint path comes from the profile; without one, the settings' alignment endpoint.
+  const alignmentUrl = `https://api.elevenlabs.io${(options.parameters ?? { endpoint: ALIGNMENT_PROVIDER.endpoint }).endpoint}`;
+  const loadKey = options.loadKey ?? (() => stageApiKey("alignment"));
   const timeoutMs = options.timeoutMs ?? phaseTimeoutMs("alignment");
 
   return {
@@ -41,7 +42,7 @@ export function createElevenLabsAlignmentProvider(
         apiKey = loadKey();
       } catch (err) {
         // The loader's message names the credential and never contains a value.
-        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing credential 'ELEVENLABS_KEY'" };
+        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing API key for the alignment role" };
       }
 
       // The script goes as stored: not trimmed, not normalised (PRD §4.2).
@@ -52,7 +53,7 @@ export function createElevenLabsAlignmentProvider(
 
       let response: Response;
       try {
-        response = await fetchFn(ELEVENLABS_FORCED_ALIGNMENT_URL, {
+        response = await fetchFn(alignmentUrl, {
           method: "POST",
           headers: { "xi-api-key": apiKey },
           body: form,

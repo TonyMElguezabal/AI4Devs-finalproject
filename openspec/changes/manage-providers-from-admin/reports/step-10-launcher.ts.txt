@@ -1,0 +1,65 @@
+// Scratch launcher for the manual endpoint test (JOS-218, task 10.1): the real server and routes, the real image adapter
+// with its network intercepted (so the model, the host and the key it sends are recorded), stubs for the other stages.
+import { appendFileSync, readFileSync } from "node:fs";
+import { setDecompositionDependencies } from "../../../../backend/src/decompositionDependencies.ts";
+import { setDownloadFetch } from "../../../../backend/src/imageProvider.ts";
+import { createStubVideoProvider, setVideoProviderRegistry } from "../../../../backend/src/videoProvider.ts";
+import { createStubVoiceProvider, setVoiceProviderRegistry } from "../../../../backend/src/voiceProvider.ts";
+import { setAssemblyTool, recoverOnBoot } from "../../../../backend/src/orchestrator.ts";
+import { createStubAssemblyTool } from "../../../../backend/src/stubAssemblyTool.ts";
+import { setRetryDelayConfig } from "../../../../backend/src/retry/stageAttemptRecorder.ts";
+import { rebuildScheduler } from "../../../../backend/src/retry/retryScheduler.ts";
+import { startAttemptTimeoutWatcher } from "../../../../backend/src/retry/attemptTimeoutWatcher.ts";
+import { setScriptModerator } from "../../../../backend/src/scriptModeration.ts";
+import { listProfiles, ensureProfiles } from "../../../../backend/src/providerProfiles.ts";
+import { seedProviderProfiles } from "../../../../backend/src/providerProfiles.ts";
+import { buildApp } from "../../../../backend/src/server.ts";
+
+const DIR = process.env.SCRATCH_DIR!;
+const png = Buffer.alloc(29);
+png.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+png.writeUInt32BE(13, 8); png.write("IHDR", 12, "ascii"); png.writeUInt32BE(1920, 16); png.writeUInt32BE(1088, 20);
+const mp4 = Buffer.from("00000000667479706d703432", "hex");
+const STEP = 0.25;
+
+// The intercepted network: every vendor request is recorded; the image host answers by the mode file (ok or fail).
+const realFetch = globalThis.fetch;
+globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+  const u = String(url);
+  if (u.startsWith("http://127.0.0.1")) return realFetch(url as never, init);
+  const headers = new Headers(init?.headers);
+  appendFileSync(DIR + "/network.log", JSON.stringify({ url: u, authorization: headers.get("authorization"), body: typeof init?.body === "string" ? init.body.slice(0, 200) : null }) + "\n");
+  if (u.startsWith("https://fal.run/")) {
+    const mode = readFileSync(DIR + "/mode.txt", "utf8").trim();
+    if (mode === "fail") return new Response("{}", { status: 500 });
+    return new Response(JSON.stringify({ images: [{ url: "https://cdn.example.test/image.png" }] }), { status: 200 });
+  }
+  if (u === "https://cdn.example.test/image.png") return new Response(png, { status: 200, headers: { "content-type": "image/png" } });
+  return new Response("{}", { status: 500 });
+}) as typeof fetch;
+
+setDownloadFetch(globalThis.fetch);
+const alignment = () => ({ async align(_a: Uint8Array, script: string) { return { kind: "success" as const, characters: [...script].map((text, i) => ({ text, start: 0.1 + i * STEP, end: 0.1 + (i + 1) * STEP })) }; } });
+const generator = { async generate(texts: readonly string[]) { return { kind: "success" as const, pairs: texts.map((_, i) => ({ image: "image " + (i + 1), video: "video " + (i + 1) })) }; } };
+setDecompositionDependencies({ alignmentProvider: alignment(), instructionGenerator: generator });
+setVoiceProviderRegistry({ defaultIdentifier: "ElevenLabs", adapters: { ElevenLabs: createStubVoiceProvider("success-without-timestamps", { audioSeconds: 17 }) } });
+
+// Every video profile (the seeded one and any added on /admin) is served by one stub.
+const stubVideo = createStubVideoProvider("success-bytes", { bytes: mp4 });
+const videoAdapters = new Proxy({} as Record<string, typeof stubVideo>, {
+  get: () => stubVideo,
+  ownKeys: () => { ensureProfiles(); return listProfiles().filter((p) => p.stage === "video").map((p) => p.id); },
+  getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true, value: stubVideo }),
+  has: () => true,
+});
+setVideoProviderRegistry({ defaultIdentifier: "RunningHub", adapters: videoAdapters, labels: {} });
+setAssemblyTool(createStubAssemblyTool({ kind: "success" }));
+setRetryDelayConfig({ baseSeconds: 0.2, capSeconds: 0.5 });
+setScriptModerator({ async moderate() { return { kind: "clean" as const }; } });
+
+const app = await buildApp();
+recoverOnBoot();
+rebuildScheduler();
+startAttemptTimeoutWatcher();
+await app.listen({ port: Number(process.env.PORT), host: "127.0.0.1" });
+console.log("listening on " + process.env.PORT);

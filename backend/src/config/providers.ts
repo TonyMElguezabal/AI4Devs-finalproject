@@ -33,6 +33,9 @@ if (!loadedSettings.ok) {
 }
 const settings = loadedSettings.settings;
 
+/** The validated settings as a whole, for the first provider profiles (manage-providers-from-admin, JOS-218, Decision 8). */
+export const SETTINGS = settings;
+
 // ---- Providers and version identifiers per stage (task 10.2) ----
 // Stage identifiers follow the PRD's own names (backend-standards.md), not
 // the capability-descriptive labels this spike's own tasks.md uses

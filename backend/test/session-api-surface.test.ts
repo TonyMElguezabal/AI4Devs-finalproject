@@ -61,8 +61,15 @@ describe("The API offers no operation that modifies the locked content (AC1)", (
     // active-provider choice, an app-level setting behind the Administrator gate. Any other mutating route still fails.
     const routes = offeredRoutes()
       .split("\n")
-      // The route tree prints `admin/providers` with its `/:stage (PUT)` child on the next line.
-      .filter((line, index, lines) => !line.includes("consent") && !line.includes("admin/providers") && !(line.includes("/:stage (PUT)") && lines[index - 1]?.includes("admin/providers")))
+      // The route tree prints `admin/providers` and `admin/provider-profiles` with their `/:stage` and `/:id` children on
+      // the next line (JOS-171, JOS-218): app-level settings behind the Administrator gate, not session content.
+      .filter(
+        (line, index, lines) =>
+          !line.includes("consent") &&
+          !line.includes("admin/providers") &&
+          !line.includes("admin/provider-profiles") &&
+          !(/\/:(stage|id) \(/.test(line) && /admin\/provider(s|-profiles)/.test(lines[index - 1] ?? "")),
+      )
       .join("\n");
     expect(routes).not.toMatch(/\bPUT\b/);
     expect(routes).not.toMatch(/\bPATCH\b/);

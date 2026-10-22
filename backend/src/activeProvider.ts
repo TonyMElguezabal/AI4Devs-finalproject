@@ -3,13 +3,13 @@ import { getAlignmentProviderRegistry, getReasoningProviderRegistry } from "./de
 import { getImageProviderRegistry } from "./imageProvider.ts";
 import { getVideoProviderRegistry } from "./videoProvider.ts";
 import { getVoiceProviderRegistry } from "./voiceProvider.ts";
+import type { ProviderStage } from "./providerTypes.ts";
 
 // change-active-provider-from-admin (JOS-171), design Decisions 1 and 2 — one function decides the provider every
 // stage binds to on its first attempt: the Administrator's choice when it names a shipped adapter, else the
 // registry's settings default. It reads SQLite on every call, so a change applies to the next bind with no restart.
 
-export const PROVIDER_STAGES = ["reasoning", "voice", "alignment", "image", "video"] as const;
-export type ProviderStage = (typeof PROVIDER_STAGES)[number];
+export { PROVIDER_STAGES, type ProviderStage } from "./providerTypes.ts";
 
 /** The shape every stage's adapter registry shares. `aliases` resolve but are never offered as a choice. */
 export interface ProviderRegistry<Adapter> {
@@ -17,6 +17,8 @@ export interface ProviderRegistry<Adapter> {
   adapters: Record<string, Adapter>;
   labels?: Record<string, string>;
   aliases?: readonly string[];
+  /** Profiles that still resolve, for the work bound to them, but are no longer offered (JOS-218). */
+  retired?: readonly string[];
 }
 
 export function registryFor(stage: ProviderStage): ProviderRegistry<unknown> {
@@ -37,9 +39,9 @@ export function registryFor(stage: ProviderStage): ProviderRegistry<unknown> {
 /** The adapters the Administrator may choose for the stage: every key but the aliases. */
 export function selectableProviders(stage: ProviderStage): Array<{ id: string; label: string }> {
   const registry = registryFor(stage);
-  const aliases = new Set(registry.aliases ?? []);
+  const hidden = new Set([...(registry.aliases ?? []), ...(registry.retired ?? [])]);
   return Object.keys(registry.adapters)
-    .filter((id) => !aliases.has(id))
+    .filter((id) => !hidden.has(id))
     .map((id) => ({ id, label: registry.labels?.[id] ?? id }));
 }
 

@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod";
+import { PARAMETER_SHAPES, nonEmptyString, positiveInteger } from "../providerTypes.ts";
+import { describeIssue } from "./issues.ts";
 
 // configure-providers-and-parameters (JOS-174), design Decisions 1, 2, 4 and
 // 5 — the settings schema and its loader. `providers.ts` calls `loadSettings`
@@ -17,36 +19,17 @@ const ACCEPTED_PROVIDERS = {
   video: ["RunningHub"],
 } as const;
 
-const nonEmptyString = z.string().min(1);
-const positiveInteger = z.number().int().min(1);
 const evenPositiveInteger = positiveInteger.multipleOf(2);
 /** A maximum time in seconds, or null for "not timed" (spec stage-execution-time-limit). The key itself is required. */
 const maxTimeSeconds = z.number().positive().nullable();
 
-/** ElevenLabs accepts 0.7 to 1.2 (Decision 5). A custom check keeps the rejected value out of the message. */
-const voiceSpeed = z.custom<"default" | number>(
-  (value) => value === "default" || (typeof value === "number" && value >= 0.7 && value <= 1.2),
-  { message: 'must be "default" or a number from 0.7 to 1.2' },
-);
-
 const settingsSchema = z
   .strictObject({
-    decomposition: z.strictObject({ name: z.enum(ACCEPTED_PROVIDERS.decomposition), model: nonEmptyString }),
-    voice: z.strictObject({
-      name: z.enum(ACCEPTED_PROVIDERS.voice),
-      model: nonEmptyString,
-      voiceId: nonEmptyString,
-      voiceName: nonEmptyString,
-      outputFormat: nonEmptyString,
-      speed: voiceSpeed,
-    }),
-    alignment: z.strictObject({ name: z.enum(ACCEPTED_PROVIDERS.alignment), endpoint: nonEmptyString }),
-    image: z.strictObject({ name: z.enum(ACCEPTED_PROVIDERS.image), model: nonEmptyString }),
-    video: z.strictObject({
-      name: z.enum(ACCEPTED_PROVIDERS.video),
-      endpoint: nonEmptyString,
-      admittedDurationSeconds: z.strictObject({ min: positiveInteger, max: positiveInteger }),
-    }),
+    decomposition: z.strictObject({ name: z.enum(ACCEPTED_PROVIDERS.decomposition), ...PARAMETER_SHAPES["openai-reasoning"] }),
+    voice: z.strictObject({ name: z.enum(ACCEPTED_PROVIDERS.voice), ...PARAMETER_SHAPES["elevenlabs-voice"] }),
+    alignment: z.strictObject({ name: z.enum(ACCEPTED_PROVIDERS.alignment), ...PARAMETER_SHAPES["elevenlabs-alignment"] }),
+    image: z.strictObject({ name: z.enum(ACCEPTED_PROVIDERS.image), ...PARAMETER_SHAPES["fal-image"] }),
+    video: z.strictObject({ name: z.enum(ACCEPTED_PROVIDERS.video), ...PARAMETER_SHAPES["runninghub-video"] }),
     segmentation: z.strictObject({ lowerBoundSeconds: z.number().positive() }),
     /** The unsigned factor, as recorded by JOS-148. */
     speedFactorLimit: z.number().min(1),
@@ -131,41 +114,6 @@ function readJsonFile(path: string): ReadResult {
   }
 }
 
-function dottedPath(path: ReadonlyArray<string | number>): string {
-  return path.length === 0 ? "settings" : path.join(".");
-}
-
-/**
- * Written by issue code, not taken from zod's messages: zod 3 puts the
- * received value in some of them (`received 'Acme'`), and a settings problem
- * must never print a value (design Decision 2).
- */
-function describeIssue(issue: z.ZodIssue): string[] {
-  const at = dottedPath(issue.path);
-  switch (issue.code) {
-    case "unrecognized_keys":
-      return issue.keys.map((key) => `${dottedPath([...issue.path, key])}: unknown setting`);
-    case "invalid_type":
-      return [`${at}: ${issue.received === "undefined" ? "is required" : `must be of type ${issue.expected}`}`];
-    case "invalid_enum_value":
-      return [`${at}: must be one of ${issue.options.join(", ")}`];
-    case "too_small":
-      if (issue.type === "string") return [`${at}: ${issue.minimum === 1 ? "must not be empty" : `must have at least ${issue.minimum} characters`}`];
-      if (issue.type === "array") return [`${at}: must have at least ${issue.minimum} item(s)`];
-      return [`${at}: ${issue.inclusive ? `must be at least ${issue.minimum}` : `must be greater than ${issue.minimum}`}`];
-    case "too_big":
-      return [`${at}: must be at most ${issue.maximum}`];
-    case "not_multiple_of":
-      return [`${at}: must be a multiple of ${issue.multipleOf}`];
-    case "invalid_string":
-      return [`${at}: has the wrong format`];
-    case "custom":
-      return [`${at}: ${issue.message}`];
-    default:
-      return [`${at}: is invalid`];
-  }
-}
-
 /**
  * Reads the shipped defaults and the optional per-user override, merges them
  * and validates the result as a whole. Pure apart from reading the two files.
@@ -189,6 +137,6 @@ export function loadSettings(options: { defaultsPath: string; overridePath: stri
   if (problems.length > 0 || defaults.kind !== "found" || !isPlainObject(defaults.value)) return { ok: false, problems };
 
   const parsed = settingsSchema.safeParse(deepMerge(defaults.value, override));
-  if (!parsed.success) return { ok: false, problems: parsed.error.issues.flatMap(describeIssue) };
+  if (!parsed.success) return { ok: false, problems: parsed.error.issues.flatMap((issue) => describeIssue(issue)) };
   return { ok: true, settings: parsed.data };
 }

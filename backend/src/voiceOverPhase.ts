@@ -26,6 +26,8 @@ import {
 import { activeProviderId } from "./activeProvider.ts";
 import { FFPROBE } from "./config/ffmpeg.ts";
 import { VOICE_PROVIDER } from "./config/providers.ts";
+import { resolveProfileId } from "./keyStore.ts";
+import { ensureProfiles, getProfile } from "./providerProfiles.ts";
 import { launchDecompositionFor } from "./decompositionPhase.ts";
 import { admitLaunch, registerStageLauncher, type StageLauncher } from "./launchGate.ts";
 import { broadcast } from "./orchestrator.ts";
@@ -184,6 +186,14 @@ function scriptFingerprint(script: string): { scriptLength: number; scriptSha256
  * attempt (automatic or manual retry) is a scheduled attempt that the retry
  * scheduler claims and hands to `sendVoiceAttempt`.
  */
+type VoiceParameters = { voiceId: string; model: string; outputFormat: string; speed: "default" | number };
+
+function voiceParametersFor(providerId: string): VoiceParameters {
+  ensureProfiles();
+  const profile = getProfile(resolveProfileId("voice", providerId));
+  return profile && profile.stage === "voice" ? (profile.parameters as VoiceParameters) : VOICE_PROVIDER;
+}
+
 export async function generateVoiceOver(runId: string, now: () => Date = () => new Date()): Promise<VoiceOverOutcome> {
   const run = getRun(runId);
   if (!run) return { ok: false, reason: "unknown-session" };
@@ -375,15 +385,18 @@ export async function sendVoiceAttempt(
     return finishFailure("not-retryable", `the voice provider '${providerId}' bound to this session is not available`);
   }
 
+  // manage-providers-from-admin (JOS-218), design Decision 4 — the voice, model, format and speed are the bound
+  // profile's current parameters, read for every request; a provider without a profile uses the settings.
+  const voice = voiceParametersFor(providerId);
   let result: VoiceSynthesisResult;
   try {
     result = await adapter.synthesize({
       text: run.script,
       language: run.language,
-      voiceId: VOICE_PROVIDER.voiceId,
-      model: VOICE_PROVIDER.model,
-      outputFormat: VOICE_PROVIDER.outputFormat,
-      speed: VOICE_PROVIDER.speed,
+      voiceId: voice.voiceId,
+      model: voice.model,
+      outputFormat: voice.outputFormat,
+      speed: voice.speed,
     });
   } catch {
     result = { kind: "failed_transient", reason: "the voice provider call failed unexpectedly" };
