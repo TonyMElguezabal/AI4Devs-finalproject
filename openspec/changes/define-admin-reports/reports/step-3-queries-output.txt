@@ -1,0 +1,88 @@
+
+== R1 Provider usage (per stage and provider, in the period)
+stage      provider  attempts  successes  transient  not_retryable  timed_out  success_pct  median_ms  p95_ms  unit              billed_units
+---------  --------  --------  ---------  ---------  -------------  ---------  -----------  ---------  ------  ----------------  ------------
+alignment  stub-a    5         5          0          0              0          100.0        37         46      audio_seconds     84.83344    
+alignment  stub-b    1         1          0          0              0          100.0        28         28      audio_seconds     16.966688   
+image      stub-a    11        10         1          0              0          90.9         31         43      images            10          
+image      stub-b    2         2          0          0              0          100.0        32         39      images            2           
+reasoning  stub-a    5         5          0          0              0          100.0        44         46      requests          5           
+reasoning  stub-b    1         1          0          0              0          100.0        26         26      requests          1           
+video      stub-a    8         8          0          0              0          100.0        18         44      clip_seconds      68          
+video      stub-b    12        4          8          0              0          33.3         20         46      clip_seconds      34          
+voice      stub-a    11        5          5          1              0          45.5         47         100     voice_characters  320         
+voice      stub-b    1         1          0          0              0          100.0        70         70      voice_characters  64          
+
+== R3 Failures and retries
+-- failed attempts per stage and outcome (both attempt sources)
+stage  outcome        attempts
+-----  -------------  --------
+image  transient      1       
+video  transient      8       
+voice  not-retryable  1       
+voice  transient      5       
+-- session-level stages: the application's own failure wording, most frequent first (scene-level messages are not shown: video text can carry the provider's own words)
+stage  message                        attempts
+-----  -----------------------------  --------
+voice  stub voice answered HTTP 503   5       
+voice  stub voice rejected the input  1       
+-- session-level stages: cycles whose fourth attempt failed (retry budget exhausted) and manual retries
+stage      budgets_exhausted  manual_retries
+---------  -----------------  --------------
+assembly   0                  0             
+reasoning  0                  0             
+alignment  0                  0             
+voice      1                  1             
+-- scene-level stages: scenes that are failed now (a state, not a history: manual retries and exhausted cycles of scenes are not recorded)
+
+== R4 Sessions (one row per session created in the period)
+id        title                                       created_at                state               scenes  failed_scenes  attempts  secs_to_voice_over  secs_to_final_video
+--------  ------------------------------------------  ------------------------  ------------------  ------  -------------  --------  ------------------  -------------------
+01M5JH8D  S1 clean on stub-a                          2026-09-12T19:26:26.293Z  final video ready   2       0              7         0.1                 0.2                
+01M5JH8X  S2 voice recovers                           2026-09-12T19:26:42.306Z  final video ready   2       0              8         0.3                 0.5                
+01M5JH9F  S3 voice exhausted then retried             2026-10-02T19:27:00.329Z  final video ready   2       0              11        14.1                14.3               
+01M5JHAC  S4 voice not retryable                      2026-10-02T19:27:30.367Z  failed: voice-over  0       0              1                                                
+01M5JHAJ  S5 image recovers                           2026-10-17T19:27:36.386Z  final video ready   2       0              8         0.1                 0.3                
+01M5JHB4  S6 clip exhausted then rebound and retried  2026-10-17T19:27:54.405Z  final video ready   2       0              15        0.1                 18.1               
+01M5JHC3  S7 clean on stub-b                          2026-10-22T19:28:26.471Z  final video ready   2       0              7         0.1                 0.2                
+-- drill-down: the scenes of the session with the most scenes
+scene  status          image_provider  clip_provider  image_attempts  clip_attempts  requested_s  speed_factor  duration_warning  speed_factor_warning
+-----  --------------  --------------  -------------  --------------  -------------  -----------  ------------  ----------------  --------------------
+1      chunk-complete  stub-a          stub-a         1               1              7            1.05                                                
+2      chunk-complete  stub-a          stub-a         1               1              10           1.04                                                
+
+== R2 Estimated cost (sketch for the later release): billed units times a price per unit that a provider profile would carry
+-- no profile has a pricePerUnit parameter yet, so every provider is unpriced, which is what the report must show (never zero)
+stage      provider  unit              billed_units  price_per_unit  estimated_cost
+---------  --------  ----------------  ------------  --------------  --------------
+alignment  stub-a    audio_seconds     84.83344                      unpriced      
+alignment  stub-b    audio_seconds     16.966688                     unpriced      
+image      stub-a    images            10                            unpriced      
+image      stub-b    images            2                             unpriced      
+reasoning  stub-a    requests          5                             unpriced      
+reasoning  stub-b    requests          1                             unpriced      
+video      stub-a    clip_seconds      68                            unpriced      
+video      stub-b    clip_seconds      34                            unpriced      
+voice      stub-a    voice_characters  320                           unpriced      
+voice      stub-b    voice_characters  64                            unpriced      
+
+== R6 Pipeline time (sketch for the later release): what the stamps allow today
+-- voice-over and assembly have a start and an end; decomposition ends at the first image request; the scene phase has no start of its own
+id        voice_s  decomposition_s_approx  scenes_s_approx  time_limit_hits
+--------  -------  ----------------------  ---------------  ---------------
+01M5JH8D  0.1      0.1                     0.0              0              
+01M5JH8X  0.3      0.1                     0.1              0              
+01M5JH9F  14.1     0.1                     0.0              0              
+01M5JHAC                                                    0              
+01M5JHAJ  0.1      0.1                     0.1              0              
+01M5JHB4  0.1      0.1                     18.0             0              
+01M5JHC3  0.1      0.1                     0.0              0              
+
+== R7 Provider changes (sketch for the later release): the store keeps only the last choice
+stage      provider_id  changed_at              
+---------  -----------  ------------------------
+alignment  stub-b       2026-10-22T19:28:26.465Z
+image      stub-b       2026-10-22T19:28:26.466Z
+reasoning  stub-b       2026-10-22T19:28:26.457Z
+video      stub-b       2026-10-22T19:28:26.468Z
+voice      stub-b       2026-10-22T19:28:26.462Z
