@@ -1,6 +1,6 @@
 ## Context
 
-- `provider_requests` (baseline schema, `stage` added in migration 12) has no provider column. The latest migration on `origin/main` is 19 (`provider_profiles`, JOS-218).
+- `provider_requests` (baseline schema, `stage` added in migration 12) has no provider column. The latest migration on `origin/main` is 20 (`app_settings`, JOS-201).
 - All 12 image and clip writes go through `insertProviderRequest` in `backend/src/db.ts` (callers in `orchestrator.ts` and `provider.ts`). It is called after the provider call returns, with the scene id and the stage.
 - The scene's bindings: `scenes.provider` (image, sentinel `stub-image-provider` until bound) and `scenes.video_provider` (clip, null until the clip stage starts). Telemetry (`reportProviderRequest`) and stage diagnostics already derive the provider from these two columns.
 - JOS-172 rebinds a stage only when the scene is `failed` (`UPDATE scenes SET provider = ? ... AND status = 'failed'`, `rebindFailedClip`). A scene with an attempt in flight is not `failed`, so the binding cannot change between the call and its record.
@@ -28,7 +28,7 @@
 `ALTER TABLE provider_requests ADD COLUMN provider_id TEXT`. A clip row whose scene has no `video_provider` (the orchestrator falls back to the registry default, `orchestrator.ts` "`reread.videoProvider ?? registry.defaultIdentifier`") stays null rather than guessing. Fixture tests that insert rows directly keep working.
 
 ### 3. Backfill in the same migration
-Migration 20 adds the column and runs one `UPDATE provider_requests SET provider_id = (SELECT CASE ... FROM scenes WHERE scenes.id = provider_requests.scene_id)`. Only `provider_id` is written.
+Migration 21 adds the column and runs one `UPDATE provider_requests SET provider_id = (SELECT CASE ... FROM scenes WHERE scenes.id = provider_requests.scene_id)`. Only `provider_id` is written. The `UPDATE` runs only when `scenes` has a `provider` column: it is in the baseline schema, but the version-1 fixture databases of the older migration tests omit it (the same reason migration 12 checks for `provider_requests`).
 
 ### 4. Expose `providerId` on `ProviderRequestRow`
 Both readers (`getProviderRequest`, `getLatestProviderRequestForScene`) map the column; they share one row mapper instead of the two copies they have today.
@@ -40,4 +40,4 @@ Both readers (`getProviderRequest`, `getLatestProviderRequestForScene`) map the 
 
 ## Migration Plan
 
-Migration 20 runs at start-up like every other migration. Rollback: the column is ignored by older code (SQLite keeps it); no data is removed.
+Migration 21 runs at start-up like every other migration. Rollback: the column is ignored by older code (SQLite keeps it); no data is removed.

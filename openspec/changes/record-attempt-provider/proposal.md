@@ -4,7 +4,7 @@ An image or clip attempt (`provider_requests` row) does not say which provider i
 
 ## What Changes
 
-- `provider_requests` gets a nullable `provider_id` column (migration 20).
+- `provider_requests` gets a nullable `provider_id` column (migration 21).
 - Every new image or clip attempt stores the provider the scene's stage is bound to when the attempt is recorded.
 - The migration backfills every existing row with the scene's bound provider for the row's stage (`provider` for image, `video_provider` for clip). Nothing else is changed.
 - `ProviderRequestRow` exposes `providerId`, so a read of an attempt shows the provider it ran on.
@@ -20,7 +20,7 @@ An image or clip attempt (`provider_requests` row) does not say which provider i
 
 ## Impact
 
-- Backend: `backend/src/db.ts` (migration 20, `insertProviderRequest`, the two provider-request readers), `backend/src/types.ts` (`ProviderRequestRow`).
+- Backend: `backend/src/db.ts` (migration 21, `insertProviderRequest`, the two provider-request readers), `backend/src/types.ts` (`ProviderRequestRow`).
 - No API, frontend or dependency change. No caller of `insertProviderRequest` changes.
 - Docs: `docs/data-model.md` §3 (new field).
 - Unblocks exact per-provider rows in JOS-223 and JOS-224; the reports themselves are out of scope.
