@@ -171,7 +171,7 @@ Estado del MVP a 20-oct-2026. Ninguna impide generar un video; todas están regi
 | El ejecutable no está firmado. | Windows (SmartScreen) y macOS (Gatekeeper) muestran una advertencia al abrirlo. | JOS-207 |
 | El ejecutable se construye con scripts de prueba de concepto y no hay flujo de publicación (ver 2.4). | No hay versiones publicadas ni actualización automática. | JOS-205, JOS-206 |
 | No se ha verificado que una versión anterior abra una base de datos migrada por una posterior. | Volver a una versión anterior exige restaurar la copia de la carpeta de datos (ver arriba). | JOS-210 |
-| No hay herramienta de lint ni análisis estático, y las pruebas de contrato con proveedores reales no se ejecutan en CI (ver 2.6). | Los fallos de estilo y de tipos laxos (`any`) no se detectan automáticamente. | JOS-208 |
+| Las pruebas de contrato con proveedores reales no se ejecutan en CI (ver 2.6). | Un cambio en la API de un proveedor solo se detecta en una ejecución real. | — |
 | Algunas revisiones humanas de los cambios archivados (por ejemplo, la 17.7 de `define-provider-configuration`) se aceptaron como excepción y no se realizaron. | Esos cambios tienen evidencia de pruebas automáticas pero no revisión humana. | JOS-203, M7 |
 
 ---
@@ -292,11 +292,11 @@ npm test            # vitest run
 npm run build       # solo frontend: tsc --noEmit && vite build
 ```
 
-- **Unitarias e integración (vitest)**: en la última validación completa (`main` en `3d0334c9`, 20-oct-2026) pasaron 1.750 pruebas de backend (5 omitidas, las de contrato con proveedores) y 258 de frontend, con chequeo de tipos limpio y compilación del frontend correcta. CI ejecuta chequeo de tipos, lint y pruebas en cada PR.
+- **Unitarias e integración (vitest)**: en la última validación completa (rama `chore/sync-integration-branches` en `eeda3198`, 22-oct-2026, PR #93) pasaron 2.090 pruebas de backend (5 omitidas, las de contrato con proveedores) y 312 de frontend, con chequeo de tipos y lint limpios y compilación del frontend correcta. CI ejecuta chequeo de tipos, lint y pruebas en cada PR.
 - **Pruebas de contrato con proveedores reales**: existen cuatro ficheros (`backend/test/*.contract.test.ts`) que llaman a las APIs reales y solo se ejecutan con `RUN_PROVIDER_CONTRACT_TESTS=1` y claves reales; no se ejecutan en CI.
 - **Pruebas manuales de endpoints con curl y E2E en navegador (Playwright)**: las ejecuta el agente por cada cambio y deja un informe en `openspec/changes/archive/<cambio>/reports/`.
 - **Sesión real de extremo a extremo**: el 20-oct-2026 una sesión corta con los cuatro proveedores reales llegó a `final-video` con un intento por etapa, y el ejecutable de Windows generó un video completo (informes en `openspec/changes/archive/2026-10-19-raise-video-time-limit/reports/` y `…/define-production-deployment/reports/`).
-- **Lint y análisis estático**: no hay herramienta configurada (JOS-208). Una pasada puntual de ESLint 9 con las reglas `recommended` de typescript-eslint (20-oct-2026, sin cambios en el repositorio) dio 110 errores en el backend (68 `no-explicit-any`, 40 `no-unused-vars`, 1 `no-useless-escape`, 1 `prefer-const`; 37 de los `no-unused-vars` y 18 de los `no-explicit-any` están en pruebas) y 1 en el frontend (una variable sin usar en una prueba). Ninguna regla de seguridad falló.
+- **Lint y análisis estático**: ESLint 9 con las reglas *type-aware* de typescript-eslint en `backend/` y `frontend/` (más las reglas de React Hooks en el frontend), sobre el código y las pruebas, y como paso de CI que hace fallar la PR (JOS-208). Una excepción se suprime en su línea con el motivo; no hay desactivaciones globales.
 - **Ejecutable empaquetado (macOS arm64, 20-oct-2026)**: construido con el script de la prueba de concepto desde una copia temporal y arrancado en otro puerto con una carpeta de datos vacía: `/health` y la página responden 200, un `Origin` o `Host` ajeno recibe 403, `/docs` y los endpoints de prueba responden 404 aunque `ALLOW_TEST_ENDPOINTS=1` esté definida, y un segundo arranque detecta la instancia en marcha y sale. No se probó una sesión completa con este binario (sí en Windows, ver arriba).
 - **No ejecutado**: las pruebas de contrato con proveedores reales no se ejecutan en CI ni se han ejecutado para este cierre, y el ejecutable empaquetado no tiene un script de construcción integrado (ver 1.6).
 
