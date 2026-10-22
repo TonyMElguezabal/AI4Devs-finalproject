@@ -76,7 +76,7 @@ The scene stages need no change: `launchSceneStage` and `launchVideoStage` alrea
 
 ### Decision 6 — API
 
-Both routes live in the `/admin` child plugin, so the Administrator gate answers 401 before any body is parsed. The surface test lists `admin/failed-stages` among the deliberate app-level routes (a `POST`, so the "no PUT, PATCH or DELETE" guard is untouched).
+Both routes live in the `/admin` child plugin, so the Administrator gate answers 401 before any body is parsed. Both routes are a `GET` and a `POST`, so the surface test's "no PUT, PATCH or DELETE" guard is untouched.
 
 - **`GET /admin/failed-stages`** → `{ failedStages: [{ sessionId, sessionTitle, stage, sceneId, sceneNumber, boundProviderId, boundProviderLabel, activeProviderId, activeProviderLabel, cause }] }`; `sceneId` and `sceneNumber` are null for session-level stages.
 - **`POST /admin/failed-stages/move`** with `{ sessionId, stage, sceneId? }`: `stage` is the enum of the five stages; `sceneId` is required for image and video and refused otherwise (400, the validation error). `200 { moved: { sessionId, stage, sceneId, providerId, providerLabel, requestedDurationSeconds } }` (the last only for video, else null); `404 { ok: false, reason: "not-found" }` for an unknown session or scene; `409 { ok: false, reason }` with `not-failed`, `already-on-active`, `retry-in-progress`, `not-retryable` or `not-usable`.

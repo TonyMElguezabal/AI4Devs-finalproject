@@ -47,13 +47,13 @@
 
 ## 6. Backend: admin API (TDD; design Decision 6)
 
-- [ ] 6.1 Write failing route tests:
+- [x] 6.1 Write failing route tests:
   - `GET /admin/failed-stages` returns the rows of 3.1 and none for a stage on the active provider;
   - `POST /admin/failed-stages/move` returns 200 with the new provider and, for video, the requested duration;
   - 404 for an unknown session or scene; 409 with each reason of the spec; 400 for an unknown stage, a missing `sceneId` for image or video, or a `sceneId` for a session-level stage;
   - both routes return 401 without Administrator access and change nothing (AC5);
   - the routes appear in the generated OpenAPI document.
-- [ ] 6.2 Implement the routes with zod schemas behind JOS-173's gate and extend the surface test's list of deliberate app-level settings routes. Make 6.1 pass.
+- [x] 6.2 Implement the routes with zod schemas behind JOS-173's gate. Both routes are a `GET` and a `POST`, so the surface test's "no PUT, PATCH or DELETE" guard needs no exemption. Make 6.1 pass.
 
 ## 7. Frontend: the "Failed stages" section on /admin (TDD; design Decision 7)
 

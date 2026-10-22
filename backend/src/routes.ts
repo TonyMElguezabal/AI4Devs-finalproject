@@ -42,6 +42,7 @@ import { SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES } from "./config/provider
 import { ulid } from "./util/ulid.ts";
 import { adminDeniedSchema, registerAdminGate } from "./adminAccess.ts";
 import { PROVIDER_STAGES, providerView, selectableProviders, setActiveProvider } from "./activeProvider.ts";
+import { registerFailedStageRoutes } from "./adminFailedStageRoutes.ts";
 import { registerProviderProfileRoutes } from "./adminProviderRoutes.ts";
 import { profileProblems } from "./providerAdmin.ts";
 import { getProfile } from "./providerProfiles.ts";
@@ -848,6 +849,7 @@ export const routes: FastifyPluginAsync = async (app) => {
       );
 
       registerProviderProfileRoutes(admin);
+      registerFailedStageRoutes(admin);
     },
     { prefix: "/admin" },
   );
