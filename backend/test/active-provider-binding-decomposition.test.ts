@@ -10,7 +10,7 @@ import {
   setReasoningProviderRegistry,
 } from "../src/decompositionDependencies.ts";
 import { runDecompositionPhase } from "../src/decompositionPhase.ts";
-import { resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
+import { setImageProviderRegistry } from "../src/imageProvider.ts";
 import { resetVideoStageStartDelayMs, setVideoStageStartDelayMs } from "../src/orchestrator.ts";
 import { releaseAttempt } from "../src/retry/retryScheduler.ts";
 import { startNewCycle } from "../src/retry/stageAttemptRecorder.ts";

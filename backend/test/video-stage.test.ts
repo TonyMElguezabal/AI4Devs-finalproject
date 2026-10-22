@@ -1,20 +1,16 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
 import * as concurrency from "../src/concurrency.ts";
 import {
   commitSceneResult,
   createRun,
   db,
-  getAllVideoGeneratingScenes,
-  getImageCompleteScenesForRun,
   getRun,
   getScene,
   getScenesForRun,
   insertVoiceOver,
   markImageComplete,
-  PROJECTS_ROOT,
   resetAll,
   resolveArtefactPath,
   writeArtefactOnce,
@@ -40,7 +36,6 @@ import {
   resetVideoProviderRegistry,
   setVideoDownloadFetch,
   setVideoProviderRegistry,
-  STUB_VIDEO_PROVIDER_NAME,
 } from "../src/videoProvider.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import { createStubAssemblyTool } from "../src/stubAssemblyTool.ts";
@@ -421,7 +416,7 @@ describe("Group 6 — Failures, retries, binding (Decisions 5, 6, 7)", () => {
         this.calls.push(instruction);
         return { kind: "submitted" as const, requestId: `req-${callCount}` };
       },
-      async poll(reqId: string) {
+      async poll(_reqId: string) {
         if (callCount === 1) return { kind: "failed_transient" as const, reason: "first attempt fails" };
         return { kind: "success" as const, clip: { source: "bytes" as const, bytes: MP4_BYTES } };
       },
@@ -661,7 +656,7 @@ describe("Reconciliation on boot (Decision 9)", () => {
     const provider = createStubVideoProvider("success-bytes", { bytes: MP4_BYTES });
     setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
 
-    const result = recoverOnBoot();
+    recoverOnBoot();
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Either retried successfully or marked failed, but not still video-generating

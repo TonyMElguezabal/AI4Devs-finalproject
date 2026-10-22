@@ -14,7 +14,6 @@ import {
   markImageComplete,
   resetAll,
   resolveArtefactPath,
-  setFinalVideoPath,
   writeArtefactOnce,
 } from "../src/db.ts";
 import {

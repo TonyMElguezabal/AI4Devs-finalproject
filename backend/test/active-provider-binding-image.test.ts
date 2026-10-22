@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { setActiveProvider } from "../src/activeProvider.ts";
 import * as concurrency from "../src/concurrency.ts";
 import { createRun, getScene, resetAll } from "../src/db.ts";
-import { createStubImageProvider, resetDownloadFetch, resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
-import { launchImageStage, manualRetry, resetVideoStageStartDelayMs, setVideoStageStartDelayMs } from "../src/orchestrator.ts";
+import { createStubImageProvider, resetDownloadFetch, setImageProviderRegistry } from "../src/imageProvider.ts";
+import { launchImageStage, manualRetry, setVideoStageStartDelayMs } from "../src/orchestrator.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import { STAGE } from "../src/types.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
@@ -69,7 +69,7 @@ describe("image binding to the active provider", () => {
   it("AC1: a scene's first attempt binds to the provider active at that moment and is sent there", async () => {
     const { sceneId } = await registeredScene();
     setActiveProvider("image", "stub-b");
-    await launchImageStage(sceneId);
+    launchImageStage(sceneId);
     await settled(sceneId);
     expect(getScene(sceneId)!.provider).toBe("stub-b");
     expect(stubB.calls).toHaveLength(1);
@@ -78,7 +78,7 @@ describe("image binding to the active provider", () => {
 
   it("without a choice a scene binds to the settings default", async () => {
     const { sceneId } = await registeredScene();
-    await launchImageStage(sceneId);
+    launchImageStage(sceneId);
     await settled(sceneId);
     expect(getScene(sceneId)!.provider).toBe("stub-a");
   });
@@ -86,7 +86,7 @@ describe("image binding to the active provider", () => {
   it("AC3 and AC5: a bound scene keeps its provider for a manual retry after the change, and nothing goes to the new one", async () => {
     const { runId, sceneId } = await registeredScene();
     installRegistry(createStubImageProvider("not-retryable-failure"), stubB);
-    await launchImageStage(sceneId);
+    launchImageStage(sceneId);
     await settled(sceneId);
     expect(getScene(sceneId)).toMatchObject({ status: "failed", provider: "stub-a" });
 
@@ -101,12 +101,12 @@ describe("image binding to the active provider", () => {
 
   it("AC4: a completed image is not requested again after the change", async () => {
     const { sceneId } = await registeredScene();
-    await launchImageStage(sceneId);
+    launchImageStage(sceneId);
     await settled(sceneId);
     expect(stubA.calls).toHaveLength(1);
 
     setActiveProvider("image", "stub-b");
-    await launchImageStage(sceneId); // a duplicate launch, as a restart would make
+    launchImageStage(sceneId); // a duplicate launch, as a restart would make
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     expect(stubA.calls).toHaveLength(1);

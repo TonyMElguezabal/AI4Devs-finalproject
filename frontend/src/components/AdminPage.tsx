@@ -94,6 +94,7 @@ export function AdminPage({ tools }: Props) {
       )}
 
       {state.kind === "locked" && (
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- handleUnlock catches its own failure
         <form onSubmit={handleUnlock} aria-label="Administrator password" className="start-form card pop">
           <div className="field">
             <label htmlFor="admin-password">Password</label>

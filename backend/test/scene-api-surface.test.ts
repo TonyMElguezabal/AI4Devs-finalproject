@@ -173,7 +173,7 @@ describe("A chunk's narration interval is readable and never writable (JOS-143)"
 
   it("is documented on the scene response and on no request body", async () => {
     const res = await app.inject({ method: "GET", url: "/docs/json" });
-    const document = res.json() as { paths: Record<string, Record<string, { requestBody?: unknown }>> };
+    const document = res.json<{ paths: Record<string, Record<string, { requestBody?: unknown }>> }>();
 
     expect(JSON.stringify(document)).toContain("narrationInterval");
     for (const operations of Object.values(document.paths)) {
@@ -250,7 +250,7 @@ describe("A chunk's requested duration is readable and never writable (JOS-147)"
 
   it("is documented on the scene response and on no request body", async () => {
     const res = await app.inject({ method: "GET", url: "/docs/json" });
-    const document = res.json() as { paths: Record<string, Record<string, { requestBody?: unknown }>> };
+    const document = res.json<{ paths: Record<string, Record<string, { requestBody?: unknown }>> }>();
 
     expect(JSON.stringify(document)).toContain("requestedDurationSeconds");
     expect(JSON.stringify(document)).toContain("durationWarning");
@@ -328,7 +328,7 @@ describe("A chunk's speed factor is readable and never writable (JOS-148)", () =
 
   it("is documented on the scene response and on no request body", async () => {
     const res = await app.inject({ method: "GET", url: "/docs/json" });
-    const document = res.json() as { paths: Record<string, Record<string, { requestBody?: unknown }>> };
+    const document = res.json<{ paths: Record<string, Record<string, { requestBody?: unknown }>> }>();
 
     expect(JSON.stringify(document)).toContain("speedFactor");
     expect(JSON.stringify(document)).toContain("speedFactorWarning");

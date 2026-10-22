@@ -33,6 +33,7 @@ export function TelemetryConsentDialog({ open, consent, onSave, onClose, onDismi
     const dialog = ref.current;
     if (!dialog) return;
     if (open && !dialog.open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the saved choices each time the dialog opens
       if (consent) setChoices({ errors: consent.errors, providerUsage: consent.providerUsage, productUsage: consent.productUsage });
       setError(undefined);
       dialog.showModal();
@@ -67,6 +68,7 @@ export function TelemetryConsentDialog({ open, consent, onSave, onClose, onDismi
         onDismiss();
       }}
     >
+      {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- handleSubmit catches its own failure */}
       <form onSubmit={handleSubmit}>
         <h2 id="privacy-dialog-title">Help improve Vid4You</h2>
         <p>Nothing is sent unless you turn it on here. No script, media, file name or key is ever sent. You can change this at any time from Privacy.{" "}

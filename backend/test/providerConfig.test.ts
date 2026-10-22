@@ -83,13 +83,13 @@ describe("Per-stage request maximum stays within the recorded rate limit under t
   it("decomposition (OpenAI): 500 req/min measured limit", () => {
     const cap = MAX_SIMULTANEOUS_REQUESTS.decomposition;
     expect(typeof cap).toBe("number");
-    expect((cap as number) * RETRY_BUDGET_ATTEMPTS).toBeLessThan(500);
+    expect((cap) * RETRY_BUDGET_ATTEMPTS).toBeLessThan(500);
   });
 
   it("image (Fal.ai): 2000 measured limit", () => {
     const cap = MAX_SIMULTANEOUS_REQUESTS.image;
     expect(typeof cap).toBe("number");
-    expect((cap as number) * RETRY_BUDGET_ATTEMPTS).toBeLessThan(2000);
+    expect((cap) * RETRY_BUDGET_ATTEMPTS).toBeLessThan(2000);
   });
 
   it("voice, alignment and video are numbers, decided by the product owner (JOS-167)", () => {

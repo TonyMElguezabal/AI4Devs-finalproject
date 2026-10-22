@@ -44,12 +44,14 @@ export function registerProviderProfileRoutes(admin: FastifyInstance): void {
   typedAdmin.get(
     "/provider-types",
     { schema: { response: { 200: z.object({ types: z.array(z.object({ id: z.string(), stage: z.enum(PROVIDER_STAGES), label: z.string(), fields: z.array(fieldSchema) })) }), 401: adminDeniedSchema } } },
+    // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
     async () => ({ types: ADAPTER_TYPES }),
   );
 
   typedAdmin.get(
     "/provider-profiles",
     { schema: { response: { 200: z.object({ profiles: z.array(profileViewSchema) }), 401: adminDeniedSchema } } },
+    // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
     async () => ({ profiles: listProfileViews() }),
   );
 

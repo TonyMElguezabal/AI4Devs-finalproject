@@ -148,6 +148,7 @@ describe("AdminPage with a password configured", () => {
         tools={({ password, onDenied }) => (
           <button
             type="button"
+            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- a test button; the assertion waits for its effect
             onClick={async () => {
               // An Administrator call after the backend's password changed: the gate now answers 401.
               const response = await adminFetch("/admin/something", password);
@@ -279,7 +280,7 @@ describe("App routing (AC3)", () => {
   });
 
   it("renders a session page at /?sessionId= as before: no password field, no /admin link, no /admin request", async () => {
-    vi.stubGlobal("EventSource", QuietEventSource as unknown as typeof EventSource);
+    vi.stubGlobal("EventSource", QuietEventSource);
     const calls = stubAdminBackend(PASSWORD);
     window.history.pushState({}, "", "/?sessionId=01J00000000000000000000173");
     render(<App />);

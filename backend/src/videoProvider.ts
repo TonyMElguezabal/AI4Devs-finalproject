@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { keyFor, stageApiKey } from "./keyStore.ts";
 import { buildProfileRegistry, profileRegistrySlot } from "./profileRegistry.ts";
-import { LEGACY_VIDEO_PROVIDER_IDENTIFIER, VIDEO_PROVIDER, VIDEO_GENERATION_SETTING } from "./config/providers.ts";
+import { VIDEO_PROVIDER, VIDEO_GENERATION_SETTING } from "./config/providers.ts";
 
 // generate-chunk-video (JOS-146) — the video stage's provider port (Decision 3):
 // RunningHub's async submit-and-poll shape. Unlike Fal.ai's image stage (one
@@ -214,6 +214,7 @@ export function createStubVideoProvider(
 
   return {
     calls,
+    // eslint-disable-next-line @typescript-eslint/require-await -- implements the async video provider contract
     async submit({ instruction }) {
       calls.push(instruction);
       // Unique across restarts, like a real provider task id: `provider_requests.id` is a primary key and survives a restart.
@@ -221,6 +222,7 @@ export function createStubVideoProvider(
       submitted.set(requestId, mode);
       return { kind: "submitted", requestId };
     },
+    // eslint-disable-next-line @typescript-eslint/require-await -- implements the async video provider contract
     async poll(requestId) {
       // An id from before a restart is unknown to this in-memory map; answer it from the mode.
       const m = submitted.get(requestId) ?? mode;

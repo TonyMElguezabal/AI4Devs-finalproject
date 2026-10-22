@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { resetAll, createRun } from "../src/db.ts";
 import type { TimestampCharacter } from "../src/narrationTimestamps.ts";
 import { intervalDurationSeconds, registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";

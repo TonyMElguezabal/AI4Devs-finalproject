@@ -99,7 +99,7 @@ describe("A live state change reaches the row (JOS-151)", () => {
 // task 5.4/6.2 — Decision 4: the correction form is present only on a failed
 // stage, absent (not disabled) otherwise, and never exposes id/prompt/order.
 describe("Conditional editing (Decision 4)", () => {
-  async function expandRow(sceneId: string) {
+  async function expandRow(_sceneId: string) {
     const user = userEvent.setup();
     const toggle = screen.getByRole("button", { name: `View scene 1 details` });
     await user.click(toggle);
@@ -1410,9 +1410,9 @@ describe("A refused submission (422 / 503)", () => {
     await user.click(screen.getByRole("button", { name: "Start project" }));
 
     expect((await screen.findByRole("alert")).textContent).toContain(reason);
-    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe("Harbor");
-    expect((screen.getByLabelText("Script") as HTMLTextAreaElement).value).toBe("A script to refuse.");
-    expect((screen.getByLabelText("Language") as HTMLSelectElement).value).toBe("en");
+    expect(screen.getByLabelText<HTMLInputElement>("Title").value).toBe("Harbor");
+    expect(screen.getByLabelText<HTMLTextAreaElement>("Script").value).toBe("A script to refuse.");
+    expect(screen.getByLabelText<HTMLSelectElement>("Language").value).toBe("en");
     expect(screen.getByRole("form", { name: "Start a project" })).toBeTruthy();
     vi.unstubAllGlobals();
   });
@@ -1764,7 +1764,7 @@ describe("The pause dial (JOS-190)", () => {
     render(<SceneRow scene={makeScene({ sceneId: "a", index: 2, state: "chunk-complete", pause: { ...pause, seconds: 3.3 } })} {...base} onSetPause={async () => {}} />);
     await expandScene(2);
 
-    const field = screen.getByLabelText("Pause after scene 2") as HTMLInputElement;
+    const field = screen.getByLabelText<HTMLInputElement>("Pause after scene 2");
     expect(field.type).toBe("number");
     expect(field.value).toBe("3.3");
     expect(field.min).toBe("1.8");
@@ -1878,7 +1878,7 @@ describe("The pause dial (JOS-190)", () => {
     const { rerender } = render(<PauseDial sceneIndex={1} pause={pause} onSetPause={async () => {}} />);
     rerender(<PauseDial sceneIndex={1} pause={{ ...pause, seconds: 2.0 }} onSetPause={async () => {}} />);
 
-    expect((screen.getByLabelText("Pause after scene 1") as HTMLInputElement).value).toBe("2");
+    expect(screen.getByLabelText<HTMLInputElement>("Pause after scene 1").value).toBe("2");
   });
 });
 

@@ -1,6 +1,6 @@
 import { keyFor, stageApiKey } from "./keyStore.ts";
 import { buildProfileRegistry, profileRegistrySlot } from "./profileRegistry.ts";
-import { phaseTimeoutMs, VOICE_PROVIDER } from "./config/providers.ts";
+import { phaseTimeoutMs } from "./config/providers.ts";
 
 // generate-voice-over (JOS-136) Decision 4 — the voice stage's provider (PRD
 // §11): ElevenLabs text-to-speech with timestamps. The adapter makes exactly

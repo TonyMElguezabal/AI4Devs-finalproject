@@ -24,7 +24,7 @@ function valueAt(source: Record<string, unknown>, path: string[]): unknown {
 function setAt(target: Record<string, unknown>, path: string[], value: unknown): void {
   let cursor = target;
   path.slice(0, -1).forEach((key) => {
-    cursor[key] = (cursor[key] as Record<string, unknown> | undefined) ?? {};
+    cursor[key] = cursor[key] ?? {};
     cursor = cursor[key] as Record<string, unknown>;
   });
   cursor[path[path.length - 1]!] = value;
@@ -70,6 +70,7 @@ export function ProviderProfilesSection({ password, onDenied, onChanged, refresh
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the profiles when the section opens or a provider changes
     void load();
     // The password and the lock callback do not change while the section is shown.
   }, [refreshKey]);
@@ -172,6 +173,7 @@ function ProfileForm({ form, stage, types, password, onDenied, onCancel, onSaved
     const initial: Record<string, string> = {};
     for (const field of types.find((candidate) => candidate.id === (editing?.adapterType ?? types[0]?.id))?.fields ?? []) {
       const current = editing ? valueAt(editing.parameters, field.path) : undefined;
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string -- a parameter value is a string or a number
       initial[field.path.join(".")] = current === undefined ? "" : String(current);
     }
     return initial;
@@ -203,6 +205,7 @@ function ProfileForm({ form, stage, types, password, onDenied, onCancel, onSaved
   }
 
   return (
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- handleSubmit catches its own failure
     <form aria-label={title} onSubmit={handleSubmit} className="card">
       <h4>{title}</h4>
       {!editing && types.length > 1 && (
