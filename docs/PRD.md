@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.14  
+**Versión:** 1.15  
 **Alcance:** MVP  
-**Status (v1.14, approved by the product owner 2026-10-22):** the Administrator adds, edits and deletes providers, their parameters and their API keys on `/admin` (`manage-providers-from-admin`, JOS-218, §2.1, §2.3, §11, §11.2). **Status (v1.13, awaiting the product owner's approval):** the Administrator can change the active provider of each stage on `/admin` (`change-active-provider-from-admin`, JOS-171, §2.1, §2.3, §11, §11.2). **Status (v1.12, awaiting the product owner's approval):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3). **Status (v1.11, awaiting the product owner's approval):** one shared Administrator password protects `/admin` (`protect-admin-with-password`, JOS-173, §2.1, §2.3, §12.3). **Status (v1.10):** the final MP4's audio is the voice-over's MP3 stream copied unchanged, not AAC (§7.3, D08), and the automatic-retry delay (2 s base, 30 s cap) is recorded (§11.3) (JOS-203). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous versions are kept in `docs/PRD-v1.13.md` and `docs/PRD-v1.12.md`.
+**Status (v1.15, awaiting the product owner's approval):** the Administrator moves a failed stage to the current active provider on `/admin` (`move-failed-stage-to-active-provider`, JOS-172, §2.1, §2.3, §7.2, §11.2). **Status (v1.14, approved by the product owner 2026-10-22):** the Administrator adds, edits and deletes providers, their parameters and their API keys on `/admin` (`manage-providers-from-admin`, JOS-218, §2.1, §2.3, §11, §11.2). **Status (v1.13, awaiting the product owner's approval):** the Administrator can change the active provider of each stage on `/admin` (`change-active-provider-from-admin`, JOS-171, §2.1, §2.3, §11, §11.2). **Status (v1.12, awaiting the product owner's approval):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3). **Status (v1.11, awaiting the product owner's approval):** one shared Administrator password protects `/admin` (`protect-admin-with-password`, JOS-173, §2.1, §2.3, §12.3). **Status (v1.10):** the final MP4's audio is the voice-over's MP3 stream copied unchanged, not AAC (§7.3, D08), and the automatic-retry delay (2 s base, 30 s cap) is recorded (§11.3) (JOS-203). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous versions are kept in `docs/PRD-v1.14.md` and `docs/PRD-v1.13.md`.
 
 ## 1. Objetivo del producto
 
@@ -19,7 +19,7 @@ El usuario puede consultar el progreso por fase y por escena, descargar resultad
 | Rol | Responsabilidad |
 |---|---|
 | User (*Usuario*) | Enter a title, a script, and the script's language; follow progress and per-scene diagnostics; pause and continue the session; download results; retry failed stages. |
-| Administrator | Unlock `/admin` with the Administrator password; add, edit and delete the providers of each stage, their parameters and their API keys; and change the active provider of each stage there (§11.2). Further Administrator tools are added by later stories (moving a failed stage). A User never needs the password. |
+| Administrator | Unlock `/admin` with the Administrator password; add, edit and delete the providers of each stage, their parameters and their API keys; change the active provider of each stage there, and move a failed stage to the current active provider (§11.2). Further Administrator tools are added by later stories. A User never needs the password. |
 
 The MVP has a single role: the User. The operational settings (§11) are read at start-up from local settings files: a default file that ships with the application and an optional per-user file that overrides it. A change takes effect after the application restarts, and these settings are edited by hand, not through the application. The providers are the exception: the Administrator adds, edits and deletes the providers of each stage, their parameters and their API keys, and chooses each stage's active provider, all on `/admin`, and these apply without a restart (§11.2). The product has two roles. The User needs no login. The Administrator unlocks `/admin` with one shared password, not an account. The password is a local secret, read from `ADMIN_PASSWORD` in the process environment or, when the environment has none, from the credentials file in the user's application-data folder; it is never part of a settings file, never part of the application download, and never shown in the interface, a response or a log. When no password is configured the application still starts, and `/admin` says so and explains how to set one. `/admin` is not linked from the User's pages. A provider's API key is entered on `/admin` and stored encrypted in the local database; it is never part of a settings file, never part of the application download, never returned by the application after it is saved (only its status and its last four characters) and never shown in a log. A key given in the process environment or in the credentials file in the user's application-data folder keeps working for the providers created from the first settings, until a key is stored for them. The other Administrator tools (diagnostics and reports on `/admin`) are deferred post-MVP.
 
@@ -40,7 +40,7 @@ The MVP has a single role: the User. The operational settings (§11) are read at
 
 ### 2.3 Fuera del MVP
 
-- Administrator tools on `/admin` other than managing the providers: moving a failed stage to another provider, reports, and editing an operational setting. Each is its own story. A provider for which the application ships no adapter, and a test of a provider's connection, are also later stories.
+- Administrator tools on `/admin` other than managing the providers and moving a failed stage: reports, and editing an operational setting. Each is its own story. A provider for which the application ships no adapter, and a test of a provider's connection, are also later stories.
 - User accounts, authentication and authorization, any multi-user access, and any hosted (server) deployment. The MVP is an application that runs on the user's own computer (§12.3).
 - Reportes de uso o costos.
 - Importación o edición libre de chunks.
@@ -49,7 +49,7 @@ The MVP has a single role: the User. The operational settings (§11) are read at
 - Cancelación de solicitudes ya enviadas a un proveedor.
 - Montajes que omitan escenas del guion.
 - Changing an operational setting from the application (interface or API) and applying one without a restart (§11). The providers, their parameters and keys, and the active provider are the exception (§11.2).
-- Any automatic provider change, and moving a failed stage to another provider (§11.2), until its story is built; more than one Administrator, user accounts, changing the password from the interface, login sessions and lock-out after failed attempts.
+- Any automatic provider change; more than one Administrator, user accounts, changing the password from the interface, login sessions and lock-out after failed attempts.
 - Session expiry (§12.2).
 - Size or budget limits per session (§4.1).
 - A product-level content policy; providers' own content filters apply (§4.1).
@@ -73,7 +73,7 @@ Un **chunk** es una escena y contiene, como mínimo:
 | `IMAGE` | Instrucción para generar la imagen. | Solo ante fallo de generación de esa imagen. |
 | `VIDEO` | Instrucción para animar la imagen. | Solo ante fallo de generación de ese clip. |
 | Intervalo de narración | Posición y duración de la escena en el audio completo, conforme a §6.1 y §7.3. | No permitida. |
-| Duración solicitada y factor de ajuste | Duración pedida al proveedor y factor de velocidad resultante, conforme a §7.2 y §7.3. | No permitida. |
+| Duración solicitada y factor de ajuste | Duración pedida al proveedor y factor de velocidad resultante, conforme a §7.2 y §7.3. | No permitida, salvo cuando el Administrator mueve un clip fallido a otro proveedor de video (§7.2, §11.2). |
 | Estado y resultados | Progreso, imagen, clip y error, cuando corresponda. | Actualizados por el sistema. |
 
 Cada etapa conserva la identificación del proveedor utilizado y los intentos realizados. Esta información permite diagnosticar fallos sin exponer credenciales ni datos confidenciales. It is shown to the User in each scene's details (image and clip stages) and in each phase's section (session-level stages).
@@ -168,6 +168,8 @@ Cada clip utiliza la imagen generada y la instrucción `VIDEO`. La duración sol
 - El máximo habitual previsto es de 15 segundos; un proveedor que admita 20 segundos puede utilizar ese máximo. **Recorded (§11.3): the video provider's measured admitted range, the shipped default, is 5-15 seconds** — the "usual" 15-second expectation is exactly the measured maximum, not just a placeholder guess.
 
 The §6.1 upper bound ensures that no narrated interval exceeds the video provider's maximum, except for a sentence that cannot be split (§6.1.1). That clip is requested at the maximum admitted duration and slowed down to fit, with a speed-factor warning. No trimming policy is required.
+
+The one exception to the requested duration and the factor being stored once is a failed clip that the Administrator moves to another video provider (§11.2): its requested duration is chosen again from the new provider's admitted durations, by the same rule (the smallest speed change), and its duration warning, speed factor and speed-factor warning follow from it, while the chunk and its narration interval stay unchanged.
 
 El factor de ajuste de velocidad no es un parámetro independiente: resulta de la regla de segmentación de §6.1 y de la selección de duración descrita arriba. The system records the resulting factor for each scene with its result and shows it, with the requested duration, in the scene details. The acceptable limit is configured (§11); when a scene exceeds it, a diagnosable warning is recorded, not a failure.
 
@@ -304,7 +306,7 @@ The Administrator adds, edits and deletes providers on `/admin`. A change to a p
 
 Every stage is bound to a provider at its first attempt, once and for good: reasoning, voice and alignment per session; image and video per chunk. The binding is the provider active at that moment. The stage keeps it for its automatic and manual retries, whatever the active provider is later. Changing the active provider never regenerates a completed result. A stage that used native timestamps binds no alignment provider.
 
-A stage tied to a provider that is unavailable keeps retrying that same provider until it recovers. Completed results are never regenerated.
+A stage tied to a provider that is unavailable keeps retrying that same provider until it recovers, unless the Administrator moves it. `/admin` lists the failed stages that are bound to a provider other than the current active provider of their stage type, with an action to move each one to the current active provider. A move binds that one stage to the provider that is active at that moment and nothing else: it sends no request and does not retry; the next retry, automatic or manual, goes to the new provider, and the attempts recorded before the move keep the provider they ran on. A stage whose failure offers no manual retry is not listed. A move never regenerates a completed result of the session or its scenes, and nothing moves by itself, not even when retries are exhausted. Completed results are never regenerated.
 
 A change to the configured admitted durations, languages, or any other setting, after a restart, does not alter what existing sessions have already established: intervals, chunks, requested durations, speed factors, warnings, the session's language, and completed results stay as they were. A stage that already has a bound provider keeps it for its retries.
 
@@ -457,6 +459,16 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
+
+### From version 1.14 to 1.15
+
+Origin: `move-failed-stage-to-active-provider` (JOS-172), 2026-10-22. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.3, §11.2: the Administrator moves a failed stage that is bound to a provider other than the active one to the current active provider, on `/admin`; the move rebinds only, and the next retry goes to the new provider. | Product owner, JOS-172 |
+| §7.2: a moved clip chooses its requested duration again from the new provider's admitted durations; the chunk and interval are unchanged. | JOS-172, ticket AC4 |
+| §11.2: completed results are kept, nothing moves automatically, and a failure with no manual retry is not listed. | JOS-172 |
 
 ### From version 1.13 to 1.14
 

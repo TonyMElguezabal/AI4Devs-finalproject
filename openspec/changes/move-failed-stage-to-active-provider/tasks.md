@@ -99,10 +99,10 @@
 
 ## 12. Update Technical Documentation (MANDATORY)
 
-- [ ] 12.1 `docs/PRD.md`: the next version (keep the previous one as `docs/PRD-v<prev>.md`) with §11.2, §2.1 and §2.3 changed, and a §16 change log entry.
-- [ ] 12.2 `docs/api-spec.yml`: `GET /admin/failed-stages` and `POST /admin/failed-stages/to-active-provider`, with 200, 400, 401, 404 and 409.
-- [ ] 12.3 `docs/data-model.md`: the exception to the locks on the four duration and speed columns, the one function that lifts them, and the binding that a manual retry now reads.
-- [ ] 12.4 `docs/backend-standards.md`: `rebindFailedClip` is the only code that lifts the duration and speed locks; `startNewCycle` takes the stage's binding; a move binds and sends nothing.
-- [ ] 12.5 `docs/frontend-standards.md`: the accessible names of the Failed stages section. `docs/development_guide.md`: how an Administrator unblocks a session.
+- [x] 12.1 `docs/PRD.md`: the next version (keep the previous one as `docs/PRD-v<prev>.md`) with §11.2, §2.1 and §2.3 changed, and a §16 change log entry.
+- [x] 12.2 `docs/api-spec.yml`: `GET /admin/failed-stages` and `POST /admin/failed-stages/to-active-provider`, with 200, 400, 401, 404 and 409.
+- [x] 12.3 `docs/data-model.md`: the exception to the locks on the four duration and speed columns, the one function that lifts them, and the binding that a manual retry now reads.
+- [x] 12.4 `docs/backend-standards.md`: `rebindFailedClip` is the only code that lifts the duration and speed locks; `startNewCycle` takes the stage's binding; a move binds and sends nothing.
+- [x] 12.5 `docs/frontend-standards.md`: the accessible names of the Failed stages section. `docs/development_guide.md`: how an Administrator unblocks a session.
 - [ ] 12.6 Create the follow-up Linear tickets only if an open question of design.md is decided to be built (move and retry in one click; reopening a retry for a not-retryable session failure; a move log), assigned to jose.elguezabal@gmail.com with label `type:feature`.
 - [ ] 12.7 Run `graphify update .`.

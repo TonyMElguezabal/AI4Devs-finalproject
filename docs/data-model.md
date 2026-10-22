@@ -231,6 +231,11 @@ An attempt left `in-flight` by a restart ends as `transient` with the message "i
 
 What must never change is refused by the store itself (`lock-script-and-narration`, JOS-137; PRD §4.2, D10), so the rule holds for every caller, present or future, and not only for the repository functions in `backend/src/db.ts`. Each trigger aborts the statement with a message that names what was touched.
 
+**The one exception to the duration and speed locks (`move-failed-stage-to-active-provider`, JOS-172).** The four columns `requested_duration_seconds`, `duration_warning`, `speed_factor` and `speed_factor_warning` stay refused by their triggers for every update except one function, `rebindFailedClip` in `db.ts`. For a scene that is `failed` with an image result and no clip result, and whose `video_provider` is still the one the page listed, it drops the four triggers, writes the new `video_provider` and the four values the Administrator's move chose from the new video provider's admitted durations, and recreates the triggers from the same DDL constants, all in one transaction (a failure rolls the triggers back too). The narration interval, the instructions and the image are never written. A test pins that no other source file drops a trigger.
+
+**What a manual retry reads.** For the session-level stages (`voice-over`, `timestamps`, `decomposition`), `startNewCycle` records the new cycle's first attempt with the provider of the stage's binding (`runs.voice_provider_id`, `alignment_provider_id`, `decomposition_provider_id`) when it has one, instead of copying the latest attempt's provider, so a stage the Administrator moved retries on the provider it was moved to. The attempts recorded before the move keep the provider they ran on.
+
+
 | Trigger | Table | Fires on | Refusal message |
 |---|---|---|---|
 | `runs_title_locked` | `runs` | `UPDATE OF title` | `locked: runs.title cannot be modified after registration` |

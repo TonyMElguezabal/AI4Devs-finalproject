@@ -175,6 +175,16 @@ A provider is a **profile** (`provider_profiles`, `providerProfiles.ts`): a stag
 - **Parameters are read per request.** An edit applies to the next request, retries included; it never rewrites what a session established. The settings files seed the first profiles and nothing else about providers.
 - A profile that sessions, scenes or attempts are bound to is **retired, not deleted**, so its retries keep working.
 
+### Moving a failed stage (`move-failed-stage-to-active-provider`, JOS-172)
+
+`failedStages.ts` finds the failed stages bound to a provider other than the active one (`listFailedStages`) and moves one (`moveFailedStage`). The Administrator is the only caller; nothing moves by itself.
+
+- **A move binds and sends nothing.** It rewrites one stage instance's binding to `activeProviderId(stage)` with a conditional write on the binding that was read (`rebindSessionStage`, `rebindSceneImageProvider`, `rebindFailedClip`), inside one transaction with its guards, then broadcasts the session. It records no attempt and changes no state; the User retries the stage with the usual controls.
+- **`rebindFailedClip` is the only code that lifts the duration and speed locks.** A moved clip's requested duration, duration warning, speed factor and speed-factor warning are chosen again from `requestedClipDuration(interval, activeVideoDurations().durations)` and `SPEED_FACTOR_LIMIT`; the function drops and recreates the four triggers in the transaction. Do not add another place that drops a trigger: a test fails if another source file does.
+- **`startNewCycle` takes the stage's binding** for session-level stages (`boundProviderOf`), so a manual retry after a move goes to the new provider. An alignment step whose latest attempt used the native timestamps keeps that provider.
+- A session failure with no manual retry, a stage with no binding (native timestamps) and assembly are never listed or moved.
+- Route paths must not name moving or reordering chunks (`scene-api-surface.test.ts`): the route is `POST /admin/failed-stages/to-active-provider`.
+
 ### Stage diagnostics: what may reach the page
 
 `see-provider-and-attempts` (JOS-166, PRD §3) shows, per scene stage and per phase, which provider was used and how many attempts were made. The rule for anything an attempt record could add to that:
