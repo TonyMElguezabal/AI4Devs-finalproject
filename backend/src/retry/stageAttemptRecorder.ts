@@ -1,6 +1,7 @@
 import {
   clearRunFailure,
   completeStageAttempt,
+  getRun,
   getStageAttempt,
   getStageInstanceAttempts,
   inTransaction,
@@ -130,6 +131,29 @@ export type NewCycleResult =
   | { started: true; attempt: StageAttempt }
   | { started: false; reason: "not-failed" | "not-retryable" };
 
+/** The attempt provider recorded when native timestamps were used: no provider is bound for it (narrationTimestampsPhase.ts). */
+const NATIVE_TIMESTAMPS_PROVIDER = "elevenlabs-native";
+
+/**
+ * move-failed-stage-to-active-provider (JOS-172), design Decision 5 — the provider a session-level stage instance is bound
+ * to, which a manual retry uses instead of copying the latest attempt: a stage the Administrator moved retries on the
+ * provider it was moved to. `undefined` when the stage has no binding (or is a scene's, which reads its own binding).
+ */
+function boundProviderOf(ref: StageInstanceRef): string | undefined {
+  if (ref.sceneId) return undefined;
+  const run = getRun(ref.sessionId);
+  switch (ref.stage) {
+    case "voice-over":
+      return run?.voiceProviderId ?? undefined;
+    case "timestamps":
+      return run?.alignmentProviderId ?? undefined;
+    case "decomposition":
+      return run?.decompositionProviderId ?? undefined;
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Decision 7 — a manual retry. Only a failed stage instance can start one
  * (its latest attempt ended without success and nothing is scheduled or in
@@ -151,7 +175,7 @@ export function startNewCycle(ref: StageInstanceRef, options: RecorderOptions = 
       runId: ref.sessionId,
       stage: ref.stage,
       ...(ref.sceneId ? { sceneId: ref.sceneId } : {}),
-      providerId: latest.providerId,
+      providerId: latest.providerId === NATIVE_TIMESTAMPS_PROVIDER ? latest.providerId : (boundProviderOf(ref) ?? latest.providerId),
       queuedAt: now.toISOString(),
       dueAt: now.toISOString(),
       cycle: latest.cycle + 1,
