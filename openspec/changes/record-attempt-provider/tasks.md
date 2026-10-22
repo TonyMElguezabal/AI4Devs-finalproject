@@ -34,15 +34,15 @@
 
 ## 6. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 6.1 Start the backend on a copy of a pre-change database; confirm migration 21 applied and the existing rows were backfilled (sqlite query before and after)
-- [ ] 6.2 Run a session with stub providers through the image and clip stages via curl; confirm each new `provider_requests` row carries its stage's provider
-- [ ] 6.3 `GET` the session read before and after the upgrade; confirm the stage diagnostics (provider and attempt counts) are identical (AC4)
-- [ ] 6.4 Test an unknown session id returns the same error as before
-- [ ] 6.5 Document the commands and responses in `reports/YYYY-MM-DD-step-6-manual-endpoint-testing.md`; remove the test session and database copy
+- [x] 6.1 Start the backend on a copy of a pre-change database; confirm migration 21 applied and the existing rows were backfilled (sqlite query before and after)
+- [x] 6.2 Run a session with stub providers through the image and clip stages via curl; confirm each new `provider_requests` row carries its stage's provider
+- [x] 6.3 `GET` the session read before and after the upgrade; confirm the stage diagnostics (provider and attempt counts) are identical (AC4)
+- [x] 6.4 Test an unknown session id returns the same error as before
+- [x] 6.5 Document the commands and responses in `reports/YYYY-MM-DD-step-6-manual-endpoint-testing.md`; remove the test session and database copy
 
 ## 7. Frontend: E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Not applicable: no frontend or API change. Record the reason in the step 6 report.
+- [x] 7.1 Not applicable: no frontend or API change. Record the reason in the step 6 report.
 
 ## 8. Update Technical Documentation (MANDATORY)
 
