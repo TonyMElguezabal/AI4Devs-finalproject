@@ -44,7 +44,7 @@ export function registerFailedStageRoutes(admin: FastifyInstance): void {
   );
 
   typedAdmin.post(
-    "/failed-stages/move",
+    "/failed-stages/to-active-provider",
     {
       schema: {
         body: moveBodySchema,

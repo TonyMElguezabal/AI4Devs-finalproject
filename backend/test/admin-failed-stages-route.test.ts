@@ -27,7 +27,7 @@ afterEach(async () => {
 });
 
 const list = (headers: Record<string, string> = admin) => app.inject({ method: "GET", url: "/admin/failed-stages", headers });
-const move = (payload: unknown, headers: Record<string, string> = admin) => app.inject({ method: "POST", url: "/admin/failed-stages/move", headers, payload: payload as object });
+const move = (payload: unknown, headers: Record<string, string> = admin) => app.inject({ method: "POST", url: "/admin/failed-stages/to-active-provider", headers, payload: payload as object });
 
 describe("GET /admin/failed-stages", () => {
   it("lists the failed stages on a provider other than the active one, with both providers and the cause (AC1)", async () => {
@@ -63,7 +63,7 @@ describe("GET /admin/failed-stages", () => {
   });
 });
 
-describe("POST /admin/failed-stages/move", () => {
+describe("POST /admin/failed-stages/to-active-provider", () => {
   it("moves a failed voice stage and answers the new provider", async () => {
     const runId = newRun();
     failVoice(runId);
@@ -127,6 +127,6 @@ describe("OpenAPI document", () => {
   it("lists both routes", async () => {
     const document = (await app.inject({ method: "GET", url: "/docs/json" })).json();
     expect(document.paths["/admin/failed-stages"]).toHaveProperty("get");
-    expect(document.paths["/admin/failed-stages/move"]).toHaveProperty("post");
+    expect(document.paths["/admin/failed-stages/to-active-provider"]).toHaveProperty("post");
   });
 });
