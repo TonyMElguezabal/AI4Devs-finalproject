@@ -38,10 +38,10 @@
 
 ## 5. Backend: admitted durations follow the active video provider (TDD; design Decision 4)
 
-- [ ] 5.1 Write failing tests for `activeVideoDurations()`: it returns the active video profile's range; a change of the active provider changes the next call; segmentation, clause splitting, scene registration and the clip-duration request use it instead of the start-up constants; the segmentation lower bound is still the setting.
-- [ ] 5.2 Replace `VIDEO_ADMITTED_DURATIONS_SECONDS` and `SEGMENTATION_UPPER_BOUND_SECONDS` at their use sites (`admittedDurations.ts`, `db.ts`, `segmentation.ts`, `clauseSplitting.ts`, `sceneRegistration.ts`). Make 5.1 pass.
-- [ ] 5.3 Write failing tests: a scene whose stored requested duration the active video provider does not admit fails as not retryable before any binding, with a message naming the duration and the provider, sends nothing, stays unbound, and its manual retry works after the active provider is switched back.
-- [ ] 5.4 Add the check before the video bind point. Make 5.3 pass.
+- [x] 5.1 Write failing tests for `activeVideoDurations()`: it returns the active video profile's range; a change of the active provider changes the next call; segmentation, clause splitting, scene registration and the clip-duration request use it instead of the start-up constants; the segmentation lower bound is still the setting.
+- [x] 5.2 Replace `VIDEO_ADMITTED_DURATIONS_SECONDS` and `SEGMENTATION_UPPER_BOUND_SECONDS` at their use sites (`admittedDurations.ts`, `db.ts`, `segmentation.ts`, `clauseSplitting.ts`, `sceneRegistration.ts`). Make 5.1 pass.
+- [x] 5.3 Write failing tests: a scene whose stored requested duration the active video provider does not admit fails as not retryable before any binding, with a message naming the duration and the provider, sends nothing, stays unbound, and its manual retry works after the active provider is switched back.
+- [x] 5.4 Add the check before the video bind point. Make 5.3 pass.
 
 ## 6. Backend: admin API (TDD; design Decisions 6, 7, 9)
 

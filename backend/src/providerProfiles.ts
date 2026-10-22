@@ -1,6 +1,6 @@
 import { SETTINGS } from "./config/providers.ts";
 import type { Settings } from "./config/settings.ts";
-import { db, onStoreReset } from "./db.ts";
+import { db, getActiveProviderChoice, onStoreReset } from "./db.ts";
 import { PROVIDER_STAGES, SEEDED_PROFILES, type ProviderStage } from "./providerTypes.ts";
 
 // manage-providers-from-admin (JOS-218), design Decisions 1, 7 and 8 — the provider profiles stored in the database,
@@ -137,3 +137,14 @@ export function seedProviderProfiles(settings: Settings, now: () => Date = () =>
 
 // A test reset starts the drift notices again.
 onStoreReset(() => warnedDrift.clear());
+
+/**
+ * The provider a stage uses for a new request: the Administrator's choice when it is a profile of the stage that is not
+ * retired, else the profile created from the settings. The same answer `activeProviderId` gives, kept free of the adapter
+ * registries so the adapters and the key store can use it without an import cycle.
+ */
+export function activeProfileIdOf(stage: ProviderStage): string {
+  const choice = getActiveProviderChoice(stage);
+  const profile = choice === null ? undefined : getProfile(choice);
+  return profile && profile.stage === stage && profile.retiredAt === null ? profile.id : SEEDED_PROFILES[stage].id;
+}

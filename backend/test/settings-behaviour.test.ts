@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // configure-providers-and-parameters (JOS-174), group 4 — behaviour follows the settings, established
@@ -27,6 +28,11 @@ function restartWith(override?: unknown): void {
   const path = join(dir, "settings.json");
   if (override !== undefined) writeFileSync(path, JSON.stringify(override));
   process.env.SETTINGS_PATH = path;
+  // manage-providers-from-admin (JOS-218): the provider sections only seed the first profiles, so a restart under other
+  // settings, in these tests, is a first start: the profiles of the previous test go.
+  const store = new DatabaseSync(process.env.DB_PATH ?? "data/skeleton.sqlite");
+  store.exec("DELETE FROM provider_profiles");
+  store.close();
   vi.resetModules();
 }
 

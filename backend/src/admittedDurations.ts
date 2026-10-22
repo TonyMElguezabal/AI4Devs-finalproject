@@ -1,4 +1,4 @@
-import { VIDEO_ADMITTED_DURATIONS_SECONDS } from "./config/providers.ts";
+import { activeVideoDurations } from "./videoDurations.ts";
 import type { DurationWarning, NarrationInterval } from "./types.ts";
 
 // segment-script-into-chunks (JOS-140) — PRD §7.2: the clip duration the video
@@ -30,7 +30,7 @@ export function intervalDurationSeconds(interval: NarrationInterval): number {
 
 export function closestAdmittedDuration(
   narratedSeconds: number,
-  admitted: readonly number[] = VIDEO_ADMITTED_DURATIONS_SECONDS,
+  admitted: readonly number[] = activeVideoDurations().durations,
 ): ClosestAdmittedDuration {
   if (!Number.isFinite(narratedSeconds) || narratedSeconds <= 0) {
     throw new RangeError(`a narrated duration must be a positive finite number, got ${narratedSeconds}`);
@@ -71,7 +71,7 @@ export interface RequestedClipDuration {
  */
 export function requestedClipDuration(
   interval: NarrationInterval,
-  admitted: readonly number[] = VIDEO_ADMITTED_DURATIONS_SECONDS,
+  admitted: readonly number[] = activeVideoDurations().durations,
 ): RequestedClipDuration {
   const narratedSeconds = intervalDurationSeconds(interval);
   const { admitted: seconds, speedRatio: factor } = closestAdmittedDuration(narratedSeconds, admitted);

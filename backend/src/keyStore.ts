@@ -3,8 +3,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { LEGACY_IMAGE_PROVIDER_IDENTIFIER, LEGACY_VIDEO_PROVIDER_IDENTIFIER } from "./config/providers.ts";
 import { loadCredential } from "./config/credentials.ts";
-import { db, getActiveProviderChoice, onStoreReset } from "./db.ts";
-import { ensureProfiles, getProfile } from "./providerProfiles.ts";
+import { db, onStoreReset } from "./db.ts";
+import { activeProfileIdOf, ensureProfiles, getProfile } from "./providerProfiles.ts";
 import { SEEDED_PROFILES, type ProviderStage } from "./providerTypes.ts";
 
 // manage-providers-from-admin (JOS-218), design Decision 5 — an API key entered on /admin is stored encrypted in the
@@ -130,20 +130,9 @@ export function keyFor(profileId: string): string {
   throw missingKeyError(profile.stage);
 }
 
-/**
- * The provider a stage uses for a new request: the Administrator's choice when it is a profile that is not retired,
- * else the profile created from the settings. The same answer `activeProviderId` gives, kept free of the adapter
- * registries so the adapters can load their keys through this module without an import cycle.
- */
-function activeProfileId(stage: ProviderStage): string {
-  const choice = getActiveProviderChoice(stage);
-  const profile = choice === null ? undefined : getProfile(choice);
-  return profile && profile.stage === stage && profile.retiredAt === null ? profile.id : SEEDED_PROFILES[stage].id;
-}
-
 /** The one entry point the application uses: the key of the profile the stage instance is bound to, else of the active one. */
 export function stageApiKey(stage: ProviderStage, boundId?: string): string {
-  return keyFor(resolveProfileId(stage, boundId ?? activeProfileId(stage)));
+  return keyFor(resolveProfileId(stage, boundId ?? activeProfileIdOf(stage)));
 }
 
 export interface KeyStatus {

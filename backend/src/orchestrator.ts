@@ -59,6 +59,7 @@ import {
   writeArtefactOnce,
 } from "./db.ts";
 import { activeProviderId } from "./activeProvider.ts";
+import { activeVideoDurations } from "./videoDurations.ts";
 import type { AssemblyTool, NarrationEdit } from "./assemblyTool.ts";
 import { applyPauseEdits } from "./scenePause.ts";
 import { hasPendingPauseEdits, loadSessionPauses, scenePauseViews } from "./sessionPauses.ts";
@@ -993,6 +994,20 @@ async function runVideoAttempt(sceneId: string): Promise<void> {
     markSceneFailed(sceneId, "no requested duration is stored for this chunk (not retryable)");
     broadcast(fresh.runId);
     return;
+  }
+
+  // manage-providers-from-admin (JOS-218), Decision 4 — before the scene is bound, the active video provider must admit
+  // the duration stored for it; otherwise the scene fails here, unbound, and can be retried after the active provider
+  // is changed back.
+  if (fresh.videoProvider === null) {
+    const { min, max, label } = activeVideoDurations();
+    if (fresh.requestedDurationSeconds < min || fresh.requestedDurationSeconds > max) {
+      resetAttemptsForVideoStart(sceneId);
+      concurrency.release(VIDEO_STAGE, sceneId);
+      markSceneFailed(sceneId, `the requested duration of ${fresh.requestedDurationSeconds} s is not admitted by the ${label} video provider (${min} to ${max} s); switch the active video provider back and retry (not retryable)`);
+      broadcast(fresh.runId);
+      return;
+    }
   }
 
   // Decision 1 — need a readable image file
