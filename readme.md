@@ -104,6 +104,10 @@ npm run dev
 
 Abrir `http://localhost:5173`. La documentación interactiva de la API está en `http://127.0.0.1:3100/docs` (solo en desarrollo) y la comprobación de salud en `http://127.0.0.1:3100/health`.
 
+**Reportes en `/admin`**
+
+Tras desbloquear `/admin`, la sección «Reports» muestra el uso de cada proveedor por etapa en un periodo (últimos 7 días, últimos 30 días por defecto, todo el tiempo o un rango): intentos, éxitos, fallos transitorios y no reintentables, intentos agotados por tiempo, tasa de éxito, latencia mediana y percentil 95, y unidades facturadas. Se calcula al momento desde la base de datos local (`GET /admin/reports/provider-usage`), es de solo lectura y no contiene claves, guiones ni textos de fallo. Mientras el proveedor no se registre en cada intento de imagen y clip, esas filas siguen al proveedor actual de la escena.
+
 **Credenciales**
 
 Las claves se pueden introducir en `/admin` (sección «Providers»): se guardan cifradas en la base de datos local, no se vuelven a mostrar (solo su estado y los cuatro últimos caracteres) y la aplicación las pide por el rol de la etapa, no por el nombre del proveedor. Las variables de abajo siguen valiendo como respaldo para los cinco proveedores creados a partir de los ajustes, hasta que se guarda una clave para ellos; una clave guardada gana. La clave maestra del cifrado es un fichero aparte (`PROVIDER_KEY_PATH`, por defecto `data/provider-keys.key`, modo 0600): protege la base de datos copiada por sí sola, no a quien pueda leer ambos ficheros.

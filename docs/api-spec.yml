@@ -148,6 +148,10 @@
 # `POST /admin/failed-stages/to-active-provider` (body `{ sessionId, stage, sceneId? }`; 200 `{ moved }`, with the new requested
 # duration for a clip; 400 validation; 401; 404 `not-found`; 409 `not-failed`, `already-on-active`, `retry-in-progress`,
 # `not-retryable` or `not-usable`). Both are behind the Administrator password. The move binds the stage and sends nothing.
+# JOS-223 (report-provider-usage) - 2026-10-22: new `GET /admin/reports/provider-usage?from&to` (ISO 8601 date-times, `[from, to)` on the instant an
+# attempt was sent; `from` open when absent, `to` is now when absent; 200 `{ from, to, sceneAttemptsFollowCurrentProvider, rows }` with one row
+# per stage and provider: attempts, successes, failures by kind, success rate, median and 95th-percentile latency, billed units and their unit;
+# 400 for a bad date-time or `from` not before `to`; 401). Read-only, behind the Administrator password; it carries no key, script, prompt or failure text.
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -3499,6 +3503,138 @@ paths:
                       - retry-in-progress
                       - not-retryable
                       - not-usable
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+
+  /admin/reports/provider-usage:
+    get:
+      parameters:
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: from
+          required: false
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: to
+          required: false
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  from:
+                    type: string
+                    nullable: true
+                  to:
+                    type: string
+                  sceneAttemptsFollowCurrentProvider:
+                    type: boolean
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        stage:
+                          type: string
+                          enum:
+                            - voice
+                            - alignment
+                            - reasoning
+                            - image
+                            - video
+                        providerId:
+                          type: string
+                        providerLabel:
+                          type: string
+                        attempts:
+                          type: number
+                        successes:
+                          type: number
+                        transient:
+                          type: number
+                        notRetryable:
+                          type: number
+                        timedOut:
+                          type: number
+                        successRatePercent:
+                          type: number
+                        medianLatencyMs:
+                          type: number
+                          nullable: true
+                        p95LatencyMs:
+                          type: number
+                          nullable: true
+                        billedUnits:
+                          type: number
+                        unit:
+                          type: string
+                      required:
+                        - stage
+                        - providerId
+                        - providerLabel
+                        - attempts
+                        - successes
+                        - transient
+                        - notRetryable
+                        - timedOut
+                        - successRatePercent
+                        - medianLatencyMs
+                        - p95LatencyMs
+                        - billedUnits
+                        - unit
+                      additionalProperties: false
+                required:
+                  - from
+                  - to
+                  - sceneAttemptsFollowCurrentProvider
+                  - rows
+                additionalProperties: false
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: number
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - statusCode
+                  - error
+                  - message
+                additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
                 required:
                   - ok
                   - reason

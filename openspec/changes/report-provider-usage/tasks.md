@@ -52,24 +52,24 @@
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the real server on a scratch store and scratch projects folder with stub adapters (two providers for the image and video stages) and `ALLOW_TEST_ENDPOINTS=1`; run sessions that give successes, transient and not-retryable failures, a timed-out attempt, native timestamps on one session, and a scene moved to the second video provider.
-- [ ] 7.2 Without the Administrator password: 401.
-- [ ] 7.3 With it: the default, 7-day, all-time and custom-range answers; compare each row with the spike's R1 query run with `sqlite3` on the same scratch store.
-- [ ] 7.4 Error cases: `from` after `to`, a non-date value (400).
-- [ ] 7.5 Search the response bodies for the session scripts and failure texts: none present. Confirm the store's row counts are unchanged by the report calls.
-- [ ] 7.6 Delete the scratch store and folder; confirm the default store is untouched. Save `openspec/changes/report-provider-usage/reports/YYYY-MM-DD-step-7-manual-endpoint-testing.md`.
+- [x] 7.1 Start the real server on a scratch store and scratch projects folder with stub adapters (two providers for the image and video stages) and `ALLOW_TEST_ENDPOINTS=1`; run sessions that give successes, transient and not-retryable failures, a timed-out attempt, native timestamps on one session, and a scene moved to the second video provider.
+- [x] 7.2 Without the Administrator password: 401.
+- [x] 7.3 With it: the default, 7-day, all-time and custom-range answers; compare each row with the spike's R1 query run with `sqlite3` on the same scratch store.
+- [x] 7.4 Error cases: `from` after `to`, a non-date value (400).
+- [x] 7.5 Search the response bodies for the session scripts and failure texts: none present. Confirm the store's row counts are unchanged by the report calls.
+- [x] 7.6 Delete the scratch store and folder; confirm the default store is untouched. Save `openspec/changes/report-provider-usage/reports/YYYY-MM-DD-step-7-manual-endpoint-testing.md`.
 
 ## 8. E2E Testing with the browser (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Applicability: a new `/admin` section, so this step applies.
-- [ ] 8.2 Run the backend on the scratch store of step 7 and the frontend. Without the password: no Reports section. With it: the Reports section shows the last 30 days with the expected rows and the attribution note.
-- [ ] 8.3 Switch to 7 days, all time and a custom range; the table changes accordingly; a range with no activity shows the empty message.
-- [ ] 8.4 Restore the environment and save `openspec/changes/report-provider-usage/reports/YYYY-MM-DD-step-8-e2e.md`.
+- [x] 8.1 Applicability: a new `/admin` section, so this step applies.
+- [x] 8.2 Run the backend on the scratch store of step 7 and the frontend. Without the password: no Reports section. With it: the Reports section shows the last 30 days with the expected rows and the attribution note.
+- [x] 8.3 Switch to 7 days, all time and a custom range; the table changes accordingly; a range with no activity shows the empty message.
+- [x] 8.4 Restore the environment and save `openspec/changes/report-provider-usage/reports/YYYY-MM-DD-step-8-e2e.md`.
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [ ] 9.1 `docs/PRD.md` §11.4: check the text matches what was built; change it (with a §16 entry) only if it does not.
-- [ ] 9.2 `docs/api-spec.yml`: `GET /admin/reports/provider-usage` with 200, 400 and 401.
-- [ ] 9.3 `docs/frontend-standards.md`: the accessible names of the Reports section and its period selector, and that later reports reuse `ReportPeriodSelector`.
-- [ ] 9.4 `docs/development_guide.md` and the readme's `/admin` section: the Reports section and what the usage report counts.
-- [ ] 9.5 Run `graphify update .`.
+- [x] 9.1 `docs/PRD.md` §11.4: check the text matches what was built; change it (with a §16 entry) only if it does not.
+- [x] 9.2 `docs/api-spec.yml`: `GET /admin/reports/provider-usage` with 200, 400 and 401.
+- [x] 9.3 `docs/frontend-standards.md`: the accessible names of the Reports section and its period selector, and that later reports reuse `ReportPeriodSelector`.
+- [x] 9.4 `docs/development_guide.md` and the readme's `/admin` section: the Reports section and what the usage report counts.
+- [x] 9.5 Run `graphify update .`.
