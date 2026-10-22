@@ -110,5 +110,5 @@
 - [x] 12.4 `docs/backend-standards.md`: the role API (`stageApiKey`), factories take `(parameters, loadKey)`, no code names a vendor key, `activeVideoDurations()`, and how the registries are rebuilt.
 - [x] 12.5 `docs/frontend-standards.md`: the accessible names of the Providers section.
 - [x] 12.6 `docs/development_guide.md` and the readme's provider and credentials sections: managing providers and keys on `/admin`, the legacy environment variables as a fallback for the seeded profiles, `PROVIDER_KEY_PATH` and its limit.
-- [ ] 12.7 Create the follow-up Linear tickets "Test connection for a provider" and "Keep the provider key file outside the database folder in packaged builds" (assignee jose.elguezabal@gmail.com, label `type:feature`), and link them to JOS-218.
-- [ ] 12.8 Run `graphify update .`.
+- [x] 12.7 Create the follow-up Linear tickets "Test connection for a provider" (JOS-220) and "Keep the provider key file outside the database folder in packaged builds" (JOS-221) (assignee jose.elguezabal@gmail.com, label `type:feature`), and link them to JOS-218.
+- [x] 12.8 Run `graphify update .`.
