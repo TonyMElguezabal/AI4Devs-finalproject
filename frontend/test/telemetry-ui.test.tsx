@@ -111,7 +111,7 @@ describe("App consent flow", () => {
 
   function putBodies(): unknown[] {
     return vi.mocked(fetch).mock.calls
-      .filter(([, init]) => (init as RequestInit | undefined)?.method === "PUT")
+      .filter(([, init]) => (init)?.method === "PUT")
       .map(([, init]) => JSON.parse(String((init as RequestInit).body)));
   }
 

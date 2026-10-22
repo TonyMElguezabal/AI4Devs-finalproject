@@ -14,7 +14,7 @@ import { releaseAttempt } from "../src/retry/retryScheduler.ts";
 import { generateVoiceOver } from "../src/voiceOverPhase.ts";
 import { retryVoiceOver } from "../src/voiceOverRetry.ts";
 import { createStubVideoProvider, resetVideoDownloadFetch, resetVideoProviderRegistry, setVideoProviderRegistry } from "../src/videoProvider.ts";
-import { createSilentMp3, createStubVoiceProvider, resetVoiceProviderRegistry, setVoiceProviderRegistry } from "../src/voiceProvider.ts";
+import { createStubVoiceProvider, resetVoiceProviderRegistry, setVoiceProviderRegistry } from "../src/voiceProvider.ts";
 import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
 import { STAGE } from "../src/types.ts";
 import { newRun, registerScenes } from "./failedStageFixtures.ts";
@@ -85,7 +85,7 @@ describe("image", () => {
     const stubA = createStubImageProvider("not-retryable-failure");
     const stubB = createStubImageProvider("success-bytes", { bytes: png() });
     setImageProviderRegistry({ defaultIdentifier: "stub-a", adapters: { "stub-a": stubA, "stub-b": stubB } });
-    await launchImageStage(scene!);
+    launchImageStage(scene!);
     await settle();
     expect(getScene(scene!)).toMatchObject({ status: "failed", provider: "stub-a" });
     setActiveProvider("image", "stub-b");

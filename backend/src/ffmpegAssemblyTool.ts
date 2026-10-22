@@ -141,6 +141,7 @@ function probeAudioStreamDuration(path: string): number {
 
 export function createFfmpegAssemblyTool(): AssemblyTool {
   return {
+    // eslint-disable-next-line @typescript-eslint/require-await -- implements the async AssemblyTool contract
     async assemble(input: AssemblyInput): Promise<AssemblyResult> {
       const work = mkdtempSync(join(tmpdir(), "vid4you-assembly-"));
       try {

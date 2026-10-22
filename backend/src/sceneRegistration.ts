@@ -140,6 +140,8 @@ export async function registerDecomposition(
   const instructions = await generator.generate(
     fragments.map((fragment) => fragment.text),
     run.language,
+    // admin-visual-style-prompt (JOS-201), Decision 3 — the run's snapshot, so a retry or a restart never sees a later save.
+    run.visualStylePrompt,
   );
   if (instructions.kind === "failed_transient" || instructions.kind === "invalid_output") {
     return recordFailure(runId, instructions.reason, true, now(), retryState);
@@ -179,9 +181,9 @@ export async function registerDecomposition(
   });
   try {
     insertRegisteredScenes(runId, scenes);
-  } catch (err: any) {
+  } catch (err) {
     // Another registration won the race; the unique (run_id, idx) index refused this one.
-    if (/UNIQUE constraint failed/i.test(String(err?.message))) return { ok: false, reason: "already-registered" };
+    if (/UNIQUE constraint failed/i.test(String((err as { message?: unknown } | null)?.message))) return { ok: false, reason: "already-registered" };
     throw err;
   }
   // keep-project-files-locally (JOS-162), Decision 2 — the generated texts,

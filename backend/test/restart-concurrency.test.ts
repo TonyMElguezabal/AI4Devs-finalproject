@@ -17,7 +17,6 @@ import {
   launchScene,
   launchVideoStage,
   recoverOnBoot,
-  resetVideoPollIntervalMs,
   resetVideoStageStartDelayMs,
   setVideoPollIntervalMs,
 } from "../src/orchestrator.ts";

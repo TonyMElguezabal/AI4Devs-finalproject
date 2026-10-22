@@ -161,7 +161,7 @@ describe("Failure classification by HTTP status (design Decision 4)", () => {
   it("a network error is transient", async () => {
     const result = await providerWith((async () => {
       throw new TypeError("fetch failed");
-    }) as typeof fetch).synthesize(REQUEST);
+    })).synthesize(REQUEST);
 
     expect(result).toEqual({ kind: "failed_transient", reason: "the voice provider could not be reached" });
   });

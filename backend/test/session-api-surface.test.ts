@@ -58,16 +58,16 @@ describe("The API offers no operation that modifies the locked content (AC1)", (
   it("offers no PUT, PATCH or DELETE route at all", () => {
     // add-observability-telemetry (JOS-199): the one deliberate exception is the app-level consent setting, which
     // touches no session content. change-active-provider-from-admin (JOS-171) adds the second: the Administrator's
-    // active-provider choice, an app-level setting behind the Administrator gate. Any other mutating route still fails.
+    // active-provider choice, an app-level setting behind the Administrator gate. admin-visual-style-prompt (JOS-201)
+    // adds the /admin settings the same way. Any other mutating route still fails.
     const routes = offeredRoutes()
       .split("\n")
       // The route tree prints `admin/providers` and `admin/provider-profiles` with their `/:stage` and `/:id` children on
-      // the next line (JOS-171, JOS-218): app-level settings behind the Administrator gate, not session content.
+      // the next line (JOS-171, JOS-218), and the /admin/settings children without their prefix (JOS-201): app-level
+      // settings behind the Administrator gate, not session content.
       .filter(
         (line, index, lines) =>
-          !line.includes("consent") &&
-          !line.includes("admin/providers") &&
-          !line.includes("admin/provider-profiles") &&
+          !["consent", "admin/providers", "admin/provider-profiles", "/visual-style-prompt", "/reference-image"].some((exception) => line.includes(exception)) &&
           !(/\/:(stage|id) \(/.test(line) && /admin\/provider(s|-profiles)/.test(lines[index - 1] ?? "")),
       )
       .join("\n");

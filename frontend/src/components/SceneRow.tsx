@@ -52,6 +52,7 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, onSetPause }: Prop
   const [refusal, setRefusal] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the draft when the scene or its affected stage changes
     setDraftInstruction(currentInstruction);
   }, [scene.sceneId, scene.state, scene.affectedStage, currentInstruction]);
 
@@ -191,7 +192,7 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, onSetPause }: Prop
             )}
 
             {actions.retry && (
-              <button type="button" disabled={pending} onClick={() => runAction(() => onRetry(scene.sceneId))}>
+              <button type="button" disabled={pending} onClick={() => void runAction(() => onRetry(scene.sceneId))}>
                 <Icon name="retry" />
                 Retry scene {scene.index}
               </button>
@@ -202,7 +203,7 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, onSetPause }: Prop
                 className="correction-form"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  runAction(() => onCorrect(scene.sceneId, draftInstruction));
+                  void runAction(() => onCorrect(scene.sceneId, draftInstruction));
                 }}
               >
                 <label htmlFor={`correction-${scene.sceneId}`}>Corrected {correctionStage} instruction for scene {scene.index}</label>

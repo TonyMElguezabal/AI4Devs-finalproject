@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { keyFor, stageApiKey } from "./keyStore.ts";
 import { buildProfileRegistry, profileRegistrySlot } from "./profileRegistry.ts";
-import { IMAGE_GENERATION_SIZE, IMAGE_PROVIDER, LEGACY_IMAGE_PROVIDER_IDENTIFIER, phaseTimeoutMs } from "./config/providers.ts";
+import { IMAGE_GENERATION_SIZE, IMAGE_PROVIDER, phaseTimeoutMs } from "./config/providers.ts";
 
 // generate-chunk-image (JOS-145) — the image stage's provider (PRD §7.1,
 // §11.3): Fal.ai `fal-ai/flux/dev`. The adapter makes exactly one request:
@@ -101,6 +101,7 @@ export function createStubImageProvider(
   const calls: string[] = [];
   return {
     calls,
+    // eslint-disable-next-line @typescript-eslint/require-await -- implements the async image provider contract
     async generate(instruction) {
       calls.push(instruction);
       switch (mode) {

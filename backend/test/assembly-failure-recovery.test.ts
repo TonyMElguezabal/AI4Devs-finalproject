@@ -21,9 +21,7 @@ import {
 import { launchHeldWork } from "../src/launchGate.ts";
 import {
   RETRY_BUDGET,
-  deriveSessionState,
   launchVideoStageForRun,
-  nextAssemblyLaunchCount,
   resetAssemblyLaunchCount,
   resetAssemblyTool,
   resetVideoStageStartDelayMs,

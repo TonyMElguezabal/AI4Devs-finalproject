@@ -79,7 +79,7 @@ function scene(sceneId: string, state: string, updatedAt = "2026-09-25T00:00:00.
 
 beforeEach(() => {
   FakeEventSource.instances = [];
-  vi.stubGlobal("EventSource", FakeEventSource as unknown as typeof EventSource);
+  vi.stubGlobal("EventSource", FakeEventSource);
   vi.spyOn(client, "fetchSnapshot").mockResolvedValue(snapshot());
 });
 

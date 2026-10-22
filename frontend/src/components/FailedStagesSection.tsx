@@ -47,6 +47,7 @@ export function FailedStagesSection({ password, onDenied, refreshKey = 0, onChan
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the failed stages when the section opens or a provider changes
     void load();
     // The password and the lock callback do not change while the section is shown.
   }, [refreshKey]);

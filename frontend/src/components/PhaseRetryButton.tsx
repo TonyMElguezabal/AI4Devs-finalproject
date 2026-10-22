@@ -29,6 +29,7 @@ export function PhaseRetryButton({ label, onRetry }: Props) {
 
   return (
     <>
+      {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- handleClick catches its own failure */}
       <button type="button" disabled={pending} onClick={handleClick}>
         <Icon name="retry" />
         {label}

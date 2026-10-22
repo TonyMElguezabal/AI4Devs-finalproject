@@ -1153,3 +1153,12 @@ progress::-moz-progress-bar {
     -webkit-backdrop-filter: none;
   }
 }
+
+/* ---------- Reference image preview (admin-visual-style-prompt, JOS-201) ---------- */
+
+.reference-preview {
+  max-width: 100%;
+  max-height: 20rem;
+  object-fit: contain;
+  border-radius: var(--radius-control);
+}
