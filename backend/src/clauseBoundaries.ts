@@ -45,7 +45,7 @@ export function cutAtClauseBoundaries(sentence: string, boundaries: readonly num
   const cuts = [0, ...boundaries, sentence.length];
   const pieces: string[] = [];
   for (let index = 0; index + 1 < cuts.length; index++) {
-    const piece = sentence.slice(cuts[index]!, cuts[index + 1]!).trim();
+    const piece = sentence.slice(cuts[index], cuts[index + 1]).trim();
     if (piece !== "") pieces.push(piece);
   }
   return pieces;

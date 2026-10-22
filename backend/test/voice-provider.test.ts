@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PER_PHASE_MAX_TIME_SECONDS } from "../src/config/providers.ts";
+import { limitSeconds } from "./phaseLimit.ts";
 import { createElevenLabsVoiceProvider, createStubVoiceProvider, lateAnswerDelayMs, type VoiceSynthesisRequest } from "../src/voiceProvider.ts";
 
 // generate-voice-over (JOS-136), group 4 — the voice port, its stub and the
@@ -161,7 +161,7 @@ describe("Failure classification by HTTP status (design Decision 4)", () => {
   it("a network error is transient", async () => {
     const result = await providerWith((async () => {
       throw new TypeError("fetch failed");
-    }) as typeof fetch).synthesize(REQUEST);
+    })).synthesize(REQUEST);
 
     expect(result).toEqual({ kind: "failed_transient", reason: "the voice provider could not be reached" });
   });
@@ -299,7 +299,7 @@ describe("The stub provider", () => {
 
     expect(result.kind).toBe("success");
     expect(Date.now() - startedAt).toBeGreaterThanOrEqual(25);
-    expect(lateAnswerDelayMs()).toBe((PER_PHASE_MAX_TIME_SECONDS.voice + 2) * 1000);
+    expect(lateAnswerDelayMs()).toBe((limitSeconds("voice") + 2) * 1000);
   });
 
   it("holds the request until released, so a test can observe the in-flight state", async () => {

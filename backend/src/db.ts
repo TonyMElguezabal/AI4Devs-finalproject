@@ -9,7 +9,7 @@
 // (`openspec/changes/define-persistence/design.md` § Execution Record §3) —
 // this is no longer a disposable stand-in, it is the decision.
 import { randomUUID } from "node:crypto";
-import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
 import { getConsent, normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
 import { ulid } from "./util/ulid.ts";
@@ -28,6 +28,7 @@ import type {
   AttemptTrigger,
   StageAttempt,
   StageAttemptOutcome,
+  TimestampMechanism,
   VoiceOver,
   SessionFailure,
   NarrationTimestamps,
@@ -375,7 +376,7 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       const hasProviderRequests = (
         target
           .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='provider_requests'")
-          .all() as any[]
+          .all()
       ).length > 0;
       if (hasProviderRequests) {
         target.exec("ALTER TABLE provider_requests ADD COLUMN stage TEXT NOT NULL DEFAULT 'image'");
@@ -577,6 +578,56 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
   },
   {
     version: 18,
+    description:
+      "add the active_providers table and runs.decomposition_provider_id / runs.alignment_provider_id, backfilled from each run's earliest attempt (change-active-provider-from-admin, JOS-171)",
+    up: (target) => {
+      target.exec(`
+        CREATE TABLE active_providers (
+          stage TEXT PRIMARY KEY,
+          provider_id TEXT NOT NULL,
+          changed_at TEXT NOT NULL
+        );
+      `);
+      target.exec("ALTER TABLE runs ADD COLUMN decomposition_provider_id TEXT");
+      target.exec("ALTER TABLE runs ADD COLUMN alignment_provider_id TEXT");
+      // Only one real adapter per stage has ever existed, so the earliest attempt names the provider the run started with.
+      // Native timestamps call no alignment provider, so they bind nothing.
+      target.exec(`
+        UPDATE runs SET decomposition_provider_id = (
+          SELECT provider_id FROM stage_attempts
+          WHERE run_id = runs.id AND stage = 'decomposition' AND provider_id IS NOT NULL
+          ORDER BY attempt_number LIMIT 1
+        );
+        UPDATE runs SET alignment_provider_id = (
+          SELECT provider_id FROM stage_attempts
+          WHERE run_id = runs.id AND stage = 'timestamps' AND provider_id IS NOT NULL AND provider_id <> 'elevenlabs-native'
+          ORDER BY attempt_number LIMIT 1
+        );
+      `);
+    },
+  },
+  {
+    version: 19,
+    description: "add the provider_profiles table (manage-providers-from-admin, JOS-218); the first profiles are seeded at start-up from the settings",
+    up: (target) => {
+      target.exec(`
+        CREATE TABLE provider_profiles (
+          id TEXT PRIMARY KEY,
+          stage TEXT NOT NULL,
+          adapter_type TEXT NOT NULL,
+          label TEXT NOT NULL,
+          parameters TEXT NOT NULL,
+          api_key_encrypted TEXT,
+          retired_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX provider_profiles_stage ON provider_profiles (stage);
+      `);
+    },
+  },
+  {
+    version: 20,
     description: "add the single-row app_settings table and runs.visual_style_prompt (admin-visual-style-prompt, JOS-201)",
     up: (target) => {
       target.exec(`
@@ -602,7 +653,7 @@ export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Nu
     );
   `);
   const applied = new Set(
-    (target.prepare("SELECT version FROM schema_migrations").all() as any[]).map((r) => r.version),
+    (target.prepare("SELECT version FROM schema_migrations").all() as { version: number }[]).map((r) => r.version),
   );
   const justApplied: number[] = [];
   for (const migration of MIGRATIONS) {
@@ -625,7 +676,13 @@ export type TelemetryConsent = { errors: boolean; providerUsage: boolean; produc
 export type TelemetrySettings = TelemetryConsent & { answered: boolean; installId: string };
 
 export function getTelemetrySettings(target: DatabaseSync = db): TelemetrySettings {
-  const row = target.prepare("SELECT * FROM telemetry_settings WHERE id = 1").get() as any;
+  const row = target.prepare("SELECT * FROM telemetry_settings WHERE id = 1").get() as {
+    errors: number;
+    provider_usage: number;
+    product_usage: number;
+    answered_at: string | null;
+    install_id: string;
+  };
   return {
     errors: row.errors === 1,
     providerUsage: row.provider_usage === 1,
@@ -726,8 +783,8 @@ export function writeArtefactOnce(projectFolder: string, relativePath: string, c
   writeFileSync(temporaryPath, content, { flag: "wx" });
   try {
     linkSync(temporaryPath, fullPath);
-  } catch (err: any) {
-    throw err?.code === "EEXIST" ? new ArtefactAlreadyExistsError(relativePath) : err;
+  } catch (err) {
+    throw errorCode(err) === "EEXIST" ? new ArtefactAlreadyExistsError(relativePath) : err;
   } finally {
     rmSync(temporaryPath, { force: true });
   }
@@ -754,9 +811,9 @@ function recordCorrectedInstruction(
   const fullPath = assertWithinProjectFolder(projectFolder, relativePath);
   let parsed: { scenes: Record<string, Record<string, string>> } = { scenes: {} };
   try {
-    parsed = JSON.parse(readFileSync(fullPath, "utf8"));
-  } catch (err: any) {
-    if (err?.code !== "ENOENT") throw err;
+    parsed = JSON.parse(readFileSync(fullPath, "utf8")) as typeof parsed;
+  } catch (err) {
+    if (errorCode(err) !== "ENOENT") throw err;
   }
   parsed.scenes[sceneId] = { ...parsed.scenes[sceneId], [field]: instruction, correctedAt: nowIso() };
   writeArtefact(projectFolder, relativePath, JSON.stringify(parsed));
@@ -777,8 +834,8 @@ export function moveAssemblyOutput(projectFolder: string, tempPath: string, rela
   const fullPath = assertWithinProjectFolder(projectFolder, relativePath);
   try {
     linkSync(tempPath, fullPath);
-  } catch (err: any) {
-    if (err?.code === "EEXIST") return false;
+  } catch (err) {
+    if (errorCode(err) === "EEXIST") return false;
     throw err;
   } finally {
     rmSync(tempPath, { force: true });
@@ -810,15 +867,24 @@ export interface AppSettings {
   updatedAt: string;
 }
 
+interface AppSettingsRow {
+  visual_style_prompt: string;
+  reference_image_path: string | null;
+  reference_image_content_type: string | null;
+  updated_at: string;
+}
+
 /** The absolute path of the stored reference image, or null. Never returned by an endpoint. */
 export function getReferenceImageFile(): { path: string; contentType: string } | null {
-  const row = db.prepare("SELECT reference_image_path, reference_image_content_type FROM app_settings WHERE id = 1").get() as any;
+  const row = getRow<Pick<AppSettingsRow, "reference_image_path" | "reference_image_content_type">>(
+    "SELECT reference_image_path, reference_image_content_type FROM app_settings WHERE id = 1",
+  );
   if (!row?.reference_image_path || !row.reference_image_content_type) return null;
   return { path: join(APP_DATA_DIR, row.reference_image_path), contentType: row.reference_image_content_type };
 }
 
 export function getAppSettings(): AppSettings {
-  const row = db.prepare("SELECT * FROM app_settings WHERE id = 1").get() as any;
+  const row = getRow<AppSettingsRow>("SELECT * FROM app_settings WHERE id = 1")!; // migration 20 inserts the one row
   let referenceImage: AppSettings["referenceImage"] = null;
   const file = getReferenceImageFile();
   if (file) {
@@ -864,7 +930,7 @@ export function createRun(id: string, title: string, script: string, language: s
   db.prepare(
     "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script, visual_style_prompt) VALUES (?, ?, ?, 0, ?, ?, ?, ?)",
   ).run(id, title, createdAt, language, projectFolder, script, visualStylePrompt);
-  return { id, title, script, createdAt, paused: false, language, projectFolder, visualStylePrompt, voiceProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
+  return { id, title, script, createdAt, paused: false, language, projectFolder, visualStylePrompt, voiceProviderId: null, decompositionProviderId: null, alignmentProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
 }
 
 export function setRunProjectFolder(runId: string, projectFolder: string): void {
@@ -909,7 +975,149 @@ export function createScene(
   };
 }
 
-function rowToScene(row: any): Scene {
+/** The one place an untyped `node:sqlite` result becomes a typed row; each caller names the row interface of the table it selected from. */
+function getRow<Row>(sql: string, ...params: SQLInputValue[]): Row | undefined {
+  return db.prepare(sql).get(...params) as Row | undefined;
+}
+
+function allRows<Row>(sql: string, ...params: SQLInputValue[]): Row[] {
+  return db.prepare(sql).all(...params) as Row[];
+}
+
+/** `SELECT COUNT(*) c` — every counting query reads the same shape. */
+interface CountRow {
+  c: number;
+}
+
+/** The `scenes` columns as SQLite stores them. */
+interface SceneRow {
+  id: string;
+  run_id: string;
+  idx: number;
+  status: SceneState;
+  attempts: number;
+  last_error: string | null;
+  result: string | null;
+  instruction: string;
+  prompt: string;
+  image_instruction: string;
+  video_instruction: string;
+  narration_start_seconds: number | null;
+  narration_end_seconds: number | null;
+  requested_duration_seconds: number | null;
+  duration_warning: DurationWarning | null;
+  speed_factor: number | null;
+  speed_factor_warning: SpeedFactorWarning | null;
+  provider: string;
+  provider_mode: ProviderOutcomeMode;
+  provider_latency_ms: number;
+  video_provider: string | null;
+  video_result: string | null;
+  updated_at: string;
+}
+
+/** The `runs` columns as SQLite stores them (`paused` is 0/1, `failure` is JSON text). */
+interface RunRow {
+  id: string;
+  title: string;
+  script: string | null;
+  created_at: string;
+  paused: number;
+  language: string | null;
+  project_folder: string | null;
+  voice_provider_id: string | null;
+  decomposition_provider_id: string | null;
+  alignment_provider_id: string | null;
+  visual_style_prompt: string;
+  failure: string | null;
+  final_video_path: string | null;
+  rebuild_requested_at: string | null;
+}
+
+interface VoiceOverRow {
+  run_id: string;
+  audio_path: string;
+  timestamps_path: string | null;
+  duration_seconds: number;
+  size_bytes: number;
+  native_timestamps_available: number;
+  provider_request_id: string | null;
+  completed_at: string;
+}
+
+interface NarrationTimestampsRow {
+  run_id: string;
+  mechanism: TimestampMechanism;
+  path: string;
+  character_count: number;
+  obtained_at: string;
+}
+
+interface StageAttemptRow {
+  id: string;
+  run_id: string;
+  stage: AttemptStage;
+  scene_id: string | null;
+  stage_instance_key: string;
+  cycle: number;
+  sequence_in_cycle: number;
+  attempt_trigger: AttemptTrigger;
+  provider_id: string | null;
+  attempt_number: number;
+  queued_at: string;
+  sent_at: string | null;
+  due_at: string | null;
+  outcome: StageAttemptOutcome;
+  finished_at: string | null;
+  external_request_id: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  late_result_at: string | null;
+}
+
+interface FinalVideoBuildRow {
+  run_id: string;
+  version: number;
+  path: string;
+  pauses: string;
+  created_at: string;
+}
+
+interface ProviderRequestDbRow {
+  id: string;
+  scene_id: string;
+  sent_at: string;
+  latency_ms: number;
+  mode: ProviderOutcomeMode;
+  attempt_number: number;
+  resolved: 0 | 1;
+  stage: "image" | "video" | null;
+}
+
+function rowToProviderRequest(row: ProviderRequestDbRow): ProviderRequestRow {
+  return {
+    id: row.id,
+    sceneId: row.scene_id,
+    sentAt: row.sent_at,
+    latencyMs: row.latency_ms,
+    mode: row.mode,
+    attemptNumber: row.attempt_number,
+    resolved: row.resolved,
+    stage: row.stage ?? "image",
+  };
+}
+
+/** The Node error code (`ENOENT`, `EEXIST`, …) of a caught value, or undefined when it carries none. */
+function errorCode(err: unknown): unknown {
+  return (err as { code?: unknown } | null)?.code;
+}
+
+/** Whether `err` is the SQLite UNIQUE-constraint failure that the idempotent inserts treat as "already stored". */
+function isUniqueConstraintError(err: unknown): boolean {
+  return err instanceof Error && errorCode(err) === "ERR_SQLITE_ERROR" && /UNIQUE constraint failed/i.test(err.message);
+}
+
+function rowToScene(row: SceneRow): Scene {
   return {
     id: row.id,
     runId: row.run_id,
@@ -940,7 +1148,7 @@ function rowToScene(row: any): Scene {
   };
 }
 
-function rowToRun(row: any): Run {
+function rowToRun(row: RunRow): Run {
   return {
     id: row.id,
     title: row.title,
@@ -950,6 +1158,8 @@ function rowToRun(row: any): Run {
     language: row.language ?? "",
     projectFolder: row.project_folder ?? "",
     voiceProviderId: row.voice_provider_id ?? null,
+    decompositionProviderId: row.decomposition_provider_id ?? null,
+    alignmentProviderId: row.alignment_provider_id ?? null,
     failure: row.failure ? (JSON.parse(row.failure) as SessionFailure) : null,
     finalVideoPath: row.final_video_path ?? null,
     rebuildRequestedAt: row.rebuild_requested_at ?? null,
@@ -1021,7 +1231,7 @@ export function insertRegisteredScenes(runId: string, scenes: readonly Registere
 }
 
 export function getScene(id: string): Scene | undefined {
-  const row = db.prepare("SELECT * FROM scenes WHERE id = ?").get(id) as any;
+  const row = getRow<SceneRow>("SELECT * FROM scenes WHERE id = ?", id);
   return row ? rowToScene(row) : undefined;
 }
 
@@ -1033,17 +1243,22 @@ export function getScene(id: string): Scene | undefined {
  * already holds a scene by its own id) should prefer this over `getScene`.
  */
 export function getSceneForRun(runId: string, sceneId: string): Scene | undefined {
-  const row = db.prepare("SELECT * FROM scenes WHERE id = ? AND run_id = ?").get(sceneId, runId) as any;
+  const row = getRow<SceneRow>("SELECT * FROM scenes WHERE id = ? AND run_id = ?", sceneId, runId);
   return row ? rowToScene(row) : undefined;
 }
 
 export function getScenesForRun(runId: string): Scene[] {
-  const rows = db.prepare("SELECT * FROM scenes WHERE run_id = ? ORDER BY idx ASC").all(runId) as any[];
+  const rows = allRows<SceneRow>("SELECT * FROM scenes WHERE run_id = ? ORDER BY idx ASC", runId);
   return rows.map(rowToScene);
 }
 
+/** Every session id, newest first (the failed-stage finder walks them; a local install holds few). */
+export function listRunIds(): string[] {
+  return (db.prepare("SELECT id FROM runs ORDER BY created_at DESC, id").all() as Array<{ id: string }>).map((row) => row.id);
+}
+
 export function getRun(id: string): Run | undefined {
-  const row = db.prepare("SELECT * FROM runs WHERE id = ?").get(id) as any;
+  const row = getRow<RunRow>("SELECT * FROM runs WHERE id = ?", id);
   return row ? rowToRun(row) : undefined;
 }
 
@@ -1064,6 +1279,20 @@ export function bindVoiceProvider(runId: string, providerId: string): boolean {
   const result = db
     .prepare("UPDATE runs SET voice_provider_id = ? WHERE id = ? AND voice_provider_id IS NULL")
     .run(providerId, runId);
+  return Number(result.changes) > 0;
+}
+
+/**
+ * change-active-provider-from-admin (JOS-171) Decision 3 — the same bind-once rule for the reasoning and the
+ * alignment stages, one provider per session.
+ */
+export function bindDecompositionProvider(runId: string, providerId: string): boolean {
+  const result = db.prepare("UPDATE runs SET decomposition_provider_id = ? WHERE id = ? AND decomposition_provider_id IS NULL").run(providerId, runId);
+  return Number(result.changes) > 0;
+}
+
+export function bindAlignmentProvider(runId: string, providerId: string): boolean {
+  const result = db.prepare("UPDATE runs SET alignment_provider_id = ? WHERE id = ? AND alignment_provider_id IS NULL").run(providerId, runId);
   return Number(result.changes) > 0;
 }
 
@@ -1116,7 +1345,7 @@ export function setRunFailure(runId: string, failure: SessionFailure): void {
   db.prepare("UPDATE runs SET failure = ? WHERE id = ?").run(JSON.stringify(failure), runId);
 }
 
-function rowToVoiceOver(row: any): VoiceOver {
+function rowToVoiceOver(row: VoiceOverRow): VoiceOver {
   return {
     runId: row.run_id,
     audioPath: row.audio_path,
@@ -1150,8 +1379,8 @@ export function insertVoiceOver(input: VoiceOverInput): boolean {
       input.completedAt,
     );
     return true;
-  } catch (err: any) {
-    if (err?.code === "ERR_SQLITE_ERROR" && /UNIQUE constraint failed/i.test(String(err.message))) {
+  } catch (err) {
+    if (isUniqueConstraintError(err)) {
       return false;
     }
     throw err; // any other constraint failure (for example an unknown session) is a real bug
@@ -1159,16 +1388,16 @@ export function insertVoiceOver(input: VoiceOverInput): boolean {
 }
 
 export function getVoiceOver(runId: string): VoiceOver | undefined {
-  const row = db.prepare("SELECT * FROM voice_overs WHERE run_id = ?").get(runId) as any;
+  const row = getRow<VoiceOverRow>("SELECT * FROM voice_overs WHERE run_id = ?", runId);
   return row ? rowToVoiceOver(row) : undefined;
 }
 
 export function countVoiceOvers(runId: string): number {
-  const row = db.prepare("SELECT COUNT(*) c FROM voice_overs WHERE run_id = ?").get(runId) as any;
-  return row.c as number;
+  const row = getRow<CountRow>("SELECT COUNT(*) c FROM voice_overs WHERE run_id = ?", runId);
+  return row?.c ?? 0;
 }
 
-function rowToNarrationTimestamps(row: any): NarrationTimestamps {
+function rowToNarrationTimestamps(row: NarrationTimestampsRow): NarrationTimestamps {
   return {
     runId: row.run_id,
     mechanism: row.mechanism,
@@ -1189,14 +1418,14 @@ export function insertNarrationTimestamps(input: NarrationTimestampsInput): bool
       "INSERT INTO narration_timestamps (run_id, mechanism, path, character_count, obtained_at) VALUES (?, ?, ?, ?, ?)",
     ).run(input.runId, input.mechanism, input.path, input.characterCount, input.obtainedAt);
     return true;
-  } catch (err: any) {
-    if (err?.code === "ERR_SQLITE_ERROR" && /UNIQUE constraint failed/i.test(String(err.message))) return false;
+  } catch (err) {
+    if (isUniqueConstraintError(err)) return false;
     throw err;
   }
 }
 
 export function getNarrationTimestamps(runId: string): NarrationTimestamps | undefined {
-  const row = db.prepare("SELECT * FROM narration_timestamps WHERE run_id = ?").get(runId) as any;
+  const row = getRow<NarrationTimestampsRow>("SELECT * FROM narration_timestamps WHERE run_id = ?", runId);
   return row ? rowToNarrationTimestamps(row) : undefined;
 }
 
@@ -1204,7 +1433,7 @@ export function countNarrationTimestamps(runId: string): number {
   return (db.prepare("SELECT COUNT(*) c FROM narration_timestamps WHERE run_id = ?").get(runId) as { c: number }).c;
 }
 
-function rowToStageAttempt(row: any): StageAttempt {
+function rowToStageAttempt(row: StageAttemptRow): StageAttempt {
   return {
     id: row.id,
     runId: row.run_id,
@@ -1308,7 +1537,7 @@ function insertStageAttempt(input: {
     input.runId,
     input.stage,
   );
-  return rowToStageAttempt(db.prepare("SELECT * FROM stage_attempts WHERE id = ?").get(id));
+  return rowToStageAttempt(getRow<StageAttemptRow>("SELECT * FROM stage_attempts WHERE id = ?", id)!);
 }
 
 /**
@@ -1336,7 +1565,7 @@ export function timeOutAttempt(attemptId: string, finishedAt: string, errorMessa
 
 /** Every attempt that has been sent and has no outcome yet — what the timeout watcher checks against each stage's deadline. */
 export function getInFlightAttempts(): StageAttempt[] {
-  const rows = db.prepare("SELECT * FROM stage_attempts WHERE outcome = 'in-flight' ORDER BY sent_at ASC, attempt_number ASC").all() as any[];
+  const rows = allRows<StageAttemptRow>("SELECT * FROM stage_attempts WHERE outcome = 'in-flight' ORDER BY sent_at ASC, attempt_number ASC");
   return rows.map(rowToStageAttempt);
 }
 
@@ -1376,21 +1605,22 @@ export function cancelScheduledAttempt(attemptId: string): boolean {
 }
 
 export function getStageAttempt(attemptId: string): StageAttempt | undefined {
-  const row = db.prepare("SELECT * FROM stage_attempts WHERE id = ?").get(attemptId);
+  const row = getRow<StageAttemptRow>("SELECT * FROM stage_attempts WHERE id = ?", attemptId);
   return row ? rowToStageAttempt(row) : undefined;
 }
 
 /** Every attempt of one stage instance, across cycles, in the order they were made. */
 export function getStageInstanceAttempts(stageInstanceKey: string): StageAttempt[] {
-  const rows = db
-    .prepare("SELECT * FROM stage_attempts WHERE stage_instance_key = ? ORDER BY cycle ASC, sequence_in_cycle ASC")
-    .all(stageInstanceKey) as any[];
+  const rows = allRows<StageAttemptRow>(
+    "SELECT * FROM stage_attempts WHERE stage_instance_key = ? ORDER BY cycle ASC, sequence_in_cycle ASC",
+    stageInstanceKey,
+  );
   return rows.map(rowToStageAttempt);
 }
 
 /** Every scheduled attempt, earliest due first — what the scheduler rebuilds from at startup. */
 export function getScheduledAttempts(): StageAttempt[] {
-  const rows = db.prepare("SELECT * FROM stage_attempts WHERE outcome = 'scheduled' ORDER BY due_at ASC, attempt_number ASC").all() as any[];
+  const rows = allRows<StageAttemptRow>("SELECT * FROM stage_attempts WHERE outcome = 'scheduled' ORDER BY due_at ASC, attempt_number ASC");
   return rows.map(rowToStageAttempt);
 }
 
@@ -1464,7 +1694,7 @@ function reportStageAttempt(
     const normalized = normalizeOutcome(outcome.outcome);
     let billed: BilledUnit | undefined;
     if (normalized === "success" && row.stage === "voice-over") {
-      const script = db.prepare("SELECT length(script) AS characters FROM runs WHERE id = ?").get(row.run_id) as any;
+      const script = db.prepare("SELECT length(script) AS characters FROM runs WHERE id = ?").get(row.run_id) as { characters: number } | undefined;
       if (script) billed = { unit: "voice_characters", amount: script.characters };
     }
     const sentAt = row.sent_at ? Date.parse(row.sent_at) : NaN;
@@ -1507,9 +1737,11 @@ export function countProviderRequestsByScene(runId: string): Map<string, { image
 }
 
 export function getStageAttempts(runId: string, stage: AttemptStage): StageAttempt[] {
-  const rows = db
-    .prepare("SELECT * FROM stage_attempts WHERE run_id = ? AND stage = ? ORDER BY attempt_number ASC")
-    .all(runId, stage) as any[];
+  const rows = allRows<StageAttemptRow>(
+    "SELECT * FROM stage_attempts WHERE run_id = ? AND stage = ? ORDER BY attempt_number ASC",
+    runId,
+    stage,
+  );
   return rows.map(rowToStageAttempt);
 }
 
@@ -1593,7 +1825,7 @@ export function insertFinalVideoBuild(build: FinalVideoBuild): boolean {
 }
 
 export function getFinalVideoBuilds(runId: string): FinalVideoBuild[] {
-  const rows = db.prepare("SELECT * FROM final_video_builds WHERE run_id = ? ORDER BY version ASC").all(runId) as any[];
+  const rows = allRows<FinalVideoBuildRow>("SELECT * FROM final_video_builds WHERE run_id = ? ORDER BY version ASC", runId);
   return rows.map((row) => ({
     runId: row.run_id,
     version: row.version,
@@ -1604,21 +1836,17 @@ export function getFinalVideoBuilds(runId: string): FinalVideoBuild[] {
 }
 
 export function getAllInFlightScenes(): Scene[] {
-  const rows = db.prepare("SELECT * FROM scenes WHERE status = 'image-generating'").all() as any[];
+  const rows = allRows<SceneRow>("SELECT * FROM scenes WHERE status = 'image-generating'");
   return rows.map(rowToScene);
 }
 
 export function getSubmittedScenes(): Scene[] {
-  const rows = db
-    .prepare("SELECT * FROM scenes WHERE status = 'submitted' ORDER BY updated_at ASC")
-    .all() as any[];
+  const rows = allRows<SceneRow>("SELECT * FROM scenes WHERE status = 'submitted' ORDER BY updated_at ASC");
   return rows.map(rowToScene);
 }
 
 export function getSubmittedScenesForRun(runId: string): Scene[] {
-  const rows = db
-    .prepare("SELECT * FROM scenes WHERE run_id = ? AND status = 'submitted' ORDER BY idx ASC")
-    .all(runId) as any[];
+  const rows = allRows<SceneRow>("SELECT * FROM scenes WHERE run_id = ? AND status = 'submitted' ORDER BY idx ASC", runId);
   return rows.map(rowToScene);
 }
 
@@ -1767,14 +1995,12 @@ export function markSceneVideoRetry(sceneId: string, error: string): void {
 }
 
 export function getImageCompleteScenesForRun(runId: string): Scene[] {
-  const rows = db
-    .prepare("SELECT * FROM scenes WHERE run_id = ? AND status = 'image-complete' ORDER BY idx ASC")
-    .all(runId) as any[];
+  const rows = allRows<SceneRow>("SELECT * FROM scenes WHERE run_id = ? AND status = 'image-complete' ORDER BY idx ASC", runId);
   return rows.map(rowToScene);
 }
 
 export function getAllVideoGeneratingScenes(): Scene[] {
-  const rows = db.prepare("SELECT * FROM scenes WHERE status = 'video-generating'").all() as any[];
+  const rows = allRows<SceneRow>("SELECT * FROM scenes WHERE status = 'video-generating'");
   return rows.map(rowToScene);
 }
 
@@ -1793,8 +2019,8 @@ export function commitSceneResult(sceneId: string, result: string): boolean {
       nowIso(),
     );
     return true;
-  } catch (err: any) {
-    if (err?.code === "ERR_SQLITE_ERROR" && /UNIQUE constraint failed/i.test(String(err.message))) {
+  } catch (err) {
+    if (isUniqueConstraintError(err)) {
       return false; // already committed — exactly the duplicate/race case Decision 3 targets
     }
     // A different constraint failure (e.g. a foreign-key violation from a
@@ -1805,8 +2031,8 @@ export function commitSceneResult(sceneId: string, result: string): boolean {
 }
 
 export function countSceneResults(sceneId: string): number {
-  const row = db.prepare("SELECT COUNT(*) c FROM scene_results WHERE scene_id = ?").get(sceneId) as any;
-  return row.c as number;
+  const row = getRow<CountRow>("SELECT COUNT(*) c FROM scene_results WHERE scene_id = ?", sceneId);
+  return row?.c ?? 0;
 }
 
 /** generate-chunk-video (JOS-146) Decision 5 — mirrors `commitSceneResult` for the video stage. */
@@ -1818,8 +2044,8 @@ export function commitSceneVideoResult(sceneId: string, result: string): boolean
       nowIso(),
     );
     return true;
-  } catch (err: any) {
-    if (err?.code === "ERR_SQLITE_ERROR" && /UNIQUE constraint failed/i.test(String(err.message))) {
+  } catch (err) {
+    if (isUniqueConstraintError(err)) {
       return false;
     }
     throw err;
@@ -1827,8 +2053,8 @@ export function commitSceneVideoResult(sceneId: string, result: string): boolean
 }
 
 export function countSceneVideoResults(sceneId: string): number {
-  const row = db.prepare("SELECT COUNT(*) c FROM scene_video_results WHERE scene_id = ?").get(sceneId) as any;
-  return row.c as number;
+  const row = getRow<CountRow>("SELECT COUNT(*) c FROM scene_video_results WHERE scene_id = ?", sceneId);
+  return row?.c ?? 0;
 }
 
 export function insertProviderRequest(
@@ -1854,7 +2080,9 @@ function reportProviderRequest(sceneId: string, latencyMs: number, mode: Provide
     if (!consent.providerUsage && !consent.errors) return;
     const scene = db
       .prepare("SELECT provider, video_provider, requested_duration_seconds FROM scenes WHERE id = ?")
-      .get(sceneId) as any;
+      .get(sceneId) as
+      | { provider: string | null; video_provider: string | null; requested_duration_seconds: number | null }
+      | undefined;
     if (!scene) return;
     const provider: string = (stage === "video" ? scene.video_provider : scene.provider) ?? "unknown";
     const normalized = normalizeOutcome(mode);
@@ -1871,36 +2099,17 @@ function reportProviderRequest(sceneId: string, latencyMs: number, mode: Provide
 }
 
 export function getProviderRequest(id: string): ProviderRequestRow | undefined {
-  const row = db.prepare("SELECT * FROM provider_requests WHERE id = ?").get(id) as any;
-  if (!row) return undefined;
-  return {
-    id: row.id,
-    sceneId: row.scene_id,
-    sentAt: row.sent_at,
-    latencyMs: row.latency_ms,
-    mode: row.mode,
-    attemptNumber: row.attempt_number,
-    resolved: row.resolved,
-    stage: (row.stage ?? "image") as "image" | "video",
-  };
+  const row = getRow<ProviderRequestDbRow>("SELECT * FROM provider_requests WHERE id = ?", id);
+  return row ? rowToProviderRequest(row) : undefined;
 }
 
 /** Test/debug helper: the most recently created provider request for a scene. */
 export function getLatestProviderRequestForScene(sceneId: string): ProviderRequestRow | undefined {
-  const row = db
-    .prepare("SELECT * FROM provider_requests WHERE scene_id = ? ORDER BY rowid DESC LIMIT 1")
-    .get(sceneId) as any;
-  if (!row) return undefined;
-  return {
-    id: row.id,
-    sceneId: row.scene_id,
-    sentAt: row.sent_at,
-    latencyMs: row.latency_ms,
-    mode: row.mode,
-    attemptNumber: row.attempt_number,
-    resolved: row.resolved,
-    stage: (row.stage ?? "image") as "image" | "video",
-  };
+  const row = getRow<ProviderRequestDbRow>(
+    "SELECT * FROM provider_requests WHERE scene_id = ? ORDER BY rowid DESC LIMIT 1",
+    sceneId,
+  );
+  return row ? rowToProviderRequest(row) : undefined;
 }
 
 export function markProviderRequestResolved(id: string): void {
@@ -1908,7 +2117,7 @@ export function markProviderRequestResolved(id: string): void {
 }
 
 export function sceneCurrentRequestId(sceneId: string): string | null {
-  const row = db.prepare("SELECT current_request_id FROM scenes WHERE id = ?").get(sceneId) as any;
+  const row = getRow<{ current_request_id: string | null }>("SELECT current_request_id FROM scenes WHERE id = ?", sceneId);
   return row?.current_request_id ?? null;
 }
 
@@ -1921,12 +2130,12 @@ export function snapshotCounts(): {
   voiceOvers: number;
   stageAttempts: number;
 } {
-  const runs = (db.prepare("SELECT COUNT(*) c FROM runs").get() as any).c as number;
-  const scenes = (db.prepare("SELECT COUNT(*) c FROM scenes").get() as any).c as number;
-  const providerRequests = (db.prepare("SELECT COUNT(*) c FROM provider_requests").get() as any).c as number;
-  const sceneResults = (db.prepare("SELECT COUNT(*) c FROM scene_results").get() as any).c as number;
-  const voiceOvers = (db.prepare("SELECT COUNT(*) c FROM voice_overs").get() as any).c as number;
-  const stageAttempts = (db.prepare("SELECT COUNT(*) c FROM stage_attempts").get() as any).c as number;
+  const runs = (getRow<CountRow>("SELECT COUNT(*) c FROM runs")?.c ?? 0);
+  const scenes = (getRow<CountRow>("SELECT COUNT(*) c FROM scenes")?.c ?? 0);
+  const providerRequests = (getRow<CountRow>("SELECT COUNT(*) c FROM provider_requests")?.c ?? 0);
+  const sceneResults = (getRow<CountRow>("SELECT COUNT(*) c FROM scene_results")?.c ?? 0);
+  const voiceOvers = (getRow<CountRow>("SELECT COUNT(*) c FROM voice_overs")?.c ?? 0);
+  const stageAttempts = (getRow<CountRow>("SELECT COUNT(*) c FROM stage_attempts")?.c ?? 0);
   return { runs, scenes, providerRequests, sceneResults, voiceOvers, stageAttempts };
 }
 
@@ -1945,7 +2154,7 @@ export function resetAll(): void {
     db.exec("DROP TRIGGER narration_timestamps_no_delete");
     db.exec("DROP TRIGGER final_video_builds_no_delete");
     db.exec(
-      "DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs;",
+      "DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs; DELETE FROM active_providers; DELETE FROM provider_profiles;",
     );
     db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
     db.exec(SCENE_NO_DELETE_TRIGGER_DDL);
@@ -1956,10 +2165,79 @@ export function resetAll(): void {
     db.exec("ROLLBACK");
     throw err;
   }
+  for (const listener of storeResetListeners) listener();
   // Tests create real project folders on disk (Decision 4); wipe them too,
   // or a second test run collides with the previous run's leftover folders
   // (found by running the suite twice in a row during this change's own
   // Step 7 verification — a real gap, not hypothetical).
   rmSync(PROJECTS_ROOT, { recursive: true, force: true });
   mkdirSync(PROJECTS_ROOT, { recursive: true });
+}
+
+// ---- change-active-provider-from-admin (JOS-171), design Decision 2 — the Administrator's active-provider choices ----
+
+export function getActiveProviderChoice(stage: string): string | null {
+  const row = db.prepare("SELECT provider_id FROM active_providers WHERE stage = ?").get(stage) as { provider_id: string } | undefined;
+  return row?.provider_id ?? null;
+}
+
+export function upsertActiveProviderChoice(stage: string, providerId: string, changedAt: string): void {
+  db.prepare(
+    "INSERT INTO active_providers (stage, provider_id, changed_at) VALUES (?, ?, ?) ON CONFLICT(stage) DO UPDATE SET provider_id = excluded.provider_id, changed_at = excluded.changed_at",
+  ).run(stage, providerId, changedAt);
+}
+
+// manage-providers-from-admin (JOS-218) — something that derives state from the stored provider profiles (the adapter
+// registries) must start again after a test resets the store. A callback, because the profile module imports this one.
+const storeResetListeners: Array<() => void> = [];
+export function onStoreReset(listener: () => void): void {
+  storeResetListeners.push(listener);
+}
+
+// ---- move-failed-stage-to-active-provider (JOS-172) — the Administrator's explicit move of a failed stage ----
+// Decision 1: a move binds the stage to the provider that is active now, with a conditional write on the binding the
+// page listed, so a stale page or a race changes nothing.
+
+const SESSION_STAGE_COLUMN = { voice: "voice_provider_id", alignment: "alignment_provider_id", reasoning: "decomposition_provider_id" } as const;
+
+export function rebindSessionStage(runId: string, stage: keyof typeof SESSION_STAGE_COLUMN, expectedProviderId: string, newProviderId: string): boolean {
+  const column = SESSION_STAGE_COLUMN[stage];
+  const result = db.prepare(`UPDATE runs SET ${column} = ? WHERE id = ? AND ${column} = ?`).run(newProviderId, runId, expectedProviderId);
+  return Number(result.changes) > 0;
+}
+
+export function rebindSceneImageProvider(sceneId: string, expectedProviderId: string, newProviderId: string): boolean {
+  const result = db
+    .prepare("UPDATE scenes SET provider = ? WHERE id = ? AND provider = ? AND status = 'failed' AND result IS NULL")
+    .run(newProviderId, sceneId, expectedProviderId);
+  return Number(result.changes) > 0;
+}
+
+export interface ClipDurationValues {
+  requestedDurationSeconds: number;
+  durationWarning: DurationWarning | null;
+  speedFactor: number;
+  speedFactorWarning: SpeedFactorWarning | null;
+}
+
+/**
+ * Decision 4 — the ONLY code that changes a chunk's requested duration, duration warning, speed factor or speed-factor
+ * warning after registration. For a failed clip with no result, in one transaction: the four lock triggers are dropped,
+ * the binding and the four values are written, and the triggers are recreated from the same DDL constants (SQLite DDL is
+ * transactional, so a failure rolls the triggers back as well). Nothing else about the chunk is written. A test pins that
+ * no other source file drops a trigger.
+ */
+export function rebindFailedClip(sceneId: string, expectedProviderId: string, newProviderId: string, values: ClipDurationValues): boolean {
+  return inTransaction((): boolean => {
+    const eligible = db
+      .prepare("SELECT 1 FROM scenes WHERE id = ? AND status = 'failed' AND result IS NOT NULL AND video_result IS NULL AND video_provider = ?")
+      .get(sceneId, expectedProviderId);
+    if (eligible === undefined) return false;
+    for (const column of [...LOCKED_SCENE_DURATION_REQUEST_COLUMNS, ...LOCKED_SCENE_SPEED_FACTOR_COLUMNS]) db.exec(`DROP TRIGGER scenes_${column}_locked`);
+    db.prepare(
+      "UPDATE scenes SET video_provider = ?, requested_duration_seconds = ?, duration_warning = ?, speed_factor = ?, speed_factor_warning = ?, updated_at = ? WHERE id = ?",
+    ).run(newProviderId, values.requestedDurationSeconds, values.durationWarning, values.speedFactor, values.speedFactorWarning, nowIso(), sceneId);
+    for (const ddl of [...SCENE_DURATION_REQUEST_LOCK_TRIGGERS_DDL, ...SCENE_SPEED_FACTOR_LOCK_TRIGGERS_DDL]) db.exec(ddl);
+    return true;
+  });
 }

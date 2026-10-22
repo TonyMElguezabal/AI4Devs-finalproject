@@ -7,7 +7,7 @@ Vid4You is two packages in one repository: `backend/` (Fastify, `node:sqlite`, T
 ## Prerequisites
 
 - **Node.js 26.4.0**, the version the repository is developed and tested with. The backend needs a release that has `node:sqlite` and runs `.ts` files natively (strip-only type removal), so it does not work on older LTS lines. No `engines` field is declared yet.
-- **ffmpeg and ffprobe** (development only). The voice-over phase calls `ffprobe` from `PATH`; the assembly adapter calls `/opt/homebrew/bin/ffmpeg` and `/opt/homebrew/bin/ffprobe` (hard-coded; on macOS `brew install ffmpeg` puts them there). Both must exist, including on CI. The packaged app bundles both beside the executable and needs no install.
+- **ffmpeg and ffprobe** (development only). The voice-over probe and the assembly adapter both use one resolver (`backend/src/config/ffmpeg.ts`): `FFMPEG_PATH` / `FFPROBE_PATH` if set, otherwise `/opt/homebrew/bin/ffmpeg` and `ffprobe` when they exist (`brew install ffmpeg` on macOS), otherwise the name on `PATH` (Linux, CI). Both must be installed, including on CI. The packaged app bundles both beside the executable and needs no install.
 - **Git** and **npm**.
 
 ## Run it
@@ -62,11 +62,15 @@ The frontend talks to `http://127.0.0.1:3100` unless `VITE_API_BASE` is set at b
 | Symptom | Cause and fix |
 |---|---|
 | Port 3100 is in use | Another Vid4You or program holds it. Stop it, or change the port (`VID4YOU_PORT` packaged, `PORT` in development). |
-| A stage fails naming a variable such as `OPENAI_KEY` | That key is missing from both the environment and the secrets file. Add it and retry the scene. |
+| A stage fails naming a role such as `IMAGE_APIKEY` | No key is stored on `/admin` for the provider the stage uses, and (for a provider created from the settings) none is in the environment or the secrets file. Enter it on `/admin` and retry the scene. |
 | A scene fails with `error 605` | RunningHub balance is empty (see step 5 above). |
 | macOS refuses to open the app on another Mac | The build is ad-hoc signed, not notarized (story L8). Right-click the app and choose **Open** once. |
 
 ### Provider credentials
+
+A provider's API key is entered on `/admin` ("Providers", see below) and stored encrypted in the local database. The application asks for a key by the stage's role (`REASONING_APIKEY`, `VOICE_OVER_APIKEY`, `ALIGNMENT_APIKEY`, `IMAGE_APIKEY`, `VIDEO_APIKEY`) and the system answers with the key of the provider the stage is bound to, or of the active provider when it is not yet bound; no code names a vendor key. The variables below are the fallback for the five providers created from the settings, used only when no key is stored for them (a stored key wins).
+
+The encryption key is the 32-byte file at `PROVIDER_KEY_PATH` (default `data/provider-keys.key`, created with mode 0600 on first use; the folder of the database in development). It protects the database copied or shared on its own, not someone who can read both files, so keep the two in different folders where you can.
 
 Real provider calls need four keys. In development they are read from the environment first and from a git-ignored `backend/.secrets.json` second (the environment wins). The packaged app reads only the environment and `.secrets.json` in its data folder; a checkout's `backend/.secrets.json` is not used.
 
@@ -79,6 +83,20 @@ Real provider calls need four keys. In development they are read from the enviro
 
 Never put a key in the repository. A missing key fails the stage with a message naming the variable, never its value.
 
+### Administrator password
+
+`/admin` is protected by one shared password. It is not needed for anything else: the start page and the session pages never ask for it.
+
+| Variable | Used by |
+|---|---|
+| `ADMIN_PASSWORD` | the `/admin` page and every `/admin/…` endpoint |
+
+- **Where to set it.** Like the provider keys: in the environment, or as `"ADMIN_PASSWORD"` in the same git-ignored `.secrets.json` (the environment wins). It is never a settings value, and a settings file that contains it is rejected as an unknown key.
+- **Restart to apply.** The app reads it when it starts (the secrets file is cached), so a new or changed password applies after a restart. While it is missing the app starts normally, `/admin` says "No Administrator password is configured" and every `/admin/…` endpoint answers `401`.
+- **Use a strong one.** The app has no lock-out after failed attempts, and until the `Origin`/`Host` guard exists (story L3) a website open in your browser could try passwords against `127.0.0.1`. A long random password costs nothing here and closes that risk in practice.
+- **Opening it.** Go to `/admin` directly (`http://127.0.0.1:5173/admin` in development). It is not linked from the regular pages. The page keeps the password in memory only, so a reload asks again. In the packaged app, serving `/admin` is part of story L6.
+- **Calling the API by hand.** Send `Authorization: Bearer <password>`, for example `curl -H "Authorization: Bearer $ADMIN_PASSWORD" http://127.0.0.1:3100/admin/access`. The answer is `200 { "configured": true, "granted": true }`, or `401` with `reason` `not-configured`, `password-required` or `wrong-password`.
+
 ### Local state
 
 | Variable | Default (relative to the backend working directory) | Holds |
@@ -87,6 +105,69 @@ Never put a key in the repository. A missing key fails the stage with a message 
 | `PROJECTS_ROOT` | `data/projects` | one folder per project: narration, images, clips, final MP4 |
 
 `backend/data/` is git-ignored. Two checkouts that share it share its sessions and migrations, so point `DB_PATH` and `PROJECTS_ROOT` at separate directories when running a second checkout or the tests.
+
+### Settings files
+
+Providers and generation parameters are not compiled into the code. They are read **once, when the backend starts**, from two JSON files, and a change takes effect only after a restart (editing a file while the app runs changes nothing).
+
+| File | Role |
+|---|---|
+| `backend/config/settings.default.json` | ships with the app and holds a complete, valid value for every setting (the values recorded in PRD §11.3). Do not edit it to configure an installation. |
+| `SETTINGS_PATH` (default `data/settings.json`, relative to the backend working directory) | optional. Holds only the settings you want to change. It is merged over the defaults: objects merge key by key, and a list (`languages`) is replaced whole. |
+
+Example `data/settings.json` that offers English only and lowers the video request cap:
+
+```json
+{ "languages": [{ "code": "en", "label": "English" }], "maxSimultaneousRequests": { "video": 1 } }
+```
+
+| Setting | Rule |
+|---|---|
+| `decomposition`, `voice`, `alignment`, `image`, `video` `.name` | the provider; must be one the build ships an adapter for (today `OpenAI`, `ElevenLabs`, `ElevenLabs`, `Fal.ai`, `RunningHub`) |
+| `decomposition.model`, `image.model`, `voice.model`, `voice.voiceId`, `voice.voiceName`, `voice.outputFormat`, `alignment.endpoint`, `video.endpoint` | non-empty text. The provider's acceptance is not checked at start-up; a wrong value fails the first call |
+| `voice.speed` | `"default"` or a number from 0.7 to 1.2 |
+| `video.admittedDurationSeconds.min` / `.max` | whole seconds, at least 1, `min` not above `max` |
+| `segmentation.lowerBoundSeconds` | positive, not below `video.admittedDurationSeconds.min` |
+| `speedFactorLimit` | a number of at least 1 (the unsigned factor) |
+| `maxTimeSeconds.<stage>` | for `decomposition`, `image`, `voice`, `alignment`, `video`, `assembly`: a positive number of seconds, or `null` for "not timed". The key is required |
+| `maxSimultaneousRequests.<stage>` | whole number of at least 1, for `decomposition`, `image`, `voice`, `alignment`, `video` |
+| `output.width` / `.height` / `.fps` | positive whole numbers; width and height even (H.264). An output above 2560×1440 is upscaled |
+| `languages` | a non-empty list of `{ "code": two lowercase letters, "label": text }`, codes unique |
+
+If anything is missing, empty, the wrong type, out of range, unknown, or inconsistent, the backend **does not start** and prints one line per problem, each naming its setting, for example:
+
+```
+Error: Invalid settings, the application cannot start:
+  - languages: must have at least 1 item(s)
+  - openaiApiKey: unknown setting
+  - segmentation.lowerBoundSeconds: must not be shorter than video.admittedDurationSeconds.min
+```
+
+A problem never prints a value. **Credentials never go in these files**: a key such as `openaiApiKey` is rejected as an unknown setting. Keys stay in the environment or `.secrets.json` (see "Provider credentials"). Values outside this list (content check, image generation size, video generation tier, retry budget and delays) stay in `backend/src/config/providers.ts`. The Administrator password is not a setting yet: it arrives with the `/admin` story.
+
+What a change does and does not touch: sessions already running keep their recorded durations, speed factors, warnings and language, and a scene already bound to a provider keeps that provider (bindings store the provider name, so a retry uses the *current* model or endpoint). A language removed from the list can no longer start a new session, but existing sessions in it still work.
+
+### Providers on `/admin`
+
+On `/admin` (behind the Administrator password) the Administrator manages the providers of every stage: "Providers" lists each stage's provider profiles (adapter type, key status, the reason a profile cannot be used) and adds, edits and deletes them; "Active providers" chooses which one a stage uses next. Everything applies without a restart.
+
+- **A profile** is one use of an adapter type the app ships (Fal.ai, ElevenLabs, OpenAI, RunningHub): a name, the adapter's parameters (reasoning model; voice model, voice id, output format and speed; alignment endpoint path; image model; video endpoint path and admitted clip durations) and an API key. Several profiles per stage are allowed. A parameter never names a host: each adapter sends to its own vendor.
+- **The settings files** now only seed the first profile of each stage, the first time the app starts. Afterwards the provider sections of the files do not change a profile (one notice is logged if they differ). Every other setting (segmentation lower bound, speed limit, maximum times, request caps, resolution, languages) still comes from the files and needs a restart.
+- **Choosing** a profile needs valid parameters and a key that can be found; otherwise the page says why.
+- **Deleting** a profile that is the active provider is refused; one that sessions or scenes are bound to is retired (no longer offered, still used by what is bound to it); otherwise it is removed.
+- **Binding:** a session or a scene binds to the active provider at its first attempt and keeps it for its automatic and manual retries; a change never regenerates a completed result. The admitted clip durations used for segmentation are the active video provider's.
+
+To try the switch locally or write a test, register stub adapters through the registry seams (`setVoiceProviderRegistry`, `setImageProviderRegistry`, `setVideoProviderRegistry`, `setReasoningProviderRegistry`, `setAlignmentProviderRegistry`; reasoning and alignment fall back to `setDecompositionDependencies` for their default adapter) and reset them with the matching `reset…` function; or add profiles with `insertProfile` and let the default registries build from them. Tests that store a key set `PROVIDER_KEY_PATH` to a temporary folder. `backend/test/active-provider-binding-*.test.ts` and `backend/test/provider-registries.test.ts` show both patterns.
+
+### Unblocking a session whose provider is down
+
+When a stage failed on a provider that stays unavailable, the Administrator moves it on `/admin`:
+
+1. Make a working provider the active one for that stage ("Active providers"), after adding it and its key under "Providers" if needed.
+2. Open "Failed stages": it lists every failed stage that is bound to a provider other than the active one, with its cause. Click "Move … to {provider}". The move only binds the stage to the active provider; nothing is sent and nothing is regenerated.
+3. Open the session (the link after the move) and retry the stage with its usual button ("Retry voice-over", "Retry decomposition", "Retry scene"). The retry goes to the new provider.
+
+A moved clip chooses its requested duration again from the new provider's admitted durations, so its speed factor and warning can change; its narration interval does not. A failure that offers no manual retry is not listed, and a stage already on the active provider is not listed. Nothing moves by itself.
 
 ### Development-only switches
 
@@ -97,6 +178,7 @@ These exist for manual endpoint testing and **must never be set in UAT or produc
 | `ALLOW_TEST_ENDPOINTS` | enables `POST /internal/test/quick-voice-over` and `POST /internal/test/quick-scene` |
 | `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_ASSEMBLY_TOOL` | replace a provider with a stub (values are listed in `backend/src/server.ts`) |
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | shorten retry delays |
+| `CORS_ALLOWED_ORIGINS` | comma-separated extra origins allowed to call the API. By default only `http://127.0.0.1:5173`, `http://localhost:5173` and the backend's own address are; any other web page gets a 403 |
 
 ### Telemetry (opt-in)
 

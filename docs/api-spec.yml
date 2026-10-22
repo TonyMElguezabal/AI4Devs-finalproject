@@ -21,9 +21,23 @@
 # file (same
 # command) whenever a route changes, rather than hand-editing it out of sync.
 #
+# JOS-174 (configure-providers-and-parameters) - 2026-10-19: no new path. The `language`
+# request field of `POST /sessions` is validated against the configured list of supported
+# languages (the `languages` setting, `docs/development_guide.md` "Settings files"); the
+# enum below is the shipped default, English and Spanish. `GET /languages` returns the
+# configured list. A structural comparison with the generated document found only this
+# description, plus the hand-written 422/503 response descriptions of JOS-187.
+#
 # JOS-156 (retry-decomposition) — 2026-10-05: regenerated; the only change is the new
 # `POST /sessions/{sessionId}/decomposition/retry` (200 `{ ok, held }`, 404, 409
 # `{ ok, reason }`; a body field answers 400 from the strict empty body).
+#
+# JOS-155 (retry-voice-over) — 2026-10-19: the new
+# `POST /sessions/{sessionId}/voice-over/retry` (200 `{ ok, held }`, 404, 409
+# `{ ok, reason }` with reason one of `not-failed-in-voice-over`,
+# `narration-complete`, `not-retryable`, `retry-already-pending`; a body field
+# answers 400 from the strict empty body). The block was taken from the running
+# server's generated output; the rest of the file is unchanged.
 #
 # JOS-158 (retry-or-correct-clip): the existing scene retry/correct routes now
 # dispatch by the persisted failed stage. A failed video stage retries the clip
@@ -108,15 +122,39 @@
 # `answered`; strict body, 400 on a missing or non-boolean key) and GET /app/update (`{ available: false }` or
 # `{ available: true, tag, url }`). PUT is allowed here because consent is a setting, not session content;
 # the content-lock rule (AC1) is about sessions. Nothing else changed.
-# admin-visual-style-prompt (JOS-201): added GET /admin/settings, PUT /admin/settings/visual-style-prompt
-# (`{ visualStylePrompt }`, at most 8,000 characters after trimming, 400 otherwise) and, for the optional
-# reference image, PUT (raw bytes, `image/png`, `image/jpeg` or `image/webp`, at most 5 MB: 400 for another type or
-# bytes that do not match the type, 413 when too large), GET (the stored bytes, 404 when none) and DELETE (204,
-# also when none) on /admin/settings/reference-image. All answer the same settings body
-# (`visualStylePrompt`, `referenceImage` or null, `updatedAt`); the image's file path is never returned.
-# PUT and DELETE are allowed here for the same reason as consent: these are app settings, not session content.
-# The image routes are hand-described below because their body is raw bytes, which the route schema cannot
-# express. Nothing else changed.
+#
+# JOS-173 (protect-admin-with-password) - 2026-10-19: new `GET /admin/access` (200
+# `{ configured: true, granted: true }`; 401 `{ ok: false, reason }` with reason
+# `not-configured`, `password-required` or `wrong-password`) and the
+# `administratorPassword` HTTP bearer security scheme (`Authorization: Bearer <password>`).
+# Every operation under `/admin/` is marked with that scheme by the OpenAPI transform in
+# `server.ts`, so a later Administrator route is documented as protected with no code of
+# its own. A structural comparison with the generated document found only these additions,
+# plus the hand-written 422/503 response descriptions of JOS-187.
+# JOS-171 (change-active-provider-from-admin) - 2026-10-21: new `GET /admin/providers` (200 `{ providers }`, one view per stage:
+# `stage`, `activeProviderId`, `activeLabel`, `source` settings|admin, `selectable`, `orphanedChoice`) and
+# `PUT /admin/providers/{stage}` (body `{ providerId }`; 200 the stage's view; 400 `{ ok: false, reason: 'not-selectable',
+# selectable }` or the validation error; 401 as `/admin/access`). Both are behind the Administrator password. PUT is allowed
+# here because the active provider is an app-level setting, not session content (content lock, AC1).
+# JOS-218 (manage-providers-from-admin) - 2026-10-21: new `GET /admin/provider-types` (the adapter types of each stage with the field
+# descriptions of their parameters), `GET` and `POST /admin/provider-profiles` (the provider profiles: `stage`, `adapterType`, `label`,
+# `parameters`, `keyStatus` stored|environment|missing, `keyHint`, `usable`, `problems`, `active`, `retired`; 201 and 400 `{ ok: false,
+# problems }`) and `PUT` and `DELETE /admin/provider-profiles/{id}` (200; 400 problems; 404; DELETE answers `{ result: removed|retired }`
+# or 409 `{ reason: active, stage }`). `PUT /admin/providers/{stage}` (JOS-171) also answers 409 `not-usable` with the problems. No
+# response carries an API key. The routes are behind the Administrator password; PUT, POST and DELETE are allowed here because
+# providers are app-level settings, not session content (content lock, AC1).
+# JOS-172 (move-failed-stage-to-active-provider) - 2026-10-22: new `GET /admin/failed-stages` (the failed stages bound to a provider other than
+# the active one: `sessionId`, `sessionTitle`, `stage`, `sceneId`, `sceneNumber`, both providers' ids and labels, `cause`) and
+# `POST /admin/failed-stages/to-active-provider` (body `{ sessionId, stage, sceneId? }`; 200 `{ moved }`, with the new requested
+# duration for a clip; 400 validation; 401; 404 `not-found`; 409 `not-failed`, `already-on-active`, `retry-in-progress`,
+# `not-retryable` or `not-usable`). Both are behind the Administrator password. The move binds the stage and sends nothing.
+# JOS-201 (admin-visual-style-prompt) - 2026-10-19, merged behind the Administrator password 2026-10-22: new GET /admin/settings,
+# PUT /admin/settings/visual-style-prompt (`{ visualStylePrompt }`, at most 8,000 characters after trimming, 400 otherwise) and,
+# for the optional reference image, PUT (raw bytes, `image/png`, `image/jpeg` or `image/webp`, at most 5 MB: 400 for another
+# type or bytes that do not match the type, 413 when too large), GET (the stored bytes, 404 when none) and DELETE (204, also
+# when none) on /admin/settings/reference-image. All answer 401 as `/admin/access` without the password. The settings body is
+# `visualStylePrompt`, `referenceImage` or null, `updatedAt`; the image's file path is never returned. PUT and DELETE are allowed
+# because these are app settings, not session content. The image routes are hand-described because their body is raw bytes.
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -127,6 +165,12 @@ info:
     Conventions) - never hand-written, to avoid drifting from the real
     validators.
 components:
+  securitySchemes:
+    administratorPassword:
+      type: http
+      scheme: bearer
+      description: The Administrator password (ADMIN_PASSWORD in the local environment
+        or secrets file).
   schemas: {}
 paths:
   /health:
@@ -185,7 +229,9 @@ paths:
                   enum:
                     - en
                     - es
-                  description: Immutable once the session is registered (PRD §4.1, §4.2).
+                  description: Immutable once the session is registered (PRD §4.1, §4.2). One of
+                    the configured supported languages (`GET /languages`);
+                    English and Spanish by default.
               required:
                 - title
                 - script
@@ -1321,6 +1367,75 @@ paths:
                   - ok
                   - reason
                 additionalProperties: false
+  /sessions/{sessionId}/voice-over/retry:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              anyOf:
+                - not: {}
+                - type: object
+                  properties: {}
+                  additionalProperties: false
+                  nullable: true
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: sessionId
+          required: true
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  held:
+                    type: boolean
+                    description: "True while the session is paused: the retry is accepted and waits
+                      for continue."
+                required:
+                  - ok
+                  - held
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
   /sessions/{sessionId}/decomposition/retry:
     post:
       requestBody:
@@ -2063,6 +2178,12 @@ paths:
                 additionalProperties: false
   /sessions/{sessionId}/download/final-video:
     get:
+      description: 'Content-Disposition names the file after the project title:
+        `<title>.mp4`, with control characters and `/ \ : * ? " < > |` replaced
+        by `_`, whitespace collapsed, leading/trailing dots and spaces stripped,
+        Windows reserved device names prefixed with `_`, capped at 100
+        characters, `final-video` when nothing remains. The header carries an
+        ASCII `filename` and an RFC 5987 `filename*` with the full name.'
       parameters:
         - schema:
             type: string
@@ -2236,13 +2357,55 @@ paths:
       responses:
         "200":
           description: Default Response
-  /:
+  /admin/access:
     get:
+      security:
+        - administratorPassword: []
       responses:
         "200":
           description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  configured:
+                    type: boolean
+                    enum:
+                      - true
+                  granted:
+                    type: boolean
+                    enum:
+                      - true
+                required:
+                  - configured
+                  - granted
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
   /admin/settings:
     get:
+      security:
+        - administratorPassword: []
       responses:
         "200":
           description: Default Response
@@ -2274,6 +2437,27 @@ paths:
                   - visualStylePrompt
                   - referenceImage
                   - updatedAt
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
                 additionalProperties: false
   /admin/settings/visual-style-prompt:
     put:
@@ -2292,6 +2476,8 @@ paths:
               required:
                 - visualStylePrompt
               additionalProperties: false
+      security:
+        - administratorPassword: []
       responses:
         "200":
           description: Default Response
@@ -2324,8 +2510,31 @@ paths:
                   - referenceImage
                   - updatedAt
                 additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
   /admin/settings/reference-image:
     put:
+      security:
+        - administratorPassword: []
       description: Stores the optional reference image (raw bytes, replacing any earlier one). The bytes must match the
         declared type's magic numbers. The image is stored only; no provider receives it yet.
       requestBody:
@@ -2394,7 +2603,30 @@ paths:
                 additionalProperties: false
         "413":
           description: The image is larger than 5 MB. The previous image is kept.
+        "401":
+          description: The Administrator password is missing, wrong or not configured.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
     get:
+      security:
+        - administratorPassword: []
       description: Streams the stored image with its content type.
       responses:
         "200":
@@ -2429,8 +2661,1166 @@ paths:
                   - ok
                   - reason
                 additionalProperties: false
+        "401":
+          description: The Administrator password is missing, wrong or not configured.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
     delete:
+      security:
+        - administratorPassword: []
       description: Removes the stored image and its file. Answers 204 also when there is none.
       responses:
         "204":
           description: Removed (or nothing to remove).
+        "401":
+          description: The Administrator password is missing, wrong or not configured.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /:
+    get:
+      responses:
+        "200":
+          description: Default Response
+  /admin/providers:
+    get:
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        stage:
+                          type: string
+                          enum:
+                            - reasoning
+                            - voice
+                            - alignment
+                            - image
+                            - video
+                        activeProviderId:
+                          type: string
+                        activeLabel:
+                          type: string
+                        source:
+                          type: string
+                          enum:
+                            - settings
+                            - admin
+                        selectable:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              label:
+                                type: string
+                            required:
+                              - id
+                              - label
+                            additionalProperties: false
+                        orphanedChoice:
+                          type: string
+                          nullable: true
+                      required:
+                        - stage
+                        - activeProviderId
+                        - activeLabel
+                        - source
+                        - selectable
+                        - orphanedChoice
+                      additionalProperties: false
+                required:
+                  - providers
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /admin/providers/{stage}:
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                providerId:
+                  type: string
+                  minLength: 1
+              required:
+                - providerId
+              additionalProperties: false
+      parameters:
+        - schema:
+            type: string
+            enum:
+              - reasoning
+              - voice
+              - alignment
+              - image
+              - video
+          in: path
+          name: stage
+          required: true
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stage:
+                    type: string
+                    enum:
+                      - reasoning
+                      - voice
+                      - alignment
+                      - image
+                      - video
+                  activeProviderId:
+                    type: string
+                  activeLabel:
+                    type: string
+                  source:
+                    type: string
+                    enum:
+                      - settings
+                      - admin
+                  selectable:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        label:
+                          type: string
+                      required:
+                        - id
+                        - label
+                      additionalProperties: false
+                  orphanedChoice:
+                    type: string
+                    nullable: true
+                required:
+                  - stage
+                  - activeProviderId
+                  - activeLabel
+                  - source
+                  - selectable
+                  - orphanedChoice
+                additionalProperties: false
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - type: object
+                    properties:
+                      ok:
+                        type: boolean
+                        enum:
+                          - false
+                      reason:
+                        type: string
+                        enum:
+                          - not-selectable
+                      selectable:
+                        type: array
+                        items:
+                          type: string
+                    required:
+                      - ok
+                      - reason
+                      - selectable
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      statusCode:
+                        type: number
+                      error:
+                        type: string
+                      message:
+                        type: string
+                    required:
+                      - statusCode
+                      - error
+                      - message
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-usable
+                  problems:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field:
+                          type: string
+                        message:
+                          type: string
+                      required:
+                        - field
+                        - message
+                      additionalProperties: false
+                required:
+                  - ok
+                  - reason
+                  - problems
+                additionalProperties: false
+  /admin/provider-types:
+    get:
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  types:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        stage:
+                          type: string
+                          enum:
+                            - reasoning
+                            - voice
+                            - alignment
+                            - image
+                            - video
+                        label:
+                          type: string
+                        fields:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              path:
+                                type: array
+                                items:
+                                  type: string
+                              label:
+                                type: string
+                              kind:
+                                type: string
+                                enum:
+                                  - text
+                                  - number
+                                  - choice
+                              required:
+                                type: boolean
+                              help:
+                                type: string
+                              choices:
+                                type: array
+                                items:
+                                  type: string
+                              acceptsNumber:
+                                type: boolean
+                            required:
+                              - path
+                              - label
+                              - kind
+                              - required
+                            additionalProperties: false
+                      required:
+                        - id
+                        - stage
+                        - label
+                        - fields
+                      additionalProperties: false
+                required:
+                  - types
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /admin/provider-profiles:
+    get:
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  profiles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        stage:
+                          type: string
+                          enum:
+                            - reasoning
+                            - voice
+                            - alignment
+                            - image
+                            - video
+                        adapterType:
+                          type: string
+                        label:
+                          type: string
+                        parameters:
+                          type: object
+                          additionalProperties: {}
+                        keyStatus:
+                          type: string
+                          enum:
+                            - stored
+                            - environment
+                            - missing
+                        keyHint:
+                          type: string
+                          nullable: true
+                        usable:
+                          type: boolean
+                        problems:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              field:
+                                type: string
+                              message:
+                                type: string
+                            required:
+                              - field
+                              - message
+                            additionalProperties: false
+                        active:
+                          type: boolean
+                        retired:
+                          type: boolean
+                      required:
+                        - id
+                        - stage
+                        - adapterType
+                        - label
+                        - parameters
+                        - keyStatus
+                        - keyHint
+                        - usable
+                        - problems
+                        - active
+                        - retired
+                      additionalProperties: false
+                required:
+                  - profiles
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                stage:
+                  type: string
+                  enum:
+                    - reasoning
+                    - voice
+                    - alignment
+                    - image
+                    - video
+                adapterType:
+                  type: string
+                label:
+                  type: string
+                parameters:
+                  type: object
+                  additionalProperties: {}
+                apiKey:
+                  type: string
+              required:
+                - stage
+                - adapterType
+                - label
+                - parameters
+              additionalProperties: false
+      security:
+        - administratorPassword: []
+      responses:
+        "201":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  stage:
+                    type: string
+                    enum:
+                      - reasoning
+                      - voice
+                      - alignment
+                      - image
+                      - video
+                  adapterType:
+                    type: string
+                  label:
+                    type: string
+                  parameters:
+                    type: object
+                    additionalProperties: {}
+                  keyStatus:
+                    type: string
+                    enum:
+                      - stored
+                      - environment
+                      - missing
+                  keyHint:
+                    type: string
+                    nullable: true
+                  usable:
+                    type: boolean
+                  problems:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field:
+                          type: string
+                        message:
+                          type: string
+                      required:
+                        - field
+                        - message
+                      additionalProperties: false
+                  active:
+                    type: boolean
+                  retired:
+                    type: boolean
+                required:
+                  - id
+                  - stage
+                  - adapterType
+                  - label
+                  - parameters
+                  - keyStatus
+                  - keyHint
+                  - usable
+                  - problems
+                  - active
+                  - retired
+                additionalProperties: false
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - type: object
+                    properties:
+                      ok:
+                        type: boolean
+                        enum:
+                          - false
+                      problems:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            field:
+                              type: string
+                            message:
+                              type: string
+                          required:
+                            - field
+                            - message
+                          additionalProperties: false
+                    required:
+                      - ok
+                      - problems
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      statusCode:
+                        type: number
+                      error:
+                        type: string
+                      message:
+                        type: string
+                    required:
+                      - statusCode
+                      - error
+                      - message
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /admin/provider-profiles/{id}:
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                parameters:
+                  type: object
+                  additionalProperties: {}
+                apiKey:
+                  type: string
+              required:
+                - label
+                - parameters
+              additionalProperties: false
+      parameters:
+        - schema:
+            type: string
+            minLength: 1
+          in: path
+          name: id
+          required: true
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  stage:
+                    type: string
+                    enum:
+                      - reasoning
+                      - voice
+                      - alignment
+                      - image
+                      - video
+                  adapterType:
+                    type: string
+                  label:
+                    type: string
+                  parameters:
+                    type: object
+                    additionalProperties: {}
+                  keyStatus:
+                    type: string
+                    enum:
+                      - stored
+                      - environment
+                      - missing
+                  keyHint:
+                    type: string
+                    nullable: true
+                  usable:
+                    type: boolean
+                  problems:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field:
+                          type: string
+                        message:
+                          type: string
+                      required:
+                        - field
+                        - message
+                      additionalProperties: false
+                  active:
+                    type: boolean
+                  retired:
+                    type: boolean
+                required:
+                  - id
+                  - stage
+                  - adapterType
+                  - label
+                  - parameters
+                  - keyStatus
+                  - keyHint
+                  - usable
+                  - problems
+                  - active
+                  - retired
+                additionalProperties: false
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - type: object
+                    properties:
+                      ok:
+                        type: boolean
+                        enum:
+                          - false
+                      problems:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            field:
+                              type: string
+                            message:
+                              type: string
+                          required:
+                            - field
+                            - message
+                          additionalProperties: false
+                    required:
+                      - ok
+                      - problems
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      statusCode:
+                        type: number
+                      error:
+                        type: string
+                      message:
+                        type: string
+                    required:
+                      - statusCode
+                      - error
+                      - message
+                    additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-found
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+    delete:
+      parameters:
+        - schema:
+            type: string
+            minLength: 1
+          in: path
+          name: id
+          required: true
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    enum:
+                      - removed
+                      - retired
+                required:
+                  - result
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-found
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - active
+                  stage:
+                    type: string
+                    enum:
+                      - reasoning
+                      - voice
+                      - alignment
+                      - image
+                      - video
+                required:
+                  - ok
+                  - reason
+                  - stage
+                additionalProperties: false
+  /admin/failed-stages:
+    get:
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  failedStages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        sessionId:
+                          type: string
+                        sessionTitle:
+                          type: string
+                        stage:
+                          type: string
+                          enum:
+                            - reasoning
+                            - voice
+                            - alignment
+                            - image
+                            - video
+                        sceneId:
+                          type: string
+                          nullable: true
+                        sceneNumber:
+                          type: number
+                          nullable: true
+                        boundProviderId:
+                          type: string
+                        boundProviderLabel:
+                          type: string
+                        activeProviderId:
+                          type: string
+                        activeProviderLabel:
+                          type: string
+                        cause:
+                          type: string
+                      required:
+                        - sessionId
+                        - sessionTitle
+                        - stage
+                        - sceneId
+                        - sceneNumber
+                        - boundProviderId
+                        - boundProviderLabel
+                        - activeProviderId
+                        - activeProviderLabel
+                        - cause
+                      additionalProperties: false
+                required:
+                  - failedStages
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /admin/failed-stages/to-active-provider:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                  minLength: 1
+                stage:
+                  type: string
+                  enum:
+                    - reasoning
+                    - voice
+                    - alignment
+                    - image
+                    - video
+                sceneId:
+                  type: string
+                  minLength: 1
+              required:
+                - sessionId
+                - stage
+              additionalProperties: false
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  moved:
+                    type: object
+                    properties:
+                      sessionId:
+                        type: string
+                      stage:
+                        type: string
+                        enum:
+                          - reasoning
+                          - voice
+                          - alignment
+                          - image
+                          - video
+                      sceneId:
+                        type: string
+                        nullable: true
+                      providerId:
+                        type: string
+                      providerLabel:
+                        type: string
+                      requestedDurationSeconds:
+                        type: number
+                        nullable: true
+                    required:
+                      - sessionId
+                      - stage
+                      - sceneId
+                      - providerId
+                      - providerLabel
+                      - requestedDurationSeconds
+                    additionalProperties: false
+                required:
+                  - moved
+                additionalProperties: false
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: number
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - statusCode
+                  - error
+                  - message
+                additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-found
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-failed
+                      - already-on-active
+                      - retry-in-progress
+                      - not-retryable
+                      - not-usable
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false

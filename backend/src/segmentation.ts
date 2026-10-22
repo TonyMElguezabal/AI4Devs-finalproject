@@ -1,6 +1,7 @@
 import { closestAdmittedDuration } from "./admittedDurations.ts";
 import { buildUnits } from "./clauseSplitting.ts";
-import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS } from "./config/providers.ts";
+import { SEGMENTATION_LOWER_BOUND_SECONDS } from "./config/providers.ts";
+import { activeVideoDurations } from "./videoDurations.ts";
 import type { TimestampCharacter } from "./narrationTimestamps.ts";
 import type { FragmentException, SegmentedFragment } from "./sceneRegistration.ts";
 import { findSentences } from "./sentences.ts";
@@ -66,6 +67,7 @@ export function segmentScript(
   const units = buildUnits(script, sentences, language, sentenceDurations);
   const boundaries = unitBoundaries(sentenceSpeechSpans(script, units, characters), mp3DurationSeconds);
 
+  const upperBound = activeVideoDurations().max;
   const count = units.length;
   const durationOf = (first: number, last: number): number => boundaries[last + 1]! - boundaries[first]!;
   const isShort = (index: number): boolean => durationOf(index, index) < SEGMENTATION_LOWER_BOUND_SECONDS;
@@ -73,7 +75,7 @@ export function segmentScript(
   /** Decision 4: whether units first..last may be one fragment, and the exception it needs, if any. */
   function classify(first: number, last: number): { allowed: boolean; exception?: FragmentException } {
     const duration = durationOf(first, last);
-    if (duration >= SEGMENTATION_LOWER_BOUND_SECONDS && duration <= SEGMENTATION_UPPER_BOUND_SECONDS) {
+    if (duration >= SEGMENTATION_LOWER_BOUND_SECONDS && duration <= upperBound) {
       return { allowed: true };
     }
     if (duration < SEGMENTATION_LOWER_BOUND_SECONDS) {
@@ -85,12 +87,12 @@ export function segmentScript(
   }
 
   // best[i]: the best grouping of units i..count-1, or null when none is valid.
-  const best: Array<Grouping | null> = new Array(count + 1).fill(null);
+  const best: Array<Grouping | null> = new Array<Grouping | null>(count + 1).fill(null);
   best[count] = { shortEndCount: 0, totalSpeedChange: 0, fragmentCount: 0, firstFragmentLast: count - 1, next: null, exceptions: [] };
 
   for (let first = count - 1; first >= 0; first--) {
     for (let last = first; last < count; last++) {
-      if (durationOf(first, last) > SEGMENTATION_UPPER_BOUND_SECONDS && last > first + 1) break;
+      if (durationOf(first, last) > upperBound && last > first + 1) break;
       const rest = best[last + 1] ?? null;
       if (rest === null) continue;
       const { allowed, exception } = classify(first, last);

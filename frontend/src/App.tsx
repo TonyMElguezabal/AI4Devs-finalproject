@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { StartProjectForm, type StartProjectValues, type SupportedLanguage } from "./components/StartProjectForm";
 import { SessionPage } from "./components/SessionPage";
-import { AdminPage } from "./components/AdminPage";
 import { TopBar } from "./components/TopBar";
 import { TelemetryConsentDialog } from "./components/TelemetryConsentDialog";
 import { UpdateBanner } from "./components/UpdateBanner";
+import { AdminTools } from "./components/AdminTools";
+import { AdminPage } from "./components/AdminPage";
 import type { TelemetryConsent } from "./types";
 import { useLiveSession } from "./api/useLiveSession";
 import {
@@ -19,6 +20,7 @@ import {
   retryAssembly,
   retryDecomposition,
   retryScene,
+  retryVoiceOver,
   setScenePause,
 } from "./api/client";
 
@@ -32,24 +34,26 @@ function sessionIdFromUrl(): string | undefined {
   return new URLSearchParams(window.location.search).get("sessionId") ?? undefined;
 }
 
-const ADMIN_LINK = { href: "/admin", label: "Admin" };
-
-/** admin-visual-style-prompt (JOS-201), Decision 9 — `/admin` is chosen by path, with no router dependency. */
+/**
+ * protect-admin-with-password (JOS-173), design Decision 5 — `/admin` is chosen before any of the regular page's
+ * state exists, so it never loads the privacy prompt, the languages or a live session. There is no router. The page
+ * is not linked from the top bar: the Administrator opens the address directly.
+ */
 export default function App() {
   if (window.location.pathname === "/admin") {
     return (
       <>
-        <TopBar link={{ href: "/", label: "Projects" }} />
+        <TopBar />
         <main className="app-main">
-          <AdminPage />
+          <AdminPage tools={(context) => <AdminTools {...context} />} />
         </main>
       </>
     );
   }
-  return <ProjectsApp />;
+  return <RegularApp />;
 }
 
-function ProjectsApp() {
+function RegularApp() {
   const [sessionId, setSessionId] = useState<string | undefined>(sessionIdFromUrl);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | undefined>(undefined);
@@ -76,6 +80,7 @@ function ProjectsApp() {
         consent={consent}
         onSave={async (choices) => setConsent(await saveTelemetryConsent(choices))}
         onClose={() => setPrivacyOpen(false)}
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises -- the handler catches its own failure
         onDismiss={async () => {
           // "Not now" counts as an answer, but only the first time: an answered consent keeps its saved choices.
           if (consent && !consent.answered) {
@@ -129,9 +134,10 @@ function ProjectsApp() {
   if (!sessionId) {
     return (
       <>
-        <TopBar onOpenPrivacy={() => setPrivacyOpen(true)} link={ADMIN_LINK} />
+        <TopBar onOpenPrivacy={() => setPrivacyOpen(true)} />
         {privacy}
         <main className="app-main">
+          {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- handleStart catches its own failure */}
           <StartProjectForm onStart={handleStart} languages={languages} submitting={starting} error={startError} />
         </main>
       </>
@@ -140,7 +146,7 @@ function ProjectsApp() {
 
   return (
     <>
-      <TopBar connected={notFound ? undefined : connected} onNewProject={handleStartNew} onOpenPrivacy={() => setPrivacyOpen(true)} link={ADMIN_LINK} />
+      <TopBar connected={notFound ? undefined : connected} onNewProject={handleStartNew} onOpenPrivacy={() => setPrivacyOpen(true)} />
       {privacy}
       <main className="app-main">
         <SessionPage
@@ -148,13 +154,16 @@ function ProjectsApp() {
           snapshot={snapshot}
           notFound={notFound}
           onStartNew={handleStartNew}
+          // eslint-disable-next-line @typescript-eslint/no-misused-promises -- a failed pause is not surfaced yet (JOS-208 PR note)
           onPause={() => pauseSession(sessionId)}
+          // eslint-disable-next-line @typescript-eslint/no-misused-promises -- a failed continue is not surfaced yet (JOS-208 PR note)
           onContinue={() => continueSession(sessionId)}
           onRetry={(sceneId) => retryScene(sessionId, sceneId)}
           onCorrect={(sceneId, instruction) => correctScene(sessionId, sceneId, instruction)}
           onSetPause={(sceneId, seconds) => setScenePause(sessionId, sceneId, seconds)}
           onRebuildFinalVideo={() => rebuildFinalVideo(sessionId)}
           onRetryPhase={(phase) => {
+            if (phase === "voice-over") return retryVoiceOver(sessionId);
             if (phase === "decomposition") return retryDecomposition(sessionId);
             if (phase === "assembly") return retryAssembly(sessionId);
             return Promise.reject(new Error("not-retryable"));

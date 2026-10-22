@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { loadCredential } from "./config/credentials.ts";
-import { DECOMPOSITION_PROVIDER, PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
+import { stageApiKey } from "./keyStore.ts";
+import { DECOMPOSITION_PROVIDER, phaseTimeoutMs } from "./config/providers.ts";
 
 // assign-scene-identifiers (JOS-144) Decision 4 — the IMAGE and VIDEO
 // instructions for every fragment come from the reasoning provider (PRD §11,
@@ -73,11 +73,13 @@ function classifyHttpStatus(status: number): "failed_transient" | "failed_not_re
 }
 
 export function createOpenAiVisualInstructionGenerator(
-  options: { fetchFn?: typeof fetch; loadKey?: () => string; timeoutMs?: number } = {},
+  options: { fetchFn?: typeof fetch; loadKey?: () => string; timeoutMs?: number; parameters?: { model: string } } = {},
 ): VisualInstructionGenerator {
   const fetchFn = options.fetchFn ?? fetch;
-  const loadKey = options.loadKey ?? (() => loadCredential("OPENAI_KEY"));
-  const timeoutMs = options.timeoutMs ?? PER_PHASE_MAX_TIME_SECONDS.decomposition * 1000;
+  // manage-providers-from-admin (JOS-218): the model comes from the profile; without one, the settings' reasoning model.
+  const model = (options.parameters ?? { model: DECOMPOSITION_PROVIDER.model }).model;
+  const loadKey = options.loadKey ?? (() => stageApiKey("reasoning"));
+  const timeoutMs = options.timeoutMs ?? phaseTimeoutMs("decomposition");
 
   return {
     async generate(fragmentTexts, language, visualStylePrompt = "") {
@@ -86,7 +88,7 @@ export function createOpenAiVisualInstructionGenerator(
         apiKey = loadKey();
       } catch (err) {
         // The loader's message names the credential and never contains a value.
-        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing credential 'OPENAI_KEY'" };
+        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing API key for the reasoning role" };
       }
 
       const userMessage = JSON.stringify({
@@ -100,17 +102,17 @@ export function createOpenAiVisualInstructionGenerator(
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: DECOMPOSITION_PROVIDER.model,
+            model,
             response_format: { type: "json_object" },
             messages: [
               ...systemMessages(visualStylePrompt.trim()),
               { role: "user", content: userMessage },
             ],
           }),
-          signal: AbortSignal.timeout(timeoutMs),
+          signal: timeoutMs === undefined ? undefined : AbortSignal.timeout(timeoutMs),
         });
       } catch (err) {
-        const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+        const timedOut = timeoutMs !== undefined && err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
         return {
           kind: "failed_transient",
           reason: timedOut

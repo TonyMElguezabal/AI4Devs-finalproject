@@ -1,4 +1,14 @@
-import { DECOMPOSITION_PROVIDER, IMAGE_PROVIDER, VIDEO_PROVIDER, VOICE_PROVIDER } from "./config/providers.ts";
+import {
+  DECOMPOSITION_PROVIDER,
+  IMAGE_PROVIDER,
+  LEGACY_IMAGE_PROVIDER_IDENTIFIER,
+  LEGACY_VIDEO_PROVIDER_IDENTIFIER,
+  VIDEO_PROVIDER,
+  VOICE_PROVIDER,
+} from "./config/providers.ts";
+import { resolveProfileId } from "./keyStore.ts";
+import { ensureProfiles, getProfile } from "./providerProfiles.ts";
+import type { ProviderStage } from "./providerTypes.ts";
 import { STUB_PROVIDER_NAME, type AttemptStage } from "./types.ts";
 import { STUB_VIDEO_PROVIDER_NAME } from "./videoProvider.ts";
 
@@ -28,12 +38,14 @@ const stub = (identifier: string): ProviderDisplay => ({ name: "Stub provider", 
 // `provider_id` its attempts record. Identifiers that no stage stores have no entry on purpose.
 const DISPLAY: Record<DiagnosticStage, ReadonlyMap<string | null, ProviderDisplay>> = {
   image: new Map([
-    [IMAGE_PROVIDER.model, { name: IMAGE_PROVIDER.name, model: IMAGE_PROVIDER.model }],
+    [IMAGE_PROVIDER.name, { name: IMAGE_PROVIDER.name, model: IMAGE_PROVIDER.model }],
+    [LEGACY_IMAGE_PROVIDER_IDENTIFIER, { name: IMAGE_PROVIDER.name, model: IMAGE_PROVIDER.model }],
     [STUB_PROVIDER_NAME, stub(STUB_PROVIDER_NAME)],
   ]),
   // The endpoint path is configuration detail the User does not need, so the model is a fixed label.
   video: new Map([
-    [VIDEO_PROVIDER.endpoint, { name: VIDEO_PROVIDER.name, model: "minimax/hailuo-h3" }],
+    [VIDEO_PROVIDER.name, { name: VIDEO_PROVIDER.name, model: "minimax/hailuo-h3" }],
+    [LEGACY_VIDEO_PROVIDER_IDENTIFIER, { name: VIDEO_PROVIDER.name, model: "minimax/hailuo-h3" }],
     [STUB_VIDEO_PROVIDER_NAME, stub(STUB_VIDEO_PROVIDER_NAME)],
   ]),
   "voice-over": new Map([
@@ -62,13 +74,44 @@ export function resetDiagnosticsLog(): void {
   alreadyLogged.clear();
 }
 
+const PROFILE_STAGE: Record<Exclude<DiagnosticStage, "assembly">, ProviderStage> = {
+  image: "image",
+  video: "video",
+  "voice-over": "voice",
+  timestamps: "alignment",
+  instructions: "reasoning",
+};
+
+/**
+ * manage-providers-from-admin (JOS-218), design Decision 8 — a provider is shown by its profile: the display name and,
+ * where the User needs one, the model. The video endpoint path stays out of sight; the first profile keeps its label.
+ */
+function describeProfile(stage: DiagnosticStage, identifier: string | null): ProviderDisplay | undefined {
+  if (identifier === null || stage === "assembly") return undefined;
+  if (stage === "timestamps" && identifier === "elevenlabs-native") return undefined;
+  ensureProfiles();
+  const profileStage = PROFILE_STAGE[stage];
+  const profile = getProfile(resolveProfileId(profileStage, identifier));
+  if (!profile || profile.stage !== profileStage) return undefined;
+  switch (stage) {
+    case "timestamps":
+      return { name: profile.label, model: "forced alignment" };
+    case "video":
+      return { name: profile.label, model: profile.id === "RunningHub" ? "minimax/hailuo-h3" : null };
+    default: {
+      const model = profile.parameters.model;
+      return { name: profile.label, model: typeof model === "string" ? model : null };
+    }
+  }
+}
+
 /**
  * The provider to show for a stage's stored identifier. An identifier with no entry is shown as an
  * unknown provider and logged once; the stored value is never returned, because it may be an internal
  * id, an endpoint or something a configuration change left behind.
  */
 export function describeProvider(stage: DiagnosticStage, identifier: string | null): ProviderDisplay {
-  const found = DISPLAY[stage].get(identifier);
+  const found = describeProfile(stage, identifier) ?? DISPLAY[stage].get(identifier);
   if (found) return { ...found };
   const key = `${stage}:${identifier}`;
   if (!alreadyLogged.has(key)) {

@@ -1,5 +1,6 @@
-import { loadCredential } from "./config/credentials.ts";
-import { PER_PHASE_MAX_TIME_SECONDS, VOICE_PROVIDER } from "./config/providers.ts";
+import { keyFor, stageApiKey } from "./keyStore.ts";
+import { buildProfileRegistry, profileRegistrySlot } from "./profileRegistry.ts";
+import { phaseTimeoutMs } from "./config/providers.ts";
 
 // generate-voice-over (JOS-136) Decision 4 — the voice stage's provider (PRD
 // §11): ElevenLabs text-to-speech with timestamps. The adapter makes exactly
@@ -54,7 +55,7 @@ export function createElevenLabsVoiceProvider(
   options: { fetchFn?: typeof fetch; loadKey?: () => string; timeoutMs?: number } = {},
 ): VoiceProvider {
   const fetchFn = options.fetchFn ?? fetch;
-  const loadKey = options.loadKey ?? (() => loadCredential("ELEVENLABS_KEY"));
+  const loadKey = options.loadKey ?? (() => stageApiKey("voice"));
   const timeoutMs = options.timeoutMs;
 
   return {
@@ -64,7 +65,7 @@ export function createElevenLabsVoiceProvider(
         apiKey = loadKey();
       } catch (err) {
         // The loader's message names the credential and never contains a value.
-        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing credential 'ELEVENLABS_KEY'" };
+        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing API key for the voice role" };
       }
 
       const url = `${ELEVENLABS_BASE_URL}/${encodeURIComponent(request.voiceId)}/with-timestamps?output_format=${encodeURIComponent(request.outputFormat)}`;
@@ -125,9 +126,9 @@ export type StubVoiceProviderMode =
   /** stage-execution-time-limit (JOS-185), manual testing: every call succeeds, but only after the maximum time has passed. */
   | "success-after-limit";
 
-/** How long `success-after-limit` waits by default: the voice stage's maximum time plus two seconds. */
+/** How long `success-after-limit` waits by default: the voice stage's maximum time plus two seconds (two seconds when the stage is not timed). */
 export function lateAnswerDelayMs(): number {
-  return (PER_PHASE_MAX_TIME_SECONDS.voice + 2) * 1000;
+  return (phaseTimeoutMs("voice") ?? 0) + 2000;
 }
 
 const MP3_FRAME_BYTES = 417; // MPEG-1 Layer III, 44.1 kHz, 128 kbit/s, no padding: 1152 samples, about 26.1 ms
@@ -216,25 +217,27 @@ export function createStubVoiceProvider(
 export interface VoiceProviderRegistry {
   defaultIdentifier: string;
   adapters: Record<string, VoiceProvider>;
+  labels?: Record<string, string>;
+  aliases?: readonly string[];
+  retired?: readonly string[];
 }
 
 function defaultRegistry(): VoiceProviderRegistry {
-  return {
-    defaultIdentifier: VOICE_PROVIDER.name,
-    adapters: { [VOICE_PROVIDER.name]: createElevenLabsVoiceProvider() },
-  };
+  // manage-providers-from-admin (JOS-218): one adapter per voice profile, with its own key. The voice parameters travel
+  // in the synthesis request, which the voice phase builds from the bound profile.
+  return buildProfileRegistry("voice", (profile) => createElevenLabsVoiceProvider({ loadKey: () => keyFor(profile.id) }));
 }
 
-let registry: VoiceProviderRegistry = defaultRegistry();
+const slot = profileRegistrySlot<VoiceProvider, VoiceProviderRegistry>(defaultRegistry);
 
 export function getVoiceProviderRegistry(): VoiceProviderRegistry {
-  return registry;
+  return slot.get();
 }
 
 export function setVoiceProviderRegistry(next: VoiceProviderRegistry): void {
-  registry = next;
+  slot.set(next);
 }
 
 export function resetVoiceProviderRegistry(): void {
-  registry = defaultRegistry();
+  slot.reset();
 }

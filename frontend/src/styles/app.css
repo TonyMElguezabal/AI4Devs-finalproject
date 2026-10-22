@@ -1154,17 +1154,7 @@ progress::-moz-progress-bar {
   }
 }
 
-/* ---------- Admin page and top-bar link (admin-visual-style-prompt, JOS-201) ---------- */
-
-.top-bar-link {
-  margin-left: auto;
-  font-size: var(--font-size-sm);
-}
-
-.connection ~ .top-bar-link,
-.privacy-button ~ .top-bar-link {
-  margin-left: 0;
-}
+/* ---------- Reference image preview (admin-visual-style-prompt, JOS-201) ---------- */
 
 .reference-preview {
   max-width: 100%;

@@ -25,10 +25,11 @@ Represents one video project. PRD §3, §4.1, §8.1, §9, §12.2.
 - `running` (not a column, response only): **derived**, never stored (`distinguish-paused-session`, JOS-153, Decision 2). `sessionRunningWork` in `launchGate.ts` reads it directly from current state, never from the launcher registry (unlike `held`): a scene counts under the `image` or `video` stage while its status is `image-generating` / `video-generating`; a session-level stage (`voice-over`, `decomposition`) counts while it has a `stage_attempts` row with `outcome = 'in-flight'`, with `timestamps` attempts also mapped to `decomposition`. Unlike `held`, it is computed and returned whether or not the session is paused — the page shows it only beside the paused marker (Decision 3). A unit is never both `running` and `held` by construction: a held scene has not been sent (`submitted`, or `image-complete` with no video request), and a running one has (its state or its attempt's outcome says so).
 - `failure`: the phase failure the session carries when it is `failed`, as JSON: `{ phase, cause, retryable, manualRetryAvailable, cycle, attemptsInCycle, occurredAt }` (the last three added by `bounded-retry-policy`, JOS-184: whether the User can start a new cycle, which cycle ended in this failure, and how many attempts it held) with `phase` one of `voice-over` (`generate-voice-over`, JOS-136, which added the column in migration 4), `decomposition` (JOS-144: a refused system-generated decomposition, whose cause never blames the User's script), or `assembly` (`retry-final-assembly`, JOS-159: assembly exhausting its attempts, failing not-retryably, or unable to start at all — no tool configured, or no stored voice-over). A session with no chunks and a failure derives to `failed` in that phase; once scenes exist and are all `chunk-complete`, an assembly failure derives `failed` the same way (§8.1's gate-open branch). A successful chunk registration clears it, a voice-over attempt that starts after a failure clears it in the same write that records the attempt, and a successful assembly attempt clears it.
 - `voice_provider_id`: the identifier of the voice provider bound to the session, nullable. Bound by the first voice-over attempt and read from here by every later attempt, so a later change of the default provider cannot split one narration across providers (`generate-voice-over`, JOS-136, Decision 3). It is written once: `bindVoiceProvider` only sets it while it is null and leaves an existing binding untouched.
-- `visual_style_prompt`: TEXT NOT NULL DEFAULT `''` (migration 18, `admin-visual-style-prompt`, JOS-201). A **snapshot** of the `/admin` visual style prompt, copied by `createRun` when the session is created and never updated afterwards. The first decomposition, a manual retry of it and the boot relaunch read this column, never the live setting, so saving `/admin` cannot change a session already in progress. `''` means no style, and the decomposition request is then exactly what it was before the setting existed. Runs created before migration 18 hold `''`.
+- `decomposition_provider_id`, `alignment_provider_id`: the identifiers of the reasoning and the alignment provider bound to the session, both nullable (`change-active-provider-from-admin`, JOS-171, migration 18). Each is bound once, by the same conditional write as `voice_provider_id`, at the first decomposition attempt and at the first attempt that actually calls the alignment provider; native timestamps bind no alignment provider. Migration 18 backfilled them for existing sessions from their earliest `decomposition` attempt, and their earliest `timestamps` attempt other than `elevenlabs-native`; a session with no such attempt stays `NULL`.
+- `visual_style_prompt`: TEXT NOT NULL DEFAULT `''` (migration 20, `admin-visual-style-prompt`, JOS-201). A **snapshot** of the `/admin` visual style prompt, copied by `createRun` when the session is created and never updated afterwards. The first decomposition, a manual retry of it and the boot relaunch read this column, never the live setting, so saving `/admin` cannot change a session already in progress. `''` means no style, and the decomposition request is then exactly what it was before the setting existed. Runs created before migration 20 hold `''`.
 - `project_folder`: the real per-project folder name under a configured root, named `<title> <YYYY-MM-DD HH-mm>` with a counter suffix on collision — §12.2 (Decision 4, `define-persistence`)
 
-**Not modelled** (no consumer yet — see the scope note): the alignment provider binding and the total narration duration as a session field (the duration lives on the voice-over record, §6 below) — these belong to stages this skeleton doesn't simulate.
+**Not modelled** (no consumer yet — see the scope note): the total narration duration as a session field (the duration lives on the voice-over record, §6 below) — these belong to stages this skeleton doesn't simulate.
 
 **Relationships:** one session has many scenes.
 
@@ -123,7 +124,31 @@ One row per install (`id = 1`, enforced by a CHECK), created by the migration wi
 
 Mutable on purpose, like `scene_pause_edits`: it holds the User's intent, not generated output. Written only by `saveTelemetryConsent`; read by `getTelemetrySettings`.
 
-### 4e. App settings (`app_settings` table) — `admin-visual-style-prompt`, JOS-201, migration 18
+### 4e. Active providers (`active_providers` table) — `change-active-provider-from-admin`, JOS-171, migration 18
+
+One row per stage the Administrator has chosen a provider for on `/admin`; no row means the settings-file provider. It belongs to the install, not to a session.
+
+- `stage` (TEXT, Primary Key): `reasoning`, `voice`, `alignment`, `image` or `video`.
+- `provider_id` (TEXT): the adapter chosen. It must be an adapter the build ships for that stage; a row naming one it no longer ships is ignored (the settings default applies, with one warning) and `GET /admin/providers` reports it as `orphanedChoice`.
+- `changed_at` (TEXT): when the choice was made. No history is kept.
+
+Mutable on purpose, like `telemetry_settings`: it holds the Administrator's intent. Written only by `upsertActiveProviderChoice` (through `setActiveProvider`); read on every bind by `activeProviderId(stage)`, with no cache, so a change applies to the next bind with no restart.
+
+**The binding rule, for all five stages.** A stage instance is bound to a provider once, at its first attempt, to the provider `activeProviderId(stage)` returns at that moment: `runs.voice_provider_id`, `runs.decomposition_provider_id` and `runs.alignment_provider_id` per session, `scenes.provider` (image) and `scenes.video_provider` (video) per scene. The write only succeeds while the binding is unset, so it is never overwritten. Automatic and manual retries read the binding, never the active provider, and nothing switches a stage to another provider when its retries are exhausted. A change of the active provider never touches a completed result.
+
+### 4f. Provider profiles (`provider_profiles` table) — `manage-providers-from-admin`, JOS-218, migration 19
+
+One row per provider the Administrator can choose for a stage. It belongs to the install, not to a session. The migration creates the table empty; the first start after it seeds one profile per stage from the settings (`seedProviderProfiles`), and seeds again lazily when a store was emptied.
+
+- `id` (TEXT, Primary Key): what a binding stores. The five profiles created from the settings keep the identifiers the database already stored (`openai-decomposition`, `ElevenLabs`, `elevenlabs-forced-alignment`, `Fal.ai`, `RunningHub`), so no stored binding or attempt changes; a profile added on `/admin` gets a ULID. The image model and the video endpoint path an earlier build stored are aliases of the seeded image and video profiles.
+- `stage` (TEXT): `reasoning`, `voice`, `alignment`, `image` or `video`. `adapter_type` (TEXT): an adapter type the build ships for that stage (`openai-reasoning`, `elevenlabs-voice`, `elevenlabs-alignment`, `fal-image`, `runninghub-video`). Neither changes after creation.
+- `label` (TEXT): the display name, unique within the stage (case-insensitive). `parameters` (TEXT, JSON): validated by the adapter type's schema; it never holds a host or a URL.
+- `api_key_encrypted` (nullable TEXT): `base64(iv ‖ ciphertext ‖ tag)` from AES-256-GCM with a new IV on every write. The 32-byte master key is a separate file (`PROVIDER_KEY_PATH`, default `data/provider-keys.key`, mode 0600), never in the database. No key is stored for a profile that relies on the legacy environment or secrets-file key.
+- `retired_at` (nullable TEXT): set when a profile that sessions, scenes or attempts are bound to is deleted. A retired profile is not offered and cannot be chosen, but still resolves, with its parameters and key, for what is bound to it.
+- `created_at`, `updated_at` (TEXT).
+
+Mutable on purpose: it holds the Administrator's configuration. Written by `providerProfiles.ts` and the key store (`keyStore.ts`); `active_providers.provider_id` refers to a profile `id`. The registries are built from it and rebuilt when it changes.
+### 4g. App settings (`app_settings` table) — `admin-visual-style-prompt`, JOS-201, migration 20
 
 One row per install (`id = 1`, enforced by a CHECK), inserted by the migration with an empty style and no image. It belongs to the install, not to a session; sessions copy `visual_style_prompt` from it at creation (see `runs.visual_style_prompt`).
 
@@ -132,7 +157,7 @@ One row per install (`id = 1`, enforced by a CHECK), inserted by the migration w
 - `reference_image_content_type` (nullable TEXT): `image/png`, `image/jpeg` or `image/webp`; null together with the path.
 - `updated_at` (TEXT NOT NULL): set on every save.
 
-The reference image is **stored only**: no provider receives it until a later ticket (JOS-202) verifies a reference-capable image model (PRD §11). Mutable on purpose, like `telemetry_settings`: it holds the User's intent, not generated output. Written only by `saveVisualStylePrompt`, `saveReferenceImage` and `clearReferenceImage`.
+The reference image is **stored only**: no provider receives it until a later ticket (JOS-202) verifies a reference-capable image model (PRD §11). Mutable on purpose, like `telemetry_settings`: it holds the Administrator's intent, not generated output. Written only by `saveVisualStylePrompt`, `saveReferenceImage` and `clearReferenceImage`.
 
 ### 5. Schema migrations (`schema_migrations` table)
 
@@ -153,6 +178,8 @@ Tracks which versioned migrations have been applied, so an existing session's da
 The MP3 and the timestamps file are written once (`writeArtefactOnce`) before the record is inserted, and the record is locked against update and delete (see *Store-enforced locks*). A success confirmation that arrives twice, or concurrently, leaves one record and one MP3 (Decision 8). The API exposes `provider`, `durationSeconds`, `nativeTimestampsAvailable` and `completedAt` on the session read, and never the file paths, the request id or the audio itself (Decision 11, PRD §12.3).
 
 **Stage attempts** (`stage_attempts`) record every attempt of a stage instance before its request is sent (Decision 2); only the outcome columns are filled in afterwards. Fields: `id` (Primary Key), `run_id` (Foreign Key), `stage` (`voice-over`, `timestamps`, `decomposition`, `image` or `video`), `scene_id` (null for the session-level stages), `stage_instance_key` (`<session>:<stage>`, or `<session>:<scene>:<stage>` for `image` and `video`; the unit the retry budget belongs to, `bounded-retry-policy` Decision 1), `cycle` (from 1; a manual retry opens the next one), `sequence_in_cycle` (1 to 4, checked by the store), `attempt_trigger` (`initial`, `automatic` or `manual`), `provider_id` (nullable until the attempt is sent), `attempt_number` (unique per `run_id` and `stage`), `queued_at`, `sent_at` (null while `scheduled`), `due_at` (when a scheduled attempt may be sent), `outcome` (`scheduled`, `in-flight`, `success`, `transient`, `not-retryable`, `timed-out`, `late-success`, `superseded` or `cancelled`, checked by the store), `finished_at`, `external_request_id`, `error_code` and `error_message` (a cause written for a person, never the script text or a credential), and `late_result_at` (when a result arrived for an attempt that had already timed out; null otherwise). `(stage_instance_key, cycle, sequence_in_cycle)` is unique, so no mechanism can record a fifth attempt in a cycle (`bounded-retry-policy` Decision 3, migration 14; migration 13 belongs to JOS-149). A `voice-over` attempt with outcome `in-flight` is what makes the session `voice-over-generating`; an automatic retry waiting for its delay is `scheduled`, which adds no state: the session stays in progress and shows no failure until the cycle is spent. The attempt that confirms the voice-over finishes with `success`. Attempts are never updated except to complete them, and earlier cycles stay readable.
+
+**A manual voice-over retry** (`retry-voice-over`, JOS-155) adds data but never removes any. It opens the next cycle on the session's `voice-over` stage instance with one `scheduled` attempt whose `trigger` is `manual` (JOS-184's `startNewCycle`), and clears `runs.failure`. That scheduled attempt is the pending retry: there is no retry table or flag. The retry sends the stored script to the provider bound in `runs.voice_provider_id` (write-once, never rebound). A successful retry adds the one MP3 and the `voice_overs` row; a failed one leaves everything earlier unchanged and writes a new `runs.failure`. Earlier attempts stay for diagnostics.
 
 **Waiting for a slot** (`limit-provider-requests-per-stage`, JOS-167). A session-level attempt (`voice-over`, `timestamps`, `decomposition`) is recorded `scheduled` with trigger `initial` and `due_at = queued_at`, then sent through its stage's slot. While it is `scheduled` with trigger `initial` and no `sent_at`, it is waiting for a slot: `queued_at` is when it became ready and `sent_at` is stamped when it takes its slot, so waiting is neither an attempt used nor execution time. No new column or outcome.
 
@@ -215,6 +242,11 @@ An attempt left `in-flight` by a restart ends as `transient` with the message "i
 
 What must never change is refused by the store itself (`lock-script-and-narration`, JOS-137; PRD §4.2, D10), so the rule holds for every caller, present or future, and not only for the repository functions in `backend/src/db.ts`. Each trigger aborts the statement with a message that names what was touched.
 
+**The one exception to the duration and speed locks (`move-failed-stage-to-active-provider`, JOS-172).** The four columns `requested_duration_seconds`, `duration_warning`, `speed_factor` and `speed_factor_warning` stay refused by their triggers for every update except one function, `rebindFailedClip` in `db.ts`. For a scene that is `failed` with an image result and no clip result, and whose `video_provider` is still the one the page listed, it drops the four triggers, writes the new `video_provider` and the four values the Administrator's move chose from the new video provider's admitted durations, and recreates the triggers from the same DDL constants, all in one transaction (a failure rolls the triggers back too). The narration interval, the instructions and the image are never written. A test pins that no other source file drops a trigger.
+
+**What a manual retry reads.** For the session-level stages (`voice-over`, `timestamps`, `decomposition`), `startNewCycle` records the new cycle's first attempt with the provider of the stage's binding (`runs.voice_provider_id`, `alignment_provider_id`, `decomposition_provider_id`) when it has one, instead of copying the latest attempt's provider, so a stage the Administrator moved retries on the provider it was moved to. The attempts recorded before the move keep the provider they ran on.
+
+
 | Trigger | Table | Fires on | Refusal message |
 |---|---|---|---|
 | `runs_title_locked` | `runs` | `UPDATE OF title` | `locked: runs.title cannot be modified after registration` |
@@ -259,6 +291,22 @@ erDiagram
         String answered_at "nullable"
         String install_id "ULID"
     }
+    ActiveProviders {
+        String stage PK "reasoning, voice, alignment, image or video"
+        String provider_id
+        String changed_at
+    }
+    ProviderProfiles {
+        String id PK "seeded ids or a ULID"
+        String stage
+        String adapter_type
+        String label
+        String parameters "JSON"
+        String api_key_encrypted "nullable, AES-256-GCM"
+        String retired_at "nullable"
+        String created_at
+        String updated_at
+    }
     Session {
         String id PK "ULID"
         String title
@@ -268,6 +316,8 @@ erDiagram
         Boolean paused
         String project_folder
         String voice_provider_id "nullable, bound on the first voice-over attempt"
+        String decomposition_provider_id "nullable, bound on the first decomposition attempt"
+        String alignment_provider_id "nullable, bound on the first alignment call"
         String failure "nullable JSON {phase, cause, retryable, manualRetryAvailable, cycle, attemptsInCycle, occurredAt}"
     }
     VoiceOver {

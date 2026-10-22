@@ -1,10 +1,8 @@
-import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import type { AlignmentProvider, AlignmentResult } from "../src/alignmentProvider.ts";
 import {
   countScenesForRun,
-  createRun,
   getNarrationTimestamps,
   getRun,
   getScenesForRun,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PER_PHASE_MAX_TIME_SECONDS } from "../src/config/providers.ts";
+import { limitSeconds } from "./phaseLimit.ts";
 import { attemptDeadline, hasExpired, maxExecutionSeconds } from "../src/retry/attemptDeadline.ts";
 import type { AttemptStage } from "../src/types.ts";
 
@@ -11,7 +12,7 @@ describe("the deadline of an attempt", () => {
   it("is its send time plus its stage's maximum time", () => {
     const deadline = attemptDeadline({ stage: "voice-over", sentAt: SENT_AT });
 
-    expect(deadline?.getTime()).toBe(new Date(SENT_AT).getTime() + PER_PHASE_MAX_TIME_SECONDS.voice * 1000);
+    expect(deadline?.getTime()).toBe(new Date(SENT_AT).getTime() + limitSeconds("voice") * 1000);
   });
 
   it("does not exist for an attempt that has not been sent", () => {
@@ -28,11 +29,11 @@ describe("the deadline of an attempt", () => {
 
 describe("each stage uses its own maximum time", () => {
   const expected: Array<[AttemptStage, number]> = [
-    ["voice-over", PER_PHASE_MAX_TIME_SECONDS.voice],
-    ["timestamps", PER_PHASE_MAX_TIME_SECONDS.alignment],
-    ["decomposition", PER_PHASE_MAX_TIME_SECONDS.decomposition],
-    ["image", PER_PHASE_MAX_TIME_SECONDS.image],
-    ["video", PER_PHASE_MAX_TIME_SECONDS.video],
+    ["voice-over", limitSeconds("voice")],
+    ["timestamps", limitSeconds("alignment")],
+    ["decomposition", limitSeconds("decomposition")],
+    ["image", limitSeconds("image")],
+    ["video", limitSeconds("video")],
   ];
 
   it.each(expected)("%s", (stage, seconds) => {
@@ -66,7 +67,7 @@ describe("hasExpired, with an injectable clock", () => {
   const attempt = { stage: "voice-over", sentAt: SENT_AT } as const;
 
   it("is false until the deadline and true after it", () => {
-    const deadlineMs = new Date(SENT_AT).getTime() + PER_PHASE_MAX_TIME_SECONDS.voice * 1000;
+    const deadlineMs = new Date(SENT_AT).getTime() + limitSeconds("voice") * 1000;
     expect(hasExpired(attempt, new Date(deadlineMs - 1))).toBe(false);
     expect(hasExpired(attempt, new Date(deadlineMs))).toBe(false); // exactly at the limit is not over it
     expect(hasExpired(attempt, new Date(deadlineMs + 1))).toBe(true);

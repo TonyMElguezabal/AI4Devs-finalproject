@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { intervalDurationSeconds, requestedClipDuration } from "./admittedDurations.ts";
-import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS, SPEED_FACTOR_LIMIT } from "./config/providers.ts";
+import { SEGMENTATION_LOWER_BOUND_SECONDS, SPEED_FACTOR_LIMIT } from "./config/providers.ts";
+import { activeVideoDurations } from "./videoDurations.ts";
 import { countScenesForRun, getRun, insertRegisteredScenes, setRunFailure, writeArtefactOnce } from "./db.ts";
 import { broadcast } from "./orchestrator.ts";
 import { findIntervalPartitionProblem } from "./intervalPartition.ts";
@@ -50,6 +51,7 @@ function normaliseWhitespace(text: string): string {
  */
 function findFragmentProblem(script: string, fragments: readonly SegmentedFragment[]): string | null {
   if (fragments.length === 0) return "it produced no scenes";
+  const upperBound = activeVideoDurations().max;
 
   for (const [position, fragment] of fragments.entries()) {
     const number = position + 1;
@@ -65,8 +67,8 @@ function findFragmentProblem(script: string, fragments: readonly SegmentedFragme
         return `scene ${number} lasts ${duration} s, below the ${SEGMENTATION_LOWER_BOUND_SECONDS} s lower bound`;
       }
     }
-    if (duration > SEGMENTATION_UPPER_BOUND_SECONDS && fragment.exception !== "unsplittable-sentence") {
-      return `scene ${number} lasts ${duration} s, above the ${SEGMENTATION_UPPER_BOUND_SECONDS} s upper bound`;
+    if (duration > upperBound && fragment.exception !== "unsplittable-sentence") {
+      return `scene ${number} lasts ${duration} s, above the ${upperBound} s upper bound`;
     }
   }
 
@@ -179,9 +181,9 @@ export async function registerDecomposition(
   });
   try {
     insertRegisteredScenes(runId, scenes);
-  } catch (err: any) {
+  } catch (err) {
     // Another registration won the race; the unique (run_id, idx) index refused this one.
-    if (/UNIQUE constraint failed/i.test(String(err?.message))) return { ok: false, reason: "already-registered" };
+    if (/UNIQUE constraint failed/i.test(String((err as { message?: unknown } | null)?.message))) return { ok: false, reason: "already-registered" };
     throw err;
   }
   // keep-project-files-locally (JOS-162), Decision 2 — the generated texts,

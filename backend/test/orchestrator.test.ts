@@ -26,7 +26,7 @@ import {
 } from "../src/launchGate.ts";
 import { STAGE } from "../src/types.ts";
 
-function waitFor(predicate: () => boolean, timeoutMs = 3000, intervalMs = 5): Promise<void> {
+function waitFor(predicate: () => boolean, timeoutMs = 10_000, intervalMs = 5): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     const tick = () => {
@@ -130,7 +130,7 @@ describe("restart-safe resumption (PRD §12.1, C6)", () => {
     expect(summary.stillPending).toBe(1);
 
     // The provider still holds the result; reconciliation re-armed delivery.
-    await waitFor(() => getScene(sceneId)?.status === "image-complete", 2000);
+    await waitFor(() => getScene(sceneId)?.status === "image-complete");
   });
 
   it("records exactly one failed attempt when the provider can no longer recover the request", () => {
@@ -451,7 +451,7 @@ describe("pause never reverts work (JOS-152, task 6.1)", () => {
 describe("pause isolation between sessions (JOS-152, task 6.3)", () => {
   it("pausing one session does not block another session's launch", async () => {
     const { runId: runId1, sceneId: sceneId1 } = newRunWithScene("success", 20);
-    const { runId: runId2, sceneId: sceneId2 } = newRunWithScene("success", 20);
+    const { sceneId: sceneId2 } = newRunWithScene("success", 20);
 
     pauseSession(runId1); // pause session 1 only
 

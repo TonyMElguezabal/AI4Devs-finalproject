@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { applyMigrationsTo, createRun, db, getAppSettings, getRun, resetAll, saveVisualStylePrompt } from "../src/db.ts";
 
 // admin-visual-style-prompt (JOS-201), group 2 — design Decisions 4 and 5: one settings row, copied onto each run at creation.
@@ -58,7 +58,7 @@ describe("Run snapshot", () => {
   });
 });
 
-describe("Migration 18", () => {
+describe("Migration 20", () => {
   it("gives existing runs an empty prompt and changes nothing else", () => {
     const dir = mkdtempSync(join(tmpdir(), "vid4you-style-migration-test-"));
     try {
@@ -68,9 +68,9 @@ describe("Migration 18", () => {
         CREATE TABLE scenes (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, idx INTEGER NOT NULL, status TEXT NOT NULL, instruction TEXT NOT NULL DEFAULT '');
       `);
       fixture.prepare("INSERT INTO runs (id, title, created_at) VALUES ('old', 'Old', '2026-01-01T00:00:00.000Z')").run();
-      applyMigrationsTo(fixture, 17);
+      applyMigrationsTo(fixture, 19);
 
-      expect(applyMigrationsTo(fixture, 18)).toEqual([18]);
+      expect(applyMigrationsTo(fixture, 20)).toEqual([20]);
 
       const row = fixture.prepare("SELECT * FROM runs WHERE id = 'old'").get() as Record<string, unknown>;
       expect(row.visual_style_prompt).toBe("");
@@ -91,6 +91,8 @@ import { existsSync, readdirSync } from "node:fs";
 import type { FastifyInstance } from "fastify";
 import { APP_DATA_DIR, clearReferenceImage } from "../src/db.ts";
 import { buildApp } from "../src/server.ts";
+import type { InjectOptions } from "fastify";
+import { resetAdminPasswordReader, setAdminPasswordReader } from "../src/adminAccess.ts";
 
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(100, 7)]);
 const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(100, 8)]);
@@ -102,16 +104,27 @@ let app: FastifyInstance;
 beforeEach(async () => {
   clearReferenceImage();
   rmSync(ADMIN_DIR, { recursive: true, force: true });
+  // The routes sit behind the Administrator gate (protect-admin-with-password, JOS-173).
+  setAdminPasswordReader(() => ADMIN_PASSWORD);
   app = await buildApp();
 });
 
+afterEach(async () => {
+  await app.close();
+  resetAdminPasswordReader();
+});
+
+const ADMIN_PASSWORD = "admin-settings-test";
+const adminInject = (options: InjectOptions) =>
+  app.inject({ ...options, headers: { authorization: `Bearer ${ADMIN_PASSWORD}`, ...options.headers } });
+
 const putImage = (payload: Buffer, contentType: string | undefined) =>
-  app.inject({ method: "PUT", url: "/admin/settings/reference-image", payload, headers: contentType ? { "content-type": contentType } : {} });
-const putPrompt = (payload: unknown) => app.inject({ method: "PUT", url: "/admin/settings/visual-style-prompt", payload: payload as object });
+  adminInject({ method: "PUT", url: "/admin/settings/reference-image", payload, headers: contentType ? { "content-type": contentType } : {} });
+const putPrompt = (payload: unknown) => adminInject({ method: "PUT", url: "/admin/settings/visual-style-prompt", payload: payload as object });
 
 describe("GET and PUT /admin/settings/visual-style-prompt", () => {
   it("reads a fresh database", async () => {
-    const res = await app.inject({ method: "GET", url: "/admin/settings" });
+    const res = await adminInject({ method: "GET", url: "/admin/settings" });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ visualStylePrompt: "", referenceImage: null });
     expect(typeof res.json().updatedAt).toBe("string");
@@ -121,7 +134,7 @@ describe("GET and PUT /admin/settings/visual-style-prompt", () => {
     const saved = await putPrompt({ visualStylePrompt: "  Warry, a 2D cartoon  " });
     expect(saved.statusCode).toBe(200);
     expect(saved.json().visualStylePrompt).toBe("Warry, a 2D cartoon");
-    expect((await app.inject({ method: "GET", url: "/admin/settings" })).json().visualStylePrompt).toBe("Warry, a 2D cartoon");
+    expect((await adminInject({ method: "GET", url: "/admin/settings" })).json().visualStylePrompt).toBe("Warry, a 2D cartoon");
     expect((await putPrompt({ visualStylePrompt: "" })).json().visualStylePrompt).toBe("");
   });
 
@@ -150,7 +163,7 @@ describe("The reference image routes", () => {
     const res = await putImage(bytes, contentType);
     expect(res.statusCode).toBe(200);
     expect(res.json().referenceImage).toMatchObject({ contentType, sizeBytes: bytes.length });
-    const got = await app.inject({ method: "GET", url: "/admin/settings/reference-image" });
+    const got = await adminInject({ method: "GET", url: "/admin/settings/reference-image" });
     expect(got.statusCode).toBe(200);
     expect(got.headers["content-type"]).toBe(contentType);
     expect(got.rawPayload.equals(bytes)).toBe(true);
@@ -158,7 +171,7 @@ describe("The reference image routes", () => {
 
   it("never returns the stored path", async () => {
     await putImage(PNG, "image/png");
-    const body = (await app.inject({ method: "GET", url: "/admin/settings" })).body;
+    const body = (await adminInject({ method: "GET", url: "/admin/settings" })).body;
     expect(body).not.toContain(APP_DATA_DIR);
     expect(body).not.toContain("reference-image.");
     expect(body).not.toContain("admin/");
@@ -175,7 +188,7 @@ describe("The reference image routes", () => {
     await putImage(PNG, "image/png");
     const bad = await putImage(Buffer.from("this is not a png at all"), "image/png");
     expect(bad.statusCode).toBe(400);
-    expect((await app.inject({ method: "GET", url: "/admin/settings/reference-image" })).rawPayload.equals(PNG)).toBe(true);
+    expect((await adminInject({ method: "GET", url: "/admin/settings/reference-image" })).rawPayload.equals(PNG)).toBe(true);
   });
 
   it.each([
@@ -185,14 +198,14 @@ describe("The reference image routes", () => {
   ])("rejects %s with 400 and keeps the previous image", async (_name, bytes, contentType) => {
     await putImage(JPEG, "image/jpeg");
     expect((await putImage(bytes, contentType)).statusCode).toBe(400);
-    expect((await app.inject({ method: "GET", url: "/admin/settings/reference-image" })).rawPayload.equals(JPEG)).toBe(true);
+    expect((await adminInject({ method: "GET", url: "/admin/settings/reference-image" })).rawPayload.equals(JPEG)).toBe(true);
   });
 
   it("rejects an image over 5 MB with 413 and keeps the previous image", async () => {
     await putImage(PNG, "image/png");
     const big = Buffer.concat([PNG.subarray(0, 8), Buffer.alloc(6 * 1024 * 1024)]);
     expect((await putImage(big, "image/png")).statusCode).toBe(413);
-    expect((await app.inject({ method: "GET", url: "/admin/settings/reference-image" })).rawPayload.equals(PNG)).toBe(true);
+    expect((await adminInject({ method: "GET", url: "/admin/settings/reference-image" })).rawPayload.equals(PNG)).toBe(true);
   });
 
   it("accepts an image of exactly 5 MB", async () => {
@@ -208,7 +221,7 @@ describe("The reference image routes", () => {
     const files = readdirSync(ADMIN_DIR);
     expect(files).toHaveLength(1);
     expect(files[0]).not.toBe(pngFiles[0]);
-    expect((await app.inject({ method: "GET", url: "/admin/settings" })).json().referenceImage.contentType).toBe("image/jpeg");
+    expect((await adminInject({ method: "GET", url: "/admin/settings" })).json().referenceImage.contentType).toBe("image/jpeg");
   });
 
   it("leaves no temporary file behind after a rejected upload", async () => {
@@ -218,16 +231,16 @@ describe("The reference image routes", () => {
   });
 
   it("answers 404 when there is no image", async () => {
-    expect((await app.inject({ method: "GET", url: "/admin/settings/reference-image" })).statusCode).toBe(404);
+    expect((await adminInject({ method: "GET", url: "/admin/settings/reference-image" })).statusCode).toBe(404);
   });
 
   it("deletes the file and the row fields, answering 204 every time", async () => {
     await putImage(PNG, "image/png");
-    const delete1 = await app.inject({ method: "DELETE", url: "/admin/settings/reference-image" });
+    const delete1 = await adminInject({ method: "DELETE", url: "/admin/settings/reference-image" });
     expect(delete1.statusCode).toBe(204);
     expect(readdirSync(ADMIN_DIR)).toHaveLength(0);
     expect(getAppSettings().referenceImage).toBeNull();
-    expect((await app.inject({ method: "DELETE", url: "/admin/settings/reference-image" })).statusCode).toBe(204);
-    expect((await app.inject({ method: "GET", url: "/admin/settings/reference-image" })).statusCode).toBe(404);
+    expect((await adminInject({ method: "DELETE", url: "/admin/settings/reference-image" })).statusCode).toBe(204);
+    expect((await adminInject({ method: "GET", url: "/admin/settings/reference-image" })).statusCode).toBe(404);
   });
 });

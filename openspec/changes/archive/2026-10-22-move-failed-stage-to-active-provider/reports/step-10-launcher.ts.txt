@@ -1,0 +1,57 @@
+// Scratch launcher for the manual endpoint test (JOS-172, task 10.1): the real server and routes with two stub adapters per
+// stage. stub-a fails or succeeds as the mode file says (per stage); stub-b always succeeds. Every call is logged.
+import { appendFileSync, readFileSync } from "node:fs";
+import { setDecompositionDependencies, setAlignmentProviderRegistry, setReasoningProviderRegistry } from "../../../../backend/src/decompositionDependencies.ts";
+import { setImageProviderRegistry } from "../../../../backend/src/imageProvider.ts";
+import { setVideoProviderRegistry } from "../../../../backend/src/videoProvider.ts";
+import { createSilentMp3, setVoiceProviderRegistry } from "../../../../backend/src/voiceProvider.ts";
+import { setAssemblyTool, recoverOnBoot } from "../../../../backend/src/orchestrator.ts";
+import { createStubAssemblyTool } from "../../../../backend/src/stubAssemblyTool.ts";
+import { setRetryDelayConfig } from "../../../../backend/src/retry/stageAttemptRecorder.ts";
+import { rebuildScheduler } from "../../../../backend/src/retry/retryScheduler.ts";
+import { startAttemptTimeoutWatcher } from "../../../../backend/src/retry/attemptTimeoutWatcher.ts";
+import { setScriptModerator } from "../../../../backend/src/scriptModeration.ts";
+import { ensureProfiles, listProfiles } from "../../../../backend/src/providerProfiles.ts";
+import { buildApp } from "../../../../backend/src/server.ts";
+
+const DIR = process.env.SCRATCH_DIR!;
+const png = Buffer.alloc(29);
+png.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+png.writeUInt32BE(13, 8); png.write("IHDR", 12, "ascii"); png.writeUInt32BE(1920, 16); png.writeUInt32BE(1088, 20);
+const mp4 = Buffer.from("00000000667479706d703432", "hex");
+const STEP = 0.25;
+const failing = (stage: string, provider: string): boolean => provider === "stub-a" && JSON.parse(readFileSync(DIR + "/mode.json", "utf8"))[stage] === "fail";
+const log = (stage: string, provider: string) => appendFileSync(DIR + "/calls.log", stage + " " + provider + "\n");
+
+const voice = (provider: string) => ({ async synthesize() { log("voice", provider); return failing("voice", provider) ? { kind: "failed_transient" as const, reason: "stub voice 503" } : { kind: "success" as const, audio: createSilentMp3(17) }; } });
+const alignment = (provider: string) => ({ async align(_a: Uint8Array, script: string) { log("alignment", provider); return failing("alignment", provider) ? { kind: "failed_transient" as const, reason: "stub alignment 503" } : { kind: "success" as const, characters: [...script].map((text, i) => ({ text, start: 0.1 + i * STEP, end: 0.1 + (i + 1) * STEP })) }; } });
+const reasoning = (provider: string) => ({ async generate(texts: readonly string[]) { log("reasoning", provider); return failing("reasoning", provider) ? { kind: "failed_transient" as const, reason: "stub reasoning 503" } : { kind: "success" as const, pairs: texts.map((_, i) => ({ image: "image " + (i + 1), video: "video " + (i + 1) })) }; } });
+const image = (provider: string) => ({ async generate() { log("image", provider); return failing("image", provider) ? { kind: "failed_transient" as const, reason: "stub image 503" } : { kind: "success" as const, image: { source: "bytes" as const, bytes: png, contentType: "image/png" } }; } });
+const video = (provider: string) => ({
+  async submit() { log("video", provider); return failing("video", provider) ? { kind: "failed_transient" as const, reason: "stub video 503" } : { kind: "submitted" as const, requestId: "req-" + Math.random() }; },
+  async poll() { return { kind: "success" as const, clip: { source: "bytes" as const, bytes: mp4 } }; },
+});
+
+setDecompositionDependencies({ alignmentProvider: alignment("stub-a"), instructionGenerator: reasoning("stub-a") });
+setAlignmentProviderRegistry({ defaultIdentifier: "stub-a", adapters: { "stub-a": alignment("stub-a"), "stub-b": alignment("stub-b") } });
+setReasoningProviderRegistry({ defaultIdentifier: "stub-a", adapters: { "stub-a": reasoning("stub-a"), "stub-b": reasoning("stub-b") } });
+setVoiceProviderRegistry({ defaultIdentifier: "stub-a", adapters: { "stub-a": voice("stub-a"), "stub-b": voice("stub-b") } });
+setImageProviderRegistry({ defaultIdentifier: "stub-a", adapters: { "stub-a": image("stub-a"), "stub-b": image("stub-b") } });
+// Every video provider besides stub-a (stub-b and any profile added on /admin) is served by a succeeding stub.
+const videoAdapters = new Proxy({} as Record<string, ReturnType<typeof video>>, {
+  get: (_t, key) => video(String(key)),
+  ownKeys: () => { ensureProfiles(); return ["stub-a", "stub-b", ...listProfiles().filter((p) => p.stage === "video").map((p) => p.id)]; },
+  getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true, value: video("stub-b") }),
+  has: () => true,
+});
+setVideoProviderRegistry({ defaultIdentifier: "stub-a", adapters: videoAdapters, labels: {} });
+setAssemblyTool(createStubAssemblyTool({ kind: "success" }));
+setRetryDelayConfig({ baseSeconds: 0.2, capSeconds: 0.5 });
+setScriptModerator({ async moderate() { return { kind: "clean" as const }; } });
+
+const app = await buildApp();
+recoverOnBoot();
+rebuildScheduler();
+startAttemptTimeoutWatcher();
+await app.listen({ port: Number(process.env.PORT), host: "127.0.0.1" });
+console.log("listening on " + process.env.PORT);

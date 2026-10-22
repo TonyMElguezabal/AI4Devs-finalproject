@@ -58,6 +58,8 @@ import {
   writeArtefact,
   writeArtefactOnce,
 } from "./db.ts";
+import { activeProviderId } from "./activeProvider.ts";
+import { activeVideoDurations } from "./videoDurations.ts";
 import type { AssemblyTool, NarrationEdit } from "./assemblyTool.ts";
 import { applyPauseEdits } from "./scenePause.ts";
 import { hasPendingPauseEdits, loadSessionPauses, scenePauseViews } from "./sessionPauses.ts";
@@ -66,7 +68,7 @@ import { admitLaunch, launchHeldWork, registerStageLauncher, relaunchPendingWork
 import { describeProvider, diagnosticStageOf, type StageDiagnostic } from "./stageDiagnostics.ts";
 import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
-import { FINAL_OUTPUT, PER_PHASE_MAX_TIME_SECONDS } from "./config/providers.ts";
+import { FINAL_OUTPUT, phaseTimeoutMs } from "./config/providers.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
 import { downloadGeneratedImage, getImageProviderRegistry, type ImageGenerationResult } from "./imageProvider.ts";
 import {
@@ -366,7 +368,9 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
   const scenes = getScenesForRun(runId);
   const { state, failedPhase, failedSceneIndexes } = deriveSessionState(scenes, run.failure, {
     hasVoiceOver: getVoiceOver(runId) !== undefined,
-    voiceAttemptInFlight: getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight"),
+    // retry-voice-over (JOS-155), Decision 7 — `startNewCycle` clears the failure, so a retry that is accepted but not yet
+    // sent (scheduled, or held by a pause) must already show the phase as running.
+    voiceAttemptInFlight: getStageAttempts(runId, "voice-over").some((attempt) => attempt.outcome === "in-flight" || attempt.outcome === "scheduled"),
     timestampsStarted: getStageAttempts(runId, "timestamps").length > 0 || getNarrationTimestamps(runId) !== undefined,
     hasFinalVideo: run.finalVideoPath != null,
     rebuildInFlight: run.finalVideoPath != null && getStageAttempts(runId, "assembly").some((attempt) => attempt.outcome === "in-flight"),
@@ -868,11 +872,12 @@ async function pollVideoRequestOnce(
   }
 
   const elapsed = Date.now() - sentAtMs;
-  if (elapsed > PER_PHASE_MAX_TIME_SECONDS.video * 1000) {
+  const videoTimeoutMs = phaseTimeoutMs("video");
+  if (videoTimeoutMs !== undefined && elapsed > videoTimeoutMs) {
     insertProviderRequest(requestId, sceneId, elapsed, "transient_failure", attemptNumber, "video");
     markProviderRequestResolved(requestId);
     concurrency.release(VIDEO_STAGE, sceneId);
-    applyVideoFailureOutcome(sceneId, { kind: "failed_transient", reason: `the clip request exceeded the ${PER_PHASE_MAX_TIME_SECONDS.video} s phase limit` }, attemptNumber);
+    applyVideoFailureOutcome(sceneId, { kind: "failed_transient", reason: `the clip request exceeded the ${videoTimeoutMs / 1000} s phase limit` }, attemptNumber);
     broadcast(fresh.runId);
     return;
   }
@@ -880,13 +885,13 @@ async function pollVideoRequestOnce(
   let pollResult: VideoGenerationResult;
   try {
     pollResult = await adapter.poll(requestId);
-  } catch (err) {
+  } catch {
     pollResult = { kind: "failed_transient", reason: "the video provider threw during polling" };
   }
 
   if (pollResult.kind === "pending") {
     const timer = setTimeout(() => { void pollVideoRequestOnce(sceneId, requestId, attemptNumber, sentAtMs); }, videoPollIntervalMs);
-    if (typeof timer === "object" && timer !== null && "unref" in timer) (timer as NodeJS.Timeout).unref();
+    if (typeof timer === "object" && timer !== null && "unref" in timer) timer.unref();
     return;
   }
 
@@ -967,7 +972,7 @@ async function runVideoAttempt(sceneId: string): Promise<void> {
   if (videoStageStartDelayMs > 0) {
     await new Promise<void>(resolve => {
       const t = setTimeout(resolve, videoStageStartDelayMs);
-      if (typeof t === "object" && t !== null && "unref" in t) (t as NodeJS.Timeout).unref();
+      if (typeof t === "object" && t !== null && "unref" in t) t.unref();
     });
   }
 
@@ -989,6 +994,20 @@ async function runVideoAttempt(sceneId: string): Promise<void> {
     markSceneFailed(sceneId, "no requested duration is stored for this chunk (not retryable)");
     broadcast(fresh.runId);
     return;
+  }
+
+  // manage-providers-from-admin (JOS-218), Decision 4 — before the scene is bound, the active video provider must admit
+  // the duration stored for it; otherwise the scene fails here, unbound, and can be retried after the active provider
+  // is changed back.
+  if (fresh.videoProvider === null) {
+    const { min, max, label } = activeVideoDurations();
+    if (fresh.requestedDurationSeconds < min || fresh.requestedDurationSeconds > max) {
+      resetAttemptsForVideoStart(sceneId);
+      concurrency.release(VIDEO_STAGE, sceneId);
+      markSceneFailed(sceneId, `the requested duration of ${fresh.requestedDurationSeconds} s is not admitted by the ${label} video provider (${min} to ${max} s); switch the active video provider back and retry (not retryable)`);
+      broadcast(fresh.runId);
+      return;
+    }
   }
 
   // Decision 1 — need a readable image file
@@ -1015,7 +1034,7 @@ async function runVideoAttempt(sceneId: string): Promise<void> {
   const isFirstAttempt = fresh.videoProvider === null;
   const registry = getVideoProviderRegistry();
   if (isFirstAttempt) {
-    bindSceneVideoProvider(sceneId, registry.defaultIdentifier);
+    bindSceneVideoProvider(sceneId, activeProviderId("video"));
     resetAttemptsForVideoStart(sceneId);
   }
   const reread = getScene(sceneId)!;
@@ -1148,7 +1167,7 @@ async function runImageAttempt(sceneId: string): Promise<void> {
 
   // design Decision 3 — bound once, atomically, and only if still unbound.
   const registry = getImageProviderRegistry();
-  bindSceneImageProvider(fresh.id, registry.defaultIdentifier);
+  bindSceneImageProvider(fresh.id, activeProviderId("image"));
   const boundIdentifier = getScene(fresh.id)!.provider;
   const adapter = registry.adapters[boundIdentifier];
 
@@ -1491,8 +1510,7 @@ function settleImageInFlight(): SettleSummary {
     const req = getProviderRequest(requestId);
     if (req) {
       const remainingMs = Math.max(0, new Date(req.sentAt).getTime() + req.latencyMs - Date.now());
-      const timer = setTimeout(() => handleProviderResult(requestId), remainingMs);
-      timer.unref();
+      provider.deliverWhenReady(requestId, remainingMs, handleProviderResult);
     }
     stillPending++;
   }

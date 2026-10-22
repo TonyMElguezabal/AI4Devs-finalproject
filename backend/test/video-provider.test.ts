@@ -5,9 +5,6 @@ import {
   createStubVideoProvider,
   createRunningHubVideoProvider,
   resetVideoDownloadFetch,
-  setVideoDownloadFetch,
-  type VideoGenerationResult,
-  type VideoSubmitResult,
 } from "../src/videoProvider.ts";
 
 // generate-chunk-video (JOS-146), group 3 — Decision 3: the VideoProvider port
@@ -268,7 +265,7 @@ describe("RunningHub adapter (JOS-196 — the live API's request and answer shap
   it("submit: 4xx except 408/429 is not retryable", async () => {
     const mockFetch = async (): Promise<Response> => new Response("forbidden", { status: 403 });
     const provider = createRunningHubVideoProvider({
-      fetchFn: mockFetch as typeof fetch,
+      fetchFn: mockFetch,
       loadKey: () => "test-api-key",
     });
     const result = await provider.submit({
@@ -282,7 +279,7 @@ describe("RunningHub adapter (JOS-196 — the live API's request and answer shap
   it("submit: 408 is transient", async () => {
     const mockFetch = async (): Promise<Response> => new Response("timeout", { status: 408 });
     const provider = createRunningHubVideoProvider({
-      fetchFn: mockFetch as typeof fetch,
+      fetchFn: mockFetch,
       loadKey: () => "test-api-key",
     });
     const result = await provider.submit({
@@ -300,7 +297,7 @@ describe("RunningHub adapter (JOS-196 — the live API's request and answer shap
         headers: { "Content-Type": "application/json" },
       });
     const provider = createRunningHubVideoProvider({
-      fetchFn: mockFetch as typeof fetch,
+      fetchFn: mockFetch,
       loadKey: () => "test-api-key",
     });
     const result = await provider.submit({

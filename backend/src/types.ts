@@ -53,6 +53,9 @@ export interface Run {
   projectFolder: string;
   /** PRD §11.2 — the voice provider bound on the first voice attempt; write-once (generate-voice-over, JOS-136, Decision 3). */
   voiceProviderId: string | null;
+  /** change-active-provider-from-admin (JOS-171): bound once at the first decomposition / alignment attempt. */
+  decompositionProviderId: string | null;
+  alignmentProviderId: string | null;
   /** The phase failure the session carries when it is `failed` (generate-voice-over, JOS-136, Decision 9; assign-scene-identifiers, JOS-144, Decision 6). */
   failure: SessionFailure | null;
   /** The relative path of the assembled MP4 in the project folder; null until assembly succeeds (assemble-final-video, JOS-149). */

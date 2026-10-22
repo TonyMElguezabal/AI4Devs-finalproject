@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.10  
+**Versión:** 1.17  
 **Alcance:** MVP  
-**Status (v1.10):** a minimal `/admin` page is added for one visual style prompt and an optional reference image, applied to the instructions of every new session (`admin-visual-style-prompt`, JOS-201, §2.1, §11.4); the rest of the Administrator role stays deferred. **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous version is kept in `docs/PRD-v1.9.md`.
+**Status (v1.17, awaiting the product owner's approval):** the visual style prompt and reference image of `/admin` (`admin-visual-style-prompt`, JOS-201, drafted on its own line as v1.10) join this version behind the Administrator password, as §11.5 (§2.1, §2.2). The previous version is kept in `docs/PRD-v1.16.md`. **Status (v1.16, awaiting the product owner's approval):** the Administrator's reports are defined: provider usage, failures and retries, and sessions in the first release; estimated cost, pipeline time and provider changes later (`define-admin-reports`, JOS-175, §2.1, §2.3, §11.4). **Status (v1.15, awaiting the product owner's approval):** the Administrator moves a failed stage to the current active provider on `/admin` (`move-failed-stage-to-active-provider`, JOS-172, §2.1, §2.3, §7.2, §11.2). **Status (v1.14, approved by the product owner 2026-10-22):** the Administrator adds, edits and deletes providers, their parameters and their API keys on `/admin` (`manage-providers-from-admin`, JOS-218, §2.1, §2.3, §11, §11.2). **Status (v1.13, awaiting the product owner's approval):** the Administrator can change the active provider of each stage on `/admin` (`change-active-provider-from-admin`, JOS-171, §2.1, §2.3, §11, §11.2). **Status (v1.12, awaiting the product owner's approval):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3). **Status (v1.11, awaiting the product owner's approval):** one shared Administrator password protects `/admin` (`protect-admin-with-password`, JOS-173, §2.1, §2.3, §12.3). **Status (v1.10):** the final MP4's audio is the voice-over's MP3 stream copied unchanged, not AAC (§7.3, D08), and the automatic-retry delay (2 s base, 30 s cap) is recorded (§11.3) (JOS-203). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous versions are kept in `docs/PRD-v1.14.md` and `docs/PRD-v1.13.md`.
 
 ## 1. Objetivo del producto
 
@@ -19,8 +19,9 @@ El usuario puede consultar el progreso por fase y por escena, descargar resultad
 | Rol | Responsabilidad |
 |---|---|
 | User (*Usuario*) | Enter a title, a script, and the script's language; follow progress and per-scene diagnostics; pause and continue the session; download results; retry failed stages. |
+| Administrator | Unlock `/admin` with the Administrator password; add, edit and delete the providers of each stage, their parameters and their API keys; change the active provider of each stage there, and move a failed stage to the current active provider (§11.2); set the visual style of new sessions (§11.5); see the reports of §11.4. Further Administrator tools are added by later stories. A User never needs the password. |
 
-The MVP has a single role: the User. Providers and all generation parameters are hardcoded in the application (§11); the MVP has no configuration files and no Administrator role. The one exception is the `/admin` page, which holds a single visual style setting (§11.4) and requires no sign-in, like every other page of the application. Provider credentials (API keys) are read from the process environment or from a credentials file in the user's application-data folder; they are never hardcoded, never part of the application download, and never shown in the interface or logs. The rest of an Administrator role (configuration, diagnostics, provider changes, and reports on `/admin`) is deferred post-MVP.
+The MVP has a single role: the User. The operational settings (§11) are read at start-up from local settings files: a default file that ships with the application and an optional per-user file that overrides it. A change takes effect after the application restarts, and these settings are edited by hand, not through the application. The providers are the exception: the Administrator adds, edits and deletes the providers of each stage, their parameters and their API keys, and chooses each stage's active provider, all on `/admin`, and these apply without a restart (§11.2). The product has two roles. The User needs no login. The Administrator unlocks `/admin` with one shared password, not an account. The password is a local secret, read from `ADMIN_PASSWORD` in the process environment or, when the environment has none, from the credentials file in the user's application-data folder; it is never part of a settings file, never part of the application download, and never shown in the interface, a response or a log. When no password is configured the application still starts, and `/admin` says so and explains how to set one. `/admin` is not linked from the User's pages. A provider's API key is entered on `/admin` and stored encrypted in the local database; it is never part of a settings file, never part of the application download, never returned by the application after it is saved (only its status and its last four characters) and never shown in a log. A key given in the process environment or in the credentials file in the user's application-data folder keeps working for the providers created from the first settings, until a key is stored for them. The other Administrator tools (diagnostics on `/admin`) and the reports of §11.4 are deferred post-MVP.
 
 ### 2.2 Incluido en el MVP
 
@@ -35,21 +36,21 @@ The MVP has a single role: the User. Providers and all generation parameters are
 - Partial downloads (per-scene images and clips, §12.3) and download of the final video.
 - Reintentos automáticos y manuales ante fallos.
 - Corrección del prompt visual correspondiente a una etapa fallida.
-- Visual style setting on `/admin`: one prompt, and an optional reference image that is stored for later use (§11.4).
+- Visual style setting on `/admin`: one prompt, and an optional reference image that is stored for later use (§11.5).
 - Persistencia de sesiones, estados y resultados.
 
 ### 2.3 Fuera del MVP
 
-- Administration interface beyond the visual style setting on `/admin` (§11.4).
+- Administrator tools on `/admin` other than managing the providers and moving a failed stage: editing an operational setting. Each is its own story. A provider for which the application ships no adapter, and a test of a provider's connection, are also later stories.
 - User accounts, authentication and authorization, any multi-user access, and any hosted (server) deployment. The MVP is an application that runs on the user's own computer (§12.3).
-- Reportes de uso o costos.
+- Reportes de uso, fallos, sesiones, costos, tiempos y cambios de proveedor: fuera del MVP; están en alcance de la versión que los construya, descritos en §11.4.
 - Importación o edición libre de chunks.
 - Reescritura del guion o regeneración de una narración ya completada.
 - Regeneración de imágenes o clips exitosos por preferencia estética.
 - Cancelación de solicitudes ya enviadas a un proveedor.
 - Montajes que omitan escenas del guion.
-- Configuration files or any runtime configuration of providers and parameters (hardcoded in the MVP, §11).
-- Administrator role and any provider change, manual or automatic, including moving failed stages to another provider (§11.2).
+- Changing an operational setting from the application (interface or API) and applying one without a restart (§11). The providers, their parameters and keys, and the active provider are the exception (§11.2).
+- Any automatic provider change; more than one Administrator, user accounts, changing the password from the interface, login sessions and lock-out after failed attempts.
 - Session expiry (§12.2).
 - Size or budget limits per session (§4.1).
 - A product-level content policy; providers' own content filters apply (§4.1).
@@ -73,7 +74,7 @@ Un **chunk** es una escena y contiene, como mínimo:
 | `IMAGE` | Instrucción para generar la imagen. | Solo ante fallo de generación de esa imagen. |
 | `VIDEO` | Instrucción para animar la imagen. | Solo ante fallo de generación de ese clip. |
 | Intervalo de narración | Posición y duración de la escena en el audio completo, conforme a §6.1 y §7.3. | No permitida. |
-| Duración solicitada y factor de ajuste | Duración pedida al proveedor y factor de velocidad resultante, conforme a §7.2 y §7.3. | No permitida. |
+| Duración solicitada y factor de ajuste | Duración pedida al proveedor y factor de velocidad resultante, conforme a §7.2 y §7.3. | No permitida, salvo cuando el Administrator mueve un clip fallido a otro proveedor de video (§7.2, §11.2). |
 | Estado y resultados | Progreso, imagen, clip y error, cuando corresponda. | Actualizados por el sistema. |
 
 Cada etapa conserva la identificación del proveedor utilizado y los intentos realizados. Esta información permite diagnosticar fallos sin exponer credenciales ni datos confidenciales. It is shown to the User in each scene's details (image and clip stages) and in each phase's section (session-level stages).
@@ -84,7 +85,7 @@ Cada etapa conserva la identificación del proveedor utilizado y los intentos re
 
 El usuario introduce un título y un guion no vacíos. No necesita proporcionar identificadores, etiquetas, delimitadores ni instrucciones de imagen o video.
 
-The User also selects the script's language from the hardcoded list of supported languages (§11.3: **English, Spanish**). Only supported languages can be chosen, and a project cannot start without a selected language; no provider is called before that.
+The User also selects the script's language from the configured list of supported languages (§11; shipped default §11.3: **English, Spanish**). Only supported languages can be chosen, and a project cannot start without a selected language; no provider is called before that.
 
 No existe un límite funcional de palabras establecido por el producto. Un guion de aproximadamente 1500 palabras es una referencia habitual, no una restricción ni una duración obligatoria. La duración del video depende de la narración real del guion. The MVP sets no limit on script words, number of scenes, or provider calls per session.
 
@@ -136,13 +137,13 @@ La segmentación se ejecuta después de disponer del voice-over y de sus marcas 
 
 - **Criterio de corte.** Los cortes coinciden con fronteras de oración. Un chunk agrupa una o más oraciones consecutivas completas.
 - **Cota superior.** La duración narrada de un chunk no supera la duración máxima admitida por el proveedor de video activo.
-- **Lower bound.** A chunk's narrated duration does not fall below the hardcoded lower bound. A sentence that does not reach it is grouped with the following sentence; if it is the script's last sentence, it is grouped with the previous one (see §6.1.1 for edge cases).
+- **Lower bound.** A chunk's narrated duration does not fall below the configured lower bound. A sentence that does not reach it is grouped with the following sentence; if it is the script's last sentence, it is grouped with the previous one (see §6.1.1 for edge cases).
 - **Excepción.** Una oración cuya narración supere por sí sola la cota superior se divide en frontera de cláusula, marcada por coma, punto y coma o conjunción. Es la única división permitida dentro de una oración.
 - **Optimización.** Entre las agrupaciones que cumplen ambas cotas, el sistema prefiere aquellas cuya duración narrada quede más próxima a una duración admitida por el proveedor de video, para reducir el ajuste de velocidad de §7.3.
 
 La regla no altera §4.2: los fragmentos unidos en orden siguen reconstruyendo el guion original.
 
-La cota inferior existe porque el proveedor de video impone una duración mínima de clip. Sin ella, un fragmento muy breve obligaría a un factor de aceleración elevado. Its value is hardcoded (§11.3: **5 seconds**) and matches the shortest duration admitted by the video provider, by construction.
+La cota inferior existe porque el proveedor de video impone una duración mínima de clip. Sin ella, un fragmento muy breve obligaría a un factor de aceleración elevado. Its value is configured (§11.3: shipped default **5 seconds**) and matches the shortest duration admitted by the video provider, by construction.
 
 El incumplimiento de estas reglas por una descomposición generada por el sistema constituye un fallo de descomposición, no un error del guion introducido por el usuario.
 
@@ -164,12 +165,14 @@ Cada clip utiliza la imagen generada y la instrucción `VIDEO`. La duración sol
 
 - El sistema solicita la duración admitida por el proveedor **más próxima** al intervalo narrado. Se admite que la duración solicitada sea menor que el intervalo, lo que implica ralentizar el clip durante el montaje. "Closest" means the admitted duration requiring the smallest speed change (speed-up or slow-down ratio) to match the interval, not the fewest seconds; an exact tie goes to the longer duration.
 - Cuando el intervalo narrado es inferior a la menor duración admitida, se solicita esa menor duración.
-- El sistema no debe asumir que todos los proveedores admiten las mismas duraciones ni cualquier valor intermedio. The set of admitted durations is hardcoded for the video provider (§11).
-- El máximo habitual previsto es de 15 segundos; un proveedor que admita 20 segundos puede utilizar ese máximo. **Recorded (§11.3): the hardcoded video provider's measured admitted range is 5-15 seconds** — the "usual" 15-second expectation is exactly the measured maximum, not just a placeholder guess.
+- El sistema no debe asumir que todos los proveedores admiten las mismas duraciones ni cualquier valor intermedio. The set of admitted durations is configured for the video provider (§11).
+- El máximo habitual previsto es de 15 segundos; un proveedor que admita 20 segundos puede utilizar ese máximo. **Recorded (§11.3): the video provider's measured admitted range, the shipped default, is 5-15 seconds** — the "usual" 15-second expectation is exactly the measured maximum, not just a placeholder guess.
 
 The §6.1 upper bound ensures that no narrated interval exceeds the video provider's maximum, except for a sentence that cannot be split (§6.1.1). That clip is requested at the maximum admitted duration and slowed down to fit, with a speed-factor warning. No trimming policy is required.
 
-El factor de ajuste de velocidad no es un parámetro independiente: resulta de la regla de segmentación de §6.1 y de la selección de duración descrita arriba. The system records the resulting factor for each scene with its result and shows it, with the requested duration, in the scene details. The acceptable limit is hardcoded (§11); when a scene exceeds it, a diagnosable warning is recorded, not a failure.
+The one exception to the requested duration and the factor being stored once is a failed clip that the Administrator moves to another video provider (§11.2): its requested duration is chosen again from the new provider's admitted durations, by the same rule (the smallest speed change), and its duration warning, speed factor and speed-factor warning follow from it, while the chunk and its narration interval stay unchanged.
+
+El factor de ajuste de velocidad no es un parámetro independiente: resulta de la regla de segmentación de §6.1 y de la selección de duración descrita arriba. The system records the resulting factor for each scene with its result and shows it, with the requested duration, in the scene details. The acceptable limit is configured (§11); when a scene exceeds it, a diagnosable warning is recorded, not a failure.
 
 ### 7.3 Sincronización y montaje final
 
@@ -185,7 +188,7 @@ El montaje debe conservar todo el contenido narrado y la secuencia de escenas, s
 
 El video final solo puede generarse cuando todas las escenas estén en `chunk-complete`. Una sesión con una escena fallida o pendiente no puede alcanzar `final-video`.
 
-**Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are hardcoded (expected 1920×1080 at 30 fps), with H.264 video and AAC audio.
+**Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are configured (shipped default 1920×1080 at 30 fps), with H.264 video. The audio is the voice-over's MP3 stream copied into the MP4 without re-encoding; only a rebuild with an adjusted pause re-encodes it (to AAC).
 
 Si falla el montaje, se conserva el audio y las escenas exitosas. El reintento se aplica al montaje, sin volver a generar los componentes ya completados.
 
@@ -248,11 +251,11 @@ Ante un fallo transitorio, el sistema permite hasta **tres reintentos automátic
 
 A failure the provider reports as not retryable (for example, a content-filter rejection) skips automatic retries and goes directly to `failed` with its cause shown. A disallowed script never reaches the pipeline: it is refused at submission (§4.1, JOS-187). Corrected `IMAGE`/`VIDEO` instructions (§10.3) are not moderated.
 
-Each stage has a hardcoded maximum of simultaneous provider requests, shared across all sessions. Requests beyond it wait their turn and are sent first come, first served, regardless of session. Waiting counts neither as a failed attempt nor as execution time.
+Each stage has a configured maximum of simultaneous provider requests, shared across all sessions. Requests beyond it wait their turn and are sent first come, first served, regardless of session. Waiting counts neither as a failed attempt nor as execution time.
 
 Al agotar el límite, la etapa queda en `failed`. La interfaz muestra un error comprensible y la opción de reintento manual cuando corresponda. La política debe evitar que mecanismos internos de recuperación multipliquen inadvertidamente el límite funcional.
 
-La espera previa al inicio de una etapa no debe confundirse con el tiempo de ejecución ni provocar un fallo prematuro de escenas que comienzan más tarde. Per-phase maximum times are hardcoded (§11).
+La espera previa al inicio de una etapa no debe confundirse con el tiempo de ejecución ni provocar un fallo prematuro de escenas que comienzan más tarde. Per-phase maximum times are configured (§11).
 
 ### 10.2 Reintentos manuales
 
@@ -275,7 +278,7 @@ Ninguna recuperación permite cambiar `ID`, `PROMPT`, el orden narrativo o un vo
 
 ## 11. Proveedores y operación
 
-In the MVP, the provider for each stage (reasoning, voice, alignment, image, video) and all generation parameters are hardcoded in the application. Hardcoded parameters: narration voice, quality, and speed; video admitted durations and maximum; segmentation lower bound; acceptable speed-factor limit; per-phase maximum times; output resolution and frame rate; supported script languages; and maximum simultaneous requests per stage. Their concrete values were defined by `define-provider-configuration` (JOS-165) and are recorded in §11.3. Provider credentials are read from the process environment or from a credentials file in the user's application-data folder, never hardcoded. There is one provider per stage.
+The operational settings (maximum times, request caps, segmentation lower bound, speed-factor limit, output resolution and frame rate, supported languages) come from local settings files, read and validated once when the application starts. The application ships a default file holding the values recorded in §11.3; an optional file in the user's application-data folder replaces any subset of them. If the settings are missing a value, have a wrongly typed or out-of-range value, contain an unknown key, or are inconsistent, the application does not start and lists every problem. Editing a file while the application runs changes nothing until the next start. Each stage's providers (reasoning, voice, alignment, image, video) are provider profiles managed on `/admin`: a profile is a stage, an adapter type the application ships for it, a display name, the parameters of that adapter type (reasoning model; voice model, voice, output format and speed; alignment endpoint path; image model; video endpoint path and admitted durations) and an API key. An adapter type sends its requests to its own vendor, so a parameter never names a host or a URL. The first profile of each stage is created from the provider section of the settings the first time the application starts; afterwards those sections no longer change a profile. There is one active provider per stage (§11.2). Provider credentials are never read from a settings file.
 
 | Etapa | Capacidad requerida |
 |---|---|
@@ -283,7 +286,7 @@ In the MVP, the provider for each stage (reasoning, voice, alignment, image, vid
 | Voz | Producir la narración completa en MP3 con voz, calidad y velocidad preconfiguradas, y entregar marcas de tiempo del audio generado con granularidad suficiente para situar cada fragmento del guion. Verified: ElevenLabs, character-level native timestamps (§11.3). |
 | Alignment | Derive the timestamps by aligning the generated MP3 against the script when the voice provider's native timestamps are not available or are unusable (§11.1). Verified: ElevenLabs Forced Alignment, same account as Voice (§11.3). |
 | Imagen | Generar imágenes desde texto en 16:9 y con resolución mínima de 1920 × 1080. Verified: Fal.ai `fal-ai/flux/dev` (§11.3). |
-| Video | Animate a reference image with a requested duration within its capabilities. Its admitted durations and maximum are hardcoded (§11.3: 5-15 seconds). Verified: RunningHub, MiniMax-H3 "Hailuo-03" (§11.3). |
+| Video | Animate a reference image with a requested duration within its capabilities. Its admitted durations and maximum are configured (§11.3: shipped default 5-15 seconds). Verified: RunningHub, MiniMax-H3 "Hailuo-03" (§11.3). |
 
 ### 11.1 Marcas de tiempo y mecanismo de respaldo
 
@@ -292,23 +295,25 @@ Las marcas de tiempo son una capacidad requerida de la etapa de voz. Se obtienen
 1. **Marcas de tiempo nativas.** El proveedor de voz las entrega junto al MP3.
 2. **Alineación forzada.** Si el proveedor activo no las entrega, el sistema las deriva alineando el MP3 generado contra el guion conocido. Forced alignment is performed by the alignment stage and its own provider; it is also used when native timestamps are returned but unusable.
 
-La alineación forzada es el mecanismo de respaldo declarado del producto y no sustituye la preferencia por marcas de tiempo nativas. Verifying which of the two applies to the hardcoded voice provider is a task prior to implementing the decomposition phase.
+La alineación forzada es el mecanismo de respaldo declarado del producto y no sustituye la preferencia por marcas de tiempo nativas. Verifying which of the two applies to the configured voice provider is a task prior to implementing the decomposition phase.
 
 La imposibilidad de obtener los intervalos por cualquiera de los dos mecanismos constituye un fallo de descomposición, se refleja en `chunk-decomposing` y sigue la política de reintentos de §10.1.
 
 ### 11.2 Vinculación y cambio de proveedor
 
-In the MVP there is no provider change of any kind: providers are hardcoded, and there is no manual or automatic switching. Manual provider changes and moving failed stages to another provider are deferred post-MVP.
+The Administrator can change the active provider of any stage (reasoning, voice, alignment, image, video) on `/admin`, among the stage's providers that are usable: valid parameters and an API key that can be found. The choice is stored, overrides the provider the settings named when the profiles were first created, survives a restart and applies without a restart to every stage that is not yet bound to a provider. No operational setting is editable on `/admin`; those still need a file edit and a restart. There is no automatic switching: when a stage's retries are exhausted it stays on its provider.
 
-La etapa conserva el proveedor utilizado para sus reintentos automáticos y manuales. En voz, esta asociación pertenece a la sesión; en imagen y video, al chunk y a la etapa correspondiente.
+The Administrator adds, edits and deletes providers on `/admin`. A change to a provider's parameters applies, without a restart, to the next request sent through it, including the retries of stages already bound to it; it never changes what a session has established (requested durations, speed factors, intervals, chunks, completed results). A provider that is the active provider of a stage cannot be deleted. A provider that sessions or scenes are bound to is retired instead of removed: it is no longer offered, and it keeps serving the retries of what is bound to it. The admitted durations used to segment a script and to request a clip are those of the active video provider when they run; a clip whose stored duration the active video provider does not admit fails, before it is bound, with a message that names it, and can be retried after the active provider is changed back. The application asks for a provider's API key by the stage's role and receives the key of the provider the stage is bound to, or of the active provider when it is not yet bound.
 
-A stage tied to a provider that is unavailable keeps retrying that same provider until it recovers. Completed results are never regenerated.
+Every stage is bound to a provider at its first attempt, once and for good: reasoning, voice and alignment per session; image and video per chunk. The binding is the provider active at that moment. The stage keeps it for its automatic and manual retries, whatever the active provider is later. Changing the active provider never regenerates a completed result. A stage that used native timestamps binds no alignment provider.
 
-A change to the hardcoded admitted durations in a later version of the application does not alter the intervals or chunks already established in existing sessions.
+A stage tied to a provider that is unavailable keeps retrying that same provider until it recovers, unless the Administrator moves it. `/admin` lists the failed stages that are bound to a provider other than the current active provider of their stage type, with an action to move each one to the current active provider. A move binds that one stage to the provider that is active at that moment and nothing else: it sends no request and does not retry; the next retry, automatic or manual, goes to the new provider, and the attempts recorded before the move keep the provider they ran on. A stage whose failure offers no manual retry is not listed. A move never regenerates a completed result of the session or its scenes, and nothing moves by itself, not even when retries are exhausted. Completed results are never regenerated.
+
+A change to the configured admitted durations, languages, or any other setting, after a restart, does not alter what existing sessions have already established: intervals, chunks, requested durations, speed factors, warnings, the session's language, and completed results stay as they were. A stage that already has a bound provider keeps it for its retries.
 
 ### 11.3 Recorded providers and parameter values (JOS-165)
 
-Defined by `define-provider-configuration` (JOS-165), verified against real calls per Decision 2 of its design (never from documentation alone). Full evidence and provenance: `docs/adr/0005-provider-selection.md` and `openspec/changes/define-provider-configuration/reports/`.
+Defined by `define-provider-configuration` (JOS-165) and, since v1.10, shipped as the default settings file (`backend/config/settings.default.json`). The values below are those defaults; a per-user override file can replace them (§11). Verified against real calls per Decision 2 of its design (never from documentation alone). Full evidence and provenance: `docs/adr/0005-provider-selection.md` and `openspec/changes/define-provider-configuration/reports/`.
 
 | Stage | Provider | Identifier |
 |---|---|---|
@@ -322,23 +327,38 @@ Defined by `define-provider-configuration` (JOS-165), verified against real call
 |---|---|---|
 | Video admitted durations | 5-15 seconds | Both ends measured with real calls |
 | Segmentation lower bound (§6.1) | 5 seconds | = video provider's measured minimum |
-| Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264/AAC | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
+| Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264 video, voice-over MP3 audio copied unchanged | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
 | Supported script languages (§4.1, D09) | English, Spanish | Each verified independently across voice, alignment and reasoning |
 | Acceptable speed-factor limit | **Provisional** | `define-media-assembly` (JOS-182) recommends 0.5x-2.0x (its ADR, Decision 5); `decide-silence-allocation` (JOS-142) verified D11's adopted rule against that recommendation (max 1.08x observed). Not yet the fixed constant: US-33 records it, and JOS-182's own PR is not yet merged into this branch's history. |
 | Per-phase maximum times | Reasoning 600s, Image 25s, Voice 600s, Alignment 5s, Video 1200s, Assembly provisional | Set above the observed slow tail; assembly depends on JOS-182. Re-measured at the product's real script size in v1.8 (2026-10-13/14): reasoning 208.6 s for 67 fragments (was 20 s), voice 151 s for 10,217 characters (was 10 s), video clips at 2K 394 s for 7 s, 528 s for 12 s, 546 s for 13 s and above 610 s for 14 s (was 240 s; 15 s is admitted); provisional until a full-size session (1,500-1,800 words, 30-50 chunks) has been timed |
+| Automatic-retry delay | Base 2 s, cap 30 s | Exponential: `min(2 s × 2^(attempt−1), 30 s)` between attempts of a cycle; a provider's Retry-After is never undercut. Accepted by the product owner (JOS-203 B5) |
 | Maximum simultaneous requests per stage | Reasoning 50, Image 200 (provisional), Voice 3, Alignment 2, Video 3 (`limit-provider-requests-per-stage`, JOS-167) | Voice and alignment add up to the 5 concurrent requests ElevenLabs documents for the Creator tier; that value is documented, not measured. Video 3 is the highest concurrency measured with no slowdown (JOS-165, step 8.2) |
 
 **Not-retryable failure signal**: tested against all four provider-calling stages with disallowed instructional content — **none produced a distinguishable rejection** (`docs/adr/0005-provider-selection.md`, Decision 5). **Resolved at the entry point by JOS-187**: the script is checked by OpenAI's moderation endpoint before a session exists. Moderation model `omni-moderation-2024-09-26`, maximum time 10 seconds (measured 0.12–2.2 s). The downstream stages still have no content signal, and corrected `IMAGE`/`VIDEO` instructions (§10.3) remain unmoderated.
 
-### 11.4 Visual style setting (`/admin`, JOS-201)
+### 11.4 Administrator reports (JOS-175)
 
-The `/admin` page holds one **visual style prompt** (text, 0 to 8,000 characters; empty means no style) and one optional **reference image** (PNG, JPEG or WebP, up to 5 MB).
+The Administrator sees read-only reports on `/admin`, computed from what the application stores on the user's own computer. A report writes nothing, sends nothing off the device, requires the Administrator password, and never shows an API key, a script, a prompt or instruction, narration text, or a provider's own words in a failure message. Aggregate reports take a period (the last 7 days, the last 30 days by default, all time, or a custom range) applied to the instant each attempt was sent; times are shown in the computer's time zone. There is no download.
+
+The first release has three reports:
+
+1. **Provider usage**, per stage (voice, alignment, reasoning, image, video) and provider: attempts, successes, transient and not-retryable failures, timed-out attempts, success rate, median and 95th-percentile request latency, and the billed units of the successful attempts (voice characters, audio seconds for alignment, images, clip seconds, reasoning requests).
+2. **Failures and retries**, per stage: failed attempts by outcome, retry budgets exhausted, manual retries, the most frequent failure wordings of the session-level stages, and the scenes that are failed now by stage.
+3. **Sessions**: one row per session created in the period (title, created, state, scenes, failed scenes, attempts, time to the voice-over and to the final video) with a drill-down to its scenes (providers, attempts, requested duration, speed factor and warnings).
+
+A later release adds an **estimated cost** (billed units times a price per unit that the Administrator enters on each provider; every amount is an estimate, and a provider with no price is shown as unpriced, never as zero), **pipeline time** (elapsed time per phase and time-limit hits) and **provider changes** (when the active provider changed or a failed stage was moved). Each of these needs the application to record something it does not record today.
+
+Until the provider is recorded on each scene attempt, the per-provider figures of the image and video stages attribute an attempt to the provider its scene is bound to now; after a provider move, earlier failed attempts are counted for the provider the scene was moved to. The reports say so.
+
+### 11.5 Visual style setting (`/admin`, JOS-201)
+
+Behind the Administrator password, `/admin` holds one **visual style prompt** (text, 0 to 8,000 characters; empty means no style) and one optional **reference image** (PNG, JPEG or WebP, up to 5 MB).
 
 - Each new session keeps a copy of the prompt as it was when the session was created. The first decomposition, any retry of it and a restart all use that copy, so saving `/admin` never changes a session already in progress.
 - The prompt is sent to the reasoning provider as separate creative direction (style, recurring characters, tone) before the fixed rules. If it conflicts with those rules (one image and one video instruction per fragment, no merging or skipping, the required output format), the rules win. Because the image provider receives only each scene's image instruction, every image instruction must repeat the full description of any recurring character.
 - The prompt is user text sent to a provider: its content is never logged, only its length.
 - The reference image is **stored only**. No provider receives it in this version: the verified image model (§11.3) is text-to-image only, and a reference-capable model must first be verified (quality, latency, cost, output size) before it is recorded in §11.3. The video stage already starts from the scene's generated image and gets no reference image.
-- Several styles, a style chosen per session, a fixed style prefix on the image request, authentication and an Administrator role are out of this version.
+- Several styles, a style chosen per session and a fixed style prefix on the image request are out of this version.
 
 ## 12. Persistencia, archivos y descargas
 
@@ -362,7 +382,7 @@ La conservación de archivos es independiente de la vigencia de la sesión. Sess
 
 ### 12.3 Modelo de acceso, descargas y aislamiento
 
-The MVP is a **single-user application installed on the user's own computer**. It is delivered as an executable that needs no other software installed; it runs the interface and all processing locally and calls the cloud AI providers (§11) over the internet. The application has no accounts, authentication or authorization rules.
+The MVP is a **single-user application installed on the user's own computer**. It is delivered as an executable that needs no other software installed; it runs the interface and all processing locally and calls the cloud AI providers (§11) over the internet. The application has no accounts. The only credential is one shared Administrator password that unlocks `/admin` and every Administrator endpoint (`/admin/…`); the User's pages and endpoints need no login, whether or not a password is configured.
 
 El usuario puede descargar imágenes y clips exitosos individualmente mientras otras escenas siguen procesándose o presentan fallos. El MP4 final solo está disponible después de completarse el montaje. In-app downloads are limited to per-scene images, per-scene clips, and the final MP4; the MP3, timestamps, script, and generated texts are stored locally (§12.2) but cannot be downloaded from the app.
 
@@ -405,7 +425,7 @@ The application accepts requests only from its own interface on the same compute
 | AC15 | Los archivos locales no se eliminan automáticamente y dos proyectos con el mismo título no sobrescriben sus resultados. |
 | AC16 | El MVP permite pausas y descargas parciales sin requerir una interfaz de administración o reportes. |
 | AC17 | Los cortes entre chunks coinciden con fronteras de oración, salvo la excepción de oración larga prevista en §6.1. |
-| AC18 | No chunk exceeds the video provider's maximum or falls below the hardcoded lower bound, except for a whole script shorter than the lower bound and a sentence that cannot be split (§6.1.1). |
+| AC18 | No chunk exceeds the video provider's maximum or falls below the configured lower bound, except for a whole script shorter than the lower bound and a sentence that cannot be split (§6.1.1). |
 | AC19 | Los intervalos de los chunks son contiguos, no se solapan y cubren el voice-over desde el segundo 0 hasta su duración total, con cada silencio asignado a la escena anterior (D11, §7.3). |
 | AC20 | El sistema obtiene los intervalos mediante marcas de tiempo nativas o, en su ausencia, mediante alineación forzada; la imposibilidad de obtenerlos se reporta como fallo de descomposición y no como fallo de voz. |
 | AC21 | La interfaz muestra, por fase y por escena, el estado vigente, los resultados disponibles, los errores y las acciones aplicables, y refleja el avance durante el procesamiento. |
@@ -427,7 +447,7 @@ Las decisiones marcadas como abiertas no están aprobadas y deben cerrarse antes
 | D05 | Dependencia de enlaces temporales del proveedor. | **Closed (v1.3)** | Every temporary-link result, images included, is saved locally before its link expires (§12.2). |
 | D06 | Continuación de otras escenas tras un fallo y reintentos posteriores a una acción manual. | **Closed (v1.3)** | Other scenes keep generating; each manual retry starts a new cycle of up to three automatic retries (§10.2). |
 | D07 | Autorización y acceso a las sesiones. | **Cerrada (revisada en v1.7)** | Aplicación monousuario instalada en el equipo del usuario; sin cuentas ni autorización; solo la propia interfaz local puede usar la aplicación. La separación entre sesiones es integridad funcional, no seguridad (§12.3). |
-| D08 | Parámetros de salida del MP4 final. | **Closed (v1.3)** | Voice-over-only audio (clip sound removed); hardcoded resolution and frame rate (expected 1920×1080 at 30 fps); H.264 video and AAC audio (§7.3). |
+| D08 | Parámetros de salida del MP4 final. | **Closed (v1.3)** | Voice-over-only audio (clip sound removed); hardcoded resolution and frame rate (expected 1920×1080 at 30 fps); H.264 video; audio is the voice-over MP3 copied unchanged, AAC only after a pause adjustment (§7.3, v1.10). |
 | D09 | Idiomas admitidos. | **Closed (v1.3)** | Hardcoded list of supported languages; the User selects the script language from that list when starting a project, and no provider is called before that (§4.1). |
 | D10 | Momento exacto del bloqueo del guion durante la generación de voz. | **Closed (v1.3)** | The script is locked when the User starts the project (§4.2). |
 | D11 | Asignación de los silencios de la narración a una escena. | **Cerrada (JOS-142, 2026-09-29)** | La escena previa absorbe el silencio posterior (comparada frente a repartir el silencio entre escenas contiguas, la regla interina de JOS-140, ahora descartada). Umbral: hasta 2 s aceptable, 3 s empieza a sentirse lento; ningún guion real supera 1.26 s. Verificado según §14.1. |
@@ -465,14 +485,87 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 
 ## 16. Registro de cambios
 
-### From version 1.9 to 1.10
+### From version 1.16 to 1.17
 
-Origin: `admin-visual-style-prompt` (JOS-201), 2026-10-19.
+Origin: `admin-visual-style-prompt` (JOS-201), 2026-10-19, drafted as v1.10 on `feature/entrega-3-JAME`; merged into this line on 2026-10-22. **Awaiting the product owner's approval.**
 
 | Change | Origin |
 |---|---|
-| §2.1, §2.2, §2.3: `/admin` moves from deferred to delivered, limited to the visual style setting. The Administrator role, configuration files, diagnostics, provider changes and reports stay deferred. | Product owner, JOS-201 |
-| New §11.4: one visual style prompt (0 to 8,000 characters) and one optional reference image (PNG, JPEG or WebP, up to 5 MB). A session keeps the prompt it was created with, through retries and restarts. The prompt guides the reasoning request that writes the instructions; the pipeline rules win on any conflict. The image is stored but not sent to any provider yet (a spike must first verify a reference-capable image model, §11). | Product owner, JOS-201 |
+| §2.1, §2.2: the Administrator sets one visual style for new sessions on `/admin`, behind the Administrator password (JOS-173). The draft's "no Administrator role" and its top-bar link to `/admin` are superseded by v1.11: `/admin` is not linked from the User's pages. | Product owner, JOS-201; merge 2026-10-22 |
+| New §11.5 (drafted as §11.4, which v1.16 gives to the reports): one visual style prompt (0 to 8,000 characters) and one optional reference image (PNG, JPEG or WebP, up to 5 MB). A session keeps the prompt it was created with, through retries and restarts. The prompt guides the reasoning request that writes the instructions; the pipeline rules win on any conflict. The image is stored but not sent to any provider yet (a spike must first verify a reference-capable image model, §11; JOS-202). | Product owner, JOS-201 |
+
+### From version 1.15 to 1.16
+Origin: `define-admin-reports` (JOS-175), 2026-10-22. **Awaiting the product owner's approval** (text reviewed and approved in chat on 2026-10-22; record the approval on the PR).
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.3: the reports move from "out of the MVP, no contents" to in scope for the release that builds them; §11.4 describes the agreed reports. | Product owner, JOS-175 |
+| §11.4: release 1 is provider usage, failures and retries, and sessions; cost, pipeline time and provider changes are for a later release. | Product owner decision, 2026-10-22 |
+| §11.4: reports are read-only, local, behind the Administrator password, free of secrets and content, with an estimate label on any cost; the default period is the last 30 days and there is no download. | Product owner decision, 2026-10-22 |
+
+### From version 1.14 to 1.15
+
+Origin: `move-failed-stage-to-active-provider` (JOS-172), 2026-10-22. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.3, §11.2: the Administrator moves a failed stage that is bound to a provider other than the active one to the current active provider, on `/admin`; the move rebinds only, and the next retry goes to the new provider. | Product owner, JOS-172 |
+| §7.2: a moved clip chooses its requested duration again from the new provider's admitted durations; the chunk and interval are unchanged. | JOS-172, ticket AC4 |
+| §11.2: completed results are kept, nothing moves automatically, and a failure with no manual retry is not listed. | JOS-172 |
+
+### From version 1.13 to 1.14
+
+Origin: `manage-providers-from-admin` (JOS-218), 2026-10-21. **Approved by the product owner, 2026-10-22.**
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.3, §11, §11.2: providers become profiles managed on `/admin` (add, edit, delete), with their parameters and API key; the active provider is chosen among them. | Product owner, JOS-218 |
+| §2.1, §11: API keys are entered on `/admin` and stored encrypted in the local database, shown only as a status and a hint; the environment and credentials-file keys remain a fallback for the first profiles. | Product owner decision, 2026-10-21 |
+| §11.2: a parameter change applies to the next request without a restart; deleting retires a provider that work is bound to; the admitted durations come from the active video provider. | JOS-218 |
+| JOS-174's rules "settings are edited in the configuration files, not on `/admin`" and "keys only in the environment or a local secrets file" get this exception for providers and keys. Operational settings are unchanged. | JOS-218 |
+| A provider the application ships no adapter for, and a connection test, are later stories. | Product owner decision, 2026-10-21 |
+
+### From version 1.12 to 1.13
+
+Origin: `change-active-provider-from-admin` (JOS-171), 2026-10-21. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.3, §11, §11.2: the Administrator changes the active provider of each of the five stages on `/admin`; the choice is stored, overrides the settings files, survives a restart and applies to the next unbound stage without a restart. | Product owner, JOS-171 |
+| §11.2: all five stages bind to a provider at their first attempt (reasoning and alignment are added to voice, image and video); retries keep the bound provider; completed results are never regenerated; no automatic switching. | Product owner decision, 2026-10-19 |
+| JOS-174's rule "settings are edited in the configuration files, not on `/admin`" gets one exception: the active provider. | JOS-171 |
+| This version ships the mechanism only: each stage has one real adapter, and switching is proven with stub adapters. A second real provider is a separate story. | Product owner decision, 2026-10-19 |
+
+### From version 1.11 to 1.12
+
+Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.3, §11: providers and generation parameters are read from a shipped default settings file plus an optional per-user override, validated at start-up (every problem listed, unknown keys rejected, credentials excluded), and applied only after a restart. They are no longer hardcoded and "no configuration files" is removed from the MVP exclusions. The sentences in §4.1, §6.1, §7.2, §7.3, §10.1, §11.1 and AC18 that called them hardcoded now say configured. | Product owner, JOS-174 |
+| §11.2: a changed setting does not alter established work (intervals, chunks, durations, speed factors, warnings, language, results); a bound provider is kept for retries. | Product owner, JOS-174 |
+| §11.3: its values are now the shipped defaults. | JOS-174 |
+| The Administrator password is not part of this change; it arrived in v1.11 (JOS-173). | Product owner decision, 2026-10-19 |
+
+### From version 1.10 to 1.11
+
+Origin: `protect-admin-with-password` (JOS-173), 2026-10-19. **Awaiting the product owner's approval.** v1.12 (JOS-174) and v1.13 (JOS-171) are drafted on their own branches and are not on this branch yet; the three drafts edit the same paragraphs of §2.1 and §2.3, and whichever merges second or third rebases its text.
+
+| Change | Origin |
+|---|---|
+| §2.1: an Administrator role with one shared password that unlocks `/admin`; the password is a local secret (`ADMIN_PASSWORD`, environment or credentials file), never logged or returned; when it is missing the application still starts and `/admin` stays locked. | Product owner, JOS-173 |
+| §2.3: `/admin` is no longer out of scope as a page; each Administrator tool, accounts, several passwords, password change from the interface, sessions and lock-out still are. | Product owner, JOS-173 |
+| §12.3: "no authentication" becomes "no accounts; one shared Administrator password for `/admin`". | JOS-173 |
+| US-39's rule "a missing Administrator password stops the application at start-up" is superseded: a fresh installation must start. | Product owner decision, 2026-10-19 |
+
+### From version 1.9 to 1.10
+
+Origin: MVP closure (JOS-203), 2026-10-20.
+
+| Change | Origin |
+|---|---|
+| §7.3, §11.3 and D08: the final MP4's audio is the voice-over's MP3 stream copied without re-encoding (ADR 0005, Decision 4b), not AAC. A real-provider run showed the MP4 carried `mp3` audio; the PRD wording is aligned with the built behaviour. Only a rebuild with an adjusted pause (JOS-190) re-encodes the narration, to AAC. | JOS-203 B4 finding, product owner decision |
+| §11.3: the automatic-retry delay is recorded: base 2 s, cap 30 s. | JOS-203 B5 (this row was added to v1.9 without a version bump) |
 
 ### From version 1.8 to 1.9
 
@@ -550,7 +643,7 @@ Origin: backlog decomposition clarification session, 2026-09-15.
 | Segmentation edge cases: short whole script, clause split of the following sentence, sentence that cannot be split (§6.1.1, §7.2, AC18). | Clarification |
 | "Closest" admitted duration defined as smallest speed change; ties go to the longer duration (§7.2, AC06). | Clarification |
 | Alignment added as a fifth stage; retries switch to it when native timestamps are unusable (§10.3, §11, §11.1). | Clarification |
-| Final MP4 output: voice-over-only audio, hardcoded resolution and frame rate, H.264/AAC (§7.3). | D08 |
+| Final MP4 output: voice-over-only audio, hardcoded resolution and frame rate, H.264 with the voice-over's MP3 audio unchanged (§7.3). | D08 |
 | Session state rules: `failed` only after other scenes finish, return to phase state on manual retry, pause as a marker (§8.1). | Gaps 1 and 3 |
 | Live progress updates without reloading; diagnostics shown in scene details and phase sections (§3, §7.2, §8.3, AC23). | Gap 7, clarification |
 | Session-wide pause that also holds retries (§9). | D01 |

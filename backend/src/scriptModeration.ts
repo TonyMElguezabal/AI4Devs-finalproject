@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { loadCredential } from "./config/credentials.ts";
+import { stageApiKey } from "./keyStore.ts";
 import { MODERATION_MAX_TIME_SECONDS, SCRIPT_MODERATION } from "./config/providers.ts";
 
 // moderate-script-at-submission (JOS-187), design Decisions 2 and 4-6 — the
@@ -28,7 +28,9 @@ export function createOpenAiScriptModerator(
   options: { fetchFn?: typeof fetch; loadKey?: () => string; timeoutMs?: number } = {},
 ): ScriptModerator {
   const fetchFn = options.fetchFn ?? fetch;
-  const loadKey = options.loadKey ?? (() => loadCredential("OPENAI_KEY"));
+  // manage-providers-from-admin (JOS-218), Decision 11: the moderation endpoint is the reasoning vendor's, so it uses the
+  // key of the active reasoning provider.
+  const loadKey = options.loadKey ?? (() => stageApiKey("reasoning"));
   const timeoutMs = options.timeoutMs ?? MODERATION_MAX_TIME_SECONDS * 1000;
 
   return {

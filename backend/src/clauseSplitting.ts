@@ -2,7 +2,8 @@
 // (split-sentences-at-clause-boundaries, design Decisions 2 and 3).
 
 import { findClauseBoundaries } from "./clauseBoundaries.ts";
-import { SEGMENTATION_LOWER_BOUND_SECONDS, SEGMENTATION_UPPER_BOUND_SECONDS } from "./config/providers.ts";
+import { SEGMENTATION_LOWER_BOUND_SECONDS } from "./config/providers.ts";
+import { activeVideoDurations } from "./videoDurations.ts";
 import { trimSpan, type Sentence } from "./sentences.ts";
 
 export interface MustSplitClassification {
@@ -14,11 +15,12 @@ export interface MustSplitClassification {
 
 /** Decision 2 — classifies every sentence from its narrated duration alone, before any boundary is looked up. */
 export function classifyMustSplit(durations: readonly number[]): MustSplitClassification[] {
+  const upperBound = activeVideoDurations().max;
   return durations.map((duration, index) => {
-    const free = duration > SEGMENTATION_UPPER_BOUND_SECONDS;
+    const free = duration > upperBound;
     const previous = index > 0 ? durations[index - 1] : undefined;
     const borrowed =
-      previous !== undefined && previous < SEGMENTATION_LOWER_BOUND_SECONDS && previous + duration > SEGMENTATION_UPPER_BOUND_SECONDS;
+      previous !== undefined && previous < SEGMENTATION_LOWER_BOUND_SECONDS && previous + duration > upperBound;
     return { free, borrowed };
   });
 }

@@ -1,13 +1,13 @@
-import type { AppSettings, AppUpdate, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AdapterTypeInfo, AppSettings, AppUpdate, FailedStageRow, ProfileProblem, ProfileView, ProviderStage, ProviderView, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
 // ports via an env var, but defaults to the skeleton's documented port.
-export const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:3100";
+export const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "http://127.0.0.1:3100";
 
 async function asJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
+    const body = (await response.json().catch(() => ({}))) as { reason?: string; message?: string; error?: string };
     // `reason` (this app's own {ok:false, reason} shape) first, then Zod's
     // validation `message` (the actual cause — start-video-project, JOS-134,
     // Decision 6/§4.1 requires the cause named, not swallowed by Fastify's
@@ -46,6 +46,10 @@ export function pauseSession(sessionId: string): Promise<{ ok: boolean }> {
 
 export function continueSession(sessionId: string): Promise<{ ok: boolean }> {
   return fetch(`${API_BASE}/sessions/${sessionId}/continue`, { method: "POST" }).then(asJson<{ ok: boolean }>);
+}
+
+export function retryVoiceOver(sessionId: string): Promise<{ ok: true; held: boolean }> {
+  return fetch(`${API_BASE}/sessions/${sessionId}/voice-over/retry`, { method: "POST" }).then(asJson<{ ok: true; held: boolean }>);
 }
 
 export function retryDecomposition(sessionId: string): Promise<{ ok: true; held: boolean }> {
@@ -108,37 +112,183 @@ export function getAppUpdate(): Promise<AppUpdate> {
   return fetch(`${API_BASE}/app/update`).then(asJson<AppUpdate>);
 }
 
+/** protect-admin-with-password (JOS-173) — why the backend refused an Administrator request (design Decision 3). */
+export type AdminDenial = "not-configured" | "password-required" | "wrong-password";
+
+export type AdminAccessResult = { kind: "granted" } | { kind: "denied"; reason: AdminDenial };
+
+/**
+ * protect-admin-with-password (JOS-173), design Decision 2 — every Administrator request carries the password as
+ * `Authorization: Bearer <password>`; the backend keeps no login state. JOS-171 and JOS-172 call this too. The
+ * caller holds the password in memory only; this never stores it.
+ */
+export function adminFetch(path: string, password: string | undefined, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (password) headers.set("Authorization", `Bearer ${password}`);
+  return fetch(`${API_BASE}${path}`, { ...init, headers });
+}
+
+const ADMIN_DENIALS: readonly string[] = ["not-configured", "password-required", "wrong-password"];
+
+/** `GET /admin/access`: granted, or the reason it was refused. Any other failure rejects. */
+export async function getAdminAccess(password?: string): Promise<AdminAccessResult> {
+  const response = await adminFetch("/admin/access", password);
+  if (response.ok) return { kind: "granted" };
+  const body = (await response.json().catch(() => ({}))) as { reason?: string };
+  if (response.status === 401 && body.reason && ADMIN_DENIALS.includes(body.reason)) return { kind: "denied", reason: body.reason as AdminDenial };
+  throw new Error(`request failed with ${response.status}`);
+}
+
+export type AdminProvidersResult = { kind: "ok"; providers: ProviderView[] } | { kind: "denied" };
+export type AdminProviderChangeResult = { kind: "ok"; view: ProviderView } | { kind: "denied" } | { kind: "refused"; selectable: string[] };
+
+/** change-active-provider-from-admin (JOS-171): `GET /admin/providers`. A 401 is `denied`; any other failure rejects. */
+export async function getAdminProviders(password: string): Promise<AdminProvidersResult> {
+  const response = await adminFetch("/admin/providers", password);
+  if (response.status === 401) return { kind: "denied" };
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "ok", providers: ((await response.json()) as { providers: ProviderView[] }).providers };
+}
+
+/** `PUT /admin/providers/{stage}`: the stage's new view, a 401 (`denied`), or a 400 naming the selectable ids (`refused`). */
+export async function putAdminProvider(password: string, stage: ProviderStage, providerId: string): Promise<AdminProviderChangeResult> {
+  const response = await adminFetch(`/admin/providers/${stage}`, password, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ providerId }),
+  });
+  if (response.status === 401) return { kind: "denied" };
+  if (response.status === 400) {
+    const body = (await response.json().catch(() => ({}))) as { selectable?: unknown };
+    return { kind: "refused", selectable: Array.isArray(body.selectable) ? (body.selectable as string[]) : [] };
+  }
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "ok", view: (await response.json()) as ProviderView };
+}
+
+export type ProfilesResult = { kind: "ok"; types: AdapterTypeInfo[]; profiles: ProfileView[] } | { kind: "denied" };
+export type ProfileWriteResult =
+  | { kind: "ok" }
+  | { kind: "denied" }
+  | { kind: "invalid"; problems: ProfileProblem[] }
+  | { kind: "not-found" }
+  | { kind: "active"; stage: ProviderStage };
+export type ProfileDeleteResult = { kind: "removed" } | { kind: "retired" } | Exclude<ProfileWriteResult, { kind: "ok" } | { kind: "invalid" }>;
+
+/** manage-providers-from-admin (JOS-218): the adapter types and the profiles. A 401 is `denied`; any other failure rejects. */
+export async function getProviderProfiles(password: string): Promise<ProfilesResult> {
+  const [types, profiles] = await Promise.all([adminFetch("/admin/provider-types", password), adminFetch("/admin/provider-profiles", password)]);
+  if (types.status === 401 || profiles.status === 401) return { kind: "denied" };
+  if (!types.ok || !profiles.ok) throw new Error(`request failed with ${types.ok ? profiles.status : types.status}`);
+  return { kind: "ok", types: ((await types.json()) as { types: AdapterTypeInfo[] }).types, profiles: ((await profiles.json()) as { profiles: ProfileView[] }).profiles };
+}
+
+async function writeProfile(response: Response): Promise<ProfileWriteResult> {
+  if (response.status === 401) return { kind: "denied" };
+  if (response.status === 404) return { kind: "not-found" };
+  if (response.status === 400) {
+    const body = (await response.json().catch(() => ({}))) as { problems?: unknown; message?: string };
+    return { kind: "invalid", problems: Array.isArray(body.problems) ? (body.problems as ProfileProblem[]) : [{ field: "", message: body.message ?? "the request is not valid" }] };
+  }
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "ok" };
+}
+
+export interface ProfileInput {
+  label: string;
+  parameters: Record<string, unknown>;
+  /** Left out to keep the key a profile already has. */
+  apiKey?: string;
+}
+
+const JSON_HEADERS = { "Content-Type": "application/json" };
+
+export async function createProviderProfile(password: string, input: ProfileInput & { stage: ProviderStage; adapterType: string }): Promise<ProfileWriteResult> {
+  return writeProfile(await adminFetch("/admin/provider-profiles", password, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(input) }));
+}
+
+export async function editProviderProfile(password: string, id: string, input: ProfileInput): Promise<ProfileWriteResult> {
+  return writeProfile(await adminFetch(`/admin/provider-profiles/${encodeURIComponent(id)}`, password, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify(input) }));
+}
+
+export async function deleteProviderProfile(password: string, id: string): Promise<ProfileDeleteResult> {
+  const response = await adminFetch(`/admin/provider-profiles/${encodeURIComponent(id)}`, password, { method: "DELETE" });
+  if (response.status === 401) return { kind: "denied" };
+  if (response.status === 404) return { kind: "not-found" };
+  if (response.status === 409) {
+    const body = (await response.json().catch(() => ({}))) as { stage: ProviderStage };
+    return { kind: "active", stage: body.stage };
+  }
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return ((await response.json()) as { result: string }).result === "retired" ? { kind: "retired" } : { kind: "removed" };
+}
+
+export type FailedStagesResult = { kind: "ok"; failedStages: FailedStageRow[] } | { kind: "denied" };
+export type MoveRefusalReason = "not-found" | "not-failed" | "already-on-active" | "retry-in-progress" | "not-retryable" | "not-usable";
+export type MoveStageResult = { kind: "moved" } | { kind: "denied" } | { kind: "refused"; reason: MoveRefusalReason };
+
+/** move-failed-stage-to-active-provider (JOS-172): `GET /admin/failed-stages`. A 401 is `denied`; any other failure rejects. */
+export async function getFailedStages(password: string): Promise<FailedStagesResult> {
+  const response = await adminFetch("/admin/failed-stages", password);
+  if (response.status === 401) return { kind: "denied" };
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "ok", failedStages: ((await response.json()) as { failedStages: FailedStageRow[] }).failedStages };
+}
+
+/** `POST /admin/failed-stages/to-active-provider`: moved, a 401 (`denied`), or a refusal with its reason. */
+export async function moveFailedStage(password: string, row: Pick<FailedStageRow, "sessionId" | "stage" | "sceneId">): Promise<MoveStageResult> {
+  const response = await adminFetch("/admin/failed-stages/to-active-provider", password, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ sessionId: row.sessionId, stage: row.stage, ...(row.sceneId ? { sceneId: row.sceneId } : {}) }),
+  });
+  if (response.status === 401) return { kind: "denied" };
+  if (response.status === 404 || response.status === 409) {
+    const body = (await response.json().catch(() => ({}))) as { reason?: MoveRefusalReason };
+    return { kind: "refused", reason: body.reason ?? "not-found" };
+  }
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "moved" };
+}
+
 /** admin-visual-style-prompt (JOS-201) */
 export const MAX_VISUAL_STYLE_PROMPT_CHARS = 8000;
 export const MAX_REFERENCE_IMAGE_BYTES = 5 * 1024 * 1024;
 export const REFERENCE_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
-export function getAppSettings(): Promise<AppSettings> {
-  return fetch(`${API_BASE}/admin/settings`).then(asJson<AppSettings>);
+/** The settings, or `denied` for a 401 (the routes sit behind the Administrator gate, JOS-173). Any other failure rejects with the backend's reason. */
+export type AppSettingsResult = { kind: "ok"; settings: AppSettings } | { kind: "denied" };
+
+async function settingsAnswer(response: Response): Promise<AppSettingsResult> {
+  if (response.status === 401) return { kind: "denied" };
+  return { kind: "ok", settings: await asJson<AppSettings>(response) };
 }
 
-export function saveVisualStylePrompt(visualStylePrompt: string): Promise<AppSettings> {
-  return fetch(`${API_BASE}/admin/settings/visual-style-prompt`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ visualStylePrompt }),
-  }).then(asJson<AppSettings>);
+export async function getAppSettings(password: string): Promise<AppSettingsResult> {
+  return settingsAnswer(await adminFetch("/admin/settings", password));
 }
 
-export function uploadReferenceImage(file: File): Promise<AppSettings> {
-  return fetch(`${API_BASE}/admin/settings/reference-image`, {
-    method: "PUT",
-    headers: { "Content-Type": file.type },
-    body: file,
-  }).then(asJson<AppSettings>);
+export async function saveVisualStylePrompt(password: string, visualStylePrompt: string): Promise<AppSettingsResult> {
+  return settingsAnswer(
+    await adminFetch("/admin/settings/visual-style-prompt", password, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ visualStylePrompt }) }),
+  );
 }
 
-export async function deleteReferenceImage(): Promise<void> {
-  const response = await fetch(`${API_BASE}/admin/settings/reference-image`, { method: "DELETE" });
+export async function uploadReferenceImage(password: string, file: File): Promise<AppSettingsResult> {
+  return settingsAnswer(await adminFetch("/admin/settings/reference-image", password, { method: "PUT", headers: { "Content-Type": file.type }, body: file }));
+}
+
+export async function deleteReferenceImage(password: string): Promise<{ kind: "removed" } | { kind: "denied" }> {
+  const response = await adminFetch("/admin/settings/reference-image", password, { method: "DELETE" });
+  if (response.status === 401) return { kind: "denied" };
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "removed" };
 }
 
-/** `version` busts the browser cache when the image is replaced. */
-export function referenceImageUrl(version: string): string {
-  return `${API_BASE}/admin/settings/reference-image?v=${encodeURIComponent(version)}`;
+/** The stored image's bytes: an `<img src>` cannot send the password, so the preview shows them as an object URL. */
+export async function getReferenceImage(password: string): Promise<{ kind: "ok"; image: Blob } | { kind: "denied" }> {
+  const response = await adminFetch("/admin/settings/reference-image", password);
+  if (response.status === 401) return { kind: "denied" };
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "ok", image: await response.blob() };
 }

@@ -1,9 +1,8 @@
-# Media assembly foundation
+# media-assembly-foundation Specification
 
+## Purpose
 Requirements established by choosing the video and audio assembly tooling. These govern the project's media foundation, not user-facing product behaviour — the behaviours this change's pipeline serves are specified by their own stories: US-16 (assembling the final MP4), US-15 (speed factor recorded per scene), US-27 (assembly retry from existing components).
-
 ## Requirements
-
 ### Requirement: Single documented assembly pipeline
 
 The project SHALL record exactly one chosen assembly tool and its exact command pipeline — filters, encoder settings and container flags — in `docs/backend-standards.md`, together with an ADR stating the rejected alternatives and the evidence. Implementation work SHALL follow that pipeline rather than composing its own.
@@ -50,7 +49,7 @@ Each assembled clip SHALL land within a stated tolerance of its target narration
 
 ### Requirement: Voice-over is the only audio and is never retimed
 
-The pipeline SHALL produce output whose only audio is the complete voice-over, at its original rate and duration, with every clip's own audio excluded rather than silenced. Audio and video SHALL remain in sync from the first scene to the last.
+The pipeline SHALL produce output whose only audio is the voice-over, at its original rate, with every clip's own audio excluded rather than silenced. Audio and video SHALL remain in sync from the first scene to the last. The voice-over's duration in the output SHALL equal its stored duration, except where the User has edited the pause after a scene (`scene-pause-adjustment`): then only silence SHALL be removed or inserted, at the middle of each edited pause, and no spoken audio SHALL be cut, moved relative to its own words, or retimed. With no pause edits, the voice-over SHALL be carried into the output as-is, without re-encoding; with edits, the edited narration MAY be encoded once, and the attempt SHALL fail rather than produce output whose audio and video durations differ by more than one frame. The stored voice-over file SHALL never be modified.
 
 #### Scenario: Clips carry their own audio
 
@@ -63,6 +62,28 @@ The pipeline SHALL produce output whose only audio is the complete voice-over, a
 - **THEN** the voice-over duration and rate are unchanged
 - **AND** audio and video remain in sync at the final scene
 
+#### Scenario: No pause edits
+
+- **GIVEN** a session with no pause edits
+- **WHEN** the final video is assembled
+- **THEN** the voice-over is copied into the output without re-encoding
+
+#### Scenario: An edited pause
+
+- **GIVEN** a pause edited from 2.6 s to 1.1 s
+- **WHEN** the final video is rebuilt
+- **THEN** exactly 1.5 s of silence is removed at the middle of that pause, every word keeps its rate, and the output's audio and video durations agree within one frame
+
+#### Scenario: An edit that cannot be kept in sync
+
+- **WHEN** an edited build's measured audio and video durations differ by more than one frame
+- **THEN** the attempt fails and no new final video is recorded
+
+#### Scenario: The stored narration is untouched
+
+- **WHEN** any build with pause edits completes or fails
+- **THEN** the stored voice-over file is byte-identical to before
+
 ### Requirement: Mismatched sources normalised before joining
 
 The pipeline SHALL normalise each clip to the target resolution and frame rate before concatenation, so that clips differing in duration, resolution or frame rate join without artefacts and produce a single compliant file.
@@ -70,7 +91,7 @@ The pipeline SHALL normalise each clip to the target resolution and frame rate b
 #### Scenario: Sources differ in shape
 
 - **WHEN** clips of differing resolutions and frame rates are assembled
-- **THEN** the output is one 16:9 MP4 at the target resolution and frame rate, with H.264 video and AAC audio
+- **THEN** the output is one 16:9 MP4 at the target resolution and frame rate, with H.264 video and the voice-over's audio stream copied unchanged
 - **AND** no artefact is present at the joins
 
 ### Requirement: Committed fixture for assembly tests
@@ -81,3 +102,4 @@ The project SHALL commit sample media and the script that produced the verified 
 
 - **WHEN** tests are written for the final-assembly story
 - **THEN** the committed fixture provides real source media and a voice-over to run against
+

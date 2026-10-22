@@ -5,6 +5,7 @@ import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { routes } from "./routes.ts";
+import { allowedOrigins, registerOriginPolicy } from "./originPolicy.ts";
 import { recoverOnBoot, setAssemblyTool } from "./orchestrator.ts";
 import { stagesWithoutRestartRecovery } from "./launchGate.ts";
 import * as concurrency from "./concurrency.ts";
@@ -46,19 +47,24 @@ const BODY_LIMIT_BYTES = Number(process.env.BODY_LIMIT_BYTES ?? 50 * 1024 * 1024
  * `test/session-creation.test.ts`). The real process bootstrap below is the
  * only caller that also calls `.listen()`.
  */
-export async function buildApp(): Promise<FastifyInstance> {
+export async function buildApp(options: { logger?: FastifyBaseLogger } = {}): Promise<FastifyInstance> {
   // add-observability-telemetry (JOS-199) Decision 5 — stdout as before, plus a rotating file in `logs` beside the store.
   // Logging stays off under test, as before.
-  const loggerOptions: { loggerInstance?: FastifyBaseLogger; logger?: false } =
-    process.env.NODE_ENV !== "test" ? { loggerInstance: createAppLogger({ dir: join(dirname(DB_PATH), "logs") }) } : { logger: false };
+  // A caller may pass its own logger (a test does, to read what is logged); the default is unchanged.
+  const loggerOptions: { loggerInstance?: FastifyBaseLogger; logger?: false } = options.logger
+    ? { loggerInstance: options.logger }
+    : process.env.NODE_ENV !== "test"
+      ? { loggerInstance: createAppLogger({ dir: join(dirname(DB_PATH), "logs") }) }
+      : { logger: false };
   const app = Fastify({ ...loggerOptions, bodyLimit: BODY_LIMIT_BYTES });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-  // The frontend (define-frontend-stack, JOS-180) runs on its own Vite dev
-  // server port; CORS lets it call this backend directly with no proxy
-  // config. Fine for a local single-user install (no auth layer, C9).
-  await app.register(cors, { origin: true });
+  // The frontend (define-frontend-stack, JOS-180) runs on its own Vite dev server port; CORS lets it call this
+  // backend directly with no proxy config. There is no auth layer (C9), so only the app's own origins are allowed
+  // (originPolicy.ts); any other web page gets a 403 before a route runs.
+  registerOriginPolicy(app, PORT);
+  await app.register(cors, { origin: allowedOrigins(PORT) });
 
   await app.register(swagger, {
     openapi: {
@@ -68,8 +74,23 @@ export async function buildApp(): Promise<FastifyInstance> {
         description:
           "Local, single-user API for turning a script into a narrated MP4 (Vid4You). Generated from the Fastify + Zod route schemas in backend/src/routes.ts (docs/backend-standards.md, API and OpenAPI Conventions) - never hand-written, to avoid drifting from the real validators.",
       },
+      // protect-admin-with-password (JOS-173): every /admin/ endpoint takes the Administrator password as a bearer value.
+      components: {
+        securitySchemes: {
+          administratorPassword: {
+            type: "http",
+            scheme: "bearer",
+            description: "The Administrator password (ADMIN_PASSWORD in the local environment or secrets file).",
+          },
+        },
+      },
     },
-    transform: jsonSchemaTransform,
+    // Applied here, not per route, so an Administrator route added later is documented as protected with no code of its own.
+    transform: (args) => {
+      const result = jsonSchemaTransform(args);
+      if (!args.url.startsWith("/admin/")) return result;
+      return { ...result, schema: { ...result.schema, security: [{ administratorPassword: [] }] } };
+    },
   });
   await app.register(swaggerUi, { routePrefix: "/docs" });
 
@@ -136,7 +157,7 @@ if (isMainModule) {
   if (STAGE_CONCURRENCY_OVERRIDE) concurrency.setLimit(STAGE, Number(STAGE_CONCURRENCY_OVERRIDE));
   // USE_STUB_VIDEO_PROVIDER=success|success-bytes|pending|request-lost|transient-failure|not-retryable-failure — manual endpoint testing only.
   // `pending` leaves every clip unfinished, so a restart can be watched resuming it; `success` is an alias of `success-bytes`.
-  const stubVideoMode = process.env.USE_STUB_VIDEO_PROVIDER as string | undefined;
+  const stubVideoMode = process.env.USE_STUB_VIDEO_PROVIDER;
   if (stubVideoMode) {
     const bytes = Buffer.from("00000000667479706d703432", "hex"); // minimal ftyp mp4
     const resolvedMode: StubVideoProviderMode = stubVideoMode === "success" ? "success-bytes"

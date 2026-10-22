@@ -3,11 +3,13 @@ import { randomUUID } from "node:crypto";
 import { createReadStream, existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { type ZodTypeProvider } from "fastify-type-provider-zod";
-import { APP_DATA_DIR, clearReferenceImage, getAppSettings, getReferenceImageFile, saveReferenceImage } from "./db.ts";
+import { APP_DATA_DIR, clearReferenceImage, getReferenceImageFile, saveReferenceImage } from "./db.ts";
+import { adminDeniedSchema } from "./adminAccess.ts";
 import { appSettingsResponseSchema, refusalResponseSchema } from "./adminSettingsSchemas.ts";
 
 // admin-visual-style-prompt (JOS-201), design Decision 6 — the reference image routes live in their own encapsulated plugin,
-// so the raw-body parser below applies to them only (no @fastify/multipart for one file).
+// so the raw-body parser below applies to them only (no @fastify/multipart for one file). It is registered inside the
+// `/admin` plugin, behind the Administrator gate (protect-admin-with-password, JOS-173), which adds the prefix.
 
 export const MAX_REFERENCE_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -20,6 +22,7 @@ const IMAGE_TYPES = {
 type ImageType = keyof typeof IMAGE_TYPES;
 const isImageType = (value: string): value is ImageType => Object.hasOwn(IMAGE_TYPES, value);
 
+// eslint-disable-next-line @typescript-eslint/require-await -- a Fastify plugin must be async
 export const adminSettingsImageRoutes: FastifyPluginAsync = async (app) => {
   const typed = app.withTypeProvider<ZodTypeProvider>();
 
@@ -29,8 +32,8 @@ export const adminSettingsImageRoutes: FastifyPluginAsync = async (app) => {
   app.addContentTypeParser("*", { parseAs: "buffer", bodyLimit: MAX_REFERENCE_IMAGE_BYTES }, (_request, body, done) => done(null, body));
 
   typed.put(
-    "/admin/settings/reference-image",
-    { bodyLimit: MAX_REFERENCE_IMAGE_BYTES, schema: { response: { 200: appSettingsResponseSchema, 400: refusalResponseSchema } } },
+    "/settings/reference-image",
+    { bodyLimit: MAX_REFERENCE_IMAGE_BYTES, schema: { response: { 200: appSettingsResponseSchema, 400: refusalResponseSchema, 401: adminDeniedSchema } } },
     async (request, reply) => {
       const declared = (request.headers["content-type"] ?? "").split(";")[0]!.trim().toLowerCase();
       const bytes = request.body;
@@ -59,13 +62,13 @@ export const adminSettingsImageRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.get("/admin/settings/reference-image", { schema: { response: { 404: refusalResponseSchema } } }, async (_request, reply) => {
+  app.get("/settings/reference-image", { schema: { response: { 401: adminDeniedSchema, 404: refusalResponseSchema } } }, async (_request, reply) => {
     const stored = getReferenceImageFile();
     if (!stored || !existsSync(stored.path)) return reply.code(404).send({ ok: false, reason: "no reference image is stored" });
     return reply.type(stored.contentType).send(createReadStream(stored.path));
   });
 
-  typed.delete("/admin/settings/reference-image", async (_request, reply) => {
+  typed.delete("/settings/reference-image", async (_request, reply) => {
     const stored = getReferenceImageFile();
     if (stored) {
       const referenceImagePath = stored.path;

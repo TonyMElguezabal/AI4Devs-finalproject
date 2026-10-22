@@ -4,6 +4,12 @@ import { BUILD, type BuildConfig } from "../config/build.ts";
 // launch, made by the backend so many open tabs still mean one call. "Newer" means a different tag, because L7
 // names UAT pre-releases by tree hash. Any failure is `available: false` plus one local log line, never an error.
 export type UpdateResult = { available: false } | { available: true; tag: string; url: string };
+/** The fields of a GitHub release this check reads. */
+interface GithubRelease {
+  tag_name?: string;
+  html_url?: string;
+  prerelease?: boolean;
+}
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
 const NOT_AVAILABLE: UpdateResult = { available: false };
@@ -25,8 +31,8 @@ export async function checkForUpdate(
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`GitHub answered ${response.status}`);
-    const body = (await response.json()) as any;
-    const release = build.channel === "production" ? body : (body as any[]).find((entry) => entry.prerelease === true);
+    const body = (await response.json()) as GithubRelease | GithubRelease[];
+    const release = build.channel === "production" ? (body as GithubRelease) : (body as GithubRelease[]).find((entry) => entry.prerelease === true);
     if (!release?.tag_name || release.tag_name === build.releaseTag) return NOT_AVAILABLE;
     return { available: true, tag: String(release.tag_name), url: String(release.html_url) };
   } catch (err) {

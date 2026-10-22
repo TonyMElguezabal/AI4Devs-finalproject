@@ -13,10 +13,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
+import { FFMPEG, FFPROBE } from "./config/ffmpeg.ts";
 import type { AssemblyInput, AssemblyResult, AssemblyTool, NarrationEdit } from "./assemblyTool.ts";
 
-const FFMPEG = "/opt/homebrew/bin/ffmpeg";
-const FFPROBE = "/opt/homebrew/bin/ffprobe";
 
 /** The narration's own sample rate and channel layout, so inserted silence matches it exactly. */
 export interface AudioShape {
@@ -142,6 +141,7 @@ function probeAudioStreamDuration(path: string): number {
 
 export function createFfmpegAssemblyTool(): AssemblyTool {
   return {
+    // eslint-disable-next-line @typescript-eslint/require-await -- implements the async AssemblyTool contract
     async assemble(input: AssemblyInput): Promise<AssemblyResult> {
       const work = mkdtempSync(join(tmpdir(), "vid4you-assembly-"));
       try {

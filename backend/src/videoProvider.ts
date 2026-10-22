@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { loadCredential } from "./config/credentials.ts";
+import { keyFor, stageApiKey } from "./keyStore.ts";
+import { buildProfileRegistry, profileRegistrySlot } from "./profileRegistry.ts";
 import { VIDEO_PROVIDER, VIDEO_GENERATION_SETTING } from "./config/providers.ts";
 
 // generate-chunk-video (JOS-146) — the video stage's provider port (Decision 3):
@@ -71,10 +72,12 @@ function providerErrorReason(step: string, envelope: { code?: number | undefined
 }
 
 export function createRunningHubVideoProvider(
-  options: { fetchFn?: typeof fetch; loadKey?: () => string } = {},
+  options: { fetchFn?: typeof fetch; loadKey?: () => string; parameters?: { endpoint: string } } = {},
 ): VideoProvider {
   const fetchFn = options.fetchFn ?? fetch;
-  const loadKey = options.loadKey ?? (() => loadCredential("RUNNINGHUB_API_KEY"));
+  // manage-providers-from-admin (JOS-218): the endpoint path comes from the profile; without one, the settings' video endpoint.
+  const endpoint = (options.parameters ?? { endpoint: VIDEO_PROVIDER.endpoint }).endpoint;
+  const loadKey = options.loadKey ?? (() => stageApiKey("video"));
 
   async function doUpload(imageBytes: Buffer, apiKey: string): Promise<{ ok: true; url: string } | { ok: false; kind: "failed_transient" | "failed_not_retryable"; reason: string }> {
     // multipart/form-data with a `file` part; the content type (with its boundary) is set by the form, not by us.
@@ -110,7 +113,7 @@ export function createRunningHubVideoProvider(
       try {
         apiKey = loadKey();
       } catch (err) {
-        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing credential 'RUNNINGHUB_API_KEY'" };
+        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing API key for the video role" };
       }
 
       const upload = await doUpload(imageBytes, apiKey);
@@ -118,7 +121,7 @@ export function createRunningHubVideoProvider(
 
       let response: Response;
       try {
-        response = await fetchFn(`${RUNNINGHUB_BASE}${VIDEO_PROVIDER.endpoint}`, {
+        response = await fetchFn(`${RUNNINGHUB_BASE}${endpoint}`, {
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -153,7 +156,7 @@ export function createRunningHubVideoProvider(
       try {
         apiKey = loadKey();
       } catch (err) {
-        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing credential 'RUNNINGHUB_API_KEY'" };
+        return { kind: "failed_not_retryable", reason: err instanceof Error ? err.message : "missing API key for the video role" };
       }
 
       let response: Response;
@@ -211,6 +214,7 @@ export function createStubVideoProvider(
 
   return {
     calls,
+    // eslint-disable-next-line @typescript-eslint/require-await -- implements the async video provider contract
     async submit({ instruction }) {
       calls.push(instruction);
       // Unique across restarts, like a real provider task id: `provider_requests.id` is a primary key and survives a restart.
@@ -218,6 +222,7 @@ export function createStubVideoProvider(
       submitted.set(requestId, mode);
       return { kind: "submitted", requestId };
     },
+    // eslint-disable-next-line @typescript-eslint/require-await -- implements the async video provider contract
     async poll(requestId) {
       // An id from before a restart is unknown to this in-memory map; answer it from the mode.
       const m = submitted.get(requestId) ?? mode;
@@ -246,27 +251,30 @@ export const STUB_VIDEO_PROVIDER_NAME = "stub-video-provider";
 export interface VideoProviderRegistry {
   defaultIdentifier: string;
   adapters: Record<string, VideoProvider>;
+  labels?: Record<string, string>;
+  aliases?: readonly string[];
+  retired?: readonly string[];
 }
 
 function defaultRegistry(): VideoProviderRegistry {
-  return {
-    defaultIdentifier: VIDEO_PROVIDER.endpoint,
-    adapters: { [VIDEO_PROVIDER.endpoint]: createRunningHubVideoProvider() },
-  };
+  // manage-providers-from-admin (JOS-218): one adapter per video profile, with the profile's endpoint path and its own key.
+  return buildProfileRegistry("video", (profile) =>
+    createRunningHubVideoProvider({ parameters: profile.parameters as { endpoint: string }, loadKey: () => keyFor(profile.id) }),
+  );
 }
 
-let registry: VideoProviderRegistry = defaultRegistry();
+const slot = profileRegistrySlot<VideoProvider, VideoProviderRegistry>(defaultRegistry);
 
 export function getVideoProviderRegistry(): VideoProviderRegistry {
-  return registry;
+  return slot.get();
 }
 
 export function setVideoProviderRegistry(next: VideoProviderRegistry): void {
-  registry = next;
+  slot.set(next);
 }
 
 export function resetVideoProviderRegistry(): void {
-  registry = defaultRegistry();
+  slot.reset();
 }
 
 // §12.2 — temporary links are resolved to bytes before success.

@@ -186,7 +186,7 @@ describe("downloadGeneratedImage (§12.2)", () => {
 
   it("downloads the bytes and content type on success", async () => {
     const bytes = new Uint8Array([1, 2, 3]);
-    setDownloadFetch((async () => new Response(bytes, { status: 200, headers: { "content-type": "image/jpeg" } })) as typeof fetch);
+    setDownloadFetch((async () => new Response(bytes, { status: 200, headers: { "content-type": "image/jpeg" } })));
 
     const result = await downloadGeneratedImage("https://fal.media/files/example.jpg");
 
@@ -194,7 +194,7 @@ describe("downloadGeneratedImage (§12.2)", () => {
   });
 
   it("fails when the response is not ok", async () => {
-    setDownloadFetch((async () => new Response("", { status: 404 })) as typeof fetch);
+    setDownloadFetch((async () => new Response("", { status: 404 })));
 
     const result = await downloadGeneratedImage("https://fal.media/files/missing.jpg");
 
@@ -204,7 +204,7 @@ describe("downloadGeneratedImage (§12.2)", () => {
   it("fails when the download itself throws (a network error, not an HTTP error)", async () => {
     setDownloadFetch((async () => {
       throw new Error("network unreachable");
-    }) as typeof fetch);
+    }));
 
     const result = await downloadGeneratedImage("https://fal.media/files/example.jpg");
 

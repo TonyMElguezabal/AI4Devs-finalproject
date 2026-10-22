@@ -31,8 +31,8 @@ import {
   type VoiceProvider,
 } from "../src/voiceProvider.ts";
 import { VOICE_PROVIDER } from "../src/config/providers.ts";
-import { releaseAttempt, releaseSessionAttempts } from "../src/retry/retryScheduler.ts";
-import { recordAttemptOutcome, setRetryDelayConfig } from "../src/retry/stageAttemptRecorder.ts";
+import { releaseAttempt } from "../src/retry/retryScheduler.ts";
+import { setRetryDelayConfig } from "../src/retry/stageAttemptRecorder.ts";
 import { continueSession, pauseSession } from "../src/orchestrator.ts";
 import type { SessionSnapshot } from "../src/types.ts";
 

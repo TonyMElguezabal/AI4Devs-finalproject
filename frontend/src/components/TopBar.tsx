@@ -7,12 +7,10 @@ interface Props {
   onNewProject?: () => void;
   /** add-observability-telemetry (JOS-199): reopens the privacy choices. Absent: no button is shown. */
   onOpenPrivacy?: () => void;
-  /** admin-visual-style-prompt (JOS-201): a plain link to another page (`/admin`, or back). Absent: no link is shown. */
-  link?: { href: string; label: string };
 }
 
 /** redesign-visual-design (JOS-198), design Decision 4 — the wordmark, the connection indicator and "New project". */
-export function TopBar({ connected, onNewProject, onOpenPrivacy, link }: Props) {
+export function TopBar({ connected, onNewProject, onOpenPrivacy }: Props) {
   return (
     <header className="top-bar">
       <div className="brand">
@@ -31,11 +29,6 @@ export function TopBar({ connected, onNewProject, onOpenPrivacy, link }: Props) 
         <button type="button" className="privacy-button" onClick={onOpenPrivacy}>
           Privacy
         </button>
-      )}
-      {link && (
-        <a className="top-bar-link" href={link.href}>
-          {link.label}
-        </a>
       )}
       {onNewProject && (
         <button type="button" onClick={onNewProject}>

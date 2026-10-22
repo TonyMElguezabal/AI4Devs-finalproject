@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
+import { activeProviderId, resolveBoundAdapter } from "./activeProvider.ts";
 import type { AlignmentProvider } from "./alignmentProvider.ts";
-import { getDecompositionDependencies } from "./decompositionDependencies.ts";
+import { getDecompositionDependencies, getReasoningProviderRegistry, REASONING_PROVIDER_ID } from "./decompositionDependencies.ts";
 import {
+  bindDecompositionProvider,
   completeStageAttempt,
   countScenesForRun,
   getInFlightAttempts,
@@ -64,7 +66,7 @@ function readStoredCharacters(run: Run, relativePath: string): TimestampCharacte
 }
 
 /** The division step's own provider, recorded on its attempts (retry-decomposition, Decision 3). */
-export const DECOMPOSITION_ATTEMPT_PROVIDER = "openai-decomposition";
+export const DECOMPOSITION_ATTEMPT_PROVIDER = REASONING_PROVIDER_ID;
 
 /** How the step's result closes its attempt: a refusal because chunks already exist closes it as done, since nothing failed. */
 function closeAttempt(attempt: StageAttempt, result: SegmentStoredResult, finishedAt: string): void {
@@ -79,6 +81,12 @@ function closeAttempt(attempt: StageAttempt, result: SegmentStoredResult, finish
   } else {
     completeStageAttempt(attempt.id, { outcome: "not-retryable", finishedAt, errorMessage: result.reason });
   }
+}
+
+/** Binds the session's reasoning provider to the one active now unless it is already bound, and returns the bound id (JOS-171, Decision 3). */
+function bindReasoningProviderFor(runId: string): string {
+  bindDecompositionProvider(runId, activeProviderId("reasoning"));
+  return getRun(runId)?.decompositionProviderId ?? getReasoningProviderRegistry().defaultIdentifier;
 }
 
 export async function segmentStoredTimestamps(
@@ -113,7 +121,7 @@ export async function segmentStoredTimestamps(
     const recorded = scheduleStageAttempt({
       runId,
       stage: "decomposition",
-      providerId: DECOMPOSITION_ATTEMPT_PROVIDER,
+      providerId: bindReasoningProviderFor(runId),
       queuedAt,
       dueAt: queuedAt,
       ...(getStageAttempts(runId, "decomposition").length === 0 ? { trigger: "initial" as const } : {}),
@@ -124,7 +132,11 @@ export async function segmentStoredTimestamps(
   const attempt = claimedAttempt;
   const retryState: RetryPosition = { cycle: attempt.cycle, attemptsInCycle: attempt.sequenceInCycle };
 
-  const result = await divideStoredTimestamps(run, timestamps.path, voiceOver.durationSeconds, instructionGenerator, now, retryState);
+  const boundReasoningId = bindReasoningProviderFor(runId);
+  const boundGenerator = resolveBoundAdapter(getReasoningProviderRegistry(), boundReasoningId, instructionGenerator);
+  const result: SegmentStoredResult = boundGenerator
+    ? await divideStoredTimestamps(run, timestamps.path, voiceOver.durationSeconds, boundGenerator, now, retryState)
+    : recordSegmentationFailure(runId, `the reasoning provider "${boundReasoningId}" bound to this session is not shipped by this build`, now(), retryState);
   closeAttempt(attempt, result, now().toISOString());
   // generate-chunk-image (JOS-145), AC1 — launches every newly-registered
   // chunk's image generation automatically, with no further User action.

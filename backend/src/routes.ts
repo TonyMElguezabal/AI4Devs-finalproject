@@ -11,6 +11,7 @@ import { retryDecomposition } from "./decompositionRetry.ts";
 import { adminSettingsImageRoutes } from "./adminSettingsRoutes.ts";
 import { appSettingsResponseSchema, visualStylePromptBodySchema } from "./adminSettingsSchemas.ts";
 import { retryAssembly } from "./assemblyRetry.ts";
+import { retryVoiceOver } from "./voiceOverRetry.ts";
 import { rebuildFinalVideo } from "./finalVideoRebuild.ts";
 import { setScenePause } from "./scenePauseEdit.ts";
 import { randomUUID } from "node:crypto";
@@ -40,14 +41,18 @@ import {
   pauseSession,
   toSnapshot,
 } from "./orchestrator.ts";
-import { PROVIDER_OUTCOME_MODES } from "./types.ts";
 import { SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES } from "./config/providers.ts";
 import { ulid } from "./util/ulid.ts";
+import { adminDeniedSchema, registerAdminGate } from "./adminAccess.ts";
+import { PROVIDER_STAGES, providerView, selectableProviders, setActiveProvider } from "./activeProvider.ts";
+import { registerFailedStageRoutes } from "./adminFailedStageRoutes.ts";
+import { registerProviderProfileRoutes } from "./adminProviderRoutes.ts";
+import { profileProblems } from "./providerAdmin.ts";
+import { getProfile } from "./providerProfiles.ts";
+import { contentDisposition, downloadFilename } from "./util/downloadFilename.ts";
 
 /** Provisional — the real value is set by define-live-updates' idle experiment (Decision 7); this keeps the stream alive meanwhile. */
 const HEARTBEAT_MS = 15_000;
-
-const providerModeSchema = z.enum(PROVIDER_OUTCOME_MODES);
 
 // start-video-project (JOS-134) Decision 1 — emptiness is judged on a
 // trimmed view; the raw value is what gets stored (never the trimmed one).
@@ -63,9 +68,11 @@ const createSessionBodySchema = z.object({
     "Stored exactly as submitted and immutable from registration onward, in every state (PRD §4.2, D10). No operation modifies it.",
   ),
   // PRD §4.1, D09 — a session cannot start without a language selected from
-  // the hardcoded supported list; refused regardless of how the request was
-  // made (Decision 5). See config/providers.ts (define-provider-configuration, JOS-165) for the verified list.
-  language: z.enum(SUPPORTED_LANGUAGE_CODES).describe("Immutable once the session is registered (PRD §4.1, §4.2)."),
+  // the configured supported list; refused regardless of how the request was
+  // made (Decision 5). The list comes from the settings files
+  // (configure-providers-and-parameters, JOS-174), whose schema requires at least one language,
+  // so the cast to a non-empty tuple holds.
+  language: z.enum(SUPPORTED_LANGUAGE_CODES as readonly [string, ...string[]]).describe("Immutable once the session is registered (PRD §4.1, §4.2). One of the configured supported languages (`GET /languages`); English and Spanish by default."),
 });
 
 // start-video-project (JOS-134) Decision 3 — session identifiers are ULIDs
@@ -93,8 +100,9 @@ const IMAGE_CONTENT_TYPES: Record<string, string> = {
  * therefore its actual response) is unchanged; this affects only `/docs/json`.
  */
 function binaryFileSwaggerTransform(contentType: string, description: string) {
-  return ({ schema, url }: { schema: any; url: string }) => {
-    const { schema: transformed, url: transformedUrl } = jsonSchemaTransform({ schema, url });
+  return ({ schema, url }: Parameters<typeof jsonSchemaTransform>[0]) => {
+    const { schema: transformedSchema, url: transformedUrl } = jsonSchemaTransform({ schema, url });
+    const transformed = transformedSchema as { response: Record<string, unknown> };
     transformed.response["200"] = {
       description,
       content: { [contentType]: { schema: { type: "string", format: "binary" } } },
@@ -301,9 +309,19 @@ const pauseBodySchema = z.object({ seconds: z.number().finite().min(0) });
 // A malformed id is answered 404 by the handler, as the session read does, so it is not rejected by the schema.
 const looseSessionParamsSchema = z.object({ sessionId: z.string() });
 
+const providerViewSchema = z.object({
+  stage: z.enum(PROVIDER_STAGES),
+  activeProviderId: z.string(),
+  activeLabel: z.string(),
+  source: z.enum(["settings", "admin"]),
+  selectable: z.array(z.object({ id: z.string(), label: z.string() })),
+  orphanedChoice: z.string().nullable(),
+});
+
 export const routes: FastifyPluginAsync = async (app) => {
   const typed = app.withTypeProvider<ZodTypeProvider>();
 
+  // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
   typed.get("/health", { schema: { response: { 200: z.object({ ok: z.boolean() }) } } }, async () => ({
     ok: true,
   }));
@@ -314,12 +332,14 @@ export const routes: FastifyPluginAsync = async (app) => {
   typed.get(
     "/telemetry/consent",
     { schema: { response: { 200: telemetryConsentResponseSchema } } },
+    // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
     async () => consentView(getTelemetrySettings()),
   );
 
   typed.put(
     "/telemetry/consent",
     { schema: { body: telemetryConsentBodySchema, response: { 200: telemetryConsentResponseSchema } } },
+    // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
     async (request) => {
       const saved = saveTelemetryConsent(request.body);
       setConsent(saved); // applies at once, without a restart (spec: Per-signal opt-in consent)
@@ -327,17 +347,9 @@ export const routes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  // admin-visual-style-prompt (JOS-201) — the style prompt; the reference image routes are their own plugin (raw-body parser).
-  typed.get("/admin/settings", { schema: { response: { 200: appSettingsResponseSchema } } }, async () => getAppSettings());
-  typed.put(
-    "/admin/settings/visual-style-prompt",
-    { schema: { body: visualStylePromptBodySchema, response: { 200: appSettingsResponseSchema } } },
-    async (request) => saveVisualStylePrompt(request.body.visualStylePrompt),
-  );
-  await app.register(adminSettingsImageRoutes);
-
   typed.get("/app/update", { schema: { response: { 200: appUpdateResponseSchema } } }, async () => getUpdateResult());
 
+  // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
   typed.get("/languages", { schema: { response: { 200: languageResponseSchema } } }, async () => [
     ...SUPPORTED_LANGUAGES,
   ]);
@@ -463,6 +475,26 @@ export const routes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  // retry-voice-over (JOS-155) — the manual retry of a failed voice-over. Same script and provider, nothing deleted;
+  // the body is strictly empty so no input can change what is sent.
+  typed.post(
+    "/sessions/:sessionId/voice-over/retry",
+    {
+      schema: {
+        params: looseSessionParamsSchema,
+        body: emptyBodySchema,
+        response: { 200: retryAcceptedSchema, 404: conflictSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const { sessionId } = request.params;
+      const result = ulidPattern.test(sessionId) ? retryVoiceOver(sessionId) : ({ ok: false, reason: "session-not-found" } as const);
+      if (result.ok) return result;
+      reply.code(result.reason === "session-not-found" ? 404 : 409);
+      return { ok: false, reason: result.reason };
+    },
+  );
+
   // retry-final-assembly (JOS-159) — the manual retry of a failed final assembly. Design Decision 7 — assembly
   // always offers a retry, whatever `retryable` is, so there is no `not-retryable` 409 reason here.
   typed.post(
@@ -502,7 +534,7 @@ export const routes: FastifyPluginAsync = async (app) => {
         : ({ ok: false, reason: "session-not-found" } as const);
       if (result.ok) {
         const scene = toSnapshot(sessionId)?.scenes.find((candidate) => candidate.sceneId === sceneId);
-        return scene as z.infer<typeof sceneResponseSchema>;
+        return scene;
       }
       if (result.reason === "out-of-range") {
         reply.code(422);
@@ -677,6 +709,8 @@ export const routes: FastifyPluginAsync = async (app) => {
     {
       config: { swaggerTransform: binaryFileSwaggerTransform("video/mp4", "The assembled MP4 file (video/mp4)") },
       schema: {
+        description:
+          "Content-Disposition names the file after the project title: `<title>.mp4`, with control characters and `/ \\ : * ? \" < > |` replaced by `_`, whitespace collapsed, leading/trailing dots and spaces stripped, Windows reserved device names prefixed with `_`, capped at 100 characters, `final-video` when nothing remains. The header carries an ASCII `filename` and an RFC 5987 `filename*` with the full name.",
         params: sessionParamsSchema,
         response: { 200: z.any().describe("The assembled MP4 file (video/mp4)"), 409: conflictSchema, 404: conflictSchema },
       },
@@ -697,7 +731,7 @@ export const routes: FastifyPluginAsync = async (app) => {
         return { ok: false, reason: "final video file not found on disk" };
       }
       const { size } = statSync(fullPath);
-      reply.header("Content-Disposition", `attachment; filename="final-video.mp4"`);
+      reply.header("Content-Disposition", contentDisposition(downloadFilename(run.title)));
       reply.header("Content-Length", size);
       reply.type("video/mp4");
       return reply.send(createReadStream(fullPath));
@@ -714,6 +748,7 @@ export const routes: FastifyPluginAsync = async (app) => {
         response: { 200: z.object({ applied: z.boolean(), note: z.string() }) },
       },
     },
+    // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
     async (request) => {
       return handleProviderResult(request.params.requestId);
     },
@@ -740,8 +775,9 @@ export const routes: FastifyPluginAsync = async (app) => {
       // Writing to `reply.raw` bypasses Fastify's reply pipeline entirely,
       // so the @fastify/cors plugin's onSend hook never runs for this route
       // — found by the frontend prototype's browser actually refusing the
-      // response with no CORS header. Set it explicitly here instead.
-      "Access-Control-Allow-Origin": request.headers.origin ?? "*",
+      // response with no CORS header. Set it explicitly here instead. Foreign origins never get here
+      // (originPolicy.ts refuses them), so the request's own origin can be echoed.
+      ...(request.headers.origin ? { "Access-Control-Allow-Origin": request.headers.origin } : {}),
     });
     reply.raw.write(": connected\n\n");
 
@@ -761,6 +797,85 @@ export const routes: FastifyPluginAsync = async (app) => {
       clearInterval(heartbeat);
     });
   });
+
+  // protect-admin-with-password (JOS-173), design Decision 3 — every Administrator endpoint lives in this child
+  // plugin, under the `/admin` prefix, and none adds authentication of its own: the gate registered first
+  // answers 401 before any body is parsed or handler runs. Other stories (JOS-171, JOS-172) add their routes here.
+  await app.register(
+    async (admin) => {
+      registerAdminGate(admin);
+      const typedAdmin = admin.withTypeProvider<ZodTypeProvider>();
+
+      // Design Decision 4 — the gate has already answered 401 for every other case, so this handler only runs
+      // for the correct password. The /admin page asks the 401 reason which of its states to show.
+      typedAdmin.get(
+        "/access",
+        {
+          schema: {
+            response: { 200: z.object({ configured: z.literal(true), granted: z.literal(true) }), 401: adminDeniedSchema },
+          },
+        },
+        // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
+        async () => ({ configured: true as const, granted: true as const }),
+      );
+
+      // change-active-provider-from-admin (JOS-171), design Decision 5.
+      typedAdmin.get(
+        "/providers",
+        { schema: { response: { 200: z.object({ providers: z.array(providerViewSchema) }), 401: adminDeniedSchema } } },
+        // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
+        async () => ({ providers: PROVIDER_STAGES.map((stage) => providerView(stage)) }),
+      );
+
+      typedAdmin.put(
+        "/providers/:stage",
+        {
+          schema: {
+            params: z.object({ stage: z.enum(PROVIDER_STAGES) }),
+            body: z.object({ providerId: z.string().min(1) }),
+            response: {
+              200: providerViewSchema,
+              // Either this route's own refusal or Fastify's validation error for a malformed stage or body.
+              400: z.union([
+                z.object({ ok: z.literal(false), reason: z.literal("not-selectable"), selectable: z.array(z.string()) }),
+                z.object({ statusCode: z.number(), error: z.string(), message: z.string() }).passthrough(),
+              ]),
+              401: adminDeniedSchema,
+              409: z.object({ ok: z.literal(false), reason: z.literal("not-usable"), problems: z.array(z.object({ field: z.string(), message: z.string() })) }),
+            },
+          },
+        },
+        async (request, reply) => {
+          const { stage } = request.params;
+          const selectable = selectableProviders(stage).map((provider) => provider.id);
+          if (!selectable.includes(request.body.providerId)) return reply.code(400).send({ ok: false as const, reason: "not-selectable" as const, selectable });
+          // manage-providers-from-admin (JOS-218), Decision 6 — a provider profile that is not usable cannot be made active.
+          const profile = getProfile(request.body.providerId);
+          if (profile) {
+            const problems = profileProblems(profile);
+            if (problems.length > 0) return reply.code(409).send({ ok: false as const, reason: "not-usable" as const, problems });
+          }
+          setActiveProvider(stage, request.body.providerId);
+          return providerView(stage);
+        },
+      );
+
+      registerProviderProfileRoutes(admin);
+      registerFailedStageRoutes(admin);
+
+      // admin-visual-style-prompt (JOS-201) — the style prompt; the reference image routes are their own plugin (raw-body parser).
+      // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
+      typedAdmin.get("/settings", { schema: { response: { 200: appSettingsResponseSchema, 401: adminDeniedSchema } } }, async () => getAppSettings());
+      typedAdmin.put(
+        "/settings/visual-style-prompt",
+        { schema: { body: visualStylePromptBodySchema, response: { 200: appSettingsResponseSchema, 401: adminDeniedSchema } } },
+        // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
+        async (request) => saveVisualStylePrompt(request.body.visualStylePrompt),
+      );
+      await admin.register(adminSettingsImageRoutes);
+    },
+    { prefix: "/admin" },
+  );
 
   // Test-only endpoints for manual endpoint testing (task 9). Guarded by
   // ALLOW_TEST_ENDPOINTS env var; never available in production.

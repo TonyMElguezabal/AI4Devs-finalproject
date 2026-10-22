@@ -5,6 +5,9 @@ const RETRY_REFUSAL_SENTENCES: Record<string, string> = {
   "retry-already-pending": "A retry is already waiting or running.",
   "not-failed-in-decomposition": "The decomposition has not failed, so it cannot be retried.",
   "not-retryable": "This failure cannot be retried.",
+  // retry-voice-over (JOS-155).
+  "not-failed-in-voice-over": "The voice-over has not failed, so it cannot be retried.",
+  "narration-complete": "The voice-over was already generated, so there is nothing to retry.",
   // retry-final-assembly (JOS-159).
   "not-failed-in-assembly": "The final video has not failed, so it cannot be retried.",
   "scenes-not-complete": "Not every scene is ready yet, so the final video cannot be retried.",

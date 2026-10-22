@@ -152,6 +152,68 @@ export interface TelemetryConsent extends TelemetryChoices {
 /** `GET /app/update`: a newer build exists on this build's channel. */
 export type AppUpdate = { available: false } | { available: true; tag: string; url: string };
 
+/** change-active-provider-from-admin (JOS-171) — one stage's row on `/admin`: `GET /admin/providers`. */
+export type ProviderStage = "reasoning" | "voice" | "alignment" | "image" | "video";
+export interface ProviderView {
+  stage: ProviderStage;
+  activeProviderId: string;
+  activeLabel: string;
+  /** Where the active provider comes from: the settings files, or a choice made on `/admin`. */
+  source: "settings" | "admin";
+  selectable: Array<{ id: string; label: string }>;
+  /** A stored choice this build no longer ships; the settings default is active meanwhile. */
+  orphanedChoice: string | null;
+}
+
+/** manage-providers-from-admin (JOS-218) — the provider profiles `/admin` manages. */
+export interface ParameterFieldInfo {
+  path: string[];
+  label: string;
+  kind: "text" | "number" | "choice";
+  required: boolean;
+  help?: string;
+  choices?: string[];
+  /** A text field whose value is a number when it parses as one (the voice speed). */
+  acceptsNumber?: boolean;
+}
+export interface AdapterTypeInfo {
+  id: string;
+  stage: ProviderStage;
+  label: string;
+  fields: ParameterFieldInfo[];
+}
+export interface ProfileProblem {
+  field: string;
+  message: string;
+}
+export interface ProfileView {
+  id: string;
+  stage: ProviderStage;
+  adapterType: string;
+  label: string;
+  parameters: Record<string, unknown>;
+  keyStatus: "stored" | "environment" | "missing";
+  keyHint: string | null;
+  usable: boolean;
+  problems: ProfileProblem[];
+  active: boolean;
+  retired: boolean;
+}
+
+/** move-failed-stage-to-active-provider (JOS-172) — one row of `GET /admin/failed-stages`. */
+export interface FailedStageRow {
+  sessionId: string;
+  sessionTitle: string;
+  stage: ProviderStage;
+  sceneId: string | null;
+  sceneNumber: number | null;
+  boundProviderId: string;
+  boundProviderLabel: string;
+  activeProviderId: string;
+  activeProviderLabel: string;
+  cause: string;
+}
+
 /** admin-visual-style-prompt (JOS-201) — `GET /admin/settings`. The image's file path is never exposed. */
 export interface AppSettings {
   visualStylePrompt: string;
