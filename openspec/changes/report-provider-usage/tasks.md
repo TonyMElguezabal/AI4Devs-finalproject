@@ -29,26 +29,26 @@
 
 ## 4. Frontend: the Reports section (TDD; design Decision 7)
 
-- [ ] 4.1 Write failing component tests:
+- [x] 4.1 Write failing component tests:
   - `ReportPeriodSelector`: "Last 30 days" by default; each preset gives the right `from` and no `to`; "All time" gives neither; a custom range gives local midnight of the first day and of the day after the last day;
   - `ReportsSection`: requests the last 30 days on open and again when the period changes; shows one table row per report row with the formatted numbers and "—" for a missing latency; shows the empty message; shows the attribution note when there is an image or video row and not otherwise; a 401 locks the page;
   - the table has a caption and column headers usable by a screen reader.
-- [ ] 4.2 Add `getProviderUsageReport` to `api/client.ts` and its types, the three components, and the section in `AdminTools`. Make 4.1 pass.
+- [x] 4.2 Add `getProviderUsageReport` to `api/client.ts` and its types, the three components, and the section in `AdminTools`. Make 4.1 pass.
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Review the tests that list `/admin` routes or sections (the admin surface/route-list test, `AdminPage`/`AdminTools` tests) and update them for the new route and section.
-- [ ] 5.2 Map every scenario in `specs/admin-reports/spec.md` and JOS-223 AC1–AC7 to at least one test. List the mapping in the step 6 report.
-- [ ] 5.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 5.1 Review the tests that list `/admin` routes or sections (the admin surface/route-list test, `AdminPage`/`AdminTools` tests) and update them for the new route and section.
+- [x] 5.2 Map every scenario in `specs/admin-reports/spec.md` and JOS-223 AC1–AC7 to at least one test. List the mapping in the step 6 report.
+- [x] 5.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 6.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, and `data/projects/` contents.
-- [ ] 6.2 Run the targeted tests from groups 2–4.
-- [ ] 6.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json`, no settings override and no vendor key in the environment.
-- [ ] 6.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 6.5 Create the report `openspec/changes/report-provider-usage/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`.
-- [ ] 6.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 6.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, and `data/projects/` contents.
+- [x] 6.2 Run the targeted tests from groups 2–4.
+- [x] 6.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json`, no settings override and no vendor key in the environment.
+- [x] 6.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 6.5 Create the report `openspec/changes/report-provider-usage/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`.
+- [x] 6.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
