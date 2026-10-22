@@ -1,6 +1,6 @@
 # PRD addendum draft — the /admin reports (JOS-175)
 
-**Status: awaiting the product owner's approval.** This text becomes `docs/PRD.md` at task 5.3, as the version after the last one merged (v1.15 is JOS-172's, awaiting merge, so this is expected to be v1.16; the number follows merge order). The previous version is kept as `docs/PRD-v<prev>.md`. The status line and change-log entry say "awaiting the product owner's approval", and the change must not be merged before the approval is recorded.
+**Status: Approved.** This text becomes `docs/PRD.md` at task 5.3, as the version after the last one merged (v1.15 is JOS-172's, awaiting merge, so this is expected to be v1.16; the number follows merge order). The previous version is kept as `docs/PRD-v<prev>.md`. The status line and change-log entry say "awaiting the product owner's approval", and the change must not be merged before the approval is recorded.
 
 ## Proposed text
 
