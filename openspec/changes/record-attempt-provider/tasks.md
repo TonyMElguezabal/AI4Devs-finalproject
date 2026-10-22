@@ -6,7 +6,7 @@
 ## 1. Gate
 
 - [x] 1.1 `git fetch`. Confirm the latest migration on `origin/main` is still 20; if another branch merged a 21, renumber and update design.md first.
-- [ ] 1.2 Confirm design.md § Context still holds: every image and clip write goes through `insertProviderRequest`, and JOS-172 rebinds only `failed` scenes.
+- [x] 1.2 Confirm design.md § Context still holds: every image and clip write goes through `insertProviderRequest`, and JOS-172 rebinds only `failed` scenes.
 
 ## 2. Backend: migration 21 with the backfill (TDD; design Decisions 2, 3)
 
