@@ -1018,6 +1018,11 @@ export function getScenesForRun(runId: string): Scene[] {
   return rows.map(rowToScene);
 }
 
+/** Every session id, newest first (the failed-stage finder walks them; a local install holds few). */
+export function listRunIds(): string[] {
+  return (db.prepare("SELECT id FROM runs ORDER BY created_at DESC, id").all() as Array<{ id: string }>).map((row) => row.id);
+}
+
 export function getRun(id: string): Run | undefined {
   const row = db.prepare("SELECT * FROM runs WHERE id = ?").get(id) as any;
   return row ? rowToRun(row) : undefined;
@@ -1973,4 +1978,52 @@ export function upsertActiveProviderChoice(stage: string, providerId: string, ch
 const storeResetListeners: Array<() => void> = [];
 export function onStoreReset(listener: () => void): void {
   storeResetListeners.push(listener);
+}
+
+// ---- move-failed-stage-to-active-provider (JOS-172) — the Administrator's explicit move of a failed stage ----
+// Decision 1: a move binds the stage to the provider that is active now, with a conditional write on the binding the
+// page listed, so a stale page or a race changes nothing.
+
+const SESSION_STAGE_COLUMN = { voice: "voice_provider_id", alignment: "alignment_provider_id", reasoning: "decomposition_provider_id" } as const;
+
+export function rebindSessionStage(runId: string, stage: keyof typeof SESSION_STAGE_COLUMN, expectedProviderId: string, newProviderId: string): boolean {
+  const column = SESSION_STAGE_COLUMN[stage];
+  const result = db.prepare(`UPDATE runs SET ${column} = ? WHERE id = ? AND ${column} = ?`).run(newProviderId, runId, expectedProviderId);
+  return Number(result.changes) > 0;
+}
+
+export function rebindSceneImageProvider(sceneId: string, expectedProviderId: string, newProviderId: string): boolean {
+  const result = db
+    .prepare("UPDATE scenes SET provider = ? WHERE id = ? AND provider = ? AND status = 'failed' AND result IS NULL")
+    .run(newProviderId, sceneId, expectedProviderId);
+  return Number(result.changes) > 0;
+}
+
+export interface ClipDurationValues {
+  requestedDurationSeconds: number;
+  durationWarning: DurationWarning | null;
+  speedFactor: number;
+  speedFactorWarning: SpeedFactorWarning | null;
+}
+
+/**
+ * Decision 4 — the ONLY code that changes a chunk's requested duration, duration warning, speed factor or speed-factor
+ * warning after registration. For a failed clip with no result, in one transaction: the four lock triggers are dropped,
+ * the binding and the four values are written, and the triggers are recreated from the same DDL constants (SQLite DDL is
+ * transactional, so a failure rolls the triggers back as well). Nothing else about the chunk is written. A test pins that
+ * no other source file drops a trigger.
+ */
+export function rebindFailedClip(sceneId: string, expectedProviderId: string, newProviderId: string, values: ClipDurationValues): boolean {
+  return inTransaction((): boolean => {
+    const eligible = db
+      .prepare("SELECT 1 FROM scenes WHERE id = ? AND status = 'failed' AND result IS NOT NULL AND video_result IS NULL AND video_provider = ?")
+      .get(sceneId, expectedProviderId);
+    if (eligible === undefined) return false;
+    for (const column of [...LOCKED_SCENE_DURATION_REQUEST_COLUMNS, ...LOCKED_SCENE_SPEED_FACTOR_COLUMNS]) db.exec(`DROP TRIGGER scenes_${column}_locked`);
+    db.prepare(
+      "UPDATE scenes SET video_provider = ?, requested_duration_seconds = ?, duration_warning = ?, speed_factor = ?, speed_factor_warning = ?, updated_at = ? WHERE id = ?",
+    ).run(newProviderId, values.requestedDurationSeconds, values.durationWarning, values.speedFactor, values.speedFactorWarning, nowIso(), sceneId);
+    for (const ddl of [...SCENE_DURATION_REQUEST_LOCK_TRIGGERS_DDL, ...SCENE_SPEED_FACTOR_LOCK_TRIGGERS_DDL]) db.exec(ddl);
+    return true;
+  });
 }
