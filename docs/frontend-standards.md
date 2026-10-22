@@ -169,6 +169,7 @@ Fixed here as a documented convention, not left to per-story judgement (`docs/ad
 
 ```bash
 npx tsc --noEmit   # fully-typed check
+npm run lint       # ESLint (typescript-eslint type-aware + React Hooks); also runs in CI
 npx vitest run     # component + hook unit tests
 npm run dev        # start the dev server for manual/E2E testing (fixed local URL, one command)
 ```
@@ -189,7 +190,7 @@ Decided by `docs/adr/0007-deployment.md` (JOS-194): the frontend is built once a
 ## Development Workflow
 
 - Feature branches, descriptive English commit messages, small focused changes — per `docs/base-standards.md`.
-- `npx tsc --noEmit` and `npx vitest run` must both pass before any commit touching the frontend.
+- `npx tsc --noEmit`, `npm run lint` and `npx vitest run` must all pass before any commit touching the frontend (JOS-208; rules in `frontend/eslint.config.js`, tests relaxed only for the type-safety family in `test/**`). Suppress on the line with a reason: `// eslint-disable-next-line <rule> -- <reason>`.
 - Every user-facing story follows this document's screen inventory and accessible-naming convention rather than inventing its own.
 
 ## Visual Design

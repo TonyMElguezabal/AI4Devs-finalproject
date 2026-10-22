@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import * as concurrency from "../src/concurrency.ts";
-import { createRun, db, getScene, getScenesForRun, resetAll } from "../src/db.ts";
+import { createRun, getScene, getScenesForRun, resetAll } from "../src/db.ts";
 import { createStubImageProvider, resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
-import { correctAndRetry, launchImageStage, launchScene, manualRetry, RETRY_BUDGET, setVideoStageStartDelayMs, resetVideoStageStartDelayMs } from "../src/orchestrator.ts";
+import { correctAndRetry, launchImageStage, manualRetry, RETRY_BUDGET, setVideoStageStartDelayMs, resetVideoStageStartDelayMs } from "../src/orchestrator.ts";
 import { registerDecomposition } from "../src/sceneRegistration.ts";
 import { STAGE } from "../src/types.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";

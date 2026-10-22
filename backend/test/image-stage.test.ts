@@ -153,7 +153,7 @@ describe("Launch (AC1)", () => {
     };
     useStubAdapter(adapter);
 
-    await launchImageStage(sceneId);
+    launchImageStage(sceneId);
 
     expect(sceneStatusWhenCalled).toBe("image-generating");
   });
@@ -163,7 +163,7 @@ describe("Launch (AC1)", () => {
     const stub = createStubImageProvider("success-bytes", { bytes: ACCEPTED_PNG });
     useStubAdapter(stub);
 
-    await launchImageStage(sceneId);
+    launchImageStage(sceneId);
 
     expect(stub.calls).toEqual(["image instruction 1"]);
   });
@@ -174,7 +174,7 @@ describe("Launch (AC1)", () => {
     useStubAdapter(stub);
     pauseSession(runId);
 
-    await launchImageStage(sceneId);
+    launchImageStage(sceneId);
 
     expect(stub.calls).toEqual([]);
     expect(getScene(sceneId)?.status).toBe("submitted");
@@ -239,7 +239,7 @@ describe("Output check and completion (AC2, §12.2)", () => {
 
   it("downloads a temporary-link result to a local file before completing, and never stores the link itself", async () => {
     const { sceneId, projectFolder } = await registeredScene();
-    setDownloadFetch((async () => new Response(new Uint8Array(ACCEPTED_PNG), { status: 200, headers: { "content-type": "image/png" } })) as typeof fetch);
+    setDownloadFetch((async () => new Response(new Uint8Array(ACCEPTED_PNG), { status: 200, headers: { "content-type": "image/png" } })));
     useStubAdapter(createStubImageProvider("success-temporary-url", { url: "https://fal.media/files/example.png" }));
 
     launchImageStage(sceneId);
@@ -259,7 +259,7 @@ describe("Output check and completion (AC2, §12.2)", () => {
     setDownloadFetch((async () => {
       downloadCalls++;
       return downloadCalls === 1 ? new Response("", { status: 500 }) : new Response(new Uint8Array(ACCEPTED_PNG), { status: 200 });
-    }) as typeof fetch);
+    }));
     useStubAdapter(createStubImageProvider("success-temporary-url", { url: "https://fal.media/files/example.png" }));
 
     launchImageStage(sceneId);

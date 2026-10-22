@@ -112,7 +112,7 @@ describe("The session read names the failed scenes (JOS-150)", () => {
 
   it("is documented on responses and on no request body", async () => {
     const res = await app.inject({ method: "GET", url: "/docs/json" });
-    const document = res.json() as { paths: Record<string, Record<string, { requestBody?: unknown }>> };
+    const document = res.json<{ paths: Record<string, Record<string, { requestBody?: unknown }>> }>();
 
     expect(JSON.stringify(document)).toContain("failedSceneIndexes");
     for (const operations of Object.values(document.paths)) {

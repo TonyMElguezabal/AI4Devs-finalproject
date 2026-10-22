@@ -144,7 +144,7 @@ describe("A scene's stored image is served read-only (JOS-151)", () => {
 
   it("is documented in the generated OpenAPI with no request body", async () => {
     const res = await app.inject({ method: "GET", url: "/docs/json" });
-    const document = res.json() as { paths: Record<string, { get?: { requestBody?: unknown } }> };
+    const document = res.json<{ paths: Record<string, { get?: { requestBody?: unknown } }> }>();
 
     const operation = document.paths["/sessions/{sessionId}/scenes/{sceneId}/image"]?.get;
     expect(operation).toBeDefined();

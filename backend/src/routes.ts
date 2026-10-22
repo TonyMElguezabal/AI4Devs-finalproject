@@ -37,7 +37,6 @@ import {
   pauseSession,
   toSnapshot,
 } from "./orchestrator.ts";
-import { PROVIDER_OUTCOME_MODES } from "./types.ts";
 import { SUPPORTED_LANGUAGE_CODES, SUPPORTED_LANGUAGES } from "./config/providers.ts";
 import { ulid } from "./util/ulid.ts";
 import { adminDeniedSchema, registerAdminGate } from "./adminAccess.ts";
@@ -46,11 +45,10 @@ import { registerFailedStageRoutes } from "./adminFailedStageRoutes.ts";
 import { registerProviderProfileRoutes } from "./adminProviderRoutes.ts";
 import { profileProblems } from "./providerAdmin.ts";
 import { getProfile } from "./providerProfiles.ts";
+import { contentDisposition, downloadFilename } from "./util/downloadFilename.ts";
 
 /** Provisional — the real value is set by define-live-updates' idle experiment (Decision 7); this keeps the stream alive meanwhile. */
 const HEARTBEAT_MS = 15_000;
-
-const providerModeSchema = z.enum(PROVIDER_OUTCOME_MODES);
 
 // start-video-project (JOS-134) Decision 1 — emptiness is judged on a
 // trimmed view; the raw value is what gets stored (never the trimmed one).
@@ -98,8 +96,9 @@ const IMAGE_CONTENT_TYPES: Record<string, string> = {
  * therefore its actual response) is unchanged; this affects only `/docs/json`.
  */
 function binaryFileSwaggerTransform(contentType: string, description: string) {
-  return ({ schema, url }: { schema: any; url: string }) => {
-    const { schema: transformed, url: transformedUrl } = jsonSchemaTransform({ schema, url });
+  return ({ schema, url }: Parameters<typeof jsonSchemaTransform>[0]) => {
+    const { schema: transformedSchema, url: transformedUrl } = jsonSchemaTransform({ schema, url });
+    const transformed = transformedSchema as { response: Record<string, unknown> };
     transformed.response["200"] = {
       description,
       content: { [contentType]: { schema: { type: "string", format: "binary" } } },
@@ -315,9 +314,11 @@ const providerViewSchema = z.object({
   orphanedChoice: z.string().nullable(),
 });
 
+// eslint-disable-next-line @typescript-eslint/require-await -- a Fastify plugin must be async
 export const routes: FastifyPluginAsync = async (app) => {
   const typed = app.withTypeProvider<ZodTypeProvider>();
 
+  // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
   typed.get("/health", { schema: { response: { 200: z.object({ ok: z.boolean() }) } } }, async () => ({
     ok: true,
   }));
@@ -328,12 +329,14 @@ export const routes: FastifyPluginAsync = async (app) => {
   typed.get(
     "/telemetry/consent",
     { schema: { response: { 200: telemetryConsentResponseSchema } } },
+    // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
     async () => consentView(getTelemetrySettings()),
   );
 
   typed.put(
     "/telemetry/consent",
     { schema: { body: telemetryConsentBodySchema, response: { 200: telemetryConsentResponseSchema } } },
+    // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
     async (request) => {
       const saved = saveTelemetryConsent(request.body);
       setConsent(saved); // applies at once, without a restart (spec: Per-signal opt-in consent)
@@ -343,6 +346,7 @@ export const routes: FastifyPluginAsync = async (app) => {
 
   typed.get("/app/update", { schema: { response: { 200: appUpdateResponseSchema } } }, async () => getUpdateResult());
 
+  // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
   typed.get("/languages", { schema: { response: { 200: languageResponseSchema } } }, async () => [
     ...SUPPORTED_LANGUAGES,
   ]);
@@ -527,7 +531,7 @@ export const routes: FastifyPluginAsync = async (app) => {
         : ({ ok: false, reason: "session-not-found" } as const);
       if (result.ok) {
         const scene = toSnapshot(sessionId)?.scenes.find((candidate) => candidate.sceneId === sceneId);
-        return scene as z.infer<typeof sceneResponseSchema>;
+        return scene;
       }
       if (result.reason === "out-of-range") {
         reply.code(422);
@@ -702,6 +706,8 @@ export const routes: FastifyPluginAsync = async (app) => {
     {
       config: { swaggerTransform: binaryFileSwaggerTransform("video/mp4", "The assembled MP4 file (video/mp4)") },
       schema: {
+        description:
+          "Content-Disposition names the file after the project title: `<title>.mp4`, with control characters and `/ \\ : * ? \" < > |` replaced by `_`, whitespace collapsed, leading/trailing dots and spaces stripped, Windows reserved device names prefixed with `_`, capped at 100 characters, `final-video` when nothing remains. The header carries an ASCII `filename` and an RFC 5987 `filename*` with the full name.",
         params: sessionParamsSchema,
         response: { 200: z.any().describe("The assembled MP4 file (video/mp4)"), 409: conflictSchema, 404: conflictSchema },
       },
@@ -722,7 +728,7 @@ export const routes: FastifyPluginAsync = async (app) => {
         return { ok: false, reason: "final video file not found on disk" };
       }
       const { size } = statSync(fullPath);
-      reply.header("Content-Disposition", `attachment; filename="final-video.mp4"`);
+      reply.header("Content-Disposition", contentDisposition(downloadFilename(run.title)));
       reply.header("Content-Length", size);
       reply.type("video/mp4");
       return reply.send(createReadStream(fullPath));
@@ -739,6 +745,7 @@ export const routes: FastifyPluginAsync = async (app) => {
         response: { 200: z.object({ applied: z.boolean(), note: z.string() }) },
       },
     },
+    // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
     async (request) => {
       return handleProviderResult(request.params.requestId);
     },

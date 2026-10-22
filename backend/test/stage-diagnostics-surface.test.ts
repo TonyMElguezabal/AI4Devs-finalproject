@@ -37,7 +37,7 @@ const NOW = "2026-10-05T12:00:00.000Z";
 async function read(sessionId: string) {
   const res = await app.inject({ method: "GET", url: `/sessions/${sessionId}` });
   expect(res.statusCode).toBe(200);
-  return res.json() as { session: { phases: Array<{ phase: string; stages: unknown[] }> }; scenes: Array<Record<string, any>> };
+  return res.json<{ session: { phases: Array<{ phase: string; stages: unknown[] }> }; scenes: Array<Record<string, any>> }>();
 }
 
 function newSession(): string {

@@ -6,11 +6,9 @@ import {
   createRun,
   createScene,
   getRun,
-  getScene,
   getScenesForRun,
   markChunkComplete,
   markImageComplete,
-  PROJECTS_ROOT,
   resetAll,
   writeArtefactOnce,
 } from "../src/db.ts";
@@ -28,7 +26,6 @@ import {
   resetVideoDownloadFetch,
   resetVideoProviderRegistry,
   setVideoProviderRegistry,
-  STUB_VIDEO_PROVIDER_NAME,
 } from "../src/videoProvider.ts";
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";

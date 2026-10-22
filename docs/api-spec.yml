@@ -2171,6 +2171,12 @@ paths:
                 additionalProperties: false
   /sessions/{sessionId}/download/final-video:
     get:
+      description: 'Content-Disposition names the file after the project title:
+        `<title>.mp4`, with control characters and `/ \ : * ? " < > |` replaced
+        by `_`, whitespace collapsed, leading/trailing dots and spaces stripped,
+        Windows reserved device names prefixed with `_`, capped at 100
+        characters, `final-video` when nothing remains. The header carries an
+        ASCII `filename` and an RFC 5987 `filename*` with the full name.'
       parameters:
         - schema:
             type: string

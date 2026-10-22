@@ -250,7 +250,7 @@ AI4Devs-finalproject/
 ├── infra/            # Relé de telemetría y paneles de Grafana
 ├── packages/specboot # Utilidad de arranque de OpenSpec
 ├── ai-specs/         # Skills y agentes reutilizables (fuente canónica)
-├── .github/workflows # CI (typecheck y pruebas) y despliegue del relé de telemetría
+├── .github/workflows # CI (typecheck, lint y pruebas) y despliegue del relé de telemetría
 ├── PRIVACY.md        # Política de privacidad de la telemetría
 └── readme.md
 ```
@@ -287,11 +287,12 @@ Comandos, desde `backend/` y `frontend/`:
 
 ```bash
 npm run typecheck   # tsc --noEmit
+npm run lint        # eslint (typescript-eslint, type-aware)
 npm test            # vitest run
 npm run build       # solo frontend: tsc --noEmit && vite build
 ```
 
-- **Unitarias e integración (vitest)**: en la última validación completa (`main` en `3d0334c9`, 20-oct-2026) pasaron 1.720 pruebas de backend (4 omitidas, las de contrato con proveedores) y 258 de frontend, con chequeo de tipos limpio y compilación del frontend correcta. CI ejecuta lo mismo en cada PR.
+- **Unitarias e integración (vitest)**: en la última validación completa (`main` en `3d0334c9`, 20-oct-2026) pasaron 1.750 pruebas de backend (5 omitidas, las de contrato con proveedores) y 258 de frontend, con chequeo de tipos limpio y compilación del frontend correcta. CI ejecuta chequeo de tipos, lint y pruebas en cada PR.
 - **Pruebas de contrato con proveedores reales**: existen cuatro ficheros (`backend/test/*.contract.test.ts`) que llaman a las APIs reales y solo se ejecutan con `RUN_PROVIDER_CONTRACT_TESTS=1` y claves reales; no se ejecutan en CI.
 - **Pruebas manuales de endpoints con curl y E2E en navegador (Playwright)**: las ejecuta el agente por cada cambio y deja un informe en `openspec/changes/archive/<cambio>/reports/`.
 - **Sesión real de extremo a extremo**: el 20-oct-2026 una sesión corta con los cuatro proveedores reales llegó a `final-video` con un intento por etapa, y el ejecutable de Windows generó un video completo (informes en `openspec/changes/archive/2026-10-19-raise-video-time-limit/reports/` y `…/define-production-deployment/reports/`).

@@ -66,6 +66,7 @@ export function useLiveSession(sessionId: string | undefined): {
 
   useEffect(() => {
     if (!sessionId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the previous session's state before connecting to the new one
     setSnapshot(undefined);
     setConnected(false);
     setError(undefined);
@@ -110,7 +111,7 @@ export function useLiveSession(sessionId: string | undefined): {
       }
     };
     source.onmessage = (event) => {
-      const snap = JSON.parse(event.data) as SessionSnapshot;
+      const snap = JSON.parse(event.data as string) as SessionSnapshot;
       setSnapshot(snap);
       record(snap);
     };
