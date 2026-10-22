@@ -81,13 +81,13 @@
 
 ## 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Start the real server on a scratch store, projects folder and key file, with two stub adapters per stage registered through the test seams (the launcher of the JOS-218 step 10 report) and `ALLOW_TEST_ENDPOINTS=1`.
-- [ ] 10.2 Without Administrator access, `GET /admin/failed-stages` and `POST /admin/failed-stages/to-active-provider` return 401 and nothing changes.
-- [ ] 10.3 Make one failed stage of each kind on `stub-a` (a failing stub per stage, retries exhausted), switch every active provider to `stub-b`, and check `GET /admin/failed-stages` lists the five with both providers.
-- [ ] 10.4 Move each one: 200, the binding is `stub-b`, no request reached either stub, the state is still failed; then retry each with the existing retry route: the request goes to `stub-b` and the stage completes, the attempts before the move still read `stub-a`.
-- [ ] 10.5 Move a clip whose new provider admits other durations (a profile admitting 5 to 7 s added on `/admin`): the response and `GET /sessions/:id` show the new requested duration, factor and warning; the interval, instructions and image are as before; a direct `UPDATE` of the four columns in the SQLite file is refused.
-- [ ] 10.6 Refusals: a stage already on the active provider, a stage retried between listing and moving, an unknown scene (404), a missing `sceneId` (400), an active provider with no key (409 `not-usable`); the store is unchanged.
-- [ ] 10.7 Restart: the bindings and the re-chosen duration hold. Delete the created sessions, profiles, key file and the scratch store and folder. Confirm the default store is untouched. Save `openspec/changes/move-failed-stage-to-active-provider/reports/YYYY-MM-DD-step-10-manual-endpoint-testing.md`.
+- [x] 10.1 Start the real server on a scratch store, projects folder and key file, with two stub adapters per stage registered through the test seams (the launcher of the JOS-218 step 10 report) and `ALLOW_TEST_ENDPOINTS=1`.
+- [x] 10.2 Without Administrator access, `GET /admin/failed-stages` and `POST /admin/failed-stages/to-active-provider` return 401 and nothing changes.
+- [x] 10.3 Make one failed stage of each kind on `stub-a` (a failing stub per stage, retries exhausted), switch every active provider to `stub-b`, and check `GET /admin/failed-stages` lists the five with both providers.
+- [x] 10.4 Move each one: 200, the binding is `stub-b`, no request reached either stub, the state is still failed; then retry each with the existing retry route: the request goes to `stub-b` and the stage completes, the attempts before the move still read `stub-a`.
+- [x] 10.5 Move a clip whose new provider admits other durations (a profile admitting 5 to 7 s added on `/admin`): the response and `GET /sessions/:id` show the new requested duration, factor and warning; the interval, instructions and image are as before; a direct `UPDATE` of the four columns in the SQLite file is refused.
+- [x] 10.6 Refusals: a stage already on the active provider, a stage retried between listing and moving, an unknown scene (404), a missing `sceneId` (400), an active provider with no key (409 `not-usable`); the store is unchanged.
+- [x] 10.7 Restart: the bindings and the re-chosen duration hold. Delete the created sessions, profiles, key file and the scratch store and folder. Confirm the default store is untouched. Save `openspec/changes/move-failed-stage-to-active-provider/reports/YYYY-MM-DD-step-10-manual-endpoint-testing.md`.
 
 ## 11. E2E Testing with the browser (MANDATORY if applicable - AGENT MUST EXECUTE)
 
