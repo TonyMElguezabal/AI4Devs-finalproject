@@ -41,26 +41,26 @@ This change ships no product code (proposal, design Non-Goals). The mandatory im
 
 ## 6. Follow-up stories
 
-- [ ] 6.1 Write `follow-up-stories.md`: for each agreed report a story with Given/When/Then acceptance criteria, its data source and its dependencies; one story per recording gap the agreed reports need (provider id on scene attempts; a price per unit on provider profiles; a move log and scene-phase timestamps only if agreed); an estimate for each.
-- [ ] 6.2 Create the Linear tickets for the agreed stories (assignee jose.elguezabal@gmail.com, label `type:feature` or `Improvement` as fits), under the E11 epic, related to JOS-175.
+- [x] 6.1 Write `follow-up-stories.md`: for each agreed report a story with Given/When/Then acceptance criteria, its data source and its dependencies; one story per recording gap the agreed reports need (provider id on scene attempts; a price per unit on provider profiles; a move log and scene-phase timestamps only if agreed); an estimate for each.
+- [x] 6.2 Create the Linear tickets for the agreed stories (assignee jose.elguezabal@gmail.com, label `type:feature` or `Improvement` as fits), under the E11 epic, related to JOS-175.
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Not applicable: no code changes. Evidence: `git diff origin/main --stat -- backend/src frontend/src backend/test frontend/test` is empty.
+- [x] 7.1 Not applicable: no code changes. Evidence: `git diff origin/main --stat -- backend/src frontend/src backend/test frontend/test` is empty.
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Not applicable for new code. Run the existing backend and frontend suites once on the branch with scratch paths to show nothing regressed, and confirm that the default store was not touched (the scratch script used scratch paths only). Save `reports/YYYY-MM-DD-step-8-verification.md`.
+- [x] 8.1 Not applicable for new code. Run the existing backend and frontend suites once on the branch with scratch paths to show nothing regressed, and confirm that the default store was not touched (the scratch script used scratch paths only). Save `reports/YYYY-MM-DD-step-8-verification.md`.
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Not applicable: no endpoint is added or changed. Record the evidence of 7.1.
+- [x] 9.1 Not applicable: no endpoint is added or changed. Record the evidence of 7.1.
 
 ## 10. E2E Testing with the browser (MANDATORY if applicable)
 
-- [ ] 10.1 Not applicable: no page changes. Record the evidence of 7.1.
+- [x] 10.1 Not applicable: no page changes. Record the evidence of 7.1.
 
 ## 11. Update Technical Documentation (MANDATORY)
 
 - [ ] 11.1 `docs/adr/0008-admin-reports.md` and the PRD update are the documentation of this change. Add a pointer to the ADR in `docs/development_guide.md` ("What the Administrator will be able to see") only if the approved PRD changes what a user reads there.
-- [ ] 11.2 Run `graphify update .`.
+- [x] 11.2 Run `graphify update .`.
