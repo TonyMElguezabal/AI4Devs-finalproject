@@ -11,9 +11,9 @@ This change ships no product code (proposal, design Non-Goals). The mandatory im
 
 ## 1. Gate: Collect the inputs
 
-- [ ] 1.1 Ask the product owner the design's open questions (which reports and in which release; cost and where the price lives; default period; CSV; R6; R7) and record the answers in `design.md` § Execution Record §1.
-- [ ] 1.2 Re-verify the data inventory of design § Context against the current code and a store migrated to the latest version: every table and column named, which stages record attempts where, what `provider_requests.mode` can hold, and the stored values of `error_code`. Record any drift.
-- [ ] 1.3 Record what is still undecided at this point, so later conclusions can be traced to what was known.
+- [x] 1.1 Ask the product owner the design's open questions (which reports and in which release; cost and where the price lives; default period; CSV; R6; R7) and record the answers in `design.md` § Execution Record §1.
+- [x] 1.2 Re-verify the data inventory of design § Context against the current code and a store migrated to the latest version: every table and column named, which stages record attempts where, what `provider_requests.mode` can hold, and the stored values of `error_code`. Record any drift.
+- [x] 1.3 Record what is still undecided at this point, so later conclusions can be traced to what was known.
 
 ## 2. Build the scratch store
 

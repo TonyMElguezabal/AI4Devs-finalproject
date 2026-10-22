@@ -95,3 +95,28 @@ None for this change: it ships no code and no schema change. The recording gaps 
 ## Open Questions
 
 For the product owner (task 1.1): which of R1 to R7 are wanted and in which release; whether cost is wanted and where the price lives (profile parameter proposed); the default period (30 days proposed); whether a CSV download is wanted; whether a session's report should stay after the session is deleted (no deletion exists today); whether the pipeline time report (R6) justifies timestamping the scene phases; whether a provider move log (R7) is wanted.
+
+## Execution Record
+
+### §1 Gate (2026-10-22)
+
+**1.1 The product owner's answers.**
+
+| Question | Answer |
+|---|---|
+| Release 1 | **R1 Provider usage, R3 Failures and retries, R4 Sessions** |
+| Later release | **R2 Estimated cost, R6 Pipeline time, R7 Provider changes** |
+| Not selected | **R5 Pacing warnings**: neither in release 1 nor later, so it is dropped as a report. Its data stays visible in the scene details and as a warning column in R4's scene drill-down at no extra cost. |
+| Where the price per unit lives | **A provider profile parameter** (optional price, currency; edited on `/admin`) |
+| Default period and CSV | **Last 30 days, no CSV**; presets 7 days, 30 days, all time and a custom range |
+
+**1.2 The data inventory, re-verified** against the current code and a store migrated to version 19 (the `pragma_table_info` of every table below was read from a fresh store; the schema in § Context is correct), with these corrections and findings:
+
+- `stage_attempts` also holds `late_result_at`, and its `outcome` can be `scheduled`, `in-flight`, `success`, `transient`, `not-retryable`, `timed-out`, `late-success`, `superseded` or `cancelled` (the last three after a time-limit race, JOS-185). R3 counts `timed-out` as a failure of the stage and shows `late-success` and `superseded` separately.
+- `provider_requests.mode` is one of `success`, `transient_failure`, `not_retryable_failure` (and the stub-only `unrecoverable` and `flaky`); it has no provider id and no error text.
+- `scenes` also keeps `attempts`, `provider_mode` and `provider_latency_ms` (the last attempt's), but the per-attempt history is `provider_requests`.
+- **`error_code` is almost never set.** The only code written by the application is `native-unusable` on a timestamps attempt; the adapters report a failure as an outcome and a sentence. So R3 cannot group by error code; it groups by stage, outcome and, for the session-level stages, by the recorded `error_message`.
+- **`error_message` is the application's own wording for image, voice, alignment and reasoning** (`the voice provider answered HTTP 503`; the adapters deliberately do not read the provider's body), **but a video failure's message can carry the provider's own text** (`providerErrorReason` in `videoProvider.ts` writes the provider's `msg` and error code). `scenes.last_error` therefore must not be shown by a report (design Decision 5). R3 shows scene-stage failures by `provider_requests.mode` only, and a story may add a normalized failure class for video.
+- The three session-level provider bindings, `voice_overs`, `narration_timestamps`, `scene_results`, `scene_video_results` and `final_video_builds` are as described.
+
+**1.3 Still undecided at this point:** whether the first release's R1 needs the provider id on scene attempts before it ships (design Decision 2: recommended, so that per-provider numbers are exact after a provider move); the exact unit and currency model of the price parameter; whether R6 can be built from the stamps that exist (the scene phases have a first request time and a commit time, no start of the phase); how a normalized failure class for video would be defined.
