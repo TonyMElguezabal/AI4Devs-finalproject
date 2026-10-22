@@ -140,6 +140,8 @@ export async function registerDecomposition(
   const instructions = await generator.generate(
     fragments.map((fragment) => fragment.text),
     run.language,
+    // admin-visual-style-prompt (JOS-201), Decision 3 — the run's snapshot, so a retry or a restart never sees a later save.
+    run.visualStylePrompt,
   );
   if (instructions.kind === "failed_transient" || instructions.kind === "invalid_output") {
     return recordFailure(runId, instructions.reason, true, now(), retryState);

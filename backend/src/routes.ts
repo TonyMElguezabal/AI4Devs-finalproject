@@ -8,6 +8,8 @@ import { extname } from "node:path";
 import { getScriptModerator } from "./scriptModeration.ts";
 import { launchVoiceOverFor } from "./voiceOverPhase.ts";
 import { retryDecomposition } from "./decompositionRetry.ts";
+import { adminSettingsImageRoutes } from "./adminSettingsRoutes.ts";
+import { appSettingsResponseSchema, visualStylePromptBodySchema } from "./adminSettingsSchemas.ts";
 import { retryAssembly } from "./assemblyRetry.ts";
 import { retryVoiceOver } from "./voiceOverRetry.ts";
 import { rebuildFinalVideo } from "./finalVideoRebuild.ts";
@@ -24,6 +26,8 @@ import {
   writeArtefactOnce,
   insertVoiceOver,
   getTelemetrySettings,
+  getAppSettings,
+  saveVisualStylePrompt,
   saveTelemetryConsent,
   type TelemetrySettings,
 } from "./db.ts";
@@ -314,7 +318,6 @@ const providerViewSchema = z.object({
   orphanedChoice: z.string().nullable(),
 });
 
-// eslint-disable-next-line @typescript-eslint/require-await -- a Fastify plugin must be async
 export const routes: FastifyPluginAsync = async (app) => {
   const typed = app.withTypeProvider<ZodTypeProvider>();
 
@@ -812,6 +815,7 @@ export const routes: FastifyPluginAsync = async (app) => {
             response: { 200: z.object({ configured: z.literal(true), granted: z.literal(true) }), 401: adminDeniedSchema },
           },
         },
+        // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
         async () => ({ configured: true as const, granted: true as const }),
       );
 
@@ -819,6 +823,7 @@ export const routes: FastifyPluginAsync = async (app) => {
       typedAdmin.get(
         "/providers",
         { schema: { response: { 200: z.object({ providers: z.array(providerViewSchema) }), 401: adminDeniedSchema } } },
+        // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
         async () => ({ providers: PROVIDER_STAGES.map((stage) => providerView(stage)) }),
       );
 
@@ -857,6 +862,17 @@ export const routes: FastifyPluginAsync = async (app) => {
 
       registerProviderProfileRoutes(admin);
       registerFailedStageRoutes(admin);
+
+      // admin-visual-style-prompt (JOS-201) — the style prompt; the reference image routes are their own plugin (raw-body parser).
+      // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
+      typedAdmin.get("/settings", { schema: { response: { 200: appSettingsResponseSchema, 401: adminDeniedSchema } } }, async () => getAppSettings());
+      typedAdmin.put(
+        "/settings/visual-style-prompt",
+        { schema: { body: visualStylePromptBodySchema, response: { 200: appSettingsResponseSchema, 401: adminDeniedSchema } } },
+        // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
+        async (request) => saveVisualStylePrompt(request.body.visualStylePrompt),
+      );
+      await admin.register(adminSettingsImageRoutes);
     },
     { prefix: "/admin" },
   );

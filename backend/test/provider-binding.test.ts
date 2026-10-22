@@ -101,7 +101,7 @@ describe("The image stage, end to end, with the real Fal.ai adapter and a stubbe
     concurrency.resetAll();
     concurrency.setLimit(STAGE, 10);
     orchestrator.setVideoStageStartDelayMs(9_999_999); // the video stage must not start: it would reach a real provider
-    setDownloadFetch((async () => new Response(new Uint8Array(pngHeader(1920, 1088)), { status: 200, headers: { "content-type": "image/png" } })) as typeof fetch);
+    setDownloadFetch((async () => new Response(new Uint8Array(pngHeader(1920, 1088)), { status: 200, headers: { "content-type": "image/png" } })));
 
     const runId = "01J00000000000000000000175";
     store.createRun(runId, "Binding", "The lighthouse stands alone.", "en");

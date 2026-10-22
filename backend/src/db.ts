@@ -13,7 +13,7 @@ import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
 import { getConsent, normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
 import { ulid } from "./util/ulid.ts";
-import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import type {
   AttemptStage,
@@ -626,6 +626,23 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       `);
     },
   },
+  {
+    version: 20,
+    description: "add the single-row app_settings table and runs.visual_style_prompt (admin-visual-style-prompt, JOS-201)",
+    up: (target) => {
+      target.exec(`
+        CREATE TABLE app_settings (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          visual_style_prompt TEXT NOT NULL DEFAULT '',
+          reference_image_path TEXT,
+          reference_image_content_type TEXT,
+          updated_at TEXT NOT NULL
+        );
+        ALTER TABLE runs ADD COLUMN visual_style_prompt TEXT NOT NULL DEFAULT '';
+      `);
+      target.prepare("INSERT INTO app_settings (id, updated_at) VALUES (1, ?)").run(new Date().toISOString());
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -837,16 +854,83 @@ export function isReadableMp4(fullPath: string): boolean {
   }
 }
 
+// ---- admin-visual-style-prompt (JOS-201), Decision 5: the one settings row ----
+
+export const MAX_VISUAL_STYLE_PROMPT_CHARS = 8000;
+
+/** The app data directory: where the database lives. The reference image is stored under it (design Decision 6). */
+export const APP_DATA_DIR = dirname(resolve(DB_PATH));
+
+export interface AppSettings {
+  visualStylePrompt: string;
+  referenceImage: { contentType: string; sizeBytes: number; updatedAt: string } | null;
+  updatedAt: string;
+}
+
+interface AppSettingsRow {
+  visual_style_prompt: string;
+  reference_image_path: string | null;
+  reference_image_content_type: string | null;
+  updated_at: string;
+}
+
+/** The absolute path of the stored reference image, or null. Never returned by an endpoint. */
+export function getReferenceImageFile(): { path: string; contentType: string } | null {
+  const row = getRow<Pick<AppSettingsRow, "reference_image_path" | "reference_image_content_type">>(
+    "SELECT reference_image_path, reference_image_content_type FROM app_settings WHERE id = 1",
+  );
+  if (!row?.reference_image_path || !row.reference_image_content_type) return null;
+  return { path: join(APP_DATA_DIR, row.reference_image_path), contentType: row.reference_image_content_type };
+}
+
+export function getAppSettings(): AppSettings {
+  const row = getRow<AppSettingsRow>("SELECT * FROM app_settings WHERE id = 1")!; // migration 20 inserts the one row
+  let referenceImage: AppSettings["referenceImage"] = null;
+  const file = getReferenceImageFile();
+  if (file) {
+    try {
+      referenceImage = { contentType: file.contentType, sizeBytes: statSync(file.path).size, updatedAt: row.updated_at };
+    } catch {
+      referenceImage = null; // the file vanished: report no image rather than a broken one
+    }
+  }
+  return { visualStylePrompt: row.visual_style_prompt, referenceImage, updatedAt: row.updated_at };
+}
+
+export function saveVisualStylePrompt(text: string): AppSettings {
+  db.prepare("UPDATE app_settings SET visual_style_prompt = ?, updated_at = ? WHERE id = 1").run(text.trim(), nowIso());
+  return getAppSettings();
+}
+
+/** `relativePath` is relative to `APP_DATA_DIR`, so the stored value works on macOS and Windows. */
+export function saveReferenceImage(relativePath: string, contentType: string): AppSettings {
+  db.prepare("UPDATE app_settings SET reference_image_path = ?, reference_image_content_type = ?, updated_at = ? WHERE id = 1").run(
+    relativePath,
+    contentType,
+    nowIso(),
+  );
+  return getAppSettings();
+}
+
+export function clearReferenceImage(): AppSettings {
+  db.prepare("UPDATE app_settings SET reference_image_path = NULL, reference_image_content_type = NULL, updated_at = ? WHERE id = 1").run(
+    nowIso(),
+  );
+  return getAppSettings();
+}
+
 export function createRun(id: string, title: string, script: string, language: string): Run {
   const createdAt = nowIso();
   const projectFolder = deriveAndCreateProjectFolder(title, new Date(createdAt));
   // keep-project-files-locally (JOS-162), Decision 1 — kept in the project
   // folder as well as the `script` column, exactly as submitted.
   writeArtefactOnce(projectFolder, "script.txt", script);
+  // admin-visual-style-prompt (JOS-201), Decision 4 — the style at this moment, kept for the run's whole life.
+  const visualStylePrompt = getAppSettings().visualStylePrompt;
   db.prepare(
-    "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script) VALUES (?, ?, ?, 0, ?, ?, ?)",
-  ).run(id, title, createdAt, language, projectFolder, script);
-  return { id, title, script, createdAt, paused: false, language, projectFolder, voiceProviderId: null, decompositionProviderId: null, alignmentProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
+    "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script, visual_style_prompt) VALUES (?, ?, ?, 0, ?, ?, ?, ?)",
+  ).run(id, title, createdAt, language, projectFolder, script, visualStylePrompt);
+  return { id, title, script, createdAt, paused: false, language, projectFolder, visualStylePrompt, voiceProviderId: null, decompositionProviderId: null, alignmentProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
 }
 
 export function setRunProjectFolder(runId: string, projectFolder: string): void {
@@ -942,6 +1026,9 @@ interface RunRow {
   language: string | null;
   project_folder: string | null;
   voice_provider_id: string | null;
+  decomposition_provider_id: string | null;
+  alignment_provider_id: string | null;
+  visual_style_prompt: string;
   failure: string | null;
   final_video_path: string | null;
   rebuild_requested_at: string | null;
@@ -1076,6 +1163,7 @@ function rowToRun(row: RunRow): Run {
     failure: row.failure ? (JSON.parse(row.failure) as SessionFailure) : null,
     finalVideoPath: row.final_video_path ?? null,
     rebuildRequestedAt: row.rebuild_requested_at ?? null,
+    visualStylePrompt: row.visual_style_prompt ?? "",
   };
 }
 

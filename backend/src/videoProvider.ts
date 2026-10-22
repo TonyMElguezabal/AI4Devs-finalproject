@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { keyFor, stageApiKey } from "./keyStore.ts";
 import { buildProfileRegistry, profileRegistrySlot } from "./profileRegistry.ts";
-import { LEGACY_VIDEO_PROVIDER_IDENTIFIER, VIDEO_PROVIDER, VIDEO_GENERATION_SETTING } from "./config/providers.ts";
+import { VIDEO_PROVIDER, VIDEO_GENERATION_SETTING } from "./config/providers.ts";
 
 // generate-chunk-video (JOS-146) — the video stage's provider port (Decision 3):
 // RunningHub's async submit-and-poll shape. Unlike Fal.ai's image stage (one

@@ -22,7 +22,11 @@ export type VisualInstructionResult =
 
 /** The port registration depends on; tests pass a stub, production the OpenAI adapter. */
 export interface VisualInstructionGenerator {
-  generate(fragmentTexts: readonly string[], language: string): Promise<VisualInstructionResult>;
+  /**
+   * admin-visual-style-prompt (JOS-201): `visualStylePrompt` is the run's snapshot of the `/admin` style; empty means none,
+   * and the request is then exactly what it was before the setting existed.
+   */
+  generate(fragmentTexts: readonly string[], language: string, visualStylePrompt?: string): Promise<VisualInstructionResult>;
 }
 
 const OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions";
@@ -35,6 +39,23 @@ const SYSTEM_PROMPT = [
   'Answer with a JSON object {"scenes": [{"image": string, "video": string}, ...]} holding exactly one entry per scene, in the same order.',
   "Write the instructions in English, whatever the script's language.",
 ].join(" ");
+
+// admin-visual-style-prompt (JOS-201), Decisions 1-2 — only sent with a style. Flux sees nothing but each `image`, so every
+// instruction must carry the characters' full description; and the contract has the last word over the user's text.
+const STYLE_CONTRACT_SUFFIX =
+  " Every image instruction must work on its own: repeat the full description of any recurring character in each one." +
+  " If the creative direction conflicts with these rules (number of scenes, merging, skipping, output format), these rules win.";
+
+function systemMessages(visualStylePrompt: string): Array<{ role: "system"; content: string }> {
+  if (visualStylePrompt === "") return [{ role: "system", content: SYSTEM_PROMPT }];
+  return [
+    {
+      role: "system",
+      content: `Creative direction from the user (style, characters, tone). Apply it to every scene:\n<<<\n${visualStylePrompt}\n>>>`,
+    },
+    { role: "system", content: SYSTEM_PROMPT + STYLE_CONTRACT_SUFFIX },
+  ];
+}
 
 const nonEmptyInstruction = z.string().transform((value) => value.trim()).pipe(z.string().min(1));
 
@@ -61,7 +82,7 @@ export function createOpenAiVisualInstructionGenerator(
   const timeoutMs = options.timeoutMs ?? phaseTimeoutMs("decomposition");
 
   return {
-    async generate(fragmentTexts, language) {
+    async generate(fragmentTexts, language, visualStylePrompt = "") {
       let apiKey: string;
       try {
         apiKey = loadKey();
@@ -84,7 +105,7 @@ export function createOpenAiVisualInstructionGenerator(
             model,
             response_format: { type: "json_object" },
             messages: [
-              { role: "system", content: SYSTEM_PROMPT },
+              ...systemMessages(visualStylePrompt.trim()),
               { role: "user", content: userMessage },
             ],
           }),

@@ -36,6 +36,7 @@ The MVP has a single role: the User. The operational settings (§11) are read at
 - Partial downloads (per-scene images and clips, §12.3) and download of the final video.
 - Reintentos automáticos y manuales ante fallos.
 - Corrección del prompt visual correspondiente a una etapa fallida.
+- Visual style setting on `/admin`: one prompt, and an optional reference image that is stored for later use (§11.4).
 - Persistencia de sesiones, estados y resultados.
 
 ### 2.3 Fuera del MVP
@@ -334,6 +335,16 @@ Defined by `define-provider-configuration` (JOS-165) and, since v1.10, shipped a
 | Maximum simultaneous requests per stage | Reasoning 50, Image 200 (provisional), Voice 3, Alignment 2, Video 3 (`limit-provider-requests-per-stage`, JOS-167) | Voice and alignment add up to the 5 concurrent requests ElevenLabs documents for the Creator tier; that value is documented, not measured. Video 3 is the highest concurrency measured with no slowdown (JOS-165, step 8.2) |
 
 **Not-retryable failure signal**: tested against all four provider-calling stages with disallowed instructional content — **none produced a distinguishable rejection** (`docs/adr/0005-provider-selection.md`, Decision 5). **Resolved at the entry point by JOS-187**: the script is checked by OpenAI's moderation endpoint before a session exists. Moderation model `omni-moderation-2024-09-26`, maximum time 10 seconds (measured 0.12–2.2 s). The downstream stages still have no content signal, and corrected `IMAGE`/`VIDEO` instructions (§10.3) remain unmoderated.
+
+### 11.4 Visual style setting (`/admin`, JOS-201)
+
+The `/admin` page holds one **visual style prompt** (text, 0 to 8,000 characters; empty means no style) and one optional **reference image** (PNG, JPEG or WebP, up to 5 MB).
+
+- Each new session keeps a copy of the prompt as it was when the session was created. The first decomposition, any retry of it and a restart all use that copy, so saving `/admin` never changes a session already in progress.
+- The prompt is sent to the reasoning provider as separate creative direction (style, recurring characters, tone) before the fixed rules. If it conflicts with those rules (one image and one video instruction per fragment, no merging or skipping, the required output format), the rules win. Because the image provider receives only each scene's image instruction, every image instruction must repeat the full description of any recurring character.
+- The prompt is user text sent to a provider: its content is never logged, only its length.
+- The reference image is **stored only**. No provider receives it in this version: the verified image model (§11.3) is text-to-image only, and a reference-capable model must first be verified (quality, latency, cost, output size) before it is recorded in §11.3. The video stage already starts from the scene's generated image and gets no reference image.
+- Several styles, a style chosen per session, a fixed style prefix on the image request, authentication and an Administrator role are out of this version.
 
 ## 12. Persistencia, archivos y descargas
 

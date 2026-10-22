@@ -3,8 +3,12 @@ import type { AdminToolsContext } from "./AdminPage";
 import { ActiveProvidersSection } from "./ActiveProvidersSection";
 import { FailedStagesSection } from "./FailedStagesSection";
 import { ProviderProfilesSection } from "./ProviderProfilesSection";
+import { VisualStyleSection } from "./VisualStyleSection";
 
-/** The Administrator tools: the active provider of each stage (JOS-171), the providers themselves (JOS-218) and the failed stages to move (JOS-172). */
+/**
+ * The Administrator tools: the visual style of new projects (JOS-201), the active provider of each stage (JOS-171), the
+ * providers themselves (JOS-218) and the failed stages to move (JOS-172).
+ */
 export function AdminTools(context: AdminToolsContext) {
   // A change to a provider reloads the selectors, which list the providers; a change of the active provider reloads the
   // list, which shows which one is active.
@@ -14,6 +18,7 @@ export function AdminTools(context: AdminToolsContext) {
   const [failedKey, setFailedKey] = useState(0);
   return (
     <>
+      <VisualStyleSection {...context} />
       <ActiveProvidersSection
         {...context}
         refreshKey={selectorsKey}

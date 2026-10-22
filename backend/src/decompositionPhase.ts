@@ -161,6 +161,8 @@ async function divideStoredTimestamps(
   const segmentation = segmentScript(run.script, run.language, characters, durationSeconds);
   if (!segmentation.ok) return recordSegmentationFailure(runId, segmentation.reason, now(), retryState);
 
+  // admin-visual-style-prompt (JOS-201), Decision 7 — the length only, never the user's text.
+  logger.info({ event: "decomposition.attempt", sessionId: runId, visual_style_prompt_chars: run.visualStylePrompt.length });
   return registerDecomposition(runId, segmentation.fragments, instructionGenerator, durationSeconds, now, retryState);
 }
 

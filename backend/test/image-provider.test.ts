@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { clearReferenceImage, saveReferenceImage, saveVisualStylePrompt } from "../src/db.ts";
 import {
   createFalAiImageProvider,
   createStubImageProvider,
@@ -35,6 +36,29 @@ const successResponse = () =>
 function providerWith(fetchFn: typeof fetch, loadKey: () => string = () => "test-key", timeoutMs = 50) {
   return createFalAiImageProvider({ fetchFn, loadKey, timeoutMs });
 }
+
+describe("The request is unaffected by the /admin settings (JOS-201, AC 8)", () => {
+  it("sends the same URL, headers and body with a saved style and a stored reference image as without", async () => {
+    const sendOnce = async () => {
+      const { fetchFn, calls } = fakeFetch(successResponse);
+      await providerWith(fetchFn).generate(INSTRUCTION);
+      const { url, init } = calls[0]!; // the abort signal is per-call, so it is not part of the comparison
+      return { url, method: init.method, headers: init.headers, body: init.body };
+    };
+    saveVisualStylePrompt("");
+    clearReferenceImage();
+    const baseline = await sendOnce();
+    saveVisualStylePrompt("Warry, a 2D cartoon caricature in a navy suit");
+    saveReferenceImage("admin/reference-image.png", "image/png");
+    try {
+      const withSettings = await sendOnce();
+      expect(withSettings).toEqual(baseline);
+    } finally {
+      saveVisualStylePrompt("");
+      clearReferenceImage();
+    }
+  });
+});
 
 describe("The request", () => {
   it("sends one POST with the instruction as prompt, the recorded request size, and the credential", async () => {
