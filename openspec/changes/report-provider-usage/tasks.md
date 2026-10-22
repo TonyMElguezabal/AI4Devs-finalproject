@@ -5,27 +5,27 @@
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm the product owner approved PRD v1.16 (§11.4, JOS-175); its status line still says "awaiting the product owner's approval". If it is not approved, stop and ask.
-- [ ] 1.2 Confirm the base still matches design.md § Context: the `stage_attempts` and `provider_requests` columns and values, `provider_profiles.label`, every writer of `sent_at` using `toISOString()`, the `/admin` child plugin, and whether JOS-222 has merged (if it has, attribute scene attempts by `provider_requests.provider_id` and set the flag to `false`; update design.md first).
+- [x] 1.1 `git fetch`. Confirm the product owner approved PRD v1.16 (§11.4, JOS-175); its status line still says "awaiting the product owner's approval". If it is not approved, stop and ask.
+- [x] 1.2 Confirm the base still matches design.md § Context: the `stage_attempts` and `provider_requests` columns and values, `provider_profiles.label`, every writer of `sent_at` using `toISOString()`, the `/admin` child plugin, and whether JOS-222 has merged (if it has, attribute scene attempts by `provider_requests.provider_id` and set the flag to `false`; update design.md first).
 
 ## 2. Backend: the report module (TDD; design Decisions 2, 3, 6)
 
-- [ ] 2.1 Write failing unit tests for the nearest-rank percentile helper: empty list → `null`; one value; median of an odd and an even count; 95th percentile of 20 and of 100 values.
-- [ ] 2.2 Implement the helper. Make 2.1 pass.
-- [ ] 2.3 Write failing tests for `providerUsageReport({ from, to })` on a seeded store: counts, success rate, percentiles and billed units per stage and provider match the spike's R1 query on the same rows; `late-success` counts as success; `scheduled`, `in-flight`, `superseded`, `cancelled`, unsent attempts and the stub-only scene modes are not counted; `elevenlabs-native` is not an alignment attempt; `[from, to)` includes `from` and excludes `to`; absent `from` counts everything; a provider with attempts only outside the period has no row; failed attempts bill nothing; a scene moved to another provider counts all its attempts for the current one; rows are in pipeline order then by label; the label falls back to the id; no rows for an empty period.
-- [ ] 2.4 Write a failing test that the voice, image and clip billed units of the report equal those the telemetry records for the same attempts (Decision 6).
-- [ ] 2.5 Implement `backend/src/providerUsageReport.ts`. Make 2.3 and 2.4 pass.
+- [x] 2.1 Write failing unit tests for the nearest-rank percentile helper: empty list → `null`; one value; median of an odd and an even count; 95th percentile of 20 and of 100 values.
+- [x] 2.2 Implement the helper. Make 2.1 pass.
+- [x] 2.3 Write failing tests for `providerUsageReport({ from, to })` on a seeded store: counts, success rate, percentiles and billed units per stage and provider match the spike's R1 query on the same rows; `late-success` counts as success; `scheduled`, `in-flight`, `superseded`, `cancelled`, unsent attempts and the stub-only scene modes are not counted; `elevenlabs-native` is not an alignment attempt; `[from, to)` includes `from` and excludes `to`; absent `from` counts everything; a provider with attempts only outside the period has no row; failed attempts bill nothing; a scene moved to another provider counts all its attempts for the current one; rows are in pipeline order then by label; the label falls back to the id; no rows for an empty period.
+- [x] 2.4 Write a failing test that the voice, image and clip billed units of the report equal those the telemetry records for the same attempts (Decision 6).
+- [x] 2.5 Implement `backend/src/providerUsageReport.ts`. Make 2.3 and 2.4 pass.
 
 ## 3. Backend: the route (TDD; design Decisions 1, 4, 5)
 
-- [ ] 3.1 Write failing route tests for `GET /admin/reports/provider-usage`:
+- [x] 3.1 Write failing route tests for `GET /admin/reports/provider-usage`:
   - 401 without the Administrator password and with a wrong one;
   - 200 with the response shape of Decision 4, `to` echoed, `sceneAttemptsFollowCurrentProvider: true`;
   - `from` and `to` with an offset select the same attempts as their UTC equivalents;
   - 400 for `from` not before `to` and for a value that is not an ISO 8601 date-time;
   - the body contains none of the marker texts seeded in scripts, prompts, instructions, narration and failure messages, and no stored key;
   - the row counts of every table are unchanged after the call.
-- [ ] 3.2 Implement `backend/src/adminReportRoutes.ts` with zod query and response schemas and register it in the `/admin` child plugin. Make 3.1 pass and confirm the route is in the generated OpenAPI document.
+- [x] 3.2 Implement `backend/src/adminReportRoutes.ts` with zod query and response schemas and register it in the `/admin` child plugin. Make 3.1 pass and confirm the route is in the generated OpenAPI document.
 
 ## 4. Frontend: the Reports section (TDD; design Decision 7)
 

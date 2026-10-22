@@ -44,6 +44,7 @@ import { adminDeniedSchema, registerAdminGate } from "./adminAccess.ts";
 import { PROVIDER_STAGES, providerView, selectableProviders, setActiveProvider } from "./activeProvider.ts";
 import { registerFailedStageRoutes } from "./adminFailedStageRoutes.ts";
 import { registerProviderProfileRoutes } from "./adminProviderRoutes.ts";
+import { registerReportRoutes } from "./adminReportRoutes.ts";
 import { profileProblems } from "./providerAdmin.ts";
 import { getProfile } from "./providerProfiles.ts";
 
@@ -850,6 +851,7 @@ export const routes: FastifyPluginAsync = async (app) => {
 
       registerProviderProfileRoutes(admin);
       registerFailedStageRoutes(admin);
+      registerReportRoutes(admin);
     },
     { prefix: "/admin" },
   );
