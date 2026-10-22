@@ -104,5 +104,5 @@
 - [x] 12.3 `docs/data-model.md`: the exception to the locks on the four duration and speed columns, the one function that lifts them, and the binding that a manual retry now reads.
 - [x] 12.4 `docs/backend-standards.md`: `rebindFailedClip` is the only code that lifts the duration and speed locks; `startNewCycle` takes the stage's binding; a move binds and sends nothing.
 - [x] 12.5 `docs/frontend-standards.md`: the accessible names of the Failed stages section. `docs/development_guide.md`: how an Administrator unblocks a session.
-- [ ] 12.6 Create the follow-up Linear tickets only if an open question of design.md is decided to be built (move and retry in one click; reopening a retry for a not-retryable session failure; a move log), assigned to jose.elguezabal@gmail.com with label `type:feature`.
-- [ ] 12.7 Run `graphify update .`.
+- [x] 12.6 (No ticket: none of the open questions was decided to be built; they stay listed in design.md.) Create the follow-up Linear tickets only if an open question of design.md is decided to be built (move and retry in one click; reopening a retry for a not-retryable session failure; a move log), assigned to jose.elguezabal@gmail.com with label `type:feature`.
+- [x] 12.7 Run `graphify update .`.
