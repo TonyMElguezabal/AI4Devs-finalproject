@@ -17,14 +17,14 @@ This change ships no product code (proposal, design Non-Goals). The mandatory im
 
 ## 2. Build the scratch store
 
-- [ ] 2.1 Write a throwaway script (`poc/seed-scratch-store.ts`) that runs the real server code against a scratch `DB_PATH`, `PROJECTS_ROOT` and `PROVIDER_KEY_PATH`, with stubbed providers, and creates sessions that cover: clean runs; transient failures that recover; exhausted retries with a manual retry; a not-retryable failure; a scene whose speed factor exceeds the limit; a clip with the `exceeds-maximum` warning; a provider switch and a JOS-172 move; and attempts across at least two providers and two calendar days.
-- [ ] 2.2 Run it and record the store's contents (row counts per table) in the report, so the queries are checked against a known shape.
+- [x] 2.1 Write a throwaway script (`poc/seed-scratch-store.ts`) that runs the real server code against a scratch `DB_PATH`, `PROJECTS_ROOT` and `PROVIDER_KEY_PATH`, with stubbed providers, and creates sessions that cover: clean runs; transient failures that recover; exhausted retries with a manual retry; a not-retryable failure; a scene whose speed factor exceeds the limit; a clip with the `exceeds-maximum` warning; a provider switch and a JOS-172 move; and attempts across at least two providers and two calendar days.
+- [x] 2.2 Run it and record the store's contents (row counts per table) in the report, so the queries are checked against a known shape.
 
 ## 3. Draft the catalogue
 
-- [ ] 3.1 For R1 to R7, write the full definition in `reports-catalogue.md`: purpose and the decision it supports, fields with their definitions, granularity, period, data source with the columns used, gaps, and an example row.
-- [ ] 3.2 Write the throwaway SQL (`poc/queries.sql`) for each report the review keeps, and run it on the scratch store (and on a real store, read-only, if the product owner provides one: task 4.4). Compare each result with the counts known from 2.1 and record matches and mismatches in `reports/YYYY-MM-DD-step-3-queries.md`.
-- [ ] 3.3 Record, per report, one of: computable as defined; computable with a stated caveat; not computable, with the gap and the follow-up it needs.
+- [x] 3.1 For R1 to R7, write the full definition in `reports-catalogue.md`: purpose and the decision it supports, fields with their definitions, granularity, period, data source with the columns used, gaps, and an example row.
+- [x] 3.2 Write the throwaway SQL (`poc/queries.sql`) for each report the review keeps, and run it on the scratch store (and on a real store, read-only, if the product owner provides one: task 4.4). Compare each result with the counts known from 2.1 and record matches and mismatches in `reports/YYYY-MM-DD-step-3-queries.md`.
+- [x] 3.3 Record, per report, one of: computable as defined; computable with a stated caveat; not computable, with the gap and the follow-up it needs.
 
 ## 4. Review and decide
 
