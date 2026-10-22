@@ -45,7 +45,7 @@
 
 ## 6. Backend: admin API (TDD; design Decisions 6, 7, 9)
 
-- [ ] 6.1 Write failing route tests:
+- [x] 6.1 Write failing route tests:
   - `GET /admin/provider-types` lists the adapter types per stage with their field descriptors;
   - `GET /admin/provider-profiles` lists every profile with `keyStatus`, `keyHint`, `usable`, `problems`, `active` and no key in any field;
   - `POST` creates a profile (201) and refuses an unknown adapter type for the stage, an unknown or host-like parameter, a duplicate display name, and the video cross-check, listing every problem (400, nothing stored);
@@ -54,7 +54,7 @@
   - `PUT /admin/providers/{stage}` refuses a profile that is not usable (409 with the reasons) and a retired one (400);
   - every route returns 401 without Administrator access and writes nothing (AC8);
   - a key sent to the API is in neither the log file nor the standard output.
-- [ ] 6.2 Implement the routes with zod schemas behind JOS-173's gate and extend the surface test's list of deliberate app-level settings routes. Make 6.1 pass, and confirm the routes appear in the generated OpenAPI document.
+- [x] 6.2 Implement the routes with zod schemas behind JOS-173's gate and extend the surface test's list of deliberate app-level settings routes. Make 6.1 pass, and confirm the routes appear in the generated OpenAPI document.
 
 ## 7. Frontend: the "Providers" section on /admin (TDD; design Decision 10)
 
