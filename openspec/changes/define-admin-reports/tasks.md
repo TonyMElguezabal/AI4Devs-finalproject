@@ -35,7 +35,7 @@ This change ships no product code (proposal, design Non-Goals). The mandatory im
 
 ## 5. Product: the PRD change
 
-- [ ] 5.1 Draft the PRD text (§2.1 and §2.3: reports move from out of scope to in scope for the release that builds them; a new section describing the agreed reports, their period and granularity, and the estimate label; the privacy rule of design Decision 5) as `prd-addendum-draft.md`, marked as awaiting the product owner's approval.
+- [x] 5.1 Draft the PRD text (§2.1 and §2.3: reports move from out of scope to in scope for the release that builds them; a new section describing the agreed reports, their period and granularity, and the estimate label; the privacy rule of design Decision 5) as `prd-addendum-draft.md`, marked as awaiting the product owner's approval.
 - [ ] 5.2 Submit it to the product owner and record the outcome. If it is not approved by the end of the timebox, mark every report story as blocked on it.
 - [ ] 5.3 Apply the approved text to `docs/PRD.md` as the next version (keep the previous one as `docs/PRD-v<prev>.md`), with a §16 change log entry.
 
