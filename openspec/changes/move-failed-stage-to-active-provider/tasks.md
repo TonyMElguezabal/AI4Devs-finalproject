@@ -91,11 +91,11 @@
 
 ## 11. E2E Testing with the browser (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 11.1 Applicability: a new `/admin` section, so this step applies.
-- [ ] 11.2 Run the backend (scratch store and key file, two stub adapters per stage) and the frontend with one failed stage on `stub-a` and `stub-b` active. Without the password: no failed stage is shown. With it: the stage is listed with both providers and its cause.
-- [ ] 11.3 Click the move button: the row says "Moved. Retry it from the session page." and leaves the list; open the session page, retry the stage with its usual button, and confirm in its diagnostics that it ran on `stub-b` while its earlier attempts show `stub-a`.
-- [ ] 11.4 Move a failed clip to a provider with other durations and confirm the scene details show the new requested duration and speed factor.
-- [ ] 11.5 Restore the environment and save `openspec/changes/move-failed-stage-to-active-provider/reports/YYYY-MM-DD-step-11-e2e.md`.
+- [x] 11.1 Applicability: a new `/admin` section, so this step applies.
+- [x] 11.2 Run the backend (scratch store and key file, two stub adapters per stage) and the frontend with one failed stage on `stub-a` and `stub-b` active. Without the password: no failed stage is shown. With it: the stage is listed with both providers and its cause.
+- [x] 11.3 Click the move button: the row says "Moved. Retry it from the session page." and leaves the list; open the session page, retry the stage with its usual button, and confirm in its diagnostics that it ran on `stub-b` while its earlier attempts show `stub-a`.
+- [x] 11.4 Move a failed clip to a provider with other durations and confirm the scene details show the new requested duration and speed factor.
+- [x] 11.5 Restore the environment and save `openspec/changes/move-failed-stage-to-active-provider/reports/YYYY-MM-DD-step-11-e2e.md`.
 
 ## 12. Update Technical Documentation (MANDATORY)
 
