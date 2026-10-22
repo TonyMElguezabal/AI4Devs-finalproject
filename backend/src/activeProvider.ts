@@ -106,3 +106,8 @@ export function providerView(stage: ProviderStage): ProviderView {
     orphanedChoice: orphanedChoice(stage),
   };
 }
+
+/** The display name of a provider of a stage: its label, or its id when the registry has none. */
+export function labelOf(stage: ProviderStage, providerId: string): string {
+  return registryFor(stage).labels?.[providerId] ?? providerId;
+}

@@ -199,3 +199,17 @@ export interface ProfileView {
   active: boolean;
   retired: boolean;
 }
+
+/** move-failed-stage-to-active-provider (JOS-172) — one row of `GET /admin/failed-stages`. */
+export interface FailedStageRow {
+  sessionId: string;
+  sessionTitle: string;
+  stage: ProviderStage;
+  sceneId: string | null;
+  sceneNumber: number | null;
+  boundProviderId: string;
+  boundProviderLabel: string;
+  activeProviderId: string;
+  activeProviderLabel: string;
+  cause: string;
+}
