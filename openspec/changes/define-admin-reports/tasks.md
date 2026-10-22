@@ -36,8 +36,8 @@ This change ships no product code (proposal, design Non-Goals). The mandatory im
 ## 5. Product: the PRD change
 
 - [x] 5.1 Draft the PRD text (§2.1 and §2.3: reports move from out of scope to in scope for the release that builds them; a new section describing the agreed reports, their period and granularity, and the estimate label; the privacy rule of design Decision 5) as `prd-addendum-draft.md`, marked as awaiting the product owner's approval.
-- [ ] 5.2 Submit it to the product owner and record the outcome. If it is not approved by the end of the timebox, mark every report story as blocked on it.
-- [ ] 5.3 Apply the approved text to `docs/PRD.md` as the next version (keep the previous one as `docs/PRD-v<prev>.md`), with a §16 change log entry.
+- [x] 5.2 Submit it to the product owner and record the outcome. If it is not approved by the end of the timebox, mark every report story as blocked on it.
+- [x] 5.3 Apply the approved text to `docs/PRD.md` as the next version (keep the previous one as `docs/PRD-v<prev>.md`), with a §16 change log entry.
 
 ## 6. Follow-up stories
 
@@ -62,5 +62,5 @@ This change ships no product code (proposal, design Non-Goals). The mandatory im
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/adr/0008-admin-reports.md` and the PRD update are the documentation of this change. Add a pointer to the ADR in `docs/development_guide.md` ("What the Administrator will be able to see") only if the approved PRD changes what a user reads there.
+- [x] 11.1 `docs/adr/0008-admin-reports.md` and the PRD update are the documentation of this change. Add a pointer to the ADR in `docs/development_guide.md` ("What the Administrator will be able to see") only if the approved PRD changes what a user reads there. (Checked: the development guide has no section on what the Administrator sees, so no pointer was added.)
 - [x] 11.2 Run `graphify update .`.
