@@ -28,10 +28,10 @@ This change ships no product code (proposal, design Non-Goals). The mandatory im
 
 ## 4. Review and decide
 
-- [ ] 4.1 Present the catalogue, the recommendation and the evidence to the product owner. Record the decision per report (agreed for release 1, agreed later, dropped) with the reason.
-- [ ] 4.2 Decide the cost model (design Decision 4) and the period default with the product owner and record them.
-- [ ] 4.3 Write ADR 0008 (`docs/adr/0008-admin-reports.md`) with the decision, the alternatives and the catalogue of the agreed reports.
-- [ ] 4.4 If the product owner provides a real store, run the agreed queries on it read-only and record the findings; otherwise record that none was available.
+- [x] 4.1 Present the catalogue, the recommendation and the evidence to the product owner. Record the decision per report (agreed for release 1, agreed later, dropped) with the reason.
+- [x] 4.2 Decide the cost model (design Decision 4) and the period default with the product owner and record them.
+- [x] 4.3 Write ADR 0008 (`docs/adr/0008-admin-reports.md`) with the decision, the alternatives and the catalogue of the agreed reports.
+- [x] 4.4 No real store was provided by the product owner, so none was queried (the queries ran only on the scratch store). To run them on a real store later: `sqlite3 -readonly` against a copy, with `poc/queries.sql`.
 
 ## 5. Product: the PRD change
 
