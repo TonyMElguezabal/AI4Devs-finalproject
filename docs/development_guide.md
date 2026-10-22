@@ -62,11 +62,15 @@ The frontend talks to `http://127.0.0.1:3100` unless `VITE_API_BASE` is set at b
 | Symptom | Cause and fix |
 |---|---|
 | Port 3100 is in use | Another Vid4You or program holds it. Stop it, or change the port (`VID4YOU_PORT` packaged, `PORT` in development). |
-| A stage fails naming a variable such as `OPENAI_KEY` | That key is missing from both the environment and the secrets file. Add it and retry the scene. |
+| A stage fails naming a role such as `IMAGE_APIKEY` | No key is stored on `/admin` for the provider the stage uses, and (for a provider created from the settings) none is in the environment or the secrets file. Enter it on `/admin` and retry the scene. |
 | A scene fails with `error 605` | RunningHub balance is empty (see step 5 above). |
 | macOS refuses to open the app on another Mac | The build is ad-hoc signed, not notarized (story L8). Right-click the app and choose **Open** once. |
 
 ### Provider credentials
+
+A provider's API key is entered on `/admin` ("Providers", see below) and stored encrypted in the local database. The application asks for a key by the stage's role (`REASONING_APIKEY`, `VOICE_OVER_APIKEY`, `ALIGNMENT_APIKEY`, `IMAGE_APIKEY`, `VIDEO_APIKEY`) and the system answers with the key of the provider the stage is bound to, or of the active provider when it is not yet bound; no code names a vendor key. The variables below are the fallback for the five providers created from the settings, used only when no key is stored for them (a stored key wins).
+
+The encryption key is the 32-byte file at `PROVIDER_KEY_PATH` (default `data/provider-keys.key`, created with mode 0600 on first use; the folder of the database in development). It protects the database copied or shared on its own, not someone who can read both files, so keep the two in different folders where you can.
 
 Real provider calls need four keys. In development they are read from the environment first and from a git-ignored `backend/.secrets.json` second (the environment wins). The packaged app reads only the environment and `.secrets.json` in its data folder; a checkout's `backend/.secrets.json` is not used.
 
@@ -143,11 +147,17 @@ A problem never prints a value. **Credentials never go in these files**: a key s
 
 What a change does and does not touch: sessions already running keep their recorded durations, speed factors, warnings and language, and a scene already bound to a provider keeps that provider (bindings store the provider name, so a retry uses the *current* model or endpoint). A language removed from the list can no longer start a new session, but existing sessions in it still work.
 
-### The active provider on `/admin`
+### Providers on `/admin`
 
-The settings files name the provider each stage uses. The Administrator can override that, per stage, on `/admin` ("Active providers", behind the Administrator password): the choice is stored in the database, survives a restart and applies without one, to every stage that is not yet bound to a provider. It is the only setting edited on `/admin`; every other value still comes from the settings files and needs a restart. Sessions and scenes already bound keep their provider for all their retries, and a result already produced is never regenerated.
+On `/admin` (behind the Administrator password) the Administrator manages the providers of every stage: "Providers" lists each stage's provider profiles (adapter type, key status, the reason a profile cannot be used) and adds, edits and deletes them; "Active providers" chooses which one a stage uses next. Everything applies without a restart.
 
-Each stage ships one real adapter today, so every selector has a single option until a second provider is added. To try the switch locally or write a test, register two stub adapters per stage through the registry seams (`setVoiceProviderRegistry`, `setImageProviderRegistry`, `setVideoProviderRegistry`, `setReasoningProviderRegistry`, `setAlignmentProviderRegistry`; reasoning and alignment fall back to `setDecompositionDependencies` for their default adapter), and reset them afterwards with the matching `reset…` function. `backend/test/active-provider-binding-*.test.ts` show the pattern for each stage.
+- **A profile** is one use of an adapter type the app ships (Fal.ai, ElevenLabs, OpenAI, RunningHub): a name, the adapter's parameters (reasoning model; voice model, voice id, output format and speed; alignment endpoint path; image model; video endpoint path and admitted clip durations) and an API key. Several profiles per stage are allowed. A parameter never names a host: each adapter sends to its own vendor.
+- **The settings files** now only seed the first profile of each stage, the first time the app starts. Afterwards the provider sections of the files do not change a profile (one notice is logged if they differ). Every other setting (segmentation lower bound, speed limit, maximum times, request caps, resolution, languages) still comes from the files and needs a restart.
+- **Choosing** a profile needs valid parameters and a key that can be found; otherwise the page says why.
+- **Deleting** a profile that is the active provider is refused; one that sessions or scenes are bound to is retired (no longer offered, still used by what is bound to it); otherwise it is removed.
+- **Binding:** a session or a scene binds to the active provider at its first attempt and keeps it for its automatic and manual retries; a change never regenerates a completed result. The admitted clip durations used for segmentation are the active video provider's.
+
+To try the switch locally or write a test, register stub adapters through the registry seams (`setVoiceProviderRegistry`, `setImageProviderRegistry`, `setVideoProviderRegistry`, `setReasoningProviderRegistry`, `setAlignmentProviderRegistry`; reasoning and alignment fall back to `setDecompositionDependencies` for their default adapter) and reset them with the matching `reset…` function; or add profiles with `insertProfile` and let the default registries build from them. Tests that store a key set `PROVIDER_KEY_PATH` to a temporary folder. `backend/test/active-provider-binding-*.test.ts` and `backend/test/provider-registries.test.ts` show both patterns.
 
 ### Development-only switches
 

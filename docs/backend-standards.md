@@ -164,6 +164,17 @@ Every stage has an adapter registry (`getVoiceProviderRegistry`, `getImageProvid
 - **Never read the active provider for an instance that is already bound.** Retries use the stored binding, or the attempt's `providerId`; reading the active provider there would silently move a running stage when the Administrator changes it.
 - Reasoning and alignment reach their adapter through `resolveBoundAdapter(registry, boundId, injected)`: the instance injected through `DecompositionDependencies` stands for the default id, any other bound id comes from the registry. A bound id the build does not ship fails the attempt as not retryable, with a message naming the id.
 
+### Provider profiles, keys and the role API (`manage-providers-from-admin`, JOS-218)
+
+A provider is a **profile** (`provider_profiles`, `providerProfiles.ts`): a stage, an adapter type from the shipped catalogue (`providerTypes.ts`), a label, parameters and a key. The default registry of each stage is built from its profiles (`profileRegistry.ts`) and rebuilt when the profiles' version moves; a test can still replace a registry through the `set…ProviderRegistry` seams. Reasoning and alignment keep their injected default instance as the adapter of the seeded profile (`resolveBoundAdapter`), and build the other profiles from their parameters.
+
+- **Factories take `(parameters, loadKey)`.** `createFalAiImageProvider`, `createRunningHubVideoProvider`, `createElevenLabsAlignmentProvider` and `createOpenAiVisualInstructionGenerator` take `parameters` (the model, or the endpoint path) and `loadKey` as options; the voice parameters travel in the synthesis request, which `voiceOverPhase.ts` builds from the bound profile's current parameters. Each adapter keeps its vendor's host in code: no parameter can name a host or a URL (`providerTypes.ts` refuses one), so a key can only be sent to its vendor.
+- **No code names a vendor key.** The application asks `stageApiKey(stage, boundId?)` (`keyStore.ts`) for a key by the stage's role (`REASONING_APIKEY`, `VOICE_OVER_APIKEY`, `ALIGNMENT_APIKEY`, `IMAGE_APIKEY`, `VIDEO_APIKEY`) and gets the key of the bound profile, or of the active profile when none is given. The vendor variable names (`OPENAI_KEY`, `ELEVENLABS_KEY`, `FAL_API_KEY`, `RUNNINGHUB_API_KEY`) live only in that file, as the fallback for the five seeded profiles when no key is stored. Script moderation uses the reasoning role's key.
+- **Keys are encrypted at rest** (AES-256-GCM, a new IV per write, a master key file with mode 0600), shown only as a status and the last four characters, and never logged, returned, or put in an error message. A request that carries one is not logged with its body.
+- **Admitted durations are the active video provider's**, read when segmentation and the clip request run (`activeVideoDurations()` in `videoDurations.ts`), never from a start-up constant. A scene whose stored duration that provider does not admit fails before it is bound.
+- **Parameters are read per request.** An edit applies to the next request, retries included; it never rewrites what a session established. The settings files seed the first profiles and nothing else about providers.
+- A profile that sessions, scenes or attempts are bound to is **retired, not deleted**, so its retries keep working.
+
 ### Stage diagnostics: what may reach the page
 
 `see-provider-and-attempts` (JOS-166, PRD §3) shows, per scene stage and per phase, which provider was used and how many attempts were made. The rule for anything an attempt record could add to that:

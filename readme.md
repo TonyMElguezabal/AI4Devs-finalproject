@@ -106,6 +106,8 @@ Abrir `http://localhost:5173`. La documentación interactiva de la API está en 
 
 **Credenciales**
 
+Las claves se pueden introducir en `/admin` (sección «Providers»): se guardan cifradas en la base de datos local, no se vuelven a mostrar (solo su estado y los cuatro últimos caracteres) y la aplicación las pide por el rol de la etapa, no por el nombre del proveedor. Las variables de abajo siguen valiendo como respaldo para los cinco proveedores creados a partir de los ajustes, hasta que se guarda una clave para ellos; una clave guardada gana. La clave maestra del cifrado es un fichero aparte (`PROVIDER_KEY_PATH`, por defecto `data/provider-keys.key`, modo 0600): protege la base de datos copiada por sí sola, no a quien pueda leer ambos ficheros.
+
 Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en el repositorio, que ya lo ignora). Los nombres son:
 
 ```json
@@ -229,7 +231,7 @@ flowchart TD
 | Persistencia (SQLite) | Sesiones (`runs`), escenas, intentos de etapa, resultados, marcas de tiempo, ediciones de pausa, versiones del video final y ajustes de telemetría. Las migraciones se registran en `schema_migrations`. | `backend/src/db.ts` |
 | Carpetas de proyecto | Guion, voice-over (MP3), marcas de tiempo, imágenes, clips y MP4 final por proyecto; nunca se sobrescriben ni caducan. | `PROJECTS_ROOT` |
 | Montaje (ffmpeg) | Ajusta la velocidad de cada clip a su intervalo, los une en orden ascendente y añade la narración como única pista de audio; salida 1920×1080 a 30 fps, H.264. | `backend/src/ffmpegAssemblyTool.ts` |
-| Proveedores de IA (externos) | Un proveedor por etapa, fijado en el código (`backend/src/config/providers.ts`); credenciales por entorno o `.secrets.json`. | PRD §11.3 |
+| Proveedores de IA (externos) | Perfiles de proveedor por etapa, gestionados en `/admin` (añadir, editar, borrar, parámetros y clave); el primero de cada etapa nace de los ajustes (`backend/config/settings.default.json`); claves cifradas en la base de datos, con el entorno o `.secrets.json` como respaldo. | PRD §11, §11.2 |
 | Telemetría (opcional) | Informes de errores y conteos, solo si el usuario los activa; se envían por HTTPS a un relé del proyecto. | `backend/src/telemetry/`, `infra/telemetry-relay/` |
 
 ### **2.3. Descripción de alto nivel del proyecto y estructura de ficheros**
@@ -272,7 +274,7 @@ Los ficheros `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` y `codex.md` apuntan a los es
 
 - **Modelo de acceso**: aplicación local de un solo usuario, sin cuentas ni autenticación (PRD §12.3). El backend solo escucha en `127.0.0.1`.
 - **Protección frente a páginas web externas**: cualquier sitio que visite el usuario podría enviar peticiones a `127.0.0.1`. Por eso el backend rechaza toda petición cuyo `Origin` no sea el propio de la aplicación (o el servidor Vite en desarrollo) o cuyo `Host` no sea la dirección de bucle local y el puerto (`backend/src/originPolicy.ts`), incluido el flujo SSE.
-- **Secretos**: las claves de los proveedores se leen del entorno o de `.secrets.json`; el fichero está en `.gitignore`, nunca se ha confirmado en el historial de Git, y los mensajes de error nombran la credencial que falta sin mostrar su valor. En la aplicación empaquetada viven en la carpeta de datos del usuario, nunca en el ejecutable.
+- **Secretos**: las claves de los proveedores se guardan cifradas (AES-256-GCM) desde `/admin`, con el entorno o `.secrets.json` como respaldo; el fichero está en `.gitignore`, nunca se ha confirmado en el historial de Git, y los mensajes de error nombran la credencial que falta sin mostrar su valor. En la aplicación empaquetada viven en la carpeta de datos del usuario, nunca en el ejecutable.
 - **Contenido del guion**: se comprueba con el endpoint de moderación de OpenAI antes de crear la sesión; si no se puede comprobar, se rechaza (nunca se registra un guion sin comprobar).
 - **Compilaciones empaquetadas**: no exponen endpoints de prueba ni proveedores simulados, ni `/docs`, sea cual sea el entorno del usuario.
 - **Dependencias**: `npm audit --omit=dev` no informa vulnerabilidades en backend ni en frontend (octubre de 2026).

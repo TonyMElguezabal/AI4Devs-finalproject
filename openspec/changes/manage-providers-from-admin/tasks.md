@@ -104,11 +104,11 @@
 
 ## 12. Update Technical Documentation (MANDATORY)
 
-- [ ] 12.1 `docs/PRD.md`: the next version (keep the previous one as `docs/PRD-v<prev>.md`) with the changed sections and a §16 change log entry.
-- [ ] 12.2 `docs/api-spec.yml`: the new routes, with 200, 201, 400, 401, 404 and 409.
-- [ ] 12.3 `docs/data-model.md`: `provider_profiles`, the key encryption and the master key file, the retire rule, and the seeded ids.
-- [ ] 12.4 `docs/backend-standards.md`: the role API (`stageApiKey`), factories take `(parameters, loadKey)`, no code names a vendor key, `activeVideoDurations()`, and how the registries are rebuilt.
-- [ ] 12.5 `docs/frontend-standards.md`: the accessible names of the Providers section.
-- [ ] 12.6 `docs/development_guide.md` and the readme's provider and credentials sections: managing providers and keys on `/admin`, the legacy environment variables as a fallback for the seeded profiles, `PROVIDER_KEY_PATH` and its limit.
+- [x] 12.1 `docs/PRD.md`: the next version (keep the previous one as `docs/PRD-v<prev>.md`) with the changed sections and a §16 change log entry.
+- [x] 12.2 `docs/api-spec.yml`: the new routes, with 200, 201, 400, 401, 404 and 409.
+- [x] 12.3 `docs/data-model.md`: `provider_profiles`, the key encryption and the master key file, the retire rule, and the seeded ids.
+- [x] 12.4 `docs/backend-standards.md`: the role API (`stageApiKey`), factories take `(parameters, loadKey)`, no code names a vendor key, `activeVideoDurations()`, and how the registries are rebuilt.
+- [x] 12.5 `docs/frontend-standards.md`: the accessible names of the Providers section.
+- [x] 12.6 `docs/development_guide.md` and the readme's provider and credentials sections: managing providers and keys on `/admin`, the legacy environment variables as a fallback for the seeded profiles, `PROVIDER_KEY_PATH` and its limit.
 - [ ] 12.7 Create the follow-up Linear tickets "Test connection for a provider" and "Keep the provider key file outside the database folder in packaged builds" (assignee jose.elguezabal@gmail.com, label `type:feature`), and link them to JOS-218.
 - [ ] 12.8 Run `graphify update .`.
