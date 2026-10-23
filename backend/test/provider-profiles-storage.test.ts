@@ -35,8 +35,10 @@ describe("seedProviderProfiles", () => {
       ["image", "Fal.ai", "fal-image", SETTINGS.image.name],
       ["video", "RunningHub", "runninghub-video", SETTINGS.video.name],
     ]);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured only to leave the name out of the rest
     const { name: _voiceName, ...voiceParameters } = SETTINGS.voice;
     expect(getProfile("ElevenLabs")!.parameters).toEqual(voiceParameters);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured only to leave the name out of the rest
     const { name: _videoName, ...videoParameters } = SETTINGS.video;
     expect(getProfile("RunningHub")!.parameters).toEqual(videoParameters);
     expect(getProfile("Fal.ai")!.hasStoredKey).toBe(false);

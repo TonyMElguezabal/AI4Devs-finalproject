@@ -65,6 +65,8 @@ export interface Run {
    * held by a pause); cleared when the rebuild succeeds or ends in failure. Survives a restart.
    */
   rebuildRequestedAt: string | null;
+  /** admin-visual-style-prompt (JOS-201), Decision 4 — the `/admin` style prompt copied at creation; decomposition, its retries and recovery read this, never the live setting. */
+  visualStylePrompt: string;
 }
 
 /** Design Decision 9 (generate-voice-over, JOS-136) — what the session carries when the voice-over failed. */
@@ -293,6 +295,8 @@ export interface ProviderRequestRow {
   resolved: 0 | 1;
   /** Which stage this request belongs to; defaults to 'image' for existing rows (generate-chunk-video, JOS-146, Decision 5). */
   stage: "image" | "video";
+  /** The provider the scene's stage was bound to when the attempt was recorded (JOS-222); null when the scene had no binding. */
+  providerId: string | null;
 }
 
 import type { StageDiagnostic } from "./stageDiagnostics.ts";

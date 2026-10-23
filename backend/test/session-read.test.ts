@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/server.ts";
-import { createRun, createScene, db, getRun, resetAll, commitSceneResult, markSceneInFlight, recordStageAttempt, writeArtefactOnce } from "../src/db.ts";
+import { createScene, db, getRun, resetAll, commitSceneResult, markSceneInFlight, recordStageAttempt, writeArtefactOnce } from "../src/db.ts";
 import { pauseSession, continueSession } from "../src/orchestrator.ts";
 import type { FastifyInstance } from "fastify";
 

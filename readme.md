@@ -175,7 +175,7 @@ Estado del MVP a 20-oct-2026. Ninguna impide generar un video; todas están regi
 | El ejecutable no está firmado. | Windows (SmartScreen) y macOS (Gatekeeper) muestran una advertencia al abrirlo. | JOS-207 |
 | El ejecutable se construye con scripts de prueba de concepto y no hay flujo de publicación (ver 2.4). | No hay versiones publicadas ni actualización automática. | JOS-205, JOS-206 |
 | No se ha verificado que una versión anterior abra una base de datos migrada por una posterior. | Volver a una versión anterior exige restaurar la copia de la carpeta de datos (ver arriba). | JOS-210 |
-| No hay herramienta de lint ni análisis estático, y las pruebas de contrato con proveedores reales no se ejecutan en CI (ver 2.6). | Los fallos de estilo y de tipos laxos (`any`) no se detectan automáticamente. | JOS-208 |
+| Las pruebas de contrato con proveedores reales no se ejecutan en CI (ver 2.6). | Un cambio en la API de un proveedor solo se detecta en una ejecución real. | — |
 | Algunas revisiones humanas de los cambios archivados (por ejemplo, la 17.7 de `define-provider-configuration`) se aceptaron como excepción y no se realizaron. | Esos cambios tienen evidencia de pruebas automáticas pero no revisión humana. | JOS-203, M7 |
 
 ---
@@ -254,7 +254,7 @@ AI4Devs-finalproject/
 ├── infra/            # Relé de telemetría y paneles de Grafana
 ├── packages/specboot # Utilidad de arranque de OpenSpec
 ├── ai-specs/         # Skills y agentes reutilizables (fuente canónica)
-├── .github/workflows # CI (typecheck y pruebas) y despliegue del relé de telemetría
+├── .github/workflows # CI (typecheck, lint y pruebas) y despliegue del relé de telemetría
 ├── PRIVACY.md        # Política de privacidad de la telemetría
 └── readme.md
 ```
@@ -291,15 +291,16 @@ Comandos, desde `backend/` y `frontend/`:
 
 ```bash
 npm run typecheck   # tsc --noEmit
+npm run lint        # eslint (typescript-eslint, type-aware)
 npm test            # vitest run
 npm run build       # solo frontend: tsc --noEmit && vite build
 ```
 
-- **Unitarias e integración (vitest)**: en la última validación completa (`main` en `3d0334c9`, 20-oct-2026) pasaron 1.720 pruebas de backend (4 omitidas, las de contrato con proveedores) y 258 de frontend, con chequeo de tipos limpio y compilación del frontend correcta. CI ejecuta lo mismo en cada PR.
+- **Unitarias e integración (vitest)**: en la última validación completa (rama `chore/sync-integration-branches` en `eeda3198`, 22-oct-2026, PR #93) pasaron 2.090 pruebas de backend (5 omitidas, las de contrato con proveedores) y 312 de frontend, con chequeo de tipos y lint limpios y compilación del frontend correcta. CI ejecuta chequeo de tipos, lint y pruebas en cada PR.
 - **Pruebas de contrato con proveedores reales**: existen cuatro ficheros (`backend/test/*.contract.test.ts`) que llaman a las APIs reales y solo se ejecutan con `RUN_PROVIDER_CONTRACT_TESTS=1` y claves reales; no se ejecutan en CI.
 - **Pruebas manuales de endpoints con curl y E2E en navegador (Playwright)**: las ejecuta el agente por cada cambio y deja un informe en `openspec/changes/archive/<cambio>/reports/`.
 - **Sesión real de extremo a extremo**: el 20-oct-2026 una sesión corta con los cuatro proveedores reales llegó a `final-video` con un intento por etapa, y el ejecutable de Windows generó un video completo (informes en `openspec/changes/archive/2026-10-19-raise-video-time-limit/reports/` y `…/define-production-deployment/reports/`).
-- **Lint y análisis estático**: no hay herramienta configurada (JOS-208). Una pasada puntual de ESLint 9 con las reglas `recommended` de typescript-eslint (20-oct-2026, sin cambios en el repositorio) dio 110 errores en el backend (68 `no-explicit-any`, 40 `no-unused-vars`, 1 `no-useless-escape`, 1 `prefer-const`; 37 de los `no-unused-vars` y 18 de los `no-explicit-any` están en pruebas) y 1 en el frontend (una variable sin usar en una prueba). Ninguna regla de seguridad falló.
+- **Lint y análisis estático**: ESLint 9 con las reglas *type-aware* de typescript-eslint en `backend/` y `frontend/` (más las reglas de React Hooks en el frontend), sobre el código y las pruebas, y como paso de CI que hace fallar la PR (JOS-208). Una excepción se suprime en su línea con el motivo; no hay desactivaciones globales.
 - **Ejecutable empaquetado (macOS arm64, 20-oct-2026)**: construido con el script de la prueba de concepto desde una copia temporal y arrancado en otro puerto con una carpeta de datos vacía: `/health` y la página responden 200, un `Origin` o `Host` ajeno recibe 403, `/docs` y los endpoints de prueba responden 404 aunque `ALLOW_TEST_ENDPOINTS=1` esté definida, y un segundo arranque detecta la instancia en marcha y sale. No se probó una sesión completa con este binario (sí en Windows, ver arriba).
 - **No ejecutado**: las pruebas de contrato con proveedores reales no se ejecutan en CI ni se han ejecutado para este cierre, y el ejecutable empaquetado no tiene un script de construcción integrado (ver 1.6).
 
@@ -648,7 +649,7 @@ Nota histórica (Entrega 1): estos tickets se redactaron cuando `docs/data-model
 
 > Documenta 3 de las Pull Requests realizadas durante la ejecución del proyecto
 
-La PR 1 recoge el trabajo de documentación de la Entrega 1 (`feature/entrega-1-JAME` contra `main`). Las PR 2 y 3 son del cierre del MVP en la Entrega 2 y se integraron en `feature/entrega-2-JAME`; todas las PR del MVP están en https://github.com/TonyMElguezabal/AI4Devs-finalproject/pulls?q=is%3Apr.
+Las 3 Pull Requests principales son las de entrega. El resto de las PR del proyecto no se mencionan aquí de forma explícita; están en https://github.com/TonyMElguezabal/AI4Devs-finalproject/pulls?q=is%3Apr.
 
 **Pull Request 1 — `feature/entrega-1-JAME` → `main`**
 
@@ -673,25 +674,31 @@ La PR 1 recoge el trabajo de documentación de la Entrega 1 (`feature/entrega-1-
 - Revisar que los 3 tickets de la sección 6 no excedan el alcance descrito en los `tasks.md` de los que provienen.
 - Confirmar que ninguna sección afirma como decidido un stack, proveedor o pieza de infraestructura que en realidad sigue pendiente (deben quedar marcados explícitamente como TBD).
 
-**Pull Request 2 — #66 `chore/jos-203-b4-b6-verification` → `feature/entrega-2-JAME`**
+**Pull Request 2 — `feature/entrega-2-JAME` → `main`**
 
-**Título:** `Record the retry delays and the short real-provider run (MVP closure B4-B6)`
+**Título:** `Promote the MVP: feature/entrega-2-JAME to main (official environment)` (#71)
 
-**Descripción:**
-- PRD §11.3 registra el retardo de los reintentos automáticos (base 2 s, tope 30 s) y la constante `PROVISIONAL_RETRY_DELAY_SECONDS` pasa a `RETRY_DELAY_SECONDS`, fijada por `providerConfig.test.ts`.
-- Informe de una sesión corta con proveedores reales (un intento por etapa; clips de 6 s en 301 s y de 11 s en 538 s).
-- La spec `restart-recovery` remite a la regla de arranque de la descomposición que añadió JOS-195.
-- Se cierran tareas pendientes de los cambios archivados `bounded-retry-policy`, `raise-video-time-limit` y `fix-runninghub-adapter`.
+**Descripción:** integra en `main` el MVP completo de Vid4You, construido íntegramente en `feature/entrega-2-JAME` mediante PR de rama de funcionalidad contra esa rama. Incluye las PR #2 a #70 (salvo las que no se abrieron) y sus commits:
 
-**Cómo probarlo/revisarlo:** `cd backend && npm run typecheck && npx vitest run test/providerConfig.test.ts`; leer el informe `openspec/changes/archive/2026-10-19-raise-video-time-limit/reports/2026-10-20-step-5-real-clip-timings.md`.
+- **Cimientos y spikes** (commits directos): cuatro spikes de base (JOS-179, 181, 183, 180), diseño visual *Render Console* y archivo de los cinco cambios revisados.
+- **Inicio y consulta de sesión:** #2 iniciar un proyecto con título, guion e idioma (JOS-134); #6 consultar una sesión por su identificador (JOS-135); #5 proveedores y parámetros definidos (JOS-165); #3 pipeline de ensamblado de medios definido y probado (JOS-182).
+- **Voice-over:** #7 y #26 generar la narración completa (JOS-136); #8 y #9 bloquear guion y narración (JOS-137).
+- **Descomposición en escenas:** #10 identificadores de escena e instrucciones visuales (JOS-144); #15 reparto de silencios (JOS-142); #18 duración de clip admitida (JOS-143, JOS-147); #20 factor de ajuste de velocidad (JOS-148); #19 corrección de tests de la fase.
+- **Imagen, video y ensamblado:** #14 imagen por escena (JOS-145); #24 clip por escena (JOS-146); #25 video final (JOS-149); #21 impedir el video final con escenas incompletas (JOS-150).
+- **Control y visibilidad:** #22 resultados y acciones por etapa (JOS-151); #23 pausar y continuar (JOS-152); #38, #39 distinguir sesión en pausa (JOS-153); #28 progreso por fase (JOS-168); #34, #35 proveedor e intentos por etapa (JOS-166); #55 ajustar la pausa tras una escena (JOS-190).
+- **Reintentos y correcciones manuales:** voice-over #29, #57, #63 (JOS-155); descomposición #30, #33 (JOS-156); imagen #40, #41 (JOS-157); clip #42 (JOS-158); ensamblado #43, #44 (JOS-159).
+- **Robustez:** #31 base del backend reforzada (JOS-186); #32 tiempo máximo por fase (JOS-185); #36 progreso conservado tras reinicios (JOS-160); #37 confirmaciones de éxito repetidas ignoradas (JOS-161); #53 límite de peticiones simultáneas por etapa (JOS-167); #54 moderación del guion al enviarlo (JOS-187); #64 CORS restringido; #61 carrera del proveedor *stub*; #62 actualización de Swagger UI.
+- **Archivos y descargas:** #45 guion y textos en la carpeta del proyecto (JOS-162); #46 descarga de resultados por escena (JOS-163); #47 descarga del video final (JOS-164).
+- **Ejecución real y distribución:** #48 sesión de extremo a extremo (JOS-195); #49 adaptador de video RunningHub (JOS-196); #50, #52 despliegue como aplicación local empaquetada y guía de ejecución (JOS-194, ADR 0007); #65 rutas de ffmpeg/ffprobe configurables; #56 telemetría opcional, dashboards y aviso de actualización (JOS-199).
+- **Rediseño visual** (commits directos, JOS-198): diseño *Studio* aplicado al frontend.
+- **Cierre del MVP:** #58 archivo de los cambios OpenSpec fusionados; #59 CI mínima; #66 retardos de reintento y prueba corta con proveedores reales; #67 ejecución en Windows y PRD v1.10 (audio MP3); #68 README reescrito; #69, #70 puertas de preparación para release.
 
-**Pull Request 3 — #67 `chore/jos-203-b3-closeout` → `feature/entrega-2-JAME`**
+**Visión general de la funcionalidad:** aplicación local (macOS y Windows) que recibe un título, un guion y su idioma, y produce un video MP4: genera el voice-over completo, divide el guion en escenas, genera una imagen y un clip por escena con proveedores de IA en la nube y ensambla el video final con ffmpeg. Permite pausar y continuar, ver el progreso, el proveedor y los intentos de cada etapa, reintentar o corregir cualquier fase fallida y descargar los resultados por escena y el video final. El progreso sobrevive a reinicios y las confirmaciones repetidas no duplican resultados.
 
-**Título:** `Record the Windows run, close the JOS-196/197 tasks and align the PRD with the MP3 audio (MVP closure)`
+**Limpieza completa (JOS-203):** tras la promoción se hizo una limpieza completa del repositorio: archivo de los cambios OpenSpec fusionados, higiene de secretos (contraseña de ejemplo sustituida, ficheros de credenciales ignorados), inventario de limpieza, agentes de desarrollo reescritos para el stack real, eliminación de la carpeta de trabajo del ensamblado de medios, rutas de los hooks portables, README con limitaciones conocidas y enlaces corregidos, y el informe de cierre del MVP (PR #72 a #78).
 
-**Descripción:**
-- Informe de la ejecución del ejecutable de Windows x64 (compilado de forma cruzada desde macOS) en un portátil Windows.
-- PRD v1.10: el audio del MP4 final es el MP3 del voice-over copiado sin recodificar, no AAC; se actualizan las specs, `backend-standards.md` y el ADR 0005 y se conserva `PRD-v1.9.md`.
-- Corrección del límite de tiempo de video (1200 s) en el informe de tiempos.
+**Cómo probarlo/revisarlo:** seguir la guía de ejecución del README (sección 1.4); `cd backend && npm run typecheck && npx vitest run`; revisar `openspec/specs/` y el informe de cierre del MVP.
 
-**Cómo probarlo/revisarlo:** comparar `docs/PRD.md` con `docs/PRD-v1.9.md`; comprobar que `openspec/specs/final-video-assembly/spec.md` coincide con `ffmpegAssemblyTool.ts` (`-c:a copy`); ejecutar `ffprobe` sobre un MP4 generado y ver que el audio es `mp3`.
+**Pull Request 3 — `feature/entrega-3-JAME` → `main`**
+
+_Pendiente — se documentará en la Entrega Final, al incluir código funcional._

@@ -58,6 +58,7 @@ describe("the voice request carries the bound profile's current parameters", () 
         },
       },
     });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured only to leave the name out of the rest
     const { name: _name, ...voice } = SETTINGS.voice;
     updateProfile("ElevenLabs", { label: "ElevenLabs", parameters: { ...voice, voiceId: "edited-voice", speed: 1.1 } }, LATER);
     const runId = randomUUID();

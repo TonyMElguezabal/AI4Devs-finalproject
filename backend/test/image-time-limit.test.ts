@@ -63,7 +63,7 @@ beforeEach(() => {
   concurrency.setLimit(STAGE, 1);
   setVideoStageStartDelayMs(9_999_999); // keep the video stage out of these tests
   resetImageProviderRegistry();
-  setDownloadFetch((async () => new Response(new Uint8Array(buildPng(1920, 1088)), { status: 200, headers: { "content-type": "image/png" } })) as typeof fetch);
+  setDownloadFetch((async () => new Response(new Uint8Array(buildPng(1920, 1088)), { status: 200, headers: { "content-type": "image/png" } })));
 });
 
 afterEach(() => {

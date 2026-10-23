@@ -177,7 +177,7 @@ describe("telemetry never disturbs the application", () => {
     try {
       const warnings: string[] = [];
       setTelemetryLogger((message) => warnings.push(message));
-      setTelemetryExportersForTest({ metrics: failingExporter as never, logs: logs });
+      setTelemetryExportersForTest({ metrics: failingExporter, logs: logs });
       setConsent({ ...ALL_OFF, providerUsage: true });
 
       expect(() => recordProviderCall(voiceCall)).not.toThrow();

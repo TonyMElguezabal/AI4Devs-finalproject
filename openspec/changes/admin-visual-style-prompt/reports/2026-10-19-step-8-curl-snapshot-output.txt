@@ -1,0 +1,20 @@
+### 8.4 snapshot
+$ PUT prompt "style A"
+HTTP 200
+$ POST /sessions
+{"session":{"type":"session","sessionId":"01M5AYA964DSVWQMZTKQSCT1Y0","title":"Curl snapshot","script":"The harbor is quiet at dusk. Boats return with the tide.","language":"en","state":"submitted","p
+HTTP 201
+$ runs table
+[{"id":"01M5AYA9","title":"Curl snapshot","visual_style_prompt":"style A"}]
+$ PUT prompt "style B"
+HTTP 200
+$ runs table (existing run unchanged)
+[{"id":"01M5AYA9","title":"Curl snapshot","visual_style_prompt":"style A"}]
+$ POST /sessions (second)
+HTTP 201
+$ runs table (second run holds style B)
+[{"id":"01M5AYA9","title":"Curl snapshot","visual_style_prompt":"style A"},{"id":"01M5AYA9","title":"Curl snapshot 2","visual_style_prompt":"style B"}]
+### 8.5 restore
+$ PUT prompt ""
+{"visualStylePrompt":"","referenceImage":null,"updatedAt":"2026-10-19T20:40:43.099Z"}
+HTTP 200

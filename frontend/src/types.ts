@@ -242,3 +242,10 @@ export interface ProviderUsageReport {
   sceneAttemptsFollowCurrentProvider: boolean;
   rows: ProviderUsageRow[];
 }
+
+/** admin-visual-style-prompt (JOS-201) — `GET /admin/settings`. The image's file path is never exposed. */
+export interface AppSettings {
+  visualStylePrompt: string;
+  referenceImage: { contentType: string; sizeBytes: number; updatedAt: string } | null;
+  updatedAt: string;
+}

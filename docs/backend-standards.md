@@ -352,9 +352,14 @@ Commands (run from `backend/`, or from `openspec/changes/define-backend-stack/sk
 
 ```bash
 npx tsc --noEmit      # fully-typed check
+npm run lint          # ESLint, type-aware; also runs in CI on every PR
 npx vitest run        # unit tests
 npm start             # start the server for manual/E2E testing
 ```
+
+### Static analysis
+
+ESLint 9 with `typescript-eslint` `recommendedTypeChecked` (JOS-208), configured in `backend/eslint.config.js`, covering `src` and `test`. The type-safety rules (`no-unsafe-*`, `no-explicit-any`) and `require-await`, `no-base-to-string`, `prefer-promise-reject-errors` are relaxed for `test/**` only, in one commented override. Type SQLite rows with the row interfaces in `db.ts` rather than `any`. Suppress a violation only on its own line: `// eslint-disable-next-line <rule> -- <reason>`; a stale suppression fails the lint.
 
 ### Unit Testing
 
@@ -400,6 +405,7 @@ Structured JSON logging (Fastify's built-in Pino logger), one event per line, ne
 - Required environment variables are validated at startup, failing fast with a clear message naming the missing variable (never its value).
 - No accounts, and no login for the User, in the MVP (PRD §12.3) — this is a local, single-user install. The one exception is the shared **Administrator password** that protects `/admin` (`protect-admin-with-password`, JOS-173, below). Session/data isolation (a run cannot see or overwrite another run's data) is a **functional integrity requirement**, not a security control, per PRD §12.3 — do not conflate the two when reasoning about what "isolation" needs to guarantee.
 - **Administrator endpoints go inside the `/admin` child plugin and add no authentication of their own** (`protect-admin-with-password`, JOS-173). `routes.ts` registers that plugin with `prefix: "/admin"`; its first line, `registerAdminGate(admin)` (`adminAccess.ts`), adds one `onRequest` hook, so every route registered after it answers `401 { ok: false, reason }` (`not-configured`, `password-required` or `wrong-password`, schema `adminDeniedSchema`) before its body is parsed or its handler runs. Never register an `/admin/` route outside that plugin; a test walks the real route table and fails if one answers anything but 401 without the password. The OpenAPI transform in `server.ts` marks every `/admin/` operation with the `administratorPassword` bearer scheme, so a new route is documented as protected with no code. The password is the credential `ADMIN_PASSWORD` (environment, then the secrets file, read through `loadCredential`), never a settings value; the app starts without it and the gate then refuses everything. Compare it only as SHA-256 digests with `timingSafeEqual`, never log the `Authorization` header, and never put the password in a response body or an error message. A test that needs "no password" or a fixed one uses `setAdminPasswordReader`, so a developer's own environment or secrets file cannot change its outcome.
+- **User text in a response header**: never interpolate it raw. A header value built from User-supplied text goes through a sanitiser that removes control characters and quotes and emits an ASCII fallback plus an RFC 5987 `filename*` where a filename is involved (`util/downloadFilename.ts`, `name-final-video-after-title`, JOS-193). Node throws on a non-Latin-1 header value, and a raw line break would inject a header.
 - **Request body size ceiling**: PRD §4.1 imposes no product-side script length limit, but Fastify's own `bodyLimit` is the real, finite ceiling underneath that (`start-video-project`, JOS-134, Decision 6) — set to 50MB (`BODY_LIMIT_BYTES` env var, `server.ts`), far beyond any realistic script while still a named ceiling rather than "no limit at all." A request exceeding it gets Fastify's own `413`, structurally distinct from the `400`s this app's own Zod validation returns — never leave the framework default (1MB) in place, which would look identical to a product limit that does not exist.
 
 ## Deployment

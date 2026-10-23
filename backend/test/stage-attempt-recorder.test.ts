@@ -75,7 +75,7 @@ function claim(attemptId: string): string {
 }
 
 function runThroughFailures(runId: string, count: number, stage: AttemptStage = "voice-over", sceneId?: string) {
-  let attempt = send(runId, stage, sceneId);
+  const attempt = send(runId, stage, sceneId);
   let result = recordAttemptOutcome(attempt.id, transient(), options);
   for (let n = 2; n <= count; n++) {
     if (result.action !== "scheduled") throw new Error(`no retry scheduled before attempt ${n}`);

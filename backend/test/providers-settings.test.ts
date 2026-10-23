@@ -171,7 +171,9 @@ describe("Settings are read once, at start-up", () => {
     try {
       await app.ready();
       for (const method of ["GET", "PUT", "POST", "PATCH", "DELETE"] as const) {
-        for (const url of ["/settings", "/admin", "/admin/settings", "/config", "/providers"]) {
+        // `/admin/settings` is left out: admin-visual-style-prompt (JOS-201) uses it for the visual style, behind the
+        // Administrator gate, and it holds none of these settings.
+        for (const url of ["/settings", "/admin", "/config", "/providers"]) {
           const response = await app.inject({ method, url, payload: method === "GET" ? undefined : { maxSimultaneousRequests: { video: 1 } } });
           expect(response.statusCode, `${method} ${url}`).toBe(404);
         }

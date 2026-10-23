@@ -146,9 +146,9 @@ beforeEach(async () => {
 describe("The published contract describes the final-video download as binary (JOS-164, design Decision 1)", () => {
   it("GET /docs/json describes the 200 response as video/mp4, not application/json", async () => {
     const res = await app.inject({ method: "GET", url: "/docs/json" });
-    const document = res.json() as {
+    const document = res.json<{
       paths: Record<string, Record<string, { responses?: Record<string, { content?: Record<string, unknown> }> }>>;
-    };
+    }>();
 
     const route = document.paths["/sessions/{sessionId}/download/final-video"]!.get!;
     const content = route.responses!["200"]!.content!;
@@ -166,7 +166,9 @@ describe("AC1 — the final video downloads with its real bytes and headers", ()
 
     expect(res.statusCode).toBe(200);
     expect(res.headers["content-type"]).toBe("video/mp4");
-    expect(res.headers["content-disposition"]).toBe('attachment; filename="final-video.mp4"');
+    expect(res.headers["content-disposition"]).toBe(
+      `attachment; filename="AC1 download test.mp4"; filename*=UTF-8''AC1%20download%20test.mp4`,
+    );
     expect(res.headers["content-length"]).toBe(String(MP4_BYTES.length));
     expect(res.rawPayload.equals(MP4_BYTES)).toBe(true);
   });
@@ -193,5 +195,69 @@ describe("AC2 — refused before the final video exists (JOS-164)", () => {
     const res = await app.inject({ method: "GET", url: `/sessions/${runId}/download/final-video` });
 
     expect(res.statusCode).toBe(404);
+  });
+});
+
+// name-final-video-after-title (JOS-193) — the attachment is named after the
+// project title through the HTTP surface.
+async function downloadHeaderFor(title: string): Promise<{ header: string; bytes: Buffer }> {
+  const runId = ulid();
+  createRun(runId, title, makeScript(1), "en");
+  await bringToFinalVideo(runId, 1);
+  const res = await app.inject({ method: "GET", url: `/sessions/${runId}/download/final-video` });
+  expect(res.statusCode).toBe(200);
+  return { header: String(res.headers["content-disposition"]), bytes: res.rawPayload };
+}
+
+function filenameStar(header: string): string {
+  return decodeURIComponent(/filename\*=UTF-8''(.*)$/.exec(header)![1]!);
+}
+
+describe("The download is named after the project title (JOS-193)", () => {
+  it("names a plain title", async () => {
+    const { header } = await downloadHeaderFor("Summer Trip");
+    expect(filenameStar(header)).toBe("Summer Trip.mp4");
+    expect(header).toContain('filename="Summer Trip.mp4"');
+  });
+
+  it("keeps a non-ASCII title in filename* with an ASCII-only header", async () => {
+    const { header } = await downloadHeaderFor("Café de la plage 海");
+    expect(filenameStar(header)).toBe("Café de la plage 海.mp4");
+    expect(/^[\x20-\x7e]*$/.test(header)).toBe(true);
+  });
+
+  it("replaces path separators and forbidden characters", async () => {
+    const { header } = await downloadHeaderFor('a/b\\c:d*e?f"g<h>i|j');
+    expect(filenameStar(header)).toBe("a_b_c_d_e_f_g_h_i_j.mp4");
+  });
+
+  it("cannot be broken out of by a quote and a line break", async () => {
+    const { header } = await downloadHeaderFor('x"\nSet-Cookie: a=b');
+    expect(header.split(/[\r\n]/)).toHaveLength(1);
+    expect(filenameStar(header)).not.toMatch(/["\r\n]/);
+  });
+
+  it("falls back to final-video for a dots-only title and strips dots and spaces", async () => {
+    expect(filenameStar((await downloadHeaderFor("...")).header)).toBe("final-video.mp4");
+    expect(filenameStar((await downloadHeaderFor("  ..My   Video.. ")).header)).toBe("My Video.mp4");
+  });
+
+  it("escapes a Windows reserved device name", async () => {
+    expect(filenameStar((await downloadHeaderFor("con")).header)).toBe("_con.mp4");
+  });
+
+  it("caps a 150-character title at 100 code points", async () => {
+    // ASCII on purpose: the project folder is named after the title, and a filesystem rejects a name over 255 bytes (multi-byte is covered in download-filename.test.ts).
+    const { header } = await downloadHeaderFor("x".repeat(150));
+    expect(filenameStar(header)).toBe(`${"x".repeat(100)}.mp4`);
+  });
+
+  it("serves each session its own bytes when two titles sanitise alike", async () => {
+    const first = await downloadHeaderFor("a/b");
+    const second = await downloadHeaderFor("a:b");
+    expect(filenameStar(first.header)).toBe("a_b.mp4");
+    expect(filenameStar(second.header)).toBe("a_b.mp4");
+    expect(first.bytes.equals(MP4_BYTES)).toBe(true);
+    expect(second.bytes.equals(MP4_BYTES)).toBe(true);
   });
 });

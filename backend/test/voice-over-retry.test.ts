@@ -320,7 +320,7 @@ describe("Nothing is deleted (3.3)", () => {
 // session shows progress from the moment the retry is accepted.
 
 function voiceOverPhase(runId: string) {
-  return toSnapshot(runId)!.session.phases!.find((phase) => phase.phase === "voice-over")!;
+  return toSnapshot(runId)!.session.phases.find((phase) => phase.phase === "voice-over")!;
 }
 
 describe("A new cycle (4.1)", () => {

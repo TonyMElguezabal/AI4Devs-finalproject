@@ -152,6 +152,13 @@
 # attempt was sent; `from` open when absent, `to` is now when absent; 200 `{ from, to, sceneAttemptsFollowCurrentProvider, rows }` with one row
 # per stage and provider: attempts, successes, failures by kind, success rate, median and 95th-percentile latency, billed units and their unit;
 # 400 for a bad date-time or `from` not before `to`; 401). Read-only, behind the Administrator password; it carries no key, script, prompt or failure text.
+# JOS-201 (admin-visual-style-prompt) - 2026-10-19, merged behind the Administrator password 2026-10-22: new GET /admin/settings,
+# PUT /admin/settings/visual-style-prompt (`{ visualStylePrompt }`, at most 8,000 characters after trimming, 400 otherwise) and,
+# for the optional reference image, PUT (raw bytes, `image/png`, `image/jpeg` or `image/webp`, at most 5 MB: 400 for another
+# type or bytes that do not match the type, 413 when too large), GET (the stored bytes, 404 when none) and DELETE (204, also
+# when none) on /admin/settings/reference-image. All answer 401 as `/admin/access` without the password. The settings body is
+# `visualStylePrompt`, `referenceImage` or null, `updatedAt`; the image's file path is never returned. PUT and DELETE are allowed
+# because these are app settings, not session content. The image routes are hand-described because their body is raw bytes.
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -2175,6 +2182,12 @@ paths:
                 additionalProperties: false
   /sessions/{sessionId}/download/final-video:
     get:
+      description: 'Content-Disposition names the file after the project title:
+        `<title>.mp4`, with control characters and `/ \ : * ? " < > |` replaced
+        by `_`, whitespace collapsed, leading/trailing dots and spaces stripped,
+        Windows reserved device names prefixed with `_`, capped at 100
+        characters, `final-video` when nothing remains. The header carries an
+        ASCII `filename` and an RFC 5987 `filename*` with the full name.'
       parameters:
         - schema:
             type: string
@@ -2374,6 +2387,314 @@ paths:
                 additionalProperties: false
         "401":
           description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /admin/settings:
+    get:
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  visualStylePrompt:
+                    type: string
+                  referenceImage:
+                    type: object
+                    properties:
+                      contentType:
+                        type: string
+                      sizeBytes:
+                        type: integer
+                      updatedAt:
+                        type: string
+                    required:
+                      - contentType
+                      - sizeBytes
+                      - updatedAt
+                    additionalProperties: false
+                    nullable: true
+                  updatedAt:
+                    type: string
+                required:
+                  - visualStylePrompt
+                  - referenceImage
+                  - updatedAt
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /admin/settings/visual-style-prompt:
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                visualStylePrompt:
+                  allOf:
+                    - type: string
+                    - type: string
+                      maxLength: 8000
+              required:
+                - visualStylePrompt
+              additionalProperties: false
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  visualStylePrompt:
+                    type: string
+                  referenceImage:
+                    type: object
+                    properties:
+                      contentType:
+                        type: string
+                      sizeBytes:
+                        type: integer
+                      updatedAt:
+                        type: string
+                    required:
+                      - contentType
+                      - sizeBytes
+                      - updatedAt
+                    additionalProperties: false
+                    nullable: true
+                  updatedAt:
+                    type: string
+                required:
+                  - visualStylePrompt
+                  - referenceImage
+                  - updatedAt
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /admin/settings/reference-image:
+    put:
+      security:
+        - administratorPassword: []
+      description: Stores the optional reference image (raw bytes, replacing any earlier one). The bytes must match the
+        declared type's magic numbers. The image is stored only; no provider receives it yet.
+      requestBody:
+        required: true
+        content:
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/webp:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: The settings, with the stored image's content type and size.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  visualStylePrompt:
+                    type: string
+                  referenceImage:
+                    type: object
+                    properties:
+                      contentType:
+                        type: string
+                      sizeBytes:
+                        type: integer
+                      updatedAt:
+                        type: string
+                    required:
+                      - contentType
+                      - sizeBytes
+                      - updatedAt
+                    additionalProperties: false
+                    nullable: true
+                  updatedAt:
+                    type: string
+                required:
+                  - visualStylePrompt
+                  - referenceImage
+                  - updatedAt
+                additionalProperties: false
+        "400":
+          description: Another content type (or none), or bytes that do not match the declared type. The previous image is kept.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "413":
+          description: The image is larger than 5 MB. The previous image is kept.
+        "401":
+          description: The Administrator password is missing, wrong or not configured.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+    get:
+      security:
+        - administratorPassword: []
+      description: Streams the stored image with its content type.
+      responses:
+        "200":
+          description: The image bytes.
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: No reference image is stored.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "401":
+          description: The Administrator password is missing, wrong or not configured.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+    delete:
+      security:
+        - administratorPassword: []
+      description: Removes the stored image and its file. Answers 204 also when there is none.
+      responses:
+        "204":
+          description: Removed (or nothing to remove).
+        "401":
+          description: The Administrator password is missing, wrong or not configured.
           content:
             application/json:
               schema:

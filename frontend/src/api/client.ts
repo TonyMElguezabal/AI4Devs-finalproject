@@ -1,13 +1,13 @@
-import type { AdapterTypeInfo, AppUpdate, FailedStageRow, ProfileProblem, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AdapterTypeInfo, AppSettings, AppUpdate, FailedStageRow, ProfileProblem, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
 // ports via an env var, but defaults to the skeleton's documented port.
-export const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:3100";
+export const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? "http://127.0.0.1:3100";
 
 async function asJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
+    const body = (await response.json().catch(() => ({}))) as { reason?: string; message?: string; error?: string };
     // `reason` (this app's own {ok:false, reason} shape) first, then Zod's
     // validation `message` (the actual cause — start-video-project, JOS-134,
     // Decision 6/§4.1 requires the cause named, not swallowed by Fastify's
@@ -134,8 +134,8 @@ const ADMIN_DENIALS: readonly string[] = ["not-configured", "password-required",
 export async function getAdminAccess(password?: string): Promise<AdminAccessResult> {
   const response = await adminFetch("/admin/access", password);
   if (response.ok) return { kind: "granted" };
-  const body = await response.json().catch(() => ({}));
-  if (response.status === 401 && ADMIN_DENIALS.includes(body.reason)) return { kind: "denied", reason: body.reason as AdminDenial };
+  const body = (await response.json().catch(() => ({}))) as { reason?: string };
+  if (response.status === 401 && body.reason && ADMIN_DENIALS.includes(body.reason)) return { kind: "denied", reason: body.reason as AdminDenial };
   throw new Error(`request failed with ${response.status}`);
 }
 
@@ -147,7 +147,7 @@ export async function getAdminProviders(password: string): Promise<AdminProvider
   const response = await adminFetch("/admin/providers", password);
   if (response.status === 401) return { kind: "denied" };
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
-  return { kind: "ok", providers: (await response.json()).providers as ProviderView[] };
+  return { kind: "ok", providers: ((await response.json()) as { providers: ProviderView[] }).providers };
 }
 
 /** `PUT /admin/providers/{stage}`: the stage's new view, a 401 (`denied`), or a 400 naming the selectable ids (`refused`). */
@@ -159,8 +159,8 @@ export async function putAdminProvider(password: string, stage: ProviderStage, p
   });
   if (response.status === 401) return { kind: "denied" };
   if (response.status === 400) {
-    const body = await response.json().catch(() => ({}));
-    return { kind: "refused", selectable: Array.isArray(body.selectable) ? body.selectable : [] };
+    const body = (await response.json().catch(() => ({}))) as { selectable?: unknown };
+    return { kind: "refused", selectable: Array.isArray(body.selectable) ? (body.selectable as string[]) : [] };
   }
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
   return { kind: "ok", view: (await response.json()) as ProviderView };
@@ -180,15 +180,15 @@ export async function getProviderProfiles(password: string): Promise<ProfilesRes
   const [types, profiles] = await Promise.all([adminFetch("/admin/provider-types", password), adminFetch("/admin/provider-profiles", password)]);
   if (types.status === 401 || profiles.status === 401) return { kind: "denied" };
   if (!types.ok || !profiles.ok) throw new Error(`request failed with ${types.ok ? profiles.status : types.status}`);
-  return { kind: "ok", types: (await types.json()).types as AdapterTypeInfo[], profiles: (await profiles.json()).profiles as ProfileView[] };
+  return { kind: "ok", types: ((await types.json()) as { types: AdapterTypeInfo[] }).types, profiles: ((await profiles.json()) as { profiles: ProfileView[] }).profiles };
 }
 
 async function writeProfile(response: Response): Promise<ProfileWriteResult> {
   if (response.status === 401) return { kind: "denied" };
   if (response.status === 404) return { kind: "not-found" };
   if (response.status === 400) {
-    const body = await response.json().catch(() => ({}));
-    return { kind: "invalid", problems: Array.isArray(body.problems) ? body.problems : [{ field: "", message: String(body.message ?? "the request is not valid") }] };
+    const body = (await response.json().catch(() => ({}))) as { problems?: unknown; message?: string };
+    return { kind: "invalid", problems: Array.isArray(body.problems) ? (body.problems as ProfileProblem[]) : [{ field: "", message: body.message ?? "the request is not valid" }] };
   }
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
   return { kind: "ok" };
@@ -216,11 +216,11 @@ export async function deleteProviderProfile(password: string, id: string): Promi
   if (response.status === 401) return { kind: "denied" };
   if (response.status === 404) return { kind: "not-found" };
   if (response.status === 409) {
-    const body = await response.json().catch(() => ({}));
-    return { kind: "active", stage: body.stage as ProviderStage };
+    const body = (await response.json().catch(() => ({}))) as { stage: ProviderStage };
+    return { kind: "active", stage: body.stage };
   }
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
-  return (await response.json()).result === "retired" ? { kind: "retired" } : { kind: "removed" };
+  return ((await response.json()) as { result: string }).result === "retired" ? { kind: "retired" } : { kind: "removed" };
 }
 
 export type FailedStagesResult = { kind: "ok"; failedStages: FailedStageRow[] } | { kind: "denied" };
@@ -232,7 +232,7 @@ export async function getFailedStages(password: string): Promise<FailedStagesRes
   const response = await adminFetch("/admin/failed-stages", password);
   if (response.status === 401) return { kind: "denied" };
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
-  return { kind: "ok", failedStages: (await response.json()).failedStages as FailedStageRow[] };
+  return { kind: "ok", failedStages: ((await response.json()) as { failedStages: FailedStageRow[] }).failedStages };
 }
 
 /** `POST /admin/failed-stages/to-active-provider`: moved, a 401 (`denied`), or a refusal with its reason. */
@@ -244,8 +244,8 @@ export async function moveFailedStage(password: string, row: Pick<FailedStageRow
   });
   if (response.status === 401) return { kind: "denied" };
   if (response.status === 404 || response.status === 409) {
-    const body = await response.json().catch(() => ({}));
-    return { kind: "refused", reason: (body.reason as MoveRefusalReason) ?? "not-found" };
+    const body = (await response.json().catch(() => ({}))) as { reason?: MoveRefusalReason };
+    return { kind: "refused", reason: body.reason ?? "not-found" };
   }
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
   return { kind: "moved" };
@@ -262,4 +262,46 @@ export async function getProviderUsageReport(password: string, period: ReportPer
   if (response.status === 401) return { kind: "denied" };
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
   return { kind: "ok", report: (await response.json()) as ProviderUsageReport };
+}
+
+/** admin-visual-style-prompt (JOS-201) */
+export const MAX_VISUAL_STYLE_PROMPT_CHARS = 8000;
+export const MAX_REFERENCE_IMAGE_BYTES = 5 * 1024 * 1024;
+export const REFERENCE_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
+/** The settings, or `denied` for a 401 (the routes sit behind the Administrator gate, JOS-173). Any other failure rejects with the backend's reason. */
+export type AppSettingsResult = { kind: "ok"; settings: AppSettings } | { kind: "denied" };
+
+async function settingsAnswer(response: Response): Promise<AppSettingsResult> {
+  if (response.status === 401) return { kind: "denied" };
+  return { kind: "ok", settings: await asJson<AppSettings>(response) };
+}
+
+export async function getAppSettings(password: string): Promise<AppSettingsResult> {
+  return settingsAnswer(await adminFetch("/admin/settings", password));
+}
+
+export async function saveVisualStylePrompt(password: string, visualStylePrompt: string): Promise<AppSettingsResult> {
+  return settingsAnswer(
+    await adminFetch("/admin/settings/visual-style-prompt", password, { method: "PUT", headers: JSON_HEADERS, body: JSON.stringify({ visualStylePrompt }) }),
+  );
+}
+
+export async function uploadReferenceImage(password: string, file: File): Promise<AppSettingsResult> {
+  return settingsAnswer(await adminFetch("/admin/settings/reference-image", password, { method: "PUT", headers: { "Content-Type": file.type }, body: file }));
+}
+
+export async function deleteReferenceImage(password: string): Promise<{ kind: "removed" } | { kind: "denied" }> {
+  const response = await adminFetch("/admin/settings/reference-image", password, { method: "DELETE" });
+  if (response.status === 401) return { kind: "denied" };
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "removed" };
+}
+
+/** The stored image's bytes: an `<img src>` cannot send the password, so the preview shows them as an object URL. */
+export async function getReferenceImage(password: string): Promise<{ kind: "ok"; image: Blob } | { kind: "denied" }> {
+  const response = await adminFetch("/admin/settings/reference-image", password);
+  if (response.status === 401) return { kind: "denied" };
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "ok", image: await response.blob() };
 }

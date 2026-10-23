@@ -10,7 +10,7 @@ describe("slow-success assembly stub (manual endpoint testing)", () => {
     const tool = createStubAssemblyTool({ kind: "slow-success", delayMs: 60 });
     const startedAt = Date.now();
 
-    const result = await tool.assemble({ clips: [], voiceOverPath: "", outputPath: "/tmp/final.mp4", fps: 25, width: 1920, height: 1080 } as never);
+    const result = await tool.assemble({ clips: [], voiceOverPath: "", outputPath: "/tmp/final.mp4", fps: 25, width: 1920, height: 1080 });
 
     expect(result).toEqual({ kind: "success", outputPath: "/tmp/final.mp4" });
     expect(Date.now() - startedAt).toBeGreaterThanOrEqual(55);

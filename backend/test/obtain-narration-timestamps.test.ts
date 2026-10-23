@@ -26,7 +26,6 @@ import { createDecompositionFailure } from "../src/sessionStateMachine.ts";
 
 const SCRIPT = "Hi there. Bye now.";
 const STEP = 0.1;
-const DURATION = SCRIPT.length * STEP;
 const MP3 = Buffer.from([0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x01, 0x02, 0x03]);
 
 beforeEach(() => {
@@ -52,7 +51,7 @@ function alignedFor(text: string, offset = 0.1) {
 }
 
 /** A session with a stored narration; `native` is the raw file the voice provider returned, or "none". */
-function newNarratedSession(native: NativeRaw | "none" = nativeFor(SCRIPT), script = SCRIPT) {
+function newNarratedSession(native: NativeRaw = nativeFor(SCRIPT), script = SCRIPT) {
   const runId = randomUUID();
   const { projectFolder } = createRun(runId, "Timestamps test", script, "en");
   writeArtefactOnce(projectFolder, "voice-over.mp3", MP3);
@@ -159,7 +158,7 @@ describe("Unusable native timestamps fall back to alignment in the same attempt 
   ];
 
   it.each(unusableCases)("calls the alignment provider when the native timestamps have %s", async (_label, native) => {
-    const { runId } = newNarratedSession(native as NativeRaw | "none");
+    const { runId } = newNarratedSession(native);
     const { provider, calls } = stubAlignment();
 
     const result = await obtainNarrationTimestamps(runId, provider);

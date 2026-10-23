@@ -40,6 +40,7 @@ export function registerFailedStageRoutes(admin: FastifyInstance): void {
   typedAdmin.get(
     "/failed-stages",
     { schema: { response: { 200: z.object({ failedStages: z.array(failedStageSchema) }), 401: adminDeniedSchema } } },
+    // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
     async () => ({ failedStages: listFailedStages() }),
   );
 
