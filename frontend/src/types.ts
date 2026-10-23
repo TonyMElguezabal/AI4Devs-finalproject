@@ -214,6 +214,35 @@ export interface FailedStageRow {
   cause: string;
 }
 
+/** report-provider-usage (JOS-223): the period of a report, as the ISO instants the backend takes; an absent bound is open. */
+export interface ReportPeriod {
+  from?: string;
+  to?: string;
+}
+
+export interface ProviderUsageRow {
+  stage: ProviderStage;
+  providerId: string;
+  providerLabel: string;
+  attempts: number;
+  successes: number;
+  transient: number;
+  notRetryable: number;
+  timedOut: number;
+  successRatePercent: number;
+  medianLatencyMs: number | null;
+  p95LatencyMs: number | null;
+  billedUnits: number;
+  unit: string;
+}
+
+export interface ProviderUsageReport {
+  from: string | null;
+  to: string;
+  sceneAttemptsFollowCurrentProvider: boolean;
+  rows: ProviderUsageRow[];
+}
+
 /** admin-visual-style-prompt (JOS-201) — `GET /admin/settings`. The image's file path is never exposed. */
 export interface AppSettings {
   visualStylePrompt: string;

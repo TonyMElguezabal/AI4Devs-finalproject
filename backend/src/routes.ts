@@ -47,6 +47,7 @@ import { adminDeniedSchema, registerAdminGate } from "./adminAccess.ts";
 import { PROVIDER_STAGES, providerView, selectableProviders, setActiveProvider } from "./activeProvider.ts";
 import { registerFailedStageRoutes } from "./adminFailedStageRoutes.ts";
 import { registerProviderProfileRoutes } from "./adminProviderRoutes.ts";
+import { registerReportRoutes } from "./adminReportRoutes.ts";
 import { profileProblems } from "./providerAdmin.ts";
 import { getProfile } from "./providerProfiles.ts";
 import { contentDisposition, downloadFilename } from "./util/downloadFilename.ts";
@@ -862,6 +863,7 @@ export const routes: FastifyPluginAsync = async (app) => {
 
       registerProviderProfileRoutes(admin);
       registerFailedStageRoutes(admin);
+      registerReportRoutes(admin);
 
       // admin-visual-style-prompt (JOS-201) — the style prompt; the reference image routes are their own plugin (raw-body parser).
       // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply

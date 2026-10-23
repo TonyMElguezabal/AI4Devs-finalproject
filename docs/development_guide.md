@@ -169,6 +169,12 @@ When a stage failed on a provider that stays unavailable, the Administrator move
 
 A moved clip chooses its requested duration again from the new provider's admitted durations, so its speed factor and warning can change; its narration interval does not. A failure that offers no manual retry is not listed, and a stage already on the active provider is not listed. Nothing moves by itself.
 
+### Reading the provider-usage report
+
+Once unlocked, `/admin` ends with a "Reports" section. "Period" offers "Last 7 days", "Last 30 days" (selected first), "All time" and "Custom range" (two dates read in the computer's time zone, from the start of the first day to the end of the last). The table has one row per stage and provider with attempts, successes, transient and not-retryable failures, timed-out attempts, success rate, median and 95th-percentile latency (nearest rank) and billed units; it comes from `GET /admin/reports/provider-usage?from&to`, computed on demand from the local store and read-only.
+
+What it counts: an attempt that was sent and has a final outcome, by the instant it was sent (`[from, to)`); a late success counts as a success. It leaves out attempts that are scheduled, in flight, superseded or cancelled, the voice provider's native timestamps (not an alignment call) and the stub-only `unrecoverable` and `flaky` scene modes. Billed units count successful attempts only: voice characters, audio seconds (alignment), one request (reasoning), one image, requested clip seconds. A provider with no attempt in the period has no row. Until JOS-222 records the provider on image and clip attempts, those rows follow the scene's current provider (the section says so), so a scene moved to another provider counts all its attempts for the new one. The report contains no key, script, prompt or failure text.
+
 ### Development-only switches
 
 These exist for manual endpoint testing and **must never be set in UAT or production**. The backend treats any non-empty value, including `false` and `0`, as enabled, so leave them unset.
