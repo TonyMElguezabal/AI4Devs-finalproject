@@ -643,6 +643,22 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       target.prepare("INSERT INTO app_settings (id, updated_at) VALUES (1, ?)").run(new Date().toISOString());
     },
   },
+  {
+    version: 21,
+    description: "add provider_requests.provider_id and backfill it from the scene's binding for the attempt's stage (record-attempt-provider, JOS-222)",
+    up: (target) => {
+      target.exec("ALTER TABLE provider_requests ADD COLUMN provider_id TEXT");
+      // `scenes.provider` is part of the baseline schema; the version-1 fixture databases of the migration tests omit it.
+      const hasImageBinding = (target.prepare("PRAGMA table_info(scenes)").all() as Array<{ name: string }>).some((c) => c.name === "provider");
+      if (!hasImageBinding) return;
+      target.exec(`
+        UPDATE provider_requests SET provider_id = (
+          SELECT CASE WHEN provider_requests.stage = 'video' THEN scenes.video_provider ELSE scenes.provider END
+          FROM scenes WHERE scenes.id = provider_requests.scene_id
+        );
+      `);
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -1092,6 +1108,7 @@ interface ProviderRequestDbRow {
   attempt_number: number;
   resolved: 0 | 1;
   stage: "image" | "video" | null;
+  provider_id: string | null;
 }
 
 function rowToProviderRequest(row: ProviderRequestDbRow): ProviderRequestRow {
@@ -1104,6 +1121,7 @@ function rowToProviderRequest(row: ProviderRequestDbRow): ProviderRequestRow {
     attemptNumber: row.attempt_number,
     resolved: row.resolved,
     stage: row.stage ?? "image",
+    providerId: row.provider_id,
   };
 }
 
@@ -2066,11 +2084,13 @@ export function insertProviderRequest(
   stage: "image" | "video" = "image",
 ): ProviderRequestRow {
   const sentAt = nowIso();
+  // record-attempt-provider (JOS-222) Decision 1 — the stage's binding cannot change while an attempt is in flight.
   db.prepare(
-    "INSERT INTO provider_requests (id, scene_id, sent_at, latency_ms, mode, attempt_number, resolved, stage) VALUES (?, ?, ?, ?, ?, ?, 0, ?)",
-  ).run(id, sceneId, sentAt, latencyMs, mode, attemptNumber, stage);
+    `INSERT INTO provider_requests (id, scene_id, sent_at, latency_ms, mode, attempt_number, resolved, stage, provider_id)
+     VALUES (?, ?, ?, ?, ?, ?, 0, ?, (SELECT CASE WHEN ? = 'video' THEN video_provider ELSE provider END FROM scenes WHERE id = ?))`,
+  ).run(id, sceneId, sentAt, latencyMs, mode, attemptNumber, stage, stage, sceneId);
   reportProviderRequest(sceneId, latencyMs, mode, stage);
-  return { id, sceneId, sentAt, latencyMs, mode, attemptNumber, resolved: 0, stage };
+  return getProviderRequest(id)!;
 }
 
 /** add-observability-telemetry (JOS-199) Decision 4 — the image and clip stages report here, not through stage attempts. */

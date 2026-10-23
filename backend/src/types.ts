@@ -295,6 +295,8 @@ export interface ProviderRequestRow {
   resolved: 0 | 1;
   /** Which stage this request belongs to; defaults to 'image' for existing rows (generate-chunk-video, JOS-146, Decision 5). */
   stage: "image" | "video";
+  /** The provider the scene's stage was bound to when the attempt was recorded (JOS-222); null when the scene had no binding. */
+  providerId: string | null;
 }
 
 import type { StageDiagnostic } from "./stageDiagnostics.ts";

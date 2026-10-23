@@ -79,6 +79,7 @@ An append-only record of one attempt to call the provider for a scene. PRD §10.
 - `latency_ms`, `mode`: skeleton-only fields the stub provider uses to compute its outcome deterministically
 - `attempt_number`: sequence within the current stage's 1+3 budget — §10.1. Image and video stage attempts are numbered independently (the counter resets at stage transitions).
 - `stage`: which stage this attempt belongs to — `'image'` or `'video'`. NOT NULL, defaults to `'image'` so existing rows are backward-compatible. Tells boot reconciliation which adapter to use when resuming a `video-generating` scene. (Added in migration 12.)
+- `provider_id`: the provider the scene's stage was bound to when the attempt was recorded (`scenes.provider` for an image attempt, `scenes.video_provider` for a clip attempt) — nullable TEXT, added in migration 21 (`record-attempt-provider`, JOS-222) and backfilled from the scene's current binding. It does not change when the stage is later moved to another provider; it is null for a clip attempt whose scene had no clip binding. Stage diagnostics and telemetry do not read it yet.
 - `resolved`: whether this specific request's delivery has been processed (guards against redelivering the same delivery — a different, narrower concern than the scene-level idempotency below)
 
 **Never updated in place** once written except to flip `resolved`: each retry inserts a **new** row rather than mutating the previous attempt (Decision 1) — proven in `openspec/changes/define-persistence/reports/2026-09-25-step-8-curl-endpoint-testing.md` §8.6.
