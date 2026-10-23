@@ -1,7 +1,7 @@
 import { SETTINGS } from "./config/providers.ts";
 import type { Settings } from "./config/settings.ts";
 import { db, getActiveProviderChoice, onStoreReset } from "./db.ts";
-import { PROVIDER_STAGES, SEEDED_PROFILES, type ProviderStage } from "./providerTypes.ts";
+import { PRICE_KEYS, PROVIDER_STAGES, SEEDED_PROFILES, type ProviderStage } from "./providerTypes.ts";
 
 // manage-providers-from-admin (JOS-218), design Decisions 1, 7 and 8 — the provider profiles stored in the database,
 // and the first ones, seeded from the settings with the identifiers the database already stores in its bindings.
@@ -114,6 +114,13 @@ export function ensureProfiles(): void {
 
 const warnedDrift = new Set<ProviderStage>();
 
+/** The price is managed on /admin only, so it is never a difference from the settings files. */
+function withoutPrice(parameters: Record<string, unknown>): Record<string, unknown> {
+  const rest = { ...parameters };
+  for (const key of PRICE_KEYS) delete rest[key];
+  return rest;
+}
+
 /**
  * Creates the first profile of every stage that has none, from the provider section of the settings. Afterwards the
  * sections no longer change a profile: when one differs from the stored profile, one notice says `/admin` owns it.
@@ -128,7 +135,7 @@ export function seedProviderProfiles(settings: Settings, now: () => Date = () =>
       continue;
     }
     const first = existing.find((profile) => profile.id === seeded.id);
-    if (first && JSON.stringify(first.parameters) !== JSON.stringify(parameters) && !warnedDrift.has(stage)) {
+    if (first && JSON.stringify(withoutPrice(first.parameters)) !== JSON.stringify(parameters) && !warnedDrift.has(stage)) {
       warnedDrift.add(stage);
       console.warn(`The ${stage} provider section of the settings differs from the provider stored on /admin; the stored provider is used. Provider settings are managed on /admin.`);
     }

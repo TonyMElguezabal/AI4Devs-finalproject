@@ -37,8 +37,8 @@ describe("the adapter-type catalogue", () => {
 
   it("has a field for every key the schema accepts", () => {
     const paths = (type: string) => adapterTypesOf("video").concat(...PROVIDER_STAGES.map(adapterTypesOf)).find((t) => t.id === type)!.fields.map((f) => f.path.join("."));
-    expect(paths("runninghub-video").sort()).toEqual(["admittedDurationSeconds.max", "admittedDurationSeconds.min", "endpoint"]);
-    expect(paths("elevenlabs-voice").sort()).toEqual(["model", "outputFormat", "speed", "voiceId", "voiceName"]);
+    expect(paths("runninghub-video").sort()).toEqual(["admittedDurationSeconds.max", "admittedDurationSeconds.min", "endpoint", "priceCurrency", "pricePerUnit"]);
+    expect(paths("elevenlabs-voice").sort()).toEqual(["model", "outputFormat", "priceCurrency", "pricePerUnit", "speed", "voiceId", "voiceName"]);
   });
 });
 
