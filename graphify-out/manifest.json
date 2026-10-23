@@ -6581,46 +6581,58 @@
     "ast_hash": "f5fa4fa938da632dff34208157c7e508",
     "semantic_hash": ""
   },
-  "openspec/changes/record-attempt-provider/.openspec.yaml": {
-    "mtime": 1792700164.0119805,
-    "seen": 1792702812.857551,
-    "ast_hash": "db874330e3bdf09469eb2e2124cebd99",
-    "semantic_hash": ""
-  },
-  "openspec/changes/record-attempt-provider/design.md": {
-    "mtime": 1792702803.5753016,
-    "seen": 1792702812.8575518,
-    "ast_hash": "c57148672b3883584128d819a31553ff",
-    "semantic_hash": ""
-  },
-  "openspec/changes/record-attempt-provider/proposal.md": {
-    "mtime": 1792702526.6818666,
-    "seen": 1792702812.8575518,
-    "ast_hash": "236614784cb87247140abc87542788ed",
-    "semantic_hash": ""
-  },
-  "openspec/changes/record-attempt-provider/reports/2026-10-22-step-5-unit-test-and-db-verification.md": {
-    "mtime": 1792702803.5859692,
-    "seen": 1792702812.857553,
-    "ast_hash": "f71bcc065093cabf85c31fc4c23282ed",
-    "semantic_hash": ""
-  },
-  "openspec/changes/record-attempt-provider/specs/attempt-provider-attribution/spec.md": {
-    "mtime": 1792700212.5576391,
-    "seen": 1792702812.857554,
-    "ast_hash": "fee34c0b0b7c65fe2a34bf4978e81fff",
-    "semantic_hash": ""
-  },
-  "openspec/changes/record-attempt-provider/tasks.md": {
-    "mtime": 1792702803.575673,
-    "seen": 1792702812.857555,
-    "ast_hash": "b4442cf71e11b19717f0a0028005e664",
-    "semantic_hash": ""
-  },
   "openspec/specs/failed-stage-move/spec.md": {
     "mtime": 1792702520.8736143,
     "seen": 1792702812.857569,
     "ast_hash": "ae5345795db02bcb83b1ad2f138b5aaf",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-10-23-record-attempt-provider/.openspec.yaml": {
+    "mtime": 1792700164.0119805,
+    "seen": 1792768240.502858,
+    "ast_hash": "db874330e3bdf09469eb2e2124cebd99",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-10-23-record-attempt-provider/design.md": {
+    "mtime": 1792702803.5753016,
+    "seen": 1792768240.50286,
+    "ast_hash": "c57148672b3883584128d819a31553ff",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-10-23-record-attempt-provider/proposal.md": {
+    "mtime": 1792703003.8624783,
+    "seen": 1792768240.502861,
+    "ast_hash": "ca9994a19f4a6f7e33a49a10423f2519",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-10-23-record-attempt-provider/reports/2026-10-22-step-5-unit-test-and-db-verification.md": {
+    "mtime": 1792702803.5859692,
+    "seen": 1792768240.502862,
+    "ast_hash": "f71bcc065093cabf85c31fc4c23282ed",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-10-23-record-attempt-provider/reports/2026-10-22-step-6-manual-endpoint-testing.md": {
+    "mtime": 1792703190.873026,
+    "seen": 1792768240.5028632,
+    "ast_hash": "4de9ac439de84679ae8fb41d5e5cd9be",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-10-23-record-attempt-provider/specs/attempt-provider-attribution/spec.md": {
+    "mtime": 1792700212.5576391,
+    "seen": 1792768240.5028648,
+    "ast_hash": "fee34c0b0b7c65fe2a34bf4978e81fff",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-10-23-record-attempt-provider/tasks.md": {
+    "mtime": 1792703196.9178483,
+    "seen": 1792768240.502866,
+    "ast_hash": "07b6bd81d560ed9e96243f35ea7e8008",
+    "semantic_hash": ""
+  },
+  "openspec/specs/attempt-provider-attribution/spec.md": {
+    "mtime": 1792768230.1664116,
+    "seen": 1792768240.503354,
+    "ast_hash": "a3715c9e0bc86c426feb939232178e45",
     "semantic_hash": ""
   }
 }
