@@ -143,6 +143,12 @@
 # or 409 `{ reason: active, stage }`). `PUT /admin/providers/{stage}` (JOS-171) also answers 409 `not-usable` with the problems. No
 # response carries an API key. The routes are behind the Administrator password; PUT, POST and DELETE are allowed here because
 # providers are app-level settings, not session content (content lock, AC1).
+# JOS-226 (add-provider-price-per-unit) - 2026-10-23: no new route. The `parameters` of a provider profile (POST and PUT
+# `/admin/provider-profiles`, and the profile returned by GET) take two optional keys together: `pricePerUnit` (a finite number, zero or
+# greater; zero is a price) and `priceCurrency` (a three-letter ISO 4217 code, returned upper-case). Both or neither; a profile with neither is
+# unpriced. A violation is a 400 with a problem on `pricePerUnit` or `priceCurrency`. Example: `{ "model": "fal-ai/flux/dev",
+# "pricePerUnit": 0.04, "priceCurrency": "USD" }`. `GET /admin/provider-types` lists both as non-required fields at the end of every adapter
+# type, the price labelled with the stage's unit ("Price per voice character | audio second | request | image | clip second").
 # JOS-172 (move-failed-stage-to-active-provider) - 2026-10-22: new `GET /admin/failed-stages` (the failed stages bound to a provider other than
 # the active one: `sessionId`, `sessionTitle`, `stage`, `sceneId`, `sceneNumber`, both providers' ids and labels, `cause`) and
 # `POST /admin/failed-stages/to-active-provider` (body `{ sessionId, stage, sceneId? }`; 200 `{ moved }`, with the new requested
