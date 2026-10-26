@@ -39,13 +39,13 @@
 
 ## 6. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 6.1 Start the backend with stub providers and a slow stub video latency in an isolated data folder; create a session; curl `GET /runs/:id` while a clip generates and confirm `videoRequest` and the clip diagnostic; restart the backend and confirm the same `sentAt` and body
-- [ ] 6.2 Restore the data folder and document commands and responses in `reports/YYYY-MM-DD-step-6-curl-endpoint-testing.md`
+- [x] 6.1 Start the backend with stub providers and a slow stub video latency in an isolated data folder; create a session; curl `GET /runs/:id` while a clip generates and confirm `videoRequest` and the clip diagnostic; restart the backend and confirm the same `sentAt` and body
+- [x] 6.2 Restore the data folder and document commands and responses in `reports/YYYY-MM-DD-step-6-curl-endpoint-testing.md`
 
 ## 7. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 With stub providers, expand a generating scene: check the block, the elapsed time increasing, the estimate text, the request view; check the block disappears when the clip completes
-- [ ] 7.2 Record the run and screenshots in `reports/YYYY-MM-DD-step-7-e2e.md`
+- [x] 7.1 With stub providers, expand a generating scene: check the block, the elapsed time increasing, the estimate text, the request view; check the block disappears when the clip completes
+- [x] 7.2 Record the run and screenshots in `reports/YYYY-MM-DD-step-7-e2e.md`
 
 ## 8. Update Technical Documentation (MANDATORY)
 
