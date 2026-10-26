@@ -24,6 +24,11 @@ There SHALL be one release channel. A push to `main` SHALL build the executables
 - **WHEN** the tests, type checks or lint of the pushed tree fail
 - **THEN** nothing is built and nothing is published
 
+#### Scenario: Push to another branch or a skipped push
+
+- **WHEN** a push is to a branch other than the release branch, or its head commit message contains `[skip release]`
+- **THEN** nothing is built or published and the run succeeds
+
 #### Scenario: The fed branch changes
 
 - **WHEN** a different branch is assigned to the channel

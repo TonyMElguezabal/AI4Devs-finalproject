@@ -29,7 +29,7 @@ Facts the design relies on:
 
 ### Decision 1: One workflow, one channel
 
-`.github/workflows/release.yml` runs on `push` to `main` and on `workflow_dispatch`. The branch that feeds the channel is one `env` value at the top of the file (`RELEASE_BRANCH: main`). Jobs: `checks` (reuse of `ci.yml` through `workflow_call`, so there is one definition of "the tests pass"), `tree` (compute the hash, look up an existing release), `build` (matrix of three runners), `publish` (gated), `verify` (download and compare).
+`.github/workflows/release.yml` runs on `push` to any branch and on `workflow_dispatch`. The branch that feeds the channel is one `env` value at the top of the file (`RELEASE_BRANCH: main`). The `tree` job is the control point: a push to a branch other than `RELEASE_BRANCH` is `skip`, and so is a push whose head commit message contains `[skip release]` (a skipped run succeeds, nothing is built). Jobs: `checks` (reuse of `ci.yml` through `workflow_call`, so there is one definition of "the tests pass"), `tree` (compute the hash, look up an existing release), `build` (matrix of three runners), `publish` (gated), `verify` (download and compare).
 
 *Alternatives:* keep the two-channel model of the ticket (rejected by the product owner: the ADR dropped it and the integration branch it fed is code-closed); copy the test steps into the release workflow (two places to drift).
 
@@ -69,7 +69,13 @@ Top-level `permissions: {}`; `build` has `contents: read`; `publish` and `verify
 
 The decision "does this tree have a release" is a small script, `.github/scripts/release-state.sh` (or a typed function in `backend/packaging/` if JOS-205 has landed), that takes the hash and the list of existing tags and prints `build` or `skip`. It is exercised by a test with fixed inputs, so the idempotency rule is checked without GitHub.
 
+### Decision 9: The pinned ffmpeg build is published as is
+
+The ffmpeg and ffprobe pinned by JOS-205 are GPL builds with `--enable-nonfree`, which are not redistributable. The product owner decided to publish them anyway: the software is not meant for distribution and the release is public only because the repository is. The release notes and the README state that the archives contain this build and are for the owner's use. Swapping in a redistributable build later changes only `backend/packaging/targets.ts`.
+
 ## Risks / Trade-offs
+
+- [Public releases contain a non-redistributable ffmpeg] → Accepted by the product owner (Decision 9); stated in the release notes and README.
 
 - [Release workflow is hard to test end to end] → The dry run and the test pre-release exercise every job except the real tag; the real release is the first production publication and is watched.
 - [The requested runner labels change or disappear] → Labels live in one matrix; the first dry run fails loudly.

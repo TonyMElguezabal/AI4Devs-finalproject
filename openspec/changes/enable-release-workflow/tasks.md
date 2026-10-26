@@ -22,6 +22,9 @@
 - [x] 2.7 `verify` job: download the published assets and run `sha256sum -c`
 - [x] 2.8 `workflow_dispatch` with `mode` (`dry-run`, `test-release`); a test release is a pre-release tagged `test-<hash>`
 - [x] 2.9 JOS-205 did not embed the three variables: `bundleBackend` now defines `process.env.VID4YOU_*` from the build environment and `config/build.ts` names each variable
+- [x] 2.10 Trigger on a push to every branch; the `tree` job reports `skip` for a branch other than `RELEASE_BRANCH` and for a head commit message containing `[skip release]`
+- [x] 2.11 Release notes and README state that the archives carry the non-redistributable ffmpeg build (design Decision 9)
+- [x] 2.12 Fix the pre-existing lint error in `backend/test/provider-usage-billed-units.test.ts` so the `checks` job can pass
 
 ## 3. Review and Update Existing Unit Tests (MANDATORY)
 

@@ -4,8 +4,7 @@
 name: Release
 
 on:
-  push:
-    branches: [main] # must equal RELEASE_BRANCH; the `tree` job fails the run if it does not
+  push: # every branch; the `tree` job decides whether anything is built (RELEASE_BRANCH, `[skip release]`)
   workflow_dispatch:
     inputs:
       mode:
@@ -39,14 +38,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MODE: ${{ inputs.mode }}
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_NAME" != "$RELEASE_BRANCH" ]]; then
-            echo "the push trigger lists a branch other than RELEASE_BRANCH ($RELEASE_BRANCH)" >&2; exit 1
-          fi
           tree=$(git rev-parse 'HEAD^{tree}')
           kind=release; [[ "$MODE" == test-release ]] && kind=test
           state=build
           if [[ "$GITHUB_EVENT_NAME" == push ]]; then
-            state=$(.github/scripts/release.sh state "$tree" $(gh release list --limit 1000 --json tagName --jq '.[].tagName'))
+            if [[ "$GITHUB_REF_NAME" != "$RELEASE_BRANCH" ]]; then state=skip
+            elif git log -1 --format=%B | grep -qF '[skip release]'; then state=skip
+            else state=$(.github/scripts/release.sh state "$tree" $(gh release list --limit 1000 --json tagName --jq '.[].tagName'))
+            fi
           fi
           {
             echo "tag=$(.github/scripts/release.sh tag "$tree" "$kind")"
@@ -125,7 +124,7 @@ jobs:
         run: |
           gh release create "$TAG" assets/*.zip assets/SHA256SUMS.txt $PRERELEASE \
             --target "$GITHUB_SHA" --title "Vid4You $VERSION" \
-            --notes "Built once from commit $GITHUB_SHA. The executables are not signed yet (JOS-207): macOS and Windows will warn on first start. Verify the files with SHA256SUMS.txt."
+            --notes "Built once from commit $GITHUB_SHA. The executables are not signed yet (JOS-207): macOS and Windows will warn on first start. Verify the files with SHA256SUMS.txt. The archives carry a GPL nonfree ffmpeg build that is not redistributable: for the owner's use only."
 
   verify:
     needs: [tree, publish]
