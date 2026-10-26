@@ -30,12 +30,12 @@
 
 ## 5. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 5.1 Capture the pre-test database baseline (isolated `DB_PATH` and `PROJECTS_ROOT`)
-- [ ] 5.2 Run targeted tests
-- [ ] 5.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend` and `frontend`
-- [ ] 5.4 Verify post-test database state and restore if needed
-- [ ] 5.5 Create report `reports/YYYY-MM-DD-step-5-unit-test-and-db-verification.md`
-- [ ] 5.6 Mark the step complete only after tests pass and the report exists
+- [x] 5.1 Capture the pre-test database baseline (isolated `DB_PATH` and `PROJECTS_ROOT`)
+- [x] 5.2 Run targeted tests
+- [x] 5.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend` and `frontend`
+- [x] 5.4 Verify post-test database state and restore if needed
+- [x] 5.5 Create report `reports/YYYY-MM-DD-step-5-unit-test-and-db-verification.md`
+- [x] 5.6 Mark the step complete only after tests pass and the report exists
 
 ## 6. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
@@ -49,8 +49,8 @@
 
 ## 8. Update Technical Documentation (MANDATORY)
 
-- [ ] 8.1 Update `docs/data-model.md` (two scene columns) and `docs/api-spec.yml` (`videoRequest`)
-- [ ] 8.2 Update the PRD (new version, previous kept): §3 scene details show the clip request status, estimate and request body
-- [ ] 8.3 Update `docs/backend-standards.md` (stage diagnostics section): the `videoRequest` allow-list and its sentinel
-- [ ] 8.4 Run `graphify update .`
+- [x] 8.1 Update `docs/data-model.md` (two scene columns) and `docs/api-spec.yml` (`videoRequest`)
+- [x] 8.2 Update the PRD (new version, previous kept): §3 scene details show the clip request status, estimate and request body
+- [x] 8.3 Update `docs/backend-standards.md` (stage diagnostics section): the `videoRequest` allow-list and its sentinel
+- [x] 8.4 Run `graphify update .`
 - [ ] 8.5 Open the pull request linking JOS-200; archive the change after merge
