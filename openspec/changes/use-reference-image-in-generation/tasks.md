@@ -15,25 +15,25 @@
 
 ## 2. Backend: Tests first (TDD)
 
-- [ ] 2.1 Test `createRun` with a saved reference: the copy exists in the project folder, content type and SHA-256 are on the run; without one, the columns are null
-- [ ] 2.2 Test that replacing or removing the `/admin` image after creation leaves the run's snapshot unchanged
-- [ ] 2.3 Test the Fal adapter with a stub `fetch`: without a reference the body and URL equal today's; with one the body carries the reference in the spike's field and posts to the reference model
-- [ ] 2.4 Test the adapter with a reference but no `referenceModel`: not retryable with the "does not support a reference image" reason
-- [ ] 2.5 Test failure classification: 422 with a reference names the reference; 401 and 403 do not; 429 and 5xx stay transient; the response body never appears in the reason
-- [ ] 2.6 Test the orchestrator: every scene's image request carries the snapshot; a retry after the `/admin` image changed still carries the original; a restart-recovery launch carries it
-- [ ] 2.7 Test that a missing snapshot file fails only that scene as not retryable with the file named
-- [ ] 2.8 Test that the video request is unchanged for a session with a snapshot
-- [ ] 2.9 Test that logs and stored attempts contain the hash and never the bytes or a data URI
+- [x] 2.1 Test `createRun` with a saved reference: the copy exists in the project folder, content type and SHA-256 are on the run; without one, the columns are null
+- [x] 2.2 Test that replacing or removing the `/admin` image after creation leaves the run's snapshot unchanged
+- [x] 2.3 Test the Fal adapter with a stub `fetch`: without a reference the body and URL equal today's; with one the body carries the reference in the spike's field and posts to the reference model
+- [x] 2.4 Test that the adapter uses `IMAGE_REFERENCE_MODEL` when a reference is present and the profile's `model` otherwise, and that settings reject an invalid `imageReferenceModel`
+- [x] 2.5 Test failure classification: 422 with a reference names the reference; 401 and 403 do not; 429 and 5xx stay transient; the response body never appears in the reason
+- [x] 2.6 Test the orchestrator: every scene's image request carries the snapshot; a retry after the `/admin` image changed still carries the original; a restart-recovery launch carries it
+- [x] 2.7 Test that a missing snapshot file fails only that scene as not retryable with the file named
+- [x] 2.8 Test that the video request is unchanged for a session with a snapshot
+- [x] 2.9 Test that the run row and the provider requests contain the hash and never the bytes or a data URI (the image stage writes no log line, so there is none to check)
 
 ## 3. Backend: Implementation
 
-- [ ] 3.1 Add the migration for `runs.reference_image_path`, `reference_image_content_type`, `reference_image_sha256` (number above `main`'s highest) and its test
-- [ ] 3.2 Copy the saved image in `createRun` and record the three columns; expose them on the run record
-- [ ] 3.3 Change the `ImageProvider` port to `generate(instruction, referenceImage?)` and update the stub adapters
-- [ ] 3.4 Implement the reference request in the Fal adapter and the `referenceModel` parameter on the image profile and in `config/settings.default.json` with a value traced to the spike report
-- [ ] 3.5 Read the snapshot in `launchImageStage` and pass it to `generate`; fail the scene when the file is missing
-- [ ] 3.6 Implement the failure classification of Decision 5
-- [ ] 3.7 Log the reference hash on the image attempt
+- [x] 3.1 Add the migration for `runs.reference_image_path`, `reference_image_content_type`, `reference_image_sha256` (number above `main`'s highest) and its test
+- [x] 3.2 Copy the saved image in `createRun` and record the three columns; expose them on the run record
+- [x] 3.3 Change the `ImageProvider` port to `generate(instruction, referenceImage?)` and update the stub adapters
+- [x] 3.4 Implement the reference request in the Fal adapter and the `imageReferenceModel` setting (schema, `settings.default.json` with the value traced to the spike report, `IMAGE_REFERENCE_MODEL` export)
+- [x] 3.5 Read the snapshot in `launchImageStage` and pass it to `generate`; fail the scene when the file is missing
+- [x] 3.6 Implement the failure classification of Decision 5
+- [x] 3.7 Not needed: the image stage writes no per-attempt log or attempt row, and the hash is on the run (design Decision 4), so nothing records the image beyond it
 
 ## 4. Frontend
 

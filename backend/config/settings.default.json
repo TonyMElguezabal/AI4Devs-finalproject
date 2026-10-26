@@ -10,6 +10,7 @@
   },
   "alignment": { "name": "ElevenLabs", "endpoint": "/v1/forced-alignment" },
   "image": { "name": "Fal.ai", "model": "fal-ai/flux/dev" },
+  "imageReferenceModel": "fal-ai/flux-2/edit",
   "video": {
     "name": "RunningHub",
     "endpoint": "/openapi/v2/minimax/hailuo-h3/image-to-video",

@@ -115,13 +115,13 @@ describe("VisualStyleSection prompt", () => {
 });
 
 describe("VisualStyleSection reference image", () => {
-  it("shows the preview and a remove button when an image is stored, and says it is not used yet", async () => {
+  it("shows the preview and a remove button when an image is stored, and says it is sent to the image provider", async () => {
     stubBackend(WITH_IMAGE);
     renderSection();
     const preview = await screen.findByAltText("Reference image preview");
     expect(preview).toHaveAttribute("src", "blob:reference-preview");
     expect(screen.getByRole("button", { name: "Remove image" })).toBeInTheDocument();
-    expect(screen.getByText(/not sent to the image provider yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/sent to the image provider with every scene of sessions created afterwards/i)).toBeInTheDocument();
   });
 
   it("uploads a chosen image with its content type and shows the preview", async () => {

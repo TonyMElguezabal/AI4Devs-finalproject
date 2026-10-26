@@ -27,7 +27,7 @@ const vendorPath = nonEmptyString.refine((value) => value.startsWith("/") && !va
 });
 
 /** A model identifier as the vendor writes it: letters, digits and `.`, `_`, `-`, `/`, `:`, with no scheme. */
-const modelId = nonEmptyString.refine((value) => /^[A-Za-z0-9._\-/:]+$/.test(value) && !value.includes("://"), {
+export const modelId = nonEmptyString.refine((value) => /^[A-Za-z0-9._\-/:]+$/.test(value) && !value.includes("://"), {
   message: "must be a model identifier, not a URL",
 });
 

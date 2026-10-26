@@ -68,6 +68,13 @@ export const ALIGNMENT_PROVIDER = {
 export const IMAGE_PROVIDER = { name: settings.image.name, model: settings.image.model };
 
 /**
+ * use-reference-image-in-generation (JOS-202) — the Fal model a request goes to when its session has a reference image.
+ * Chosen by the spike (`openspec/changes/use-reference-image-in-generation/reports/2026-10-26-step-1-reference-model-spike.md`):
+ * the only candidate that held the character, followed the scene and returned 1920x1088.
+ */
+export const IMAGE_REFERENCE_MODEL = settings.imageReferenceModel;
+
+/**
  * RunningHub versions by endpoint path, not a separate version field
  * (report: step 3, task 3.4). A path retirement fails calls outright with
  * no fallback (§11.2) — review RunningHub's model catalog periodically for
