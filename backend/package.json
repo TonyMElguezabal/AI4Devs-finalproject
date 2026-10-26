@@ -12,6 +12,7 @@
     "package:darwin-arm64": "node packaging/build.ts darwin-arm64",
     "package:darwin-x64": "node packaging/build.ts darwin-x64",
     "package:win32-x64": "node packaging/build.ts win32-x64",
+    "report:session-timing": "node scripts/sessionTimingReport.ts",
     "package:smoke": "node packaging/build.ts darwin-arm64 --smoke"
   },
   "dependencies": {

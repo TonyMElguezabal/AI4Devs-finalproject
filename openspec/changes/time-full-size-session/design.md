@@ -22,7 +22,7 @@ The run happens on a Windows machine with the packaged executable, which also va
 
 ### Decision 1: An offline script over a copy of the database
 
-`backend/scripts/sessionTimingReport.ts <db-file> <run-id>` opens the file read-only (`node:sqlite`, `readOnly: true`) and prints Markdown. The owner copies `app.db` from the Windows data folder after the run (the app closed, so the file is consistent) and the report is produced on the development machine, where Node 26 and the repository exist.
+`backend/scripts/sessionTimingReport.ts <db-file> <run-id>` opens the file read-only (`node:sqlite`, `readOnly: true`) and prints Markdown. The owner copies `vid4you.sqlite` from the Windows data folder after the run (the app closed, so the file is consistent) and the report is produced on the development machine, where Node 26 and the repository exist.
 
 *Alternative:* an admin endpoint, usable inside the packaged build (adds API surface, an `api-spec` entry and a PRD note for a one-off need; the path stays open if the report proves useful again).
 
@@ -55,5 +55,5 @@ Before the paid run, the same build starts with stub providers for the JOS-205 c
 
 ## Open Questions
 
-- Where the requested clip duration is stored (task 1.1).
+- ~~Where the requested clip duration is stored~~ Answered (task 1.1): `scenes.requested_duration_seconds` (nullable for scenes made by the pre-decomposition path). Image and video attempts are rows of `stage_attempts` with `scene_id`, `sent_at`, `finished_at` and `outcome`, so no file from the project folder is needed. The limits come from `maxTimeSeconds` in the settings file (`voice`, `alignment`, `decomposition`, `image`, `video`, `assembly`), which map to the attempt stages `voice-over`, `timestamps`, `decomposition`, `image`, `video`, `assembly`; the script reads the shipped defaults unless given the settings file the run used (task 1.2). The script must not import `src/db.ts`, which opens the configured database on import.
 - The script and the real clip count: the owner chooses the script (1,500-1,800 words) and confirms the spend.
