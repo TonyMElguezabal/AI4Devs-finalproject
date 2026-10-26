@@ -26,7 +26,7 @@ Current image path:
 
 ### Decision 1: Spike first, and the rest waits for it
 
-Group 1 of the tasks is the spike. It runs the Warry script through `flux/dev` (baseline) and the candidate reference-capable Fal models (for example Flux Kontext, Flux Redux, image-to-image variants) and records, in `reports/`, the measurements listed in the proposal. Decisions 2 and 3 below describe the shape that holds for any candidate; the model name, the request body fields and the size limit are filled in from the report. If the spike shows no candidate keeps 16:9, follows the scene instruction and holds the character, the change stops there with the report as its result and the follow-up is a new ticket.
+Group 1 of the tasks is the spike. It runs the Warry script through `flux/dev` (baseline) and the candidate reference-capable Fal models (for example Flux Kontext, Flux Redux, image-to-image variants) and records, in `reports/`, the measurements listed in the proposal. Decisions 2 and 3 below describe the shape that holds for any candidate; the model name, the request body fields and the size limit were filled in from the report (done, task 1.7). If the spike shows no candidate keeps 16:9, follows the scene instruction and holds the character, the change stops there with the report as its result and the follow-up is a new ticket.
 
 Per `CLAUDE.md` §7, anything the spike changes in this design is updated here and in the specs before code.
 
@@ -37,7 +37,7 @@ type ReferenceImage = { bytes: Buffer; contentType: string; sha256: string };
 interface ImageProvider { generate(instruction: string, referenceImage?: ReferenceImage): Promise<ImageGenerationResult>; }
 ```
 
-The Fal adapter has an optional profile parameter `referenceModel`. With a reference and a `referenceModel` it posts to `fal.run/<referenceModel>` with the reference as the field the spike confirms (a data URI of the bytes, or an uploaded URL if the spike shows the size or latency requires it); with no reference it sends exactly today's body to `model`. A reference given to a profile without a `referenceModel` fails the scene as not retryable with a reason saying the image provider does not support a reference image, instead of silently ignoring it. The stub adapters accept and record the argument so tests can assert it.
+The Fal adapter has an optional profile parameter `referenceModel`. With a reference and a `referenceModel` it posts to `fal.run/<referenceModel>`; with no reference it sends exactly today's body to `model`. The spike (`reports/2026-10-26-step-1-reference-model-spike.md`) chose `referenceModel = fal-ai/flux-2/edit`, whose body is `{ prompt, image_urls: [<data URI of the reference>], image_size: { width: 1920, height: 1088 }, output_format: "png" }`. A data URI is enough: a 4.9 MB reference (6.6 MB encoded, the largest the app accepts) was accepted, so no upload step is needed. The response has the same `images[0].url` shape as `flux/dev`, so the existing response parsing and download path are reused. A reference given to a profile without a `referenceModel` fails the scene as not retryable with a reason saying the image provider does not support a reference image, instead of silently ignoring it. The stub adapters accept and record the argument so tests can assert it.
 
 *Alternatives:* a new adapter type for reference-capable models (two profiles to keep in step and an unbound-scene problem when a session has a reference but the bound profile does not); making the reference a module-level setting (hidden state; breaks the snapshot rule).
 
@@ -55,7 +55,7 @@ The ticket asks `provider_requests` to record a hash or reference id. A session'
 
 ### Decision 5: Failure classification
 
-The existing rule stays: 4xx except 408 and 429 is not retryable. For a request that carried a reference, a 400, 413, 415 or 422 gets a reason naming the reference (`the image provider rejected the reference image (HTTP 422)`); 401 and 403 keep the existing wording because they are about the key. The response body is still never copied into the reason.
+The existing rule stays: 4xx except 408 and 429 is not retryable. The spike showed that `flux-2/edit` answers 422 for an undecodable reference, an unreachable reference URL and a missing reference, and 401 for a bad key. For a request that carried a reference, a 400, 413, 415 or 422 gets a reason naming the reference (`the image provider rejected the reference image (HTTP 422)`); 401 and 403 keep the existing wording because they are about the key. The response body is still never copied into the reason.
 
 ### Decision 6: Copy on the admin page
 
@@ -72,5 +72,6 @@ The sentence "It is stored, but not sent to the image provider yet." becomes "It
 
 ## Open Questions
 
-- Which model, field names, size limit and parameters: answered by the spike (task 1).
+- Which model, field names, size limit and parameters: answered by the spike (task 1): `fal-ai/flux-2/edit`, data URI, no size limit reached at 4.9 MB. Fallback if it later disappears or misbehaves: `fal-ai/bytedance/seedream/v4/edit` (same output size, slower).
+- The reference model costs about $0.04 per image at 1920x1088 (per processed megapixel, input included); confirm on the Fal billing page after task 9.1.
 - Whether the `referenceModel` is configured on the profile only or also in `settings.default.json`; default: both, the settings supplying the default profile's value.

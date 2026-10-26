@@ -5,13 +5,13 @@
 
 ## 1. Spike: reference-capable image models (required before implementation, PRD §11)
 
-- [ ] 1.1 Take the 5-sentence Warry script and the style prompt from `openspec/changes/admin-visual-style-prompt/reports/2026-10-20-step-10-1-real-script.md` and prepare one reference image (PNG, under 5 MB)
-- [ ] 1.2 Generate the five scene images with `fal-ai/flux/dev` as the baseline
-- [ ] 1.3 Generate the same five with each candidate reference-capable Fal model (for example Flux Kontext, Flux Redux, an image-to-image variant), one request per image
-- [ ] 1.4 Record per candidate: character consistency (side by side), adherence to each scene's `IMAGE` instruction, latency, cost per image, output size and aspect ratio (16:9 must hold)
-- [ ] 1.5 Record how the reference is sent (data URI, upload or URL), its size and format limits, and the error behavior for an oversized, wrong-format and missing reference (HTTP status per case)
-- [ ] 1.6 Write the report in `reports/YYYY-MM-DD-step-1-reference-model-spike.md`, name the chosen model and request shape, or conclude that none qualifies (then stop and record the follow-up)
-- [ ] 1.7 Update `design.md` Decisions 2 and 5 and the specs with the chosen model, request fields and limits before any code (`CLAUDE.md` §7)
+- [x] 1.1 Take the 5-sentence Warry script and the style prompt from `openspec/changes/admin-visual-style-prompt/reports/2026-10-20-step-10-1-real-script.md` and prepare one reference image (PNG, under 5 MB)
+- [x] 1.2 Generate the five scene images with `fal-ai/flux/dev` as the baseline
+- [x] 1.3 Generate the same five with each candidate reference-capable Fal model (for example Flux Kontext, Flux Redux, an image-to-image variant), one request per image
+- [x] 1.4 Record per candidate: character consistency (side by side), adherence to each scene's `IMAGE` instruction, latency, cost per image, output size and aspect ratio (16:9 must hold)
+- [x] 1.5 Record how the reference is sent (data URI, upload or URL), its size and format limits, and the error behavior for an oversized, wrong-format and missing reference (HTTP status per case)
+- [x] 1.6 Write the report in `reports/YYYY-MM-DD-step-1-reference-model-spike.md`, name the chosen model and request shape, or conclude that none qualifies (then stop and record the follow-up)
+- [x] 1.7 Update `design.md` Decisions 2 and 5 and the specs with the chosen model, request fields and limits before any code (`CLAUDE.md` §7)
 
 ## 2. Backend: Tests first (TDD)
 
