@@ -25,6 +25,7 @@ function validSettings(): Json {
     },
     alignment: { name: "ElevenLabs", endpoint: "/v1/forced-alignment" },
     image: { name: "Fal.ai", model: "image-model" },
+    imageReferenceModel: "reference-model",
     video: { name: "RunningHub", endpoint: "/video/endpoint", admittedDurationSeconds: { min: 5, max: 15 } },
     segmentation: { lowerBoundSeconds: 5 },
     speedFactorLimit: 2,
@@ -180,6 +181,29 @@ describe("Field rules and consistency checks (Decisions 2 and 5)", () => {
   });
 });
 
+describe("The reference image model (JOS-202)", () => {
+  it("treats a missing key as a problem", () => {
+    const defaults = validSettings();
+    delete defaults.imageReferenceModel;
+    writeFileSync(defaultsPath, JSON.stringify(defaults));
+    const problems = problemsOf(loadSettings({ defaultsPath, overridePath }));
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toMatch(/^imageReferenceModel: /);
+  });
+
+  it("rejects a URL, which could send the key to another host", () => {
+    writeOverride({ imageReferenceModel: "https://evil.example/model" });
+    const problems = problemsOf(loadSettings({ defaultsPath, overridePath }));
+    expect(problems[0]).toMatch(/^imageReferenceModel: /);
+  });
+
+  it("accepts another model identifier in an override", () => {
+    writeOverride({ imageReferenceModel: "fal-ai/bytedance/seedream/v4/edit" });
+    const result = loadSettings({ defaultsPath, overridePath });
+    expect(result.ok && result.settings.imageReferenceModel).toBe("fal-ai/bytedance/seedream/v4/edit");
+  });
+});
+
 describe("Maximum times (spec stage-execution-time-limit)", () => {
   it("treats a missing key as a problem, not as 'not timed'", () => {
     const defaults = validSettings();
@@ -223,6 +247,7 @@ describe("The shipped defaults file (task 2.3)", () => {
         },
         alignment: { name: "ElevenLabs", endpoint: "/v1/forced-alignment" },
         image: { name: "Fal.ai", model: "fal-ai/flux/dev" },
+        imageReferenceModel: "fal-ai/flux-2/edit",
         video: {
           name: "RunningHub",
           endpoint: "/openapi/v2/minimax/hailuo-h3/image-to-video",
@@ -230,7 +255,7 @@ describe("The shipped defaults file (task 2.3)", () => {
         },
         segmentation: { lowerBoundSeconds: 5 },
         speedFactorLimit: 2,
-        maxTimeSeconds: { decomposition: 600, image: 25, voice: 600, alignment: 5, video: 1200, assembly: null },
+        maxTimeSeconds: { decomposition: 600, image: 120, voice: 600, alignment: 5, video: 1200, assembly: null },
         maxSimultaneousRequests: { decomposition: 50, image: 200, voice: 3, alignment: 2, video: 3 },
         output: { width: 1920, height: 1080, fps: 30 },
         languages: [

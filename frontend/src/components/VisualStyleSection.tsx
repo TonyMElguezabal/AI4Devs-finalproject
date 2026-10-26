@@ -157,7 +157,7 @@ export function VisualStyleSection({ password, onDenied }: AdminToolsContext) {
           <label htmlFor="reference-image">Reference image</label>
           {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- chooseImage catches its own failure */}
           <input id="reference-image" type="file" accept={REFERENCE_IMAGE_TYPES.join(",")} onChange={chooseImage} disabled={busy} />
-          <small>PNG, JPEG or WebP, up to 5 MB. It is stored, but not sent to the image provider yet.</small>
+          <small>PNG, JPEG or WebP, up to 5 MB. It is sent to the image provider with every scene of sessions created afterwards.</small>
         </div>
         {settings.referenceImage && (
           <div className="field">

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { keyFor, stageApiKey } from "./keyStore.ts";
 import { buildProfileRegistry, profileRegistrySlot } from "./profileRegistry.ts";
-import { IMAGE_GENERATION_SIZE, IMAGE_PROVIDER, phaseTimeoutMs } from "./config/providers.ts";
+import { IMAGE_GENERATION_SIZE, IMAGE_PROVIDER, IMAGE_REFERENCE_MODEL, phaseTimeoutMs } from "./config/providers.ts";
 
 // generate-chunk-image (JOS-145) — the image stage's provider (PRD §7.1,
 // §11.3): Fal.ai `fal-ai/flux/dev`. The adapter makes exactly one request:
@@ -19,11 +19,17 @@ export type ImageGenerationResult =
   | { kind: "failed_transient"; reason: string }
   | { kind: "failed_not_retryable"; reason: string };
 
+/** use-reference-image-in-generation (JOS-202) — a session's reference image as the adapter receives it: the bytes read from the session's snapshot and their hash. */
+export type ReferenceImage = { bytes: Buffer; contentType: string; sha256: string };
+
 /** The port the image stage depends on; tests pass a stub, production the Fal.ai adapter. */
 export interface ImageProvider {
-  generate(instruction: string): Promise<ImageGenerationResult>;
+  generate(instruction: string, referenceImage?: ReferenceImage): Promise<ImageGenerationResult>;
 }
 
+
+/** The statuses Fal answers when the reference image itself is unusable (spike report, step 1): undecodable (422), too large or of an unsupported type. */
+const REFERENCE_REJECTION_STATUSES = new Set([400, 413, 415, 422]);
 
 /** Product owner rule (as for voice, alignment and reasoning): not retryable for 4xx except 408 and 429; transient otherwise. */
 function classifyHttpStatus(status: number): "failed_transient" | "failed_not_retryable" {
@@ -35,18 +41,20 @@ const falResponseSchema = z.object({
 });
 
 export function createFalAiImageProvider(
-  options: { fetchFn?: typeof fetch; loadKey?: () => string; timeoutMs?: number; parameters?: { model: string } } = {},
+  options: { fetchFn?: typeof fetch; loadKey?: () => string; timeoutMs?: number; parameters?: { model: string }; referenceModel?: string } = {},
 ): ImageProvider {
   const fetchFn = options.fetchFn ?? fetch;
   // manage-providers-from-admin (JOS-218): the model comes from the profile; without one, the settings' image model.
   const falRunUrl = `https://fal.run/${(options.parameters ?? { model: IMAGE_PROVIDER.model }).model}`;
+  // use-reference-image-in-generation (JOS-202) Decision 2 — a request that carries a reference goes to the reference model.
+  const falReferenceRunUrl = `https://fal.run/${options.referenceModel ?? IMAGE_REFERENCE_MODEL}`;
   const loadKey = options.loadKey ?? (() => stageApiKey("image"));
   // stage-execution-time-limit (JOS-185) Decision 9 — the image stage records no attempt row, so its
   // maximum time is applied here, from the moment the call is made (after its request-cap slot was taken).
   const timeoutMs = options.timeoutMs ?? phaseTimeoutMs("image");
 
   return {
-    async generate(instruction) {
+    async generate(instruction, referenceImage) {
       let apiKey: string;
       try {
         apiKey = loadKey();
@@ -57,10 +65,19 @@ export function createFalAiImageProvider(
 
       let response: Response;
       try {
-        response = await fetchFn(falRunUrl, {
+        response = await fetchFn(referenceImage ? falReferenceRunUrl : falRunUrl, {
           method: "POST",
           headers: { Authorization: `Key ${apiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: instruction, image_size: IMAGE_GENERATION_SIZE }),
+          body: JSON.stringify(
+            referenceImage
+              ? {
+                  prompt: instruction,
+                  image_urls: [`data:${referenceImage.contentType};base64,${referenceImage.bytes.toString("base64")}`],
+                  image_size: IMAGE_GENERATION_SIZE,
+                  output_format: "png",
+                }
+              : { prompt: instruction, image_size: IMAGE_GENERATION_SIZE },
+          ),
           signal: timeoutMs === undefined ? undefined : AbortSignal.timeout(timeoutMs),
         });
       } catch (err) {
@@ -73,6 +90,9 @@ export function createFalAiImageProvider(
 
       if (!response.ok) {
         // The body is deliberately not read into the reason: it can carry raw provider detail.
+        if (referenceImage && REFERENCE_REJECTION_STATUSES.has(response.status)) {
+          return { kind: "failed_not_retryable", reason: `the image provider rejected the reference image (HTTP ${response.status})` };
+        }
         return { kind: classifyHttpStatus(response.status), reason: `the image provider answered HTTP ${response.status}` };
       }
 
@@ -97,13 +117,16 @@ export type StubImageProviderMode =
 export function createStubImageProvider(
   mode: StubImageProviderMode,
   options: { bytes?: Buffer; contentType?: string; url?: string } = {},
-): ImageProvider & { calls: string[] } {
+): ImageProvider & { calls: string[]; references: Array<ReferenceImage | undefined> } {
   const calls: string[] = [];
+  const references: Array<ReferenceImage | undefined> = [];
   return {
     calls,
+    references,
     // eslint-disable-next-line @typescript-eslint/require-await -- implements the async image provider contract
-    async generate(instruction) {
+    async generate(instruction, referenceImage) {
       calls.push(instruction);
+      references.push(referenceImage);
       switch (mode) {
         case "success-bytes":
           return {
