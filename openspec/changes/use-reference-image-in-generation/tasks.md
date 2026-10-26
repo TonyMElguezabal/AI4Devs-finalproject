@@ -37,41 +37,43 @@
 
 ## 4. Frontend
 
-- [ ] 4.1 Update the notice in `VisualStyleSection.tsx` and its test to say the image is sent for sessions created afterwards
+- [x] 4.1 Update the notice in `VisualStyleSection.tsx` and its test to say the image is sent for sessions created afterwards
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Review image-stage, image-provider, create-run, admin-settings and profile tests for assumptions the new port signature and columns change
-- [ ] 5.2 Update the affected tests and make group 2 pass
+- [x] 5.1 Review image-stage, image-provider, create-run, admin-settings and profile tests for assumptions the new port signature and columns change
+- [x] 5.2 Update the affected tests and make group 2 pass
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 6.1 Capture the pre-test database baseline (isolated `DB_PATH` and `PROJECTS_ROOT`)
-- [ ] 6.2 Run targeted tests for the changed modules
-- [ ] 6.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend` and `frontend`
-- [ ] 6.4 Verify post-test database state and restore if needed
-- [ ] 6.5 Create report `reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
-- [ ] 6.6 Mark the step complete only after tests pass and the report exists
+- [x] 6.1 Capture the pre-test database baseline (isolated `DB_PATH` and `PROJECTS_ROOT`)
+- [x] 6.2 Run targeted tests for the changed modules
+- [x] 6.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend` and `frontend`
+- [x] 6.4 Verify post-test database state and restore if needed
+- [x] 6.5 Create report `reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
+- [x] 6.6 Mark the step complete only after tests pass and the report exists
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the backend with a stubbed Fal endpoint that records the request (AGENT MUST EXECUTE)
-- [ ] 7.2 curl `PUT`/`POST` the `/admin/settings` reference image, create a session with `POST /sessions`, and confirm the stub received the reference on every image request
-- [ ] 7.3 curl replace and delete the `/admin` image, retry one scene, and confirm the retry still carried the original
-- [ ] 7.4 Make the stub answer 422 for one scene and confirm only that scene fails, not retryable, with the reference reason
-- [ ] 7.5 Create a session with no reference and confirm the request body equals today's
-- [ ] 7.6 Delete the test sessions and data; verify the database matches the baseline
-- [ ] 7.7 Document commands and responses in `reports/YYYY-MM-DD-step-7-curl-endpoint-testing.md`
+The Fal host is fixed in the adapter by design (no setting can name a host), so no local stand-in can receive the Fal request. What a stand-in would show (URL, body, reason text) is asserted by the adapter tests with a stubbed `fetch`; the curl step covers everything reachable over HTTP, with the voice stage held by `USE_STUB_VOICE_PROVIDER=hang` so no provider is billed.
+
+- [x] 7.1 Start the backend on a throwaway `DB_PATH`, `PROJECTS_ROOT` and `PROVIDER_KEY_PATH`, with `ADMIN_PASSWORD` set and `USE_STUB_VOICE_PROVIDER=hang` (AGENT MUST EXECUTE)
+- [x] 7.2 curl `PUT /admin/settings/reference-image`, then `POST /sessions`, and confirm the session's project folder holds `reference-image.<ext>` equal to the uploaded bytes and the run row holds its content type and SHA-256
+- [x] 7.3 curl replace and then delete the `/admin` image and confirm the session's snapshot file and hash are unchanged
+- [x] 7.4 curl `POST /sessions` with no `/admin` image and confirm the session has no snapshot file and null columns
+- [x] 7.5 Confirm `GET /sessions/{id}` and the admin responses never contain the image bytes or a data URI
+- [x] 7.6 Stop the server and delete the throwaway data; confirm `backend/data` is unchanged
+- [x] 7.7 Document commands and responses in `reports/YYYY-MM-DD-step-7-curl-endpoint-testing.md`
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
 - [ ] 8.1 With frontend and backend running, open `/admin`, upload a reference image and confirm the new notice
-- [ ] 8.2 Create a session and confirm it proceeds through the image stage with the stubbed provider
+- [ ] 8.2 Create a session from the interface and confirm it is created (the voice stage is held with `USE_STUB_VOICE_PROVIDER=hang`; the image request itself is covered by the adapter tests)
 - [ ] 8.3 Restore the environment and document the scenarios in `reports/YYYY-MM-DD-step-8-e2e-browser.md`
 
 ## 9. Real-provider check
 
-- [ ] 9.1 Run the Warry script end to end once with the real chosen model and record character consistency in `reports/`
+- [ ] 9.1 Call the real adapter once per scene with the Warry reference (the three scene instructions) through `createFalAiImageProvider` and record that the code path returns accepted 1920x1088 images with the same character; a full session is not run because its voice and video stages bill other providers
 
 ## 10. Update Technical Documentation (MANDATORY)
 
