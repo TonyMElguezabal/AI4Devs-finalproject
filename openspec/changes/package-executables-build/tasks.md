@@ -40,19 +40,19 @@
 
 ## 5. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 5.1 Build the macOS arm64 executable and the `--smoke` flavor; start the smoke flavor on a clean data folder (AGENT MUST EXECUTE)
-- [ ] 5.2 curl `GET /health` returns `{"ok":true}`; `GET /docs` returns 404; a foreign `Host` or `Origin` returns 403
-- [ ] 5.3 Start with `ALLOW_TEST_ENDPOINTS=1` and `USE_STUB_VOICE_PROVIDER=success` on the release flavor and confirm both are ignored
-- [ ] 5.4 Run one stubbed session to `final-video` on the smoke flavor with curl and record each request and response
-- [ ] 5.5 Start a second instance and confirm it opens the first and exits (one process on the port, one database writer)
-- [ ] 5.6 Delete the test data folder and verify the state matches the baseline
-- [ ] 5.7 Document all commands and responses in `reports/YYYY-MM-DD-step-5-curl-endpoint-testing.md`
+- [x] 5.1 Build the macOS arm64 executable and the `--smoke` flavor; start the smoke flavor on a clean data folder (AGENT MUST EXECUTE)
+- [x] 5.2 curl `GET /health` returns `{"ok":true}`; `GET /docs` returns 404; a foreign `Host` or `Origin` returns 403
+- [x] 5.3 Start with `ALLOW_TEST_ENDPOINTS=1` and `USE_STUB_VOICE_PROVIDER=success` on the release flavor and confirm both are ignored
+- [x] 5.4 Run one stubbed session to `final-video` on the smoke flavor with curl and record each request and response
+- [x] 5.5 Start a second instance and confirm it opens the first and exits (one process on the port, one database writer)
+- [x] 5.6 Delete the test data folder and verify the state matches the baseline
+- [x] 5.7 Document all commands and responses in `reports/YYYY-MM-DD-step-5-curl-endpoint-testing.md`
 
 ## 6. Frontend: E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 6.1 With the macOS arm64 executable running, navigate to `http://127.0.0.1:3100/` and confirm the interface loads from the embedded assets
-- [ ] 6.2 Create a session from the interface and confirm it appears (smoke flavor)
-- [ ] 6.3 Restore the data folder and document the scenarios in `reports/YYYY-MM-DD-step-6-e2e-browser.md`
+- [x] 6.1 With the macOS arm64 executable running, navigate to `http://127.0.0.1:3100/` and confirm the interface loads from the embedded assets
+- [x] 6.2 Create a session from the interface and confirm it appears (smoke flavor)
+- [x] 6.3 Restore the data folder and document the scenarios in `reports/YYYY-MM-DD-step-6-e2e-browser.md`
 
 ## 7. Verification on the other targets
 
