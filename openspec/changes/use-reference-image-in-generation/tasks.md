@@ -33,7 +33,7 @@
 - [x] 3.4 Implement the reference request in the Fal adapter and the `imageReferenceModel` setting (schema, `settings.default.json` with the value traced to the spike report, `IMAGE_REFERENCE_MODEL` export)
 - [x] 3.5 Read the snapshot in `launchImageStage` and pass it to `generate`; fail the scene when the file is missing
 - [x] 3.6 Implement the failure classification of Decision 5
-- [ ] 3.8 Decide and set the image maximum time for requests that carry a reference (design Decision 7): update the design, the `stage-execution-time-limit` delta and PRD §11.3 first, then the setting and its tests (BLOCKED on the product owner's choice between (a) one higher limit and (b) a separate limit for reference requests)
+- [x] 3.8 Raise `maxTimeSeconds.image` to 120 s (design Decision 7, option (a) chosen by the product owner): tests first (`providers-settings`, `settings` shipped defaults, `attempt-deadline`), then `settings.default.json`, the `providers.ts` comment and PRD §11.3 with its v1.19 change-log entry
 - [x] 3.7 Not needed: the image stage writes no per-attempt log or attempt row, and the hash is on the run (design Decision 4), so nothing records the image beyond it
 
 ## 4. Frontend
