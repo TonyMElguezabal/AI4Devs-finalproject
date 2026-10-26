@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { getProviderUsageReport } from "../api/client";
-import type { ProviderStage, ProviderUsageReport, ReportPeriod } from "../types";
+import { getPipelineTimeReport, getProviderUsageReport } from "../api/client";
+import type { PipelineTimeReport, ProviderStage, ProviderUsageReport, ReportPeriod } from "../types";
+import { PipelineTimeTables } from "./PipelineTimeTables";
 import { ReportPeriodSelector, lastDays } from "./ReportPeriodSelector";
 
 const STAGE_LABELS: Record<ProviderStage, string> = { reasoning: "Reasoning", voice: "Voice", alignment: "Alignment", image: "Image", video: "Video" };
@@ -18,23 +19,42 @@ interface Props {
 
 /**
  * report-provider-usage (JOS-223), design Decision 7 — the "Reports" section of `/admin`: a period (last 30 days at first)
- * and the provider-usage table. JOS-224 and JOS-225 add their reports under the same period.
+ * and the provider-usage table. JOS-224 and JOS-225 add their reports under the same period; JOS-228 adds the pipeline time.
  */
 export function ReportsSection({ password, onDenied }: Props) {
   const [period, setPeriod] = useState<ReportPeriod>(() => lastDays(30));
   const [report, setReport] = useState<ProviderUsageReport | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [pipeline, setPipeline] = useState<PipelineTimeReport | undefined>(undefined);
+  const [pipelineError, setPipelineError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let current = true;
+    let denied = false;
+    // Both reports answer 401 together when the password is wrong; the page locks once.
+    const deny = () => {
+      if (current && !denied) {
+        denied = true;
+        onDenied();
+      }
+    };
     setError(undefined);
+    setPipelineError(undefined);
     getProviderUsageReport(password, period).then(
       (result) => {
         if (!current) return;
-        if (result.kind === "denied") onDenied();
+        if (result.kind === "denied") deny();
         else setReport(result.report);
       },
       () => current && setError("Could not load the provider usage report. Is the app running?"),
+    );
+    getPipelineTimeReport(password, period).then(
+      (result) => {
+        if (!current) return;
+        if (result.kind === "denied") deny();
+        else setPipeline(result.report);
+      },
+      () => current && setPipelineError("Could not load the pipeline time report. Is the app running?"),
     );
     return () => {
       current = false;
@@ -87,6 +107,12 @@ export function ReportsSection({ password, onDenied }: Props) {
         </table>
       )}
       {report?.sceneAttemptsFollowCurrentProvider && showsSceneStage && <p>Image and clip attempts are counted for the scene's current provider.</p>}
+      {pipelineError && (
+        <p role="alert" className="form-error">
+          {pipelineError}
+        </p>
+      )}
+      {pipeline && <PipelineTimeTables report={pipeline} />}
     </section>
   );
 }

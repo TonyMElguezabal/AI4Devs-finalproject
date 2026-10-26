@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetAdminPasswordReader, setAdminPasswordReader } from "../src/adminAccess.ts";
-import { db, resetAll } from "../src/db.ts";
+import { db, resetAll, stampPhase } from "../src/db.ts";
 import { insertProfile } from "../src/providerProfiles.ts";
 import { buildApp } from "../src/server.ts";
 import { installTwoProvidersPerStage, newRun, registerScenes, removeTwoProvidersPerStage } from "./failedStageFixtures.ts";
@@ -138,3 +138,37 @@ function rowCounts(): Record<string, number> {
   const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all() as unknown as { name: string }[];
   return Object.fromEntries(tables.map(({ name }) => [name, (db.prepare(`SELECT COUNT(*) AS n FROM "${name}"`).get() as unknown as { n: number }).n]));
 }
+
+// record-phase-instants-and-pipeline-report (JOS-228), group 4 — AC4 and the response shape.
+describe("GET /admin/reports/pipeline-time", () => {
+  const pipeline = (query = "", headers: Record<string, string> = admin) => app.inject({ method: "GET", url: `/admin/reports/pipeline-time${query}`, headers });
+
+  it("is refused with 401 without the Administrator password and runs no query", async () => {
+    const runId = newRun("Secret title");
+    stampPhase(runId, "voice-over", "started", AT);
+    for (const headers of [{} as Record<string, string>, { authorization: "Bearer wrong" }]) {
+      const response = await pipeline(periodQuery, headers);
+      expect(response.statusCode).toBe(401);
+      expect(response.body).not.toContain("Secret title");
+    }
+  });
+
+  it("answers 400 when from is not before to", async () => {
+    expect((await pipeline(`?from=${PERIOD.to}&to=${PERIOD.from}`)).statusCode).toBe(400);
+  });
+
+  it("answers 200 with the four phases and the per-session seconds", async () => {
+    const runId = newRun("Timed");
+    stampPhase(runId, "voice-over", "started", AT);
+    stampPhase(runId, "voice-over", "ended", "2026-10-05T10:00:30.000Z");
+
+    const response = await pipeline(periodQuery);
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.phases.map((row: { phase: string }) => row.phase)).toEqual(["voice-over", "decomposition", "scenes", "assembly"]);
+    expect(body.phases[0]).toMatchObject({ sessions: 1, medianSeconds: 30 });
+    expect(body.phases[2]).toMatchObject({ timedOut: null });
+    expect(body.sessions).toEqual([{ runId, title: "Timed", seconds: { "voice-over": 30, decomposition: null, scenes: null, assembly: null } }]);
+  });
+});
