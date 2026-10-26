@@ -21,12 +21,12 @@
 
 ## 3. Frontend tests first, then implementation
 
-- [ ] 3.1 Test `SceneRow`: the clip request block while generating (provider, attempt, sent at, live elapsed, expected arrival and basis, "no estimate yet", "taking longer than estimated"); the collapsed request view and its JSON; no block when complete; the accessible name
-- [ ] 3.2 Implement the block, the 1 s clock while visible, and the collapsible JSON view
+- [x] 3.1 Test `SceneRow`: the clip request block while generating (provider, attempt, sent at, live elapsed, expected arrival and basis, "no estimate yet", "taking longer than estimated"); the collapsed request view and its JSON; no block when complete; the accessible name
+- [x] 3.2 Implement the block, the 1 s clock while visible, and the collapsible JSON view
 
 ## 4. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 4.1 Review video stage, scene representation, stage diagnostics and adapter contract tests for assumptions the new field, the adapter result and the in-flight count change; update them
+- [x] 4.1 Review video stage, scene representation, stage diagnostics and adapter contract tests for assumptions the new field, the adapter result and the in-flight count change; update them
 
 ## 5. Run Unit Tests and Verify Database State (MANDATORY)
 
