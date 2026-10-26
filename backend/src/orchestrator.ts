@@ -70,7 +70,7 @@ import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
 import { FINAL_OUTPUT, phaseTimeoutMs } from "./config/providers.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
-import { downloadGeneratedImage, getImageProviderRegistry, type ImageGenerationResult } from "./imageProvider.ts";
+import { downloadGeneratedImage, getImageProviderRegistry, type ImageGenerationResult, type ReferenceImage } from "./imageProvider.ts";
 import {
   downloadGeneratedClip,
   getVideoProviderRegistry,
@@ -87,6 +87,7 @@ import {
   type PhaseStatus,
   type ProviderOutcome,
   type FinalVideoStatus,
+  type Run,
   type Scene,
   type SceneEventPayload,
   type ScenePauseView,
@@ -1150,6 +1151,17 @@ export const assemblyStageLauncher: StageLauncher = {
 
 registerStageLauncher(assemblyStageLauncher);
 
+/** The session's snapshot as the adapter receives it; null when the session has none, "missing" when its file cannot be read. */
+function readRunReferenceImage(run: Run): ReferenceImage | null | "missing" {
+  if (!run.referenceImage) return null;
+  try {
+    const bytes = readFileSync(resolveArtefactPath(run.projectFolder, run.referenceImage.path));
+    return { bytes, contentType: run.referenceImage.contentType, sha256: run.referenceImage.sha256 };
+  } catch {
+    return "missing";
+  }
+}
+
 async function runImageAttempt(sceneId: string): Promise<void> {
   const fresh = getScene(sceneId);
   if (!fresh || fresh.status !== "submitted") {
@@ -1197,10 +1209,25 @@ async function runImageAttempt(sceneId: string): Promise<void> {
     return;
   }
 
+  // use-reference-image-in-generation (JOS-202), Decision 3 — read from the session's own snapshot at every launch, so a
+  // retry or a request after a restart carries the same image whatever `/admin` holds now.
+  const referenceImage = readRunReferenceImage(freshRun);
+  if (referenceImage === "missing") {
+    recordAndRelease("not_retryable_failure", 0);
+    applyFailureOutcome(
+      fresh.id,
+      { kind: "failed_not_retryable", reason: "the session's reference image file is missing from its project folder" },
+      attemptNumber,
+      () => launchImageStage(fresh.id),
+    );
+    broadcast(fresh.runId);
+    return;
+  }
+
   const sentAt = Date.now();
   let outcome: ImageGenerationResult;
   try {
-    outcome = await adapter.generate(fresh.imageInstruction);
+    outcome = await adapter.generate(fresh.imageInstruction, referenceImage ?? undefined);
   } catch (err) {
     outcome = {
       kind: "failed_transient",
