@@ -24,8 +24,13 @@
 import { join } from "node:path";
 import { loadSettings } from "./settings.ts";
 
+/** `SETTINGS_DEFAULTS_PATH` wins (the packaged app writes the embedded defaults to its data folder, JOS-205); otherwise `backend/config/settings.default.json`. */
+export function resolveSettingsDefaultsPath(env: Record<string, string | undefined> = process.env): string {
+  return env.SETTINGS_DEFAULTS_PATH || join(import.meta.dirname, "../../config/settings.default.json");
+}
+
 const loadedSettings = loadSettings({
-  defaultsPath: join(import.meta.dirname, "../../config/settings.default.json"),
+  defaultsPath: resolveSettingsDefaultsPath(),
   overridePath: process.env.SETTINGS_PATH ?? "data/settings.json",
 });
 if (!loadedSettings.ok) {

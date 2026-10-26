@@ -16,3 +16,6 @@ backend/node_modules/
 frontend/node_modules/
 infra/*/node_modules/
 infra/*/.wrangler/
+
+# Packaged executables (package-executables-build, JOS-205)
+backend/dist-package/
