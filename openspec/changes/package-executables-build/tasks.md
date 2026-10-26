@@ -56,14 +56,14 @@
 
 ## 7. Verification on the other targets
 
-- [ ] 7.1 Build macOS x64 and Windows x64 and confirm the output folders (`Vid4You`/`Vid4You.exe`, `ffmpeg`, `ffprobe`)
+- [x] 7.1 Build macOS x64 and Windows x64 and confirm the output folders (`Vid4You`/`Vid4You.exe`, `ffmpeg`, `ffprobe`)
 - [ ] 7.2 Windows executable started once on a real Windows machine by the product owner: health check, interface load, one stubbed session to `final-video`, second launch; result recorded in `reports/`
-- [ ] 7.3 Confirm a deliberately altered pinned checksum makes the build fail with no executable written
+- [x] 7.3 Confirm a deliberately altered pinned checksum makes the build fail with no executable written
 
 ## 8. Update Technical Documentation (MANDATORY)
 
-- [ ] 8.1 Update `readme.md` section 1.4 (packaged application) and 2.4 (known limitations) with the real build command; keep it in Spanish
-- [ ] 8.2 Update `docs/adr/0007-deployment.md` with the build command, the SEA/postject decision and the ffmpeg license note
-- [ ] 8.3 Add `SECRETS_PATH` and `SETTINGS_DEFAULTS_PATH` to the environment table in the README and to `docs/backend-standards.md` if it lists variables
-- [ ] 8.4 Run `graphify update .`
+- [x] 8.1 Update `readme.md` section 1.4 (packaged application) and 2.4 (known limitations) with the real build command; keep it in Spanish
+- [x] 8.2 Update `docs/adr/0007-deployment.md` with the build command, the SEA/postject decision and the ffmpeg license note
+- [x] 8.3 Add `SECRETS_PATH` and `SETTINGS_DEFAULTS_PATH` to the environment table in the README and to `docs/backend-standards.md` if it lists variables
+- [x] 8.4 Run `graphify update .`
 - [ ] 8.5 Open the pull request linking JOS-205; archive the change after merge

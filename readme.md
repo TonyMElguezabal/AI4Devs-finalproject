@@ -135,6 +135,10 @@ Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en
 | `DB_PATH` | `data/skeleton.sqlite` | Fichero SQLite (relativo a `backend/`). |
 | `PROJECTS_ROOT` | `data/projects` | Carpeta donde se guardan las carpetas de proyecto (guion, MP3, imágenes, clips, MP4). |
 | `FFMPEG_PATH`, `FFPROBE_PATH` | resolución automática | Ruta a `ffmpeg` y `ffprobe`. |
+| `SECRETS_PATH` | `backend/.secrets.json` | Fichero de credenciales. La aplicación empaquetada lo fija en su carpeta de datos. |
+| `SETTINGS_DEFAULTS_PATH` | `backend/config/settings.default.json` | Ajustes por defecto. La aplicación empaquetada escribe en cada arranque una copia incrustada en su carpeta de datos y apunta a ella. |
+| `VID4YOU_DATA_DIR` | carpeta de datos del usuario | Solo la aplicación empaquetada: cambia la carpeta donde guarda la base de datos, los proyectos, `.secrets.json`, los ajustes y la clave maestra. |
+| `VID4YOU_PORT`, `VID4YOU_NO_BROWSER` | `3100`, vacío | Solo la aplicación empaquetada: puerto y, con `1`, no abrir el navegador. |
 | `CORS_ALLOWED_ORIGINS` | vacío | Orígenes adicionales permitidos (lista separada por comas). Por defecto solo el servidor Vite y el propio backend. |
 | `STAGE_CONCURRENCY_LIMIT` | límites de `config/providers.ts` | Sustituye el límite de peticiones simultáneas de la etapa de imagen (solo pruebas manuales). |
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | 2 y 30 | Acortan la espera entre reintentos para pruebas manuales. |
@@ -147,7 +151,16 @@ Todo se guarda en local: la base de datos SQLite y las carpetas de proyecto (en 
 
 **Aplicación empaquetada (macOS y Windows)**
 
-Vid4You se distribuye como un ejecutable por plataforma que sirve el frontend y la API en `http://127.0.0.1:3100`, abre el navegador y guarda sus datos en la carpeta del usuario: `~/Library/Application Support/Vid4You` en macOS y `%APPDATA%\Vid4You` en Windows (ADR 0007). Un segundo arranque abre la instancia que ya está en marcha. Va junto a `ffmpeg` y `ffprobe`. El ejecutable de Windows se ha ejecutado una vez con éxito en un portátil Windows, de principio a fin con proveedores reales (`openspec/changes/archive/2026-10-19-define-production-deployment/reports/2026-10-20-step-6e-windows-run.md`). Hoy no está firmado: Windows SmartScreen o macOS Gatekeeper pedirán confirmación la primera vez. Ver "Limitaciones conocidas" en la sección 2.4 para el estado del proceso de construcción.
+Vid4You se distribuye como un ejecutable por plataforma que sirve el frontend y la API en `http://127.0.0.1:3100`, abre el navegador y guarda sus datos en la carpeta del usuario: `~/Library/Application Support/Vid4You` en macOS y `%APPDATA%\Vid4You` en Windows (ADR 0007). Un segundo arranque abre la instancia que ya está en marcha. Va junto a `ffmpeg` y `ffprobe`. El ejecutable de Windows se ha ejecutado una vez con éxito en un portátil Windows, de principio a fin con proveedores reales (`openspec/changes/archive/2026-10-19-define-production-deployment/reports/2026-10-20-step-6e-windows-run.md`). Hoy no está firmado: Windows SmartScreen o macOS Gatekeeper pedirán confirmación la primera vez. Ver "Limitaciones conocidas" en la sección 2.4 para lo que falta.
+
+Para construirlo (Node 26.4.0, `npm ci` en `backend/` y en `frontend/`; descarga Node y ffmpeg con comprobación de SHA-256):
+
+```bash
+cd backend
+npm run package:darwin-arm64   # también package:darwin-x64 (solo en un Mac, firma ad hoc) y package:win32-x64
+```
+
+Cada comando deja `Vid4You` (`Vid4You.exe` en Windows), `ffmpeg` y `ffprobe` en `backend/dist-package/<plataforma>/`. `npm run package:smoke` produce una variante con proveedores simulados para pruebas manuales; no es para publicar.
 
 ### **1.5. Solución de problemas y recuperación**
 
@@ -173,7 +186,7 @@ Estado del MVP a 20-oct-2026. Ninguna impide generar un video; todas están regi
 | Los límites reales de peticiones por etapa de RunningHub y ElevenLabs, y los casos límite de la división por cláusulas (§6.1), no están verificados. | El límite de peticiones simultáneas usa los valores de `config/providers.ts`, sin contrastar con los límites reales. | JOS-188, JOS-189 (posteriores al MVP) |
 | La comprobación del guion muestra un único mensaje genérico para cuatro causas distintas (falta `OPENAI_KEY`, fichero de claves ilegible, sin red hacia OpenAI, error de OpenAI). | El usuario debe revisar la tabla de la sección 1.5 para descubrir cuál es. | Aplazada por el propietario del producto |
 | El ejecutable no está firmado. | Windows (SmartScreen) y macOS (Gatekeeper) muestran una advertencia al abrirlo. | JOS-207 |
-| El ejecutable se construye con scripts de prueba de concepto y no hay flujo de publicación (ver 2.4). | No hay versiones publicadas ni actualización automática. | JOS-205, JOS-206 |
+| El ejecutable se construye con un comando por plataforma (JOS-205), pero el ffmpeg fijado no es redistribuible y no hay flujo de publicación (ver 2.4). | No hay versiones publicadas ni actualización automática. | JOS-205, JOS-206 |
 | No se ha verificado que una versión anterior abra una base de datos migrada por una posterior. | Volver a una versión anterior exige restaurar la copia de la carpeta de datos (ver arriba). | JOS-210 |
 | Las pruebas de contrato con proveedores reales no se ejecutan en CI (ver 2.6). | Un cambio en la API de un proveedor solo se detecta en una ejecución real. | — |
 | Algunas revisiones humanas de los cambios archivados (por ejemplo, la 17.7 de `define-provider-configuration`) se aceptaron como excepción y no se realizaron. | Esos cambios tienen evidencia de pruebas automáticas pero no revisión humana. | JOS-203, M7 |
@@ -270,7 +283,7 @@ Los ficheros `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` y `codex.md` apuntan a los es
 
 **Limitaciones conocidas del despliegue** (la lista completa está en la sección 1.6)
 
-- El ejecutable empaquetado se construyó con scripts de prueba de concepto archivados (`openspec/changes/archive/2026-10-19-define-production-deployment/poc/local/`), no con un proceso integrado en el repositorio. El flujo de publicación automática (construir todas las plataformas por árbol de código, publicar como pre-release en UAT y promover los mismos ficheros en `main`) está descrito en ese mismo directorio (`poc/workflows/release.yml`) como boceto y **no está activado** en `.github/workflows/`.
+- El ejecutable se construye con `npm run package:<plataforma>` en `backend/` (JOS-205), pero los ffmpeg y ffprobe que fija son una compilación GPL con componentes `nonfree` que **no se puede redistribuir**: hay que sustituirla (y sus hashes en `backend/packaging/targets.ts`) antes de la primera versión pública. El flujo de publicación automática (construir todas las plataformas por árbol de código, publicar como pre-release en UAT y promover los mismos ficheros en `main`) está descrito en ese mismo directorio (`poc/workflows/release.yml`) como boceto y **no está activado** en `.github/workflows/`.
 - El ejecutable no está firmado.
 - Aún no se han medido tiempos con una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips): los límites máximos por fase (voz y razonamiento 600 s, video 1200 s) son provisionales.
 
