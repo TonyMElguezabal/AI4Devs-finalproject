@@ -7,39 +7,34 @@ import swaggerUi from "@fastify/swagger-ui";
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { routes } from "./routes.ts";
 import { allowedOrigins, registerOriginPolicy } from "./originPolicy.ts";
-import { recoverOnBoot, setAssemblyTool } from "./orchestrator.ts";
+import { type recoverOnBoot, setAssemblyTool } from "./orchestrator.ts";
 import { stagesWithoutRestartRecovery } from "./launchGate.ts";
 import * as concurrency from "./concurrency.ts";
 import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
-import { STAGE } from "./types.ts";
-import { setDecompositionLogger } from "./decompositionPhase.ts";
-import { setVoiceOverLogger } from "./voiceOverPhase.ts";
 import { DB_PATH, getTelemetrySettings } from "./db.ts";
 import { createAppLogger } from "./telemetry/logFile.ts";
 import { dirname, join } from "node:path";
-import { recordProductEvent, setConsent, shutdownTelemetry } from "./telemetry/index.ts";
-import { startUpdateCheck } from "./telemetry/updateCheck.ts";
-import { installProcessErrorHandlers } from "./telemetry/processHandlers.ts";
-import { rebuildScheduler } from "./retry/retryScheduler.ts";
-import { startAttemptTimeoutWatcher } from "./retry/attemptTimeoutWatcher.ts";
-import { setRetryDelayConfig } from "./retry/stageAttemptRecorder.ts";
-import { createStubVoiceProvider as createStubVoice, setVoiceProviderRegistry, type StubVoiceProviderMode } from "./voiceProvider.ts";
-import { setVideoProviderRegistry, createStubVideoProvider, STUB_VIDEO_PROVIDER_NAME, type StubVideoProviderMode } from "./videoProvider.ts";
+import { recordProductEvent, setConsent } from "./telemetry/index.ts";
 import { createStubAssemblyTool, type StubAssemblyMode } from "./stubAssemblyTool.ts";
 import { createFfmpegAssemblyTool } from "./ffmpegAssemblyTool.ts";
 import type { AssemblyTool } from "./assemblyTool.ts";
 
-const PORT = Number(process.env.PORT ?? 3100);
-// The caps come from MAX_SIMULTANEOUS_REQUESTS (JOS-167); this override exists
-// for manual testing, where a small image cap makes queueing visible.
-const STAGE_CONCURRENCY_OVERRIDE = process.env.STAGE_CONCURRENCY_LIMIT;
+export const PORT = Number(process.env.PORT ?? 3100);
 
 // start-video-project (JOS-134) Decision 6 — impose no product-side script
 // length limit; where an infrastructure ceiling remains, name the cause
 // (Fastify's own 413 response) rather than leaving the framework default
 // (1MB) in place, which would look identical to a product limit that PRD
 // §4.1 says does not exist.
-const BODY_LIMIT_BYTES = Number(process.env.BODY_LIMIT_BYTES ?? 50 * 1024 * 1024);
+export const BODY_LIMIT_BYTES = Number(process.env.BODY_LIMIT_BYTES ?? 50 * 1024 * 1024);
+
+/** An embedded interface file (package-executables-build, JOS-205): the packaged executable has no folder to serve from. */
+export interface StaticAsset {
+  contentType: string;
+  body: Buffer;
+}
+/** Looks up the file for a request path such as `/assets/index.js`; `/` and `/admin` are the interface's own pages. */
+export type StaticAssetReader = (path: string) => StaticAsset | undefined;
 
 /**
  * Builds and configures the Fastify instance without binding a port, so
@@ -48,7 +43,7 @@ const BODY_LIMIT_BYTES = Number(process.env.BODY_LIMIT_BYTES ?? 50 * 1024 * 1024
  * `test/session-creation.test.ts`). The real process bootstrap below is the
  * only caller that also calls `.listen()`.
  */
-export async function buildApp(options: { logger?: FastifyBaseLogger } = {}): Promise<FastifyInstance> {
+export async function buildApp(options: { logger?: FastifyBaseLogger; staticAssets?: StaticAssetReader } = {}): Promise<FastifyInstance> {
   // add-observability-telemetry (JOS-199) Decision 5 — stdout as before, plus a rotating file in `logs` beside the store.
   // Logging stays off under test, as before.
   // A caller may pass its own logger (a test does, to read what is logged); the default is unchanged.
@@ -97,10 +92,26 @@ export async function buildApp(options: { logger?: FastifyBaseLogger } = {}): Pr
 
   await app.register(routes);
 
-  app.get("/", async (_request, reply) => {
-    const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
-    reply.type("text/html").send(html);
-  });
+  const staticAssets = options.staticAssets;
+  if (staticAssets) {
+    // Registered after the API routes, so those win; the origin policy hook above covers these answers too.
+    app.get("/*", async (request, reply) => {
+      const path = request.url.split("?")[0] ?? "/";
+      const asset = staticAssets(path === "/admin" ? "/" : path);
+      if (!asset) return reply.callNotFound();
+      return reply.type(asset.contentType).send(asset.body);
+    });
+    app.get("/", async (_request, reply) => {
+      const asset = staticAssets("/");
+      if (!asset) return reply.callNotFound();
+      return reply.type(asset.contentType).send(asset.body);
+    });
+  } else {
+    app.get("/", async (_request, reply) => {
+      const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+      reply.type("text/html").send(html);
+    });
+  }
 
   return app;
 }
@@ -151,56 +162,13 @@ export function configureAssemblyTool(
   return tool;
 }
 
-// Bootstrap only when this file is run directly (`node src/server.ts`), not
-// when imported by tests.
-const isMainModule = import.meta.url === pathToFileURL(process.argv[1]).href;
-if (isMainModule) {
-  if (STAGE_CONCURRENCY_OVERRIDE) concurrency.setLimit(STAGE, Number(STAGE_CONCURRENCY_OVERRIDE));
-  // USE_STUB_VIDEO_PROVIDER=success|success-bytes|pending|request-lost|transient-failure|not-retryable-failure — manual endpoint testing only.
-  // `pending` leaves every clip unfinished, so a restart can be watched resuming it; `success` is an alias of `success-bytes`.
-  const stubVideoMode = process.env.USE_STUB_VIDEO_PROVIDER;
-  if (stubVideoMode) {
-    const bytes = Buffer.from("00000000667479706d703432", "hex"); // minimal ftyp mp4
-    const resolvedMode: StubVideoProviderMode = stubVideoMode === "success" ? "success-bytes"
-      : (["success-bytes", "pending", "request-lost", "not-retryable-failure"] as const).find((m) => m === stubVideoMode) ?? "transient-failure";
-    const stub = createStubVideoProvider(resolvedMode, { bytes });
-    setVideoProviderRegistry({ defaultIdentifier: STUB_VIDEO_PROVIDER_NAME, adapters: { [STUB_VIDEO_PROVIDER_NAME]: stub } });
-  }
-  // RETRY_BASE_DELAY_SECONDS / RETRY_CAP_DELAY_SECONDS — manual endpoint testing only: shortens the retry delays so a retry sequence can be watched in seconds (fractions allowed).
-  const retryBaseSeconds = Number(process.env.RETRY_BASE_DELAY_SECONDS);
-  const retryCapSeconds = Number(process.env.RETRY_CAP_DELAY_SECONDS);
-  if (Number.isFinite(retryBaseSeconds) && Number.isFinite(retryCapSeconds) && retryBaseSeconds >= 0 && retryCapSeconds >= retryBaseSeconds) {
-    setRetryDelayConfig({ baseSeconds: retryBaseSeconds, capSeconds: retryCapSeconds });
-  }
-  // USE_STUB_VOICE_PROVIDER=success|success-without-timestamps|transient-failure|transient-twice-then-success|not-retryable-failure|undecodable-audio|empty-audio|hang|hang-once-then-success|success-after-limit — manual endpoint testing only.
-  const stubVoiceMode = process.env.USE_STUB_VOICE_PROVIDER as StubVoiceProviderMode | undefined;
-  // VOICE_STUB_DELAY_MS — with `success-after-limit`, how long each call takes (default: the voice maximum time plus 2 s).
-  // A value below the maximum time makes calls slow but in time, so the per-stage cap's queueing can be watched (JOS-167).
-  const voiceStubDelayMs = Number(process.env.VOICE_STUB_DELAY_MS);
-  if (stubVoiceMode) {
-    setVoiceProviderRegistry({
-      defaultIdentifier: "stub-voice",
-      adapters: { "stub-voice": createStubVoice(stubVoiceMode, Number.isFinite(voiceStubDelayMs) && voiceStubDelayMs > 0 ? { lateAfterMs: voiceStubDelayMs } : {}) },
-    });
-  }
-  // USE_STUB_ASSEMBLY_TOOL=success|transient-failure|not-retryable-failure|slow-success — manual endpoint testing only (JOS-149).
-  // `slow-success` (JOS-161) answers success after ASSEMBLY_STUB_DELAY_MS (default 15000), so a pause can land during assembly.
-  // Without it the real ffmpeg adapter is registered (run-session-end-to-end, JOS-195).
-  configureAssemblyTool();
-  initTelemetry();
-  installProcessErrorHandlers();
-  startUpdateCheck(); // not awaited: the answer is read by GET /app/update, and listen is never delayed
-  for (const signal of ["SIGINT", "SIGTERM"] as const) {
-    process.once(signal, () => void shutdownTelemetry().finally(() => process.exit(0)));
-  }
-  const app = await buildApp();
-  setVoiceOverLogger(app.log);
-  setDecompositionLogger(app.log);
-  const summary = recoverOnBoot();
-  app.log.info(bootLogFields(summary), "boot recovery complete");
-  app.log.info({ scheduledRetries: rebuildScheduler() }, "scheduled retries re-armed");
-  // stage-execution-time-limit (JOS-185) Decision 8 — after resumption, so a result recovered at boot wins over a timeout.
-  startAttemptTimeoutWatcher();
-  await app.listen({ port: PORT, host: "127.0.0.1" });
-  app.log.info(`listening on http://127.0.0.1:${PORT} (docs at /docs) — image concurrency limit ${concurrency.stats(STAGE).limit}, body limit ${BODY_LIMIT_BYTES} bytes`);
+// Bootstrap only when this file is run directly (`node src/server.ts`), not when imported by tests or bundled
+// (argv[1] is absent or unrelated inside the packaged executable, where `import.meta.url` is empty).
+const entryFile = process.argv[1];
+if (entryFile !== undefined && import.meta.url === pathToFileURL(entryFile).href) {
+  // No top-level await: the packaged bundle is CommonJS (package-executables-build, JOS-205). A failed start still exits non-zero.
+  import("./bootstrap.ts").then(({ startServer }) => startServer()).catch((error: unknown) => {
+    console.error(error);
+    process.exit(1);
+  });
 }

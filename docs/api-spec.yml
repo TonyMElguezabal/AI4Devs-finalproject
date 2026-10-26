@@ -2551,7 +2551,7 @@ paths:
       security:
         - administratorPassword: []
       description: Stores the optional reference image (raw bytes, replacing any earlier one). The bytes must match the
-        declared type's magic numbers. The image is stored only; no provider receives it yet.
+        declared type's magic numbers. Sessions created afterwards copy it and send it to the image provider with every scene (PRD §11.5).
       requestBody:
         required: true
         content:

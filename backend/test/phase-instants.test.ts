@@ -19,7 +19,7 @@ describe("migration 22", () => {
     target.prepare("INSERT INTO runs (id, title, created_at) VALUES ('r1', 'Old session', '2026-10-01T00:00:00.000Z')").run();
     const before = target.prepare("SELECT * FROM runs").all();
 
-    applyMigrationsTo(target);
+    applyMigrationsTo(target, 22); // only this migration is under test; a later one may add columns to runs
 
     expect(target.prepare("SELECT COUNT(*) c FROM phase_instants").get()).toEqual({ c: 0 });
     expect(target.prepare("SELECT * FROM runs").all()).toEqual(before);

@@ -8,7 +8,7 @@
 // server DB vs. structured files and confirmed this on the merits
 // (`openspec/changes/define-persistence/design.md` § Execution Record §3) —
 // this is no longer a disposable stand-in, it is the decision.
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
 import { getConsent, normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
@@ -674,6 +674,19 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       `);
     },
   },
+  {
+    version: 23,
+    description:
+      "add runs.reference_image_path, reference_image_content_type and reference_image_sha256: the snapshot of the /admin reference image taken at creation (use-reference-image-in-generation, JOS-202)",
+    up: (target) => {
+      // Nullable, no backfill: a session created before this change had no reference image to send.
+      target.exec(`
+        ALTER TABLE runs ADD COLUMN reference_image_path TEXT;
+        ALTER TABLE runs ADD COLUMN reference_image_content_type TEXT;
+        ALTER TABLE runs ADD COLUMN reference_image_sha256 TEXT;
+      `);
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -950,6 +963,27 @@ export function clearReferenceImage(): AppSettings {
   return getAppSettings();
 }
 
+const REFERENCE_IMAGE_EXTENSIONS: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+
+/**
+ * use-reference-image-in-generation (JOS-202), Decision 3 — copies the `/admin` reference image into the project folder, so
+ * replacing or removing the setting never changes this session. A saved file that has vanished counts as no image, as
+ * `getAppSettings` already reports it.
+ */
+function snapshotReferenceImage(projectFolder: string): Run["referenceImage"] {
+  const file = getReferenceImageFile();
+  const extension = file ? REFERENCE_IMAGE_EXTENSIONS[file.contentType] : undefined;
+  if (!file || !extension) return null;
+  let bytes: Buffer;
+  try {
+    bytes = readFileSync(file.path);
+  } catch {
+    return null;
+  }
+  const path = writeArtefactOnce(projectFolder, `reference-image.${extension}`, bytes);
+  return { path, contentType: file.contentType, sha256: createHash("sha256").update(bytes).digest("hex") };
+}
+
 export function createRun(id: string, title: string, script: string, language: string): Run {
   const createdAt = nowIso();
   const projectFolder = deriveAndCreateProjectFolder(title, new Date(createdAt));
@@ -958,10 +992,11 @@ export function createRun(id: string, title: string, script: string, language: s
   writeArtefactOnce(projectFolder, "script.txt", script);
   // admin-visual-style-prompt (JOS-201), Decision 4 — the style at this moment, kept for the run's whole life.
   const visualStylePrompt = getAppSettings().visualStylePrompt;
+  const referenceImage = snapshotReferenceImage(projectFolder);
   db.prepare(
-    "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script, visual_style_prompt) VALUES (?, ?, ?, 0, ?, ?, ?, ?)",
-  ).run(id, title, createdAt, language, projectFolder, script, visualStylePrompt);
-  return { id, title, script, createdAt, paused: false, language, projectFolder, visualStylePrompt, voiceProviderId: null, decompositionProviderId: null, alignmentProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
+    "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script, visual_style_prompt, reference_image_path, reference_image_content_type, reference_image_sha256) VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)",
+  ).run(id, title, createdAt, language, projectFolder, script, visualStylePrompt, referenceImage?.path ?? null, referenceImage?.contentType ?? null, referenceImage?.sha256 ?? null);
+  return { id, title, script, createdAt, paused: false, language, projectFolder, visualStylePrompt, referenceImage, voiceProviderId: null, decompositionProviderId: null, alignmentProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
 }
 
 export function setRunProjectFolder(runId: string, projectFolder: string): void {
@@ -1060,6 +1095,9 @@ interface RunRow {
   decomposition_provider_id: string | null;
   alignment_provider_id: string | null;
   visual_style_prompt: string;
+  reference_image_path: string | null;
+  reference_image_content_type: string | null;
+  reference_image_sha256: string | null;
   failure: string | null;
   final_video_path: string | null;
   rebuild_requested_at: string | null;
@@ -1197,6 +1235,10 @@ function rowToRun(row: RunRow): Run {
     finalVideoPath: row.final_video_path ?? null,
     rebuildRequestedAt: row.rebuild_requested_at ?? null,
     visualStylePrompt: row.visual_style_prompt ?? "",
+    referenceImage:
+      row.reference_image_path && row.reference_image_content_type && row.reference_image_sha256
+        ? { path: row.reference_image_path, contentType: row.reference_image_content_type, sha256: row.reference_image_sha256 }
+        : null,
   };
 }
 

@@ -24,8 +24,13 @@
 import { join } from "node:path";
 import { loadSettings } from "./settings.ts";
 
+/** `SETTINGS_DEFAULTS_PATH` wins (the packaged app writes the embedded defaults to its data folder, JOS-205); otherwise `backend/config/settings.default.json`. */
+export function resolveSettingsDefaultsPath(env: Record<string, string | undefined> = process.env): string {
+  return env.SETTINGS_DEFAULTS_PATH || join(import.meta.dirname, "../../config/settings.default.json");
+}
+
 const loadedSettings = loadSettings({
-  defaultsPath: join(import.meta.dirname, "../../config/settings.default.json"),
+  defaultsPath: resolveSettingsDefaultsPath(),
   overridePath: process.env.SETTINGS_PATH ?? "data/settings.json",
 });
 if (!loadedSettings.ok) {
@@ -66,6 +71,13 @@ export const ALIGNMENT_PROVIDER = {
 } as const;
 
 export const IMAGE_PROVIDER = { name: settings.image.name, model: settings.image.model };
+
+/**
+ * use-reference-image-in-generation (JOS-202) — the Fal model a request goes to when its session has a reference image.
+ * Chosen by the spike (`openspec/changes/use-reference-image-in-generation/reports/2026-10-26-step-1-reference-model-spike.md`):
+ * the only candidate that held the character, followed the scene and returned 1920x1088.
+ */
+export const IMAGE_REFERENCE_MODEL = settings.imageReferenceModel;
 
 /**
  * RunningHub versions by endpoint path, not a separate version field
@@ -192,8 +204,8 @@ export const MAX_SIMULTANEOUS_REQUESTS: Record<CappedStage, number> = settings.m
 // timeout failure rates suggest these margins are wrong.
 
 // Shipped defaults (backend/config/settings.default.json): decomposition 600 s (208.6 s for 67 fragments,
-// 75 s for 11, 2026-10-13, real script size, JOS-197; 6.41-8.47 s on a short script, JOS-165); image 25 s
-// (observed 9.22-10.79 s); voice 600 s (151 s for 10,217 characters, about 12.8 min of narration,
+// 75 s for 11, 2026-10-13, real script size, JOS-197; 6.41-8.47 s on a short script, JOS-165); image 120 s
+// (observed 9.22-10.79 s for text-to-image; 15-78 s with a reference image on `fal-ai/flux-2/edit`, 2026-10-26, JOS-202); voice 600 s (151 s for 10,217 characters, about 12.8 min of narration,
 // 2026-10-13, JOS-197; 2.20-2.47 s on a 142-character script, JOS-165); alignment 5 s (observed 0.26-0.48 s);
 // video 1200 s (grows with the clip's length at 2K: 394 s for 7 s, 528 s for 12 s, 546 s for 13 s, over 610 s
 // for 14 s, 2026-10-14, JOS-197; 141-159 s on early samples, JOS-165; 15 s is admitted); assembly has none

@@ -15,7 +15,10 @@ import { resolve } from "node:path";
  * root).
  */
 
-const DEFAULT_SECRETS_PATH = resolve(import.meta.dirname, "../../.secrets.json");
+/** `SECRETS_PATH` wins (the packaged app keeps the file in its data folder, JOS-205); otherwise the git-ignored file beside `config/`. */
+export function resolveSecretsPath(env: Record<string, string | undefined> = process.env): string {
+  return env.SECRETS_PATH || resolve(import.meta.dirname, "../../.secrets.json");
+}
 
 let cachedSecrets: Record<string, unknown> | undefined;
 let cachedSecretsPath: string | undefined;
@@ -34,7 +37,7 @@ export function loadCredential(name: string, options: { secretsPath?: string } =
   const envValue = process.env[name];
   if (envValue) return envValue;
 
-  const secretsPath = options.secretsPath ?? DEFAULT_SECRETS_PATH;
+  const secretsPath = options.secretsPath ?? resolveSecretsPath();
   const secrets = readSecretsFile(secretsPath);
   const secretsValue = secrets[name];
   if (typeof secretsValue === "string" && secretsValue) return secretsValue;
