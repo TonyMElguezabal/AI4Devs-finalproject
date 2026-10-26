@@ -1,0 +1,66 @@
+## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
+
+- [x] 0.1 Create feature branch `feature/jos-206-release-workflow` from `main` (no upstream)
+- [x] 0.2 Verify the current branch
+- [ ] 0.3 Confirm JOS-205 (`package:<target>` scripts) is merged to `main`, or stack this branch on it
+
+## 1. Tests first (TDD)
+
+- [ ] 1.1 Test the release-state decision: no release for the tree prints `build`; a `release-<hash>` tag present prints `skip`; a different tree's tag prints `build`
+- [ ] 1.2 Test the version and tag derivation from a tree hash and a date
+- [ ] 1.3 Test that the checksum file lists each zip and that a tampered zip fails `sha256sum -c`
+- [ ] 1.4 Test that the packaged bundle carries channel `production`, the version and the tag when the three variables are set, and `development` when they are not (extends the JOS-205 bundle test)
+
+## 2. Workflow and scripts
+
+- [ ] 2.1 Add the release-state script and make tests 1.1 and 1.2 pass
+- [ ] 2.2 Add a `workflow_call` trigger to `ci.yml` if needed so `release.yml` reuses it
+- [ ] 2.3 Add `.github/workflows/release.yml` with the `checks`, `tree`, `build`, `publish`, `verify` jobs, the `RELEASE_BRANCH` value, concurrency, top-level empty permissions and per-job permissions
+- [ ] 2.4 Pin every action to a commit with its version in a comment
+- [ ] 2.5 Build matrix: `macos-15` (arm64), `macos-15-intel` (x64), `windows-2025`; each passes the three build variables to `npm run package:<target>` and uploads `Vid4You-<target>.zip`
+- [ ] 2.6 `publish` job on `environment: release`: write `SHA256SUMS.txt`, create the release at the tag `release-<hash>`; guard it so only `main` pushes or an explicit `test-release` dispatch can run it
+- [ ] 2.7 `verify` job: download the published assets and run `sha256sum -c`
+- [ ] 2.8 `workflow_dispatch` with `mode` (`dry-run`, `test-release`); a test release is a pre-release tagged `test-<hash>`
+- [ ] 2.9 Confirm JOS-205's `build.ts` reads `VID4YOU_CHANNEL`, `VID4YOU_VERSION` and `VID4YOU_RELEASE_TAG` into the bundle; add it there if missing
+
+## 3. Review and Update Existing Unit Tests (MANDATORY)
+
+- [ ] 3.1 Review the update-check and build-config tests for assumptions about channels and tags
+- [ ] 3.2 Update affected tests
+
+## 4. Run Unit Tests and Verify Database State (MANDATORY)
+
+- [ ] 4.1 Capture the pre-test database baseline (isolated `DB_PATH` and `PROJECTS_ROOT`)
+- [ ] 4.2 Run targeted tests for the changed modules and the new release scripts
+- [ ] 4.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend`
+- [ ] 4.4 Verify post-test database state and restore if needed
+- [ ] 4.5 Create report `reports/YYYY-MM-DD-step-4-unit-test-and-db-verification.md`
+- [ ] 4.6 Mark the step complete only after tests pass and the report exists
+
+## 5. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
+
+- [ ] 5.1 Start a packaged executable from the dry-run artifacts for the host platform with the stubbed build variables set (AGENT MUST EXECUTE)
+- [ ] 5.2 curl `GET /app/update` against a local stand-in for the GitHub API (or the real API with a test release) and confirm `available` flips when the tag differs
+- [ ] 5.3 Confirm `GET /health` still answers `{"ok":true}`
+- [ ] 5.4 Restore the data folder and document commands and responses in `reports/YYYY-MM-DD-step-5-curl-endpoint-testing.md`
+
+## 6. E2E Testing with Playwright MCP
+
+- [ ] 6.1 Not applicable: this change has no interface. Record that in `reports/` with the reason
+
+## 7. Exercise the pipeline
+
+- [ ] 7.1 Configure the `release` environment with a required reviewer in repository settings (record the setting in the README, no secrets)
+- [ ] 7.2 Run the workflow by `workflow_dispatch` in `dry-run` mode on the feature branch; the three zips are uploaded
+- [ ] 7.3 Run `test-release` once: approve, the pre-release `test-<hash>` appears with the three zips and `SHA256SUMS.txt`, `verify` passes; delete the test pre-release
+- [ ] 7.4 Re-run for the same tree and confirm nothing is rebuilt or published
+- [ ] 7.5 Reject an approval once and confirm no release is created
+- [ ] 7.6 Confirm a failing check (temporary failing test on the branch) stops the run before any build
+
+## 8. Update Technical Documentation (MANDATORY)
+
+- [ ] 8.1 Add the release and rollback procedure to `readme.md` section 1.4 and update 2.4 (keep it in Spanish): who approves, how, how to remove or demote a bad release
+- [ ] 8.2 Re-amend `docs/adr/0007-deployment.md`: single channel from `main`, tag by tree hash, approval gate, workflow location
+- [ ] 8.3 Update the JOS-206 ticket text so its acceptance criteria match the single-channel model
+- [ ] 8.4 Run `graphify update .`
+- [ ] 8.5 Open the pull request linking JOS-206; archive the change after merge
