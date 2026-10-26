@@ -39,7 +39,12 @@ export function assertHostCanBuild(targetName: TargetName, hostPlatform: NodeJS.
 }
 
 /** The backend, the packaged entry and (smoke only) the stubs, as one CommonJS file. No source is cut or rewritten. */
-export async function bundleBackend(options: { outfile: string; smoke: boolean }): Promise<void> {
+export async function bundleBackend(options: { outfile: string; smoke: boolean; env?: NodeJS.ProcessEnv }): Promise<void> {
+  // enable-release-workflow (JOS-206) Decision 3 — the build identity is fixed at build time; a variable that is not set stays a runtime read.
+  const env = options.env ?? process.env;
+  const identity = Object.fromEntries(
+    ["VID4YOU_CHANNEL", "VID4YOU_VERSION", "VID4YOU_RELEASE_TAG"].filter((name) => env[name]).map((name) => [`process.env.${name}`, JSON.stringify(env[name])]),
+  );
   await build({
     entryPoints: [join(import.meta.dirname, "entry.ts")],
     outfile: options.outfile,
@@ -49,7 +54,7 @@ export async function bundleBackend(options: { outfile: string; smoke: boolean }
     target: "node22",
     absWorkingDir: BACKEND_DIR,
     alias: { "@fastify/swagger-ui": join(import.meta.dirname, "noDocs.ts") },
-    define: { __VID4YOU_SMOKE__: JSON.stringify(options.smoke) },
+    define: { __VID4YOU_SMOKE__: JSON.stringify(options.smoke), ...identity },
     // `import.meta` is empty in CommonJS; the two backend modules that read it are short-circuited by their environment variable.
     logOverride: { "empty-import-meta": "silent" },
     logLevel: "warning",

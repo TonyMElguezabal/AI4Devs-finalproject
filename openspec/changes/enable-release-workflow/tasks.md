@@ -2,36 +2,36 @@
 
 - [x] 0.1 Create feature branch `feature/jos-206-release-workflow` from `main` (no upstream)
 - [x] 0.2 Verify the current branch
-- [ ] 0.3 Confirm JOS-205 (`package:<target>` scripts) is merged to `main`, or stack this branch on it
+- [x] 0.3 Confirm JOS-205 (`package:<target>` scripts) is merged to `main`, or stack this branch on it
 
 ## 1. Tests first (TDD)
 
-- [ ] 1.1 Test the release-state decision: no release for the tree prints `build`; a `release-<hash>` tag present prints `skip`; a different tree's tag prints `build`
-- [ ] 1.2 Test the version and tag derivation from a tree hash and a date
-- [ ] 1.3 Test that the checksum file lists each zip and that a tampered zip fails `sha256sum -c`
-- [ ] 1.4 Test that the packaged bundle carries channel `production`, the version and the tag when the three variables are set, and `development` when they are not (extends the JOS-205 bundle test)
+- [x] 1.1 Test the release-state decision: no release for the tree prints `build`; a `release-<hash>` tag present prints `skip`; a different tree's tag prints `build`
+- [x] 1.2 Test the version and tag derivation from a tree hash and a date
+- [x] 1.3 Test that the checksum file lists each zip and that a tampered zip fails `sha256sum -c`
+- [x] 1.4 Test that the packaged bundle carries channel `production`, the version and the tag when the three variables are set, and `development` when they are not (extends the JOS-205 bundle test)
 
 ## 2. Workflow and scripts
 
-- [ ] 2.1 Add the release-state script and make tests 1.1 and 1.2 pass
-- [ ] 2.2 Add a `workflow_call` trigger to `ci.yml` if needed so `release.yml` reuses it
-- [ ] 2.3 Add `.github/workflows/release.yml` with the `checks`, `tree`, `build`, `publish`, `verify` jobs, the `RELEASE_BRANCH` value, concurrency, top-level empty permissions and per-job permissions
-- [ ] 2.4 Pin every action to a commit with its version in a comment
-- [ ] 2.5 Build matrix: `macos-15` (arm64), `macos-15-intel` (x64), `windows-2025`; each passes the three build variables to `npm run package:<target>` and uploads `Vid4You-<target>.zip`
-- [ ] 2.6 `publish` job on `environment: release`: write `SHA256SUMS.txt`, create the release at the tag `release-<hash>`; guard it so only `main` pushes or an explicit `test-release` dispatch can run it
-- [ ] 2.7 `verify` job: download the published assets and run `sha256sum -c`
-- [ ] 2.8 `workflow_dispatch` with `mode` (`dry-run`, `test-release`); a test release is a pre-release tagged `test-<hash>`
-- [ ] 2.9 Confirm JOS-205's `build.ts` reads `VID4YOU_CHANNEL`, `VID4YOU_VERSION` and `VID4YOU_RELEASE_TAG` into the bundle; add it there if missing
+- [x] 2.1 Add the release script (`.github/scripts/release.sh`: state, tag, version, checksums, verify) and make tests 1.1 and 1.2 pass
+- [x] 2.2 Add a `workflow_call` trigger to `ci.yml` if needed so `release.yml` reuses it
+- [x] 2.3 Add `.github/workflows/release.yml` with the `checks`, `tree`, `build`, `publish`, `verify` jobs, the `RELEASE_BRANCH` value, concurrency, top-level empty permissions and per-job permissions
+- [x] 2.4 Pin every action to a commit with its version in a comment
+- [x] 2.5 Build matrix: `macos-15` (arm64), `macos-15-intel` (x64), `windows-2025`; each passes the three build variables to `npm run package:<target>` and uploads `Vid4You-<target>.zip`
+- [x] 2.6 `publish` job on `environment: release`: write `SHA256SUMS.txt`, create the release at the tag `release-<hash>`; guard it so only `main` pushes or an explicit `test-release` dispatch can run it
+- [x] 2.7 `verify` job: download the published assets and run `sha256sum -c`
+- [x] 2.8 `workflow_dispatch` with `mode` (`dry-run`, `test-release`); a test release is a pre-release tagged `test-<hash>`
+- [x] 2.9 JOS-205 did not embed the three variables: `bundleBackend` now defines `process.env.VID4YOU_*` from the build environment and `config/build.ts` names each variable
 
 ## 3. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 3.1 Review the update-check and build-config tests for assumptions about channels and tags
-- [ ] 3.2 Update affected tests
+- [x] 3.1 Review the update-check and build-config tests for assumptions about channels and tags (none; both pass unchanged)
+- [x] 3.2 Update affected tests (none needed)
 
 ## 4. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 4.1 Capture the pre-test database baseline (isolated `DB_PATH` and `PROJECTS_ROOT`)
-- [ ] 4.2 Run targeted tests for the changed modules and the new release scripts
+- [x] 4.1 Capture the pre-test database baseline (isolated `DB_PATH` and `PROJECTS_ROOT`)
+- [x] 4.2 Run targeted tests for the changed modules and the new release scripts
 - [ ] 4.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend`
 - [ ] 4.4 Verify post-test database state and restore if needed
 - [ ] 4.5 Create report `reports/YYYY-MM-DD-step-4-unit-test-and-db-verification.md`
