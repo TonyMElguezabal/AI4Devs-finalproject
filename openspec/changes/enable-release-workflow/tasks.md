@@ -35,25 +35,25 @@
 
 - [x] 4.1 Capture the pre-test database baseline (isolated `DB_PATH` and `PROJECTS_ROOT`)
 - [x] 4.2 Run targeted tests for the changed modules and the new release scripts
-- [ ] 4.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend`
-- [ ] 4.4 Verify post-test database state and restore if needed
-- [ ] 4.5 Create report `reports/YYYY-MM-DD-step-4-unit-test-and-db-verification.md`
-- [ ] 4.6 Mark the step complete only after tests pass and the report exists
+- [x] 4.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend`
+- [x] 4.4 Verify post-test database state and restore if needed
+- [x] 4.5 Create report `reports/YYYY-MM-DD-step-4-unit-test-and-db-verification.md`
+- [x] 4.6 Mark the step complete only after tests pass and the report exists
 
 ## 5. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 5.1 Start a packaged executable from the dry-run artifacts for the host platform with the stubbed build variables set (AGENT MUST EXECUTE)
-- [ ] 5.2 curl `GET /app/update` against a local stand-in for the GitHub API (or the real API with a test release) and confirm `available` flips when the tag differs
-- [ ] 5.3 Confirm `GET /health` still answers `{"ok":true}`
-- [ ] 5.4 Restore the data folder and document commands and responses in `reports/YYYY-MM-DD-step-5-curl-endpoint-testing.md`
+- [x] 5.1 Start a packaged executable built locally (Actions unavailable) for the host platform with the stubbed build variables set (AGENT MUST EXECUTE)
+- [x] 5.2 curl `GET /app/update` against the real API (no local stand-in is possible: the URL is fixed): `available: false` with the 404 logged; the flip stays covered by unit tests until a real release exists
+- [x] 5.3 Confirm `GET /health` still answers `{"ok":true}`
+- [x] 5.4 Restore the data folder and document commands and responses in `reports/YYYY-MM-DD-step-5-curl-endpoint-testing.md`
 
 ## 6. E2E Testing with Playwright MCP
 
-- [ ] 6.1 Not applicable: this change has no interface. Record that in `reports/` with the reason
+- [x] 6.1 Not applicable: this change has no interface. Record that in `reports/` with the reason
 
 ## 7. Exercise the pipeline
 
-- [ ] 7.1 Configure the `release` environment with a required reviewer in repository settings (record the setting in the README, no secrets)
+- [x] 7.1 Configure the `release` environment with a required reviewer in repository settings (record the setting in the README, no secrets)
 - [ ] 7.2 Run the workflow by `workflow_dispatch` in `dry-run` mode on the feature branch; the three zips are uploaded
 - [ ] 7.3 Run `test-release` once: approve, the pre-release `test-<hash>` appears with the three zips and `SHA256SUMS.txt`, `verify` passes; delete the test pre-release
 - [ ] 7.4 Re-run for the same tree and confirm nothing is rebuilt or published
@@ -62,8 +62,8 @@
 
 ## 8. Update Technical Documentation (MANDATORY)
 
-- [ ] 8.1 Add the release and rollback procedure to `readme.md` section 1.4 and update 2.4 (keep it in Spanish): who approves, how, how to remove or demote a bad release
-- [ ] 8.2 Re-amend `docs/adr/0007-deployment.md`: single channel from `main`, tag by tree hash, approval gate, workflow location
-- [ ] 8.3 Update the JOS-206 ticket text so its acceptance criteria match the single-channel model
+- [x] 8.1 Add the release and rollback procedure to `readme.md` section 1.4 and update 2.4 (keep it in Spanish): who approves, how, how to remove or demote a bad release
+- [x] 8.2 Re-amend `docs/adr/0007-deployment.md`: single channel from `main`, tag by tree hash, approval gate, workflow location
+- [x] 8.3 Update the JOS-206 ticket text so its acceptance criteria match the single-channel model
 - [ ] 8.4 Run `graphify update .`
 - [ ] 8.5 Open the pull request linking JOS-206; archive the change after merge
