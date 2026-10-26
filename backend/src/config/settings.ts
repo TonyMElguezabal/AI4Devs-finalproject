@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod";
-import { PARAMETER_SHAPES, nonEmptyString, positiveInteger } from "../providerTypes.ts";
+import { PARAMETER_SHAPES, modelId, nonEmptyString, positiveInteger } from "../providerTypes.ts";
 import { describeIssue } from "./issues.ts";
 
 // configure-providers-and-parameters (JOS-174), design Decisions 1, 2, 4 and
@@ -29,6 +29,8 @@ const settingsSchema = z
     voice: z.strictObject({ name: z.enum(ACCEPTED_PROVIDERS.voice), ...PARAMETER_SHAPES["elevenlabs-voice"] }),
     alignment: z.strictObject({ name: z.enum(ACCEPTED_PROVIDERS.alignment), ...PARAMETER_SHAPES["elevenlabs-alignment"] }),
     image: z.strictObject({ name: z.enum(ACCEPTED_PROVIDERS.image), ...PARAMETER_SHAPES["fal-image"] }),
+    /** use-reference-image-in-generation (JOS-202): the Fal model that receives a session's reference image (spike report, step 1). */
+    imageReferenceModel: modelId,
     video: z.strictObject({ name: z.enum(ACCEPTED_PROVIDERS.video), ...PARAMETER_SHAPES["runninghub-video"] }),
     segmentation: z.strictObject({ lowerBoundSeconds: z.number().positive() }),
     /** The unsigned factor, as recorded by JOS-148. */

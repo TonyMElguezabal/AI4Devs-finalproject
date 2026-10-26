@@ -36,7 +36,7 @@ async function telemetryUnits(provider: string): Promise<number> {
     .slice(-1)
     .flatMap((resource) => resource.scopeMetrics.flatMap((scope) => scope.metrics))
     .filter((metric) => metric.descriptor.name === "vid4you_billed_units_total")
-    .flatMap((metric) => metric.dataPoints.map((point) => ({ attributes: point.attributes as Record<string, unknown>, value: point.value as number })))
+    .flatMap((metric) => metric.dataPoints.map((point) => ({ attributes: point.attributes, value: point.value as number })))
     .filter((point) => point.attributes.provider === provider)
     .reduce((total, point) => total + point.value, 0);
 }

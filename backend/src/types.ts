@@ -67,6 +67,8 @@ export interface Run {
   rebuildRequestedAt: string | null;
   /** admin-visual-style-prompt (JOS-201), Decision 4 — the `/admin` style prompt copied at creation; decomposition, its retries and recovery read this, never the live setting. */
   visualStylePrompt: string;
+  /** use-reference-image-in-generation (JOS-202), Decision 3 — the `/admin` reference image copied into the project folder at creation (`path` is relative to it); every image request of the session carries it. */
+  referenceImage: { path: string; contentType: string; sha256: string } | null;
 }
 
 /** Design Decision 9 (generate-voice-over, JOS-136) — what the session carries when the voice-over failed. */
