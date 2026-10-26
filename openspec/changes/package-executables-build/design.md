@@ -46,7 +46,7 @@ Both are added to `backend` as exact-version dev dependencies. The PoC borrowed 
 
 ### Decision 4: Split the bootstrap instead of cutting it
 
-`server.ts` keeps `buildApp()` and its exports, and its tail (everything after "Bootstrap only when this file is run directly") moves into an exported `startServer(options)` in `backend/src/bootstrap.ts`. `server.ts` calls it when run directly (unchanged behavior for `npm start`); the packaged entry calls it too and adds only what is packaged-specific: the single-instance probe, the embedded static files in front of Fastify, the Origin and Host guard if `originPolicy.ts` does not already cover it, and opening the browser. This removes the marker-based cut, the `import.meta.url` constant and the duplicated boot sequence, so a future change to the boot sequence cannot silently diverge in the executable.
+`server.ts` keeps `buildApp()` and its exports, and its tail (everything after "Bootstrap only when this file is run directly") moves into an exported `startServer(options)` in `backend/src/bootstrap.ts`. `server.ts` calls it when run directly (unchanged behavior for `npm start`); the packaged entry calls it too and adds only what is packaged-specific: the single-instance probe, the embedded static files, and opening the browser. The static files are served by `buildApp({ staticAssets })`, a Fastify route registered after the API routes, so `originPolicy.ts` (which already refuses a non-loopback `Host` and a foreign `Origin`) covers them and the packaged entry needs no guard of its own. This removes the marker-based cut, the `import.meta.url` constant and the duplicated boot sequence, so a future change to the boot sequence cannot silently diverge in the executable.
 
 *Alternative:* keep the esbuild plugin that slices the file (fragile: it breaks on a comment edit and the packaged boot can drift from the real one).
 
@@ -78,5 +78,5 @@ Windows x64 builds on any host (inject into `node.exe`). macOS targets need a ma
 
 ## Open Questions
 
-- Which ffmpeg and ffprobe builds to pin (source, license, version). The PoC used the `ffmpeg-static` 5.2.0 and `ffprobe-static` 3.1.0 binaries; confirm them or choose others before task 2.2.
-- Whether `originPolicy.ts` already enforces the Host check the PoC added (DNS rebinding) or only the Origin check; if only Origin, the packaged entry keeps the Host guard.
+- Resolved (task 2.3): ffmpeg and ffprobe 6.0 from `eugeneware/ffmpeg-static` release b6.0, one source for all three targets. The build is `--enable-gpl --enable-nonfree` (the product needs libx264), so it is **not redistributable**; a redistributable build with new hashes is required before the first public release (JOS-206). Recorded in `targets.ts`.
+- Resolved: `originPolicy.ts` already enforces both the Host and the Origin check.

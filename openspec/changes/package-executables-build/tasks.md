@@ -5,38 +5,38 @@
 
 ## 1. Backend: Tests first (TDD)
 
-- [ ] 1.1 Test `verifyChecksum`: matching file passes; mismatching file throws a message naming file, expected and actual hash
-- [ ] 1.2 Test `resolveDataDir` for darwin, win32 (`%APPDATA%`), and `VID4YOU_DATA_DIR` override
-- [ ] 1.3 Test `sanitizeEnvironment` removes `ALLOW_TEST_ENDPOINTS` and every `USE_STUB_*` and keeps other variables
-- [ ] 1.4 Test the esbuild bundle step: bundle builds from the product tree, contains no `swagger-ui`, contains no smoke entry, and does not reference `openspec/`
-- [ ] 1.5 Test `credentials.ts` reads `SECRETS_PATH` when set and the old path otherwise; same for `providers.ts` with `SETTINGS_DEFAULTS_PATH`
-- [ ] 1.6 Test the single-instance probe against a local server answering `/health` and against a closed port
-- [ ] 1.7 Test that a macOS target on a non-macOS host fails before any download
+- [x] 1.1 Test `verifyChecksum`: matching file passes; mismatching file throws a message naming file, expected and actual hash
+- [x] 1.2 Test `resolveDataDir` for darwin, win32 (`%APPDATA%`), and `VID4YOU_DATA_DIR` override
+- [x] 1.3 Test `sanitizeEnvironment` removes `ALLOW_TEST_ENDPOINTS` and every `USE_STUB_*` and keeps other variables
+- [x] 1.4 Test the esbuild bundle step: bundle builds from the product tree, contains no `swagger-ui`, contains no smoke entry, and does not reference `openspec/`
+- [x] 1.5 Test `credentials.ts` reads `SECRETS_PATH` when set and the old path otherwise; same for `providers.ts` with `SETTINGS_DEFAULTS_PATH`
+- [x] 1.6 Test the single-instance probe against a local server answering `/health` and against a closed port
+- [x] 1.7 Test that a macOS target on a non-macOS host fails before any download
 
 ## 2. Backend: Source changes
 
-- [ ] 2.1 Move the bootstrap of `server.ts` into `startServer()` in `backend/src/bootstrap.ts`; `server.ts` calls it when run directly (behavior of `npm start` unchanged)
-- [ ] 2.2 Add `SECRETS_PATH` to `config/credentials.ts` and `SETTINGS_DEFAULTS_PATH` to `config/providers.ts`; defaults unchanged
-- [ ] 2.3 Decide and pin the ffmpeg and ffprobe builds (open question in design); record source, version and license in `targets.ts`
-- [ ] 2.4 Add `backend/packaging/targets.ts` with the three targets, Node version and committed SHA-256 values
-- [ ] 2.5 Add `backend/packaging/verify.ts` and `runtimeEnv.ts`
-- [ ] 2.6 Add `backend/packaging/entry.ts`: runtime environment first, single-instance probe, embedded static files, Origin and Host guard, `startServer()`, open browser
-- [ ] 2.7 Add `backend/packaging/build.ts`: frontend build, esbuild bundle with the swagger-ui alias, SEA blob, `postject` injection, ad-hoc signing on macOS, ffmpeg and ffprobe copy, `--smoke` flavor
-- [ ] 2.8 Add the `package:*` npm scripts, the `esbuild` and `postject` dev dependencies, and `dist-package/` to `.gitignore`
+- [x] 2.1 Move the bootstrap of `server.ts` into `startServer()` in `backend/src/bootstrap.ts`; `server.ts` calls it when run directly (behavior of `npm start` unchanged)
+- [x] 2.2 Add `SECRETS_PATH` to `config/credentials.ts` and `SETTINGS_DEFAULTS_PATH` to `config/providers.ts`; defaults unchanged
+- [x] 2.3 Decide and pin the ffmpeg and ffprobe builds (open question in design); record source, version and license in `targets.ts`
+- [x] 2.4 Add `backend/packaging/targets.ts` with the three targets, Node version and committed SHA-256 values
+- [x] 2.5 Add `backend/packaging/verify.ts` and `runtimeEnv.ts`
+- [x] 2.6 Add `backend/packaging/entry.ts` (and `instance.ts`, `smokeStubs.ts`, `noDocs.ts`): runtime environment first, single-instance probe, embedded static files served through `buildApp({ staticAssets })` so the existing Origin and Host policy covers them, `startServer()`, open browser
+- [x] 2.7 Add `backend/packaging/build.ts`: frontend build, esbuild bundle with the swagger-ui alias, SEA blob, `postject` injection, ad-hoc signing on macOS, ffmpeg and ffprobe copy, `--smoke` flavor
+- [x] 2.8 Add the `package:*` npm scripts, the `esbuild` and `postject` dev dependencies, and `dist-package/` to `.gitignore`
 
 ## 3. Backend: Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 3.1 Review tests of `server.ts`, `credentials.ts`, `providers.ts` and `keyStore.ts` for assumptions the bootstrap move or the new variables change
-- [ ] 3.2 Update affected tests and make the new tests of group 1 pass
+- [x] 3.1 Review tests of `server.ts`, `credentials.ts`, `providers.ts` and `keyStore.ts` for assumptions the bootstrap move or the new variables change
+- [x] 3.2 Update affected tests and make the new tests of group 1 pass
 
 ## 4. Backend: Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 4.1 Capture pre-test database baseline (isolated `DB_PATH` and `PROJECTS_ROOT`)
-- [ ] 4.2 Run targeted tests for the packaging, credentials, providers and server modules
-- [ ] 4.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend`
-- [ ] 4.4 Verify post-test database state and restore if needed
-- [ ] 4.5 Create report `reports/YYYY-MM-DD-step-4-unit-test-and-db-verification.md`
-- [ ] 4.6 Mark step complete only after tests pass and the report exists
+- [x] 4.1 Capture pre-test database baseline (isolated `DB_PATH` and `PROJECTS_ROOT`)
+- [x] 4.2 Run targeted tests for the packaging, credentials, providers and server modules
+- [x] 4.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend`
+- [x] 4.4 Verify post-test database state and restore if needed
+- [x] 4.5 Create report `reports/YYYY-MM-DD-step-4-unit-test-and-db-verification.md`
+- [x] 4.6 Mark step complete only after tests pass and the report exists
 
 ## 5. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
