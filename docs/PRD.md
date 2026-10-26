@@ -2,7 +2,7 @@
 
 **Versión:** 1.18  
 **Alcance:** MVP  
-**Status (v1.18, awaiting the product owner's approval):** the Administrator can enter an optional price per unit and currency on each provider on `/admin` (`add-provider-price-per-unit`, JOS-226, §11.4). The previous version is kept in `docs/PRD-v1.17.md`. **Status (v1.17, awaiting the product owner's approval):** the visual style prompt and reference image of `/admin` (`admin-visual-style-prompt`, JOS-201, drafted on its own line as v1.10) join this version behind the Administrator password, as §11.5 (§2.1, §2.2). The previous version is kept in `docs/PRD-v1.16.md`. **Status (v1.16, awaiting the product owner's approval):** the Administrator's reports are defined: provider usage, failures and retries, and sessions in the first release; estimated cost, pipeline time and provider changes later (`define-admin-reports`, JOS-175, §2.1, §2.3, §11.4). **Status (v1.15, awaiting the product owner's approval):** the Administrator moves a failed stage to the current active provider on `/admin` (`move-failed-stage-to-active-provider`, JOS-172, §2.1, §2.3, §7.2, §11.2). **Status (v1.14, approved by the product owner 2026-10-22):** the Administrator adds, edits and deletes providers, their parameters and their API keys on `/admin` (`manage-providers-from-admin`, JOS-218, §2.1, §2.3, §11, §11.2). **Status (v1.13, awaiting the product owner's approval):** the Administrator can change the active provider of each stage on `/admin` (`change-active-provider-from-admin`, JOS-171, §2.1, §2.3, §11, §11.2). **Status (v1.12, awaiting the product owner's approval):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3). **Status (v1.11, awaiting the product owner's approval):** one shared Administrator password protects `/admin` (`protect-admin-with-password`, JOS-173, §2.1, §2.3, §12.3). **Status (v1.10):** the final MP4's audio is the voice-over's MP3 stream copied unchanged, not AAC (§7.3, D08), and the automatic-retry delay (2 s base, 30 s cap) is recorded (§11.3) (JOS-203). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous versions are kept in `docs/PRD-v1.14.md` and `docs/PRD-v1.13.md`.
+**Status (v1.19, awaiting the product owner's approval):** the `/admin` reference image is sent to the image provider with every scene of the sessions created after it is saved (`use-reference-image-in-generation`, JOS-202, §2.1, §11.3, §11.5). The previous version is kept in `docs/PRD-v1.18.md`. **Status (v1.18, awaiting the product owner's approval):** the Administrator can enter an optional price per unit and currency on each provider on `/admin` (`add-provider-price-per-unit`, JOS-226, §11.4). The previous version is kept in `docs/PRD-v1.17.md`. **Status (v1.17, awaiting the product owner's approval):** the visual style prompt and reference image of `/admin` (`admin-visual-style-prompt`, JOS-201, drafted on its own line as v1.10) join this version behind the Administrator password, as §11.5 (§2.1, §2.2). The previous version is kept in `docs/PRD-v1.16.md`. **Status (v1.16, awaiting the product owner's approval):** the Administrator's reports are defined: provider usage, failures and retries, and sessions in the first release; estimated cost, pipeline time and provider changes later (`define-admin-reports`, JOS-175, §2.1, §2.3, §11.4). **Status (v1.15, awaiting the product owner's approval):** the Administrator moves a failed stage to the current active provider on `/admin` (`move-failed-stage-to-active-provider`, JOS-172, §2.1, §2.3, §7.2, §11.2). **Status (v1.14, approved by the product owner 2026-10-22):** the Administrator adds, edits and deletes providers, their parameters and their API keys on `/admin` (`manage-providers-from-admin`, JOS-218, §2.1, §2.3, §11, §11.2). **Status (v1.13, awaiting the product owner's approval):** the Administrator can change the active provider of each stage on `/admin` (`change-active-provider-from-admin`, JOS-171, §2.1, §2.3, §11, §11.2). **Status (v1.12, awaiting the product owner's approval):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3). **Status (v1.11, awaiting the product owner's approval):** one shared Administrator password protects `/admin` (`protect-admin-with-password`, JOS-173, §2.1, §2.3, §12.3). **Status (v1.10):** the final MP4's audio is the voice-over's MP3 stream copied unchanged, not AAC (§7.3, D08), and the automatic-retry delay (2 s base, 30 s cap) is recorded (§11.3) (JOS-203). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous versions are kept in `docs/PRD-v1.14.md` and `docs/PRD-v1.13.md`.
 
 ## 1. Objetivo del producto
 
@@ -36,7 +36,7 @@ The MVP has a single role: the User. The operational settings (§11) are read at
 - Partial downloads (per-scene images and clips, §12.3) and download of the final video.
 - Reintentos automáticos y manuales ante fallos.
 - Corrección del prompt visual correspondiente a una etapa fallida.
-- Visual style setting on `/admin`: one prompt, and an optional reference image that is stored for later use (§11.5).
+- Visual style setting on `/admin`: one prompt, and an optional reference image that is sent to the image provider with every scene of the sessions created afterwards (§11.5).
 - Persistencia de sesiones, estados y resultados.
 
 ### 2.3 Fuera del MVP
@@ -320,7 +320,7 @@ Defined by `define-provider-configuration` (JOS-165) and, since v1.10, shipped a
 | Reasoning | OpenAI | `gpt-6-astra` |
 | Voice | ElevenLabs | `eleven_multilingual_v2`, voice "Burt Reynolds™" |
 | Alignment | ElevenLabs | Forced Alignment API — same account as Voice |
-| Image | Fal.ai | `fal-ai/flux/dev` |
+| Image | Fal.ai | `fal-ai/flux/dev`; with a reference image, `fal-ai/flux-2/edit` (setting `imageReferenceModel`, §11.5) |
 | Video | RunningHub | MiniMax-H3 "Hailuo-03" |
 
 | Parameter | Value | Notes |
@@ -359,7 +359,7 @@ Behind the Administrator password, `/admin` holds one **visual style prompt** (t
 - Each new session keeps a copy of the prompt as it was when the session was created. The first decomposition, any retry of it and a restart all use that copy, so saving `/admin` never changes a session already in progress.
 - The prompt is sent to the reasoning provider as separate creative direction (style, recurring characters, tone) before the fixed rules. If it conflicts with those rules (one image and one video instruction per fragment, no merging or skipping, the required output format), the rules win. Because the image provider receives only each scene's image instruction, every image instruction must repeat the full description of any recurring character.
 - The prompt is user text sent to a provider: its content is never logged, only its length.
-- The reference image is **stored only**. No provider receives it in this version: the verified image model (§11.3) is text-to-image only, and a reference-capable model must first be verified (quality, latency, cost, output size) before it is recorded in §11.3. The video stage already starts from the scene's generated image and gets no reference image.
+- Each new session also keeps a copy of the reference image (and its hash) in its project folder. Every image request of that session, including a retry and a request after a restart, carries that copy to the image provider, which then uses the reference-capable model of §11.3; a session without a reference sends the same text-to-image request as before. The `/admin` image changing or being removed never affects a session already created. If the provider rejects the reference (HTTP 400, 413, 415 or 422), that scene fails as not retryable with a reason that names the reference image and no other scene is affected. The video stage already starts from the scene's generated image and gets no reference image.
 - Several styles, a style chosen per session and a fixed style prefix on the image request are out of this version.
 
 ## 12. Persistencia, archivos y descargas
@@ -486,6 +486,15 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
+
+### From version 1.18 to 1.19
+
+Origin: `use-reference-image-in-generation` (JOS-202), 2026-10-26. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §11.3, §11.5: the image stage sends the `/admin` reference image to the image provider. The model is `fal-ai/flux-2/edit`, chosen by the spike of 2026-10-26 among five candidates (`openspec/changes/use-reference-image-in-generation/reports/2026-10-26-step-1-reference-model-spike.md`): the only one that held the character, followed each scene and returned the required 1920x1088. A session keeps its own copy of the image, so retries, restarts and later `/admin` changes do not alter it. | Product owner, JOS-202 |
+| §2.1: the reference image is no longer "stored for later use". The video stage is unchanged. | Product owner, JOS-202 |
 
 ### From version 1.17 to 1.18
 

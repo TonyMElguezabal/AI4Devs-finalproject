@@ -67,9 +67,9 @@ The Fal host is fixed in the adapter by design (no setting can name a host), so 
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 With frontend and backend running, open `/admin`, upload a reference image and confirm the new notice
-- [ ] 8.2 Create a session from the interface and confirm it is created (the voice stage is held with `USE_STUB_VOICE_PROVIDER=hang`; the image request itself is covered by the adapter tests)
-- [ ] 8.3 Restore the environment and document the scenarios in `reports/YYYY-MM-DD-step-8-e2e-browser.md`
+- [x] 8.1 With frontend and backend running, open `/admin`, upload a reference image and confirm the new notice
+- [x] 8.2 Create a session from the interface and confirm it is created (the voice stage is held with `USE_STUB_VOICE_PROVIDER=hang`; the image request itself is covered by the adapter tests)
+- [x] 8.3 Restore the environment and document the scenarios in `reports/YYYY-MM-DD-step-8-e2e-browser.md`
 
 ## 9. Real-provider check
 
