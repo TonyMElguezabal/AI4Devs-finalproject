@@ -163,7 +163,12 @@ describe("RunningHub adapter (JOS-196 — the live API's request and answer shap
       return new Response("unexpected", { status: 404 });
     }).submit(submitArgs);
 
-    expect(result).toEqual({ kind: "submitted", requestId: taskId });
+    // show-video-request-status (JOS-200): the result also reports the body it sent, for the request view.
+    expect(result).toEqual({
+      kind: "submitted",
+      requestId: taskId,
+      sentBody: { prompt: "animate the scene", duration: 8, resolution: "2K", firstFrameUrl: uploadUrl },
+    });
 
     const upload = calls.find((c) => c.url.includes("/media/upload"));
     expect(upload).toBeTruthy();
@@ -190,7 +195,7 @@ describe("RunningHub adapter (JOS-196 — the live API's request and answer shap
       return json({ code: 0, data: { taskId: "nested-1" } });
     }).submit(submitArgs);
 
-    expect(result).toEqual({ kind: "submitted", requestId: "nested-1" });
+    expect(result).toMatchObject({ kind: "submitted", requestId: "nested-1" });
   });
 
   it("submit: an upload answered with an error envelope is transient, names the upload and carries the error code", async () => {

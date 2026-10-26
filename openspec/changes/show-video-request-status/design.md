@@ -20,7 +20,7 @@ The `stage-diagnostics` spec also forbids provider endpoint paths or URLs, exter
 
 ### Decision 1: Two nullable columns on `scenes`
 
-`video_request_sent_at TEXT` and `video_request TEXT` (JSON), written by `markVideoGenerating` together with the task id, overwritten by each new attempt. The current request is what the User asks about; the history of attempts stays in `provider_requests`. No trigger locks them (they change per attempt).
+`video_request_sent_at TEXT` and `video_request TEXT` (JSON), written when the submit returns (the send time is the instant before the upload and submit, and the body is what the adapter reports), and cleared by `markVideoGenerating` at the start of each attempt so a retry never shows the previous request. The wire field is the scene's `videoRequest` (`sceneToPayload`, which also feeds the session read and the live snapshot). The current request is what the User asks about; the history of attempts stays in `provider_requests`. No trigger locks them (they change per attempt).
 
 *Alternative:* a `scene_video_requests` table, one row per attempt (history nobody asked for; the extra join on every snapshot).
 
@@ -30,13 +30,13 @@ The `stage-diagnostics` spec also forbids provider endpoint paths or URLs, exter
 
 ### Decision 3: The in-flight request counts from the send
 
-`sceneStageDiagnostics` adds 1 to the video count while the scene is `video-generating` with a `current_request_id` whose `provider_requests` row does not exist yet. The row is still written at the end, as today, so usage and cost reports are unchanged.
+`sceneStageDiagnostics` adds 1 to the video count while the scene is `video-generating`: the request's `provider_requests` row is written only when the request ends, immediately before the scene leaves that state. The row is still written at the end, as today, so usage and cost reports are unchanged.
 
 *Alternative:* insert the `provider_requests` row at submit and update it at the end (touches the reports' semantics and every `insertProviderRequest` call site).
 
 ### Decision 4: The estimate is computed on read
 
-`videoRequest.estimate = { seconds, basedOn } | null`, computed when the scene is read: the median of `latency_ms` over `provider_requests` with `stage = 'video'`, `mode = 'success'`, the same `provider_id`, joined to scenes with the same `requested_duration_seconds` (at least 3), else the same provider any duration (at least 1), else `null`. Nearest-rank median, reusing `nearestRankPercentile` from `providerUsageReport.ts`. One query per session read, grouped by provider and duration, then looked up per scene.
+`videoRequest.estimate = { seconds, basedOn } | null`, computed when the scene is read: the median of `latency_ms` over `provider_requests` with `stage = 'video'`, `mode = 'success'`, the same `provider_id`, joined to scenes with the same `requested_duration_seconds` (at least 3), else the same provider any duration (at least 1), else `null`. Nearest-rank median, reusing `nearestRankPercentile` from `providerUsageReport.ts`. One query per scene whose clip is generating, which the video concurrency (3) bounds. The helpers live in a new `videoRequestStatus.ts`, because `db.ts` cannot import `providerUsageReport.ts` (it imports `db.ts`).
 
 ### Decision 5: The page derives the clock
 

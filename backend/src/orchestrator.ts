@@ -44,6 +44,7 @@ import {
   markScenePendingRetry,
   markSceneVideoRetry,
   markVideoGenerating,
+  recordVideoRequestSent,
   moveAssemblyOutput,
   nextFinalVideoVersion,
   PROJECTS_ROOT,
@@ -66,6 +67,7 @@ import { hasPendingPauseEdits, loadSessionPauses, scenePauseViews } from "./sess
 import * as concurrency from "./concurrency.ts";
 import { admitLaunch, launchHeldWork, registerStageLauncher, relaunchPendingWork, RESTART_CAUSE, sessionHeldWork, sessionRunningWork, settleAllInFlight, type SettleSummary, type StageLauncher } from "./launchGate.ts";
 import { describeProvider, diagnosticStageOf, type StageDiagnostic } from "./stageDiagnostics.ts";
+import { allowListVideoRequest, videoRequestView } from "./videoRequestStatus.ts";
 import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
 import { FINAL_OUTPUT, phaseTimeoutMs } from "./config/providers.ts";
@@ -148,6 +150,7 @@ function sceneToPayload(scene: Scene, requestCounts: { image: number; video: num
     affectedStage: scene.status === "failed" ? (scene.result ? "video" : "image") : undefined,
     errorCause: scene.status === "failed" ? scene.lastError : undefined,
     stages: sceneStageDiagnostics(scene, requestCounts),
+    videoRequest: videoRequestView(scene),
     // show-scene-results-and-actions (JOS-151), Decision 3 — the route path,
     // relative to the API base; the stored file path stays internal.
     result: scene.result ? { imageUrl: `/sessions/${scene.runId}/scenes/${scene.id}/image` } : undefined,
@@ -281,7 +284,9 @@ const STAGE_PHASE: Record<string, Phase> = {
 function sceneStageDiagnostics(scene: Scene, requestCounts: { image: number; video: number } | undefined): { image?: StageDiagnostic; video?: StageDiagnostic } {
   const stages: { image?: StageDiagnostic; video?: StageDiagnostic } = {};
   if (requestCounts && requestCounts.image > 0) stages.image = { stage: "image", provider: describeProvider("image", scene.provider), attempts: requestCounts.image };
-  if (requestCounts && requestCounts.video > 0) stages.video = { stage: "video", provider: describeProvider("video", scene.videoProvider), attempts: requestCounts.video };
+  // show-video-request-status (JOS-200) — a request's record is written when it ends, so one in flight is counted from its status.
+  const videoAttempts = (requestCounts?.video ?? 0) + (scene.status === "video-generating" ? 1 : 0);
+  if (videoAttempts > 0) stages.video = { stage: "video", provider: describeProvider("video", scene.videoProvider), attempts: videoAttempts };
   return stages;
 }
 
@@ -1084,6 +1089,9 @@ async function runVideoAttempt(sceneId: string): Promise<void> {
 
   // Update current_request_id to the provider's taskId for restart reconciliation
   db.prepare("UPDATE scenes SET current_request_id = ? WHERE id = ?").run(submitResult.requestId, sceneId);
+  // show-video-request-status (JOS-200) — the request is sent: keep when, and the allow-listed body, for the page.
+  if (submitResult.sentBody) recordVideoRequestSent(sceneId, new Date(sentAtMs).toISOString(), allowListVideoRequest(submitResult.sentBody, reread.index));
+  broadcast(fresh.runId);
 
   await pollVideoRequestOnce(sceneId, submitResult.requestId, attemptNumber, sentAtMs);
 }

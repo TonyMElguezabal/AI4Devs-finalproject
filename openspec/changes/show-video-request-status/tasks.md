@@ -5,19 +5,19 @@
 
 ## 1. Backend tests first (TDD)
 
-- [ ] 1.1 Test the migration: `scenes.video_request_sent_at` and `video_request` exist and are null for existing scenes
-- [ ] 1.2 Test that submitting a clip stores the send time and the allow-listed body (`prompt`, `duration`, `resolution`, `firstFrame`), drops any other field returned by the adapter, and that a retry overwrites both
-- [ ] 1.3 Test the scene representation: `videoRequest` present only while `video-generating`, with provider, attempt, `sentAt` and body; absent when complete or failed; the same after a simulated restart (read from the store)
-- [ ] 1.4 Test the estimate: same provider and duration with at least 3 successes; fallback to any duration; `null` with none; failures and other providers ignored
-- [ ] 1.5 Test the clip diagnostic counts the in-flight request (attempt 1 in flight shows 1; after it ends and a retry is in flight shows 2) and that `provider_requests` rows and the usage report are unchanged
-- [ ] 1.6 Extend the `stage-diagnostics` sentinel test: a stored request with a provider URL and an extra sentinel field; neither appears in the read or the snapshot
+- [x] 1.1 Test the migration: `scenes.video_request_sent_at` and `video_request` exist and are null for existing scenes
+- [x] 1.2 Test that submitting a clip stores the send time and the allow-listed body (`prompt`, `duration`, `resolution`, `firstFrame`), drops any other field returned by the adapter, and that a retry overwrites both
+- [x] 1.3 Test the scene representation: `videoRequest` present only while `video-generating`, with provider, attempt, `sentAt` and body; absent when complete or failed; the same after a simulated restart (read from the store)
+- [x] 1.4 Test the estimate: same provider and duration with at least 3 successes; fallback to any duration; `null` with none; failures and other providers ignored
+- [x] 1.5 Test the clip diagnostic counts the in-flight request (attempt 1 in flight shows 1; after it ends and a retry is in flight shows 2) and that `provider_requests` rows and the usage report are unchanged
+- [x] 1.6 Extend the `stage-diagnostics` sentinel test: a stored request with a provider URL and an extra sentinel field; neither appears in the read or the snapshot
 
 ## 2. Backend implementation
 
-- [ ] 2.1 Add the migration (next version) and the two fields to the scene row mapping
-- [ ] 2.2 Add `sentBody` to the `submitted` result in the RunningHub and stub adapters
-- [ ] 2.3 Store the allow-listed body and send time in `markVideoGenerating`
-- [ ] 2.4 Add `videoRequest` (strict schema) and the estimate query to the scene representation; count the in-flight request in `sceneStageDiagnostics`
+- [x] 2.1 Add the migration (next version) and the two fields to the scene row mapping
+- [x] 2.2 Add `sentBody` to the `submitted` result in the RunningHub and stub adapters
+- [x] 2.3 Store the allow-listed body and send time in `markVideoGenerating`
+- [x] 2.4 Add `videoRequest` (strict schema) and the estimate query to the scene representation; count the in-flight request in `sceneStageDiagnostics`
 
 ## 3. Frontend tests first, then implementation
 

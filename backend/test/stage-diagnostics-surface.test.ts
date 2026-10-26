@@ -8,12 +8,15 @@ import {
   createRun,
   createScene,
   insertProviderRequest,
+  markVideoGenerating,
   recordStageAttempt,
+  recordVideoRequestSent,
   resetAll,
 } from "../src/db.ts";
 import { toSnapshot } from "../src/orchestrator.ts";
 import { IMAGE_PROVIDER, VIDEO_PROVIDER, VOICE_PROVIDER } from "../src/config/providers.ts";
 import { buildApp } from "../src/server.ts";
+import { allowListVideoRequest } from "../src/videoRequestStatus.ts";
 import { ulid } from "../src/util/ulid.ts";
 import type { AttemptStage } from "../src/types.ts";
 
@@ -239,5 +242,33 @@ describe("The diagnostics expose no credentials or confidential data", () => {
       expect(Object.keys(diagnostic).sort()).toEqual(["attempts", "provider", "stage"]);
       expect(Object.keys(diagnostic.provider).sort()).toEqual(["model", "name"]);
     }
+  });
+
+  // show-video-request-status (JOS-200), design Decision 6 — the request of a clip in flight is an allow-list too.
+  describe("for the clip request in flight", () => {
+    function sessionWithClipRequest(): string {
+      const runId = newSession();
+      const sceneId = sceneWithAttempts(runId, { imageProvider: IMAGE_PROVIDER.model, clipProvider: VIDEO_PROVIDER.endpoint });
+      markVideoGenerating(sceneId, "SENTINEL-TASK-ID", 1);
+      const sentBody = { prompt: "VISIBLE-PROMPT", duration: 8, resolution: "2K", firstFrameUrl: "https://SENTINEL-UPLOAD-URL.example/frame.png", taskId: "SENTINEL-TASK-ID", apikey: "SENTINEL-API-KEY" };
+      recordVideoRequestSent(sceneId, NOW, allowListVideoRequest(sentBody, 1));
+      return runId;
+    }
+    const LEAKS = ["SENTINEL-UPLOAD-URL", "SENTINEL-TASK-ID", "SENTINEL-API-KEY", VIDEO_PROVIDER.endpoint];
+
+    it("keeps the provider's upload URL, task id, key and endpoint out of the read and the snapshot, and shows the allow-listed body", async () => {
+      const runId = sessionWithClipRequest();
+
+      const res = await app.inject({ method: "GET", url: `/sessions/${runId}` });
+      const published = JSON.stringify(toSnapshot(runId));
+
+      expect(res.statusCode).toBe(200);
+      for (const leak of LEAKS) {
+        expect(res.body, `the read leaks ${leak}`).not.toContain(leak);
+        expect(published, `the snapshot leaks ${leak}`).not.toContain(leak);
+      }
+      expect(res.body).toContain("VISIBLE-PROMPT"); // positive control
+      expect(res.json().scenes[0].videoRequest.body).toEqual({ prompt: "VISIBLE-PROMPT", duration: 8, resolution: "2K", firstFrame: "scene 1 image" });
+    });
   });
 });

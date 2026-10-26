@@ -18,6 +18,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import type {
   AttemptStage,
   DurationWarning,
+  VideoRequestBody,
   NarrationInterval,
   ProviderOutcomeMode,
   ProviderRequestRow,
@@ -687,6 +688,17 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       `);
     },
   },
+  {
+    version: 24,
+    description: "add scenes.video_request_sent_at and video_request: the clip request in flight, as sent (show-video-request-status, JOS-200)",
+    up: (target) => {
+      // Nullable, no backfill: a request sent before this change has no recorded send time or body, and one finished is never shown.
+      target.exec(`
+        ALTER TABLE scenes ADD COLUMN video_request_sent_at TEXT;
+        ALTER TABLE scenes ADD COLUMN video_request TEXT;
+      `);
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -1037,6 +1049,8 @@ export function createScene(
     providerLatencyMs,
     videoProvider: null,
     videoResult: null,
+    videoRequestSentAt: null,
+    videoRequestBody: null,
     updatedAt,
   };
 }
@@ -1079,6 +1093,8 @@ interface SceneRow {
   provider_latency_ms: number;
   video_provider: string | null;
   video_result: string | null;
+  video_request_sent_at: string | null;
+  video_request: string | null;
   updated_at: string;
 }
 
@@ -1215,6 +1231,8 @@ function rowToScene(row: SceneRow): Scene {
     providerLatencyMs: row.provider_latency_ms,
     videoProvider: row.video_provider ?? null,
     videoResult: row.video_result ?? null,
+    videoRequestSentAt: row.video_request_sent_at ?? null,
+    videoRequestBody: row.video_request ? (JSON.parse(row.video_request) as VideoRequestBody) : null,
     updatedAt: row.updated_at,
   };
 }
@@ -2086,8 +2104,13 @@ export function resetAttemptsForVideoStart(sceneId: string): void {
 
 export function markVideoGenerating(sceneId: string, requestId: string, attemptNumber: number): void {
   db.prepare(
-    "UPDATE scenes SET status = 'video-generating', current_request_id = ?, attempts = ?, updated_at = ? WHERE id = ?",
+    "UPDATE scenes SET status = 'video-generating', current_request_id = ?, attempts = ?, video_request_sent_at = NULL, video_request = NULL, updated_at = ? WHERE id = ?",
   ).run(requestId, attemptNumber, nowIso(), sceneId);
+}
+
+/** show-video-request-status (JOS-200) — the clip request of the current attempt, as sent: when, and the allow-listed body. Overwrites the previous attempt's (`markVideoGenerating` cleared it). */
+export function recordVideoRequestSent(sceneId: string, sentAt: string, body: VideoRequestBody): void {
+  db.prepare("UPDATE scenes SET video_request_sent_at = ?, video_request = ? WHERE id = ?").run(sentAt, JSON.stringify(body), sceneId);
 }
 
 export function markChunkComplete(sceneId: string, videoResult: string): void {
