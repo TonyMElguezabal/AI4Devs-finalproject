@@ -659,6 +659,21 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       `);
     },
   },
+  {
+    version: 22,
+    description: "add phase_instants: the start and end instant of each pipeline phase of a session (record-phase-instants-and-pipeline-report, JOS-228)",
+    up: (target) => {
+      target.exec(`
+        CREATE TABLE phase_instants (
+          run_id TEXT NOT NULL REFERENCES runs(id),
+          phase TEXT NOT NULL CHECK (phase IN ('voice-over', 'decomposition', 'scenes', 'assembly')),
+          started_at TEXT,
+          ended_at TEXT,
+          PRIMARY KEY (run_id, phase)
+        );
+      `);
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -1241,6 +1256,9 @@ export function insertRegisteredScenes(runId: string, scenes: readonly Registere
       );
     }
     db.prepare("UPDATE runs SET failure = NULL WHERE id = ?").run(runId);
+    // The decomposition ends and the scenes phase starts at the same instant: the scenes now exist.
+    stampPhase(runId, "decomposition", "ended", updatedAt);
+    stampPhase(runId, "scenes", "started", updatedAt);
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");
@@ -1396,6 +1414,7 @@ export function insertVoiceOver(input: VoiceOverInput): boolean {
       input.providerRequestId,
       input.completedAt,
     );
+    stampPhase(input.runId, "voice-over", "ended", input.completedAt);
     return true;
   } catch (err) {
     if (isUniqueConstraintError(err)) {
@@ -1482,6 +1501,36 @@ function rowToStageAttempt(row: StageAttemptRow): StageAttempt {
  * racing attempts cannot both take the same number; the unique key would
  * reject the second regardless.
  */
+export type PipelinePhase = "voice-over" | "decomposition" | "scenes" | "assembly";
+
+/**
+ * record-phase-instants-and-pipeline-report (JOS-228), design Decision 2 — stamps the start or the end of a phase.
+ * The first write wins: a retry, a rebuild or a restart never moves an instant.
+ */
+export function stampPhase(runId: string, phase: PipelinePhase, edge: "started" | "ended", at: string): void {
+  const column = edge === "started" ? "started_at" : "ended_at";
+  db.prepare(
+    `INSERT INTO phase_instants (run_id, phase, ${column}) VALUES (?, ?, ?)
+     ON CONFLICT (run_id, phase) DO UPDATE SET ${column} = COALESCE(${column}, excluded.${column})`,
+  ).run(runId, phase, at);
+}
+
+export type PhaseInstants = Partial<Record<PipelinePhase, { startedAt: string | null; endedAt: string | null }>>;
+
+/** The recorded instants of a session; a phase never stamped is absent (existing sessions have none). */
+export function getPhaseInstants(runId: string): PhaseInstants {
+  const rows = db.prepare("SELECT phase, started_at, ended_at FROM phase_instants WHERE run_id = ?").all(runId) as unknown as { phase: PipelinePhase; started_at: string | null; ended_at: string | null }[];
+  return Object.fromEntries(rows.map((row) => [row.phase, { startedAt: row.started_at, endedAt: row.ended_at }]));
+}
+
+/** The pipeline phase a stage attempt belongs to; the scene-level stages are stamped by the scene writes instead. */
+const PHASE_OF_ATTEMPT_STAGE: Partial<Record<AttemptStage, PipelinePhase>> = {
+  "voice-over": "voice-over",
+  timestamps: "decomposition",
+  decomposition: "decomposition",
+  assembly: "assembly",
+};
+
 export function recordStageAttempt(input: {
   runId: string;
   stage: AttemptStage;
@@ -1555,6 +1604,8 @@ function insertStageAttempt(input: {
     input.runId,
     input.stage,
   );
+  const phase = PHASE_OF_ATTEMPT_STAGE[input.stage];
+  if (phase) stampPhase(input.runId, phase, "started", input.sentAt ?? input.queuedAt);
   return rowToStageAttempt(getRow<StageAttemptRow>("SELECT * FROM stage_attempts WHERE id = ?", id)!);
 }
 
@@ -1771,6 +1822,7 @@ export function getStageAttempts(runId: string, stage: AttemptStage): StageAttem
 export function setFinalVideoPath(runId: string, relativePath: string): boolean {
   const result = db.prepare("UPDATE runs SET final_video_path = ? WHERE id = ? AND final_video_path IS NULL").run(relativePath, runId);
   const changed = Number(result.changes) > 0;
+  if (changed) stampPhase(runId, "assembly", "ended", nowIso());
   if (changed) recordProductEvent("final_video"); // JOS-199 — only the transition from none to a first final video counts
   return changed;
 }
@@ -1997,9 +2049,15 @@ export function markVideoGenerating(sceneId: string, requestId: string, attemptN
 }
 
 export function markChunkComplete(sceneId: string, videoResult: string): void {
+  const at = nowIso();
   db.prepare(
     "UPDATE scenes SET status = 'chunk-complete', video_result = ?, current_request_id = NULL, updated_at = ? WHERE id = ?",
-  ).run(videoResult, nowIso(), sceneId);
+  ).run(videoResult, at, sceneId);
+  // JOS-228 — the scenes phase ends with the last scene of the session; the first end stands.
+  const pending = db
+    .prepare("SELECT COUNT(*) c FROM scenes WHERE run_id = (SELECT run_id FROM scenes WHERE id = ?) AND status <> 'chunk-complete'")
+    .get(sceneId) as unknown as CountRow;
+  if (pending.c === 0) stampPhase((db.prepare("SELECT run_id FROM scenes WHERE id = ?").get(sceneId) as unknown as { run_id: string }).run_id, "scenes", "ended", at);
 }
 
 export function bindSceneVideoProvider(sceneId: string, identifier: string): void {
@@ -2174,7 +2232,7 @@ export function resetAll(): void {
     db.exec("DROP TRIGGER narration_timestamps_no_delete");
     db.exec("DROP TRIGGER final_video_builds_no_delete");
     db.exec(
-      "DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs; DELETE FROM active_providers; DELETE FROM provider_profiles;",
+      "DELETE FROM phase_instants; DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs; DELETE FROM active_providers; DELETE FROM provider_profiles;",
     );
     db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
     db.exec(SCENE_NO_DELETE_TRIGGER_DDL);

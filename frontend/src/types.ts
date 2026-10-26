@@ -214,9 +214,58 @@ export interface FailedStageRow {
   cause: string;
 }
 
+/** report-provider-usage (JOS-223): the period of a report, as the ISO instants the backend takes; an absent bound is open. */
+export interface ReportPeriod {
+  from?: string;
+  to?: string;
+}
+
+export interface ProviderUsageRow {
+  stage: ProviderStage;
+  providerId: string;
+  providerLabel: string;
+  attempts: number;
+  successes: number;
+  transient: number;
+  notRetryable: number;
+  timedOut: number;
+  successRatePercent: number;
+  medianLatencyMs: number | null;
+  p95LatencyMs: number | null;
+  billedUnits: number;
+  unit: string;
+}
+
+export interface ProviderUsageReport {
+  from: string | null;
+  to: string;
+  sceneAttemptsFollowCurrentProvider: boolean;
+  rows: ProviderUsageRow[];
+}
+
 /** admin-visual-style-prompt (JOS-201) — `GET /admin/settings`. The image's file path is never exposed. */
 export interface AppSettings {
   visualStylePrompt: string;
   referenceImage: { contentType: string; sizeBytes: number; updatedAt: string } | null;
   updatedAt: string;
+}
+
+/** record-phase-instants-and-pipeline-report (JOS-228): `GET /admin/reports/pipeline-time`. `null` seconds is no time; a `null` count is not recorded. */
+export type PipelinePhase = "voice-over" | "decomposition" | "scenes" | "assembly";
+
+export interface PipelinePhaseRow {
+  phase: PipelinePhase;
+  sessions: number;
+  medianSeconds: number | null;
+  p95Seconds: number | null;
+  timedOut: number | null;
+  finishedLate: number | null;
+  superseded: number | null;
+}
+
+export interface PipelineTimeReport {
+  from: string | null;
+  to: string;
+  phases: PipelinePhaseRow[];
+  sessions: Array<{ runId: string; title: string; seconds: Record<PipelinePhase, number | null> }>;
 }

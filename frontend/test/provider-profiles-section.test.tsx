@@ -13,7 +13,11 @@ const imageType: AdapterTypeInfo = {
   id: "fal-image",
   stage: "image",
   label: "Fal.ai",
-  fields: [{ path: ["model"], label: "Model", kind: "text", required: true, help: "For example fal-ai/flux/dev." }],
+  fields: [
+    { path: ["model"], label: "Model", kind: "text", required: true, help: "For example fal-ai/flux/dev." },
+    { path: ["pricePerUnit"], label: "Price per image", kind: "number", required: false },
+    { path: ["priceCurrency"], label: "Currency", kind: "text", required: false },
+  ],
 };
 const videoType: AdapterTypeInfo = {
   id: "runninghub-video",
@@ -29,7 +33,11 @@ const voiceType: AdapterTypeInfo = {
   id: "elevenlabs-voice",
   stage: "voice",
   label: "ElevenLabs",
-  fields: [{ path: ["speed"], label: "Speed", kind: "text", required: true, acceptsNumber: true }],
+  fields: [
+    { path: ["speed"], label: "Speed", kind: "text", required: true, acceptsNumber: true },
+    { path: ["pricePerUnit"], label: "Price per voice character", kind: "number", required: false },
+    { path: ["priceCurrency"], label: "Currency", kind: "text", required: false },
+  ],
 };
 
 const profile = (overrides: Partial<ProfileView> & Pick<ProfileView, "id" | "stage" | "adapterType" | "label">): ProfileView => ({
@@ -244,5 +252,76 @@ describe("ProviderProfilesSection", () => {
     await user.click(screen.getByRole("button", { name: "Confirm delete Flux pro" }));
 
     await waitFor(() => expect(onDenied).toHaveBeenCalledTimes(1));
+  });
+});
+
+// add-provider-price-per-unit (JOS-226), group 4 — design Decision 4: the optional price fields.
+describe("the optional price fields", () => {
+  it("shows 'Price per <unit>' and 'Currency' on the add form of a stage, and sends no price keys when both are empty", async () => {
+    const calls = stubBackend({ onWrite: () => new Response(JSON.stringify({ id: "01NEW" }), { status: 201 }) });
+    const user = userEvent.setup();
+    render(<ProviderProfilesSection password={PASSWORD} onDenied={() => undefined} onChanged={() => undefined} />);
+
+    await user.click(await screen.findByRole("button", { name: "Add image provider" }));
+    const form = screen.getByRole("form", { name: "Add image provider" });
+    expect(within(form).getByLabelText("Price per image")).toHaveValue("");
+    expect(within(form).getByLabelText("Currency")).toHaveValue("");
+    await user.type(within(form).getByLabelText("Name"), "Flux schnell");
+    await user.type(within(form).getByLabelText("Model"), "fal-ai/flux/schnell");
+    await user.type(within(form).getByLabelText("API key"), "sk-example-1234567890wxyz");
+    await user.click(within(form).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(calls.some((call) => call.method === "POST")).toBe(true));
+    expect((calls.find((call) => call.method === "POST")!.body as { parameters: unknown }).parameters).toEqual({ model: "fal-ai/flux/schnell" });
+  });
+
+  it("sends a price as a number with its currency", async () => {
+    const calls = stubBackend({ onWrite: () => new Response(JSON.stringify({ id: "01NEW" }), { status: 201 }) });
+    const user = userEvent.setup();
+    render(<ProviderProfilesSection password={PASSWORD} onDenied={() => undefined} onChanged={() => undefined} />);
+
+    await user.click(await screen.findByRole("button", { name: "Add image provider" }));
+    const form = screen.getByRole("form", { name: "Add image provider" });
+    await user.type(within(form).getByLabelText("Name"), "Flux schnell");
+    await user.type(within(form).getByLabelText("Model"), "fal-ai/flux/schnell");
+    await user.type(within(form).getByLabelText("Price per image"), "0.04");
+    await user.type(within(form).getByLabelText("Currency"), "usd");
+    await user.type(within(form).getByLabelText("API key"), "sk-example-1234567890wxyz");
+    await user.click(within(form).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(calls.some((call) => call.method === "POST")).toBe(true));
+    expect((calls.find((call) => call.method === "POST")!.body as { parameters: unknown }).parameters).toEqual({ model: "fal-ai/flux/schnell", pricePerUnit: 0.04, priceCurrency: "usd" });
+  });
+
+  it("shows the stored price on the edit form, and clearing both fields saves without price keys", async () => {
+    const priced = profile({ ...fal, parameters: { model: "fal-ai/flux/dev", pricePerUnit: 0.04, priceCurrency: "USD" } });
+    const calls = stubBackend({ profiles: [priced], onWrite: () => new Response("{}", { status: 200 }) });
+    const user = userEvent.setup();
+    render(<ProviderProfilesSection password={PASSWORD} onDenied={() => undefined} onChanged={() => undefined} />);
+
+    await user.click(await screen.findByRole("button", { name: "Edit Fal.ai" }));
+    const form = screen.getByRole("form", { name: "Edit image provider Fal.ai" });
+    expect(within(form).getByLabelText("Price per image")).toHaveValue("0.04");
+    expect(within(form).getByLabelText("Currency")).toHaveValue("USD");
+    await user.clear(within(form).getByLabelText("Price per image"));
+    await user.clear(within(form).getByLabelText("Currency"));
+    await user.click(within(form).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(calls.some((call) => call.method === "PUT")).toBe(true));
+    expect(calls.find((call) => call.method === "PUT")!.body).toEqual({ label: "Fal.ai", parameters: { model: "fal-ai/flux/dev" } });
+  });
+
+  it("shows a refused price and keeps the input", async () => {
+    stubBackend({ onWrite: () => new Response(JSON.stringify({ ok: false, problems: [{ field: "pricePerUnit", message: "pricePerUnit: must be at least 0" }] }), { status: 400 }) });
+    const user = userEvent.setup();
+    render(<ProviderProfilesSection password={PASSWORD} onDenied={() => undefined} onChanged={() => undefined} />);
+
+    await user.click(await screen.findByRole("button", { name: "Add image provider" }));
+    const form = screen.getByRole("form", { name: "Add image provider" });
+    await user.type(within(form).getByLabelText("Price per image"), "-1");
+    await user.click(within(form).getByRole("button", { name: "Save" }));
+
+    expect(await within(form).findByRole("alert")).toHaveTextContent("pricePerUnit: must be at least 0");
+    expect(within(form).getByLabelText("Price per image")).toHaveValue("-1");
   });
 });

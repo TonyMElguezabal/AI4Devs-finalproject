@@ -144,6 +144,7 @@ One row per provider the Administrator can choose for a stage. It belongs to the
 - `id` (TEXT, Primary Key): what a binding stores. The five profiles created from the settings keep the identifiers the database already stored (`openai-decomposition`, `ElevenLabs`, `elevenlabs-forced-alignment`, `Fal.ai`, `RunningHub`), so no stored binding or attempt changes; a profile added on `/admin` gets a ULID. The image model and the video endpoint path an earlier build stored are aliases of the seeded image and video profiles.
 - `stage` (TEXT): `reasoning`, `voice`, `alignment`, `image` or `video`. `adapter_type` (TEXT): an adapter type the build ships for that stage (`openai-reasoning`, `elevenlabs-voice`, `elevenlabs-alignment`, `fal-image`, `runninghub-video`). Neither changes after creation.
 - `label` (TEXT): the display name, unique within the stage (case-insensitive). `parameters` (TEXT, JSON): validated by the adapter type's schema; it never holds a host or a URL.
+- Price (JOS-226, `add-provider-price-per-unit`): `parameters` may also hold `pricePerUnit` (a number, zero or greater) and `priceCurrency` (a three-letter ISO 4217 code, stored upper-case), **both or neither**. A profile with neither is *unpriced*; a price of `0` is a price (a free provider), not unpriced. Set only on `/admin`; the settings files reject the keys, and the price never reaches a vendor request. No migration: existing profiles are unpriced.
 - `api_key_encrypted` (nullable TEXT): `base64(iv ‖ ciphertext ‖ tag)` from AES-256-GCM with a new IV on every write. The 32-byte master key is a separate file (`PROVIDER_KEY_PATH`, default `data/provider-keys.key`, mode 0600), never in the database. No key is stored for a profile that relies on the legacy environment or secrets-file key.
 - `retired_at` (nullable TEXT): set when a profile that sessions, scenes or attempts are bound to is deleted. A retired profile is not offered and cannot be chosen, but still resolves, with its parameters and key, for what is bound to it.
 - `created_at`, `updated_at` (TEXT).
@@ -159,6 +160,15 @@ One row per install (`id = 1`, enforced by a CHECK), inserted by the migration w
 - `updated_at` (TEXT NOT NULL): set on every save.
 
 The reference image is **stored only**: no provider receives it until a later ticket (JOS-202) verifies a reference-capable image model (PRD §11). Mutable on purpose, like `telemetry_settings`: it holds the Administrator's intent, not generated output. Written only by `saveVisualStylePrompt`, `saveReferenceImage` and `clearReferenceImage`.
+
+### 4h. Phase instants (`phase_instants` table) — `record-phase-instants-and-pipeline-report`, JOS-228, migration 22
+
+One row per session and pipeline phase, so the Administrator's pipeline-time report can say how long each phase took.
+
+- `run_id` (TEXT NOT NULL, Foreign Key to `runs`) and `phase` (TEXT NOT NULL, one of `voice-over`, `decomposition`, `scenes`, `assembly`): the Primary Key together.
+- `started_at` and `ended_at` (nullable TEXT, UTC ISO 8601): each written once, the first write wins (`stampPhase`), so a retry, a rebuild or a restart never moves an instant.
+
+Where they are written, all in `db.ts`: the first attempt of the phase's stage (`insertStageAttempt`: voice-over, `timestamps`/`decomposition`, assembly; the sent instant, or the queued instant for a scheduled attempt) starts voice-over, decomposition and assembly; `insertVoiceOver` ends voice-over; `insertRegisteredScenes` ends the decomposition and starts the scenes phase at the same instant; `markChunkComplete` ends the scenes phase when no scene of the session is left incomplete; the first `setFinalVideoPath` ends assembly. Sessions from before migration 22 have no rows, and nothing is estimated for them.
 
 ### 5. Schema migrations (`schema_migrations` table)
 

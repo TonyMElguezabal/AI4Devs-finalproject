@@ -187,7 +187,12 @@ function ProfileForm({ form, stage, types, password, onDenied, onCancel, onSaved
     event.preventDefault();
     if (saving || !type) return;
     const parameters: Record<string, unknown> = {};
-    for (const field of type.fields) setAt(parameters, field.path, coerce(field, values[field.path.join(".")] ?? ""));
+    for (const field of type.fields) {
+      const raw = values[field.path.join(".")] ?? "";
+      // An empty optional field is left out, so clearing the price makes the profile unpriced again.
+      if (!field.required && raw.trim() === "") continue;
+      setAt(parameters, field.path, coerce(field, raw));
+    }
     setSaving(true);
     setProblems([]);
     try {
