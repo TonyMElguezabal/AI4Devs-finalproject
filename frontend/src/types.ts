@@ -249,3 +249,23 @@ export interface AppSettings {
   referenceImage: { contentType: string; sizeBytes: number; updatedAt: string } | null;
   updatedAt: string;
 }
+
+/** record-phase-instants-and-pipeline-report (JOS-228): `GET /admin/reports/pipeline-time`. `null` seconds is no time; a `null` count is not recorded. */
+export type PipelinePhase = "voice-over" | "decomposition" | "scenes" | "assembly";
+
+export interface PipelinePhaseRow {
+  phase: PipelinePhase;
+  sessions: number;
+  medianSeconds: number | null;
+  p95Seconds: number | null;
+  timedOut: number | null;
+  finishedLate: number | null;
+  superseded: number | null;
+}
+
+export interface PipelineTimeReport {
+  from: string | null;
+  to: string;
+  phases: PipelinePhaseRow[];
+  sessions: Array<{ runId: string; title: string; seconds: Record<PipelinePhase, number | null> }>;
+}

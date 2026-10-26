@@ -158,6 +158,11 @@
 # attempt was sent; `from` open when absent, `to` is now when absent; 200 `{ from, to, sceneAttemptsFollowCurrentProvider, rows }` with one row
 # per stage and provider: attempts, successes, failures by kind, success rate, median and 95th-percentile latency, billed units and their unit;
 # 400 for a bad date-time or `from` not before `to`; 401). Read-only, behind the Administrator password; it carries no key, script, prompt or failure text.
+# JOS-228 (record-phase-instants-and-pipeline-report) - 2026-10-26: new `GET /admin/reports/pipeline-time?from&to` (same period rules as the usage report, applied
+# to the instant a phase started and, for the attempt counts, the instant an attempt was sent; 200 `{ from, to, phases, sessions }`: per phase the number
+# of sessions with a recorded start and end, the median and 95th-percentile seconds, and the attempts that timed out, finished late or were superseded
+# (`null` for the scenes phase: scene attempts store no such outcome); per session the seconds of each phase, `null` where no instant was recorded;
+# 400 for a bad date-time or `from` not before `to`; 401). Read-only, behind the Administrator password.
 # JOS-201 (admin-visual-style-prompt) - 2026-10-19, merged behind the Administrator password 2026-10-22: new GET /admin/settings,
 # PUT /admin/settings/visual-style-prompt (`{ visualStylePrompt }`, at most 8,000 characters after trimming, 400 otherwise) and,
 # for the optional reference image, PUT (raw bytes, `image/png`, `image/jpeg` or `image/webp`, at most 5 MB: 400 for another
@@ -3926,6 +3931,139 @@ paths:
                   - to
                   - sceneAttemptsFollowCurrentProvider
                   - rows
+                additionalProperties: false
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: number
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - statusCode
+                  - error
+                  - message
+                additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+
+  /admin/reports/pipeline-time:
+    get:
+      parameters:
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: from
+          required: false
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: to
+          required: false
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  from:
+                    type: string
+                    nullable: true
+                  to:
+                    type: string
+                  phases:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        phase:
+                          type: string
+                          enum:
+                            - voice-over
+                            - decomposition
+                            - scenes
+                            - assembly
+                        sessions:
+                          type: number
+                        medianSeconds:
+                          type: number
+                          nullable: true
+                        p95Seconds:
+                          type: number
+                          nullable: true
+                        timedOut:
+                          type: number
+                          nullable: true
+                        finishedLate:
+                          type: number
+                          nullable: true
+                        superseded:
+                          type: number
+                          nullable: true
+                      required:
+                        - phase
+                        - sessions
+                        - medianSeconds
+                        - p95Seconds
+                        - timedOut
+                        - finishedLate
+                        - superseded
+                      additionalProperties: false
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        runId:
+                          type: string
+                        title:
+                          type: string
+                        seconds:
+                          type: object
+                          additionalProperties:
+                            type: number
+                            nullable: true
+                      required:
+                        - runId
+                        - title
+                        - seconds
+                      additionalProperties: false
+                required:
+                  - from
+                  - to
+                  - phases
+                  - sessions
                 additionalProperties: false
         "400":
           description: Default Response
