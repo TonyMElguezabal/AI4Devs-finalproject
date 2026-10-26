@@ -61,6 +61,10 @@ The existing rule stays: 4xx except 408 and 429 is not retryable. The spike show
 
 The sentence "It is stored, but not sent to the image provider yet." becomes "It is sent to the image provider with every scene of sessions created afterwards." (changes apply to new sessions only, which the page should say). The frontend test is updated with it.
 
+### Decision 7: The image stage's maximum time with a reference (open)
+
+The real-adapter check (`reports/2026-10-26-step-9-real-adapter-check.md`) took 50 to 78 s per image with `flux-2/edit`, against 15 to 18 s in the spike and 8 s for `flux/dev`, while the image stage's maximum time is 25 s (`maxTimeSeconds.image`, PRD §11.3, spec `stage-execution-time-limit`). The adapter aborts at that limit, so a request with a reference would often time out and retry although the provider would have answered. The options are: (a) raise `maxTimeSeconds.image` (for example to 120 s) for every image request, one setting and one PRD value, at the cost of detecting a stuck plain request later; (b) a second setting used only for requests that carry a reference, which keeps 25 s for the plain case and adds a setting, its schema, a PRD row and a branch in the adapter and in the timeout accounting. This is a product-owner decision because it changes a documented PRD value. Until it is made, the shipped default stays at 25 s and `use-reference-image-in-generation` is not releasable.
+
 ## Risks / Trade-offs
 
 - [The reference may override the scene's `IMAGE` instruction (the same pose in every scene)] → The spike measures it; if it is unacceptable, a prompt template or guidance-strength parameter is part of the chosen model's parameters.

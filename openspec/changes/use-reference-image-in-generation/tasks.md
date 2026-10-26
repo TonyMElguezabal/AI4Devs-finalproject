@@ -33,6 +33,7 @@
 - [x] 3.4 Implement the reference request in the Fal adapter and the `imageReferenceModel` setting (schema, `settings.default.json` with the value traced to the spike report, `IMAGE_REFERENCE_MODEL` export)
 - [x] 3.5 Read the snapshot in `launchImageStage` and pass it to `generate`; fail the scene when the file is missing
 - [x] 3.6 Implement the failure classification of Decision 5
+- [ ] 3.8 Decide and set the image maximum time for requests that carry a reference (design Decision 7): update the design, the `stage-execution-time-limit` delta and PRD §11.3 first, then the setting and its tests (BLOCKED on the product owner's choice between (a) one higher limit and (b) a separate limit for reference requests)
 - [x] 3.7 Not needed: the image stage writes no per-attempt log or attempt row, and the hash is on the run (design Decision 4), so nothing records the image beyond it
 
 ## 4. Frontend
@@ -73,12 +74,12 @@ The Fal host is fixed in the adapter by design (no setting can name a host), so 
 
 ## 9. Real-provider check
 
-- [ ] 9.1 Call the real adapter once per scene with the Warry reference (the three scene instructions) through `createFalAiImageProvider` and record that the code path returns accepted 1920x1088 images with the same character; a full session is not run because its voice and video stages bill other providers
+- [x] 9.1 Call the real adapter once per scene with the Warry reference (the three scene instructions) through `createFalAiImageProvider` and record that the code path returns accepted 1920x1088 images with the same character; a full session is not run because its voice and video stages bill other providers
 
 ## 10. Update Technical Documentation (MANDATORY)
 
-- [ ] 10.1 Update `docs/data-model.md` (new `runs` columns) and `docs/api-spec.yml` if any response changes
-- [ ] 10.2 Update PRD §11 (image model with a reference) following the PRD versioning rules
-- [ ] 10.3 Update `readme.md` where it states the reference image is not sent (Spanish)
-- [ ] 10.4 Run `graphify update .`
+- [x] 10.1 Update `docs/data-model.md` (new `runs` columns) and `docs/api-spec.yml` if any response changes
+- [x] 10.2 Update PRD §11 (image model with a reference) following the PRD versioning rules
+- [x] 10.3 `readme.md` never states the reference image is not sent, so nothing to change (checked with a search)
+- [x] 10.4 Run `graphify update .`
 - [ ] 10.5 Open the pull request linking JOS-202; archive the change after merge
