@@ -1,0 +1,140 @@
+# enable-release-workflow (JOS-206), ADR 0007 — one channel: a push to main builds the three executables once per source tree and,
+# after a reviewer approves the `release` environment, publishes them as one GitHub release tagged by the tree hash.
+# `workflow_dispatch` runs a dry run (artifacts only) or a test release (a pre-release `test-<hash>`); it never publishes a real release.
+name: Release
+
+on:
+  push: # every branch; the `tree` job decides whether anything is built (RELEASE_BRANCH, `[skip release]`)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: dry-run builds and uploads workflow artifacts only; test-release also publishes a pre-release after approval
+        type: choice
+        options: [dry-run, test-release]
+        default: dry-run
+
+env:
+  RELEASE_BRANCH: main
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  tree:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # gh release list
+    outputs:
+      tag: ${{ steps.decide.outputs.tag }}
+      version: ${{ steps.decide.outputs.version }}
+      state: ${{ steps.decide.outputs.state }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          tree=$(git rev-parse 'HEAD^{tree}')
+          kind=release; [[ "$MODE" == test-release ]] && kind=test
+          state=build
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            if [[ "$GITHUB_REF_NAME" != "$RELEASE_BRANCH" ]]; then state=skip
+            elif git log -1 --format=%B | grep -qF '[skip release]'; then state=skip
+            else state=$(.github/scripts/release.sh state "$tree" $(gh release list --limit 1000 --json tagName --jq '.[].tagName'))
+            fi
+          fi
+          {
+            echo "tag=$(.github/scripts/release.sh tag "$tree" "$kind")"
+            echo "version=$(.github/scripts/release.sh version "$tree" "$(date -u +%F)")"
+            echo "state=$state"
+          } >> "$GITHUB_OUTPUT"
+          echo "tree $tree: $state" >> "$GITHUB_STEP_SUMMARY"
+
+  checks:
+    needs: tree
+    if: needs.tree.outputs.state == 'build'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: [checks, tree]
+    if: needs.tree.outputs.state == 'build'
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { target: darwin-arm64, runner: macos-15 }
+          - { target: darwin-x64, runner: macos-15-intel }
+          - { target: win32-x64, runner: windows-2025 }
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    env:
+      VID4YOU_CHANNEL: production
+      VID4YOU_VERSION: ${{ needs.tree.outputs.version }}
+      VID4YOU_RELEASE_TAG: ${{ needs.tree.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26.4.0 # backend/packaging/targets.ts NODE_VERSION: the single-executable blob needs this exact Node
+      - run: npm ci
+        working-directory: frontend
+      - run: npm ci
+        working-directory: backend
+      - run: npm run package:${{ matrix.target }}
+        working-directory: backend
+      - name: Zip
+        shell: pwsh
+        working-directory: backend
+        run: |
+          Move-Item dist-package/${{ matrix.target }} Vid4You-${{ matrix.target }}
+          if ($IsWindows) { Compress-Archive Vid4You-${{ matrix.target }} Vid4You-${{ matrix.target }}.zip }
+          else { ditto -c -k --keepParent Vid4You-${{ matrix.target }} Vid4You-${{ matrix.target }}.zip } # keeps the executable bit
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Vid4You-${{ matrix.target }}
+          path: backend/Vid4You-${{ matrix.target }}.zip
+          if-no-files-found: error
+
+  publish:
+    needs: [tree, build]
+    if: needs.tree.outputs.state == 'build' && (github.event_name == 'push' || inputs.mode == 'test-release')
+    runs-on: ubuntu-latest
+    environment: release # required reviewer, configured in repository settings
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: assets
+          merge-multiple: true
+      - run: .github/scripts/release.sh checksums assets
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.tree.outputs.tag }}
+          VERSION: ${{ needs.tree.outputs.version }}
+          PRERELEASE: ${{ inputs.mode == 'test-release' && '--prerelease' || '' }}
+        run: |
+          gh release create "$TAG" assets/*.zip assets/SHA256SUMS.txt $PRERELEASE \
+            --target "$GITHUB_SHA" --title "Vid4You $VERSION" \
+            --notes "Built once from commit $GITHUB_SHA. The executables are not signed yet (JOS-207): macOS and Windows will warn on first start. Verify the files with SHA256SUMS.txt. The archives carry a GPL nonfree ffmpeg build that is not redistributable: for the owner's use only."
+
+  verify:
+    needs: [tree, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.tree.outputs.tag }}
+        run: gh release download "$TAG" --dir downloaded
+      - run: .github/scripts/release.sh verify downloaded

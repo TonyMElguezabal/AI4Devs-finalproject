@@ -21,6 +21,24 @@ describe("bundleBackend", () => {
     expect(bundle).not.toMatch(/openspec[\\/]/);
   });
 
+  // enable-release-workflow (JOS-206), task 1.4 — the release workflow passes the build identity through the environment.
+  it("embeds the channel, version and release tag when the build variables are set", async () => {
+    const outfile = join(dir, "vid4you-identity.cjs");
+    await bundleBackend({ outfile, smoke: false, env: { VID4YOU_CHANNEL: "production", VID4YOU_VERSION: "2026.10.26-0123456", VID4YOU_RELEASE_TAG: "release-0123456abc" } });
+    const bundle = readFileSync(outfile, "utf8");
+    expect(bundle).toContain('"production"');
+    expect(bundle).toContain("2026.10.26-0123456");
+    expect(bundle).toContain("release-0123456abc");
+  });
+
+  it("leaves the identity to the environment (development) when the build variables are not set", async () => {
+    const outfile = join(dir, "vid4you-dev.cjs");
+    await bundleBackend({ outfile, smoke: false, env: {} });
+    const bundle = readFileSync(outfile, "utf8");
+    expect(bundle).not.toContain("2026.10.26-0123456");
+    expect(bundle).toContain("process.env.VID4YOU_CHANNEL");
+  });
+
   it("includes the smoke stubs only in the smoke flavor", async () => {
     const outfile = join(dir, "vid4you-smoke.cjs");
     await bundleBackend({ outfile, smoke: true });
