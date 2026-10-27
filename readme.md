@@ -478,7 +478,7 @@ flowchart LR
 | Moderación del guion | OpenAI `omni-moderation-2024-09-26` | Guion | Veredicto | 10 s |
 | Voz | ElevenLabs `eleven_multilingual_v2` | Guion | MP3 y marcas de tiempo nativas | 600 s |
 | Alineación | ElevenLabs Forced Alignment | MP3 y guion | Marcas de tiempo | 5 s |
-| Imagen | Fal.ai `fal-ai/flux/dev` | Instrucción `IMAGE` | Imagen 16:9 | 120 s |
+| Imagen | Fal.ai `fal-ai/flux/dev` | Instrucción `IMAGE` | Imagen 16:9 | 300 s |
 | Video | RunningHub MiniMax-H3 «Hailuo-03» | Imagen, instrucción `VIDEO`, duración de 5 a 15 s | Clip | 1200 s |
 
 **Notas de integración**
