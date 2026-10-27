@@ -165,7 +165,7 @@ describe("ReportsSection", () => {
       }),
     );
     render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
-    await waitFor(() => expect(seen).toEqual([`Bearer ${PASSWORD}`, `Bearer ${PASSWORD}`, `Bearer ${PASSWORD}`]));
+    await waitFor(() => expect(seen).toEqual(Array(4).fill(`Bearer ${PASSWORD}`)));
   });
 
   it("shows one table row per report row with formatted numbers and a dash for a missing latency", async () => {
