@@ -62,4 +62,4 @@ No endpoint changes. The settings are read at start-up and no route returns them
 - [x] 10.2 Update the image row of the `README.md` and `readme.md` table (maximum time 300 s)
 - [x] 10.3 `docs/api-spec.yml` and `docs/data-model.md` do not change (record the check) — a search of both for `flux-2`, `seedream`, `maxTimeSeconds` and `imageReferenceModel` finds nothing
 - [x] 10.4 Run `graphify update .`
-- [ ] 10.5 Open the pull request linking JOS-230 and JOS-202; archive the change after merge (`openspec archive switch-reference-image-model --skip-specs`, because there is no spec delta)
+- [x] 10.5 Open the pull request linking JOS-230 and JOS-202 (#113); archive the change after merge (`openspec archive switch-reference-image-model --skip-specs`, because there is no spec delta)
