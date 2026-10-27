@@ -24,12 +24,12 @@
 
 ## 4. Frontend: Failures and retries table (TDD; design Decision 7)
 
-- [ ] 4.1 Write failing component tests: the Reports section shows a "Failures and retries" table with one row per stage, "not recorded" for the scene-stage budgets and manual retries, the wordings with their counts, and the scenes failed now labelled as current; an empty period says there were no failures and still shows the failed-now counts; a 401 locks the page; a network error shows its own message and is cleared when the period changes.
-- [ ] 4.2 Add the types and client call (`types.ts`, `api/client.ts`), `FailuresTables.tsx`, and the request in `ReportsSection.tsx`. Make 4.1 pass.
+- [x] 4.1 Write failing component tests: the Reports section shows a "Failures and retries" table with one row per stage, "not recorded" for the scene-stage budgets and manual retries, the wordings with their counts, and the scenes failed now labelled as current; an empty period says there were no failures and still shows the failed-now counts; a 401 locks the page; a network error shows its own message and is cleared when the period changes.
+- [x] 4.2 Add the types and client call (`types.ts`, `api/client.ts`), `FailuresTables.tsx`, and the request in `ReportsSection.tsx`. Make 4.1 pass.
 
 ## 5. Backend and Frontend: Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Run the admin-reports-route, provider-usage-report, pipeline-time-report and reports-section tests; fix only assertions that the third request or the new export legitimately change (for example a test that counts fetch calls).
+- [x] 5.1 Run the admin-reports-route, provider-usage-report, pipeline-time-report and reports-section tests; fix only assertions that the third request or the new export legitimately change (for example a test that counts fetch calls).
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
