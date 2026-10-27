@@ -223,8 +223,8 @@ describe("The request with a reference image (JOS-202)", () => {
     await providerWith(fetchFn).generate(INSTRUCTION, REFERENCE);
 
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.url).toBe(`https://fal.run/${IMAGE_REFERENCE_MODEL}`);
-    expect(IMAGE_REFERENCE_MODEL).toBe("fal-ai/flux-2/edit");
+    expect(calls[0]?.url).toBe("https://fal.run/bytedance/seedream/v5/pro/edit");
+    expect(IMAGE_REFERENCE_MODEL).toBe("bytedance/seedream/v5/pro/edit");
     expect(JSON.parse(calls[0]?.init.body as string)).toEqual({
       prompt: INSTRUCTION,
       image_urls: [`data:image/webp;base64,${REFERENCE.bytes.toString("base64")}`],
