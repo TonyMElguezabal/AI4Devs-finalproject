@@ -46,15 +46,15 @@
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Start the backend on a copy of the local database; confirm migration 25 applied and `provider_changes` is empty
-- [ ] 8.2 Change a stage's active provider and back via `PUT /admin/providers/:stage`; save the same provider again; sqlite shows exactly two entries with the right previous and new providers (AC1)
-- [ ] 8.3 Make a stub-provider session fail a clip, change the active video provider, move the clip via the move route; sqlite shows the move entry with session, scene and providers (AC2)
-- [ ] 8.4 `GET /admin/reports/provider-changes` for the last 30 days and for a period that excludes them: newest first, then empty (AC3); without the password (401) and with `from` after `to` (400) (AC4)
-- [ ] 8.5 Restore the active providers changed in 8.2 and 8.3; document commands and responses in `reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`; remove the test session and the database copy
+- [x] 8.1 Start the backend on a copy of the local database; confirm migration 25 applied and `provider_changes` is empty
+- [x] 8.2 Change a stage's active provider and back via `PUT /admin/providers/:stage`; save the same provider again; sqlite shows exactly two entries with the right previous and new providers (AC1)
+- [x] 8.3 Make a stub-provider session fail a clip, change the active video provider, move the clip via the move route; sqlite shows the move entry with session, scene and providers (AC2)
+- [x] 8.4 `GET /admin/reports/provider-changes` for the last 30 days and for a period that excludes them: newest first, then empty (AC3); without the password (401) and with `from` after `to` (400) (AC4)
+- [x] 8.5 Restore the active providers changed in 8.2 and 8.3; document commands and responses in `reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`; remove the test session and the database copy
 
 ## 9. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Unlock `/admin`, change an active provider in its section, open Reports and confirm the Provider changes table shows the entry with both names; change it back and confirm both entries, newest first; record in `reports/YYYY-MM-DD-step-9-e2e-testing.md`
+- [x] 9.1 Unlock `/admin`, change an active provider in its section, open Reports and confirm the Provider changes table shows the entry with both names; change it back and confirm both entries, newest first; record in `reports/YYYY-MM-DD-step-9-e2e-testing.md`
 
 ## 10. Update Technical Documentation (MANDATORY)
 
