@@ -31,12 +31,12 @@
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 6.1 Capture the pre-test database baseline (isolated `DB_PATH` and `PROJECTS_ROOT`)
-- [ ] 6.2 Run targeted tests for the changed modules
-- [ ] 6.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend` and `frontend`
-- [ ] 6.4 Verify post-test database state and restore if needed
-- [ ] 6.5 Create report `reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
-- [ ] 6.6 Mark the step complete only after tests pass and the report exists
+- [x] 6.1 Capture the pre-test database baseline (isolated `DB_PATH` and `PROJECTS_ROOT`)
+- [x] 6.2 Run targeted tests for the changed modules
+- [x] 6.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend` and `frontend`
+- [x] 6.4 Verify post-test database state and restore if needed
+- [x] 6.5 Create report `reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
+- [x] 6.6 Mark the step complete only after tests pass and the report exists
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
