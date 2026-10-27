@@ -17,12 +17,12 @@
 
 ## 3. Backend: the routes (TDD; design Decisions 1, 2, 6)
 
-- [ ] 3.1 Write failing route tests for `GET /admin/reports/sessions` and `GET /admin/reports/sessions/:sessionId/scenes`:
+- [x] 3.1 Write failing route tests for `GET /admin/reports/sessions` and `GET /admin/reports/sessions/:sessionId/scenes`:
   - 401 without the Administrator password and with a wrong one (both routes);
   - 200 with the response shapes of Decision 6; offset bounds select the same sessions as their UTC equivalents; 400 for `from` not before `to` and for a non-ISO value; 404 for an unknown session;
   - neither body contains the marker texts seeded in scripts, prompts, instructions, narration, failure causes and attempt error messages, nor a stored key;
   - the row counts of every table are unchanged after the calls.
-- [ ] 3.2 Add the two routes to `adminReportRoutes.ts` with zod schemas, reusing `periodOf` for the list, and make 3.1 and the existing report route tests pass. Confirm both routes are in the generated OpenAPI document.
+- [x] 3.2 Add the two routes to `adminReportRoutes.ts` with zod schemas, reusing `periodOf` for the list, and make 3.1 and the existing report route tests pass. Confirm both routes are in the generated OpenAPI document.
 
 ## 4. Frontend: the sessions table and drill-down (TDD; design Decision 7)
 

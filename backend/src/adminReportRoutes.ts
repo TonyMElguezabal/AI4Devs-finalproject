@@ -4,6 +4,7 @@ import { z } from "zod";
 import { adminDeniedSchema } from "./adminAccess.ts";
 import { pipelineTimeReport } from "./pipelineTimeReport.ts";
 import { providerUsageReport } from "./providerUsageReport.ts";
+import { sessionScenesReport, sessionsReport } from "./sessionsReport.ts";
 
 // report-provider-usage (JOS-223), design Decision 1 — the report routes, registered inside the `/admin` child plugin
 // so the Administrator gate has already answered 401 before any query is parsed.
@@ -54,6 +55,45 @@ const pipelineReportSchema = z.object({
   sessions: z.array(z.object({ runId: z.string(), title: z.string(), seconds: z.record(phaseSchema, z.number().nullable()) })),
 });
 
+// report-sessions (JOS-225), design Decision 6 — no text column other than the title is part of either response.
+const sessionsReportSchema = z.object({
+  from: z.string().nullable(),
+  to: z.string(),
+  rows: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      createdAt: z.string(),
+      state: z.enum(["final-video-ready", "failed", "in-progress"]),
+      failedPhase: z.enum(["voice-over", "decomposition", "assembly"]).nullable(),
+      paused: z.boolean(),
+      scenes: z.number(),
+      failedScenes: z.number(),
+      attempts: z.number(),
+      secondsToVoiceOver: z.number().nullable(),
+      secondsToFinalVideo: z.number().nullable(),
+    }),
+  ),
+});
+
+const sessionScenesSchema = z.object({
+  sessionId: z.string(),
+  rows: z.array(
+    z.object({
+      number: z.number(),
+      status: z.string(),
+      imageProvider: z.string().nullable(),
+      clipProvider: z.string().nullable(),
+      imageAttempts: z.number(),
+      clipAttempts: z.number(),
+      requestedDurationSeconds: z.number().nullable(),
+      speedFactor: z.number().nullable(),
+      durationWarning: z.string().nullable(),
+      speedFactorWarning: z.string().nullable(),
+    }),
+  ),
+});
+
 const validationErrorSchema = z.object({ statusCode: z.number(), error: z.string(), message: z.string() }).passthrough();
 
 /** The period of a report request: both bounds normalized to the stored UTC form, or the 400 message when `from` is not before `to`. */
@@ -83,6 +123,26 @@ export function registerReportRoutes(admin: FastifyInstance): void {
       const period = periodOf(request.query);
       if ("error" in period) return reply.code(400).send({ statusCode: 400, error: "Bad Request", message: period.error });
       return pipelineTimeReport(period);
+    },
+  );
+
+  admin.withTypeProvider<ZodTypeProvider>().get(
+    "/reports/sessions",
+    { schema: { querystring: querySchema, response: { 200: sessionsReportSchema, 400: validationErrorSchema, 401: adminDeniedSchema } } },
+    async (request, reply) => {
+      const period = periodOf(request.query);
+      if ("error" in period) return reply.code(400).send({ statusCode: 400, error: "Bad Request", message: period.error });
+      return sessionsReport(period);
+    },
+  );
+
+  admin.withTypeProvider<ZodTypeProvider>().get(
+    "/reports/sessions/:sessionId/scenes",
+    { schema: { params: z.object({ sessionId: z.string() }), response: { 200: sessionScenesSchema, 401: adminDeniedSchema, 404: validationErrorSchema } } },
+    async (request, reply) => {
+      const report = sessionScenesReport(request.params.sessionId);
+      if (!report) return reply.code(404).send({ statusCode: 404, error: "Not Found", message: "There is no such session." });
+      return report;
     },
   );
 }
