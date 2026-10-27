@@ -30,7 +30,7 @@
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Review provider-types and provider-profile route tests, the adapter no-hidden-retries guard and the API surface tests for assumptions the new field and route break; update them
+- [x] 5.1 Review provider-types and provider-profile route tests, the adapter no-hidden-retries guard and the API surface tests for assumptions the new field and route break; update them
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
