@@ -61,4 +61,4 @@
 ## 10. Pull request
 
 - [x] 10.1 Commit the work on the feature branch in separate commits: tooling and CI, backend fixes, frontend fixes, docs
-- [ ] 10.2 After approval, push and open the PR linking JOS-208, with the defect-findings list from 3.4, and a note that the check should be made required on `main` and `feature/entrega-2-JAME`
+- [x] 10.2 After approval, push and open the PR linking JOS-208, with the defect-findings list from 3.4, and a note that the check should be made required on `main` and `feature/entrega-2-JAME` (PR merged; archived 2026-10-27)

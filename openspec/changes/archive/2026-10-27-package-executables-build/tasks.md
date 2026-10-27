@@ -66,4 +66,4 @@
 - [x] 8.2 Update `docs/adr/0007-deployment.md` with the build command, the SEA/postject decision and the ffmpeg license note
 - [x] 8.3 Add `SECRETS_PATH` and `SETTINGS_DEFAULTS_PATH` to the environment table in the README and to `docs/backend-standards.md` if it lists variables
 - [x] 8.4 Run `graphify update .`
-- [ ] 8.5 Open the pull request linking JOS-205; archive the change after merge
+- [x] 8.5 Open the pull request linking JOS-205; archive the change after merge (PR merged; archived 2026-10-27)

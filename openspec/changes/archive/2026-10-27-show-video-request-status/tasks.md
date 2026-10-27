@@ -53,4 +53,4 @@
 - [x] 8.2 Update the PRD (new version, previous kept): §3 scene details show the clip request status, estimate and request body
 - [x] 8.3 Update `docs/backend-standards.md` (stage diagnostics section): the `videoRequest` allow-list and its sentinel
 - [x] 8.4 Run `graphify update .`
-- [ ] 8.5 Open the pull request linking JOS-200; archive the change after merge
+- [x] 8.5 Open the pull request linking JOS-200; archive the change after merge (PR merged; archived 2026-10-27)
