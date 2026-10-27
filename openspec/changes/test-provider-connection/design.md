@@ -9,7 +9,7 @@ What each vendor offers for a check (from the vendors' API references, to be con
 | `openai-reasoning` | `GET https://api.openai.com/v1/models/{model}` | no | key and model |
 | `elevenlabs-voice` | `GET https://api.elevenlabs.io/v1/voices/{voiceId}` | no | key and voice (not the model) |
 | `elevenlabs-alignment` | `GET https://api.elevenlabs.io/v1/models` | no | key only |
-| `fal-image` | `GET https://api.fal.ai/v1/models?endpoint_id={model}` (unconfirmed; fallback: one minimal paid generation) | no, or yes if the fallback is needed | key and model |
+| `fal-image` | `GET https://api.fal.ai/v1/models?endpoint_id={model}` (confirmed free, task 1) | no | key and model |
 | `runninghub-video` | `POST https://www.runninghub.ai/uc/openapi/accountStatus` (`{"apikey"}` in the body) | no | key only (not the endpoint) |
 
 ## Goals / Non-Goals
@@ -41,8 +41,8 @@ What each vendor offers for a check (from the vendors' API references, to be con
 `backend/src/providerConnectionCheck.ts` exports `CONNECTION_CHECKS: Record<adapterType, { charged: boolean; covers: string; run(parameters, key, fetchFn, signal) }>`. Each `run` sends exactly one request built from constants in the module and the profile's parameters (a model id, voice id or path validated by `providerTypes.ts`, so no host can be injected), and maps the answer:
 
 - 2xx (and, for RunningHub, `code: 0` in the body) → `connected`;
-- 401 or 403 (RunningHub: its "invalid key" code) → `key-rejected`;
-- 404 on a check that looks up the model or voice → `not-found`;
+- 401 or 403 (RunningHub answers 200 and signals it with `code: 806`) → `key-rejected`;
+- 404 on a check that looks up the model or voice → `not-found` (ElevenLabs answers 400 with `detail.status` `voice_not_found` for an unknown voice, so that pair also maps to `not-found`);
 - network error or the 10 s `AbortSignal.timeout` → `unreachable`;
 - anything else → `unexpected` with the HTTP status only.
 
@@ -60,9 +60,10 @@ The route reads the profile and key and calls the check; it does not call any re
 
 `{ outcome: "connected" | "key-rejected" | "not-found" | "unreachable" | "unexpected" | "no-key", covers: string, httpStatus?: number }`, declared `.strict()` like the stage diagnostics. Messages are written by the page from the outcome; the server sends no vendor text. A sentinel test stores a known key, makes the stubbed vendor echo it in its error body, and asserts it appears nowhere in the response or the logs.
 
-### Decision 6: Fal is decided by task 1
+### Decision 6: Fal uses the free models endpoint
 
-If `api.fal.ai/v1/models` authenticates with the key (401 for a wrong key, 200 with the model for a right one), the Fal check is free and covers key and model. If not, the check is one minimal generation on the profile's model (smallest image size, one image), `charged: true`, and the page shows the profile's price per unit when one is entered (JOS-226).
+Task 1 confirmed with the real key that `api.fal.ai/v1/models?endpoint_id={model}` answers 200 for a right key and model, 401 for a wrong key and 404 for an unknown model. The Fal check is free and covers key and model. No adapter type ships a charged check, so `charged` is `false` for all five; the field, the 409 `charge-not-accepted` refusal and the confirmation step stay, so a future adapter type with only a paid check is supported without a new rule.
+
 
 ## Risks / Trade-offs
 
@@ -73,5 +74,4 @@ If `api.fal.ai/v1/models` authenticates with the key (401 for a wrong key, 200 w
 
 ## Open Questions
 
-- Whether Fal has a free authenticated endpoint (task 1).
 - Whether a passed test should mark the profile verified: answered "no" for this change (Non-Goals); revisit if the Administrator asks for it.

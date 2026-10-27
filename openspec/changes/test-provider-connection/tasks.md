@@ -5,9 +5,9 @@
 
 ## 1. Confirm the vendor checks (spike)
 
-- [ ] 1.1 With the real keys (never printed), send each candidate request in `design.md` once by curl, plus once with a deliberately wrong key; record the status codes and body shape (no key, no balance) in `reports/`
-- [ ] 1.2 Decide the Fal check (free endpoint or one minimal paid generation) and update `design.md` Decision 6 and the table
-- [ ] 1.3 Record how each vendor answers an unknown model or voice (404 or other) and adjust the mapping in Decision 2 if needed
+- [x] 1.1 With the real keys (never printed), send each candidate request in `design.md` once by curl, plus once with a deliberately wrong key; record the status codes and body shape (no key, no balance) in `reports/`
+- [x] 1.2 Decide the Fal check (free endpoint or one minimal paid generation) and update `design.md` Decision 6 and the table
+- [x] 1.3 Record how each vendor answers an unknown model or voice (404 or other) and adjust the mapping in Decision 2 if needed
 
 ## 2. Backend tests first (TDD)
 
