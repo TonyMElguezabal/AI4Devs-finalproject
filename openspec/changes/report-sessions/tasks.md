@@ -48,12 +48,12 @@
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the real server on a scratch store and scratch projects folder with stub adapters; create sessions that end with a final video, in progress, paused, failed in the voice-over before any scene, and failed in assembly; with a scene that has retries and one with warnings.
-- [ ] 7.2 Without the Administrator password: 401 on both routes.
-- [ ] 7.3 With it: the default, 7-day, all-time and custom-range lists; compare each row with the spike's R4 query run with `sqlite3` on the same scratch store; open the drill-down of a session with scenes and of one without.
-- [ ] 7.4 Error cases: `from` after `to`, a non-date value (400); an unknown session id (404).
-- [ ] 7.5 Search the response bodies for the session scripts and failure causes: none present. Confirm the store's row counts are unchanged by the calls.
-- [ ] 7.6 Delete the scratch store and folder; confirm the default store is untouched. Save `openspec/changes/report-sessions/reports/YYYY-MM-DD-step-7-manual-endpoint-testing.md`.
+- [x] 7.1 Start the real server on a scratch copy of the Windows-run database (two real finished sessions with 5 and 53 scenes and their attempts; the original is never touched) with its own scratch projects folder. Add to the copy only, by sqlite, one session each in progress, paused, failed in the voice-over before any scene and failed in assembly, plus a scene with a warning and one with retries. (Chosen over creating sessions through stub adapters: the real session is richer, and the states are plain rows.)
+- [x] 7.2 Without the Administrator password: 401 on both routes.
+- [x] 7.3 With it: the default, 7-day, all-time and custom-range lists; compare each row with the spike's R4 query run with `sqlite3` on the same scratch store; open the drill-down of a session with scenes and of one without.
+- [x] 7.4 Error cases: `from` after `to`, a non-date value (400); an unknown session id (404).
+- [x] 7.5 Search the response bodies for the session scripts and failure causes: none present. Confirm the store's row counts are unchanged by the calls.
+- [x] 7.6 Confirm the default store and the original Windows-run database are untouched. Save `openspec/changes/report-sessions/reports/YYYY-MM-DD-step-7-manual-endpoint-testing.md`. The scratch copy is kept for step 8 and removed at 8.4.
 
 ## 8. E2E Testing with the browser (MANDATORY if applicable - AGENT MUST EXECUTE)
 
