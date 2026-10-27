@@ -2,6 +2,7 @@
 
 - [x] 0.1 Create branch `feature/jos-225-sessions-report` from `origin/main` with `--no-track`, in the worktree `../AI4Devs-jos-225`
 - [x] 0.2 Verify the branch was created and is the current branch of that worktree
+- [x] 0.3 Rebase onto `origin/main` (`41b03ebd`, 2026-10-27) and refresh the artifacts for what main gained since the proposal: JOS-228 (`phase_instants`, pipeline-time table), JOS-231 (`changePeriod`), the shared `periodOf`
 
 ## 1. Gate
 
@@ -21,14 +22,14 @@
   - 200 with the response shapes of Decision 6; offset bounds select the same sessions as their UTC equivalents; 400 for `from` not before `to` and for a non-ISO value; 404 for an unknown session;
   - neither body contains the marker texts seeded in scripts, prompts, instructions, narration, failure causes and attempt error messages, nor a stored key;
   - the row counts of every table are unchanged after the calls.
-- [ ] 3.2 Extract the period-bound handling of `adminReportRoutes.ts` into one function shared by both reports, add the two routes with zod schemas, and make 3.1 and the existing provider-usage route tests pass. Confirm both routes are in the generated OpenAPI document.
+- [ ] 3.2 Add the two routes to `adminReportRoutes.ts` with zod schemas, reusing `periodOf` for the list, and make 3.1 and the existing report route tests pass. Confirm both routes are in the generated OpenAPI document.
 
 ## 4. Frontend: the sessions table and drill-down (TDD; design Decision 7)
 
 - [ ] 4.1 Write failing component tests:
-  - `SessionsReport`: requests the list for the selected period and again when it changes; one row per session with title, creation time, state text ("Failed in assembly" etc.), paused flag, counts and "—" for null seconds; empty message; a 401 locks the page; the table has a caption and column headers;
+  - `SessionsReport`: requests the list for the selected period and again when it changes; a network error shows its own message and does not hide the other reports; one row per session with title, creation time, state text ("Failed in assembly" etc.), paused flag, counts and "—" for null seconds; empty message; a 401 locks the page; the table has a caption and column headers;
   - the "Scenes of <title>" button toggles (`aria-expanded`), loads the scene table once opened with providers, attempts, duration, speed factor and warnings, and says so for a session with no scenes.
-- [ ] 4.2 Add `getSessionsReport` and `getSessionScenesReport` to `api/client.ts`, their types, `SessionsReport`, extract `ProviderUsageTable` from `ReportsSection` unchanged, and render both under the one period selector. Make 4.1 and the existing Reports tests pass.
+- [ ] 4.2 Add `getSessionsReport` and `getSessionScenesReport` to `api/client.ts`, their types, and `SessionsReport`; render it in `ReportsSection` after the existing tables, under the one period selector. Make 4.1 and the existing Reports tests pass.
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
