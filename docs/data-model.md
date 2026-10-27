@@ -133,7 +133,7 @@ One row per stage the Administrator has chosen a provider for on `/admin`; no ro
 
 - `stage` (TEXT, Primary Key): `reasoning`, `voice`, `alignment`, `image` or `video`.
 - `provider_id` (TEXT): the adapter chosen. It must be an adapter the build ships for that stage; a row naming one it no longer ships is ignored (the settings default applies, with one warning) and `GET /admin/providers` reports it as `orphanedChoice`.
-- `changed_at` (TEXT): when the choice was made. No history is kept.
+- `changed_at` (TEXT): when the choice was made. Only the last choice is kept here; the history is the `provider_changes` log (4i).
 
 Mutable on purpose, like `telemetry_settings`: it holds the Administrator's intent. Written only by `upsertActiveProviderChoice` (through `setActiveProvider`); read on every bind by `activeProviderId(stage)`, with no cache, so a change applies to the next bind with no restart.
 
@@ -171,6 +171,18 @@ One row per session and pipeline phase, so the Administrator's pipeline-time rep
 - `started_at` and `ended_at` (nullable TEXT, UTC ISO 8601): each written once, the first write wins (`stampPhase`), so a retry, a rebuild or a restart never moves an instant.
 
 Where they are written, all in `db.ts`: the first attempt of the phase's stage (`insertStageAttempt`: voice-over, `timestamps`/`decomposition`, assembly; the sent instant, or the queued instant for a scheduled attempt) starts voice-over, decomposition and assembly; `insertVoiceOver` ends voice-over; `insertRegisteredScenes` ends the decomposition and starts the scenes phase at the same instant; `markChunkComplete` ends the scenes phase when no scene of the session is left incomplete; the first `setFinalVideoPath` ends assembly. Sessions from before migration 22 have no rows, and nothing is estimated for them.
+
+### 4i. Provider changes (`provider_changes` table) — `record-provider-changes`, JOS-229, migration 25
+
+An append-only log of the Administrator's provider changes, for the provider-changes report. It belongs to the install; no function updates or deletes a row (only the test reset empties it).
+
+- `id` (INTEGER, Primary Key, AUTOINCREMENT) and `changed_at` (TEXT NOT NULL, UTC ISO 8601), indexed.
+- `kind` (TEXT NOT NULL): `active-provider` (the active provider of a stage was changed) or `failed-stage-move` (a failed stage was moved to the active provider).
+- `stage` (TEXT NOT NULL): `reasoning`, `voice`, `alignment`, `image` or `video`.
+- `run_id` (nullable TEXT, Foreign Key to `runs`): the session of a move, null for an active-provider change. `scene_id` (nullable TEXT, Foreign Key to `scenes`): the scene of an image or video move, null otherwise.
+- `previous_provider_id`, `previous_provider_label`, `new_provider_id`, `new_provider_label` (TEXT NOT NULL): the providers with their display names as the Administrator saw them (copied, so a rename or a removed profile does not change the entry). For a first choice over a settings default, the previous provider is that default.
+
+Written by `recordProviderChange` (`db.ts`), inside the transaction of the change: `setActiveProvider` writes it only when the active provider actually changes, and `moveFailedStage` writes it after the rebind succeeded. Migration 25 creates the table empty: `active_providers` kept no history, so earlier changes cannot be reconstructed.
 
 ### 5. Schema migrations (`schema_migrations` table)
 
