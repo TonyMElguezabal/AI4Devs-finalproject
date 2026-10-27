@@ -11,11 +11,11 @@
 
 ## 2. Backend tests first (TDD)
 
-- [ ] 2.1 Test each adapter type's check against a stubbed `fetch`: exactly one request, to the vendor host, with the key in the vendor's header or body, and the mapping of 2xx, 401/403, 404, other status, network error and timeout to the outcomes
-- [ ] 2.2 Test that every adapter type in the catalogue has a check, and that `GET /admin/provider-types` returns `connectionCheck` for each
-- [ ] 2.3 Test the route: 401 without the password and no vendor request; 404 for an unknown profile; `no-key` with no vendor request; 409 `charge-not-accepted` for a charged check without `acceptCharge`, with no vendor request
-- [ ] 2.4 Test that a test writes nothing: profile view, key status, active providers and the `provider_requests` and `stage_attempts` row counts are identical before and after, for a pass and a failure
-- [ ] 2.5 Sentinel test: a stubbed vendor echoes the key in its error body; the key appears nowhere in the response or the captured logs; the response has no field outside the closed schema
+- [x] 2.1 Test each adapter type's check against a stubbed `fetch`: exactly one request, to the vendor host, with the key in the vendor's header or body, and the mapping of 2xx, 401/403, 404, other status, network error and timeout to the outcomes
+- [x] 2.2 Test that every adapter type in the catalogue has a check, and that `GET /admin/provider-types` returns `connectionCheck` for each
+- [x] 2.3 Test the route: 401 without the password and no vendor request; 404 for an unknown profile; `no-key` with no vendor request; 409 `charge-not-accepted` for a charged check without `acceptCharge`, with no vendor request
+- [x] 2.4 Test that a test writes nothing: profile view, key status, active providers and the `provider_requests` and `stage_attempts` row counts are identical before and after, for a pass and a failure
+- [x] 2.5 Sentinel test: a stubbed vendor echoes the key in its error body; the key appears nowhere in the response or the captured logs; the response has no field outside the closed schema
 
 ## 3. Backend implementation
 
