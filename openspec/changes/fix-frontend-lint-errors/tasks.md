@@ -10,13 +10,13 @@
 
 ## 2. Frontend: Implementation
 
-- [ ] 2.1 In `ReportsSection.tsx`, clear both error messages in the handler passed to `ReportPeriodSelector` and remove the two calls at the start of the effect
-- [ ] 2.2 Remove the unused `API_BASE` import from `reports-section.test.tsx`
-- [ ] 2.3 Confirm `npm run lint` has 0 errors (the six warnings remain) and group 1's test still passes
+- [x] 2.1 In `ReportsSection.tsx`, clear both error messages in the handler passed to `ReportPeriodSelector` and remove the two calls at the start of the effect
+- [x] 2.2 Remove the unused `API_BASE` import from `reports-section.test.tsx`
+- [x] 2.3 Confirm `npm run lint` has 0 errors (the six warnings remain) and group 1's test still passes — lint: 0 errors, 6 warnings; `reports-section.test.tsx`: 19 passed
 
 ## 3. Backend
 
-- [ ] 3.1 No backend change (record the check)
+- [x] 3.1 No backend change (record the check) — the diff touches only `frontend/`
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 

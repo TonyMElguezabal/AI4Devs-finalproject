@@ -2,7 +2,6 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { API_BASE } from "../src/api/client";
 import { ReportPeriodSelector } from "../src/components/ReportPeriodSelector";
 import { ReportsSection } from "../src/components/ReportsSection";
 import type { PipelineTimeReport, ProviderUsageReport, ProviderUsageRow, ReportPeriod } from "../src/types";
