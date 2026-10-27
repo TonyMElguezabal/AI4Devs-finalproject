@@ -58,7 +58,7 @@
 - [ ] 7.3 Run `test-release` once: approve, the pre-release `test-<hash>` appears with the three zips and `SHA256SUMS.txt`, `verify` passes; delete the test pre-release
 - [ ] 7.4 Re-run for the same tree and confirm nothing is rebuilt or published
 - [ ] 7.5 Reject an approval once and confirm no release is created
-- [ ] 7.6 Confirm a failing check (temporary failing test on the branch) stops the run before any build
+- [x] 7.6 Confirm a failing check (temporary failing test on the branch) stops the run before any build — confirmed without a temporary test: the dry-run of 2026-10-26 on `main` (run 40445693575) failed `checks / test (frontend)` at `npm run lint` (2 existing errors: `ReportsSection.tsx` setState in an effect, unused `API_BASE` in `reports-section.test.tsx`) and `build`, `publish` and `verify` were skipped; `tree` and `checks / test (backend)` passed
 
 ## 8. Update Technical Documentation (MANDATORY)
 
