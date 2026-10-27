@@ -54,7 +54,7 @@ No endpoint changes. The settings are read at start-up and no route returns them
 
 ## 9. Real-provider check
 
-- [ ] 9.1 Call the real adapter once through `createFalAiImageProvider` with the Warry reference and the scene 26 instruction (one image, about $0.07); record the accepted 1920x1088 size, the latency and whether the text is legible, in `reports/YYYY-MM-DD-step-9-real-adapter-check.md`
+- [x] 9.1 Call the real adapter once through `createFalAiImageProvider` with the Warry reference and the scene 26 instruction (one image, about $0.07); record the accepted 1920x1088 size, the latency and whether the text is legible, in `reports/YYYY-MM-DD-step-9-real-adapter-check.md`
 
 ## 10. Update Technical Documentation (MANDATORY)
 
