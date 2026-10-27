@@ -154,9 +154,7 @@ function RegularApp() {
           snapshot={snapshot}
           notFound={notFound}
           onStartNew={handleStartNew}
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises -- a failed pause is not surfaced yet (JOS-208 PR note)
           onPause={() => pauseSession(sessionId)}
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises -- a failed continue is not surfaced yet (JOS-208 PR note)
           onContinue={() => continueSession(sessionId)}
           onRetry={(sceneId) => retryScene(sessionId, sceneId)}
           onCorrect={(sceneId, instruction) => correctScene(sessionId, sceneId, instruction)}

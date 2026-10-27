@@ -13,3 +13,12 @@ const PAUSE_REFUSAL_SENTENCES: Record<string, string> = {
 export function pauseRefusalSentence(reason: string, fallback = "The change could not be saved."): string {
   return PAUSE_REFUSAL_SENTENCES[reason] ?? (reason.includes(" ") ? reason : fallback);
 }
+
+/**
+ * surface-pause-continue-failure (JOS-217), design Decision 2 — the session's own Pause and Continue, not the scene dial.
+ * Unlike `pauseRefusalSentence`, no reason is shown as it came: `unknown session` and a network error are not sentences.
+ */
+export function sessionPauseRefusalSentence(action: "pause" | "continue", reason: string): string {
+  if (reason === "unknown session") return "This session could not be found.";
+  return action === "pause" ? "The session could not be paused." : "The session could not be continued.";
+}
