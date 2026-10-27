@@ -194,6 +194,14 @@ A provider is a **profile** (`provider_profiles`, `providerProfiles.ts`): a stag
 - **Every provider identifier a stage can bind or record needs a display entry** in `src/stageDiagnostics.ts` (`describeProvider`). An identifier with no entry is shown as `Unknown provider` and logged once, never echoed; `test/stage-diagnostics.test.ts` lists every known identifier.
 - **Derive the counts from the append-only records on read** (`provider_requests`, `stage_attempts`), never from `scenes.attempts`, and read them for the whole session in one query: a snapshot is built on every change.
 
+### The clip request in flight (`show-video-request-status`, JOS-200)
+
+While a scene's clip generates, the scene representation carries `videoRequest` (provider, attempt, `sentAt`, estimate, body), built by `videoRequestView` in `src/videoRequestStatus.ts`.
+
+- **The body is an allow-list.** The adapter reports the body it sent (`sentBody` on the `submitted` result), and `allowListVideoRequest` keeps `prompt`, `duration` and `resolution` and names the first frame `scene <n> image`. The provider's upload URL, task id and any other field never reach the page; the response schema is `.strict()` at every level. A new adapter returns its own `sentBody` and needs no change here; a new field the page may show is added to the allow-list and to the sentinel test in `test/stage-diagnostics-surface.test.ts`.
+- **The in-flight request is counted from its status.** `provider_requests` is written when a request ends, so `sceneStageDiagnostics` adds 1 to the clip count while the scene is `video-generating`. Do not insert the row at submit: usage and cost reports read it as a finished request.
+- **The estimate is computed on read**, never stored: the median of the provider's earlier successful clips (same requested duration when at least 3, else any duration), or none. The page owns the clock (elapsed time, expected arrival), so a snapshot is not pushed per second.
+
 ### Retries and attempts
 
 `bounded-retry-policy` (JOS-184, PRD §10.1) owns every retry: a stage instance (`stageInstanceKey`) gets at most four attempts per cycle, and nothing but a new cycle started by the User adds more.
