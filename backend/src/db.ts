@@ -699,6 +699,28 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       `);
     },
   },
+  {
+    version: 25,
+    description: "add provider_changes: the append-only log of active-provider changes and failed-stage moves (record-provider-changes, JOS-229)",
+    up: (target) => {
+      // Empty, no backfill: active_providers keeps only the last choice, so earlier changes cannot be reconstructed.
+      target.exec(`
+        CREATE TABLE provider_changes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          changed_at TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('active-provider', 'failed-stage-move')),
+          stage TEXT NOT NULL CHECK (stage IN ('reasoning', 'voice', 'alignment', 'image', 'video')),
+          run_id TEXT REFERENCES runs(id),
+          scene_id TEXT REFERENCES scenes(id),
+          previous_provider_id TEXT NOT NULL,
+          previous_provider_label TEXT NOT NULL,
+          new_provider_id TEXT NOT NULL,
+          new_provider_label TEXT NOT NULL
+        );
+        CREATE INDEX idx_provider_changes_changed_at ON provider_changes (changed_at);
+      `);
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -2297,7 +2319,7 @@ export function resetAll(): void {
     db.exec("DROP TRIGGER narration_timestamps_no_delete");
     db.exec("DROP TRIGGER final_video_builds_no_delete");
     db.exec(
-      "DELETE FROM phase_instants; DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs; DELETE FROM active_providers; DELETE FROM provider_profiles;",
+      "DELETE FROM phase_instants; DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM provider_changes; DELETE FROM scenes; DELETE FROM runs; DELETE FROM active_providers; DELETE FROM provider_profiles;",
     );
     db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
     db.exec(SCENE_NO_DELETE_TRIGGER_DDL);
@@ -2328,6 +2350,25 @@ export function upsertActiveProviderChoice(stage: string, providerId: string, ch
   db.prepare(
     "INSERT INTO active_providers (stage, provider_id, changed_at) VALUES (?, ?, ?) ON CONFLICT(stage) DO UPDATE SET provider_id = excluded.provider_id, changed_at = excluded.changed_at",
   ).run(stage, providerId, changedAt);
+}
+
+// record-provider-changes (JOS-229), design Decisions 1 and 2 — the one writer of the log; labels are copied as the Administrator saw them.
+export interface ProviderChangeEntry {
+  changedAt: string;
+  kind: "active-provider" | "failed-stage-move";
+  stage: "reasoning" | "voice" | "alignment" | "image" | "video";
+  runId: string | null;
+  sceneId: string | null;
+  previousProviderId: string;
+  previousProviderLabel: string;
+  newProviderId: string;
+  newProviderLabel: string;
+}
+
+export function recordProviderChange(entry: ProviderChangeEntry): void {
+  db.prepare(
+    "INSERT INTO provider_changes (changed_at, kind, stage, run_id, scene_id, previous_provider_id, previous_provider_label, new_provider_id, new_provider_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  ).run(entry.changedAt, entry.kind, entry.stage, entry.runId, entry.sceneId, entry.previousProviderId, entry.previousProviderLabel, entry.newProviderId, entry.newProviderLabel);
 }
 
 // manage-providers-from-admin (JOS-218) — something that derives state from the stored provider profiles (the adapter

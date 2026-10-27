@@ -10,15 +10,15 @@
 
 ## 2. Backend: migration 25 and the log write (TDD; design Decisions 1, 2)
 
-- [ ] 2.1 Write failing tests: a database migrated up to 24 with saved active-provider choices and moved stages gets an empty `provider_changes` table and every other table is unchanged (spec: The log starts empty).
-- [ ] 2.2 Write failing tests for `recordProviderChange`: both kinds stored with their columns; the CHECK constraints refuse an unknown kind or stage; `resetAll` empties the table.
-- [ ] 2.3 Add migration 25, `recordProviderChange` and the `resetAll` line in `db.ts`. Make 2.1 and 2.2 pass.
+- [x] 2.1 Write failing tests: a database migrated up to 24 with saved active-provider choices and moved stages gets an empty `provider_changes` table and every other table is unchanged (spec: The log starts empty).
+- [x] 2.2 Write failing tests for `recordProviderChange`: both kinds stored with their columns; the CHECK constraints refuse an unknown kind or stage; `resetAll` empties the table.
+- [x] 2.3 Add migration 25, `recordProviderChange` and the `resetAll` line in `db.ts`. Make 2.1 and 2.2 pass.
 
 ## 3. Backend: log the two kinds of change (TDD; design Decision 3)
 
-- [ ] 3.1 Write failing tests through `PUT /admin/providers/:stage`: a change from A to B logs one entry with previous A and new B and their labels (AC1); the first choice over the settings default logs the default as previous; saving the active provider again logs nothing; a refused request (not selectable, not usable) logs nothing.
-- [ ] 3.2 Write failing tests through the move route: a voice-over move and a clip move each log one entry with session, stage, scene (clip only), previous and new provider (AC2); a refused move logs nothing; a later rename of a provider leaves the entry's label unchanged.
-- [ ] 3.3 Wrap `setActiveProvider` in `inTransaction` with the log write, and add the log write to `moveFailedStage`'s transaction. Make 3.1 and 3.2 pass.
+- [x] 3.1 Write failing tests through `PUT /admin/providers/:stage`: a change from A to B logs one entry with previous A and new B and their labels (AC1); the first choice over the settings default logs the default as previous; saving the active provider again logs nothing; a refused request (not selectable, not usable) logs nothing.
+- [x] 3.2 Write failing tests through the move route: a voice-over move and a clip move each log one entry with session, stage, scene (clip only), previous and new provider (AC2); a refused move logs nothing; a later rename of a provider leaves the entry's label unchanged.
+- [x] 3.3 Wrap `setActiveProvider` in `inTransaction` with the log write, and add the log write to `moveFailedStage`'s transaction. Make 3.1 and 3.2 pass.
 
 ## 4. Backend: report and route (TDD; design Decision 4)
 
