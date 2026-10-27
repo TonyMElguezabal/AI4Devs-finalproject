@@ -57,4 +57,4 @@
 
 - [x] 9.1 `docs/api-spec.yml`: add `GET /admin/reports/failures`
 - [x] 9.2 Run `graphify update .`
-- [ ] 9.3 Commit, then (after the user's go-ahead) push and open the PR linking JOS-224; archive the change after merge
+- [x] 9.3 Commit, then (after the user's go-ahead) push and open the PR linking JOS-224; archive the change after merge
