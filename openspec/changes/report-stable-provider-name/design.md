@@ -48,8 +48,8 @@ A private `telemetryProviderOf(identifier: string | null, stage: string): string
 
 1. `null` and stage `assembly` → `local`.
 2. `elevenlabs-native` → `ElevenLabs`.
-3. One of the three stub names → `stub`.
-4. The two legacy identifiers → their seeded profile id (`SEEDED_PROFILES.image.id`, `SEEDED_PROFILES.video.id`).
+3. An identifier starting `stub-` (`stub-image-provider`, `stub-video-provider`, `stub-voice`) → `stub`. A prefix, not three imported names: `videoProvider.ts` is heavy to import from `db.ts`, and no profile id can start with `stub-` (seeded ids are fixed names, added ones are ULIDs).
+4. The two legacy identifiers → their seeded profile id (`SEEDED_PROFILES.image.id`, `SEEDED_PROFILES.video.id`). The two strings are copied into `db.ts` as literals, because `config/providers.ts` loads the settings file when imported; a test pins them to `LEGACY_IMAGE_PROVIDER_IDENTIFIER` and `LEGACY_VIDEO_PROVIDER_IDENTIFIER`.
 5. `SELECT adapter_type FROM provider_profiles WHERE id = ?` → `ADAPTER_VENDORS[adapter_type]`.
 6. Anything else → `unknown`.
 
@@ -67,7 +67,7 @@ Every `providers.json` query groups by `provider` and none filters on a value, s
 
 ## Risks / Trade-offs
 
-- [The legacy constants live in `config/providers.ts`, which loads the settings at import] → If `db.ts` cannot import it without a side effect, copy the two strings into the resolver with a comment pointing to their source, and pin them with a test.
+- [The legacy constants live in `config/providers.ts`, which loads the settings at import, so `db.ts` cannot import it without that side effect (checked in task 1.2)] → The two strings are copied into the resolver with a comment pointing to their source and pinned by a test (Decision 2).
 - [A profile removed from `provider_profiles` while attempts still name it] → It reports `unknown`. `providerAdmin.ts` retires, rather than removes, a profile that attempts or scenes still use, so its row and adapter type stay and this should not happen.
 - [A one-row lookup per reported call] → One indexed primary-key read, only when consent is on; negligible next to a provider call.
 - [Old series remain in Grafana] → They expire with retention; the ticket accepts this.

@@ -28,8 +28,12 @@ afterEach(() => {
   resetTelemetryForTest();
 });
 
-/** The `vid4you_billed_units_total` of the latest export (counters are cumulative, so older exports are not added) for the provider. */
-async function telemetryUnits(provider: string): Promise<number> {
+/**
+ * The `vid4you_billed_units_total` of the latest export (counters are cumulative, so older exports are not added) for the stage.
+ * By stage, not provider: since report-stable-provider-name (JOS-213) the `provider` label is a vendor name, and the profiles
+ * here have no vendor. Each stage has one provider in these tests, so the stage total is that provider's.
+ */
+async function telemetryUnits(stage: string): Promise<number> {
   await flushTelemetry();
   return metrics
     .getMetrics()
@@ -37,7 +41,7 @@ async function telemetryUnits(provider: string): Promise<number> {
     .flatMap((resource) => resource.scopeMetrics.flatMap((scope) => scope.metrics))
     .filter((metric) => metric.descriptor.name === "vid4you_billed_units_total")
     .flatMap((metric) => metric.dataPoints.map((point) => ({ attributes: point.attributes, value: point.value as number })))
-    .filter((point) => point.attributes.provider === provider)
+    .filter((point) => point.attributes.stage === stage)
     .reduce((total, point) => total + point.value, 0);
 }
 
@@ -47,7 +51,7 @@ describe("billed units of the report equal those of the telemetry", () => {
   it("for voice characters", async () => {
     seedAttempt({ stage: "voice-over", providerId: "voice-a", sentAt: AT, outcome: "success", scriptLength: 31 });
     seedAttempt({ stage: "voice-over", providerId: "voice-a", sentAt: AT, outcome: "transient", scriptLength: 99 });
-    expect(await telemetryUnits("voice-a")).toBe(31);
+    expect(await telemetryUnits("voice-over")).toBe(31);
     expect(reportUnits("voice-a")).toBe(31);
   });
 
@@ -57,8 +61,8 @@ describe("billed units of the report equal those of the telemetry", () => {
     seedSceneAttempt({ sceneId: sceneIds[0]!, stage: "image", mode: "success", latencyMs: 10, sentAt: AT });
     seedSceneAttempt({ sceneId: sceneIds[0]!, stage: "video", mode: "success", latencyMs: 10, sentAt: AT });
     seedSceneAttempt({ sceneId: sceneIds[0]!, stage: "video", mode: "transient_failure", latencyMs: 10, sentAt: AT });
-    expect(await telemetryUnits("vid-a")).toBeGreaterThan(0);
-    expect(reportUnits("img-a")).toBe(await telemetryUnits("img-a"));
-    expect(reportUnits("vid-a")).toBe(await telemetryUnits("vid-a"));
+    expect(await telemetryUnits("video")).toBeGreaterThan(0);
+    expect(reportUnits("img-a")).toBe(await telemetryUnits("image"));
+    expect(reportUnits("vid-a")).toBe(await telemetryUnits("video"));
   });
 });
