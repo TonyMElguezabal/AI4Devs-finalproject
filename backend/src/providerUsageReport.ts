@@ -35,7 +35,7 @@ export interface ProviderUsageReport {
 
 type CountedOutcome = "success" | "transient" | "not-retryable" | "timed-out";
 
-interface CountedAttempt {
+export interface CountedAttempt {
   stage: ReportStage;
   providerId: string;
   outcome: CountedOutcome;
@@ -44,13 +44,14 @@ interface CountedAttempt {
   units: number;
 }
 
-const STAGE_ORDER: readonly ReportStage[] = ["voice", "alignment", "reasoning", "image", "video"];
+export const STAGE_ORDER: readonly ReportStage[] = ["voice", "alignment", "reasoning", "image", "video"];
 const SESSION_STAGES = { "voice-over": ["voice", "voice_characters"], timestamps: ["alignment", "audio_seconds"], decomposition: ["reasoning", "requests"] } as const;
 const SESSION_OUTCOMES: Record<string, CountedOutcome> = { success: "success", "late-success": "success", transient: "transient", "not-retryable": "not-retryable", "timed-out": "timed-out" };
 const SCENE_OUTCOMES: Record<string, CountedOutcome> = { success: "success", transient_failure: "transient", not_retryable_failure: "not-retryable" };
 
+// report-failures-and-retries (JOS-224), design Decision 1 — exported so the failures report counts exactly the rows this report counts.
 // ponytail: reads every counted attempt of the period into memory; move the aggregation into SQL if "all time" gets slow.
-function countedAttempts(from: string | null, to: string): CountedAttempt[] {
+export function countedAttempts(from: string | null, to: string): CountedAttempt[] {
   const sessionRows = db
     .prepare(
       `SELECT a.stage, a.provider_id, a.outcome, a.sent_at, a.finished_at,
