@@ -149,6 +149,11 @@
 # unpriced. A violation is a 400 with a problem on `pricePerUnit` or `priceCurrency`. Example: `{ "model": "fal-ai/flux/dev",
 # "pricePerUnit": 0.04, "priceCurrency": "USD" }`. `GET /admin/provider-types` lists both as non-required fields at the end of every adapter
 # type, the price labelled with the stage's unit ("Price per voice character | audio second | request | image | clip second").
+# JOS-220 (test-provider-connection) - 2026-10-26: new `POST /admin/provider-profiles/{id}/test` (body `{ acceptCharge? }`; 200 `{ outcome:
+# connected|key-rejected|not-found|unreachable|unexpected|no-key, covers, httpStatus? }`, a closed object that never carries a key or the vendor's
+# answer; 401 as `/admin/access`; 404; 409 `{ reason: charge-not-accepted }` when the check is charged and `acceptCharge` is not true). It sends
+# one request to the profile's vendor with the stored key and writes nothing. `GET /admin/provider-types` adds `connectionCheck: { charged, covers }`
+# to every type. Allowed here because it changes no session content (content lock, AC1).
 # JOS-172 (move-failed-stage-to-active-provider) - 2026-10-22: new `GET /admin/failed-stages` (the failed stages bound to a provider other than
 # the active one: `sessionId`, `sessionTitle`, `stage`, `sceneId`, `sceneNumber`, both providers' ids and labels, `cause`) and
 # `POST /admin/failed-stages/to-active-provider` (body `{ sessionId, stage, sceneId? }`; 200 `{ moved }`, with the new requested
@@ -3240,11 +3245,23 @@ paths:
                               - kind
                               - required
                             additionalProperties: false
+                        connectionCheck:
+                          type: object
+                          properties:
+                            charged:
+                              type: boolean
+                            covers:
+                              type: string
+                          required:
+                            - charged
+                            - covers
+                          additionalProperties: false
                       required:
                         - id
                         - stage
                         - label
                         - fields
+                        - connectionCheck
                       additionalProperties: false
                 required:
                   - types
@@ -3801,6 +3818,111 @@ paths:
                   - ok
                   - reason
                   - stage
+                additionalProperties: false
+  /admin/provider-profiles/{id}/test:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                acceptCharge:
+                  type: boolean
+              additionalProperties: false
+      parameters:
+        - schema:
+            type: string
+            minLength: 1
+          in: path
+          name: id
+          required: true
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  outcome:
+                    type: string
+                    enum:
+                      - connected
+                      - key-rejected
+                      - not-found
+                      - unreachable
+                      - unexpected
+                      - no-key
+                  covers:
+                    type: string
+                  httpStatus:
+                    type: number
+                required:
+                  - outcome
+                  - covers
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-found
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - charge-not-accepted
+                required:
+                  - ok
+                  - reason
                 additionalProperties: false
   /admin/failed-stages:
     get:

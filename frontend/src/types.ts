@@ -195,6 +195,14 @@ export interface AdapterTypeInfo {
   stage: ProviderStage;
   label: string;
   fields: ParameterFieldInfo[];
+  /** test-provider-connection (JOS-220): whether the vendor charges for the check, and what a pass proves. */
+  connectionCheck: { charged: boolean; covers: string };
+}
+export type ConnectionOutcome = "connected" | "key-rejected" | "not-found" | "unreachable" | "unexpected" | "no-key";
+export interface ConnectionTestResult {
+  outcome: ConnectionOutcome;
+  covers: string;
+  httpStatus?: number;
 }
 export interface ProfileProblem {
   field: string;
