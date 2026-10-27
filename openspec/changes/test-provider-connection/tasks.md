@@ -25,8 +25,8 @@
 
 ## 4. Frontend tests first, then implementation
 
-- [ ] 4.1 Test `ProviderProfilesSection`: a "Test connection" button per profile with a key; disabled with unsaved changes and while a test runs; a charged type shows the charge notice and sends only after confirmation; each outcome shows its sentence and the `covers` text; the key never appears
-- [ ] 4.2 Add the API client call and the button, notice, confirmation and result line
+- [x] 4.1 Test `ProviderProfilesSection`: a "Test connection" button per profile with a key; disabled with unsaved changes and while a test runs; a charged type shows the charge notice and sends only after confirmation; each outcome shows its sentence and the `covers` text; the key never appears
+- [x] 4.2 Add the API client call and the button, notice, confirmation and result line
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
