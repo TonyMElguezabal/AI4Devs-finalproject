@@ -42,15 +42,16 @@
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the backend on a copy of a database that holds real failed attempts and failed scenes (the Windows run results, or a stub-provider session with failure modes); record the row counts
-- [ ] 7.2 `GET /admin/reports/failures` for the last 30 days and for all time; compare each stage's counts with `GET /admin/reports/provider-usage` for the same period and with direct sqlite counts (AC1 to AC3)
-- [ ] 7.3 Grep the response for the clip failure texts stored in `scenes.last_error`: none appears (AC4)
-- [ ] 7.4 Request the report without the password (401) and with `from` after `to` (400) (AC5)
-- [ ] 7.5 Document commands and responses in `reports/YYYY-MM-DD-step-7-manual-endpoint-testing.md`; confirm the row counts are unchanged and remove the database copy
+- [x] 7.1 Start the backend on a copy of a database that holds real failed attempts and failed scenes (the Windows run results, or a stub-provider session with failure modes); record the row counts
+- [x] 7.2 `GET /admin/reports/failures` for the last 30 days and for all time; compare each stage's counts with `GET /admin/reports/provider-usage` for the same period and with direct sqlite counts (AC1 to AC3)
+- [x] 7.3 Grep the response for the clip failure texts stored in `scenes.last_error`: none appears (AC4)
+- [x] 7.4 Request the report without the password (401) and with `from` after `to` (400) (AC5)
+- [x] 7.5 Document commands and responses in `reports/YYYY-MM-DD-step-7-manual-endpoint-testing.md`; confirm the row counts are unchanged and the original database is untouched. The copy is kept for group 8 and removed at its end (8.2).
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
 - [ ] 8.1 Unlock `/admin`, open Reports, confirm the Failures and retries table matches the curl answer of 7.2, switch to "All time" and back, and confirm the failed-now counts do not change; record in `reports/YYYY-MM-DD-step-8-e2e-testing.md`
+- [ ] 8.2 Stop the servers, remove the scratch database copy and confirm the original `Winrun_results/vid4you.sqlite` is unchanged
 
 ## 9. Update Technical Documentation (MANDATORY)
 
