@@ -38,16 +38,16 @@
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 8.1 With the frontend and a backend running on throwaway data, open `/admin`, open the Reports section, stop the backend, choose another period to see the error, restart it, choose a period again and confirm the error is gone (AGENT MUST EXECUTE)
-- [ ] 8.2 Restore the environment and document the scenarios in `reports/YYYY-MM-DD-step-8-e2e-browser.md`
+- [x] 8.1 With the frontend and a backend running on throwaway data, open `/admin`, open the Reports section, stop the backend, choose another period to see the error, restart it, choose a period again and confirm the error is gone (AGENT MUST EXECUTE)
+- [x] 8.2 Restore the environment and document the scenarios in `reports/YYYY-MM-DD-step-8-e2e-browser.md`
 
 ## 9. Real-provider check (not applicable)
 
-- [ ] 9.1 Record in the final report that no provider is involved
+- [x] 9.1 Record in the final report that no provider is involved — none: the change touches a React component and its test; no provider request is sent
 
 ## 10. Update Technical Documentation (MANDATORY)
 
-- [ ] 10.1 `docs/PRD.md`, `docs/api-spec.yml`, `docs/data-model.md` and the README do not change (record the check)
+- [x] 10.1 `docs/PRD.md`, `docs/api-spec.yml`, `docs/data-model.md` and the README do not change (record the check) — `git diff origin/main --stat` lists only `frontend/` and this change's folder
 - [ ] 10.2 Run `graphify update .`
 - [ ] 10.3 Open the pull request linking JOS-231 and JOS-206; archive the change after merge (`openspec archive fix-frontend-lint-errors --skip-specs`)
 - [ ] 10.4 After the merge, re-run the Release workflow in `dry-run` mode on `main` and confirm its frontend check passes (JOS-206 task 7.2)
