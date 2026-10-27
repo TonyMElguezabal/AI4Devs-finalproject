@@ -33,16 +33,16 @@
 
 ## 6. Backend and Frontend: Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 6.1 Run the migration, active-provider, failed-stage-move, admin-reports-route and reports-section tests; fix only assertions that list migrations or tables, or count the Reports section's requests.
+- [x] 6.1 Run the migration, active-provider, failed-stage-move, admin-reports-route and reports-section tests; fix only assertions that list migrations or tables, or count the Reports section's requests.
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 7.1 Capture the pre-test baseline of the local database (`schema_migrations` max version, `active_providers` rows, `provider_changes` absence)
-- [ ] 7.2 Run the targeted tests from groups 2 to 5
-- [ ] 7.3 Run the full backend and frontend suites and lint in this worktree with their own `DB_PATH` and `PROJECTS_ROOT`
-- [ ] 7.4 Verify the post-test database state matches the baseline and restore if needed
-- [ ] 7.5 Create report `openspec/changes/record-provider-changes/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`
-- [ ] 7.6 Mark this group complete only after tests pass and the report exists
+- [x] 7.1 Capture the pre-test baseline of the local database (`schema_migrations` max version, `active_providers` rows, `provider_changes` absence)
+- [x] 7.2 Run the targeted tests from groups 2 to 5
+- [x] 7.3 Run the full backend and frontend suites and lint in this worktree with their own `DB_PATH` and `PROJECTS_ROOT`
+- [x] 7.4 Verify the post-test database state matches the baseline and restore if needed
+- [x] 7.5 Create report `openspec/changes/record-provider-changes/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`
+- [x] 7.6 Mark this group complete only after tests pass and the report exists
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
