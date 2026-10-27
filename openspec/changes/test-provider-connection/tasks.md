@@ -19,9 +19,9 @@
 
 ## 3. Backend implementation
 
-- [ ] 3.1 Add `backend/src/providerConnectionCheck.ts` with one check per adapter type (Decision 2)
-- [ ] 3.2 Add `connectionCheck: { charged, covers }` to the provider-type catalogue and its response schema
-- [ ] 3.3 Add `POST /admin/provider-profiles/:id/test` to `adminProviderRoutes.ts` with the closed response schema (Decisions 1, 3, 5)
+- [x] 3.1 Add `backend/src/providerConnectionCheck.ts` with one check per adapter type (Decision 2)
+- [x] 3.2 Add `connectionCheck: { charged, covers }` to the provider-type catalogue and its response schema
+- [x] 3.3 Add `POST /admin/provider-profiles/:id/test` to `adminProviderRoutes.ts` with the closed response schema (Decisions 1, 3, 5)
 
 ## 4. Frontend tests first, then implementation
 

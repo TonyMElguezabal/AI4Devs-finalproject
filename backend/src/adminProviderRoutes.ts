@@ -2,6 +2,9 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { adminDeniedSchema } from "./adminAccess.ts";
+import { CONNECTION_CHECKS, runConnectionCheck } from "./providerConnectionCheck.ts";
+import { keyFor } from "./keyStore.ts";
+import { getProfile } from "./providerProfiles.ts";
 import { createProfile, deleteProfile, editProfile, listProfileViews } from "./providerAdmin.ts";
 import { ADAPTER_TYPES, PROVIDER_STAGES } from "./providerTypes.ts";
 
@@ -38,14 +41,23 @@ const fieldSchema = z.object({
   acceptsNumber: z.boolean().optional(),
 });
 
+const connectionCheckSchema = z.object({ charged: z.boolean(), covers: z.string() });
+
+// test-provider-connection (JOS-220), design Decision 5 — the closed result of a test: the page writes the sentences.
+const testResultSchema = z.strictObject({
+  outcome: z.enum(["connected", "key-rejected", "not-found", "unreachable", "unexpected", "no-key"]),
+  covers: z.string(),
+  httpStatus: z.number().optional(),
+});
+
 export function registerProviderProfileRoutes(admin: FastifyInstance): void {
   const typedAdmin = admin.withTypeProvider<ZodTypeProvider>();
 
   typedAdmin.get(
     "/provider-types",
-    { schema: { response: { 200: z.object({ types: z.array(z.object({ id: z.string(), stage: z.enum(PROVIDER_STAGES), label: z.string(), fields: z.array(fieldSchema) })) }), 401: adminDeniedSchema } } },
+    { schema: { response: { 200: z.object({ types: z.array(z.object({ id: z.string(), stage: z.enum(PROVIDER_STAGES), label: z.string(), fields: z.array(fieldSchema), connectionCheck: connectionCheckSchema })) }), 401: adminDeniedSchema } } },
     // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
-    async () => ({ types: ADAPTER_TYPES }),
+    async () => ({ types: ADAPTER_TYPES.map((type) => ({ ...type, connectionCheck: { charged: CONNECTION_CHECKS[type.id]!.charged, covers: CONNECTION_CHECKS[type.id]!.covers } })) }),
   );
 
   typedAdmin.get(
@@ -105,6 +117,30 @@ export function registerProviderProfileRoutes(admin: FastifyInstance): void {
       if (result.ok) return { result: result.result };
       if (result.kind === "not-found") return reply.code(404).send({ ok: false as const, reason: "not-found" as const });
       return reply.code(409).send({ ok: false as const, reason: "active" as const, stage: result.stage });
+    },
+  );
+
+  typedAdmin.post(
+    "/provider-profiles/:id/test",
+    {
+      schema: {
+        params: z.object({ id: z.string().min(1) }),
+        body: z.object({ acceptCharge: z.boolean().optional() }).optional(),
+        response: { 200: testResultSchema, 401: adminDeniedSchema, 404: notFoundSchema, 409: z.object({ ok: z.literal(false), reason: z.literal("charge-not-accepted") }) },
+      },
+    },
+    async (request, reply) => {
+      const profile = getProfile(request.params.id);
+      if (!profile) return reply.code(404).send({ ok: false as const, reason: "not-found" as const });
+      const { charged, covers } = CONNECTION_CHECKS[profile.adapterType]!;
+      let key: string;
+      try {
+        key = keyFor(profile.id);
+      } catch {
+        return { outcome: "no-key" as const, covers };
+      }
+      if (charged && request.body?.acceptCharge !== true) return reply.code(409).send({ ok: false as const, reason: "charge-not-accepted" as const });
+      return { ...(await runConnectionCheck(profile.adapterType, profile.parameters, key)), covers };
     },
   );
 }
