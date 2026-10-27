@@ -1,4 +1,4 @@
-import { getActiveProviderChoice, upsertActiveProviderChoice } from "./db.ts";
+import { getActiveProviderChoice, inTransaction, recordProviderChange, upsertActiveProviderChoice } from "./db.ts";
 import { getAlignmentProviderRegistry, getReasoningProviderRegistry } from "./decompositionDependencies.ts";
 import { getImageProviderRegistry } from "./imageProvider.ts";
 import { getVideoProviderRegistry } from "./videoProvider.ts";
@@ -71,7 +71,25 @@ export function setActiveProvider(stage: ProviderStage, providerId: string, now:
   if (!selectableProviders(stage).some((provider) => provider.id === providerId)) {
     throw new Error(`"${providerId}" is not a ${stage} provider this build ships.`);
   }
-  upsertActiveProviderChoice(stage, providerId, now().toISOString());
+  // record-provider-changes (JOS-229), design Decision 3 — the choice and its log entry are written together; saving the
+  // provider that is already active changes nothing and logs nothing.
+  inTransaction(() => {
+    const previous = activeProviderId(stage);
+    const changedAt = now().toISOString();
+    upsertActiveProviderChoice(stage, providerId, changedAt);
+    if (previous === providerId) return;
+    recordProviderChange({
+      changedAt,
+      kind: "active-provider",
+      stage,
+      runId: null,
+      sceneId: null,
+      previousProviderId: previous,
+      previousProviderLabel: labelOf(stage, previous),
+      newProviderId: providerId,
+      newProviderLabel: labelOf(stage, providerId),
+    });
+  });
 }
 
 /**

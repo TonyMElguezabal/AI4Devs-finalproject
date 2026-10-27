@@ -4,7 +4,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReportPeriodSelector } from "../src/components/ReportPeriodSelector";
 import { ReportsSection } from "../src/components/ReportsSection";
-import type { PipelineTimeReport, ProviderUsageReport, ProviderUsageRow, ReportPeriod } from "../src/types";
+import type { FailuresReport, PipelineTimeReport, ProviderChangesReport, ProviderUsageReport, ProviderUsageRow, ReportPeriod } from "../src/types";
 
 // report-provider-usage (JOS-223), group 4 — design Decision 7. `fetch` is mocked with the backend's answers.
 
@@ -52,14 +52,31 @@ const emptyPipeline: PipelineTimeReport = {
   sessions: [],
 };
 
-/** `answer` replies to the provider-usage request (its URLs are returned); the pipeline-time request gets `pipeline`. */
-function stubBackend(answer: (url: URL) => Response, pipeline: () => Response = () => new Response(JSON.stringify(emptyPipeline), { status: 200 })) {
+// report-sessions (JOS-225), group 4.
+const emptySessions = { from: null, to: NOW.toISOString(), rows: [] };
+
+// report-failures-and-retries (JOS-224), group 4.
+const emptyFailures: FailuresReport = { from: null, to: NOW.toISOString(), stages: [], wordings: [], failedScenesNow: { image: 0, video: 0 } };
+
+// record-provider-changes (JOS-229), group 5.
+const emptyProviderChanges: ProviderChangesReport = { from: null, to: NOW.toISOString(), entries: [] };
+
+/** `answer` replies to the provider-usage request (its URLs are returned); the pipeline-time request gets `pipeline`, the failures request `failures`. */
+function stubBackend(
+  answer: (url: URL) => Response,
+  pipeline: () => Response = () => new Response(JSON.stringify(emptyPipeline), { status: 200 }),
+  failures: () => Response = () => new Response(JSON.stringify(emptyFailures), { status: 200 }),
+  providerChanges: () => Response = () => new Response(JSON.stringify(emptyProviderChanges), { status: 200 }),
+) {
   const urls: URL[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
       const parsed = new URL(url);
       if (parsed.pathname.endsWith("/pipeline-time")) return pipeline();
+      if (parsed.pathname.endsWith("/failures")) return failures();
+      if (parsed.pathname.endsWith("/provider-changes")) return providerChanges();
+      if (parsed.pathname.endsWith("/sessions")) return new Response(JSON.stringify(emptySessions), { status: 200 });
       urls.push(parsed);
       return answer(parsed);
     }),
@@ -146,11 +163,15 @@ describe("ReportsSection", () => {
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         seen.push(new Headers(init?.headers).get("authorization"));
-        return url.endsWith("/pipeline-time") || url.includes("/pipeline-time?") ? new Response(JSON.stringify(emptyPipeline), { status: 200 }) : ok([]);
+        if (url.includes("/pipeline-time")) return new Response(JSON.stringify(emptyPipeline), { status: 200 });
+        if (url.includes("/failures")) return new Response(JSON.stringify(emptyFailures), { status: 200 });
+        if (url.includes("/provider-changes")) return new Response(JSON.stringify(emptyProviderChanges), { status: 200 });
+        if (url.includes("/sessions")) return new Response(JSON.stringify(emptySessions), { status: 200 });
+        return ok([]);
       }),
     );
     render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
-    await waitFor(() => expect(seen).toEqual([`Bearer ${PASSWORD}`, `Bearer ${PASSWORD}`]));
+    await waitFor(() => expect(seen).toEqual(Array(5).fill(`Bearer ${PASSWORD}`)));
   });
 
   it("shows one table row per report row with formatted numbers and a dash for a missing latency", async () => {
@@ -200,7 +221,7 @@ describe("ReportsSection", () => {
     stubBackend(() => ok([]));
     render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
     expect(await screen.findByText("No provider activity in this period.")).toBeInTheDocument();
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Provider usage" })).not.toBeInTheDocument();
   });
 
   it("shows the attribution note when there is an image or video row, and not otherwise", async () => {
@@ -272,7 +293,16 @@ describe("ReportsSection pipeline time", () => {
       vi.fn(async (url: string) => {
         const parsed = new URL(url);
         seen.push(parsed);
-        return new Response(JSON.stringify(parsed.pathname.endsWith("/pipeline-time") ? pipelineReport : reportOf([])), { status: 200 });
+        const body = parsed.pathname.endsWith("/pipeline-time")
+          ? pipelineReport
+          : parsed.pathname.endsWith("/failures")
+            ? emptyFailures
+            : parsed.pathname.endsWith("/provider-changes")
+              ? emptyProviderChanges
+              : parsed.pathname.endsWith("/sessions")
+                ? emptySessions
+                : reportOf([]);
+        return new Response(JSON.stringify(body), { status: 200 });
       }),
     );
     render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
@@ -321,5 +351,212 @@ describe("ReportsSection pipeline time", () => {
     render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not load the pipeline time report");
     expect(await screen.findByRole("table", { name: "Provider usage" })).toBeInTheDocument();
+  });
+});
+
+// report-failures-and-retries (JOS-224), group 4 — design Decision 7.
+const failuresReport: FailuresReport = {
+  from: null,
+  to: NOW.toISOString(),
+  stages: [
+    { stage: "voice", transient: 3, notRetryable: 1, timedOut: 1, budgetsExhausted: 1, manualRetries: 2 },
+    { stage: "video", transient: 0, notRetryable: 4, timedOut: 0, budgetsExhausted: null, manualRetries: null },
+  ],
+  wordings: [
+    { stage: "voice", message: "The voice provider answered HTTP 503.", attempts: 1234 },
+    { stage: "voice", message: "The voice provider refused the voice.", attempts: 2 },
+  ],
+  failedScenesNow: { image: 1, video: 2 },
+};
+
+describe("ReportsSection failures and retries", () => {
+  const withFailures = (failures: () => Response) => stubBackend(() => ok([voiceRow]), undefined, failures);
+  const answer = (report: FailuresReport) => () => new Response(JSON.stringify(report), { status: 200 });
+
+  it("requests the failures report for the same period and again when it changes", async () => {
+    const seen: URL[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const parsed = new URL(url);
+        seen.push(parsed);
+        const body = parsed.pathname.endsWith("/pipeline-time")
+          ? emptyPipeline
+          : parsed.pathname.endsWith("/failures")
+            ? failuresReport
+            : parsed.pathname.endsWith("/provider-changes")
+              ? emptyProviderChanges
+              : parsed.pathname.endsWith("/sessions")
+                ? emptySessions
+                : reportOf([]);
+        return new Response(JSON.stringify(body), { status: 200 });
+      }),
+    );
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+    await screen.findByRole("table", { name: "Failures and retries" });
+    const failuresCalls = () => seen.filter((url) => url.pathname === "/admin/reports/failures");
+    expect(failuresCalls()[0]!.searchParams.get("from")).toBe(new Date(NOW.getTime() - 30 * DAY_MS).toISOString());
+
+    await userEvent.setup().click(screen.getByRole("radio", { name: "Last 7 days" }));
+    await waitFor(() => expect(failuresCalls()).toHaveLength(2));
+    expect(failuresCalls()[1]!.searchParams.get("from")).toBe(new Date(NOW.getTime() - 7 * DAY_MS).toISOString());
+  });
+
+  it("shows one row per stage, with 'not recorded' for the scene stages' budgets and manual retries", async () => {
+    withFailures(answer(failuresReport));
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+
+    const table = await screen.findByRole("table", { name: "Failures and retries" });
+    expect(within(table).getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
+      "Stage",
+      "Transient failures",
+      "Not-retryable failures",
+      "Timed out",
+      "Retry budgets exhausted",
+      "Manual retries",
+    ]);
+    const rows = within(table).getAllByRole("row").slice(1);
+    const cells = (index: number) => within(rows[index]!).getAllByRole("cell").map((cell) => cell.textContent);
+    expect(cells(0)).toEqual(["Voice", "3", "1", "1", "1", "2"]);
+    expect(cells(1)).toEqual(["Video", "0", "4", "0", "not recorded", "not recorded"]);
+  });
+
+  it("lists the failure wordings with their counts", async () => {
+    withFailures(answer(failuresReport));
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+
+    const table = await screen.findByRole("table", { name: "Most frequent failure wordings" });
+    const rows = within(table).getAllByRole("row").slice(1);
+    expect(within(rows[0]!).getAllByRole("cell").map((cell) => cell.textContent)).toEqual(["Voice", "The voice provider answered HTTP 503.", "1,234"]);
+    expect(rows).toHaveLength(2);
+  });
+
+  it("shows the scenes failed now by stage, labelled as current", async () => {
+    withFailures(answer(failuresReport));
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+
+    const table = await screen.findByRole("table", { name: "Scenes failed now" });
+    const cells = within(table).getAllByRole("row").slice(1).map((row) => within(row).getAllByRole("cell").map((cell) => cell.textContent));
+    expect(cells).toEqual([
+      ["Image", "1"],
+      ["Clip", "2"],
+    ]);
+    expect(screen.getByText(/right now, whatever period is chosen/i)).toBeInTheDocument();
+  });
+
+  it("says there were no failures in the period and still shows the scenes failed now", async () => {
+    withFailures(answer({ ...emptyFailures, failedScenesNow: { image: 0, video: 3 } }));
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+
+    expect(await screen.findByText("No failures or retries in this period.")).toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Failures and retries" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Most frequent failure wordings" })).not.toBeInTheDocument();
+    expect(within(screen.getByRole("table", { name: "Scenes failed now" })).getByText("3")).toBeInTheDocument();
+  });
+
+  it("locks the page, once, when only the failures request is answered 401", async () => {
+    withFailures(() => new Response("{}", { status: 401 }));
+    const onDenied = vi.fn();
+    render(<ReportsSection password={PASSWORD} onDenied={onDenied} />);
+    await waitFor(() => expect(onDenied).toHaveBeenCalledTimes(1));
+  });
+
+  it("shows its own message when only the failures request fails, and clears it when the period changes", async () => {
+    let calls = 0;
+    withFailures(() => (calls++ === 0 ? new Response("{}", { status: 500 }) : new Response(JSON.stringify(failuresReport), { status: 200 })));
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+
+    expect(await screen.findByText(/Could not load the failures and retries report/)).toBeInTheDocument();
+    expect(await screen.findByRole("table", { name: "Provider usage" })).toBeInTheDocument();
+
+    await userEvent.setup().click(screen.getByRole("radio", { name: "Last 7 days" }));
+
+    await waitFor(() => expect(screen.queryByText(/Could not load the failures and retries report/)).not.toBeInTheDocument());
+    expect(await screen.findByRole("table", { name: "Failures and retries" })).toBeInTheDocument();
+  });
+});
+
+describe("ReportsSection provider changes", () => {
+  const changesReport: ProviderChangesReport = {
+    from: null,
+    to: NOW.toISOString(),
+    entries: [
+      { changedAt: "2026-10-21T09:30:00.000Z", kind: "failed-stage-move", stage: "video", sessionId: "run-1", sessionTitle: "Lighthouse", sceneNumber: 3, previousProviderId: "vid-a", previousProviderLabel: "Vid A", newProviderId: "vid-b", newProviderLabel: "Vid B" },
+      { changedAt: "2026-10-20T08:00:00.000Z", kind: "active-provider", stage: "voice", sessionId: null, sessionTitle: null, sceneNumber: null, previousProviderId: "voice-a", previousProviderLabel: "Voice A", newProviderId: "voice-b", newProviderLabel: "Voice B" },
+    ],
+  };
+  const withChanges = (providerChanges: () => Response) => stubBackend(() => ok([voiceRow]), undefined, undefined, providerChanges);
+  const answer = (report: ProviderChangesReport) => () => new Response(JSON.stringify(report), { status: 200 });
+
+  it("requests the provider-changes report for the same period and again when it changes", async () => {
+    const seen: URL[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const parsed = new URL(url);
+        seen.push(parsed);
+        const body = parsed.pathname.endsWith("/pipeline-time")
+          ? emptyPipeline
+          : parsed.pathname.endsWith("/failures")
+            ? emptyFailures
+            : parsed.pathname.endsWith("/provider-changes")
+              ? changesReport
+              : parsed.pathname.endsWith("/sessions")
+                ? emptySessions
+                : reportOf([]);
+        return new Response(JSON.stringify(body), { status: 200 });
+      }),
+    );
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+    await screen.findByRole("table", { name: "Provider changes" });
+    const calls = () => seen.filter((url) => url.pathname === "/admin/reports/provider-changes");
+    expect(calls()[0]!.searchParams.get("from")).toBe(new Date(NOW.getTime() - 30 * DAY_MS).toISOString());
+
+    await userEvent.setup().click(screen.getByRole("radio", { name: "Last 7 days" }));
+
+    await waitFor(() => expect(calls()).toHaveLength(2));
+    expect(calls()[1]!.searchParams.get("from")).toBe(new Date(NOW.getTime() - 7 * DAY_MS).toISOString());
+  });
+
+  it("shows one row per entry, newest first, with the providers' names and a blank session and scene for an active-provider change", async () => {
+    withChanges(answer(changesReport));
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+
+    const table = await screen.findByRole("table", { name: "Provider changes" });
+    expect(within(table).getAllByRole("columnheader").map((header) => header.textContent)).toEqual(["When", "What", "Stage", "Session", "Scene", "From", "To"]);
+    const rows = within(table).getAllByRole("row").slice(1);
+    const cells = (index: number) => within(rows[index]!).getAllByRole("cell").map((cell) => cell.textContent);
+    expect(cells(0).slice(1)).toEqual(["Failed stage moved", "Video", "Lighthouse", "3", "Vid A", "Vid B"]);
+    expect(cells(1).slice(1)).toEqual(["Active provider changed", "Voice", "", "", "Voice A", "Voice B"]);
+    expect(rows).toHaveLength(2);
+  });
+
+  it("says there were no provider changes in an empty period", async () => {
+    withChanges(answer(emptyProviderChanges));
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+
+    expect(await screen.findByText("There were no provider changes in this period.")).toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Provider changes" })).not.toBeInTheDocument();
+  });
+
+  it("locks the page, once, when only the provider-changes request is answered 401", async () => {
+    withChanges(() => new Response("{}", { status: 401 }));
+    const onDenied = vi.fn();
+    render(<ReportsSection password={PASSWORD} onDenied={onDenied} />);
+    await waitFor(() => expect(onDenied).toHaveBeenCalledTimes(1));
+  });
+
+  it("shows its own message when only the provider-changes request fails, and clears it when the period changes", async () => {
+    let calls = 0;
+    withChanges(() => (calls++ === 0 ? new Response("{}", { status: 500 }) : new Response(JSON.stringify(changesReport), { status: 200 })));
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+
+    expect(await screen.findByText(/Could not load the provider changes report/)).toBeInTheDocument();
+    expect(await screen.findByRole("table", { name: "Provider usage" })).toBeInTheDocument();
+
+    await userEvent.setup().click(screen.getByRole("radio", { name: "Last 7 days" }));
+
+    await waitFor(() => expect(screen.queryByText(/Could not load the provider changes report/)).not.toBeInTheDocument());
+    expect(await screen.findByRole("table", { name: "Provider changes" })).toBeInTheDocument();
   });
 });
