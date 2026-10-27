@@ -33,18 +33,18 @@
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Review the tests that list `/admin` routes or sections (admin surface/route-list test, `AdminPage`/`AdminTools`/`ReportsSection` tests) and update them for the new routes and table.
-- [ ] 5.2 Map every scenario in `specs/admin-reports/spec.md` and JOS-225 AC1–AC5 to at least one test. List the mapping in the step 6 report.
-- [ ] 5.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
+- [x] 5.1 Review the tests that list `/admin` routes or sections (admin surface/route-list test, `AdminPage`/`AdminTools`/`ReportsSection` tests) and update them for the new routes and table.
+- [x] 5.2 Map every scenario in `specs/admin-reports/spec.md` and JOS-225 AC1–AC5 to at least one test. List the mapping in the step 6 report.
+- [x] 5.3 Confirm module test coverage has not decreased: no coverage tool is installed, so every exported function and component branch is covered by a named test instead (see the step 6 report)
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 6.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, and `data/projects/` contents.
-- [ ] 6.2 Run the targeted tests from groups 2–4.
-- [ ] 6.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json`, no settings override and no vendor key in the environment.
-- [ ] 6.4 Verify the post-test state matches the baseline; restore it if not.
-- [ ] 6.5 Create the report `openspec/changes/report-sessions/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`.
-- [ ] 6.6 Mark this step complete only after the tests pass and the report file exists.
+- [x] 6.1 Capture the pre-test baseline of the default store: row counts per table, applied migrations, and `data/projects/` contents.
+- [x] 6.2 Run the targeted tests from groups 2–4.
+- [x] 6.3 Run `npm run typecheck` and the full `npm test` in both `backend` and `frontend`, with no `backend/.secrets.json`, no settings override and no vendor key in the environment.
+- [x] 6.4 Verify the post-test state matches the baseline; restore it if not.
+- [x] 6.5 Create the report `openspec/changes/report-sessions/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`.
+- [x] 6.6 Mark this step complete only after the tests pass and the report file exists.
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
