@@ -19,8 +19,8 @@
 
 ## 3. Backend: route (TDD)
 
-- [ ] 3.1 Write failing route tests: `GET /admin/reports/failures` answers 401 without the password or with a wrong one (AC5); 400 when `from` is not before `to`; 200 with the response schema otherwise; the table contents are the same before and after.
-- [ ] 3.2 Register the route in `adminReportRoutes.ts` with the Zod query and a strict response schema. Make 3.1 pass.
+- [x] 3.1 Write failing route tests: `GET /admin/reports/failures` answers 401 without the password or with a wrong one (AC5); 400 when `from` is not before `to`; 200 with the response schema otherwise; the table contents are the same before and after.
+- [x] 3.2 Register the route in `adminReportRoutes.ts` with the Zod query and a strict response schema. Make 3.1 pass.
 
 ## 4. Frontend: Failures and retries table (TDD; design Decision 7)
 
