@@ -1,11 +1,12 @@
 ## Context
 
-ADR 0008 and the catalogue (`openspec/changes/define-admin-reports/reports-catalogue.md`, R2) define the estimated cost as R1's billed units times a price per unit carried by each provider profile; the spike sketched it in `poc/queries.sql` (R2). This change stands on three stories that are proposed but not merged when it is written:
+ADR 0008 and the catalogue (`openspec/changes/define-admin-reports/reports-catalogue.md`, R2) define the estimated cost as R1's billed units times a price per unit carried by each provider profile; the spike sketched it in `poc/queries.sql` (R2). Written on 2026-10-22; rebased onto `origin/main` (`41b03ebd`) and reconciled on 2026-10-27. State of the stories it stands on:
 
-- **JOS-223** (`report-provider-usage`): `providerUsageReport.ts` runs one SQL select that returns one row per counted attempt in `[from, to)` (`stage`, `provider_id`, normalized `outcome`, `latency_ms`, `unit`, `units`) and aggregates in TypeScript; `adminReportRoutes.ts` holds `GET /admin/reports/provider-usage` inside the `/admin` child plugin; the frontend has `ReportsSection` and `ReportPeriodSelector`. Units are filled for successful attempts only.
-- **JOS-226** (`add-provider-price-per-unit`): `parameters.pricePerUnit` (number ≥ 0) and `parameters.priceCurrency` (ISO 4217, upper-case) on `provider_profiles`, both or neither; `BILLED_UNITS` per stage in `providerTypes.ts`. No price history.
-- **JOS-225** (sessions report, not proposed yet): one row per session created in the period.
-- **JOS-222** (`record-attempt-provider`) makes the scene-stage attribution exact; until then R1's attribution note applies here as well.
+- **JOS-223** (`report-provider-usage`, merged): `providerUsageReport.ts` has a private `countedAttempts(from, to)` that reads both attempt sources into one row per counted attempt (`stage`, `providerId`, normalized `outcome`, `latencyMs`, `unit`, `units`) and aggregates in TypeScript; `units` is already filled for every counted row and `billedUnits` sums the successes. The scene rows take the provider from the scene's current binding and the report says so (`sceneAttemptsFollowCurrentProvider: true`). `adminReportRoutes.ts` shares `periodOf` between the report routes inside the `/admin` child plugin; the frontend has `ReportsSection` (now also with the pipeline-time table of JOS-228) and `ReportPeriodSelector`.
+- **JOS-226** (`add-provider-price-per-unit`, merged): `parameters.pricePerUnit` (number ≥ 0) and `parameters.priceCurrency` (ISO 4217) on `provider_profiles`, both or neither, validated in `providerTypes.ts`; `BILLED_UNITS` per stage there too. No price history.
+- **JOS-225** (`report-sessions`, proposed, not merged): `GET /admin/reports/sessions` with one row per session created in the period, keyed by `id`, built by one SQL statement with correlated subqueries in `sessionsReport.ts`.
+- **JOS-222** (`record-attempt-provider`, merged): `provider_requests.provider_id` records the provider of each scene attempt; the usage report does not read it yet.
+- **JOS-224** (`report-failures-and-retries`, proposed) also exports `countedAttempts`; whichever merges second keeps the one export.
 
 ## Goals / Non-Goals
 
@@ -22,7 +23,7 @@ ADR 0008 and the catalogue (`openspec/changes/define-admin-reports/reports-catal
 
 ### 1. Reuse R1's attempt-row select; extend it with failed units and the run id
 
-The select in `providerUsageReport.ts` is exported (`selectCountedAttempts({ from, to, runIds? })`) and changed to return `units` for every counted attempt (not only successes) plus `run_id`. R1 then sums `units` where the outcome is a success, which gives the numbers it gives today; its tests pin that. `estimatedCostReport.ts` uses the same rows, so billed units are identical in both reports by construction.
+`countedAttempts` in `providerUsageReport.ts` is exported and gains the `runId` of each row and an optional `runIds` filter that replaces the period (`countedAttempts({ from, to } | { runIds })`). `units` is already returned for every counted row and R1 already sums only the successes, so R1's numbers do not change; its tests pin that. `estimatedCostReport.ts` uses the same rows, so billed units are identical in both reports by construction.
 *Alternative:* a second select in the cost module. Rejected: two copies of the counting rules would drift.
 *Alternative:* add cost columns to the usage report. Rejected: the catalogue keeps R1 and R2 separate, and the usage table is already wide.
 
@@ -50,7 +51,7 @@ Failed units are the `units` of transient, not-retryable and timed-out rows: the
 
 ### 5. Session cost in the Sessions report
 
-The sessions report (JOS-225) calls `selectCountedAttempts({ runIds })` for the sessions on the page (no `sent_at` filter: a session's cost covers all its attempts) and the same pricing function, and adds to each row `estimatedCost: [{ currency, estimatedCost }]` and `excludesUnpricedProvider: boolean` (true when a successful attempt of the session ran on an unpriced provider). The sessions table shows the amounts, labelled an estimate, and the note.
+The sessions report (JOS-225) calls `countedAttempts({ runIds })` for the sessions on the page (no `sent_at` filter: a session's cost covers all its attempts) and the same pricing function, and adds to each row `estimatedCost: [{ currency, estimatedCost }]` and `excludesUnpricedProvider: boolean` (true when a successful attempt of the session ran on an unpriced provider). The sessions table shows the amounts, labelled an estimate, and the note.
 *Alternative:* a separate per-session cost route. Rejected: AC3 asks for the cost in the Sessions report itself, and one request per row would be slower and wider.
 
 ### 6. Frontend
@@ -63,10 +64,10 @@ AC notes ask to confirm that each vendor bills successful attempts only. Task 1.
 
 ## Risks / Trade-offs
 
-- [JOS-225 is not proposed yet; its row shape may differ] → task 1.1 blocks this change until JOS-223, JOS-225 and JOS-226 are merged and reconciles Decision 5 with what JOS-225 built, updating this design first.
-- [Changing R1's select to return failed units could change R1's numbers] → R1's own tests and the spike reference comparison run unchanged in this change.
+- [JOS-225 is proposed but not merged; its row shape may still change while it is built] → task 1.1 blocks this change until JOS-225 is merged and reconciles Decision 5 with what it built, updating this design first.
+- [Exporting and extending R1's reader could change R1's numbers] → R1's own tests run unchanged in this change.
 - [Estimates use the current price] → stated in the spec; price history is its own story.
-- [Scene stages attributed to the scene's current provider until JOS-222] → the same flag and note as R1.
+- [Scene stages are attributed to the scene's current provider, as in R1] → billed amounts are still exact: a move (JOS-172) only rebinds a failed stage, so every successful scene attempt ran on the provider the scene is bound to now. Only the scene stages' failed units can follow the current provider after a move; the same flag and note as R1 say so. Switching the shared reader to `provider_requests.provider_id` (JOS-222) is a follow-up on R1 and would fix both reports at once.
 - [Float sums such as 0.00003 × 1,234,567] → amounts are estimates and shown rounded by the currency's minor unit.
 
 ## Migration Plan

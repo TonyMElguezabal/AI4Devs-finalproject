@@ -22,9 +22,9 @@ None on the base. The `admin-reports` rules (read-only, gated, no content, perio
 
 ## Impact
 
-- **Backend**: new `estimatedCostReport.ts`; one route added to `adminReportRoutes.ts` (JOS-223); the attempt-row select of `providerUsageReport.ts` returns units for failed attempts too and the run id; the sessions report (JOS-225) adds the per-session cost. Reads the price from `provider_profiles.parameters` and the unit from `BILLED_UNITS` (JOS-226). No migration, no new table, no background job.
+- **Backend**: new `estimatedCostReport.ts`; one route added to `adminReportRoutes.ts` (JOS-223); `providerUsageReport.ts` exports its attempt reader (`countedAttempts`) with the run id of each row; the sessions report (JOS-225) adds the per-session cost. Reads the price from `provider_profiles.parameters` and the unit from `BILLED_UNITS` (JOS-226). No migration, no new table, no background job.
 - **Frontend**: new `EstimatedCostTable` in the Reports section, sharing its period selector; a cost column in the sessions table; one client call in `api/client.ts`.
 - **API**: one new route and a changed sessions-report row in `docs/api-spec.yml` and the generated OpenAPI document.
 - **Docs**: `docs/PRD.md`, `docs/api-spec.yml`, `docs/frontend-standards.md`, the readme/development guide `/admin` section.
-- **Depends on** JOS-223 (usage report), JOS-225 (sessions report) and JOS-226 (price per unit) being merged; JOS-222 makes the per-provider amounts of the scene stages exact.
+- **Depends on** JOS-223 (usage report) and JOS-226 (price per unit), both merged, and JOS-225 (sessions report, proposed as `report-sessions`), which must be merged first. Billed amounts are exact without changing R1's scene attribution (design, Risks).
 - **Out of scope**: currency conversion, price history, vendor invoices, CSV download.

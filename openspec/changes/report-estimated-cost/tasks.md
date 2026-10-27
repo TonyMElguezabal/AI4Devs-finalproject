@@ -2,17 +2,18 @@
 
 - [x] 0.1 Create branch `feature/jos-227-estimated-cost-report` from `origin/main` with `--no-track`, in the worktree `../AI4Devs-jos-227`
 - [x] 0.2 Verify the branch was created and is the current branch of that worktree
+- [x] 0.3 Rebase onto `origin/main` (`41b03ebd`, 2026-10-27) and reconcile design.md § Context and Decisions 1 and 3 with the merged JOS-223, JOS-226 and JOS-222 code
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm JOS-223, JOS-225 and JOS-226 are merged into the integration branch and rebase this branch on it. If one is not, stop and ask. Reconcile design.md § Context and Decisions 1, 3 and 5 with the merged code (the attempt-row select, the period schema, `BILLED_UNITS`, the price parameter names, the sessions-report row) and update design.md first. If JOS-222 has merged, the scene-attribution flag is `false`.
+- [ ] 1.1 `git fetch`. Confirm JOS-225 (`report-sessions`) is merged and rebase this branch on `origin/main`. If it is not, stop and ask. Reconcile design.md Decision 5 with the merged sessions-report row and query, and re-check that `countedAttempts` and the price parameters still match § Context; update design.md first. Keep the scene-attribution flag as R1 reports it.
 - [ ] 1.2 Update `docs/PRD.md` (next version, §2.3, §11.4 and a §16 entry) to move R2 into scope as specified here, marked "awaiting the product owner's approval". Stop until the product owner approves.
 - [ ] 1.3 Check each adapter vendor's billing rule for failed requests (voice, alignment, reasoning, image, video); record the answer per vendor in design.md Decision 7. If one bills failures, ask the product owner before continuing.
 
 ## 2. Backend: shared attempt rows (TDD; design Decision 1)
 
-- [ ] 2.1 Write failing tests that `selectCountedAttempts` returns `units` for failed attempts by the unit rule and the `run_id` of each row, and filters by `runIds` without a period.
-- [ ] 2.2 Change the select in `providerUsageReport.ts` and make R1 sum units of successes only. Make 2.1 pass; the existing R1 tests pass unchanged.
+- [ ] 2.1 Write failing tests that the exported `countedAttempts` returns `units` for failed attempts by the unit rule and the `runId` of each row, and filters by `runIds` without a period.
+- [ ] 2.2 Export `countedAttempts` from `providerUsageReport.ts`, add `runId` and the `runIds` filter. Make 2.1 pass; the existing R1 tests pass unchanged.
 
 ## 3. Backend: the cost report module (TDD; design Decisions 2, 4)
 
