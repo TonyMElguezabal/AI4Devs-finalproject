@@ -65,5 +65,5 @@
 - [x] 8.1 Add the release and rollback procedure to `readme.md` section 1.4 and update 2.4 (keep it in Spanish): who approves, how, how to remove or demote a bad release
 - [x] 8.2 Re-amend `docs/adr/0007-deployment.md`: single channel from `main`, tag by tree hash, approval gate, workflow location
 - [x] 8.3 Update the JOS-206 ticket text so its acceptance criteria match the single-channel model
-- [ ] 8.4 Run `graphify update .`
+- [x] 8.4 Run `graphify update .`
 - [ ] 8.5 Open the pull request linking JOS-206; archive the change after merge
