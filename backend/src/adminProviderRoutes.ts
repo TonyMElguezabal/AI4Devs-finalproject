@@ -125,7 +125,7 @@ export function registerProviderProfileRoutes(admin: FastifyInstance): void {
     {
       schema: {
         params: z.object({ id: z.string().min(1) }),
-        body: z.object({ acceptCharge: z.boolean().optional() }).optional(),
+        body: z.object({ acceptCharge: z.boolean().optional() }),
         response: { 200: testResultSchema, 401: adminDeniedSchema, 404: notFoundSchema, 409: z.object({ ok: z.literal(false), reason: z.literal("charge-not-accepted") }) },
       },
     },
@@ -139,7 +139,7 @@ export function registerProviderProfileRoutes(admin: FastifyInstance): void {
       } catch {
         return { outcome: "no-key" as const, covers };
       }
-      if (charged && request.body?.acceptCharge !== true) return reply.code(409).send({ ok: false as const, reason: "charge-not-accepted" as const });
+      if (charged && request.body.acceptCharge !== true) return reply.code(409).send({ ok: false as const, reason: "charge-not-accepted" as const });
       return { ...(await runConnectionCheck(profile.adapterType, profile.parameters, key)), covers };
     },
   );
