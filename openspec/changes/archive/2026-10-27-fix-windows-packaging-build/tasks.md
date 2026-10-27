@@ -46,6 +46,6 @@
 ## 10. Update Technical Documentation and Verify on CI (MANDATORY)
 
 - [x] 10.1 `docs/PRD.md`, `docs/api-spec.yml`, `docs/data-model.md` and the README do not change (record the check) — `git diff origin/main --stat` lists only `backend/` and this change's folder
-- [ ] 10.2 Run `graphify update .`
+- [x] 10.2 Run `graphify update .` (`graphify update .` run before this archive PR)
 - [x] 10.3 Open the pull request linking JOS-232 and JOS-206 (#117); archive the change after merge (`openspec archive fix-windows-packaging-build --skip-specs`)
-- [ ] 10.4 After the merge, run the Release workflow in `dry-run` mode on `main` and record how far the Windows and macOS builds get; record any new build problem in this change's report and fix or ticket it
+- [x] 10.4 After the merge, run the Release workflow in `dry-run` mode on `main` and record how far the Windows and macOS builds get; record any new build problem in this change's report and fix or ticket it (the production release of 2026-10-27 built the Windows and macOS zips)

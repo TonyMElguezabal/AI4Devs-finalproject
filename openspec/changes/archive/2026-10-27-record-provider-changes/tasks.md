@@ -62,4 +62,4 @@
 - [x] 10.2 `docs/api-spec.yml`: add `GET /admin/reports/provider-changes`
 - [x] 10.3 `docs/PRD.md` v1.23 (keep v1.22 as `docs/PRD-v1.22.md`): §11.4 lists provider changes as built and recorded from this version on; §16 entry
 - [x] 10.4 Run `graphify update .`
-- [ ] 10.5 Commit (done), then (after the user's go-ahead) push and open the PR linking JOS-229; archive the change after merge
+- [x] 10.5 Commit (done), then (after the user's go-ahead) push and open the PR linking JOS-229; archive the change after merge (PR #121 merged; archived 2026-10-27)

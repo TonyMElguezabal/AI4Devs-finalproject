@@ -82,4 +82,4 @@ The Fal host is fixed in the adapter by design (no setting can name a host), so 
 - [x] 10.2 Update PRD §11 (image model with a reference) following the PRD versioning rules
 - [x] 10.3 `readme.md` never states the reference image is not sent, so nothing to change (checked with a search)
 - [x] 10.4 Run `graphify update .`
-- [ ] 10.5 Open the pull request linking JOS-202; archive the change after merge
+- [x] 10.5 Open the pull request linking JOS-202; archive the change after merge (PR merged; archived 2026-10-27)
