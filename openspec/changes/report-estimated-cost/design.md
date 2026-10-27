@@ -62,6 +62,18 @@ The sessions report (JOS-225) calls `countedAttempts({ runIds })` for the sessio
 
 AC notes ask to confirm that each vendor bills successful attempts only. Task 1.3 checks the pricing pages of the vendors with an adapter (voice, alignment, reasoning, image, video) and records the result in this design; a vendor that bills failed requests is called out in the section's note rather than changing the formula, and the formula change is a follow-up.
 
+
+**Result of task 1.3 (2026-10-27, from public documentation only; nothing was bought or tested).**
+
+| Vendor (stage) | Does it bill failed requests? | Source and confidence |
+|---|---|---|
+| fal.ai (image) | Server errors (HTTP 500 and above) are never billed; "you pay only for successful outputs". Client errors such as an invalid input (422) **may** be billed when GPU time was already spent. | fal.ai pricing page and FAQ: documented |
+| OpenAI (reasoning) | No official statement found. Third-party guides say a non-streaming 500 is generally not billed, a 400 may be (input tokens were processed), and a stream cut mid-way may be billed for the tokens produced. This application sends no streaming request. | Unverified |
+| ElevenLabs (voice, alignment) | No official statement found. One third-party guide and one developer's report say credits are deducted only for a successful generation; none confirms it for alignment. | Unverified |
+| RunningHub (video) | No billing statement found for a task that ends FAILED. The task-status response carries `consumeCoins` and `consumeMoney` fields, which could show what a failed task cost. | Unverified |
+
+Conclusion for the product owner: the formula (billed units of successful attempts only) matches the one vendor with a published rule for server errors, and the section's note should say that failed attempts are shown but not priced, and that a vendor may still bill some of them (a rejected input at fal.ai). No vendor was found to state that it bills failures that the application treats as transient. To settle the three unverified vendors, compare a vendor's own usage page with a few real failed attempts; this is a follow-up, not a reason to change the formula.
+
 ## Risks / Trade-offs
 
 - [Decision 5 must match the merged sessions report] → reconciled on 2026-10-27 (task 1.1): rows are built in `sessionsReport.ts` by one statement keyed by `r.id`; the cost fields are added after the rows are read, from one `countedAttempts` call with the page's run ids.

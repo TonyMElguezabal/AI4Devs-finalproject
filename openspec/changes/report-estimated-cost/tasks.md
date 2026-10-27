@@ -7,8 +7,8 @@
 ## 1. Gate
 
 - [x] 1.1 `git fetch`. Confirm JOS-225 (`report-sessions`) is merged and rebase this branch on `origin/main`. (JOS-225, JOS-224 and JOS-229 are merged into `feature/entrega-3-JAME`, not `main`; that branch was merged into this one instead of rebasing, and design.md Context, Decision 1 and Risks now match the merged code.) If it is not, stop and ask. Reconcile design.md Decision 5 with the merged sessions-report row and query, and re-check that `countedAttempts` and the price parameters still match § Context; update design.md first. Keep the scene-attribution flag as R1 reports it.
-- [ ] 1.2 (PRD drafted as v1.24 and committed, `docs/PRD-v1.23.md` kept; **waiting for the product owner's approval**) Update `docs/PRD.md` (next version, §2.3, §11.4 and a §16 entry) to move R2 into scope as specified here, marked "awaiting the product owner's approval". Stop until the product owner approves.
-- [ ] 1.3 Check each adapter vendor's billing rule for failed requests (voice, alignment, reasoning, image, video); record the answer per vendor in design.md Decision 7. If one bills failures, ask the product owner before continuing.
+- [x] 1.2 (PRD drafted as v1.24, `docs/PRD-v1.23.md` kept; approved by the product owner on 2026-10-27) Update `docs/PRD.md` (next version, §2.3, §11.4 and a §16 entry) to move R2 into scope as specified here, marked "awaiting the product owner's approval". Stop until the product owner approves.
+- [x] 1.3 (result in design.md Decision 7: only fal.ai documents its rule; the others were not found; no vendor is known to bill what the app calls transient) Check each adapter vendor's billing rule for failed requests (voice, alignment, reasoning, image, video); record the answer per vendor in design.md Decision 7. If one bills failures, ask the product owner before continuing.
 
 ## 2. Backend: shared attempt rows (TDD; design Decision 1)
 
