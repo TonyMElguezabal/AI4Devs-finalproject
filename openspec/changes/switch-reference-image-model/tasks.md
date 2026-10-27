@@ -16,9 +16,9 @@
 
 ## 3. Backend: Implementation
 
-- [ ] 3.1 Set `imageReferenceModel` to `bytedance/seedream/v5/pro/edit` and `maxTimeSeconds.image` to `300` in `backend/config/settings.default.json`
-- [ ] 3.2 Update the comments in `backend/src/config/providers.ts` that cite the old model and the 120 s measurements (spike report, comparison report, observed 127 s average and 233 s maximum)
-- [ ] 3.3 Make group 2 pass
+- [x] 3.1 Set `imageReferenceModel` to `bytedance/seedream/v5/pro/edit` and `maxTimeSeconds.image` to `300` in `backend/config/settings.default.json`
+- [x] 3.2 Update the comments in `backend/src/config/providers.ts` that cite the old model and the 120 s measurements (spike report, comparison report, observed 127 s average and 233 s maximum)
+- [x] 3.3 Make group 2 pass
 
 ## 4. Frontend
 
