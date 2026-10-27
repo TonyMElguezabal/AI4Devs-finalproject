@@ -50,7 +50,7 @@ No endpoint changes. The settings are read at start-up and no route returns them
 
 ## 8. E2E Testing with Playwright MCP (not applicable)
 
-- [ ] 8.1 Record in `reports/YYYY-MM-DD-step-8-e2e-browser.md` that no frontend code or copy changed (group 4) and so no browser scenario applies
+- [x] 8.1 Record in `reports/YYYY-MM-DD-step-8-e2e-browser.md` that no frontend code or copy changed (group 4) and so no browser scenario applies
 
 ## 9. Real-provider check
 
