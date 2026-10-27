@@ -247,7 +247,7 @@ describe("The shipped defaults file (task 2.3)", () => {
         },
         alignment: { name: "ElevenLabs", endpoint: "/v1/forced-alignment" },
         image: { name: "Fal.ai", model: "fal-ai/flux/dev" },
-        imageReferenceModel: "fal-ai/flux-2/edit",
+        imageReferenceModel: "bytedance/seedream/v5/pro/edit",
         video: {
           name: "RunningHub",
           endpoint: "/openapi/v2/minimax/hailuo-h3/image-to-video",
@@ -255,7 +255,7 @@ describe("The shipped defaults file (task 2.3)", () => {
         },
         segmentation: { lowerBoundSeconds: 5 },
         speedFactorLimit: 2,
-        maxTimeSeconds: { decomposition: 600, image: 120, voice: 600, alignment: 5, video: 1200, assembly: null },
+        maxTimeSeconds: { decomposition: 600, image: 300, voice: 600, alignment: 5, video: 1200, assembly: null },
         maxSimultaneousRequests: { decomposition: 50, image: 200, voice: 3, alignment: 2, video: 3 },
         output: { width: 1920, height: 1080, fps: 30 },
         languages: [

@@ -10,9 +10,9 @@
 
 ## 2. Backend: Tests first (TDD)
 
-- [ ] 2.1 In `backend/test/image-provider.test.ts`, change the expected `IMAGE_REFERENCE_MODEL` to `bytedance/seedream/v5/pro/edit`; add a test that a request with a reference posts to `https://fal.run/bytedance/seedream/v5/pro/edit` with `prompt`, `image_urls`, `image_size` and `output_format`
-- [ ] 2.2 In `backend/test/settings.test.ts`, change the shipped-defaults expectations to the new model and `image: 300`
-- [ ] 2.3 Run the two files and confirm they fail for the right reason
+- [x] 2.1 In `backend/test/image-provider.test.ts`, change the expected `IMAGE_REFERENCE_MODEL` to `bytedance/seedream/v5/pro/edit`; add a test that a request with a reference posts to `https://fal.run/bytedance/seedream/v5/pro/edit` with `prompt`, `image_urls`, `image_size` and `output_format`
+- [x] 2.2 In `backend/test/settings.test.ts`, change the shipped-defaults expectations to the new model and `image: 300`
+- [x] 2.3 Run the two files and confirm they fail for the right reason
 
 ## 3. Backend: Implementation
 
