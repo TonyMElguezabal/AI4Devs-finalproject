@@ -5,8 +5,8 @@
 
 ## 1. Evidence: model comparison report
 
-- [ ] 1.1 Write `reports/2026-10-26-model-comparison.md`: the six candidates, the eight scenes and why, the results table (text, character, latency, price, output size), the first-run flood of Fal's 20-concurrent limit, and the product owner's choice
-- [ ] 1.2 Copy the eight contact sheets (`Winrun_results/model-comparison/sheets/`) into `reports/model-comparison/` as small JPEGs and link them from the report
+- [x] 1.1 Write `reports/2026-10-26-model-comparison.md`: the six candidates, the eight scenes and why, the results table (text, character, latency, price, output size), the first-run flood of Fal's 20-concurrent limit, and the product owner's choice
+- [x] 1.2 Copy the eight contact sheets (`Winrun_results/model-comparison/sheets/`) into `reports/model-comparison/` as small JPEGs and link them from the report
 
 ## 2. Backend: Tests first (TDD)
 
@@ -17,7 +17,7 @@
 ## 3. Backend: Implementation
 
 - [ ] 3.1 Set `imageReferenceModel` to `bytedance/seedream/v5/pro/edit` and `maxTimeSeconds.image` to `300` in `backend/config/settings.default.json`
-- [ ] 3.2 Update the comments in `backend/src/config/providers.ts` that cite the old model and the 120 s measurements (spike report, comparison report, observed 133 s average and 233 s maximum)
+- [ ] 3.2 Update the comments in `backend/src/config/providers.ts` that cite the old model and the 120 s measurements (spike report, comparison report, observed 127 s average and 233 s maximum)
 - [ ] 3.3 Make group 2 pass
 
 ## 4. Frontend

@@ -4,7 +4,7 @@ Linear-Issue: JOS-230 (follows JOS-202)
 
 ## Why
 
-JOS-202 sends the admin reference image to `fal-ai/flux-2/edit`. The first full Windows run (2026-10-26, 53 scenes) showed that this model produces poor images for the scenes the decomposition writes as diagrams and dashboards: garbled text (scenes 26, 27, 35 and 12), a style that drifts between scenes, and a character that disappears or changes. It also made 74 failed image attempts (15 time-limit timeouts, 12 HTTP 429). A comparison of six Fal models on eight of the worst scenes (same prompts, same reference, one try each) found `bytedance/seedream/v5/pro/edit` clean in text and style, at the exact 1920x1088 size and $0.0675 per image, but slow: 133 s on average and 233 s at most, over the 120 s image limit set by JOS-202.
+JOS-202 sends the admin reference image to `fal-ai/flux-2/edit`. The first full Windows run (2026-10-26, 53 scenes) showed that this model produces poor images for the scenes the decomposition writes as diagrams and dashboards: garbled text (scenes 26, 27, 35 and 12), a style that drifts between scenes, and a character that disappears or changes. It also made 74 failed image attempts (15 time-limit timeouts, 12 HTTP 429). A comparison of six Fal models on eight of the worst scenes (same prompts, same reference, one try each) found `bytedance/seedream/v5/pro/edit` clean in text and style, at the exact 1920x1088 size and $0.0675 per image, but slow: 127 s on average (84 s to 233 s), over the 120 s image limit set by JOS-202.
 
 ## What Changes
 

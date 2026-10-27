@@ -25,11 +25,11 @@ Six candidates ran on the same eight scenes with the same reference, one try eac
 
 ### Decision 3: Image maximum time 300 s
 
-Observed with this model: 133 s on average and 233 s at most over eight scenes (retry timeout 540 s); in a first run under 48 parallel requests two requests hit a 300 s client timeout and finished in about 110 s when retried alone. The product owner chose **300 s** (2026-10-26): about 30% above the slowest request seen, 2.5 times the old limit. The cost is that a stuck request, including a plain `flux/dev` one (8 s normally), is given up after 300 s instead of 120 s. As in JOS-202 Decision 7, the limit applies to every image request. *Alternative not taken:* a second limit only for requests with a reference (keeps the short limit for the plain case but adds a setting, a schema entry and a branch in the adapter and the timeout accounting).
+Observed with this model: 127 s on average (84 s to 233 s) over eight scenes (retry timeout 540 s); in a first run under 48 parallel requests two requests hit a 300 s client timeout and finished in about 110 s when retried alone. The product owner chose **300 s** (2026-10-26): about 30% above the slowest request seen, 2.5 times the old limit. The cost is that a stuck request, including a plain `flux/dev` one (8 s normally), is given up after 300 s instead of 120 s. As in JOS-202 Decision 7, the limit applies to every image request. *Alternative not taken:* a second limit only for requests with a reference (keeps the short limit for the plain case but adds a setting, a schema entry and a branch in the adapter and the timeout accounting).
 
 ## Risks / Trade-offs
 
 - [The character is still missing or generic in some scenes, whatever the model] → Recorded in the report; prompt changes are a separate ticket.
-- [Higher cost and time per image] → About $0.0675 against about $0.04; at the observed 133 s average, 53 scenes at the configured image concurrency add minutes, not hours; the real figure is read from the next full run.
+- [Higher cost and time per image] → About $0.0675 against about $0.04; at the observed 127 s average, 53 scenes at the configured image concurrency add minutes, not hours; the real figure is read from the next full run.
 - [A 300 s limit delays the retry of a request that is really stuck] → Accepted by the product owner.
 - [Fal's concurrent-request limit (20 per account) was reached by the comparison script] → The app caps image concurrency in settings; unchanged here, to be revisited if the next full run shows 429s.
