@@ -6,14 +6,14 @@
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm PRD §11.4 still describes the sessions report as this change builds it (JOS-175 AC for R4); if the product owner changed it, update the artifacts first.
-- [ ] 1.2 Confirm the base still matches design.md § Context: the `runs`, `scenes`, `stage_attempts`, `provider_requests` and `voice_overs` columns, `failure.phase` values, how a failed rebuild is recorded (Decision 3 risk), the `/admin` child plugin, and that `ReportsSection` still owns the period.
+- [x] 1.1 `git fetch`. Confirm PRD §11.4 still describes the sessions report as this change builds it (JOS-175 AC for R4); if the product owner changed it, update the artifacts first.
+- [x] 1.2 Confirm the base still matches design.md § Context: the `runs`, `scenes`, `stage_attempts`, `provider_requests` and `voice_overs` columns, `failure.phase` values, how a failed rebuild is recorded (Decision 3 risk), the `/admin` child plugin, and that `ReportsSection` still owns the period.
 
 ## 2. Backend: the sessions report module (TDD; design Decisions 2–5)
 
-- [ ] 2.1 Write failing tests for `sessionsReport({ from, to })` on a seeded store: only sessions created in `[from, to)` are listed, newest first; absent `from` lists all; state is `failed` with its phase / `final-video-ready` / `in-progress`; a failure wins over a successful assembly; `paused` is reported apart from the state; scenes, failed scenes and attempts match the spike's R4 query on the same rows; seconds to the voice-over and to the final video are rounded to one decimal and `null` when the instant is missing; a session with no scenes is listed; a failed session keeps its voice-over time.
-- [ ] 2.2 Write failing tests for `sessionScenesReport(sessionId)`: rows in scene order with status, provider labels (id fallback, `null` unbound), image and clip request counts, requested duration, speed factor and both warnings; no rows for a session without scenes; `null` for an unknown session.
-- [ ] 2.3 Implement `backend/src/sessionsReport.ts`. Make 2.1 and 2.2 pass.
+- [x] 2.1 Write failing tests for `sessionsReport({ from, to })` on a seeded store: only sessions created in `[from, to)` are listed, newest first; absent `from` lists all; state is `failed` with its phase / `final-video-ready` / `in-progress`; a failure wins over a successful assembly; `paused` is reported apart from the state; scenes, failed scenes and attempts match the spike's R4 query on the same rows; seconds to the voice-over and to the final video are rounded to one decimal and `null` when the instant is missing; a session with no scenes is listed; a failed session keeps its voice-over time.
+- [x] 2.2 Write failing tests for `sessionScenesReport(sessionId)`: rows in scene order with status, provider labels (id fallback, `null` unbound), image and clip request counts, requested duration, speed factor and both warnings; no rows for a session without scenes; `null` for an unknown session.
+- [x] 2.3 Implement `backend/src/sessionsReport.ts`. Make 2.1 and 2.2 pass.
 
 ## 3. Backend: the routes (TDD; design Decisions 1, 2, 6)
 
