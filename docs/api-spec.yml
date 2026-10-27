@@ -163,6 +163,7 @@
 # attempt was sent; `from` open when absent, `to` is now when absent; 200 `{ from, to, sceneAttemptsFollowCurrentProvider, rows }` with one row
 # per stage and provider: attempts, successes, failures by kind, success rate, median and 95th-percentile latency, billed units and their unit;
 # 400 for a bad date-time or `from` not before `to`; 401). Read-only, behind the Administrator password; it carries no key, script, prompt or failure text.
+# JOS-200 (show-video-request-status) - 2026-10-26: the scene representation (`POST /sessions`, `GET /sessions/{sessionId}` and `POST .../scenes/{sceneId}/pause` responses, and the live snapshot, which carries the same fields) gains an optional `videoRequest`, present only while a scene's clip request has been sent and is in flight: `provider` (`name`, `model`), `attempt`, `sentAt`, `estimate` (`{ seconds, basedOn }` or null) and `body` (`prompt`, `duration`, `resolution`, `firstFrame`, the scene's image named, never the provider's URL). The clip `stages.video` entry now counts a request in flight.
 # JOS-228 (record-phase-instants-and-pipeline-report) - 2026-10-26: new `GET /admin/reports/pipeline-time?from&to` (same period rules as the usage report, applied
 # to the instant a phase started and, for the attempt counts, the instant an attempt was sent; 200 `{ from, to, phases, sessions }`: per phase the number
 # of sessions with a recorded start and end, the median and 95th-percentile seconds, and the attempts that timed out, finished late or were superseded
@@ -623,6 +624,71 @@ paths:
                             made. A key is present once that stage has at least
                             one attempt. Derived from the stored attempt
                             records, never stored."
+                        videoRequest:
+                          type: object
+                          properties:
+                            provider:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                model:
+                                  type: string
+                                  nullable: true
+                              required:
+                                - name
+                                - model
+                              additionalProperties: false
+                            attempt:
+                              type: integer
+                              minimum: 1
+                            sentAt:
+                              type: string
+                              description: ISO 8601 instant the request was sent.
+                            estimate:
+                              type: object
+                              properties:
+                                seconds:
+                                  type: number
+                                basedOn:
+                                  type: integer
+                                  minimum: 1
+                              required:
+                                - seconds
+                                - basedOn
+                              additionalProperties: false
+                              nullable: true
+                              description: Median generation time of earlier clips of the same provider (and
+                                duration when at least 3 exist); null when there
+                                are none.
+                            body:
+                              type: object
+                              properties:
+                                prompt:
+                                  type: string
+                                duration:
+                                  type: number
+                                resolution:
+                                  type: string
+                                firstFrame:
+                                  type: string
+                              required:
+                                - prompt
+                                - duration
+                                - resolution
+                                - firstFrame
+                              additionalProperties: false
+                          required:
+                            - provider
+                            - attempt
+                            - sentAt
+                            - estimate
+                            - body
+                          additionalProperties: false
+                          description: "JOS-200: present only while the scene's clip request has been sent
+                            and is in flight. Derived from the stored request;
+                            absent once the clip is complete or the scene
+                            failed."
                         result:
                           type: object
                           properties:
@@ -1164,6 +1230,71 @@ paths:
                             made. A key is present once that stage has at least
                             one attempt. Derived from the stored attempt
                             records, never stored."
+                        videoRequest:
+                          type: object
+                          properties:
+                            provider:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                model:
+                                  type: string
+                                  nullable: true
+                              required:
+                                - name
+                                - model
+                              additionalProperties: false
+                            attempt:
+                              type: integer
+                              minimum: 1
+                            sentAt:
+                              type: string
+                              description: ISO 8601 instant the request was sent.
+                            estimate:
+                              type: object
+                              properties:
+                                seconds:
+                                  type: number
+                                basedOn:
+                                  type: integer
+                                  minimum: 1
+                              required:
+                                - seconds
+                                - basedOn
+                              additionalProperties: false
+                              nullable: true
+                              description: Median generation time of earlier clips of the same provider (and
+                                duration when at least 3 exist); null when there
+                                are none.
+                            body:
+                              type: object
+                              properties:
+                                prompt:
+                                  type: string
+                                duration:
+                                  type: number
+                                resolution:
+                                  type: string
+                                firstFrame:
+                                  type: string
+                              required:
+                                - prompt
+                                - duration
+                                - resolution
+                                - firstFrame
+                              additionalProperties: false
+                          required:
+                            - provider
+                            - attempt
+                            - sentAt
+                            - estimate
+                            - body
+                          additionalProperties: false
+                          description: "JOS-200: present only while the scene's clip request has been sent
+                            and is in flight. Derived from the stored request;
+                            absent once the clip is complete or the scene
+                            failed."
                         result:
                           type: object
                           properties:
@@ -1724,6 +1855,71 @@ paths:
                       made. A key is present once that stage has at least one
                       attempt. Derived from the stored attempt records, never
                       stored."
+                  videoRequest:
+                    type: object
+                    properties:
+                      provider:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          model:
+                            type: string
+                            nullable: true
+                        required:
+                          - name
+                          - model
+                        additionalProperties: false
+                      attempt:
+                        type: integer
+                        minimum: 1
+                      sentAt:
+                        type: string
+                        description: ISO 8601 instant the request was sent.
+                      estimate:
+                        type: object
+                        properties:
+                          seconds:
+                            type: number
+                          basedOn:
+                            type: integer
+                            minimum: 1
+                        required:
+                          - seconds
+                          - basedOn
+                        additionalProperties: false
+                        nullable: true
+                        description: Median generation time of earlier clips of the same provider (and
+                          duration when at least 3 exist); null when there
+                          are none.
+                      body:
+                        type: object
+                        properties:
+                          prompt:
+                            type: string
+                          duration:
+                            type: number
+                          resolution:
+                            type: string
+                          firstFrame:
+                            type: string
+                        required:
+                          - prompt
+                          - duration
+                          - resolution
+                          - firstFrame
+                        additionalProperties: false
+                    required:
+                      - provider
+                      - attempt
+                      - sentAt
+                      - estimate
+                      - body
+                    additionalProperties: false
+                    description: "JOS-200: present only while the scene's clip request has been sent
+                      and is in flight. Derived from the stored request;
+                      absent once the clip is complete or the scene
+                      failed."
                   result:
                     type: object
                     properties:
