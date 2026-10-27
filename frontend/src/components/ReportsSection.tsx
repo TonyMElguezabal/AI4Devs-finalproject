@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { getPipelineTimeReport, getProviderUsageReport } from "../api/client";
-import type { PipelineTimeReport, ProviderStage, ProviderUsageReport, ReportPeriod } from "../types";
+import { getFailuresReport, getPipelineTimeReport, getProviderUsageReport } from "../api/client";
+import type { FailuresReport, PipelineTimeReport, ProviderStage, ProviderUsageReport, ReportPeriod } from "../types";
+import { FailuresTables } from "./FailuresTables";
 import { PipelineTimeTables } from "./PipelineTimeTables";
 import { ReportPeriodSelector, lastDays } from "./ReportPeriodSelector";
 import { SessionsReport } from "./SessionsReport";
@@ -20,7 +21,7 @@ interface Props {
 
 /**
  * report-provider-usage (JOS-223), design Decision 7 — the "Reports" section of `/admin`: a period (last 30 days at first)
- * and the provider-usage table. JOS-228 adds the pipeline time, JOS-225 the sessions list; JOS-224 adds its report under the same period.
+ * and the provider-usage table. JOS-228 adds the pipeline time, JOS-224 the failures and retries, JOS-225 the sessions list.
  */
 export function ReportsSection({ password, onDenied }: Props) {
   const [period, setPeriod] = useState<ReportPeriod>(() => lastDays(30));
@@ -36,11 +37,13 @@ export function ReportsSection({ password, onDenied }: Props) {
       onDenied();
     }
   };
+  const [failures, setFailures] = useState<FailuresReport | undefined>(undefined);
+  const [failuresError, setFailuresError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let current = true;
     let denied = false;
-    // Both reports answer 401 together when the password is wrong; the page locks once.
+    // All reports answer 401 together when the password is wrong; the page locks once.
     const deny = () => {
       if (current && !denied) {
         denied = true;
@@ -63,6 +66,14 @@ export function ReportsSection({ password, onDenied }: Props) {
       },
       () => current && setPipelineError("Could not load the pipeline time report. Is the app running?"),
     );
+    getFailuresReport(password, period).then(
+      (result) => {
+        if (!current) return;
+        if (result.kind === "denied") deny();
+        else setFailures(result.report);
+      },
+      () => current && setFailuresError("Could not load the failures and retries report. Is the app running?"),
+    );
     return () => {
       current = false;
     };
@@ -74,6 +85,7 @@ export function ReportsSection({ password, onDenied }: Props) {
     setPeriod(next);
     setError(undefined);
     setPipelineError(undefined);
+    setFailuresError(undefined);
   };
 
   const showsSceneStage = report?.rows.some((row) => row.stage === "image" || row.stage === "video");
@@ -127,6 +139,12 @@ export function ReportsSection({ password, onDenied }: Props) {
         </p>
       )}
       {pipeline && <PipelineTimeTables report={pipeline} />}
+      {failuresError && (
+        <p role="alert" className="form-error">
+          {failuresError}
+        </p>
+      )}
+      {failures && <FailuresTables report={failures} />}
       <SessionsReport password={password} period={period} onDenied={lockOnce} />
     </section>
   );

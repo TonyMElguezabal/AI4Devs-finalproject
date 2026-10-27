@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { adminDeniedSchema } from "./adminAccess.ts";
+import { failuresReport } from "./failuresReport.ts";
 import { pipelineTimeReport } from "./pipelineTimeReport.ts";
 import { providerUsageReport } from "./providerUsageReport.ts";
 import { sessionScenesReport, sessionsReport } from "./sessionsReport.ts";
@@ -53,6 +54,24 @@ const pipelineReportSchema = z.object({
     }),
   ),
   sessions: z.array(z.object({ runId: z.string(), title: z.string(), seconds: z.record(phaseSchema, z.number().nullable()) })),
+});
+
+// report-failures-and-retries (JOS-224) — `null` budgets and manual retries are "not recorded" (the scene stages keep no cycles).
+const failuresReportSchema = z.object({
+  from: z.string().nullable(),
+  to: z.string(),
+  stages: z.array(
+    z.object({
+      stage: z.enum(["voice", "alignment", "reasoning", "image", "video"]),
+      transient: z.number(),
+      notRetryable: z.number(),
+      timedOut: z.number(),
+      budgetsExhausted: z.number().nullable(),
+      manualRetries: z.number().nullable(),
+    }),
+  ),
+  wordings: z.array(z.object({ stage: z.enum(["voice", "alignment", "reasoning"]), message: z.string(), attempts: z.number() })),
+  failedScenesNow: z.object({ image: z.number(), video: z.number() }),
 });
 
 // report-sessions (JOS-225), design Decision 6 — no text column other than the title is part of either response.
@@ -123,6 +142,16 @@ export function registerReportRoutes(admin: FastifyInstance): void {
       const period = periodOf(request.query);
       if ("error" in period) return reply.code(400).send({ statusCode: 400, error: "Bad Request", message: period.error });
       return pipelineTimeReport(period);
+    },
+  );
+
+  admin.withTypeProvider<ZodTypeProvider>().get(
+    "/reports/failures",
+    { schema: { querystring: querySchema, response: { 200: failuresReportSchema, 400: validationErrorSchema, 401: adminDeniedSchema } } },
+    async (request, reply) => {
+      const period = periodOf(request.query);
+      if ("error" in period) return reply.code(400).send({ statusCode: 400, error: "Bad Request", message: period.error });
+      return failuresReport(period);
     },
   );
 
