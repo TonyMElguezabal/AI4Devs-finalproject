@@ -1,4 +1,4 @@
-import type { AdapterTypeInfo, AppSettings, AppUpdate, ConnectionTestResult, FailedStageRow, PipelineTimeReport, ProfileProblem, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AdapterTypeInfo, AppSettings, AppUpdate, ConnectionTestResult, FailedStageRow, FailuresReport, PipelineTimeReport, ProfileProblem, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -264,6 +264,7 @@ export async function moveFailedStage(password: string, row: Pick<FailedStageRow
 }
 
 export type ProviderUsageReportResult = { kind: "ok"; report: ProviderUsageReport } | { kind: "denied" };
+export type FailuresReportResult = { kind: "ok"; report: FailuresReport } | { kind: "denied" };
 export type PipelineTimeReportResult = { kind: "ok"; report: PipelineTimeReport } | { kind: "denied" };
 
 /** A report of the Reports section for the period. A 401 is `denied`; any other failure rejects. */
@@ -282,6 +283,9 @@ export const getProviderUsageReport = (password: string, period: ReportPeriod): 
 
 /** record-phase-instants-and-pipeline-report (JOS-228): `GET /admin/reports/pipeline-time` for the period. */
 export const getPipelineTimeReport = (password: string, period: ReportPeriod): Promise<PipelineTimeReportResult> => getReport<PipelineTimeReport>("/admin/reports/pipeline-time", password, period);
+
+/** report-failures-and-retries (JOS-224): `GET /admin/reports/failures` for the period. */
+export const getFailuresReport = (password: string, period: ReportPeriod): Promise<FailuresReportResult> => getReport<FailuresReport>("/admin/reports/failures", password, period);
 
 /** admin-visual-style-prompt (JOS-201) */
 export const MAX_VISUAL_STYLE_PROMPT_CHARS = 8000;

@@ -285,6 +285,24 @@ export interface PipelinePhaseRow {
   superseded: number | null;
 }
 
+// report-failures-and-retries (JOS-224): a `null` budget or manual-retry count is "not recorded" (the scene stages keep no cycles).
+export interface FailureStageRow {
+  stage: ProviderStage;
+  transient: number;
+  notRetryable: number;
+  timedOut: number;
+  budgetsExhausted: number | null;
+  manualRetries: number | null;
+}
+
+export interface FailuresReport {
+  from: string | null;
+  to: string;
+  stages: FailureStageRow[];
+  wordings: Array<{ stage: ProviderStage; message: string; attempts: number }>;
+  failedScenesNow: { image: number; video: number };
+}
+
 export interface PipelineTimeReport {
   from: string | null;
   to: string;
