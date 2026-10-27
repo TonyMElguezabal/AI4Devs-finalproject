@@ -65,7 +65,7 @@ There's no hosting cost. Provider API usage is as today (UAT calls real provider
   - ffmpeg resolution (S2);
   - single instance (L4);
   - release-build safety (L5);
-  - the build per platform (L6);
+  - the build per platform (L6): **done in JOS-205** — `cd backend && npm run package:darwin-arm64 | package:darwin-x64 | package:win32-x64` writes `Vid4You`, `ffmpeg` and `ffprobe` to `backend/dist-package/<target>/` (see "Build" below);
   - CI and release channels (L7);
   - signing (L8);
   - Windows verification (L9).
@@ -75,3 +75,15 @@ There's no hosting cost. Provider API usage is as today (UAT calls real provider
   - Data lives only on the user's computer.
   - About 270 MB on disk.
 - PRD v1.6 admitted a hosted deployment behind an access gate. A v1.7 draft that describes the local packaged application goes to the product owner (task 2.4).
+
+## Build (JOS-205)
+
+- **Command.** `backend/packaging/build.ts`, run by `npm run package:<target>` in `backend/`. It needs Node exactly as pinned in `targets.ts` (the SEA blob is tied to the Node version), `npm ci` in `backend/` and `frontend/`, and network access. The macOS targets need a Mac (the binary is ad-hoc signed with `codesign`); Windows x64 builds on any host. `--smoke` (`npm run package:smoke`) builds a separate flavor with stub providers for manual testing; the release commands never include it.
+- **SEA and postject.** The blob is made with `node --experimental-sea-config` and injected with `postject` into the official Node binary of the target, so one code path builds all three targets from one host (`node --build-sea` can only target the host's platform). The bundle is one CommonJS file made by esbuild; the backend source is not patched or cut. The only differences from `npm start` are environment variables the packaged entry sets (`DB_PATH`, `PROJECTS_ROOT`, `SECRETS_PATH`, `SETTINGS_PATH`, `PROVIDER_KEY_PATH`, `SETTINGS_DEFAULTS_PATH`, `FFMPEG_PATH`, `FFPROBE_PATH`) and `@fastify/swagger-ui` replaced by an empty plugin, so `/docs` answers 404.
+- **Pinned downloads.** `targets.ts` commits the URL and SHA-256 of the Node archive and of the ffmpeg and ffprobe binary of each target; a mismatch fails the build before anything is written to the output folder.
+- **ffmpeg license (open before the first public release).** The pinned ffmpeg and ffprobe 6.0 builds (`eugeneware/ffmpeg-static`, release b6.0) are configured with `--enable-gpl --enable-version3 --enable-nonfree`. The assembly step needs libx264, so any build the product can use is GPL; `nonfree` additionally forbids redistribution. They are acceptable for local and private builds only. Before JOS-206 publishes anything, replace them with a redistributable build (and decide how the GPL source offer is met) and update the hashes.
+
+## Signing (JOS-207)
+
+- **Decision (2026-10-26, product owner).** Releases stay unsigned for now; no Windows certificate and no Apple Developer account are bought yet, to avoid the subscription cost. The provider, cost and holder are decided when they are bought (expected within months).
+- **Ready and dormant.** The release workflow already contains the macOS signing and notarization steps, the Windows verification step and the unsigned labeling (`-unsigned` archive names and a release-notes line). They run only when the `signing` environment (from `main`) holds the secrets; `SIGNING_REQUIRED=true` then makes a missing secret fail the build. The Windows signing script is written when the provider is chosen.

@@ -152,6 +152,7 @@ What a change does and does not touch: sessions already running keep their recor
 On `/admin` (behind the Administrator password) the Administrator manages the providers of every stage: "Providers" lists each stage's provider profiles (adapter type, key status, the reason a profile cannot be used) and adds, edits and deletes them; "Active providers" chooses which one a stage uses next. Everything applies without a restart.
 
 - **A profile** is one use of an adapter type the app ships (Fal.ai, ElevenLabs, OpenAI, RunningHub): a name, the adapter's parameters (reasoning model; voice model, voice id, output format and speed; alignment endpoint path; image model; video endpoint path and admitted clip durations) and an API key. Several profiles per stage are allowed. A parameter never names a host: each adapter sends to its own vendor.
+- **A price** (optional): each profile form ends with "Price per <unit>" and "Currency", the unit being the stage's billed unit (voice character, audio second, request, image, clip second). Enter both or neither; a price of 0 is a free provider, an empty price is *unpriced*. Clearing both fields makes the profile unpriced again. The price is an input to the estimated cost report only (JOS-227): it never goes to the vendor and never makes a profile unusable. The settings files do not take it.
 - **The settings files** now only seed the first profile of each stage, the first time the app starts. Afterwards the provider sections of the files do not change a profile (one notice is logged if they differ). Every other setting (segmentation lower bound, speed limit, maximum times, request caps, resolution, languages) still comes from the files and needs a restart.
 - **Choosing** a profile needs valid parameters and a key that can be found; otherwise the page says why.
 - **Deleting** a profile that is the active provider is refused; one that sessions or scenes are bound to is retired (no longer offered, still used by what is bound to it); otherwise it is removed.
@@ -168,6 +169,12 @@ When a stage failed on a provider that stays unavailable, the Administrator move
 3. Open the session (the link after the move) and retry the stage with its usual button ("Retry voice-over", "Retry decomposition", "Retry scene"). The retry goes to the new provider.
 
 A moved clip chooses its requested duration again from the new provider's admitted durations, so its speed factor and warning can change; its narration interval does not. A failure that offers no manual retry is not listed, and a stage already on the active provider is not listed. Nothing moves by itself.
+
+### Reading the provider-usage report
+
+Once unlocked, `/admin` ends with a "Reports" section. "Period" offers "Last 7 days", "Last 30 days" (selected first), "All time" and "Custom range" (two dates read in the computer's time zone, from the start of the first day to the end of the last). The table has one row per stage and provider with attempts, successes, transient and not-retryable failures, timed-out attempts, success rate, median and 95th-percentile latency (nearest rank) and billed units; it comes from `GET /admin/reports/provider-usage?from&to`, computed on demand from the local store and read-only.
+
+What it counts: an attempt that was sent and has a final outcome, by the instant it was sent (`[from, to)`); a late success counts as a success. It leaves out attempts that are scheduled, in flight, superseded or cancelled, the voice provider's native timestamps (not an alignment call) and the stub-only `unrecoverable` and `flaky` scene modes. Billed units count successful attempts only: voice characters, audio seconds (alignment), one request (reasoning), one image, requested clip seconds. A provider with no attempt in the period has no row. Until JOS-222 records the provider on image and clip attempts, those rows follow the scene's current provider (the section says so), so a scene moved to another provider counts all its attempts for the new one. The report contains no key, script, prompt or failure text.
 
 ### Development-only switches
 

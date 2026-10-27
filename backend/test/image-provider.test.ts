@@ -7,6 +7,7 @@ import {
   resetDownloadFetch,
   setDownloadFetch,
 } from "../src/imageProvider.ts";
+import { IMAGE_REFERENCE_MODEL } from "../src/config/providers.ts";
 
 // generate-chunk-image (JOS-145), group 3 — the Fal.ai adapter: one
 // synchronous HTTP request per attempt, the recorded request size
@@ -209,5 +210,59 @@ describe("downloadGeneratedImage (§12.2)", () => {
     const result = await downloadGeneratedImage("https://fal.media/files/example.jpg");
 
     expect(result).toEqual({ ok: false, reason: "the generated image could not be downloaded" });
+  });
+});
+
+// use-reference-image-in-generation (JOS-202), design Decisions 2 and 5 — the request with a session's reference image.
+describe("The request with a reference image (JOS-202)", () => {
+  const REFERENCE = { bytes: Buffer.from("not-really-a-webp"), contentType: "image/webp", sha256: "a".repeat(64) };
+
+  it("posts to the reference model with the reference as a data URI and the recorded request size", async () => {
+    const { fetchFn, calls } = fakeFetch(successResponse);
+
+    await providerWith(fetchFn).generate(INSTRUCTION, REFERENCE);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toBe("https://fal.run/bytedance/seedream/v5/pro/edit");
+    expect(IMAGE_REFERENCE_MODEL).toBe("bytedance/seedream/v5/pro/edit");
+    expect(JSON.parse(calls[0]?.init.body as string)).toEqual({
+      prompt: INSTRUCTION,
+      image_urls: [`data:image/webp;base64,${REFERENCE.bytes.toString("base64")}`],
+      image_size: { width: 1920, height: 1088 },
+      output_format: "png",
+    });
+  });
+
+  it("sends the same request as before when there is no reference", async () => {
+    const { fetchFn, calls } = fakeFetch(successResponse);
+
+    await providerWith(fetchFn).generate(INSTRUCTION, undefined);
+
+    expect(calls[0]?.url).toBe("https://fal.run/fal-ai/flux/dev");
+    expect(JSON.parse(calls[0]?.init.body as string)).toEqual({ prompt: INSTRUCTION, image_size: { width: 1920, height: 1088 } });
+  });
+
+  it.each([400, 413, 415, 422])("HTTP %d on a request with a reference is not retryable and names the reference image", async (status) => {
+    const { fetchFn } = fakeFetch(() => new Response("raw provider detail", { status }));
+    const result = await providerWith(fetchFn).generate(INSTRUCTION, REFERENCE);
+    expect(result).toEqual({ kind: "failed_not_retryable", reason: `the image provider rejected the reference image (HTTP ${status})` });
+  });
+
+  it.each([401, 403])("HTTP %d on a request with a reference keeps the existing wording", async (status) => {
+    const { fetchFn } = fakeFetch(() => new Response("", { status }));
+    const result = await providerWith(fetchFn).generate(INSTRUCTION, REFERENCE);
+    expect(result).toEqual({ kind: "failed_not_retryable", reason: `the image provider answered HTTP ${status}` });
+  });
+
+  it.each([408, 429, 500, 503])("HTTP %d on a request with a reference stays transient", async (status) => {
+    const { fetchFn } = fakeFetch(() => new Response("", { status }));
+    const result = await providerWith(fetchFn).generate(INSTRUCTION, REFERENCE);
+    expect(result.kind).toBe("failed_transient");
+  });
+
+  it("never copies the reference bytes into a failure reason", async () => {
+    const { fetchFn } = fakeFetch(() => new Response("", { status: 422 }));
+    const result = await providerWith(fetchFn).generate(INSTRUCTION, REFERENCE);
+    expect(JSON.stringify(result)).not.toContain(REFERENCE.bytes.toString("base64"));
   });
 });

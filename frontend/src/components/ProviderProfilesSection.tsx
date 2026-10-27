@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { createProviderProfile, deleteProviderProfile, editProviderProfile, getProviderProfiles } from "../api/client";
-import type { AdapterTypeInfo, ParameterFieldInfo, ProfileProblem, ProfileView, ProviderStage } from "../types";
+import { createProviderProfile, deleteProviderProfile, editProviderProfile, getProviderProfiles, testProviderConnection } from "../api/client";
+import type { AdapterTypeInfo, ConnectionTestResult, ParameterFieldInfo, ProfileProblem, ProfileView, ProviderStage } from "../types";
 
 const STAGES: ProviderStage[] = ["reasoning", "voice", "alignment", "image", "video"];
 const STAGE_LABELS: Record<ProviderStage, string> = { reasoning: "Reasoning", voice: "Voice", alignment: "Alignment", image: "Image", video: "Video" };
@@ -43,6 +43,24 @@ function keyText(profile: ProfileView): string {
   return profile.keyStatus === "environment" ? "Key from the environment" : "Key missing";
 }
 
+/** test-provider-connection (JOS-220), design Decision 5 — the server sends the outcome and the page writes the sentence. */
+function resultText(result: ConnectionTestResult, vendor: string): string {
+  switch (result.outcome) {
+    case "connected":
+      return "Connected.";
+    case "key-rejected":
+      return `The key was rejected by ${vendor}.`;
+    case "not-found":
+      return "The model or voice was not found.";
+    case "unreachable":
+      return `${vendor} could not be reached.`;
+    case "unexpected":
+      return `Unexpected answer from ${vendor} (HTTP ${result.httpStatus ?? "unknown"}).`;
+    case "no-key":
+      return "This provider has no key.";
+  }
+}
+
 /**
  * manage-providers-from-admin (JOS-218), design Decision 10 — the profiles of every stage with their key status, and
  * the forms to add, edit and delete one. The key field is never pre-filled and an empty one keeps the current key; the
@@ -53,6 +71,9 @@ export function ProviderProfilesSection({ password, onDenied, onChanged, refresh
   const [profiles, setProfiles] = useState<ProfileView[] | undefined>(undefined);
   const [form, setForm] = useState<FormState | undefined>(undefined);
   const [confirming, setConfirming] = useState<string | undefined>(undefined);
+  const [testing, setTesting] = useState<string | undefined>(undefined);
+  const [chargeFor, setChargeFor] = useState<string | undefined>(undefined);
+  const [testResults, setTestResults] = useState<Record<string, ConnectionTestResult>>({});
   const [notice, setNotice] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
 
@@ -92,6 +113,28 @@ export function ProviderProfilesSection({ password, onDenied, onChanged, refresh
     }
   }
 
+  async function handleTest(profile: ProfileView, acceptCharge: boolean) {
+    setError(undefined);
+    setChargeFor(undefined);
+    setTesting(profile.id);
+    try {
+      const outcome = await testProviderConnection(password, profile.id, acceptCharge);
+      if (outcome.kind === "denied") return onDenied();
+      if (outcome.kind === "not-found") return setError(`${profile.label} no longer exists.`);
+      if (outcome.kind === "charge-not-accepted") return setError(`${profile.label} was not tested: the charge was not accepted.`);
+      setTestResults((current) => ({ ...current, [profile.id]: outcome.result }));
+    } catch {
+      setError(`${profile.label} could not be tested. Is the app running?`);
+    } finally {
+      setTesting(undefined);
+    }
+  }
+
+  const typeOf = (profile: ProfileView) => types.find((type) => type.id === profile.adapterType);
+  const vendorOf = (profile: ProfileView) => typeOf(profile)?.label ?? profile.label;
+  const chargedCheck = (profile: ProfileView) => typeOf(profile)?.connectionCheck.charged === true;
+  const coversOf = (profile: ProfileView) => typeOf(profile)?.connectionCheck.covers ?? "";
+
   return (
     <section aria-label="Providers" className="field">
       <h2>Providers</h2>
@@ -124,8 +167,27 @@ export function ProviderProfilesSection({ password, onDenied, onChanged, refresh
                         </>
                       ) : (
                         <button type="button" onClick={() => setConfirming(profile.id)}>{`Delete ${profile.label}`}</button>
+                      )}{" "}
+                      {profile.keyStatus !== "missing" && (
+                        <button
+                          type="button"
+                          disabled={testing === profile.id || (form?.kind === "edit" && form.profile.id === profile.id)}
+                          onClick={() => (chargedCheck(profile) ? setChargeFor(profile.id) : void handleTest(profile, false))}
+                        >{`Test connection ${profile.label}`}</button>
                       )}
                     </div>
+                    {chargeFor === profile.id && (
+                      <div role="status">
+                        <p>{`This check is charged by ${vendorOf(profile)}. ${coversOf(profile)}`}</p>
+                        <button type="button" onClick={() => void handleTest(profile, true)}>{`Send charged test of ${profile.label}`}</button>{" "}
+                        <button type="button" onClick={() => setChargeFor(undefined)}>{`Cancel test of ${profile.label}`}</button>
+                      </div>
+                    )}
+                    {testResults[profile.id] && (
+                      <p role="status">
+                        <span>{resultText(testResults[profile.id]!, vendorOf(profile))}</span> <span>{testResults[profile.id]!.covers}</span>
+                      </p>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -187,7 +249,12 @@ function ProfileForm({ form, stage, types, password, onDenied, onCancel, onSaved
     event.preventDefault();
     if (saving || !type) return;
     const parameters: Record<string, unknown> = {};
-    for (const field of type.fields) setAt(parameters, field.path, coerce(field, values[field.path.join(".")] ?? ""));
+    for (const field of type.fields) {
+      const raw = values[field.path.join(".")] ?? "";
+      // An empty optional field is left out, so clearing the price makes the profile unpriced again.
+      if (!field.required && raw.trim() === "") continue;
+      setAt(parameters, field.path, coerce(field, raw));
+    }
     setSaving(true);
     setProblems([]);
     try {

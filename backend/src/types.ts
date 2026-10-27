@@ -67,6 +67,8 @@ export interface Run {
   rebuildRequestedAt: string | null;
   /** admin-visual-style-prompt (JOS-201), Decision 4 — the `/admin` style prompt copied at creation; decomposition, its retries and recovery read this, never the live setting. */
   visualStylePrompt: string;
+  /** use-reference-image-in-generation (JOS-202), Decision 3 — the `/admin` reference image copied into the project folder at creation (`path` is relative to it); every image request of the session carries it. */
+  referenceImage: { path: string; contentType: string; sha256: string } | null;
 }
 
 /** Design Decision 9 (generate-voice-over, JOS-136) — what the session carries when the voice-over failed. */
@@ -226,6 +228,15 @@ export type DurationWarning = "exceeds-maximum";
 /** record-speed-adjustment-factor (JOS-148) — the one speed-factor-warning value ever recorded; the factor exceeds `SPEED_FACTOR_LIMIT` (§7.2). */
 export type SpeedFactorWarning = "exceeds-limit";
 
+/** show-video-request-status (JOS-200) Decision 2 — what the page may show of a clip request: an allow-list, never the adapter's whole body. */
+export interface VideoRequestBody {
+  prompt: string;
+  duration: number;
+  resolution: string;
+  /** The scene's image, named; never the provider's upload URL. */
+  firstFrame: string;
+}
+
 export interface Scene {
   id: string;
   runId: string;
@@ -261,6 +272,9 @@ export interface Scene {
   videoProvider: string | null;
   /** The clip's relative path in the project folder; null until the video stage succeeds (JOS-146, Decision 5). */
   videoResult: string | null;
+  /** When the current clip request was sent, and its allow-listed body; both null before the submit returns and after the attempt ends (show-video-request-status, JOS-200). */
+  videoRequestSentAt: string | null;
+  videoRequestBody: VideoRequestBody | null;
 }
 
 /**
@@ -295,6 +309,8 @@ export interface ProviderRequestRow {
   resolved: 0 | 1;
   /** Which stage this request belongs to; defaults to 'image' for existing rows (generate-chunk-video, JOS-146, Decision 5). */
   stage: "image" | "video";
+  /** The provider the scene's stage was bound to when the attempt was recorded (JOS-222); null when the scene had no binding. */
+  providerId: string | null;
 }
 
 import type { StageDiagnostic } from "./stageDiagnostics.ts";
@@ -373,6 +389,15 @@ export interface ScenePauseView {
   limitedBySpeedFactor: boolean;
 }
 
+export interface VideoRequestView {
+  provider: { name: string; model: string | null };
+  attempt: number;
+  sentAt: string;
+  /** Calculated from earlier clips of the same provider; null when there is none to base it on. */
+  estimate: { seconds: number; basedOn: number } | null;
+  body: VideoRequestBody;
+}
+
 /** Scene event / snapshot entry — carries CURRENT state, never a delta. */
 export interface SceneEventPayload {
   type: "scene";
@@ -404,6 +429,8 @@ export interface SceneEventPayload {
   speedFactor?: number;
   /** Set only when the factor exceeds the hardcoded `SPEED_FACTOR_LIMIT`. Immutable. */
   speedFactorWarning?: SpeedFactorWarning;
+  /** show-video-request-status (JOS-200) — present only while the scene's clip request is in flight and has been sent. */
+  videoRequest?: VideoRequestView;
   held?: boolean; // true only while the session is paused and this scene has pending work
   /** adjust-scene-pause (JOS-190): present only once the session has a final video and this scene's pause can be derived. */
   pause?: ScenePauseView;

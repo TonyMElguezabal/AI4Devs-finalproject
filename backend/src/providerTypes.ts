@@ -27,7 +27,7 @@ const vendorPath = nonEmptyString.refine((value) => value.startsWith("/") && !va
 });
 
 /** A model identifier as the vendor writes it: letters, digits and `.`, `_`, `-`, `/`, `:`, with no scheme. */
-const modelId = nonEmptyString.refine((value) => /^[A-Za-z0-9._\-/:]+$/.test(value) && !value.includes("://"), {
+export const modelId = nonEmptyString.refine((value) => /^[A-Za-z0-9._\-/:]+$/.test(value) && !value.includes("://"), {
   message: "must be a model identifier, not a URL",
 });
 
@@ -47,6 +47,31 @@ export const PARAMETER_SHAPES = {
     admittedDurationSeconds: z.strictObject({ min: positiveInteger, max: positiveInteger }),
   },
 } as const;
+
+const KNOWN_CURRENCIES = new Set(Intl.supportedValuesOf("currency"));
+
+// add-provider-price-per-unit (JOS-226), design Decisions 1 and 2 — the optional price of a profile. Not part of
+// PARAMETER_SHAPES, so the settings files keep rejecting it: a price is entered on /admin only.
+const PRICE_SHAPE = {
+  pricePerUnit: z.number().finite().min(0).optional(),
+  priceCurrency: z
+    .string()
+    .transform((value) => value.toUpperCase())
+    .refine((value) => KNOWN_CURRENCIES.has(value), { message: "must be a three-letter currency code such as USD" })
+    .optional(),
+};
+
+/** The parameter keys that hold the price: ignored when a profile is compared with the settings files. */
+export const PRICE_KEYS = ["pricePerUnit", "priceCurrency"] as const;
+
+/** The unit each stage bills in, the vocabulary of the admin reports catalogue. */
+export const BILLED_UNITS: Record<ProviderStage, { id: string; label: string }> = {
+  voice: { id: "voice_characters", label: "voice character" },
+  alignment: { id: "audio_seconds", label: "audio second" },
+  reasoning: { id: "requests", label: "request" },
+  image: { id: "images", label: "image" },
+  video: { id: "clip_seconds", label: "clip second" },
+};
 
 export type ParameterField = {
   /** Where the value sits in the parameters object, for example `["admittedDurationSeconds", "min"]`. */
@@ -68,7 +93,7 @@ export interface AdapterType {
   fields: ParameterField[];
 }
 
-export const ADAPTER_TYPES: AdapterType[] = [
+const ADAPTER_TYPE_DEFINITIONS: AdapterType[] = [
   {
     id: "openai-reasoning",
     stage: "reasoning",
@@ -111,6 +136,16 @@ export const ADAPTER_TYPES: AdapterType[] = [
   },
 ];
 
+/** Every adapter type ends with the optional price and currency fields, labelled with its stage's billed unit. */
+export const ADAPTER_TYPES: AdapterType[] = ADAPTER_TYPE_DEFINITIONS.map((type) => ({
+  ...type,
+  fields: [
+    ...type.fields,
+    { path: ["pricePerUnit"], label: `Price per ${BILLED_UNITS[type.stage].label}`, kind: "number", required: false, help: "Optional. Leave empty if the provider has no price." },
+    { path: ["priceCurrency"], label: "Currency", kind: "text", required: false, help: "A three-letter code such as USD. Needed with a price." },
+  ],
+}));
+
 export function adapterTypesOf(stage: ProviderStage): AdapterType[] {
   return ADAPTER_TYPES.filter((type) => type.stage === stage);
 }
@@ -120,12 +155,14 @@ export function getAdapterType(id: string): AdapterType | undefined {
 }
 
 function schemaFor(id: keyof typeof PARAMETER_SHAPES): z.ZodTypeAny {
-  const strict = z.strictObject(PARAMETER_SHAPES[id]);
-  if (id !== "runninghub-video") return strict;
-  return (strict as unknown as z.ZodObject<(typeof PARAMETER_SHAPES)["runninghub-video"]>).superRefine((parameters, context) => {
-    if (parameters.admittedDurationSeconds.min > parameters.admittedDurationSeconds.max) {
+  const strict = z.strictObject({ ...PARAMETER_SHAPES[id], ...PRICE_SHAPE });
+  return strict.superRefine((parameters, context) => {
+    const { pricePerUnit, priceCurrency, admittedDurationSeconds } = parameters as { pricePerUnit?: number; priceCurrency?: string; admittedDurationSeconds?: { min: number; max: number } };
+    if (admittedDurationSeconds && admittedDurationSeconds.min > admittedDurationSeconds.max) {
       context.addIssue({ code: "custom", path: ["admittedDurationSeconds", "min"], message: "must not be greater than admittedDurationSeconds.max" });
     }
+    if (pricePerUnit !== undefined && priceCurrency === undefined) context.addIssue({ code: "custom", path: ["priceCurrency"], message: "is required with a price per unit" });
+    if (priceCurrency !== undefined && pricePerUnit === undefined) context.addIssue({ code: "custom", path: ["pricePerUnit"], message: "is required with a currency" });
   });
 }
 

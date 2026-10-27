@@ -1,4 +1,4 @@
-import type { AdapterTypeInfo, AppSettings, AppUpdate, FailedStageRow, ProfileProblem, ProfileView, ProviderStage, ProviderView, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AdapterTypeInfo, AppSettings, AppUpdate, ConnectionTestResult, FailedStageRow, PipelineTimeReport, ProfileProblem, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -223,6 +223,18 @@ export async function deleteProviderProfile(password: string, id: string): Promi
   return ((await response.json()) as { result: string }).result === "retired" ? { kind: "retired" } : { kind: "removed" };
 }
 
+export type ConnectionTestOutcome = { kind: "denied" } | { kind: "not-found" } | { kind: "charge-not-accepted" } | { kind: "result"; result: ConnectionTestResult };
+
+/** test-provider-connection (JOS-220): `POST /admin/provider-profiles/:id/test`. A 401 is `denied`; any other failure rejects. */
+export async function testProviderConnection(password: string, id: string, acceptCharge: boolean): Promise<ConnectionTestOutcome> {
+  const response = await adminFetch(`/admin/provider-profiles/${encodeURIComponent(id)}/test`, password, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(acceptCharge ? { acceptCharge } : {}) });
+  if (response.status === 401) return { kind: "denied" };
+  if (response.status === 404) return { kind: "not-found" };
+  if (response.status === 409) return { kind: "charge-not-accepted" };
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "result", result: (await response.json()) as ConnectionTestResult };
+}
+
 export type FailedStagesResult = { kind: "ok"; failedStages: FailedStageRow[] } | { kind: "denied" };
 export type MoveRefusalReason = "not-found" | "not-failed" | "already-on-active" | "retry-in-progress" | "not-retryable" | "not-usable";
 export type MoveStageResult = { kind: "moved" } | { kind: "denied" } | { kind: "refused"; reason: MoveRefusalReason };
@@ -250,6 +262,26 @@ export async function moveFailedStage(password: string, row: Pick<FailedStageRow
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
   return { kind: "moved" };
 }
+
+export type ProviderUsageReportResult = { kind: "ok"; report: ProviderUsageReport } | { kind: "denied" };
+export type PipelineTimeReportResult = { kind: "ok"; report: PipelineTimeReport } | { kind: "denied" };
+
+/** A report of the Reports section for the period. A 401 is `denied`; any other failure rejects. */
+async function getReport<T>(path: string, password: string, period: ReportPeriod): Promise<{ kind: "ok"; report: T } | { kind: "denied" }> {
+  const query = new URLSearchParams();
+  if (period.from) query.set("from", period.from);
+  if (period.to) query.set("to", period.to);
+  const response = await adminFetch(`${path}${query.size ? `?${query}` : ""}`, password);
+  if (response.status === 401) return { kind: "denied" };
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "ok", report: (await response.json()) as T };
+}
+
+/** report-provider-usage (JOS-223): `GET /admin/reports/provider-usage` for the period. */
+export const getProviderUsageReport = (password: string, period: ReportPeriod): Promise<ProviderUsageReportResult> => getReport<ProviderUsageReport>("/admin/reports/provider-usage", password, period);
+
+/** record-phase-instants-and-pipeline-report (JOS-228): `GET /admin/reports/pipeline-time` for the period. */
+export const getPipelineTimeReport = (password: string, period: ReportPeriod): Promise<PipelineTimeReportResult> => getReport<PipelineTimeReport>("/admin/reports/pipeline-time", password, period);
 
 /** admin-visual-style-prompt (JOS-201) */
 export const MAX_VISUAL_STYLE_PROMPT_CHARS = 8000;

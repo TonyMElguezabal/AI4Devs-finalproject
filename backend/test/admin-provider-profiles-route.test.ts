@@ -61,7 +61,7 @@ describe("GET /admin/provider-types", () => {
     const { types } = response.json();
     expect(types.map((type: { id: string }) => type.id).sort()).toEqual(["elevenlabs-alignment", "elevenlabs-voice", "fal-image", "openai-reasoning", "runninghub-video"]);
     const image = types.find((type: { id: string }) => type.id === "fal-image");
-    expect(image).toMatchObject({ stage: "image", label: "Fal.ai", fields: [{ path: ["model"], kind: "text", required: true }] });
+    expect(image).toMatchObject({ stage: "image", label: "Fal.ai", fields: [{ path: ["model"], kind: "text", required: true }, { path: ["pricePerUnit"], label: "Price per image" }, { path: ["priceCurrency"], label: "Currency" }] });
   });
 });
 
@@ -236,6 +236,7 @@ describe("OpenAPI document", () => {
     expect(document.paths["/admin/provider-profiles"]).toHaveProperty("post");
     expect(document.paths["/admin/provider-profiles/{id}"]).toHaveProperty("put");
     expect(document.paths["/admin/provider-profiles/{id}"]).toHaveProperty("delete");
+    expect(document.paths["/admin/provider-profiles/{id}/test"]).toHaveProperty("post");
   });
 });
 

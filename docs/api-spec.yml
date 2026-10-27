@@ -143,11 +143,32 @@
 # or 409 `{ reason: active, stage }`). `PUT /admin/providers/{stage}` (JOS-171) also answers 409 `not-usable` with the problems. No
 # response carries an API key. The routes are behind the Administrator password; PUT, POST and DELETE are allowed here because
 # providers are app-level settings, not session content (content lock, AC1).
+# JOS-226 (add-provider-price-per-unit) - 2026-10-23: no new route. The `parameters` of a provider profile (POST and PUT
+# `/admin/provider-profiles`, and the profile returned by GET) take two optional keys together: `pricePerUnit` (a finite number, zero or
+# greater; zero is a price) and `priceCurrency` (a three-letter ISO 4217 code, returned upper-case). Both or neither; a profile with neither is
+# unpriced. A violation is a 400 with a problem on `pricePerUnit` or `priceCurrency`. Example: `{ "model": "fal-ai/flux/dev",
+# "pricePerUnit": 0.04, "priceCurrency": "USD" }`. `GET /admin/provider-types` lists both as non-required fields at the end of every adapter
+# type, the price labelled with the stage's unit ("Price per voice character | audio second | request | image | clip second").
+# JOS-220 (test-provider-connection) - 2026-10-26: new `POST /admin/provider-profiles/{id}/test` (body `{ acceptCharge? }`; 200 `{ outcome:
+# connected|key-rejected|not-found|unreachable|unexpected|no-key, covers, httpStatus? }`, a closed object that never carries a key or the vendor's
+# answer; 401 as `/admin/access`; 404; 409 `{ reason: charge-not-accepted }` when the check is charged and `acceptCharge` is not true). It sends
+# one request to the profile's vendor with the stored key and writes nothing. `GET /admin/provider-types` adds `connectionCheck: { charged, covers }`
+# to every type. Allowed here because it changes no session content (content lock, AC1).
 # JOS-172 (move-failed-stage-to-active-provider) - 2026-10-22: new `GET /admin/failed-stages` (the failed stages bound to a provider other than
 # the active one: `sessionId`, `sessionTitle`, `stage`, `sceneId`, `sceneNumber`, both providers' ids and labels, `cause`) and
 # `POST /admin/failed-stages/to-active-provider` (body `{ sessionId, stage, sceneId? }`; 200 `{ moved }`, with the new requested
 # duration for a clip; 400 validation; 401; 404 `not-found`; 409 `not-failed`, `already-on-active`, `retry-in-progress`,
 # `not-retryable` or `not-usable`). Both are behind the Administrator password. The move binds the stage and sends nothing.
+# JOS-223 (report-provider-usage) - 2026-10-22: new `GET /admin/reports/provider-usage?from&to` (ISO 8601 date-times, `[from, to)` on the instant an
+# attempt was sent; `from` open when absent, `to` is now when absent; 200 `{ from, to, sceneAttemptsFollowCurrentProvider, rows }` with one row
+# per stage and provider: attempts, successes, failures by kind, success rate, median and 95th-percentile latency, billed units and their unit;
+# 400 for a bad date-time or `from` not before `to`; 401). Read-only, behind the Administrator password; it carries no key, script, prompt or failure text.
+# JOS-200 (show-video-request-status) - 2026-10-26: the scene representation (`POST /sessions`, `GET /sessions/{sessionId}` and `POST .../scenes/{sceneId}/pause` responses, and the live snapshot, which carries the same fields) gains an optional `videoRequest`, present only while a scene's clip request has been sent and is in flight: `provider` (`name`, `model`), `attempt`, `sentAt`, `estimate` (`{ seconds, basedOn }` or null) and `body` (`prompt`, `duration`, `resolution`, `firstFrame`, the scene's image named, never the provider's URL). The clip `stages.video` entry now counts a request in flight.
+# JOS-228 (record-phase-instants-and-pipeline-report) - 2026-10-26: new `GET /admin/reports/pipeline-time?from&to` (same period rules as the usage report, applied
+# to the instant a phase started and, for the attempt counts, the instant an attempt was sent; 200 `{ from, to, phases, sessions }`: per phase the number
+# of sessions with a recorded start and end, the median and 95th-percentile seconds, and the attempts that timed out, finished late or were superseded
+# (`null` for the scenes phase: scene attempts store no such outcome); per session the seconds of each phase, `null` where no instant was recorded;
+# 400 for a bad date-time or `from` not before `to`; 401). Read-only, behind the Administrator password.
 # JOS-201 (admin-visual-style-prompt) - 2026-10-19, merged behind the Administrator password 2026-10-22: new GET /admin/settings,
 # PUT /admin/settings/visual-style-prompt (`{ visualStylePrompt }`, at most 8,000 characters after trimming, 400 otherwise) and,
 # for the optional reference image, PUT (raw bytes, `image/png`, `image/jpeg` or `image/webp`, at most 5 MB: 400 for another
@@ -603,6 +624,71 @@ paths:
                             made. A key is present once that stage has at least
                             one attempt. Derived from the stored attempt
                             records, never stored."
+                        videoRequest:
+                          type: object
+                          properties:
+                            provider:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                model:
+                                  type: string
+                                  nullable: true
+                              required:
+                                - name
+                                - model
+                              additionalProperties: false
+                            attempt:
+                              type: integer
+                              minimum: 1
+                            sentAt:
+                              type: string
+                              description: ISO 8601 instant the request was sent.
+                            estimate:
+                              type: object
+                              properties:
+                                seconds:
+                                  type: number
+                                basedOn:
+                                  type: integer
+                                  minimum: 1
+                              required:
+                                - seconds
+                                - basedOn
+                              additionalProperties: false
+                              nullable: true
+                              description: Median generation time of earlier clips of the same provider (and
+                                duration when at least 3 exist); null when there
+                                are none.
+                            body:
+                              type: object
+                              properties:
+                                prompt:
+                                  type: string
+                                duration:
+                                  type: number
+                                resolution:
+                                  type: string
+                                firstFrame:
+                                  type: string
+                              required:
+                                - prompt
+                                - duration
+                                - resolution
+                                - firstFrame
+                              additionalProperties: false
+                          required:
+                            - provider
+                            - attempt
+                            - sentAt
+                            - estimate
+                            - body
+                          additionalProperties: false
+                          description: "JOS-200: present only while the scene's clip request has been sent
+                            and is in flight. Derived from the stored request;
+                            absent once the clip is complete or the scene
+                            failed."
                         result:
                           type: object
                           properties:
@@ -1144,6 +1230,71 @@ paths:
                             made. A key is present once that stage has at least
                             one attempt. Derived from the stored attempt
                             records, never stored."
+                        videoRequest:
+                          type: object
+                          properties:
+                            provider:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                model:
+                                  type: string
+                                  nullable: true
+                              required:
+                                - name
+                                - model
+                              additionalProperties: false
+                            attempt:
+                              type: integer
+                              minimum: 1
+                            sentAt:
+                              type: string
+                              description: ISO 8601 instant the request was sent.
+                            estimate:
+                              type: object
+                              properties:
+                                seconds:
+                                  type: number
+                                basedOn:
+                                  type: integer
+                                  minimum: 1
+                              required:
+                                - seconds
+                                - basedOn
+                              additionalProperties: false
+                              nullable: true
+                              description: Median generation time of earlier clips of the same provider (and
+                                duration when at least 3 exist); null when there
+                                are none.
+                            body:
+                              type: object
+                              properties:
+                                prompt:
+                                  type: string
+                                duration:
+                                  type: number
+                                resolution:
+                                  type: string
+                                firstFrame:
+                                  type: string
+                              required:
+                                - prompt
+                                - duration
+                                - resolution
+                                - firstFrame
+                              additionalProperties: false
+                          required:
+                            - provider
+                            - attempt
+                            - sentAt
+                            - estimate
+                            - body
+                          additionalProperties: false
+                          description: "JOS-200: present only while the scene's clip request has been sent
+                            and is in flight. Derived from the stored request;
+                            absent once the clip is complete or the scene
+                            failed."
                         result:
                           type: object
                           properties:
@@ -1704,6 +1855,71 @@ paths:
                       made. A key is present once that stage has at least one
                       attempt. Derived from the stored attempt records, never
                       stored."
+                  videoRequest:
+                    type: object
+                    properties:
+                      provider:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          model:
+                            type: string
+                            nullable: true
+                        required:
+                          - name
+                          - model
+                        additionalProperties: false
+                      attempt:
+                        type: integer
+                        minimum: 1
+                      sentAt:
+                        type: string
+                        description: ISO 8601 instant the request was sent.
+                      estimate:
+                        type: object
+                        properties:
+                          seconds:
+                            type: number
+                          basedOn:
+                            type: integer
+                            minimum: 1
+                        required:
+                          - seconds
+                          - basedOn
+                        additionalProperties: false
+                        nullable: true
+                        description: Median generation time of earlier clips of the same provider (and
+                          duration when at least 3 exist); null when there
+                          are none.
+                      body:
+                        type: object
+                        properties:
+                          prompt:
+                            type: string
+                          duration:
+                            type: number
+                          resolution:
+                            type: string
+                          firstFrame:
+                            type: string
+                        required:
+                          - prompt
+                          - duration
+                          - resolution
+                          - firstFrame
+                        additionalProperties: false
+                    required:
+                      - provider
+                      - attempt
+                      - sentAt
+                      - estimate
+                      - body
+                    additionalProperties: false
+                    description: "JOS-200: present only while the scene's clip request has been sent
+                      and is in flight. Derived from the stored request;
+                      absent once the clip is complete or the scene
+                      failed."
                   result:
                     type: object
                     properties:
@@ -2536,7 +2752,7 @@ paths:
       security:
         - administratorPassword: []
       description: Stores the optional reference image (raw bytes, replacing any earlier one). The bytes must match the
-        declared type's magic numbers. The image is stored only; no provider receives it yet.
+        declared type's magic numbers. Sessions created afterwards copy it and send it to the image provider with every scene (PRD §11.5).
       requestBody:
         required: true
         content:
@@ -3029,11 +3245,23 @@ paths:
                               - kind
                               - required
                             additionalProperties: false
+                        connectionCheck:
+                          type: object
+                          properties:
+                            charged:
+                              type: boolean
+                            covers:
+                              type: string
+                          required:
+                            - charged
+                            - covers
+                          additionalProperties: false
                       required:
                         - id
                         - stage
                         - label
                         - fields
+                        - connectionCheck
                       additionalProperties: false
                 required:
                   - types
@@ -3591,6 +3819,111 @@ paths:
                   - reason
                   - stage
                 additionalProperties: false
+  /admin/provider-profiles/{id}/test:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                acceptCharge:
+                  type: boolean
+              additionalProperties: false
+      parameters:
+        - schema:
+            type: string
+            minLength: 1
+          in: path
+          name: id
+          required: true
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  outcome:
+                    type: string
+                    enum:
+                      - connected
+                      - key-rejected
+                      - not-found
+                      - unreachable
+                      - unexpected
+                      - no-key
+                  covers:
+                    type: string
+                  httpStatus:
+                    type: number
+                required:
+                  - outcome
+                  - covers
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-found
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - charge-not-accepted
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
   /admin/failed-stages:
     get:
       security:
@@ -3820,6 +4153,271 @@ paths:
                       - retry-in-progress
                       - not-retryable
                       - not-usable
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+
+  /admin/reports/provider-usage:
+    get:
+      parameters:
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: from
+          required: false
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: to
+          required: false
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  from:
+                    type: string
+                    nullable: true
+                  to:
+                    type: string
+                  sceneAttemptsFollowCurrentProvider:
+                    type: boolean
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        stage:
+                          type: string
+                          enum:
+                            - voice
+                            - alignment
+                            - reasoning
+                            - image
+                            - video
+                        providerId:
+                          type: string
+                        providerLabel:
+                          type: string
+                        attempts:
+                          type: number
+                        successes:
+                          type: number
+                        transient:
+                          type: number
+                        notRetryable:
+                          type: number
+                        timedOut:
+                          type: number
+                        successRatePercent:
+                          type: number
+                        medianLatencyMs:
+                          type: number
+                          nullable: true
+                        p95LatencyMs:
+                          type: number
+                          nullable: true
+                        billedUnits:
+                          type: number
+                        unit:
+                          type: string
+                      required:
+                        - stage
+                        - providerId
+                        - providerLabel
+                        - attempts
+                        - successes
+                        - transient
+                        - notRetryable
+                        - timedOut
+                        - successRatePercent
+                        - medianLatencyMs
+                        - p95LatencyMs
+                        - billedUnits
+                        - unit
+                      additionalProperties: false
+                required:
+                  - from
+                  - to
+                  - sceneAttemptsFollowCurrentProvider
+                  - rows
+                additionalProperties: false
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: number
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - statusCode
+                  - error
+                  - message
+                additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+
+  /admin/reports/pipeline-time:
+    get:
+      parameters:
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: from
+          required: false
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: to
+          required: false
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  from:
+                    type: string
+                    nullable: true
+                  to:
+                    type: string
+                  phases:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        phase:
+                          type: string
+                          enum:
+                            - voice-over
+                            - decomposition
+                            - scenes
+                            - assembly
+                        sessions:
+                          type: number
+                        medianSeconds:
+                          type: number
+                          nullable: true
+                        p95Seconds:
+                          type: number
+                          nullable: true
+                        timedOut:
+                          type: number
+                          nullable: true
+                        finishedLate:
+                          type: number
+                          nullable: true
+                        superseded:
+                          type: number
+                          nullable: true
+                      required:
+                        - phase
+                        - sessions
+                        - medianSeconds
+                        - p95Seconds
+                        - timedOut
+                        - finishedLate
+                        - superseded
+                      additionalProperties: false
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        runId:
+                          type: string
+                        title:
+                          type: string
+                        seconds:
+                          type: object
+                          additionalProperties:
+                            type: number
+                            nullable: true
+                      required:
+                        - runId
+                        - title
+                        - seconds
+                      additionalProperties: false
+                required:
+                  - from
+                  - to
+                  - phases
+                  - sessions
+                additionalProperties: false
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: number
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - statusCode
+                  - error
+                  - message
+                additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
                 required:
                   - ok
                   - reason

@@ -93,6 +93,18 @@ export interface ScenePauseView {
   limitedBySpeedFactor: boolean;
 }
 
+/** show-video-request-status (JOS-200) — the clip request of a scene whose clip is generating; absent otherwise. */
+export interface VideoRequestView {
+  provider: { name: string; model: string | null };
+  attempt: number;
+  /** ISO 8601 instant the request was sent. */
+  sentAt: string;
+  /** Median generation time of earlier clips of the same provider; null when there are none to base it on. */
+  estimate: { seconds: number; basedOn: number } | null;
+  /** What was sent, reduced to the prompt, duration and resolution; the first frame is named, never a URL. */
+  body: { prompt: string; duration: number; resolution: string; firstFrame: string };
+}
+
 export interface SceneEventPayload {
   type: "scene";
   sessionId: string;
@@ -103,6 +115,8 @@ export interface SceneEventPayload {
   errorCause?: string | null;
   /** JOS-166 — per stage; a key is present once that stage has at least one attempt. */
   stages: { image?: StageDiagnostic; video?: StageDiagnostic };
+  /** JOS-200 — present only while the scene's clip request has been sent and is in flight. */
+  videoRequest?: VideoRequestView;
   result?: { imageUrl?: string; videoUrl?: string };
   /** download-scene-results (JOS-163) — present only for the files that actually exist; render a download link for exactly these, never derived from `state`. */
   downloads?: { imageUrl?: string; clipUrl?: string };
@@ -181,6 +195,14 @@ export interface AdapterTypeInfo {
   stage: ProviderStage;
   label: string;
   fields: ParameterFieldInfo[];
+  /** test-provider-connection (JOS-220): whether the vendor charges for the check, and what a pass proves. */
+  connectionCheck: { charged: boolean; covers: string };
+}
+export type ConnectionOutcome = "connected" | "key-rejected" | "not-found" | "unreachable" | "unexpected" | "no-key";
+export interface ConnectionTestResult {
+  outcome: ConnectionOutcome;
+  covers: string;
+  httpStatus?: number;
 }
 export interface ProfileProblem {
   field: string;
@@ -214,9 +236,58 @@ export interface FailedStageRow {
   cause: string;
 }
 
+/** report-provider-usage (JOS-223): the period of a report, as the ISO instants the backend takes; an absent bound is open. */
+export interface ReportPeriod {
+  from?: string;
+  to?: string;
+}
+
+export interface ProviderUsageRow {
+  stage: ProviderStage;
+  providerId: string;
+  providerLabel: string;
+  attempts: number;
+  successes: number;
+  transient: number;
+  notRetryable: number;
+  timedOut: number;
+  successRatePercent: number;
+  medianLatencyMs: number | null;
+  p95LatencyMs: number | null;
+  billedUnits: number;
+  unit: string;
+}
+
+export interface ProviderUsageReport {
+  from: string | null;
+  to: string;
+  sceneAttemptsFollowCurrentProvider: boolean;
+  rows: ProviderUsageRow[];
+}
+
 /** admin-visual-style-prompt (JOS-201) — `GET /admin/settings`. The image's file path is never exposed. */
 export interface AppSettings {
   visualStylePrompt: string;
   referenceImage: { contentType: string; sizeBytes: number; updatedAt: string } | null;
   updatedAt: string;
+}
+
+/** record-phase-instants-and-pipeline-report (JOS-228): `GET /admin/reports/pipeline-time`. `null` seconds is no time; a `null` count is not recorded. */
+export type PipelinePhase = "voice-over" | "decomposition" | "scenes" | "assembly";
+
+export interface PipelinePhaseRow {
+  phase: PipelinePhase;
+  sessions: number;
+  medianSeconds: number | null;
+  p95Seconds: number | null;
+  timedOut: number | null;
+  finishedLate: number | null;
+  superseded: number | null;
+}
+
+export interface PipelineTimeReport {
+  from: string | null;
+  to: string;
+  phases: PipelinePhaseRow[];
+  sessions: Array<{ runId: string; title: string; seconds: Record<PipelinePhase, number | null> }>;
 }

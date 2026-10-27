@@ -21,4 +21,10 @@ export function readBuildConfig(env: Record<string, string | undefined>): BuildC
   };
 }
 
-export const BUILD: BuildConfig = readBuildConfig(process.env);
+// Each variable is named so the bundler can replace `process.env.VID4YOU_*` with the value set at build time (JOS-206).
+export const BUILD: BuildConfig = readBuildConfig({
+  VID4YOU_VERSION: process.env.VID4YOU_VERSION,
+  VID4YOU_CHANNEL: process.env.VID4YOU_CHANNEL,
+  VID4YOU_RELEASE_TAG: process.env.VID4YOU_RELEASE_TAG,
+  VID4YOU_TELEMETRY_ENDPOINT: process.env.VID4YOU_TELEMETRY_ENDPOINT,
+});

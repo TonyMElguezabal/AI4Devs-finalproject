@@ -8,7 +8,7 @@
 // server DB vs. structured files and confirmed this on the merits
 // (`openspec/changes/define-persistence/design.md` § Execution Record §3) —
 // this is no longer a disposable stand-in, it is the decision.
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
 import { getConsent, normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
@@ -18,6 +18,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import type {
   AttemptStage,
   DurationWarning,
+  VideoRequestBody,
   NarrationInterval,
   ProviderOutcomeMode,
   ProviderRequestRow,
@@ -643,6 +644,61 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       target.prepare("INSERT INTO app_settings (id, updated_at) VALUES (1, ?)").run(new Date().toISOString());
     },
   },
+  {
+    version: 21,
+    description: "add provider_requests.provider_id and backfill it from the scene's binding for the attempt's stage (record-attempt-provider, JOS-222)",
+    up: (target) => {
+      target.exec("ALTER TABLE provider_requests ADD COLUMN provider_id TEXT");
+      // `scenes.provider` is part of the baseline schema; the version-1 fixture databases of the migration tests omit it.
+      const hasImageBinding = (target.prepare("PRAGMA table_info(scenes)").all() as Array<{ name: string }>).some((c) => c.name === "provider");
+      if (!hasImageBinding) return;
+      target.exec(`
+        UPDATE provider_requests SET provider_id = (
+          SELECT CASE WHEN provider_requests.stage = 'video' THEN scenes.video_provider ELSE scenes.provider END
+          FROM scenes WHERE scenes.id = provider_requests.scene_id
+        );
+      `);
+    },
+  },
+  {
+    version: 22,
+    description: "add phase_instants: the start and end instant of each pipeline phase of a session (record-phase-instants-and-pipeline-report, JOS-228)",
+    up: (target) => {
+      target.exec(`
+        CREATE TABLE phase_instants (
+          run_id TEXT NOT NULL REFERENCES runs(id),
+          phase TEXT NOT NULL CHECK (phase IN ('voice-over', 'decomposition', 'scenes', 'assembly')),
+          started_at TEXT,
+          ended_at TEXT,
+          PRIMARY KEY (run_id, phase)
+        );
+      `);
+    },
+  },
+  {
+    version: 23,
+    description:
+      "add runs.reference_image_path, reference_image_content_type and reference_image_sha256: the snapshot of the /admin reference image taken at creation (use-reference-image-in-generation, JOS-202)",
+    up: (target) => {
+      // Nullable, no backfill: a session created before this change had no reference image to send.
+      target.exec(`
+        ALTER TABLE runs ADD COLUMN reference_image_path TEXT;
+        ALTER TABLE runs ADD COLUMN reference_image_content_type TEXT;
+        ALTER TABLE runs ADD COLUMN reference_image_sha256 TEXT;
+      `);
+    },
+  },
+  {
+    version: 24,
+    description: "add scenes.video_request_sent_at and video_request: the clip request in flight, as sent (show-video-request-status, JOS-200)",
+    up: (target) => {
+      // Nullable, no backfill: a request sent before this change has no recorded send time or body, and one finished is never shown.
+      target.exec(`
+        ALTER TABLE scenes ADD COLUMN video_request_sent_at TEXT;
+        ALTER TABLE scenes ADD COLUMN video_request TEXT;
+      `);
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -919,6 +975,27 @@ export function clearReferenceImage(): AppSettings {
   return getAppSettings();
 }
 
+const REFERENCE_IMAGE_EXTENSIONS: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+
+/**
+ * use-reference-image-in-generation (JOS-202), Decision 3 — copies the `/admin` reference image into the project folder, so
+ * replacing or removing the setting never changes this session. A saved file that has vanished counts as no image, as
+ * `getAppSettings` already reports it.
+ */
+function snapshotReferenceImage(projectFolder: string): Run["referenceImage"] {
+  const file = getReferenceImageFile();
+  const extension = file ? REFERENCE_IMAGE_EXTENSIONS[file.contentType] : undefined;
+  if (!file || !extension) return null;
+  let bytes: Buffer;
+  try {
+    bytes = readFileSync(file.path);
+  } catch {
+    return null;
+  }
+  const path = writeArtefactOnce(projectFolder, `reference-image.${extension}`, bytes);
+  return { path, contentType: file.contentType, sha256: createHash("sha256").update(bytes).digest("hex") };
+}
+
 export function createRun(id: string, title: string, script: string, language: string): Run {
   const createdAt = nowIso();
   const projectFolder = deriveAndCreateProjectFolder(title, new Date(createdAt));
@@ -927,10 +1004,11 @@ export function createRun(id: string, title: string, script: string, language: s
   writeArtefactOnce(projectFolder, "script.txt", script);
   // admin-visual-style-prompt (JOS-201), Decision 4 — the style at this moment, kept for the run's whole life.
   const visualStylePrompt = getAppSettings().visualStylePrompt;
+  const referenceImage = snapshotReferenceImage(projectFolder);
   db.prepare(
-    "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script, visual_style_prompt) VALUES (?, ?, ?, 0, ?, ?, ?, ?)",
-  ).run(id, title, createdAt, language, projectFolder, script, visualStylePrompt);
-  return { id, title, script, createdAt, paused: false, language, projectFolder, visualStylePrompt, voiceProviderId: null, decompositionProviderId: null, alignmentProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
+    "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script, visual_style_prompt, reference_image_path, reference_image_content_type, reference_image_sha256) VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)",
+  ).run(id, title, createdAt, language, projectFolder, script, visualStylePrompt, referenceImage?.path ?? null, referenceImage?.contentType ?? null, referenceImage?.sha256 ?? null);
+  return { id, title, script, createdAt, paused: false, language, projectFolder, visualStylePrompt, referenceImage, voiceProviderId: null, decompositionProviderId: null, alignmentProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
 }
 
 export function setRunProjectFolder(runId: string, projectFolder: string): void {
@@ -971,6 +1049,8 @@ export function createScene(
     providerLatencyMs,
     videoProvider: null,
     videoResult: null,
+    videoRequestSentAt: null,
+    videoRequestBody: null,
     updatedAt,
   };
 }
@@ -1013,6 +1093,8 @@ interface SceneRow {
   provider_latency_ms: number;
   video_provider: string | null;
   video_result: string | null;
+  video_request_sent_at: string | null;
+  video_request: string | null;
   updated_at: string;
 }
 
@@ -1029,6 +1111,9 @@ interface RunRow {
   decomposition_provider_id: string | null;
   alignment_provider_id: string | null;
   visual_style_prompt: string;
+  reference_image_path: string | null;
+  reference_image_content_type: string | null;
+  reference_image_sha256: string | null;
   failure: string | null;
   final_video_path: string | null;
   rebuild_requested_at: string | null;
@@ -1092,6 +1177,7 @@ interface ProviderRequestDbRow {
   attempt_number: number;
   resolved: 0 | 1;
   stage: "image" | "video" | null;
+  provider_id: string | null;
 }
 
 function rowToProviderRequest(row: ProviderRequestDbRow): ProviderRequestRow {
@@ -1104,6 +1190,7 @@ function rowToProviderRequest(row: ProviderRequestDbRow): ProviderRequestRow {
     attemptNumber: row.attempt_number,
     resolved: row.resolved,
     stage: row.stage ?? "image",
+    providerId: row.provider_id,
   };
 }
 
@@ -1144,6 +1231,8 @@ function rowToScene(row: SceneRow): Scene {
     providerLatencyMs: row.provider_latency_ms,
     videoProvider: row.video_provider ?? null,
     videoResult: row.video_result ?? null,
+    videoRequestSentAt: row.video_request_sent_at ?? null,
+    videoRequestBody: row.video_request ? (JSON.parse(row.video_request) as VideoRequestBody) : null,
     updatedAt: row.updated_at,
   };
 }
@@ -1164,6 +1253,10 @@ function rowToRun(row: RunRow): Run {
     finalVideoPath: row.final_video_path ?? null,
     rebuildRequestedAt: row.rebuild_requested_at ?? null,
     visualStylePrompt: row.visual_style_prompt ?? "",
+    referenceImage:
+      row.reference_image_path && row.reference_image_content_type && row.reference_image_sha256
+        ? { path: row.reference_image_path, contentType: row.reference_image_content_type, sha256: row.reference_image_sha256 }
+        : null,
   };
 }
 
@@ -1223,6 +1316,9 @@ export function insertRegisteredScenes(runId: string, scenes: readonly Registere
       );
     }
     db.prepare("UPDATE runs SET failure = NULL WHERE id = ?").run(runId);
+    // The decomposition ends and the scenes phase starts at the same instant: the scenes now exist.
+    stampPhase(runId, "decomposition", "ended", updatedAt);
+    stampPhase(runId, "scenes", "started", updatedAt);
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");
@@ -1378,6 +1474,7 @@ export function insertVoiceOver(input: VoiceOverInput): boolean {
       input.providerRequestId,
       input.completedAt,
     );
+    stampPhase(input.runId, "voice-over", "ended", input.completedAt);
     return true;
   } catch (err) {
     if (isUniqueConstraintError(err)) {
@@ -1464,6 +1561,36 @@ function rowToStageAttempt(row: StageAttemptRow): StageAttempt {
  * racing attempts cannot both take the same number; the unique key would
  * reject the second regardless.
  */
+export type PipelinePhase = "voice-over" | "decomposition" | "scenes" | "assembly";
+
+/**
+ * record-phase-instants-and-pipeline-report (JOS-228), design Decision 2 — stamps the start or the end of a phase.
+ * The first write wins: a retry, a rebuild or a restart never moves an instant.
+ */
+export function stampPhase(runId: string, phase: PipelinePhase, edge: "started" | "ended", at: string): void {
+  const column = edge === "started" ? "started_at" : "ended_at";
+  db.prepare(
+    `INSERT INTO phase_instants (run_id, phase, ${column}) VALUES (?, ?, ?)
+     ON CONFLICT (run_id, phase) DO UPDATE SET ${column} = COALESCE(${column}, excluded.${column})`,
+  ).run(runId, phase, at);
+}
+
+export type PhaseInstants = Partial<Record<PipelinePhase, { startedAt: string | null; endedAt: string | null }>>;
+
+/** The recorded instants of a session; a phase never stamped is absent (existing sessions have none). */
+export function getPhaseInstants(runId: string): PhaseInstants {
+  const rows = db.prepare("SELECT phase, started_at, ended_at FROM phase_instants WHERE run_id = ?").all(runId) as unknown as { phase: PipelinePhase; started_at: string | null; ended_at: string | null }[];
+  return Object.fromEntries(rows.map((row) => [row.phase, { startedAt: row.started_at, endedAt: row.ended_at }]));
+}
+
+/** The pipeline phase a stage attempt belongs to; the scene-level stages are stamped by the scene writes instead. */
+const PHASE_OF_ATTEMPT_STAGE: Partial<Record<AttemptStage, PipelinePhase>> = {
+  "voice-over": "voice-over",
+  timestamps: "decomposition",
+  decomposition: "decomposition",
+  assembly: "assembly",
+};
+
 export function recordStageAttempt(input: {
   runId: string;
   stage: AttemptStage;
@@ -1537,6 +1664,8 @@ function insertStageAttempt(input: {
     input.runId,
     input.stage,
   );
+  const phase = PHASE_OF_ATTEMPT_STAGE[input.stage];
+  if (phase) stampPhase(input.runId, phase, "started", input.sentAt ?? input.queuedAt);
   return rowToStageAttempt(getRow<StageAttemptRow>("SELECT * FROM stage_attempts WHERE id = ?", id)!);
 }
 
@@ -1753,6 +1882,7 @@ export function getStageAttempts(runId: string, stage: AttemptStage): StageAttem
 export function setFinalVideoPath(runId: string, relativePath: string): boolean {
   const result = db.prepare("UPDATE runs SET final_video_path = ? WHERE id = ? AND final_video_path IS NULL").run(relativePath, runId);
   const changed = Number(result.changes) > 0;
+  if (changed) stampPhase(runId, "assembly", "ended", nowIso());
   if (changed) recordProductEvent("final_video"); // JOS-199 — only the transition from none to a first final video counts
   return changed;
 }
@@ -1974,14 +2104,25 @@ export function resetAttemptsForVideoStart(sceneId: string): void {
 
 export function markVideoGenerating(sceneId: string, requestId: string, attemptNumber: number): void {
   db.prepare(
-    "UPDATE scenes SET status = 'video-generating', current_request_id = ?, attempts = ?, updated_at = ? WHERE id = ?",
+    "UPDATE scenes SET status = 'video-generating', current_request_id = ?, attempts = ?, video_request_sent_at = NULL, video_request = NULL, updated_at = ? WHERE id = ?",
   ).run(requestId, attemptNumber, nowIso(), sceneId);
 }
 
+/** show-video-request-status (JOS-200) — the clip request of the current attempt, as sent: when, and the allow-listed body. Overwrites the previous attempt's (`markVideoGenerating` cleared it). */
+export function recordVideoRequestSent(sceneId: string, sentAt: string, body: VideoRequestBody): void {
+  db.prepare("UPDATE scenes SET video_request_sent_at = ?, video_request = ? WHERE id = ?").run(sentAt, JSON.stringify(body), sceneId);
+}
+
 export function markChunkComplete(sceneId: string, videoResult: string): void {
+  const at = nowIso();
   db.prepare(
     "UPDATE scenes SET status = 'chunk-complete', video_result = ?, current_request_id = NULL, updated_at = ? WHERE id = ?",
-  ).run(videoResult, nowIso(), sceneId);
+  ).run(videoResult, at, sceneId);
+  // JOS-228 — the scenes phase ends with the last scene of the session; the first end stands.
+  const pending = db
+    .prepare("SELECT COUNT(*) c FROM scenes WHERE run_id = (SELECT run_id FROM scenes WHERE id = ?) AND status <> 'chunk-complete'")
+    .get(sceneId) as unknown as CountRow;
+  if (pending.c === 0) stampPhase((db.prepare("SELECT run_id FROM scenes WHERE id = ?").get(sceneId) as unknown as { run_id: string }).run_id, "scenes", "ended", at);
 }
 
 export function bindSceneVideoProvider(sceneId: string, identifier: string): void {
@@ -2066,11 +2207,13 @@ export function insertProviderRequest(
   stage: "image" | "video" = "image",
 ): ProviderRequestRow {
   const sentAt = nowIso();
+  // record-attempt-provider (JOS-222) Decision 1 — the stage's binding cannot change while an attempt is in flight.
   db.prepare(
-    "INSERT INTO provider_requests (id, scene_id, sent_at, latency_ms, mode, attempt_number, resolved, stage) VALUES (?, ?, ?, ?, ?, ?, 0, ?)",
-  ).run(id, sceneId, sentAt, latencyMs, mode, attemptNumber, stage);
+    `INSERT INTO provider_requests (id, scene_id, sent_at, latency_ms, mode, attempt_number, resolved, stage, provider_id)
+     VALUES (?, ?, ?, ?, ?, ?, 0, ?, (SELECT CASE WHEN ? = 'video' THEN video_provider ELSE provider END FROM scenes WHERE id = ?))`,
+  ).run(id, sceneId, sentAt, latencyMs, mode, attemptNumber, stage, stage, sceneId);
   reportProviderRequest(sceneId, latencyMs, mode, stage);
-  return { id, sceneId, sentAt, latencyMs, mode, attemptNumber, resolved: 0, stage };
+  return getProviderRequest(id)!;
 }
 
 /** add-observability-telemetry (JOS-199) Decision 4 — the image and clip stages report here, not through stage attempts. */
@@ -2154,7 +2297,7 @@ export function resetAll(): void {
     db.exec("DROP TRIGGER narration_timestamps_no_delete");
     db.exec("DROP TRIGGER final_video_builds_no_delete");
     db.exec(
-      "DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs; DELETE FROM active_providers; DELETE FROM provider_profiles;",
+      "DELETE FROM phase_instants; DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs; DELETE FROM active_providers; DELETE FROM provider_profiles;",
     );
     db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
     db.exec(SCENE_NO_DELETE_TRIGGER_DDL);
