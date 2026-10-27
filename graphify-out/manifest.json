@@ -1794,9 +1794,9 @@
     "semantic_hash": ""
   },
   "docs/frontend-standards.md": {
-    "mtime": 1793140278.6177764,
-    "seen": 1793141573.200858,
-    "ast_hash": "9caa6a8cad3db023a56f2f876485d665",
+    "mtime": 1793141576.5222094,
+    "seen": 1793142160.842655,
+    "ast_hash": "ad514d864eacd279866ae50eb5aad368",
     "semantic_hash": ""
   },
   "docs/openspec-tasks-mandatory-steps.md": {
@@ -2934,9 +2934,9 @@
     "semantic_hash": ""
   },
   "openspec/specs/paused-session-display/spec.md": {
-    "mtime": 1793140279.2013113,
-    "seen": 1793141573.2014852,
-    "ast_hash": "541da8ae828a19e36c5335d665a458f8",
+    "mtime": 1793142144.616802,
+    "seen": 1793142160.867418,
+    "ast_hash": "30ea43b48e4d255b991a5486ee015bb4",
     "semantic_hash": ""
   },
   "openspec/specs/persistence-foundation/spec.md": {
@@ -8015,52 +8015,52 @@
     "ast_hash": "2be9ade2a0cd5ea3ed6b86afcec6692e",
     "semantic_hash": ""
   },
-  "openspec/changes/surface-pause-continue-failure/.openspec.yaml": {
+  "openspec/changes/archive/2026-10-27-surface-pause-continue-failure/.openspec.yaml": {
     "mtime": 1793140356.7387896,
-    "seen": 1793141573.201455,
+    "seen": 1793142160.865796,
     "ast_hash": "9647580428efcef2cc453d72112b49be",
     "semantic_hash": ""
   },
-  "openspec/changes/surface-pause-continue-failure/design.md": {
+  "openspec/changes/archive/2026-10-27-surface-pause-continue-failure/design.md": {
     "mtime": 1793140440.5697482,
-    "seen": 1793141573.201456,
+    "seen": 1793142160.865798,
     "ast_hash": "51cf4508847940d67ac1d56996b41178",
     "semantic_hash": ""
   },
-  "openspec/changes/surface-pause-continue-failure/proposal.md": {
+  "openspec/changes/archive/2026-10-27-surface-pause-continue-failure/proposal.md": {
     "mtime": 1793140398.1658528,
-    "seen": 1793141573.2014568,
+    "seen": 1793142160.865798,
     "ast_hash": "5c71040db7f72ca29ce8a452650d3aa5",
     "semantic_hash": ""
   },
-  "openspec/changes/surface-pause-continue-failure/reports/2026-10-27-step-5-unit-test-and-db-verification.md": {
+  "openspec/changes/archive/2026-10-27-surface-pause-continue-failure/reports/2026-10-27-step-5-unit-test-and-db-verification.md": {
     "mtime": 1793141424.752949,
-    "seen": 1793141573.201458,
+    "seen": 1793142160.8658,
     "ast_hash": "b7e5c763220a738bca399ab5a68f47e4",
     "semantic_hash": ""
   },
-  "openspec/changes/surface-pause-continue-failure/reports/2026-10-27-step-6-manual-endpoint-testing.md": {
+  "openspec/changes/archive/2026-10-27-surface-pause-continue-failure/reports/2026-10-27-step-6-manual-endpoint-testing.md": {
     "mtime": 1793141459.0331848,
-    "seen": 1793141573.201459,
+    "seen": 1793142160.8658009,
     "ast_hash": "51c44093b9632ab72389d48a09026c21",
     "semantic_hash": ""
   },
-  "openspec/changes/surface-pause-continue-failure/reports/2026-10-27-step-7-e2e-testing.md": {
+  "openspec/changes/archive/2026-10-27-surface-pause-continue-failure/reports/2026-10-27-step-7-e2e-testing.md": {
     "mtime": 1793141558.7413971,
-    "seen": 1793141573.201459,
+    "seen": 1793142160.865802,
     "ast_hash": "d059325e6793963cec7c5fab9ddcb1a5",
     "semantic_hash": ""
   },
-  "openspec/changes/surface-pause-continue-failure/specs/paused-session-display/spec.md": {
+  "openspec/changes/archive/2026-10-27-surface-pause-continue-failure/specs/paused-session-display/spec.md": {
     "mtime": 1793140404.227791,
-    "seen": 1793141573.20146,
+    "seen": 1793142160.865803,
     "ast_hash": "fc15fa38f3bb916c1949cbad33e50571",
     "semantic_hash": ""
   },
-  "openspec/changes/surface-pause-continue-failure/tasks.md": {
-    "mtime": 1793140444.166172,
-    "seen": 1793141573.201461,
-    "ast_hash": "1f933d42812346bec46508549dd69bca",
+  "openspec/changes/archive/2026-10-27-surface-pause-continue-failure/tasks.md": {
+    "mtime": 1793142127.2170346,
+    "seen": 1793142160.865804,
+    "ast_hash": "7e4b3976e42c777f0d3f25cc8fdf6877",
     "semantic_hash": ""
   }
 }
