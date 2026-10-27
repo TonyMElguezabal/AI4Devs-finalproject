@@ -43,9 +43,9 @@
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the backend with an isolated data folder and the Administrator password; curl the test route for a profile with a valid key, a wrong key, no key, a charged type without `acceptCharge`, and without the password
-- [ ] 7.2 Confirm the profile is unchanged after each call
-- [ ] 7.3 Restore the data folder and document commands and responses (keys redacted) in `reports/YYYY-MM-DD-step-7-curl-endpoint-testing.md`
+- [x] 7.1 Start the backend with an isolated data folder and the Administrator password; curl the test route for a profile with a valid key, a wrong key, no key, a charged type without `acceptCharge`, and without the password
+- [x] 7.2 Confirm the profile is unchanged after each call
+- [x] 7.3 Restore the data folder and document commands and responses (keys redacted) in `reports/YYYY-MM-DD-step-7-curl-endpoint-testing.md`
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
