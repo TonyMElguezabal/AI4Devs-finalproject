@@ -64,8 +64,8 @@
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [ ] 9.1 `docs/PRD.md` §11.4: check the text matches what was built; change it (with a §16 entry) only if it does not.
-- [ ] 9.2 `docs/api-spec.yml`: both routes with 200, 400 (list), 401 and 404 (drill-down).
-- [ ] 9.3 `docs/frontend-standards.md`: the accessible names of the sessions table and its "Scenes of <title>" buttons.
-- [ ] 9.4 `docs/development_guide.md` and the readme's `/admin` section: the sessions report and how the state is derived.
-- [ ] 9.5 Run `graphify update .`.
+- [x] 9.1 `docs/PRD.md` §11.4: check the text matches what was built; change it (with a §16 entry) only if it does not.
+- [x] 9.2 `docs/api-spec.yml`: both routes with 200, 400 (list), 401 and 404 (drill-down).
+- [x] 9.3 `docs/frontend-standards.md`: the accessible names of the sessions table and its "Scenes of <title>" buttons.
+- [x] 9.4 `docs/development_guide.md` and the readme's `/admin` section: the sessions report and how the state is derived.
+- [x] 9.5 Run `graphify update .`.

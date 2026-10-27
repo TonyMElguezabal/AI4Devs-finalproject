@@ -169,6 +169,12 @@
 # of sessions with a recorded start and end, the median and 95th-percentile seconds, and the attempts that timed out, finished late or were superseded
 # (`null` for the scenes phase: scene attempts store no such outcome); per session the seconds of each phase, `null` where no instant was recorded;
 # 400 for a bad date-time or `from` not before `to`; 401). Read-only, behind the Administrator password.
+# JOS-225 (report-sessions) - 2026-10-27: new `GET /admin/reports/sessions?from&to` (same period rules as the usage report, applied to the session's creation time;
+# 200 `{ from, to, rows }`, newest first: per session the id, title, creation instant, derived state (`final-video-ready`, `failed` with its `failedPhase`, or `in-progress`;
+# a recorded failure wins), whether it is paused, its scenes, failed scenes and attempts, and the seconds to the voice-over and to the final video (`null` until they exist);
+# 400 for a bad date-time or `from` not before `to`; 401) and `GET /admin/reports/sessions/{sessionId}/scenes` (200 `{ sessionId, rows }` with, per scene, its number, status, image and
+# clip provider display names, image and clip request counts, requested duration, speed factor and the two warnings; 401; 404 for an unknown session). Both are read-only, behind the
+# Administrator password, and carry no script, prompt, instruction, narration text or failure text: the session title is the only User text.
 # JOS-201 (admin-visual-style-prompt) - 2026-10-19, merged behind the Administrator password 2026-10-22: new GET /admin/settings,
 # PUT /admin/settings/visual-style-prompt (`{ visualStylePrompt }`, at most 8,000 characters after trimming, 400 otherwise) and,
 # for the optional reference image, PUT (raw bytes, `image/png`, `image/jpeg` or `image/webp`, at most 5 MB: 400 for another
@@ -4422,3 +4428,234 @@ paths:
                   - ok
                   - reason
                 additionalProperties: false
+  /admin/reports/sessions:
+    get:
+      parameters:
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: from
+          required: false
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: to
+          required: false
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  from:
+                    type: string
+                    nullable: true
+                  to:
+                    type: string
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        createdAt:
+                          type: string
+                        state:
+                          type: string
+                          enum:
+                            - final-video-ready
+                            - failed
+                            - in-progress
+                        failedPhase:
+                          type: string
+                          enum:
+                            - voice-over
+                            - decomposition
+                            - assembly
+                          nullable: true
+                        paused:
+                          type: boolean
+                        scenes:
+                          type: number
+                        failedScenes:
+                          type: number
+                        attempts:
+                          type: number
+                        secondsToVoiceOver:
+                          type: number
+                          nullable: true
+                        secondsToFinalVideo:
+                          type: number
+                          nullable: true
+                      required:
+                        - id
+                        - title
+                        - createdAt
+                        - state
+                        - failedPhase
+                        - paused
+                        - scenes
+                        - failedScenes
+                        - attempts
+                        - secondsToVoiceOver
+                        - secondsToFinalVideo
+                      additionalProperties: false
+                required:
+                  - from
+                  - to
+                  - rows
+                additionalProperties: false
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: number
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - statusCode
+                  - error
+                  - message
+                additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+  /admin/reports/sessions/{sessionId}/scenes:
+    get:
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: sessionId
+          required: true
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        number:
+                          type: number
+                        status:
+                          type: string
+                        imageProvider:
+                          type: string
+                          nullable: true
+                        clipProvider:
+                          type: string
+                          nullable: true
+                        imageAttempts:
+                          type: number
+                        clipAttempts:
+                          type: number
+                        requestedDurationSeconds:
+                          type: number
+                          nullable: true
+                        speedFactor:
+                          type: number
+                          nullable: true
+                        durationWarning:
+                          type: string
+                          nullable: true
+                        speedFactorWarning:
+                          type: string
+                          nullable: true
+                      required:
+                        - number
+                        - status
+                        - imageProvider
+                        - clipProvider
+                        - imageAttempts
+                        - clipAttempts
+                        - requestedDurationSeconds
+                        - speedFactor
+                        - durationWarning
+                        - speedFactorWarning
+                      additionalProperties: false
+                required:
+                  - sessionId
+                  - rows
+                additionalProperties: false
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "404":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: number
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - statusCode
+                  - error
+                  - message
+                additionalProperties: true
