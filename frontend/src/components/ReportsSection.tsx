@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { getFailuresReport, getPipelineTimeReport, getProviderUsageReport } from "../api/client";
-import type { FailuresReport, PipelineTimeReport, ProviderStage, ProviderUsageReport, ReportPeriod } from "../types";
+import { getFailuresReport, getPipelineTimeReport, getProviderChangesReport, getProviderUsageReport } from "../api/client";
+import type { FailuresReport, PipelineTimeReport, ProviderChangesReport, ProviderStage, ProviderUsageReport, ReportPeriod } from "../types";
 import { FailuresTables } from "./FailuresTables";
 import { PipelineTimeTables } from "./PipelineTimeTables";
+import { ProviderChangesTable } from "./ProviderChangesTable";
 import { ReportPeriodSelector, lastDays } from "./ReportPeriodSelector";
 import { SessionsReport } from "./SessionsReport";
 
@@ -21,7 +22,7 @@ interface Props {
 
 /**
  * report-provider-usage (JOS-223), design Decision 7 — the "Reports" section of `/admin`: a period (last 30 days at first)
- * and the provider-usage table. JOS-228 adds the pipeline time, JOS-224 the failures and retries, JOS-225 the sessions list.
+ * and the provider-usage table. JOS-228 adds the pipeline time, JOS-224 the failures and retries, JOS-225 the sessions list, JOS-229 the provider changes.
  */
 export function ReportsSection({ password, onDenied }: Props) {
   const [period, setPeriod] = useState<ReportPeriod>(() => lastDays(30));
@@ -39,6 +40,8 @@ export function ReportsSection({ password, onDenied }: Props) {
   };
   const [failures, setFailures] = useState<FailuresReport | undefined>(undefined);
   const [failuresError, setFailuresError] = useState<string | undefined>(undefined);
+  const [changes, setChanges] = useState<ProviderChangesReport | undefined>(undefined);
+  const [changesError, setChangesError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let current = true;
@@ -74,6 +77,14 @@ export function ReportsSection({ password, onDenied }: Props) {
       },
       () => current && setFailuresError("Could not load the failures and retries report. Is the app running?"),
     );
+    getProviderChangesReport(password, period).then(
+      (result) => {
+        if (!current) return;
+        if (result.kind === "denied") deny();
+        else setChanges(result.report);
+      },
+      () => current && setChangesError("Could not load the provider changes report. Is the app running?"),
+    );
     return () => {
       current = false;
     };
@@ -86,6 +97,7 @@ export function ReportsSection({ password, onDenied }: Props) {
     setError(undefined);
     setPipelineError(undefined);
     setFailuresError(undefined);
+    setChangesError(undefined);
   };
 
   const showsSceneStage = report?.rows.some((row) => row.stage === "image" || row.stage === "video");
@@ -145,6 +157,12 @@ export function ReportsSection({ password, onDenied }: Props) {
         </p>
       )}
       {failures && <FailuresTables report={failures} />}
+      {changesError && (
+        <p role="alert" className="form-error">
+          {changesError}
+        </p>
+      )}
+      {changes && <ProviderChangesTable report={changes} />}
       <SessionsReport password={password} period={period} onDenied={lockOnce} />
     </section>
   );

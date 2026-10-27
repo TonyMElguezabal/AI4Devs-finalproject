@@ -28,8 +28,8 @@
 
 ## 5. Frontend: Provider changes table (TDD; design Decision 5)
 
-- [ ] 5.1 Write failing component tests: the Reports section shows a "Provider changes" table, newest first, with when, what, stage, session and scene (blank for an active-provider change), from and to; an empty period says there were no provider changes; a 401 locks the page; a network error shows its own message and is cleared when the period changes.
-- [ ] 5.2 Add the types and client call (`types.ts`, `api/client.ts`), `ProviderChangesTable.tsx`, and the request in `ReportsSection.tsx`. Make 5.1 pass.
+- [x] 5.1 Write failing component tests: the Reports section shows a "Provider changes" table, newest first, with when, what, stage, session and scene (blank for an active-provider change), from and to; an empty period says there were no provider changes; a 401 locks the page; a network error shows its own message and is cleared when the period changes.
+- [x] 5.2 Add the types and client call (`types.ts`, `api/client.ts`), `ProviderChangesTable.tsx`, and the request in `ReportsSection.tsx`. Make 5.1 pass.
 
 ## 6. Backend and Frontend: Review and Update Existing Unit Tests (MANDATORY)
 
