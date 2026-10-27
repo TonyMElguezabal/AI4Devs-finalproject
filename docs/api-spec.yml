@@ -180,6 +180,7 @@
 # 400 for a bad date-time or `from` not before `to`; 401) and `GET /admin/reports/sessions/{sessionId}/scenes` (200 `{ sessionId, rows }` with, per scene, its number, status, image and
 # clip provider display names, image and clip request counts, requested duration, speed factor and the two warnings; 401; 404 for an unknown session). Both are read-only, behind the
 # Administrator password, and carry no script, prompt, instruction, narration text or failure text: the session title is the only User text.
+# JOS-229 (record-provider-changes) - 2026-10-27: new `GET /admin/reports/provider-changes?from&to` (same period rules as the usage report, applied to the instant of the change; 200 `{ from, to, entries }`, newest first: per entry the instant, its kind (`active-provider` or `failed-stage-move`), the stage, the session id and title and the scene number of a move (`null` for an active-provider change), and the previous and new provider ids and display names as logged; 400 for a bad date-time or `from` not before `to`; 401). Read-only, behind the Administrator password; it carries no script, prompt, instruction, narration text or failure text. The log starts empty with migration 25 and holds changes made from then on.
 # JOS-201 (admin-visual-style-prompt) - 2026-10-19, merged behind the Administrator password 2026-10-22: new GET /admin/settings,
 # PUT /admin/settings/visual-style-prompt (`{ visualStylePrompt }`, at most 8,000 characters after trimming, 400 otherwise) and,
 # for the optional reference image, PUT (raw bytes, `image/png`, `image/jpeg` or `image/webp`, at most 5 MB: 400 for another
@@ -4804,3 +4805,127 @@ paths:
                   - error
                   - message
                 additionalProperties: true
+
+  /admin/reports/provider-changes:
+    get:
+      parameters:
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: from
+          required: false
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: to
+          required: false
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  from:
+                    type: string
+                    nullable: true
+                  to:
+                    type: string
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        changedAt:
+                          type: string
+                        kind:
+                          type: string
+                          enum:
+                            - active-provider
+                            - failed-stage-move
+                        stage:
+                          type: string
+                          enum:
+                            - reasoning
+                            - voice
+                            - alignment
+                            - image
+                            - video
+                        sessionId:
+                          type: string
+                          nullable: true
+                        sessionTitle:
+                          type: string
+                          nullable: true
+                        sceneNumber:
+                          type: number
+                          nullable: true
+                        previousProviderId:
+                          type: string
+                        previousProviderLabel:
+                          type: string
+                        newProviderId:
+                          type: string
+                        newProviderLabel:
+                          type: string
+                      required:
+                        - changedAt
+                        - kind
+                        - stage
+                        - sessionId
+                        - sessionTitle
+                        - sceneNumber
+                        - previousProviderId
+                        - previousProviderLabel
+                        - newProviderId
+                        - newProviderLabel
+                      additionalProperties: false
+                required:
+                  - from
+                  - to
+                  - entries
+                additionalProperties: false
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: number
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - statusCode
+                  - error
+                  - message
+                additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false

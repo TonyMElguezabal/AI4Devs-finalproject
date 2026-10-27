@@ -197,6 +197,8 @@ describe("PUT /admin/providers/{stage} with profiles", () => {
     const response = await call("PUT", "/admin/providers/image", { providerId: profile.id });
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ ok: false, reason: "not-usable", problems: [{ field: "apiKey" }] });
+    // record-provider-changes (JOS-229): a refused request logs nothing.
+    expect(db.prepare("SELECT COUNT(*) AS n FROM provider_changes").get()).toEqual({ n: 0 });
     expect(activeProviderId("image")).toBe("Fal.ai");
   });
 });

@@ -1,4 +1,4 @@
-import type { AdapterTypeInfo, AppSettings, AppUpdate, ConnectionTestResult, FailedStageRow, FailuresReport, PipelineTimeReport, ProfileProblem, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionScenesReport, SessionSnapshot, SessionsReport, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AdapterTypeInfo, AppSettings, AppUpdate, ConnectionTestResult, FailedStageRow, FailuresReport, PipelineTimeReport, ProfileProblem, ProviderChangesReport, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionScenesReport, SessionSnapshot, SessionsReport, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -267,6 +267,7 @@ export type ProviderUsageReportResult = { kind: "ok"; report: ProviderUsageRepor
 export type SessionsReportResult = { kind: "ok"; report: SessionsReport } | { kind: "denied" };
 export type SessionScenesReportResult = { kind: "ok"; report: SessionScenesReport } | { kind: "denied" };
 export type FailuresReportResult = { kind: "ok"; report: FailuresReport } | { kind: "denied" };
+export type ProviderChangesReportResult = { kind: "ok"; report: ProviderChangesReport } | { kind: "denied" };
 export type PipelineTimeReportResult = { kind: "ok"; report: PipelineTimeReport } | { kind: "denied" };
 
 /** A report of the Reports section for the period. A 401 is `denied`; any other failure rejects. */
@@ -336,3 +337,7 @@ export async function getReferenceImage(password: string): Promise<{ kind: "ok";
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
   return { kind: "ok", image: await response.blob() };
 }
+
+/** record-provider-changes (JOS-229): `GET /admin/reports/provider-changes` for the period. */
+export const getProviderChangesReport = (password: string, period: ReportPeriod): Promise<ProviderChangesReportResult> =>
+  getReport<ProviderChangesReport>("/admin/reports/provider-changes", password, period);

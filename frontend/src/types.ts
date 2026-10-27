@@ -342,6 +342,26 @@ export interface SessionScenesReport {
   rows: SceneReportRow[];
 }
 
+// record-provider-changes (JOS-229): ids and display names as logged, the session title and the scene number; no other text.
+export interface ProviderChangeRow {
+  changedAt: string;
+  kind: "active-provider" | "failed-stage-move";
+  stage: ProviderStage;
+  sessionId: string | null;
+  sessionTitle: string | null;
+  sceneNumber: number | null;
+  previousProviderId: string;
+  previousProviderLabel: string;
+  newProviderId: string;
+  newProviderLabel: string;
+}
+
+export interface ProviderChangesReport {
+  from: string | null;
+  to: string;
+  entries: ProviderChangeRow[];
+}
+
 export interface PipelineTimeReport {
   from: string | null;
   to: string;
