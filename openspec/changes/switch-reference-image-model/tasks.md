@@ -26,8 +26,8 @@
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Search all tests for `flux-2`, `maxTimeSeconds` and an image limit of 120 or 25 and review each hit
-- [ ] 5.2 Update the affected tests and make group 2 pass
+- [x] 5.1 Search all tests for `flux-2`, `maxTimeSeconds` and an image limit of 120 or 25 and review each hit
+- [x] 5.2 Update the affected tests and make group 2 pass — also `providers-settings.test.ts` (shipped image limit 300), `attempt-deadline.test.ts` (an image attempt's deadline is 5 min after it is sent) and, because `providerConfig.test.ts` compares the limits with the PRD §11.3 row, the number in that row (`Image 300s`); the PRD version bump and change-log row follow in 10.1
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
