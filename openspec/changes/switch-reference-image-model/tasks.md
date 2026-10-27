@@ -22,7 +22,7 @@
 
 ## 4. Frontend
 
-- [ ] 4.1 Search `frontend/` for the old model name or the old limit; nothing is expected to change (record the search)
+- [x] 4.1 Search `frontend/` for the old model name or the old limit; nothing is expected to change (record the search) — searched `frontend/src` and `frontend/test` for `flux-2`, `imageReferenceModel`, `maxTimeSeconds`, `seedream` and an image limit of 120 or 25 s: 0 hits, no change
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
