@@ -106,7 +106,7 @@ Abrir `http://localhost:5173`. La documentación interactiva de la API está en 
 
 **Reportes en `/admin`**
 
-Tras desbloquear `/admin`, la sección «Reports» muestra el uso de cada proveedor por etapa en un periodo (últimos 7 días, últimos 30 días por defecto, todo el tiempo o un rango): intentos, éxitos, fallos transitorios y no reintentables, intentos agotados por tiempo, tasa de éxito, latencia mediana y percentil 95, y unidades facturadas. Se calcula al momento desde la base de datos local (`GET /admin/reports/provider-usage`), es de solo lectura y no contiene claves, guiones ni textos de fallo. Mientras el proveedor no se registre en cada intento de imagen y clip, esas filas siguen al proveedor actual de la escena.
+Tras desbloquear `/admin`, la sección «Reports» muestra el uso de cada proveedor por etapa en un periodo (últimos 7 días, últimos 30 días por defecto, todo el tiempo o un rango): intentos, éxitos, fallos transitorios y no reintentables, intentos agotados por tiempo, tasa de éxito, latencia mediana y percentil 95, y unidades facturadas. Se calcula al momento desde la base de datos local (`GET /admin/reports/provider-usage`), es de solo lectura y no contiene claves, guiones ni textos de fallo. Mientras el proveedor no se registre en cada intento de imagen y clip, esas filas siguen al proveedor actual de la escena. Debajo, la tabla «Sessions» (JOS-225) lista las sesiones creadas en el periodo, de la más reciente a la más antigua (`GET /admin/reports/sessions`): título, creación, estado (video final listo, fallida en una fase o en curso; el estado se deduce de lo guardado, no se almacena), si está en pausa, escenas, escenas fallidas, intentos y segundos hasta la narración y hasta el video final. El botón «Scenes» de cada fila abre sus escenas (`GET /admin/reports/sessions/{sessionId}/scenes`): estado, proveedores de imagen y clip, solicitudes, duración pedida, factor de velocidad y avisos. Ninguna de las dos contiene guiones, instrucciones ni textos de fallo. La tabla «Provider changes» (JOS-229, `GET /admin/reports/provider-changes`) lista, de la más reciente a la más antigua, los cambios de proveedor activo y los traslados de una etapa fallida hechos en el periodo (cuándo, qué, etapa, sesión y escena, de y a); el registro empieza con la migración 25 y no recupera cambios anteriores.
 
 **Credenciales**
 
@@ -144,6 +144,13 @@ Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | 2 y 30 | Acortan la espera entre reintentos para pruebas manuales. |
 | `BODY_LIMIT_BYTES` | 50 MiB | Tamaño máximo del cuerpo de una petición. |
 | `ALLOW_TEST_ENDPOINTS`, `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `VOICE_STUB_DELAY_MS` | desactivadas | Solo para pruebas: activan endpoints de prueba y proveedores simulados. La aplicación empaquetada las ignora. |
+
+**Publicar una versión y revertirla**
+
+- *Quién aprueba:* el entorno `release` (Settings → Environments) exige un revisor, hoy el propietario del repositorio, con "prevent self-review" desactivado porque es el único revisor; la segunda mirada es la revisión de la PR hacia `main`. No hay secretos en el entorno.
+- *Cómo se publica:* al fusionar una PR en `main`, el flujo construye los tres ejecutables y espera. En la pestaña Actions, abrir la ejecución, descargar los artefactos si se quieren probar, y pulsar *Review deployments → Approve*. Si se rechaza o no se responde, no se crea ninguna versión.
+- *Probar el flujo:* Actions → Release → *Run workflow*: `dry-run` solo sube los zips como artefactos; `test-release` crea tras la aprobación una pre-release `test-<hash>` (nunca la devuelve `/releases/latest`), que se borra con `gh release delete test-<hash> --cleanup-tag --yes`.
+- *Revertir una versión mala:* `gh release delete release-<hash> --cleanup-tag --yes` (o, para conservarla, `gh release edit release-<hash> --prerelease`). Así `/releases/latest` devuelve la versión anterior y quien tenga la mala verá la anterior como actualización. Para volver a publicar el mismo árbol hay que borrar también la etiqueta.
 
 **Datos y reinicio**
 
@@ -277,13 +284,14 @@ Los ficheros `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` y `codex.md` apuntan a los es
 ### **2.4. Infraestructura y despliegue**
 
 - **Dónde se ejecuta**: en el equipo del usuario, escuchando solo en `127.0.0.1`; llama a los proveedores de IA en la nube. No hay servidor central ni cuentas (ADR 0007).
-- **Entorno**: `main` es el entorno oficial (decisión del propietario del producto, 20-oct-2026; ADR 0007 enmendado). La rama `feature/entrega-2-JAME` fue la rama de integración del MVP y se promovió a `main` mediante la PR #71. Mientras no exista un flujo de publicación (JOS-205, JOS-206) no se publica nada automáticamente.
+- **Entorno**: `main` es el entorno oficial (decisión del propietario del producto, 20-oct-2026; ADR 0007 enmendado). La rama `feature/entrega-2-JAME` fue la rama de integración del MVP y se promovió a `main` mediante la PR #71. Cada push a `main` con un árbol de código nuevo construye y publica una versión mediante `.github/workflows/release.yml` (JOS-206), tras una aprobación manual (ver 1.4, "Publicar una versión y revertirla").
+- **Publicación**: `.github/workflows/release.yml` (JOS-206). Un push a `main` ejecuta las comprobaciones, construye macOS arm64, macOS x64 y Windows x64 una sola vez por árbol de código (`git rev-parse HEAD^{tree}`) y, tras la aprobación del entorno `release`, publica una versión `release-<hash del árbol>` con `SHA256SUMS.txt`; un trabajo final descarga los ficheros y comprueba las sumas. Un árbol que ya tiene versión no se reconstruye, y un push a otra rama, o con `[skip release]` en el mensaje del último commit, no construye nada.
 - **Integración continua**: `.github/workflows/ci.yml` ejecuta, en cada PR hacia `feature/entrega-2-JAME` o `main` y en cada push a `main` o a la rama de integración, el chequeo de tipos y las pruebas de backend (con ffmpeg instalado) y de frontend, sobre Node 24. Las pruebas nunca usan una base de datos ni un proveedor reales.
 - **Telemetría**: un relé (`infra/telemetry-relay/`, despliegue en `.github/workflows/telemetry-relay.yml`) recibe los datos opt-in, los filtra y los reenvía a Grafana Cloud.
 
 **Limitaciones conocidas del despliegue** (la lista completa está en la sección 1.6)
 
-- El ejecutable se construye con `npm run package:<plataforma>` en `backend/` (JOS-205), pero los ffmpeg y ffprobe que fija son una compilación GPL con componentes `nonfree` que **no se puede redistribuir**: hay que sustituirla (y sus hashes en `backend/packaging/targets.ts`) antes de la primera versión pública. El flujo de publicación automática (construir todas las plataformas por árbol de código, publicar como pre-release en UAT y promover los mismos ficheros en `main`) está descrito en ese mismo directorio (`poc/workflows/release.yml`) como boceto y **no está activado** en `.github/workflows/`.
+- El ejecutable se construye con `npm run package:<plataforma>` en `backend/` (JOS-205) y se publica con `release.yml` (JOS-206). Los ffmpeg y ffprobe que fija son una compilación GPL con componentes `nonfree` que **no se puede redistribuir**; el propietario decidió publicarla igualmente (el software no está pensado para distribuirse y el repositorio es público solo por el curso). Las notas de cada versión lo indican. Sustituirla solo exige cambiar `backend/packaging/targets.ts`.
 - El ejecutable no está firmado.
 - Aún no se han medido tiempos con una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips): los límites máximos por fase (voz y razonamiento 600 s, video 1200 s) son provisionales.
 
