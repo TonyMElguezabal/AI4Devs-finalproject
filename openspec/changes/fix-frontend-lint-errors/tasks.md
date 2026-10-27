@@ -5,8 +5,8 @@
 
 ## 1. Frontend: Tests first (TDD)
 
-- [ ] 1.1 In `frontend/test/reports-section.test.tsx`, add a test: the provider-usage request fails for the first period, the error shows, the Administrator chooses another period, and the error is gone (the test passes before the fix; it guards the behavior)
-- [ ] 1.2 Run `npm run lint` and record the two errors as the failing signal
+- [x] 1.1 In `frontend/test/reports-section.test.tsx`, add a test: the provider-usage request fails for the first period, the error shows, the Administrator chooses another period, and the error is gone (the test passes before the fix; it guards the behavior — checked by removing the clearing: it then fails)
+- [x] 1.2 Run `npm run lint` and record the two errors as the failing signal — `ReportsSection.tsx:41:5` setState in an effect and `reports-section.test.tsx:5:10` unused `API_BASE` (2 errors, 6 warnings)
 
 ## 2. Frontend: Implementation
 

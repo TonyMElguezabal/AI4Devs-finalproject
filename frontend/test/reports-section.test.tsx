@@ -228,6 +228,25 @@ describe("ReportsSection", () => {
     render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not load the provider usage report");
   });
+
+  // fix-frontend-lint-errors (JOS-231): the errors are cleared when another period is chosen, not at the start of the effect.
+  it("clears both load errors as soon as another period is chosen", async () => {
+    let usageCalls = 0;
+    let pipelineCalls = 0;
+    stubBackend(
+      () => (usageCalls++ === 0 ? new Response("{}", { status: 500 }) : ok([voiceRow])),
+      () => (pipelineCalls++ === 0 ? new Response("{}", { status: 500 }) : new Response(JSON.stringify(emptyPipeline), { status: 200 })),
+    );
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+    expect(await screen.findByText(/Could not load the provider usage report/)).toBeInTheDocument();
+    expect(await screen.findByText(/Could not load the pipeline time report/)).toBeInTheDocument();
+
+    await userEvent.setup().click(screen.getByRole("radio", { name: "Last 7 days" }));
+
+    await waitFor(() => expect(screen.queryByText(/Could not load the provider usage report/)).not.toBeInTheDocument());
+    expect(screen.queryByText(/Could not load the pipeline time report/)).not.toBeInTheDocument();
+    expect(await screen.findByRole("table", { name: "Provider usage" })).toBeInTheDocument();
+  });
 });
 
 // record-phase-instants-and-pipeline-report (JOS-228), group 5.
