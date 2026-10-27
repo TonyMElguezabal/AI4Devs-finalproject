@@ -38,8 +38,6 @@ export function ReportsSection({ password, onDenied }: Props) {
         onDenied();
       }
     };
-    setError(undefined);
-    setPipelineError(undefined);
     getProviderUsageReport(password, period).then(
       (result) => {
         if (!current) return;
@@ -62,12 +60,19 @@ export function ReportsSection({ password, onDenied }: Props) {
     // The password and the lock callback do not change while the section is shown.
   }, [period]);
 
+  // The errors of the previous period go as soon as another one is chosen (in the handler, not in the effect).
+  const changePeriod = (next: ReportPeriod) => {
+    setPeriod(next);
+    setError(undefined);
+    setPipelineError(undefined);
+  };
+
   const showsSceneStage = report?.rows.some((row) => row.stage === "image" || row.stage === "video");
 
   return (
     <section aria-label="Reports" className="field">
       <h2>Reports</h2>
-      <ReportPeriodSelector onChange={setPeriod} />
+      <ReportPeriodSelector onChange={changePeriod} />
       {error && (
         <p role="alert" className="form-error">
           {error}
