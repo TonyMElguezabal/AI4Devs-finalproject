@@ -33,12 +33,12 @@
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 6.1 Capture the pre-test baseline of the local database (row counts of `stage_attempts`, `provider_requests`, `scenes`, `schema_migrations` max version)
-- [ ] 6.2 Run the targeted tests from groups 2 to 4
-- [ ] 6.3 Run the full backend and frontend suites and lint in this worktree with their own `DB_PATH` and `PROJECTS_ROOT`
-- [ ] 6.4 Verify the post-test database state matches the baseline and restore if needed
-- [ ] 6.5 Create report `openspec/changes/report-failures-and-retries/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
-- [ ] 6.6 Mark this group complete only after tests pass and the report exists
+- [x] 6.1 Capture the pre-test baseline of the local database (row counts of `stage_attempts`, `provider_requests`, `scenes`, `schema_migrations` max version)
+- [x] 6.2 Run the targeted tests from groups 2 to 4
+- [x] 6.3 Run the full backend and frontend suites and lint in this worktree with their own `DB_PATH` and `PROJECTS_ROOT`
+- [x] 6.4 Verify the post-test database state matches the baseline and restore if needed
+- [x] 6.5 Create report `openspec/changes/report-failures-and-retries/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
+- [x] 6.6 Mark this group complete only after tests pass and the report exists
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
