@@ -22,9 +22,9 @@
 
 ## 4. Backend: report and route (TDD; design Decision 4)
 
-- [ ] 4.1 Write failing tests for `providerChangesReport`: entries in `[from, to)` only, newest first (ties by id); a move carries its session title and scene number, a change carries nulls (AC3).
-- [ ] 4.2 Write failing route tests: `GET /admin/reports/provider-changes` answers 401 without the password or with a wrong one (AC4); 400 when `from` is not before `to` or not a date-time; 200 with the response schema; table contents unchanged by the call.
-- [ ] 4.3 Add `backend/src/providerChangesReport.ts` and register the route with Zod schemas, reusing `periodOf`. Make 4.1 and 4.2 pass.
+- [x] 4.1 Write failing tests for `providerChangesReport`: entries in `[from, to)` only, newest first (ties by id); a move carries its session title and scene number, a change carries nulls (AC3).
+- [x] 4.2 Write failing route tests: `GET /admin/reports/provider-changes` answers 401 without the password or with a wrong one (AC4); 400 when `from` is not before `to` or not a date-time; 200 with the response schema; table contents unchanged by the call.
+- [x] 4.3 Add `backend/src/providerChangesReport.ts` and register the route with Zod schemas, reusing `periodOf`. Make 4.1 and 4.2 pass.
 
 ## 5. Frontend: Provider changes table (TDD; design Decision 5)
 

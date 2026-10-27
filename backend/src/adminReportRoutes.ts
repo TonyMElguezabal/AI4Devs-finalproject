@@ -4,6 +4,7 @@ import { z } from "zod";
 import { adminDeniedSchema } from "./adminAccess.ts";
 import { failuresReport } from "./failuresReport.ts";
 import { pipelineTimeReport } from "./pipelineTimeReport.ts";
+import { providerChangesReport } from "./providerChangesReport.ts";
 import { providerUsageReport } from "./providerUsageReport.ts";
 import { sessionScenesReport, sessionsReport } from "./sessionsReport.ts";
 
@@ -113,6 +114,26 @@ const sessionScenesSchema = z.object({
   ),
 });
 
+// record-provider-changes (JOS-229), design Decision 4 — ids, logged display names, the session title and the scene number only.
+const providerChangesSchema = z.object({
+  from: z.string().nullable(),
+  to: z.string(),
+  entries: z.array(
+    z.object({
+      changedAt: z.string(),
+      kind: z.enum(["active-provider", "failed-stage-move"]),
+      stage: z.enum(["reasoning", "voice", "alignment", "image", "video"]),
+      sessionId: z.string().nullable(),
+      sessionTitle: z.string().nullable(),
+      sceneNumber: z.number().nullable(),
+      previousProviderId: z.string(),
+      previousProviderLabel: z.string(),
+      newProviderId: z.string(),
+      newProviderLabel: z.string(),
+    }),
+  ),
+});
+
 const validationErrorSchema = z.object({ statusCode: z.number(), error: z.string(), message: z.string() }).passthrough();
 
 /** The period of a report request: both bounds normalized to the stored UTC form, or the 400 message when `from` is not before `to`. */
@@ -172,6 +193,16 @@ export function registerReportRoutes(admin: FastifyInstance): void {
       const report = sessionScenesReport(request.params.sessionId);
       if (!report) return reply.code(404).send({ statusCode: 404, error: "Not Found", message: "There is no such session." });
       return report;
+    },
+  );
+
+  admin.withTypeProvider<ZodTypeProvider>().get(
+    "/reports/provider-changes",
+    { schema: { querystring: querySchema, response: { 200: providerChangesSchema, 400: validationErrorSchema, 401: adminDeniedSchema } } },
+    async (request, reply) => {
+      const period = periodOf(request.query);
+      if ("error" in period) return reply.code(400).send({ statusCode: 400, error: "Bad Request", message: period.error });
+      return providerChangesReport(period);
     },
   );
 }
