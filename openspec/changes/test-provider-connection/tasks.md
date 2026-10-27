@@ -58,4 +58,4 @@
 - [x] 9.2 Update the PRD (new version, previous kept): §2.1 and §11.2 describe the connection test, its cost disclosure and its coverage
 - [x] 9.3 Update `docs/backend-standards.md` (provider profiles section): one check per adapter type, a new adapter type needs one
 - [x] 9.4 Run `graphify update .`
-- [ ] 9.5 Open the pull request linking JOS-220; archive the change after merge
+- [x] 9.5 Open the pull request linking JOS-220; archive the change after merge
