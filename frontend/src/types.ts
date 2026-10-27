@@ -303,6 +303,45 @@ export interface FailuresReport {
   failedScenesNow: { image: number; video: number };
 }
 
+// report-sessions (JOS-225): no text other than the session title is part of either report.
+export interface SessionReportRow {
+  id: string;
+  title: string;
+  createdAt: string;
+  state: "final-video-ready" | "failed" | "in-progress";
+  failedPhase: "voice-over" | "decomposition" | "assembly" | null;
+  paused: boolean;
+  scenes: number;
+  failedScenes: number;
+  attempts: number;
+  secondsToVoiceOver: number | null;
+  secondsToFinalVideo: number | null;
+}
+
+export interface SessionsReport {
+  from: string | null;
+  to: string;
+  rows: SessionReportRow[];
+}
+
+export interface SceneReportRow {
+  number: number;
+  status: string;
+  imageProvider: string | null;
+  clipProvider: string | null;
+  imageAttempts: number;
+  clipAttempts: number;
+  requestedDurationSeconds: number | null;
+  speedFactor: number | null;
+  durationWarning: string | null;
+  speedFactorWarning: string | null;
+}
+
+export interface SessionScenesReport {
+  sessionId: string;
+  rows: SceneReportRow[];
+}
+
 export interface PipelineTimeReport {
   from: string | null;
   to: string;

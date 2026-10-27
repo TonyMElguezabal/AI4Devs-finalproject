@@ -52,6 +52,9 @@ const emptyPipeline: PipelineTimeReport = {
   sessions: [],
 };
 
+// report-sessions (JOS-225), group 4.
+const emptySessions = { from: null, to: NOW.toISOString(), rows: [] };
+
 // report-failures-and-retries (JOS-224), group 4.
 const emptyFailures: FailuresReport = { from: null, to: NOW.toISOString(), stages: [], wordings: [], failedScenesNow: { image: 0, video: 0 } };
 
@@ -68,6 +71,7 @@ function stubBackend(
       const parsed = new URL(url);
       if (parsed.pathname.endsWith("/pipeline-time")) return pipeline();
       if (parsed.pathname.endsWith("/failures")) return failures();
+      if (parsed.pathname.endsWith("/sessions")) return new Response(JSON.stringify(emptySessions), { status: 200 });
       urls.push(parsed);
       return answer(parsed);
     }),
@@ -156,11 +160,12 @@ describe("ReportsSection", () => {
         seen.push(new Headers(init?.headers).get("authorization"));
         if (url.includes("/pipeline-time")) return new Response(JSON.stringify(emptyPipeline), { status: 200 });
         if (url.includes("/failures")) return new Response(JSON.stringify(emptyFailures), { status: 200 });
+        if (url.includes("/sessions")) return new Response(JSON.stringify(emptySessions), { status: 200 });
         return ok([]);
       }),
     );
     render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
-    await waitFor(() => expect(seen).toEqual([`Bearer ${PASSWORD}`, `Bearer ${PASSWORD}`, `Bearer ${PASSWORD}`]));
+    await waitFor(() => expect(seen).toEqual(Array(4).fill(`Bearer ${PASSWORD}`)));
   });
 
   it("shows one table row per report row with formatted numbers and a dash for a missing latency", async () => {
@@ -282,7 +287,13 @@ describe("ReportsSection pipeline time", () => {
       vi.fn(async (url: string) => {
         const parsed = new URL(url);
         seen.push(parsed);
-        const body = parsed.pathname.endsWith("/pipeline-time") ? pipelineReport : parsed.pathname.endsWith("/failures") ? emptyFailures : reportOf([]);
+        const body = parsed.pathname.endsWith("/pipeline-time")
+          ? pipelineReport
+          : parsed.pathname.endsWith("/failures")
+            ? emptyFailures
+            : parsed.pathname.endsWith("/sessions")
+              ? emptySessions
+              : reportOf([]);
         return new Response(JSON.stringify(body), { status: 200 });
       }),
     );

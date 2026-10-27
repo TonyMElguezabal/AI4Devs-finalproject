@@ -1,4 +1,4 @@
-import type { AdapterTypeInfo, AppSettings, AppUpdate, ConnectionTestResult, FailedStageRow, FailuresReport, PipelineTimeReport, ProfileProblem, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AdapterTypeInfo, AppSettings, AppUpdate, ConnectionTestResult, FailedStageRow, FailuresReport, PipelineTimeReport, ProfileProblem, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionScenesReport, SessionSnapshot, SessionsReport, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -264,6 +264,8 @@ export async function moveFailedStage(password: string, row: Pick<FailedStageRow
 }
 
 export type ProviderUsageReportResult = { kind: "ok"; report: ProviderUsageReport } | { kind: "denied" };
+export type SessionsReportResult = { kind: "ok"; report: SessionsReport } | { kind: "denied" };
+export type SessionScenesReportResult = { kind: "ok"; report: SessionScenesReport } | { kind: "denied" };
 export type FailuresReportResult = { kind: "ok"; report: FailuresReport } | { kind: "denied" };
 export type PipelineTimeReportResult = { kind: "ok"; report: PipelineTimeReport } | { kind: "denied" };
 
@@ -284,6 +286,12 @@ export const getProviderUsageReport = (password: string, period: ReportPeriod): 
 /** record-phase-instants-and-pipeline-report (JOS-228): `GET /admin/reports/pipeline-time` for the period. */
 export const getPipelineTimeReport = (password: string, period: ReportPeriod): Promise<PipelineTimeReportResult> => getReport<PipelineTimeReport>("/admin/reports/pipeline-time", password, period);
 
+/** report-sessions (JOS-225): `GET /admin/reports/sessions` for the period. */
+export const getSessionsReport = (password: string, period: ReportPeriod): Promise<SessionsReportResult> => getReport<SessionsReport>("/admin/reports/sessions", password, period);
+
+/** report-sessions (JOS-225): the scenes of one session, `GET /admin/reports/sessions/{sessionId}/scenes`. */
+export const getSessionScenesReport = (password: string, sessionId: string): Promise<SessionScenesReportResult> =>
+  getReport<SessionScenesReport>(`/admin/reports/sessions/${encodeURIComponent(sessionId)}/scenes`, password, {});
 /** report-failures-and-retries (JOS-224): `GET /admin/reports/failures` for the period. */
 export const getFailuresReport = (password: string, period: ReportPeriod): Promise<FailuresReportResult> => getReport<FailuresReport>("/admin/reports/failures", password, period);
 
