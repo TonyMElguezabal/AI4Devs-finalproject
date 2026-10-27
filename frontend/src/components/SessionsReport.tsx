@@ -6,6 +6,8 @@ const HEADERS = ["Session", "Created", "State", "Paused", "Scenes", "Failed scen
 const SCENE_HEADERS = ["Scene", "Status", "Image provider", "Clip provider", "Image requests", "Clip requests", "Requested duration", "Speed factor", "Duration warning", "Speed-factor warning"];
 
 const number = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
+/** A speed factor such as 1.018 is a small change worth showing; two decimals keep it. */
+const factor = new Intl.NumberFormat("en", { maximumFractionDigits: 2 });
 const dash = "—";
 const seconds = (value: number | null) => (value === null ? dash : `${number.format(value)} s`);
 const created = (iso: string) => new Date(iso).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" });
@@ -148,7 +150,7 @@ function SceneTable({ title, scenes }: { title: string; scenes: SessionScenesRep
             <td>{number.format(scene.imageAttempts)}</td>
             <td>{number.format(scene.clipAttempts)}</td>
             <td>{seconds(scene.requestedDurationSeconds)}</td>
-            <td>{scene.speedFactor === null ? dash : `${number.format(scene.speedFactor)}×`}</td>
+            <td>{scene.speedFactor === null ? dash : `${factor.format(scene.speedFactor)}×`}</td>
             <td>{warningText(scene.durationWarning)}</td>
             <td>{warningText(scene.speedFactorWarning)}</td>
           </tr>

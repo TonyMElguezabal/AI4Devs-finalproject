@@ -57,10 +57,10 @@
 
 ## 8. E2E Testing with the browser (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Applicability: new content in an `/admin` section, so this step applies.
-- [ ] 8.2 Run the backend on the scratch store of step 7 and the frontend. Without the password: no Reports section. With it: the sessions table shows the expected rows and states under the provider-usage table.
-- [ ] 8.3 Change the period; the list changes. Open and close the drill-down of a session with scenes and of one without.
-- [ ] 8.4 Restore the environment and save `openspec/changes/report-sessions/reports/YYYY-MM-DD-step-8-e2e.md`.
+- [x] 8.1 Applicability: new content in an `/admin` section, so this step applies.
+- [x] 8.2 Run the backend on the scratch store of step 7 and the frontend. Without the password: no Reports section. With it: the sessions table shows the expected rows and states under the provider-usage table.
+- [x] 8.3 Change the period; the list changes. Open and close the drill-down of a session with scenes and of one without.
+- [x] 8.4 Restore the environment and save `openspec/changes/report-sessions/reports/YYYY-MM-DD-step-8-e2e.md`.
 
 ## 9. Update Technical Documentation (MANDATORY)
 

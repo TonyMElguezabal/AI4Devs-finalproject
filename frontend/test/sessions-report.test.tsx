@@ -33,6 +33,7 @@ const scenesOf = (sessionId: string): SessionScenesReport => ({
   sessionId,
   rows: [
     { number: 1, status: "chunk-complete", imageProvider: "Image A", clipProvider: "Clip B", imageAttempts: 2, clipAttempts: 1, requestedDurationSeconds: 7, speedFactor: 1.5, durationWarning: "exceeds-maximum", speedFactorWarning: "exceeds-limit" },
+    { number: 3, status: "chunk-complete", imageProvider: "Image A", clipProvider: "Clip B", imageAttempts: 1, clipAttempts: 1, requestedDurationSeconds: 12, speedFactor: 1.0183299389002036, durationWarning: null, speedFactorWarning: null },
     { number: 2, status: "submitted", imageProvider: null, clipProvider: null, imageAttempts: 0, clipAttempts: 0, requestedDurationSeconds: null, speedFactor: null, durationWarning: null, speedFactorWarning: null },
   ],
 });
@@ -157,7 +158,8 @@ describe("SessionsReport scene drill-down", () => {
     const rows = within(scenes).getAllByRole("row").slice(1);
     const cells = (index: number) => within(rows[index]!).getAllByRole("cell").map((cell) => cell.textContent);
     expect(cells(0)).toEqual(["1", "chunk-complete", "Image A", "Clip B", "2", "1", "7 s", "1.5×", "exceeds maximum", "exceeds limit"]);
-    expect(cells(1)).toEqual(["2", "submitted", "—", "—", "0", "0", "—", "—", "—", "—"]);
+    expect(cells(1)).toEqual(["3", "chunk-complete", "Image A", "Clip B", "1", "1", "12 s", "1.02×", "—", "—"]);
+    expect(cells(2)).toEqual(["2", "submitted", "—", "—", "0", "0", "—", "—", "—", "—"]);
 
     await user.click(button);
     expect(screen.queryByRole("table", { name: "Scenes of Lighthouse" })).not.toBeInTheDocument();
