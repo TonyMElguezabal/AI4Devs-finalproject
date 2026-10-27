@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getPipelineTimeReport, getProviderUsageReport } from "../api/client";
 import type { PipelineTimeReport, ProviderStage, ProviderUsageReport, ReportPeriod } from "../types";
 import { PipelineTimeTables } from "./PipelineTimeTables";
 import { ReportPeriodSelector, lastDays } from "./ReportPeriodSelector";
+import { SessionsReport } from "./SessionsReport";
 
 const STAGE_LABELS: Record<ProviderStage, string> = { reasoning: "Reasoning", voice: "Voice", alignment: "Alignment", image: "Image", video: "Video" };
 const UNIT_LABELS: Record<string, string> = { voice_characters: "characters", audio_seconds: "audio seconds", requests: "requests", images: "images", clip_seconds: "clip seconds" };
@@ -19,7 +20,7 @@ interface Props {
 
 /**
  * report-provider-usage (JOS-223), design Decision 7 — the "Reports" section of `/admin`: a period (last 30 days at first)
- * and the provider-usage table. JOS-224 and JOS-225 add their reports under the same period; JOS-228 adds the pipeline time.
+ * and the provider-usage table. JOS-228 adds the pipeline time, JOS-225 the sessions list; JOS-224 adds its report under the same period.
  */
 export function ReportsSection({ password, onDenied }: Props) {
   const [period, setPeriod] = useState<ReportPeriod>(() => lastDays(30));
@@ -27,6 +28,14 @@ export function ReportsSection({ password, onDenied }: Props) {
   const [error, setError] = useState<string | undefined>(undefined);
   const [pipeline, setPipeline] = useState<PipelineTimeReport | undefined>(undefined);
   const [pipelineError, setPipelineError] = useState<string | undefined>(undefined);
+  // The sessions report answers its own 401, so the lock is shared: the page locks once however many reports are refused.
+  const lockedRef = useRef(false);
+  const lockOnce = () => {
+    if (!lockedRef.current) {
+      lockedRef.current = true;
+      onDenied();
+    }
+  };
 
   useEffect(() => {
     let current = true;
@@ -35,7 +44,7 @@ export function ReportsSection({ password, onDenied }: Props) {
     const deny = () => {
       if (current && !denied) {
         denied = true;
-        onDenied();
+        lockOnce();
       }
     };
     getProviderUsageReport(password, period).then(
@@ -118,6 +127,7 @@ export function ReportsSection({ password, onDenied }: Props) {
         </p>
       )}
       {pipeline && <PipelineTimeTables report={pipeline} />}
+      <SessionsReport password={password} period={period} onDenied={lockOnce} />
     </section>
   );
 }

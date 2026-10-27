@@ -26,10 +26,10 @@
 
 ## 4. Frontend: the sessions table and drill-down (TDD; design Decision 7)
 
-- [ ] 4.1 Write failing component tests:
+- [x] 4.1 Write failing component tests:
   - `SessionsReport`: requests the list for the selected period and again when it changes; a network error shows its own message and does not hide the other reports; one row per session with title, creation time, state text ("Failed in assembly" etc.), paused flag, counts and "—" for null seconds; empty message; a 401 locks the page; the table has a caption and column headers;
   - the "Scenes of <title>" button toggles (`aria-expanded`), loads the scene table once opened with providers, attempts, duration, speed factor and warnings, and says so for a session with no scenes.
-- [ ] 4.2 Add `getSessionsReport` and `getSessionScenesReport` to `api/client.ts`, their types, and `SessionsReport`; render it in `ReportsSection` after the existing tables, under the one period selector. Make 4.1 and the existing Reports tests pass.
+- [x] 4.2 Add `getSessionsReport` and `getSessionScenesReport` to `api/client.ts`, their types, and `SessionsReport`; render it in `ReportsSection` after the existing tables, under the one period selector. Make 4.1 and the existing Reports tests pass.
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 

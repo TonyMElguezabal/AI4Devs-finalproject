@@ -52,6 +52,9 @@ const emptyPipeline: PipelineTimeReport = {
   sessions: [],
 };
 
+// report-sessions (JOS-225), group 4.
+const emptySessions = { from: null, to: NOW.toISOString(), rows: [] };
+
 /** `answer` replies to the provider-usage request (its URLs are returned); the pipeline-time request gets `pipeline`. */
 function stubBackend(answer: (url: URL) => Response, pipeline: () => Response = () => new Response(JSON.stringify(emptyPipeline), { status: 200 })) {
   const urls: URL[] = [];
@@ -60,6 +63,7 @@ function stubBackend(answer: (url: URL) => Response, pipeline: () => Response = 
     vi.fn(async (url: string) => {
       const parsed = new URL(url);
       if (parsed.pathname.endsWith("/pipeline-time")) return pipeline();
+      if (parsed.pathname.endsWith("/sessions")) return new Response(JSON.stringify(emptySessions), { status: 200 });
       urls.push(parsed);
       return answer(parsed);
     }),
@@ -146,11 +150,13 @@ describe("ReportsSection", () => {
       "fetch",
       vi.fn(async (url: string, init?: RequestInit) => {
         seen.push(new Headers(init?.headers).get("authorization"));
-        return url.endsWith("/pipeline-time") || url.includes("/pipeline-time?") ? new Response(JSON.stringify(emptyPipeline), { status: 200 }) : ok([]);
+        if (url.includes("/pipeline-time")) return new Response(JSON.stringify(emptyPipeline), { status: 200 });
+        if (url.includes("/sessions")) return new Response(JSON.stringify(emptySessions), { status: 200 });
+        return ok([]);
       }),
     );
     render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
-    await waitFor(() => expect(seen).toEqual([`Bearer ${PASSWORD}`, `Bearer ${PASSWORD}`]));
+    await waitFor(() => expect(seen).toEqual([`Bearer ${PASSWORD}`, `Bearer ${PASSWORD}`, `Bearer ${PASSWORD}`]));
   });
 
   it("shows one table row per report row with formatted numbers and a dash for a missing latency", async () => {
@@ -200,7 +206,7 @@ describe("ReportsSection", () => {
     stubBackend(() => ok([]));
     render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
     expect(await screen.findByText("No provider activity in this period.")).toBeInTheDocument();
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByRole("table", { name: "Provider usage" })).not.toBeInTheDocument();
   });
 
   it("shows the attribution note when there is an image or video row, and not otherwise", async () => {
@@ -272,7 +278,8 @@ describe("ReportsSection pipeline time", () => {
       vi.fn(async (url: string) => {
         const parsed = new URL(url);
         seen.push(parsed);
-        return new Response(JSON.stringify(parsed.pathname.endsWith("/pipeline-time") ? pipelineReport : reportOf([])), { status: 200 });
+        const body = parsed.pathname.endsWith("/pipeline-time") ? pipelineReport : parsed.pathname.endsWith("/sessions") ? emptySessions : reportOf([]);
+        return new Response(JSON.stringify(body), { status: 200 });
       }),
     );
     render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
