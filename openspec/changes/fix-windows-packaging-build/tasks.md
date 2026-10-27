@@ -5,8 +5,8 @@
 
 ## 1. Backend: Tests first (TDD)
 
-- [ ] 1.1 In `backend/test/packaging-build.test.ts`, add tests for `npmInvocation(env, platform)`: with `npm_execpath` set to an `npm-cli.js` path it returns the current Node and that path as first argument, with no shell, on `win32` and on `darwin`; without it, it returns `npm` with no shell on `darwin` and with a shell on `win32`; a value that does not end in `.js` is ignored
-- [ ] 1.2 Run the file and confirm the new tests fail because the function does not exist
+- [x] 1.1 In `backend/test/packaging-build.test.ts`, add tests for `npmInvocation(env, platform)`: with `npm_execpath` set to an `npm-cli.js` path it returns the current Node and that path as first argument, with no shell, on `win32` and on `darwin`; without it, it returns `npm` with no shell on `darwin` and with a shell on `win32`; a value that does not end in `.js` is ignored
+- [x] 1.2 Run the file and confirm the new tests fail because the function does not exist — 6 new tests fail with "npmInvocation is not a function"
 
 ## 2. Backend: Implementation
 
