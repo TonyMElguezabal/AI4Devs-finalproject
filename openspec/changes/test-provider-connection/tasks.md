@@ -49,8 +49,8 @@
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 On `/admin`, test a profile with a valid key and one with a wrong key; check the result sentences; for a charged type, check the notice appears and nothing is sent until confirmed
-- [ ] 8.2 Record the run and screenshots in `reports/YYYY-MM-DD-step-8-e2e.md`
+- [x] 8.1 On `/admin`, test a profile with a valid key and one with a wrong key; check the result sentences; for a charged type, check the notice appears and nothing is sent until confirmed
+- [x] 8.2 Record the run and screenshots in `reports/YYYY-MM-DD-step-8-e2e.md`
 
 ## 9. Update Technical Documentation (MANDATORY)
 
