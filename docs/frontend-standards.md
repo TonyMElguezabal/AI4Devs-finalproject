@@ -64,7 +64,7 @@ frontend/
 │   │   ├── app.css              # layout + motion, consumes tokens.css only
 │   │   └── status.ts            # the one state→status-class (and →icon) mapping every component uses
 │   ├── phaseLabels.ts            # phase and phase-status words
-│   ├── pauseRefusals.ts          # pause/rebuild refusal reasons as sentences
+│   ├── pauseRefusals.ts          # pause/rebuild and session pause/continue refusals as sentences
 │   ├── statusLabels.ts           # scene and session state words, affected stage, warning sentences
 │   ├── types.ts                 # mirrors the backend's wire contract (see Not Yet Decided)
 │   └── App.tsx                  # identifier-based routing via a URL query param
