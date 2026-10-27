@@ -49,5 +49,5 @@
 
 - [x] 10.1 `docs/PRD.md`, `docs/api-spec.yml`, `docs/data-model.md` and the README do not change (record the check) — `git diff origin/main --stat` lists only `frontend/` and this change's folder
 - [ ] 10.2 Run `graphify update .`
-- [ ] 10.3 Open the pull request linking JOS-231 and JOS-206; archive the change after merge (`openspec archive fix-frontend-lint-errors --skip-specs`)
+- [x] 10.3 Open the pull request linking JOS-231 and JOS-206 (#116); archive the change after merge (`openspec archive fix-frontend-lint-errors --skip-specs`)
 - [ ] 10.4 After the merge, re-run the Release workflow in `dry-run` mode on `main` and confirm its frontend check passes (JOS-206 task 7.2)
