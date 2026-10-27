@@ -27,9 +27,20 @@ export interface BuildDependencies {
   download: (url: string, destination: string) => Promise<void>;
 }
 
-const run = (command: string, args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}): void => {
+const run = (command: string, args: string[], options: { cwd?: string; env?: NodeJS.ProcessEnv; shell?: boolean } = {}): void => {
   execFileSync(command, args, { stdio: "inherit", ...options });
 };
+
+/**
+ * fix-windows-packaging-build (JOS-232) Decisions 1-2 — how to start npm. On Windows `npm` is `npm.cmd`, which Node does not start
+ * without a shell, so when npm started this build (`npm run package:<target>` sets `npm_execpath`) its own script is run with the
+ * current Node: no `.cmd`, no shell, no quoting of the arguments. Started directly, `npm` is used, through a shell only on Windows.
+ */
+export function npmInvocation(env: NodeJS.ProcessEnv, platform: NodeJS.Platform): { command: string; prefixArgs: string[]; shell: boolean } {
+  const npmCli = env.npm_execpath;
+  if (npmCli?.endsWith(".js")) return { command: process.execPath, prefixArgs: [npmCli], shell: false };
+  return { command: "npm", prefixArgs: [], shell: platform === "win32" };
+}
 
 /** Decision 8 — a macOS executable must be ad-hoc signed with `codesign`, which only exists on a Mac. */
 export function assertHostCanBuild(targetName: TargetName, hostPlatform: NodeJS.Platform): void {
@@ -92,7 +103,8 @@ export async function buildTarget(options: BuildOptions, dependencies: BuildDepe
 
     // 2. Frontend with a same-origin API base: the executable serves page and API on one port.
     const webDir = join(work, "web");
-    run("npm", ["run", "build", "--", "--outDir", webDir, "--emptyOutDir"], { cwd: join(REPO_DIR, "frontend"), env: { ...process.env, VITE_API_BASE: "" } });
+    const npm = npmInvocation(process.env, options.hostPlatform ?? process.platform);
+    run(npm.command, [...npm.prefixArgs, "run", "build", "--", "--outDir", webDir, "--emptyOutDir"], { cwd: join(REPO_DIR, "frontend"), env: { ...process.env, VITE_API_BASE: "" }, shell: npm.shell });
 
     // 3. Backend bundle and SEA blob (web build and settings defaults embedded as assets).
     const bundle = join(work, "vid4you.cjs");

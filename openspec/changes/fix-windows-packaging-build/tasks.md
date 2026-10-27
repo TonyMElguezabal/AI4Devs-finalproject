@@ -10,17 +10,17 @@
 
 ## 2. Backend: Implementation
 
-- [ ] 2.1 Add and export `npmInvocation` to `backend/packaging/build.ts`; let `run` take a `shell` option; use both for the frontend build step
-- [ ] 2.2 Make group 1 pass and confirm the other `run(...)` calls are unchanged (Node, `tar`, `codesign`)
+- [x] 2.1 Add and export `npmInvocation` to `backend/packaging/build.ts`; let `run` take a `shell` option; use both for the frontend build step
+- [x] 2.2 Make group 1 pass and confirm the other `run(...)` calls are unchanged (Node, `tar`, `codesign`)
 
 ## 3. Frontend
 
-- [ ] 3.1 No frontend change (record the check)
+- [x] 3.1 No frontend change (record the check) — the diff touches only `backend/packaging/build.ts`, `backend/test/packaging-build.test.ts` and this change's folder
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Review the other packaging tests (`packaging-build`, `packaging-instance`, `packaging-locations`, `packaging-runtime-env`, `packaging-verify`) for assumptions about how the build starts npm
-- [ ] 5.2 Update the affected tests (none expected) and make group 1 pass
+- [x] 5.1 Review the other packaging tests (`packaging-build`, `packaging-instance`, `packaging-locations`, `packaging-runtime-env`, `packaging-verify`) for assumptions about how the build starts npm
+- [x] 5.2 Update the affected tests (none expected) and make group 1 pass — none needed: the other packaging tests do not start npm (the build's download, checksum and bundle tests run without it)
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
