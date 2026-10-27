@@ -5,8 +5,8 @@
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm the latest migration on `origin/main` is still 24; if another branch merged a 25, renumber and update design.md first.
-- [ ] 1.2 Confirm design.md § Context still holds: `setActiveProvider` and `moveFailedStage` are the only callers of `upsertActiveProviderChoice` and of the three rebind functions; the route checks before `setActiveProvider`; `periodOf` is shared in `adminReportRoutes.ts`.
+- [x] 1.1 `git fetch`. Confirm the latest migration on `origin/main` is still 24; if another branch merged a 25, renumber and update design.md first. (Still 24 on `origin/main` and `origin/feature/entrega-3-JAME`; no open branch adds a 25. `feature/entrega-3-JAME` merged into this branch so the PR targets current code.)
+- [x] 1.2 Confirm design.md § Context still holds: `setActiveProvider` and `moveFailedStage` are the only callers of `upsertActiveProviderChoice` and of the three rebind functions; the route checks before `setActiveProvider`; `periodOf` is shared in `adminReportRoutes.ts`.
 
 ## 2. Backend: migration 25 and the log write (TDD; design Decisions 1, 2)
 
