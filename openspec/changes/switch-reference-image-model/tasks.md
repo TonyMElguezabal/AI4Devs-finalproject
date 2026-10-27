@@ -42,11 +42,11 @@
 
 No endpoint changes. The settings are read at start-up and no route returns them, so this step checks that the server starts with the new defaults and the routes that depend on the image stage still answer.
 
-- [ ] 7.1 Start the backend on a throwaway `DB_PATH`, `PROJECTS_ROOT` and `PROVIDER_KEY_PATH`, with `ADMIN_PASSWORD` set and `USE_STUB_VOICE_PROVIDER=hang` (AGENT MUST EXECUTE)
-- [ ] 7.2 curl `GET /admin/provider-profiles` and confirm the image profile still names `fal-ai/flux/dev`
-- [ ] 7.3 curl `POST /sessions` and confirm a session is created and its image stage is not started (voice held)
-- [ ] 7.4 Stop the server and delete the throwaway data; confirm `backend/data` is unchanged
-- [ ] 7.5 Document commands and responses in `reports/YYYY-MM-DD-step-7-curl-endpoint-testing.md`
+- [x] 7.1 Start the backend on a throwaway `DB_PATH`, `PROJECTS_ROOT` and `PROVIDER_KEY_PATH`, with `ADMIN_PASSWORD` set and `USE_STUB_VOICE_PROVIDER=hang` (AGENT MUST EXECUTE)
+- [x] 7.2 curl `GET /admin/provider-profiles` and confirm the image profile still names `fal-ai/flux/dev`
+- [x] 7.3 curl `POST /sessions` and confirm a session is created and its image stage is not started (voice held)
+- [x] 7.4 Stop the server and delete the throwaway data; confirm `backend/data` is unchanged
+- [x] 7.5 Document commands and responses in `reports/YYYY-MM-DD-step-7-curl-endpoint-testing.md`
 
 ## 8. E2E Testing with Playwright MCP (not applicable)
 
