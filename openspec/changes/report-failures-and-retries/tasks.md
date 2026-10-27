@@ -5,17 +5,17 @@
 
 ## 1. Gate
 
-- [ ] 1.1 `git fetch`. Confirm `adminReportRoutes.ts`, `providerUsageReport.ts` and `ReportsSection.tsx` on `origin/main` still match design.md § Context; if another report story changed them, update design.md first.
-- [ ] 1.2 Confirm `MAX_ATTEMPTS_PER_CYCLE` is still exported from `backend/src/config/providers.ts` and the failed-scene tests (`result IS NULL` / `video_result IS NULL`) still hold in `db.ts`.
+- [x] 1.1 `git fetch`. Confirm `adminReportRoutes.ts`, `providerUsageReport.ts` and `ReportsSection.tsx` on `origin/main` still match design.md § Context; if another report story changed them, update design.md first.
+- [x] 1.2 Confirm `MAX_ATTEMPTS_PER_CYCLE` is still exported from `backend/src/config/providers.ts` and the failed-scene tests (`result IS NULL` / `video_result IS NULL`) still hold in `db.ts`.
 
 ## 2. Backend: failures report (TDD; design Decisions 1 to 6)
 
-- [ ] 2.1 Write failing tests for `failuresReport`: transient, not-retryable and timed-out attempts per stage from both attempt sources; stage order; a stage with no failure and no manual retry is not listed (spec: Failed attempts per stage and outcome).
-- [ ] 2.2 Write a failing test that, on the same seeded store and period, each stage's failure counts equal the sums of that stage's rows in `providerUsageReport` (AC1).
-- [ ] 2.3 Write failing tests: a cycle whose fourth attempt is transient or timed out counts one exhausted budget; manual attempts count as manual retries, an unsent one placed by `queued_at`; image and video rows give `null` for both (AC2).
-- [ ] 2.4 Write failing tests for wordings: grouped by text, most frequent first then alphabetical, at most five per stage, only voice, alignment and reasoning (AC2).
-- [ ] 2.5 Write failing tests: scenes failed now split into image and clip, the same for any period (AC3); a clip failure text and script, prompt and narration markers never appear in the serialized report (AC4).
-- [ ] 2.6 Export `countedAttempts` from `providerUsageReport.ts` and add `backend/src/failuresReport.ts`. Make 2.1 to 2.5 pass.
+- [x] 2.1 Write failing tests for `failuresReport`: transient, not-retryable and timed-out attempts per stage from both attempt sources; stage order; a stage with no failure and no manual retry is not listed (spec: Failed attempts per stage and outcome).
+- [x] 2.2 Write a failing test that, on the same seeded store and period, each stage's failure counts equal the sums of that stage's rows in `providerUsageReport` (AC1).
+- [x] 2.3 Write failing tests: a cycle whose fourth attempt is transient or timed out counts one exhausted budget; manual attempts count as manual retries, an unsent one placed by `queued_at`; image and video rows give `null` for both (AC2).
+- [x] 2.4 Write failing tests for wordings: grouped by text, most frequent first then alphabetical, at most five per stage, only voice, alignment and reasoning (AC2).
+- [x] 2.5 Write failing tests: scenes failed now split into image and clip, the same for any period (AC3); a clip failure text and script, prompt and narration markers never appear in the serialized report (AC4).
+- [x] 2.6 Export `countedAttempts` from `providerUsageReport.ts` and add `backend/src/failuresReport.ts`. Make 2.1 to 2.5 pass.
 
 ## 3. Backend: route (TDD)
 
