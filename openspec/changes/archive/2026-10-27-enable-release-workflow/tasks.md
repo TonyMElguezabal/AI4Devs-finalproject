@@ -55,7 +55,7 @@
 
 - [x] 7.1 Configure the `release` environment with a required reviewer in repository settings (record the setting in the README, no secrets)
 - [x] 7.2 Run the workflow by `workflow_dispatch` in `dry-run` mode on the feature branch; the three zips are uploaded — run on `main` (2026-10-27, run 40451130814): `success`, three workflow artifacts (`Vid4You-darwin-arm64` 83 MB, `Vid4You-darwin-x64` 96 MB, `Vid4You-win32-x64` 100 MB), `publish` and `verify` skipped
-- [ ] 7.3 Run `test-release` once: approve, the pre-release `test-<hash>` appears with the three zips and `SHA256SUMS.txt`, `verify` passes; delete the test pre-release
+- [x] 7.3 Run `test-release` once: approve, the pre-release `test-<hash>` appears with the three zips and `SHA256SUMS.txt`, `verify` passes; delete the test pre-release (closed by the product owner on 2026-10-27 without running it: the first production release, `release-c1bb4f9d7799ce1c107d8f1867ce0dee28c869e9`, went through the same approval gate and `verify` job and published the three zips and `SHA256SUMS.txt`)
 - [x] 7.4 Re-run for the same tree and confirm nothing is rebuilt or published — re-run of the push run 40451094054 (attempt 3) after the first release: `tree` succeeded, `checks`, `build`, `publish` and `verify` skipped, `gh release list` still shows one release (done on the real release rather than on a test release)
 - [x] 7.5 Reject an approval once and confirm no release is created — push run 40451094054 (attempt 1), all three builds green, `release` approval rejected: the run ended failed at `publish`, `verify` skipped, `gh release list` empty
 - [x] 7.6 Confirm a failing check (temporary failing test on the branch) stops the run before any build — confirmed without a temporary test: the dry-run of 2026-10-26 on `main` (run 40445693575) failed `checks / test (frontend)` at `npm run lint` (2 existing errors: `ReportsSection.tsx` setState in an effect, unused `API_BASE` in `reports-section.test.tsx`) and `build`, `publish` and `verify` were skipped; `tree` and `checks / test (backend)` passed
@@ -66,4 +66,4 @@
 - [x] 8.2 Re-amend `docs/adr/0007-deployment.md`: single channel from `main`, tag by tree hash, approval gate, workflow location
 - [x] 8.3 Update the JOS-206 ticket text so its acceptance criteria match the single-channel model
 - [x] 8.4 Run `graphify update .`
-- [ ] 8.5 Open the pull request linking JOS-206; archive the change after merge
+- [x] 8.5 Open the pull request linking JOS-206; archive the change after merge (the work reaches `main` through the PR that carries this archive)

@@ -72,9 +72,12 @@ jobs:
           - { target: darwin-x64, runner: macos-15-intel }
           - { target: win32-x64, runner: windows-2025 }
     runs-on: ${{ matrix.runner }}
+    # sign-executables (JOS-207) Decision 2 — the signing secrets exist only on a push to main; elsewhere no environment is attached and signing is skipped.
+    environment: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && 'signing' || '' }}
     permissions:
       contents: read
     env:
+      SIGNING_REQUIRED: ${{ vars.SIGNING_REQUIRED }}
       VID4YOU_CHANNEL: production
       VID4YOU_VERSION: ${{ needs.tree.outputs.version }}
       VID4YOU_RELEASE_TAG: ${{ needs.tree.outputs.tag }}
@@ -89,17 +92,56 @@ jobs:
         working-directory: backend
       - run: npm run package:${{ matrix.target }}
         working-directory: backend
+      - name: Decide signing
+        id: signing
+        shell: bash
+        env: # ponytail: Windows secret names are fixed with the provider (task 3.4); until then a Windows build is always unsigned
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          if [[ "${{ matrix.target }}" == darwin-* ]]; then names=(MACOS_CERTIFICATE_P12 MACOS_CERTIFICATE_PASSWORD APPLE_API_KEY_ID APPLE_API_ISSUER_ID APPLE_API_KEY_P8)
+          else names=(WINDOWS_SIGNING_CREDENTIAL); fi
+          echo "result=$(.github/scripts/signing.sh decide "$SIGNING_REQUIRED" "${names[@]}")" >> "$GITHUB_OUTPUT"
+      - name: Sign macOS
+        if: steps.signing.outputs.result == 'sign' && startsWith(matrix.target, 'darwin-')
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: .github/scripts/sign-macos.sh sign backend/dist-package/${{ matrix.target }}
+      - name: Notarize macOS
+        if: steps.signing.outputs.result == 'sign' && startsWith(matrix.target, 'darwin-')
+        env:
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: .github/scripts/sign-macos.sh notarize backend/dist-package/${{ matrix.target }}
+      - name: Delete temporary keychain
+        if: always() && startsWith(matrix.target, 'darwin-')
+        run: .github/scripts/sign-macos.sh cleanup
+      - name: Sign Windows
+        if: steps.signing.outputs.result == 'sign' && matrix.target == 'win32-x64'
+        shell: pwsh
+        run: .github/scripts/sign-windows.ps1 (Get-ChildItem backend/dist-package/${{ matrix.target }}/*.exe).FullName # the provider's secrets are added to this step in task 3.4
+      - name: Verify Windows signature
+        if: steps.signing.outputs.result == 'sign' && matrix.target == 'win32-x64'
+        shell: pwsh
+        run: .github/scripts/verify-windows.ps1 (Get-ChildItem backend/dist-package/${{ matrix.target }}/*.exe).FullName
       - name: Zip
         shell: pwsh
         working-directory: backend
+        env:
+          ARCHIVE: Vid4You-${{ matrix.target }}${{ steps.signing.outputs.result == 'sign' && '' || '-unsigned' }}
         run: |
-          Move-Item dist-package/${{ matrix.target }} Vid4You-${{ matrix.target }}
-          if ($IsWindows) { Compress-Archive Vid4You-${{ matrix.target }} Vid4You-${{ matrix.target }}.zip }
-          else { ditto -c -k --keepParent Vid4You-${{ matrix.target }} Vid4You-${{ matrix.target }}.zip } # keeps the executable bit
+          Move-Item dist-package/${{ matrix.target }} $env:ARCHIVE
+          if ($IsWindows) { Compress-Archive $env:ARCHIVE "$env:ARCHIVE.zip" }
+          else { ditto -c -k --keepParent $env:ARCHIVE "$env:ARCHIVE.zip" } # keeps the executable bit
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Vid4You-${{ matrix.target }}
-          path: backend/Vid4You-${{ matrix.target }}.zip
+          path: backend/Vid4You-${{ matrix.target }}*.zip
           if-no-files-found: error
 
   publish:
@@ -124,7 +166,7 @@ jobs:
         run: |
           gh release create "$TAG" assets/*.zip assets/SHA256SUMS.txt $PRERELEASE \
             --target "$GITHUB_SHA" --title "Vid4You $VERSION" \
-            --notes "Built once from commit $GITHUB_SHA. The executables are not signed yet (JOS-207): macOS and Windows will warn on first start. Verify the files with SHA256SUMS.txt. The archives carry a GPL nonfree ffmpeg build that is not redistributable: for the owner's use only."
+            --notes "Built once from commit $GITHUB_SHA. $(.github/scripts/signing.sh notes assets) Verify the files with SHA256SUMS.txt. The archives carry a GPL nonfree ffmpeg build that is not redistributable: for the owner's use only."
 
   verify:
     needs: [tree, publish]

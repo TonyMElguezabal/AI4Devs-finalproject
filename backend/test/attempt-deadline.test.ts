@@ -23,7 +23,7 @@ describe("the deadline of an attempt", () => {
     // The input type carries no queuedAt: only sentAt can start the clock.
     const queuedLongAgo = { stage: "image", sentAt: SENT_AT, queuedAt: "2026-10-05T08:00:00.000Z" } as const;
 
-    expect(attemptDeadline(queuedLongAgo)?.toISOString()).toBe("2026-10-05T10:02:00.000Z"); // image: 120 s
+    expect(attemptDeadline(queuedLongAgo)?.toISOString()).toBe("2026-10-05T10:05:00.000Z"); // image: 300 s
   });
 });
 

@@ -1,4 +1,4 @@
-import type { AdapterTypeInfo, AppSettings, AppUpdate, FailedStageRow, PipelineTimeReport, ProfileProblem, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AdapterTypeInfo, AppSettings, AppUpdate, ConnectionTestResult, FailedStageRow, PipelineTimeReport, ProfileProblem, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionSnapshot, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -221,6 +221,18 @@ export async function deleteProviderProfile(password: string, id: string): Promi
   }
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
   return ((await response.json()) as { result: string }).result === "retired" ? { kind: "retired" } : { kind: "removed" };
+}
+
+export type ConnectionTestOutcome = { kind: "denied" } | { kind: "not-found" } | { kind: "charge-not-accepted" } | { kind: "result"; result: ConnectionTestResult };
+
+/** test-provider-connection (JOS-220): `POST /admin/provider-profiles/:id/test`. A 401 is `denied`; any other failure rejects. */
+export async function testProviderConnection(password: string, id: string, acceptCharge: boolean): Promise<ConnectionTestOutcome> {
+  const response = await adminFetch(`/admin/provider-profiles/${encodeURIComponent(id)}/test`, password, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(acceptCharge ? { acceptCharge } : {}) });
+  if (response.status === 401) return { kind: "denied" };
+  if (response.status === 404) return { kind: "not-found" };
+  if (response.status === 409) return { kind: "charge-not-accepted" };
+  if (!response.ok) throw new Error(`request failed with ${response.status}`);
+  return { kind: "result", result: (await response.json()) as ConnectionTestResult };
 }
 
 export type FailedStagesResult = { kind: "ok"; failedStages: FailedStageRow[] } | { kind: "denied" };

@@ -1,0 +1,693 @@
+# PRD — Vid4You
+
+**Versión:** 1.19  
+**Alcance:** MVP  
+**Status (v1.19, awaiting the product owner's approval):** the `/admin` reference image is sent to the image provider with every scene of the sessions created after it is saved (`use-reference-image-in-generation`, JOS-202, §2.1, §11.3, §11.5). The previous version is kept in `docs/PRD-v1.18.md`. **Status (v1.18, awaiting the product owner's approval):** the Administrator can enter an optional price per unit and currency on each provider on `/admin` (`add-provider-price-per-unit`, JOS-226, §11.4). The previous version is kept in `docs/PRD-v1.17.md`. **Status (v1.17, awaiting the product owner's approval):** the visual style prompt and reference image of `/admin` (`admin-visual-style-prompt`, JOS-201, drafted on its own line as v1.10) join this version behind the Administrator password, as §11.5 (§2.1, §2.2). The previous version is kept in `docs/PRD-v1.16.md`. **Status (v1.16, awaiting the product owner's approval):** the Administrator's reports are defined: provider usage, failures and retries, and sessions in the first release; estimated cost, pipeline time and provider changes later (`define-admin-reports`, JOS-175, §2.1, §2.3, §11.4). **Status (v1.15, awaiting the product owner's approval):** the Administrator moves a failed stage to the current active provider on `/admin` (`move-failed-stage-to-active-provider`, JOS-172, §2.1, §2.3, §7.2, §11.2). **Status (v1.14, approved by the product owner 2026-10-22):** the Administrator adds, edits and deletes providers, their parameters and their API keys on `/admin` (`manage-providers-from-admin`, JOS-218, §2.1, §2.3, §11, §11.2). **Status (v1.13, awaiting the product owner's approval):** the Administrator can change the active provider of each stage on `/admin` (`change-active-provider-from-admin`, JOS-171, §2.1, §2.3, §11, §11.2). **Status (v1.12, awaiting the product owner's approval):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3). **Status (v1.11, awaiting the product owner's approval):** one shared Administrator password protects `/admin` (`protect-admin-with-password`, JOS-173, §2.1, §2.3, §12.3). **Status (v1.10):** the final MP4's audio is the voice-over's MP3 stream copied unchanged, not AAC (§7.3, D08), and the automatic-retry delay (2 s base, 30 s cap) is recorded (§11.3) (JOS-203). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous versions are kept in `docs/PRD-v1.14.md` and `docs/PRD-v1.13.md`.
+
+## 1. Objetivo del producto
+
+Vid4You es una aplicación web que convierte un guion proporcionado por el usuario en un video narrado, en formato MP4 horizontal 16:9.
+
+El sistema genera una narración completa, divide el guion en escenas o *chunks*, genera una imagen y un clip por escena, ajusta los clips a la narración y ensambla el video final. El procesamiento avanza automáticamente, salvo cuando existe una pausa solicitada por el usuario o un fallo que impide continuar.
+
+El usuario puede consultar el progreso por fase y por escena, descargar resultados disponibles y recuperar generaciones fallidas sin modificar el contenido narrado.
+
+## 2. Usuarios y alcance
+
+### 2.1 Roles
+
+| Rol | Responsabilidad |
+|---|---|
+| User (*Usuario*) | Enter a title, a script, and the script's language; follow progress and per-scene diagnostics; pause and continue the session; download results; retry failed stages. |
+| Administrator | Unlock `/admin` with the Administrator password; add, edit and delete the providers of each stage, their parameters and their API keys; change the active provider of each stage there, and move a failed stage to the current active provider (§11.2); set the visual style of new sessions (§11.5); see the reports of §11.4. Further Administrator tools are added by later stories. A User never needs the password. |
+
+The MVP has a single role: the User. The operational settings (§11) are read at start-up from local settings files: a default file that ships with the application and an optional per-user file that overrides it. A change takes effect after the application restarts, and these settings are edited by hand, not through the application. The providers are the exception: the Administrator adds, edits and deletes the providers of each stage, their parameters and their API keys, and chooses each stage's active provider, all on `/admin`, and these apply without a restart (§11.2). The product has two roles. The User needs no login. The Administrator unlocks `/admin` with one shared password, not an account. The password is a local secret, read from `ADMIN_PASSWORD` in the process environment or, when the environment has none, from the credentials file in the user's application-data folder; it is never part of a settings file, never part of the application download, and never shown in the interface, a response or a log. When no password is configured the application still starts, and `/admin` says so and explains how to set one. `/admin` is not linked from the User's pages. A provider's API key is entered on `/admin` and stored encrypted in the local database; it is never part of a settings file, never part of the application download, never returned by the application after it is saved (only its status and its last four characters) and never shown in a log. A key given in the process environment or in the credentials file in the user's application-data folder keeps working for the providers created from the first settings, until a key is stored for them. The other Administrator tools (diagnostics on `/admin`) and the reports of §11.4 are deferred post-MVP.
+
+### 2.2 Incluido en el MVP
+
+- Creación de sesiones a partir de un título y un guion.
+- Generación de un único voice-over por guion.
+- Obtención de los intervalos de narración de cada fragmento dentro del audio completo.
+- Descomposición automática en chunks y creación de sus instrucciones visuales.
+- Generación de una imagen y un clip por chunk.
+- Sincronización de los clips con el audio y montaje del MP4 final.
+- Visualización del progreso, resultados y errores.
+- Pausas antes del lanzamiento de una fase y continuación explícita.
+- Partial downloads (per-scene images and clips, §12.3) and download of the final video.
+- Reintentos automáticos y manuales ante fallos.
+- Corrección del prompt visual correspondiente a una etapa fallida.
+- Visual style setting on `/admin`: one prompt, and an optional reference image that is sent to the image provider with every scene of the sessions created afterwards (§11.5).
+- Persistencia de sesiones, estados y resultados.
+
+### 2.3 Fuera del MVP
+
+- Administrator tools on `/admin` other than managing the providers and moving a failed stage: editing an operational setting. Each is its own story. A provider for which the application ships no adapter, and a test of a provider's connection, are also later stories.
+- User accounts, authentication and authorization, any multi-user access, and any hosted (server) deployment. The MVP is an application that runs on the user's own computer (§12.3).
+- Reportes de uso, fallos, sesiones, costos, tiempos y cambios de proveedor: fuera del MVP; están en alcance de la versión que los construya, descritos en §11.4.
+- Importación o edición libre de chunks.
+- Reescritura del guion o regeneración de una narración ya completada.
+- Regeneración de imágenes o clips exitosos por preferencia estética.
+- Cancelación de solicitudes ya enviadas a un proveedor.
+- Montajes que omitan escenas del guion.
+- Changing an operational setting from the application (interface or API) and applying one without a restart (§11). The providers, their parameters and keys, and the active provider are the exception (§11.2).
+- Any automatic provider change; more than one Administrator, user accounts, changing the password from the interface, login sessions and lock-out after failed attempts.
+- Session expiry (§12.2).
+- Size or budget limits per session (§4.1).
+- A product-level content policy; providers' own content filters apply (§4.1).
+
+## 3. Conceptos y datos del proyecto
+
+Una **sesión** representa un proyecto de video y tiene un identificador generado por el sistema. Contiene el título, el guion, la narración, los chunks, el progreso y los resultados. Los datos de sesiones diferentes permanecen separados, aunque sus títulos coincidan. The session also stores the script language selected by the User (§4.1).
+
+El **guion** es el texto original del usuario. El sistema lo utiliza como contenido de la narración y como fuente de las escenas; no lo redacta de nuevo.
+
+El **voice-over** es un único archivo MP3 que contiene la narración completa del guion. Los chunks se relacionan con intervalos de ese audio; no requieren generar voces independientes.
+
+Las **marcas de tiempo** sitúan cada fragmento del guion dentro del voice-over. Su obtención se define en §11 y es condición previa a la descomposición.
+
+Un **chunk** es una escena y contiene, como mínimo:
+
+| Campo | Contenido | Edición por el usuario |
+|---|---|---|
+| `ID` | Número secuencial asignado por el sistema. | No permitida. |
+| `PROMPT` | Fragmento del guion narrado en la escena. | No permitida. |
+| `IMAGE` | Instrucción para generar la imagen. | Solo ante fallo de generación de esa imagen. |
+| `VIDEO` | Instrucción para animar la imagen. | Solo ante fallo de generación de ese clip. |
+| Intervalo de narración | Posición y duración de la escena en el audio completo, conforme a §6.1 y §7.3. | No permitida. |
+| Duración solicitada y factor de ajuste | Duración pedida al proveedor y factor de velocidad resultante, conforme a §7.2 y §7.3. | No permitida, salvo cuando el Administrator mueve un clip fallido a otro proveedor de video (§7.2, §11.2). |
+| Estado y resultados | Progreso, imagen, clip y error, cuando corresponda. | Actualizados por el sistema. |
+
+Cada etapa conserva la identificación del proveedor utilizado y los intentos realizados. Esta información permite diagnosticar fallos sin exponer credenciales ni datos confidenciales. It is shown to the User in each scene's details (image and clip stages) and in each phase's section (session-level stages).
+
+## 4. Entrada y conservación del contenido
+
+### 4.1 Entrada del usuario
+
+El usuario introduce un título y un guion no vacíos. No necesita proporcionar identificadores, etiquetas, delimitadores ni instrucciones de imagen o video.
+
+The User also selects the script's language from the configured list of supported languages (§11; shipped default §11.3: **English, Spanish**). Only supported languages can be chosen, and a project cannot start without a selected language; no provider is called before that.
+
+No existe un límite funcional de palabras establecido por el producto. Un guion de aproximadamente 1500 palabras es una referencia habitual, no una restricción ni una duración obligatoria. La duración del video depende de la narración real del guion. The MVP sets no limit on script words, number of scenes, or provider calls per session.
+
+Si una restricción del servicio impide procesar el contenido, el sistema informa la causa. No recorta ni resume el guion para adaptarlo silenciosamente.
+
+The MVP has no product-level content policy: providers' own content filters decide. The script is checked at submission by the reasoning provider's moderation endpoint (§11.3, JOS-187) before the project exists: a flagged script is refused with the flagged categories named, nothing is created, and the script stays in the form to be edited and resubmitted. If the check cannot run, the submission is refused as temporarily unavailable and nothing is created; a script is never registered unchecked. A rejection later in the pipeline is a not-retryable failure (§10.1). Because the script is locked at project start (§4.2), a rejected script requires starting a new project; rejected `IMAGE` or `VIDEO` instructions can be corrected (§10.3).
+
+### 4.2 Fidelidad e inmutabilidad
+
+- La narración debe corresponder al guion completo proporcionado por el usuario.
+- The script is locked as soon as the User starts the project (from `submitted` onward), including while the session is paused and after a voice failure. Once the voice-over has been generated successfully, the audio cannot be regenerated within that session.
+- La descomposición no puede agregar, eliminar, duplicar, resumir ni parafrasear contenido narrativo.
+- Los fragmentos de los chunks, unidos en orden, deben reconstruir el guion original. Solo se permite normalizar espacios de separación sin alterar el contenido.
+- Crear instrucciones visuales no constituye una modificación del guion.
+- Reintentar una generación de voz fallida antes de obtener un audio válido no equivale a regenerar una narración completada.
+
+## 5. Flujo funcional
+
+1. El usuario proporciona el título y el guion e inicia el proyecto.
+2. El sistema registra la sesión y genera el voice-over completo.
+3. Con el audio disponible, obtiene sus marcas de tiempo conforme a §11.
+4. Divide el guion en chunks aplicando la regla de §6.1 y asigna a cada fragmento su intervalo narrado.
+5. Asigna los identificadores y genera las instrucciones `IMAGE` y `VIDEO`.
+6. Genera la imagen de cada chunk.
+7. Cuando la imagen está disponible, genera el clip utilizando esa imagen y la instrucción `VIDEO`.
+8. Cuando todos los chunks están completos, ajusta los clips a sus intervalos de narración y los une en orden.
+9. Incorpora el voice-over completo y produce el MP4 final.
+10. Marca la sesión como `final-video` cuando el archivo final está terminado y disponible para descargar.
+
+Los pasos 3 y 4 pertenecen a la misma fase de descomposición y comparten su estado y su política de reintentos.
+
+La finalización de una escena no requiere que otras escenas hayan terminado. El inicio del montaje sí requiere que todas estén completas. Los resultados disponibles pueden descargarse durante el procesamiento.
+
+## 6. Chunks y orden narrativo
+
+El sistema asigna identificadores numéricos consecutivos del **1 al N**, según el orden de aparición de los fragmentos en el guion original.
+
+Los identificadores son únicos dentro de la sesión y permanecen invariables durante el procesamiento y los reintentos. Un mismo identificador puede existir en sesiones diferentes.
+
+La presentación y el montaje final siguen el orden numérico ascendente de los identificadores, independientemente del orden en que terminen las generaciones. Si termina el chunk 3 antes que el 2, el montaje conserva el orden 1, 2, 3.
+
+Todos los chunks deben tener sus cuatro campos de contenido completos: `ID`, `PROMPT`, `IMAGE` y `VIDEO`. Una estructura inválida generada por el sistema constituye un fallo de descomposición, no un error de formato del guion introducido por el usuario.
+
+Una vez establecidos, el usuario no puede dividir, combinar, eliminar ni reordenar chunks. Los reintentos conservan la identidad y el contenido narrativo de la escena.
+
+### 6.1 Regla de segmentación
+
+La segmentación se ejecuta después de disponer del voice-over y de sus marcas de tiempo, de modo que el sistema conoce la duración narrada de cada candidato antes de fijar los cortes.
+
+- **Criterio de corte.** Los cortes coinciden con fronteras de oración. Un chunk agrupa una o más oraciones consecutivas completas.
+- **Cota superior.** La duración narrada de un chunk no supera la duración máxima admitida por el proveedor de video activo.
+- **Lower bound.** A chunk's narrated duration does not fall below the configured lower bound. A sentence that does not reach it is grouped with the following sentence; if it is the script's last sentence, it is grouped with the previous one (see §6.1.1 for edge cases).
+- **Excepción.** Una oración cuya narración supere por sí sola la cota superior se divide en frontera de cláusula, marcada por coma, punto y coma o conjunción. Es la única división permitida dentro de una oración.
+- **Optimización.** Entre las agrupaciones que cumplen ambas cotas, el sistema prefiere aquellas cuya duración narrada quede más próxima a una duración admitida por el proveedor de video, para reducir el ajuste de velocidad de §7.3.
+
+La regla no altera §4.2: los fragmentos unidos en orden siguen reconstruyendo el guion original.
+
+La cota inferior existe porque el proveedor de video impone una duración mínima de clip. Sin ella, un fragmento muy breve obligaría a un factor de aceleración elevado. Its value is configured (§11.3: shipped default **5 seconds**) and matches the shortest duration admitted by the video provider, by construction.
+
+El incumplimiento de estas reglas por una descomposición generada por el sistema constituye un fallo de descomposición, no un error del guion introducido por el usuario.
+
+#### 6.1.1 Edge cases (v1.3)
+
+- **Script shorter than the lower bound.** If the whole script's narration is below the lower bound, it becomes a single chunk below the lower bound. Its clip is requested at the shortest admitted duration and sped up to fit (§7.2).
+- **Short sentence whose grouping would exceed the maximum.** If a sentence below the lower bound would exceed the upper bound when grouped with the following sentence, the following sentence is split at a clause boundary (comma, semicolon, or conjunction) and its first part is grouped with the short sentence. This extends the clause-boundary exception to sentences that do not exceed the upper bound on their own.
+- **Sentence that cannot be split.** If a sentence must be split (it exceeds the upper bound on its own, or it is the following sentence in the previous case) but has no comma, semicolon, or conjunction, it is kept whole in one chunk even if that chunk exceeds the upper bound. Its clip is requested at the maximum admitted duration and slowed down to fit, and a speed-factor warning is recorded; it is not a failure.
+
+## 7. Generación visual, duración y montaje
+
+### 7.1 Imagen
+
+Cada chunk utiliza su instrucción `IMAGE` para generar una imagen horizontal 16:9 con resolución mínima de 1920 × 1080. El clip no puede solicitarse sin una imagen disponible.
+
+### 7.2 Clip
+
+Cada clip utiliza la imagen generada y la instrucción `VIDEO`. La duración solicitada se calcula a partir de la duración del intervalo correspondiente en el voice-over, respetando los valores admitidos por el proveedor.
+
+- El sistema solicita la duración admitida por el proveedor **más próxima** al intervalo narrado. Se admite que la duración solicitada sea menor que el intervalo, lo que implica ralentizar el clip durante el montaje. "Closest" means the admitted duration requiring the smallest speed change (speed-up or slow-down ratio) to match the interval, not the fewest seconds; an exact tie goes to the longer duration.
+- Cuando el intervalo narrado es inferior a la menor duración admitida, se solicita esa menor duración.
+- El sistema no debe asumir que todos los proveedores admiten las mismas duraciones ni cualquier valor intermedio. The set of admitted durations is configured for the video provider (§11).
+- El máximo habitual previsto es de 15 segundos; un proveedor que admita 20 segundos puede utilizar ese máximo. **Recorded (§11.3): the video provider's measured admitted range, the shipped default, is 5-15 seconds** — the "usual" 15-second expectation is exactly the measured maximum, not just a placeholder guess.
+
+The §6.1 upper bound ensures that no narrated interval exceeds the video provider's maximum, except for a sentence that cannot be split (§6.1.1). That clip is requested at the maximum admitted duration and slowed down to fit, with a speed-factor warning. No trimming policy is required.
+
+The one exception to the requested duration and the factor being stored once is a failed clip that the Administrator moves to another video provider (§11.2): its requested duration is chosen again from the new provider's admitted durations, by the same rule (the smallest speed change), and its duration warning, speed factor and speed-factor warning follow from it, while the chunk and its narration interval stay unchanged.
+
+El factor de ajuste de velocidad no es un parámetro independiente: resulta de la regla de segmentación de §6.1 y de la selección de duración descrita arriba. The system records the resulting factor for each scene with its result and shows it, with the requested duration, in the scene details. The acceptable limit is configured (§11); when a scene exceeds it, a diagnosable warning is recorded, not a failure.
+
+### 7.3 Sincronización y montaje final
+
+La duración de cada clip se ajusta a su intervalo de narración mediante ajuste de velocidad, que puede acelerar o ralentizar el clip. El audio y el texto no se modifican para acomodarse a los clips.
+
+Los intervalos de narración de los chunks forman una **partición del eje temporal del voice-over**: son contiguos, no se solapan y cubren desde el segundo 0 hasta la duración total del MP3. Esta propiedad es un requisito del producto y se mantiene cualquiera que sea la regla adoptada en D11.
+
+**D11 (closed, JOS-142, product owner decision 2026-09-29):** cada silencio de la narración se asigna a la escena anterior — el corte a la siguiente escena ocurre exactamente cuando comienza su narración, no a mitad del silencio. Un clip sostiene hasta 2 segundos de silencio de forma aceptable; a partir de 3 segundos empieza a sentirse lento. Ningún guion real medido en la comparación (inglés y español, marcas nativas y de alineación forzada) superó 1.26 segundos, por debajo del umbral, así que no se define una tercera regla. Evidencia completa: `docs/adr/0006-silence-allocation.md` y `openspec/changes/archive/2026-09-29-decide-silence-allocation/reports/`.
+
+El montaje debe conservar todo el contenido narrado y la secuencia de escenas, sin omisiones, duplicaciones ni huecos visuales. Debe cubrir también las pausas existentes en la narración.
+
+**Ajuste manual de una pausa (JOS-190, product owner decision 2026-10-15).** Una vez existe el video final, el usuario puede acortar o alargar el silencio que sigue a una escena y reconstruir el video final. El silencio se mueve entre 0.2 y 3.0 segundos en pasos de 0.1 s, acotado además para que el clip de esa escena no supere el límite de factor de velocidad; el valor inicial es la pausa original. El silencio se recorta o se amplía por el centro de la pausa: el habla y su velocidad no cambian, las escenas posteriores se desplazan en consecuencia y el MP3 almacenado no se modifica. Cada reconstrucción escribe un archivo nuevo (`final-video-<versión>.mp4`, versión 2 en adelante) y conserva los anteriores; ningún clip se vuelve a generar y los intervalos almacenados de los chunks, y la regla D11, no cambian. Es la única excepción a «el audio no se modifica» de este apartado.
+
+El video final solo puede generarse cuando todas las escenas estén en `chunk-complete`. Una sesión con una escena fallida o pendiente no puede alcanzar `final-video`.
+
+**Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are configured (shipped default 1920×1080 at 30 fps), with H.264 video. The audio is the voice-over's MP3 stream copied into the MP4 without re-encoding; only a rebuild with an adjusted pause re-encodes it (to AAC).
+
+Si falla el montaje, se conserva el audio y las escenas exitosas. El reintento se aplica al montaje, sin volver a generar los componentes ya completados.
+
+## 8. Estados y progreso
+
+Los estados de la sesión y de cada chunk se gestionan por separado. El nombre `complete` no se utiliza como estado final.
+
+### 8.1 Estados de la sesión
+
+| Estado | Significado |
+|---|---|
+| `submitted` | La sesión y el guion están registrados. |
+| `voice-over-generating` | Se está generando la narración completa. |
+| `voice-over-complete` | El MP3 completo está disponible. |
+| `chunk-decomposing` | Se están obteniendo las marcas de tiempo y preparando los chunks y sus instrucciones. |
+| `chunks-processing` | Se están generando las imágenes y los clips. |
+| `final-video-generating` | Se está sincronizando y ensamblando el MP4 final. |
+| `final-video` | El MP4 final está terminado y disponible para descargar. |
+| `failed` | Una fase necesaria agotó sus reintentos o no pudo completarse; se muestra cuál falló. |
+
+**State rules (v1.3):**
+- While any scene is still generating, the session stays `chunks-processing` even if another scene is `failed`. It becomes `failed` only when no scene is still generating and at least one scene is `failed`, and it shows which scenes failed.
+- A manual retry on a `failed` session returns it to the in-progress state of the retried phase: scene → `chunks-processing`, voice → `voice-over-generating`, decomposition → `chunk-decomposing`, assembly → `final-video-generating`. The earlier failure stays visible in diagnostics.
+- A pause is a separate "paused" marker on top of the current session state, not a state of its own. Continuing removes the marker and leaves the state unchanged.
+
+### 8.2 Estados del chunk
+
+| Estado | Significado |
+|---|---|
+| `submitted` | El chunk está registrado y pendiente de generar su imagen. |
+| `image-generating` | La generación de la imagen está en curso. |
+| `image-complete` | La imagen está disponible; falta generar el clip. |
+| `video-generating` | La generación del clip está en curso. |
+| `chunk-complete` | La imagen y el clip están disponibles. Es el estado final de la escena. |
+| `failed` | Falló la generación de imagen o video y se agotaron los reintentos automáticos. |
+
+Un fallo conserva la identificación de la etapa afectada. Un reintento vuelve a esa etapa y no al inicio del proyecto.
+
+### 8.3 Información visible
+
+La interfaz presenta una sección o pestaña por fase y muestra el estado de las escenas, los resultados disponibles, los errores y las acciones aplicables. El progreso se actualiza durante el procesamiento. An open session page shows each state change, result, and error as soon as it happens, without reloading.
+
+Una pausa se muestra como condición adicional de control, conservando la fase y el avance alcanzados. No equivale a éxito ni a fallo.
+
+## 9. Pausa y continuación
+
+El usuario puede impedir el lanzamiento de una fase antes de que esta haya comenzado. Una solicitud ya enviada a un proveedor continúa hasta terminar o fallar y no puede pausarse ni cancelarse desde el MVP.
+
+Los resultados de solicitudes ya enviadas se conservan aunque exista una pausa. Una fase detenida antes de su lanzamiento permanece pendiente hasta que el usuario indique explícitamente que desea continuar.
+
+La interfaz debe distinguir entre una generación que sigue en curso y una fase que está esperando la continuación del usuario. La pausa no revierte resultados ni elimina trabajo realizado.
+
+A pause applies to the whole session: every not-yet-launched generation, phase, and retry (automatic or manual) is held until the User explicitly continues, so a pause means no new provider calls. Requests already sent finish. There is no per-scene pause.
+
+## 10. Fallos, reintentos y correcciones
+
+### 10.1 Reintentos automáticos
+
+Ante un fallo transitorio, el sistema permite hasta **tres reintentos automáticos adicionales al intento inicial** de la etapa afectada. No realiza reintentos automáticos indefinidos.
+
+A failure the provider reports as not retryable (for example, a content-filter rejection) skips automatic retries and goes directly to `failed` with its cause shown. A disallowed script never reaches the pipeline: it is refused at submission (§4.1, JOS-187). Corrected `IMAGE`/`VIDEO` instructions (§10.3) are not moderated.
+
+Each stage has a configured maximum of simultaneous provider requests, shared across all sessions. Requests beyond it wait their turn and are sent first come, first served, regardless of session. Waiting counts neither as a failed attempt nor as execution time.
+
+Al agotar el límite, la etapa queda en `failed`. La interfaz muestra un error comprensible y la opción de reintento manual cuando corresponda. La política debe evitar que mecanismos internos de recuperación multipliquen inadvertidamente el límite funcional.
+
+La espera previa al inicio de una etapa no debe confundirse con el tiempo de ejecución ni provocar un fallo prematuro de escenas que comienzan más tarde. Per-phase maximum times are configured (§11).
+
+### 10.2 Reintentos manuales
+
+El usuario puede reintentar la etapa fallida conservando los resultados exitosos anteriores. Agotar los reintentos automáticos bloquea el avance afectado, pero no elimina el proyecto ni sus archivos.
+
+When a scene ends in `failed`, all other scenes keep generating until they reach `chunk-complete` or fail themselves; only the final video waits. Each manual retry starts a new cycle of up to three automatic retries.
+
+### 10.3 Edición permitida
+
+| Fallo | Acción permitida |
+|---|---|
+| Generación de imagen | Reintentar con la misma instrucción o corregir únicamente `IMAGE`. |
+| Generación de video | Reintentar con la misma instrucción o corregir únicamente `VIDEO`, conservando la imagen exitosa. |
+| Generación de voz | Reintentar la generación fallida con el mismo guion, sin sustituir un audio ya completado. |
+| Obtención de marcas de tiempo | Retry on the same audio. If native timestamps were returned but are unusable, automatic and manual retries switch directly to the alignment stage (§11.1); the voice provider is not asked again. |
+| Descomposición | Reintentar la división del mismo guion sin reescribirlo ni regenerar el audio. |
+| Montaje final | Reintentar el montaje con los componentes ya generados. |
+
+Ninguna recuperación permite cambiar `ID`, `PROMPT`, el orden narrativo o un voice-over completado. Las correcciones visuales son la única excepción a la regla de chunks no editables.
+
+## 11. Proveedores y operación
+
+The operational settings (maximum times, request caps, segmentation lower bound, speed-factor limit, output resolution and frame rate, supported languages) come from local settings files, read and validated once when the application starts. The application ships a default file holding the values recorded in §11.3; an optional file in the user's application-data folder replaces any subset of them. If the settings are missing a value, have a wrongly typed or out-of-range value, contain an unknown key, or are inconsistent, the application does not start and lists every problem. Editing a file while the application runs changes nothing until the next start. Each stage's providers (reasoning, voice, alignment, image, video) are provider profiles managed on `/admin`: a profile is a stage, an adapter type the application ships for it, a display name, the parameters of that adapter type (reasoning model; voice model, voice, output format and speed; alignment endpoint path; image model; video endpoint path and admitted durations) and an API key. An adapter type sends its requests to its own vendor, so a parameter never names a host or a URL. The first profile of each stage is created from the provider section of the settings the first time the application starts; afterwards those sections no longer change a profile. There is one active provider per stage (§11.2). Provider credentials are never read from a settings file.
+
+| Etapa | Capacidad requerida |
+|---|---|
+| Razonamiento | Dividir el guion con fidelidad conforme a §6.1 y generar instrucciones visuales. La referencia de capacidad establecida para el proyecto es equivalente a Sonnet 4.6 o superior. Verified: OpenAI `gpt-6-astra` (§11.3). |
+| Voz | Producir la narración completa en MP3 con voz, calidad y velocidad preconfiguradas, y entregar marcas de tiempo del audio generado con granularidad suficiente para situar cada fragmento del guion. Verified: ElevenLabs, character-level native timestamps (§11.3). |
+| Alignment | Derive the timestamps by aligning the generated MP3 against the script when the voice provider's native timestamps are not available or are unusable (§11.1). Verified: ElevenLabs Forced Alignment, same account as Voice (§11.3). |
+| Imagen | Generar imágenes desde texto en 16:9 y con resolución mínima de 1920 × 1080. Verified: Fal.ai `fal-ai/flux/dev` (§11.3). |
+| Video | Animate a reference image with a requested duration within its capabilities. Its admitted durations and maximum are configured (§11.3: shipped default 5-15 seconds). Verified: RunningHub, MiniMax-H3 "Hailuo-03" (§11.3). |
+
+### 11.1 Marcas de tiempo y mecanismo de respaldo
+
+Las marcas de tiempo son una capacidad requerida de la etapa de voz. Se obtienen por uno de dos mecanismos, en este orden de preferencia:
+
+1. **Marcas de tiempo nativas.** El proveedor de voz las entrega junto al MP3.
+2. **Alineación forzada.** Si el proveedor activo no las entrega, el sistema las deriva alineando el MP3 generado contra el guion conocido. Forced alignment is performed by the alignment stage and its own provider; it is also used when native timestamps are returned but unusable.
+
+La alineación forzada es el mecanismo de respaldo declarado del producto y no sustituye la preferencia por marcas de tiempo nativas. Verifying which of the two applies to the configured voice provider is a task prior to implementing the decomposition phase.
+
+La imposibilidad de obtener los intervalos por cualquiera de los dos mecanismos constituye un fallo de descomposición, se refleja en `chunk-decomposing` y sigue la política de reintentos de §10.1.
+
+### 11.2 Vinculación y cambio de proveedor
+
+The Administrator can change the active provider of any stage (reasoning, voice, alignment, image, video) on `/admin`, among the stage's providers that are usable: valid parameters and an API key that can be found. The choice is stored, overrides the provider the settings named when the profiles were first created, survives a restart and applies without a restart to every stage that is not yet bound to a provider. No operational setting is editable on `/admin`; those still need a file edit and a restart. There is no automatic switching: when a stage's retries are exhausted it stays on its provider.
+
+The Administrator adds, edits and deletes providers on `/admin`. A change to a provider's parameters applies, without a restart, to the next request sent through it, including the retries of stages already bound to it; it never changes what a session has established (requested durations, speed factors, intervals, chunks, completed results). A provider that is the active provider of a stage cannot be deleted. A provider that sessions or scenes are bound to is retired instead of removed: it is no longer offered, and it keeps serving the retries of what is bound to it. The admitted durations used to segment a script and to request a clip are those of the active video provider when they run; a clip whose stored duration the active video provider does not admit fails, before it is bound, with a message that names it, and can be retried after the active provider is changed back. The application asks for a provider's API key by the stage's role and receives the key of the provider the stage is bound to, or of the active provider when it is not yet bound.
+
+Every stage is bound to a provider at its first attempt, once and for good: reasoning, voice and alignment per session; image and video per chunk. The binding is the provider active at that moment. The stage keeps it for its automatic and manual retries, whatever the active provider is later. Changing the active provider never regenerates a completed result. A stage that used native timestamps binds no alignment provider.
+
+A stage tied to a provider that is unavailable keeps retrying that same provider until it recovers, unless the Administrator moves it. `/admin` lists the failed stages that are bound to a provider other than the current active provider of their stage type, with an action to move each one to the current active provider. A move binds that one stage to the provider that is active at that moment and nothing else: it sends no request and does not retry; the next retry, automatic or manual, goes to the new provider, and the attempts recorded before the move keep the provider they ran on. A stage whose failure offers no manual retry is not listed. A move never regenerates a completed result of the session or its scenes, and nothing moves by itself, not even when retries are exhausted. Completed results are never regenerated.
+
+A change to the configured admitted durations, languages, or any other setting, after a restart, does not alter what existing sessions have already established: intervals, chunks, requested durations, speed factors, warnings, the session's language, and completed results stay as they were. A stage that already has a bound provider keeps it for its retries.
+
+### 11.3 Recorded providers and parameter values (JOS-165)
+
+Defined by `define-provider-configuration` (JOS-165) and, since v1.10, shipped as the default settings file (`backend/config/settings.default.json`). The values below are those defaults; a per-user override file can replace them (§11). Verified against real calls per Decision 2 of its design (never from documentation alone). Full evidence and provenance: `docs/adr/0005-provider-selection.md` and `openspec/changes/define-provider-configuration/reports/`.
+
+| Stage | Provider | Identifier |
+|---|---|---|
+| Reasoning | OpenAI | `gpt-6-astra` |
+| Voice | ElevenLabs | `eleven_multilingual_v2`, voice "Burt Reynolds™" |
+| Alignment | ElevenLabs | Forced Alignment API — same account as Voice |
+| Image | Fal.ai | `fal-ai/flux/dev`; with a reference image, `fal-ai/flux-2/edit` (setting `imageReferenceModel`, §11.5) |
+| Video | RunningHub | MiniMax-H3 "Hailuo-03" |
+
+| Parameter | Value | Notes |
+|---|---|---|
+| Video admitted durations | 5-15 seconds | Both ends measured with real calls |
+| Segmentation lower bound (§6.1) | 5 seconds | = video provider's measured minimum |
+| Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264 video, voice-over MP3 audio copied unchanged | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
+| Supported script languages (§4.1, D09) | English, Spanish | Each verified independently across voice, alignment and reasoning |
+| Acceptable speed-factor limit | **Provisional** | `define-media-assembly` (JOS-182) recommends 0.5x-2.0x (its ADR, Decision 5); `decide-silence-allocation` (JOS-142) verified D11's adopted rule against that recommendation (max 1.08x observed). Not yet the fixed constant: US-33 records it, and JOS-182's own PR is not yet merged into this branch's history. |
+| Per-phase maximum times | Reasoning 600s, Image 120s, Voice 600s, Alignment 5s, Video 1200s, Assembly provisional | Set above the observed slow tail; assembly depends on JOS-182. Re-measured at the product's real script size in v1.8 (2026-10-13/14): reasoning 208.6 s for 67 fragments (was 20 s), voice 151 s for 10,217 characters (was 10 s), video clips at 2K 394 s for 7 s, 528 s for 12 s, 546 s for 13 s and above 610 s for 14 s (was 240 s; 15 s is admitted); provisional until a full-size session (1,500-1,800 words, 30-50 chunks) has been timed |
+| Automatic-retry delay | Base 2 s, cap 30 s | Exponential: `min(2 s × 2^(attempt−1), 30 s)` between attempts of a cycle; a provider's Retry-After is never undercut. Accepted by the product owner (JOS-203 B5) |
+| Maximum simultaneous requests per stage | Reasoning 50, Image 200 (provisional), Voice 3, Alignment 2, Video 3 (`limit-provider-requests-per-stage`, JOS-167) | Voice and alignment add up to the 5 concurrent requests ElevenLabs documents for the Creator tier; that value is documented, not measured. Video 3 is the highest concurrency measured with no slowdown (JOS-165, step 8.2) |
+
+**Not-retryable failure signal**: tested against all four provider-calling stages with disallowed instructional content — **none produced a distinguishable rejection** (`docs/adr/0005-provider-selection.md`, Decision 5). **Resolved at the entry point by JOS-187**: the script is checked by OpenAI's moderation endpoint before a session exists. Moderation model `omni-moderation-2024-09-26`, maximum time 10 seconds (measured 0.12–2.2 s). The downstream stages still have no content signal, and corrected `IMAGE`/`VIDEO` instructions (§10.3) remain unmoderated.
+
+### 11.4 Administrator reports (JOS-175)
+
+The Administrator sees read-only reports on `/admin`, computed from what the application stores on the user's own computer. A report writes nothing, sends nothing off the device, requires the Administrator password, and never shows an API key, a script, a prompt or instruction, narration text, or a provider's own words in a failure message. Aggregate reports take a period (the last 7 days, the last 30 days by default, all time, or a custom range) applied to the instant each attempt was sent; times are shown in the computer's time zone. There is no download.
+
+The first release has three reports:
+
+1. **Provider usage**, per stage (voice, alignment, reasoning, image, video) and provider: attempts, successes, transient and not-retryable failures, timed-out attempts, success rate, median and 95th-percentile request latency, and the billed units of the successful attempts (voice characters, audio seconds for alignment, images, clip seconds, reasoning requests).
+2. **Failures and retries**, per stage: failed attempts by outcome, retry budgets exhausted, manual retries, the most frequent failure wordings of the session-level stages, and the scenes that are failed now by stage.
+3. **Sessions**: one row per session created in the period (title, created, state, scenes, failed scenes, attempts, time to the voice-over and to the final video) with a drill-down to its scenes (providers, attempts, requested duration, speed factor and warnings).
+
+A later release adds an **estimated cost** (billed units times a price per unit that the Administrator enters on each provider; every amount is an estimate, and a provider with no price is shown as unpriced, never as zero), **pipeline time** (elapsed time per phase and time-limit hits) and **provider changes** (when the active provider changed or a failed stage was moved). Each of these needs the application to record something it does not record today.
+
+**Price per unit (JOS-226).** Each provider profile accepts an optional **price per unit** (a number zero or greater) and a **currency** (a three-letter ISO 4217 code), both or neither, entered only on `/admin` (the settings files do not take it). The unit is the stage's billed unit: voice character (voice), audio second (alignment), request (reasoning), image (image), clip second (video). A profile with neither is *unpriced*; a price of zero is a price (a free provider), not unpriced. The price is never sent to the provider and never makes a profile unusable; the estimated cost report is its only reader.
+
+Until the provider is recorded on each scene attempt, the per-provider figures of the image and video stages attribute an attempt to the provider its scene is bound to now; after a provider move, earlier failed attempts are counted for the provider the scene was moved to. The reports say so.
+
+### 11.5 Visual style setting (`/admin`, JOS-201)
+
+Behind the Administrator password, `/admin` holds one **visual style prompt** (text, 0 to 8,000 characters; empty means no style) and one optional **reference image** (PNG, JPEG or WebP, up to 5 MB).
+
+- Each new session keeps a copy of the prompt as it was when the session was created. The first decomposition, any retry of it and a restart all use that copy, so saving `/admin` never changes a session already in progress.
+- The prompt is sent to the reasoning provider as separate creative direction (style, recurring characters, tone) before the fixed rules. If it conflicts with those rules (one image and one video instruction per fragment, no merging or skipping, the required output format), the rules win. Because the image provider receives only each scene's image instruction, every image instruction must repeat the full description of any recurring character.
+- The prompt is user text sent to a provider: its content is never logged, only its length.
+- Each new session also keeps a copy of the reference image (and its hash) in its project folder. Every image request of that session, including a retry and a request after a restart, carries that copy to the image provider, which then uses the reference-capable model of §11.3; a session without a reference sends the same text-to-image request as before. The `/admin` image changing or being removed never affects a session already created. If the provider rejects the reference (HTTP 400, 413, 415 or 422), that scene fails as not retryable with a reason that names the reference image and no other scene is affected. The video stage already starts from the scene's generated image and gets no reference image.
+- Several styles, a style chosen per session and a fixed style prefix on the image request are out of this version.
+
+## 12. Persistencia, archivos y descargas
+
+### 12.1 Conservación del proyecto
+
+El sistema conserva sesiones, chunks, estados, referencias a resultados y errores de forma persistente. El avance debe sobrevivir a reinicios y poder recuperarse en consultas posteriores.
+
+After a restart, a request already sent to a provider is resumed: the system waits for its original result if the provider still holds it. If it cannot be recovered, it counts as a failed attempt and follows §10.1.
+
+Recibir más de una confirmación de éxito para una misma generación no debe duplicar resultados, iniciar dos veces la etapa siguiente ni incorporar una escena varias veces al montaje.
+
+Processing happens only while the application is running; if the computer sleeps or the application is closed, in-progress sessions resume from their saved state the next time it starts.
+
+### 12.2 Archivos
+
+Los archivos locales se organizan en carpetas identificadas por el título del video y **no se eliminan automáticamente ni caducan**. Los proyectos con títulos iguales deben permanecer separados y no sobrescribir sus resultados. Each project folder is named with the video title plus the project's creation date and time to the minute (e.g. `My Trip 2026-09-15 10-42`); if a folder with that name already exists, a counter is appended (e.g. `My Trip 2026-09-15 10-42 (2)`).
+
+Se conservan localmente el guion y los textos generados, el MP3 completo, sus marcas de tiempo, los clips y el MP4 final. Every result delivered only as a temporary provider link, images included, is saved into the project folder before the link expires. The store and the project folders live in the user's application-data folder on their computer, never in the installation folder, so updating or reinstalling the application keeps them. They are never deleted or expired automatically; copying them elsewhere (backups) is the user's choice.
+
+La conservación de archivos es independiente de la vigencia de la sesión. Sessions do not expire in the MVP; they remain consultable, downloadable, and resumable indefinitely.
+
+### 12.3 Modelo de acceso, descargas y aislamiento
+
+The MVP is a **single-user application installed on the user's own computer**. It is delivered as an executable that needs no other software installed; it runs the interface and all processing locally and calls the cloud AI providers (§11) over the internet. The application has no accounts. The only credential is one shared Administrator password that unlocks `/admin` and every Administrator endpoint (`/admin/…`); the User's pages and endpoints need no login, whether or not a password is configured.
+
+El usuario puede descargar imágenes y clips exitosos individualmente mientras otras escenas siguen procesándose o presentan fallos. El MP4 final solo está disponible después de completarse el montaje. In-app downloads are limited to per-scene images, per-scene clips, and the final MP4; the MP3, timestamps, script, and generated texts are stored locally (§12.2) but cannot be downloaded from the app.
+
+Las sesiones se consultan mediante su identificador. La separación de datos entre sesiones es un **requisito funcional de integridad, no un control de seguridad**: impide que un proyecto muestre o sobrescriba resultados de otro, y no protege frente a accesos de terceros.
+
+The application accepts requests only from its own interface on the same computer: it listens on the local loopback address and rejects requests coming from other web pages open in the user's browser. Admitting more than one person, or reaching the application from another computer, is outside the MVP (§2.3).
+
+### 12.4 Telemetría y privacidad
+
+1. **Consentimiento previo.** Vid4You no envía ningún dato fuera del equipo del usuario sin su permiso. En el primer arranque se muestra un aviso con tres casillas, todas desmarcadas: *informes de errores*, *conteos de uso de proveedores y costes* y *conteos anónimos de uso*. El usuario guarda sus elecciones con **Save**, o cierra el aviso con **Not now** o Escape; en ambos casos se registra una respuesta (con "Not now", todo desactivado) y el aviso no vuelve a aparecer solo. El aviso incluye un enlace a la política de privacidad. Puede cambiarlas en cualquier momento desde el botón **Privacidad**.
+2. **Qué se envía, cuando está activado.**
+   - *Errores:* código, mensaje y traza del error, con rutas de archivo y nombre de usuario eliminados.
+   - *Proveedores y costes:* cuántas llamadas se hicieron por etapa y proveedor, su resultado (éxito, transitorio, no reintentable), cuánto tardaron y las unidades facturadas (imágenes, segundos de clip, caracteres de voz).
+   - *Uso:* cuántas veces se abre la aplicación, cuántas sesiones se inician y cuántos vídeos finales se generan.
+   - En todos los casos: versión, canal (UAT/PROD), sistema operativo, arquitectura y un identificador aleatorio de la instalación.
+3. **Qué nunca se envía.** Título, guion, narración, prompts, imágenes, clips, nombres o rutas de archivo, nombre de usuario, claves de proveedores ni ningún dato personal.
+4. **Registro local.** Independientemente del consentimiento, la aplicación guarda un registro local rotativo (10 MB × 5 archivos) en la carpeta de datos del usuario; no sale del equipo.
+5. **Aviso de nueva versión.** En UAT y PROD, al arrancar, la aplicación consulta una vez la última versión publicada en GitHub y, si hay una distinta de la instalada, muestra un aviso con un enlace a la publicación. No descarga ni instala nada. No depende del consentimiento de telemetría.
+6. **Política de privacidad publicada.** El repositorio incluye `PRIVACY.md` (en inglés), enlazada desde el aviso, con lo anterior y el plazo de conservación: los datos se conservan mientras lo permita la capa gratuita del servicio de observabilidad.
+7. **Destino.** Los datos pasan por un relé propio (`otel.vid4you.download`) que descarta cualquier atributo no permitido antes de reenviarlos al servicio de observabilidad.
+
+## 13. Criterios de aceptación del MVP
+
+| ID | Resultado verificable |
+|---|---|
+| AC01 | A valid title, a valid script, and a language selected from the supported list start a session without tags or chunk delimiters. |
+| AC02 | A single MP3 is produced per script; the script cannot be changed once the project starts, and the voice cannot be regenerated after success. |
+| AC03 | Los fragmentos narrados reconstruyen el guion completo en orden, sin omisiones, duplicaciones ni reescritura. |
+| AC04 | Los chunks tienen identificadores consecutivos e invariables y sus cuatro campos de contenido completos. |
+| AC05 | No se solicita un video si la imagen de su chunk no está disponible. |
+| AC06 | Each video request uses the admitted duration requiring the smallest speed change to match the narrated interval, and never exceeds the provider's maximum. |
+| AC07 | Una fase pausada antes del lanzamiento no comienza hasta continuar; una solicitud ya enviada no se interrumpe. |
+| AC08 | After three automatic retries are exhausted, the failure is reported and no indefinite automatic cycle continues; a not-retryable failure is reported without automatic retries. |
+| AC09 | Un fallo visual permite corregir únicamente el prompt de su etapa y conserva el contenido narrativo. |
+| AC10 | Una escena fallida impide generar el video final; sus resultados exitosos y los de otras escenas siguen disponibles. |
+| AC11 | El montaje respeta el orden numérico, aunque las escenas hayan terminado en otro orden. |
+| AC12 | `final-video` solo se alcanza con todas las escenas completas y un MP4 16:9 narrado, sincronizado y descargable. El cambio de escena ocurre exactamente cuando comienza la narración de la siguiente, conforme a la regla de D11 (§7.3). |
+| AC13 | Un fallo de montaje permite reintentar sin regenerar voz, imágenes ni clips exitosos. |
+| AC14 | Un reinicio no pierde el avance; confirmaciones repetidas no duplican escenas ni lanzamientos. |
+| AC15 | Los archivos locales no se eliminan automáticamente y dos proyectos con el mismo título no sobrescriben sus resultados. |
+| AC16 | El MVP permite pausas y descargas parciales sin requerir una interfaz de administración o reportes. |
+| AC17 | Los cortes entre chunks coinciden con fronteras de oración, salvo la excepción de oración larga prevista en §6.1. |
+| AC18 | No chunk exceeds the video provider's maximum or falls below the configured lower bound, except for a whole script shorter than the lower bound and a sentence that cannot be split (§6.1.1). |
+| AC19 | Los intervalos de los chunks son contiguos, no se solapan y cubren el voice-over desde el segundo 0 hasta su duración total, con cada silencio asignado a la escena anterior (D11, §7.3). |
+| AC20 | El sistema obtiene los intervalos mediante marcas de tiempo nativas o, en su ausencia, mediante alineación forzada; la imposibilidad de obtenerlos se reporta como fallo de descomposición y no como fallo de voz. |
+| AC21 | La interfaz muestra, por fase y por escena, el estado vigente, los resultados disponibles, los errores y las acciones aplicables, y refleja el avance durante el procesamiento. |
+| AC22 | Una sesión consultada por su identificador muestra únicamente sus propios chunks, archivos y resultados. |
+| AC23 | Each scene records the requested duration and the applied speed factor, and shows them in its scene details. |
+
+Los criterios afectados por la sección siguiente deberán completarse al cerrar esas decisiones. AC12 y AC19 reflejan ya la regla adoptada en D11 (silencios asignados a la escena anterior).
+
+## 14. Decisiones de producto
+
+Las decisiones marcadas como abiertas no están aprobadas y deben cerrarse antes de implementar el comportamiento correspondiente. No modifican las reglas confirmadas de las secciones anteriores.
+
+| ID | Decisión requerida | Estado | Resolución adoptada o alternativa propuesta |
+|---|---|---|---|
+| D01 | Alcance de la pausa y tratamiento de reintentos pendientes. | **Closed (v1.3)** | Pause applies to the whole session; requests already sent finish; new phases and automatic and manual retries are held until continue (§9). |
+| D02 | Duraciones discretas, escenas que superan el máximo y calidad del ajuste visual. | **Cerrada** | Regla de segmentación de §6.1 con cota superior e inferior, y selección de la duración admitida más próxima en §7.2. El factor de ajuste deja de ser un parámetro independiente. |
+| D03 | Recuperación de etapas vinculadas a un proveedor no disponible. | **Closed (v1.3)** | No reassignment in the MVP (providers are hardcoded): the stage keeps retrying the same provider until it recovers. Manual reassignment is deferred post-MVP (§11.2). |
+| D04 | Efecto de la expiración de la sesión a los dos días. | **Closed (v1.3)** | No session expiry in the MVP (§12.2). |
+| D05 | Dependencia de enlaces temporales del proveedor. | **Closed (v1.3)** | Every temporary-link result, images included, is saved locally before its link expires (§12.2). |
+| D06 | Continuación de otras escenas tras un fallo y reintentos posteriores a una acción manual. | **Closed (v1.3)** | Other scenes keep generating; each manual retry starts a new cycle of up to three automatic retries (§10.2). |
+| D07 | Autorización y acceso a las sesiones. | **Cerrada (revisada en v1.7)** | Aplicación monousuario instalada en el equipo del usuario; sin cuentas ni autorización; solo la propia interfaz local puede usar la aplicación. La separación entre sesiones es integridad funcional, no seguridad (§12.3). |
+| D08 | Parámetros de salida del MP4 final. | **Closed (v1.3)** | Voice-over-only audio (clip sound removed); hardcoded resolution and frame rate (expected 1920×1080 at 30 fps); H.264 video; audio is the voice-over MP3 copied unchanged, AAC only after a pause adjustment (§7.3, v1.10). |
+| D09 | Idiomas admitidos. | **Closed (v1.3)** | Hardcoded list of supported languages; the User selects the script language from that list when starting a project, and no provider is called before that (§4.1). |
+| D10 | Momento exacto del bloqueo del guion durante la generación de voz. | **Closed (v1.3)** | The script is locked when the User starts the project (§4.2). |
+| D11 | Asignación de los silencios de la narración a una escena. | **Cerrada (JOS-142, 2026-09-29)** | La escena previa absorbe el silencio posterior (comparada frente a repartir el silencio entre escenas contiguas, la regla interina de JOS-140, ahora descartada). Umbral: hasta 2 s aceptable, 3 s empieza a sentirse lento; ningún guion real supera 1.26 s. Verificado según §14.1. |
+
+D08, D09 y D10 proceden de la división de la antigua D07 de la versión 1.1, que agrupaba decisiones heterogéneas bajo un solo identificador y no cubría las reglas de autorización que §12.3 le asignaba.
+
+### 14.1 POC de asignación de silencios (D11) — Cerrada
+
+La POC (`decide-silence-allocation`, JOS-142, 2026-09-29) comparó las dos reglas candidatas y produjo una decisión cerrada:
+
+- Comparadas sobre cuatro guiones reales (inglés y español) con marcas de tiempo nativas y de alineación forzada: ninguna regla queda descartada por las cotas de §6.1 ni por el factor de ajuste (máximo observado 1.08x, muy por debajo de la recomendación de `define-media-assembly`, JOS-182: 0.5x-2.0x).
+- Comparación audiovisual: el mismo guion real, ensamblado una vez con cada regla y con un barrido de silencios crecientes (1, 1.5, 2, 3 y 4 s) mostrado al product owner.
+- Veredicto (product owner, 2026-09-29): la regla A (la escena previa absorbe el silencio) se lee mejor en pausas naturales; un clip sostiene hasta 2 s de silencio de forma aceptable, 3 s empieza a sentirse lento.
+- El silencio real más largo medido (1.26 s) queda por debajo del umbral, así que no se define una tercera regla.
+- Regla adoptada, umbral y actualización de §7.3, AC12 y AC19: hecha. Evidencia completa: `docs/adr/0006-silence-allocation.md` y `openspec/changes/archive/2026-09-29-decide-silence-allocation/reports/`.
+
+**Idea derivada, no incluida en el alcance de esta decisión**: un control manual para que el usuario ajuste una escena que se sienta lenta y regenere su clip, registrado como JOS-190, pendiente de alcance propio.
+
+## 15. Gaps abiertos no bloqueantes
+
+Registrados para priorización. No impiden definir el MVP ni iniciar su refinamiento.
+
+| # | Gap | Sección afectada |
+|---|---|---|
+| 1 | No se declaran las transiciones permitidas entre estados, en particular la salida de `failed` tras un reintento manual. **Closed in v1.3** (§8.1 state rules). | §8, §10.2 |
+| 2 | No se distingue fallo transitorio de fallo permanente. Un rechazo por filtro de contenido del proveedor consumiría el presupuesto de reintentos sin posibilidad de éxito. **Closed in v1.3** (not-retryable failures skip automatic retries, §10.1). | §10.1 |
+| 3 | La pausa no está representada en el modelo de datos ni en las máquinas de estado. Depende de D01. **Closed in v1.3** (pause marker, §8.1). | §3, §8 |
+| 4 | La reasignación manual de proveedor prevista en D03 no tiene canal definido al no existir interfaz de administración. **Closed in v1.3** (no reassignment in the MVP; deferred, §11.2). | §2.3, §11.2 |
+| 5 | No existe límite de escala por sesión: ni cota de palabras, ni de número de chunks, ni presupuesto de generaciones. **Closed in v1.3** (no limits in the MVP, §4.1). | §4.1, §10.1 |
+| 6 | No se trata la concurrencia entre sesiones ni los límites de tasa del proveedor activo. **Closed in v1.3** (hardcoded request limit per stage, first come first served, §10.1). | §11 |
+| 7 | No se define el mecanismo de actualización del progreso en la interfaz. **Closed in v1.3** (live updates without reloading, §8.3). | §8.3 |
+| 8 | No se define la regla de desambiguación de carpetas con títulos iguales. **Closed in v1.3** (title + creation date/time + counter, §12.2). | §12.2, AC15 |
+| 9 | No hay requisitos no funcionales, objetivo de negocio ni métricas de éxito. **Still open in v1.3** (known gap). | Documento completo |
+| 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
+
+## 16. Registro de cambios
+
+### From version 1.18 to 1.19
+
+Origin: `use-reference-image-in-generation` (JOS-202), 2026-10-26. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §11.3, §11.5: the image stage sends the `/admin` reference image to the image provider. The model is `fal-ai/flux-2/edit`, chosen by the spike of 2026-10-26 among five candidates (`openspec/changes/use-reference-image-in-generation/reports/2026-10-26-step-1-reference-model-spike.md`): the only one that held the character, followed each scene and returned the required 1920x1088. A session keeps its own copy of the image, so retries, restarts and later `/admin` changes do not alter it. | Product owner, JOS-202 |
+| §2.1: the reference image is no longer "stored for later use". The video stage is unchanged. | Product owner, JOS-202 |
+| §11.3: the image stage's maximum time rises from 25 s to 120 s. `fal-ai/flux-2/edit` took 15 to 25 s in the spike and 50 to 78 s in the final real-adapter check (text-to-image took 9 to 11 s), so 25 s would cut off most requests that carry a reference. Chosen by the product owner on 2026-10-26 over a second limit for reference requests only. | Product owner, JOS-202 |
+
+### From version 1.17 to 1.18
+
+Origin: `add-provider-price-per-unit` (JOS-226), 2026-10-23. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §11.4: an optional price per unit and currency per provider profile, both or neither, per stage's billed unit, zero is a price, entered only on `/admin`; it is not sent to the provider and does not affect usability. | Product owner, JOS-226 (follow-up F5 of JOS-175) |
+
+### From version 1.16 to 1.17
+
+Origin: `admin-visual-style-prompt` (JOS-201), 2026-10-19, drafted as v1.10 on `feature/entrega-3-JAME`; merged into this line on 2026-10-22. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.2: the Administrator sets one visual style for new sessions on `/admin`, behind the Administrator password (JOS-173). The draft's "no Administrator role" and its top-bar link to `/admin` are superseded by v1.11: `/admin` is not linked from the User's pages. | Product owner, JOS-201; merge 2026-10-22 |
+| New §11.5 (drafted as §11.4, which v1.16 gives to the reports): one visual style prompt (0 to 8,000 characters) and one optional reference image (PNG, JPEG or WebP, up to 5 MB). A session keeps the prompt it was created with, through retries and restarts. The prompt guides the reasoning request that writes the instructions; the pipeline rules win on any conflict. The image is stored but not sent to any provider yet (a spike must first verify a reference-capable image model, §11; JOS-202). | Product owner, JOS-201 |
+
+### From version 1.15 to 1.16
+Origin: `define-admin-reports` (JOS-175), 2026-10-22. **Awaiting the product owner's approval** (text reviewed and approved in chat on 2026-10-22; record the approval on the PR).
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.3: the reports move from "out of the MVP, no contents" to in scope for the release that builds them; §11.4 describes the agreed reports. | Product owner, JOS-175 |
+| §11.4: release 1 is provider usage, failures and retries, and sessions; cost, pipeline time and provider changes are for a later release. | Product owner decision, 2026-10-22 |
+| §11.4: reports are read-only, local, behind the Administrator password, free of secrets and content, with an estimate label on any cost; the default period is the last 30 days and there is no download. | Product owner decision, 2026-10-22 |
+
+### From version 1.14 to 1.15
+
+Origin: `move-failed-stage-to-active-provider` (JOS-172), 2026-10-22. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.3, §11.2: the Administrator moves a failed stage that is bound to a provider other than the active one to the current active provider, on `/admin`; the move rebinds only, and the next retry goes to the new provider. | Product owner, JOS-172 |
+| §7.2: a moved clip chooses its requested duration again from the new provider's admitted durations; the chunk and interval are unchanged. | JOS-172, ticket AC4 |
+| §11.2: completed results are kept, nothing moves automatically, and a failure with no manual retry is not listed. | JOS-172 |
+
+### From version 1.13 to 1.14
+
+Origin: `manage-providers-from-admin` (JOS-218), 2026-10-21. **Approved by the product owner, 2026-10-22.**
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.3, §11, §11.2: providers become profiles managed on `/admin` (add, edit, delete), with their parameters and API key; the active provider is chosen among them. | Product owner, JOS-218 |
+| §2.1, §11: API keys are entered on `/admin` and stored encrypted in the local database, shown only as a status and a hint; the environment and credentials-file keys remain a fallback for the first profiles. | Product owner decision, 2026-10-21 |
+| §11.2: a parameter change applies to the next request without a restart; deleting retires a provider that work is bound to; the admitted durations come from the active video provider. | JOS-218 |
+| JOS-174's rules "settings are edited in the configuration files, not on `/admin`" and "keys only in the environment or a local secrets file" get this exception for providers and keys. Operational settings are unchanged. | JOS-218 |
+| A provider the application ships no adapter for, and a connection test, are later stories. | Product owner decision, 2026-10-21 |
+
+### From version 1.12 to 1.13
+
+Origin: `change-active-provider-from-admin` (JOS-171), 2026-10-21. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.3, §11, §11.2: the Administrator changes the active provider of each of the five stages on `/admin`; the choice is stored, overrides the settings files, survives a restart and applies to the next unbound stage without a restart. | Product owner, JOS-171 |
+| §11.2: all five stages bind to a provider at their first attempt (reasoning and alignment are added to voice, image and video); retries keep the bound provider; completed results are never regenerated; no automatic switching. | Product owner decision, 2026-10-19 |
+| JOS-174's rule "settings are edited in the configuration files, not on `/admin`" gets one exception: the active provider. | JOS-171 |
+| This version ships the mechanism only: each stage has one real adapter, and switching is proven with stub adapters. A second real provider is a separate story. | Product owner decision, 2026-10-19 |
+
+### From version 1.11 to 1.12
+
+Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §2.1, §2.3, §11: providers and generation parameters are read from a shipped default settings file plus an optional per-user override, validated at start-up (every problem listed, unknown keys rejected, credentials excluded), and applied only after a restart. They are no longer hardcoded and "no configuration files" is removed from the MVP exclusions. The sentences in §4.1, §6.1, §7.2, §7.3, §10.1, §11.1 and AC18 that called them hardcoded now say configured. | Product owner, JOS-174 |
+| §11.2: a changed setting does not alter established work (intervals, chunks, durations, speed factors, warnings, language, results); a bound provider is kept for retries. | Product owner, JOS-174 |
+| §11.3: its values are now the shipped defaults. | JOS-174 |
+| The Administrator password is not part of this change; it arrived in v1.11 (JOS-173). | Product owner decision, 2026-10-19 |
+
+### From version 1.10 to 1.11
+
+Origin: `protect-admin-with-password` (JOS-173), 2026-10-19. **Awaiting the product owner's approval.** v1.12 (JOS-174) and v1.13 (JOS-171) are drafted on their own branches and are not on this branch yet; the three drafts edit the same paragraphs of §2.1 and §2.3, and whichever merges second or third rebases its text.
+
+| Change | Origin |
+|---|---|
+| §2.1: an Administrator role with one shared password that unlocks `/admin`; the password is a local secret (`ADMIN_PASSWORD`, environment or credentials file), never logged or returned; when it is missing the application still starts and `/admin` stays locked. | Product owner, JOS-173 |
+| §2.3: `/admin` is no longer out of scope as a page; each Administrator tool, accounts, several passwords, password change from the interface, sessions and lock-out still are. | Product owner, JOS-173 |
+| §12.3: "no authentication" becomes "no accounts; one shared Administrator password for `/admin`". | JOS-173 |
+| US-39's rule "a missing Administrator password stops the application at start-up" is superseded: a fresh installation must start. | Product owner decision, 2026-10-19 |
+
+### From version 1.9 to 1.10
+
+Origin: MVP closure (JOS-203), 2026-10-20.
+
+| Change | Origin |
+|---|---|
+| §7.3, §11.3 and D08: the final MP4's audio is the voice-over's MP3 stream copied without re-encoding (ADR 0005, Decision 4b), not AAC. A real-provider run showed the MP4 carried `mp3` audio; the PRD wording is aligned with the built behaviour. Only a rebuild with an adjusted pause (JOS-190) re-encodes the narration, to AAC. | JOS-203 B4 finding, product owner decision |
+| §11.3: the automatic-retry delay is recorded: base 2 s, cap 30 s. | JOS-203 B5 (this row was added to v1.9 without a version bump) |
+
+### From version 1.8 to 1.9
+
+Origin: `add-observability-telemetry` (JOS-199), 2026-10-19.
+
+| Change | Origin |
+|---|---|
+| New §12.4: opt-in telemetry (errors, provider usage and cost counts, anonymous usage counts) behind a first-launch consent with three unchecked boxes; "Not now" counts as an answer with everything off; a published privacy policy (`PRIVACY.md`) linked from the notice; retention as long as the observability service's free tier allows; a local rotating log; and a new-version notice on UAT and PROD. | Product owner, JOS-199 |
+
+### From version 1.7 to 1.8
+
+Origin: `raise-video-time-limit` (JOS-197), 2026-10-14.
+
+| Change | Origin |
+|---|---|
+| The maximum times of the reasoning (decomposition), voice and video stages are 600 s, 600 s and 1200 s instead of 20 s, 10 s and 240 s: the first values came from a 142-character script, and at the product's real size (1,500-1,800 words, 8-12 minutes of narration, 30-50 chunks) the measured times were 208.6 s for 67 fragments, 151 s for 10,217 characters, and, per clip at 2K, 394-546 s for 7-13 s clips and above 610 s for 14 s clips; a timed-out request is retried and each retry is another billable request (§10.1, §11.3). | Product owner, JOS-197 |
+
+### From version 1.6 to 1.7
+
+Origin: `define-production-deployment` (JOS-194), design Decision 14, ADR 0007, 2026-10-13.
+
+| Change | Origin |
+|---|---|
+| The MVP is an application on the user's own computer calling the cloud AI providers; the hosted deployment admitted in v1.6 is withdrawn (§2.3, §12.3, D07). | Product owner, JOS-194 |
+| Store, project folders and credentials live in the user's application-data folder; backups are the user's choice (§2.1, §11, §12.2). | Product owner, JOS-194 |
+| Only the application's own local interface may use it (§12.3). | JOS-194 |
+| Processing pauses while the application is not running and resumes on the next start (§12.1). | JOS-194 |
+
+### From version 1.5 to 1.6
+
+Origin: `define-production-deployment` (JOS-194), 2026-10-12.
+
+| Change | Origin |
+|---|---|
+| Hosted deployment admitted: two environments (UAT, production), single-user, behind an edge access gate with an explicit identity list (§2.3, §12.3, D07). | Product owner, JOS-194 |
+| Credentials may be injected as per-environment secrets (§2.1, §11). | JOS-194 |
+| Project files live on the host's persistent storage with off-host backups; retention rules unchanged (§12.2). | JOS-194 |
+| No accounts, authorization or multi-user access in the MVP; the gate is not a user model. | JOS-194 |
+
+### From version 1.4 to 1.5
+
+Origin: `decide-silence-allocation` (JOS-142), 2026-09-29.
+
+| Change | Origin |
+|---|---|
+| D11 closed: the previous scene absorbs the silence that follows it (the cut to the next scene falls exactly when its narration starts), chosen over splitting the silence between adjacent scenes (JOS-140's interim rule) from a product-owner-judged rendered comparison of real narration (§7.3, §14.1). | JOS-142 |
+| Silence threshold recorded: a clip sustains up to 2 s of silence acceptably; 3 s starts dragging. No real surveyed pause (max 1.26 s) exceeds it, so no third rule was defined (§14.1). | JOS-142 |
+| AC12 and AC19 updated to state the adopted rule. | JOS-142 |
+| §11.3's speed-factor row now references `define-media-assembly`'s (JOS-182) recommended 0.5x-2.0x range, verified against D11's adopted rule (max 1.08x observed); still provisional pending US-33 and JOS-182's own merge. | JOS-142 |
+| All product decisions now closed. | JOS-142 |
+| **Idea raised, not in this change's scope**: a manual dial for the user to adjust a scene that feels like it drags and regenerate its clip, filed as JOS-190. | Product owner, JOS-142 |
+
+### From version 1.3 to 1.4
+
+Origin: `define-provider-configuration` (JOS-165), 2026-09-27.
+
+| Change | Origin |
+|---|---|
+| §11's five providers selected and verified against real calls (reasoning: OpenAI `gpt-6-astra`; voice: ElevenLabs; alignment: ElevenLabs, same account as voice; image: Fal.ai; video: RunningHub); new §11.3 records the full parameter set (§11.3). | JOS-165 |
+| Video admitted durations fixed at 5-15 seconds, measured; segmentation lower bound (§6.1) now matches it by construction. | JOS-165 |
+| Final MP4 resolution/frame rate confirmed as a normalization the assembly stage must perform — neither the image nor video provider natively produces 1920×1080@30fps (§11.3). New requirement handed to `define-media-assembly` (JOS-182). | JOS-165 |
+| Supported language list fixed at English and Spanish, each verified across all three chain stages (§4.1, §11.3). | JOS-165, D09 |
+| **Resolved by JOS-187**: no provider tested produces a distinguishable not-retryable failure signal for disallowed content, so the script is now moderated at submission (§4.1, §11.3). Corrected `IMAGE`/`VIDEO` instructions remain unmoderated. | JOS-165, JOS-187 |
+| Speed-factor limit and assembly's per-phase maximum time remain provisional, pending `define-media-assembly` (JOS-182). | JOS-165 |
+
+### From version 1.2 to 1.3
+
+Origin: backlog decomposition clarification session, 2026-09-15.
+
+| Change | Origin |
+|---|---|
+| Single MVP role (User). Providers and all generation parameters are hardcoded; credentials come from the local environment. `/admin`, the Administrator role, configuration files, and reports are out of the MVP (§2.1, §2.3, §11, §11.2). | Scope clarification |
+| Script language selected from a hardcoded list (§3, §4.1, AC01). | D09 |
+| Script locked at project start (§4.2, AC02). | D10 |
+| Segmentation edge cases: short whole script, clause split of the following sentence, sentence that cannot be split (§6.1.1, §7.2, AC18). | Clarification |
+| "Closest" admitted duration defined as smallest speed change; ties go to the longer duration (§7.2, AC06). | Clarification |
+| Alignment added as a fifth stage; retries switch to it when native timestamps are unusable (§10.3, §11, §11.1). | Clarification |
+| Final MP4 output: voice-over-only audio, hardcoded resolution and frame rate, H.264 with the voice-over's MP3 audio unchanged (§7.3). | D08 |
+| Session state rules: `failed` only after other scenes finish, return to phase state on manual retry, pause as a marker (§8.1). | Gaps 1 and 3 |
+| Live progress updates without reloading; diagnostics shown in scene details and phase sections (§3, §7.2, §8.3, AC23). | Gap 7, clarification |
+| Session-wide pause that also holds retries (§9). | D01 |
+| Not-retryable failures skip automatic retries; hardcoded per-stage request limit, first come first served; hardcoded per-phase maximum times (§10.1, AC08). | Gaps 2 and 6 |
+| Other scenes continue after a failure; each manual retry starts a new automatic cycle (§10.2). | D06 |
+| No provider changes in the MVP; stages retry the same provider (§11.2). | D03 |
+| In-flight requests resumed after a restart (§12.1). | Clarification |
+| Project folder naming, local saving of temporary-link results, no session expiry (§12.2). | Gap 8, D05, D04 |
+| In-app downloads limited to per-scene images and clips and the final MP4 (§2.2, §12.3). | Clarification |
+| No per-session size limits; no product-level content policy (§2.3, §4.1). | Gaps 5 and 10 |
+| D01, D03, D04, D05, D06, D08, D09, D10 closed; gaps 1–8 and 10 closed; gap 9 still open; D11 still pending POC. | Clarification session |
+
+### De la versión 1.1 a la 1.2
+
+| Cambio | Origen |
+|---|---|
+| Marcas de tiempo declaradas capacidad requerida de la etapa de voz, con alineación forzada como respaldo (§11.1). Añadidas al flujo (§5), a los conceptos (§3), a la edición permitida (§10.3) y a los archivos conservados (§12.2). | Acuerdo B1 |
+| Nueva regla de segmentación con criterio de corte, cotas y excepción (§6.1). | Recomendación B3 |
+| Selección de duración de clip cambiada de "menor duración admitida igual o superior" a "duración admitida más próxima", admitiendo ralentización (§7.2). | Recomendación B3 |
+| Factor de ajuste de velocidad redefinido como consecuencia registrable de §6.1 y §7.2, no como parámetro independiente (§7.2, §3). | Recomendación B3 |
+| Partición del eje temporal del voice-over declarada requisito verificable (§7.3). | Acuerdo B2, parte cerrada |
+| Modelo de acceso definido como instalación local monousuario sin cuentas; separación entre sesiones reclasificada como integridad funcional (§12.3, §2.1, §2.3). | Acuerdo B4 |
+| D02 y D07 cerradas. | Acuerdos B3 y B4 |
+| Antigua D07 dividida en D07 (autorización), D08 (parámetros de salida), D09 (idiomas) y D10 (bloqueo del guion). | Defecto de trazabilidad §12.3 ↔ D07 |
+| Nueva D11 y POC asociada para la asignación de silencios (§14.1). | Acuerdo B2, parte abierta |
+| Añadidos AC17 a AC23: segmentación, cotas, partición, obtención de intervalos, visibilidad del progreso, aislamiento de sesiones y registro del factor de ajuste. | Cobertura de §2.2 sin criterio de aceptación |
+| Nueva sección 15 con los gaps abiertos no bloqueantes. | Registro de priorización |

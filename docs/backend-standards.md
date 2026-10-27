@@ -174,6 +174,7 @@ A provider is a **profile** (`provider_profiles`, `providerProfiles.ts`): a stag
 - **Admitted durations are the active video provider's**, read when segmentation and the clip request run (`activeVideoDurations()` in `videoDurations.ts`), never from a start-up constant. A scene whose stored duration that provider does not admit fails before it is bound.
 - **Parameters are read per request.** An edit applies to the next request, retries included; it never rewrites what a session established. The settings files seed the first profiles and nothing else about providers.
 - A profile that sessions, scenes or attempts are bound to is **retired, not deleted**, so its retries keep working.
+- **Every adapter type has one connection check** (`providerConnectionCheck.ts`, `test-provider-connection`, JOS-220): one request to the vendor's own host, built from constants and the validated parameters, mapped to `connected`, `key-rejected`, `not-found`, `unreachable` or `unexpected`, with `charged` and `covers` declared. A new adapter type must add an entry; `test/provider-connection-check.test.ts` fails if a catalogue type has none. The route (`POST /admin/provider-profiles/:id/test`) answers a closed object, never the vendor's body or the key, writes nothing, and refuses a charged check without `acceptCharge`. Choose a free lookup that authenticates the key; confirm its answers against the real vendor before relying on a status code (ElevenLabs answers 400 for an unknown voice, RunningHub answers 200 for a wrong key).
 
 ### Moving a failed stage (`move-failed-stage-to-active-provider`, JOS-172)
 
@@ -193,6 +194,14 @@ A provider is a **profile** (`provider_profiles`, `providerProfiles.ts`): a stag
 - **Never** put a credential, an endpoint path, an external request id, a raw error code or message, or the script in a diagnostic. `test/stage-diagnostics-surface.test.ts` seeds sentinel values in every free-text column and in the credential environment and asserts none of them, nor `VIDEO_PROVIDER.endpoint`, appears in the read or the live snapshot. A new diagnostic field needs a sentinel in that test.
 - **Every provider identifier a stage can bind or record needs a display entry** in `src/stageDiagnostics.ts` (`describeProvider`). An identifier with no entry is shown as `Unknown provider` and logged once, never echoed; `test/stage-diagnostics.test.ts` lists every known identifier.
 - **Derive the counts from the append-only records on read** (`provider_requests`, `stage_attempts`), never from `scenes.attempts`, and read them for the whole session in one query: a snapshot is built on every change.
+
+### The clip request in flight (`show-video-request-status`, JOS-200)
+
+While a scene's clip generates, the scene representation carries `videoRequest` (provider, attempt, `sentAt`, estimate, body), built by `videoRequestView` in `src/videoRequestStatus.ts`.
+
+- **The body is an allow-list.** The adapter reports the body it sent (`sentBody` on the `submitted` result), and `allowListVideoRequest` keeps `prompt`, `duration` and `resolution` and names the first frame `scene <n> image`. The provider's upload URL, task id and any other field never reach the page; the response schema is `.strict()` at every level. A new adapter returns its own `sentBody` and needs no change here; a new field the page may show is added to the allow-list and to the sentinel test in `test/stage-diagnostics-surface.test.ts`.
+- **The in-flight request is counted from its status.** `provider_requests` is written when a request ends, so `sceneStageDiagnostics` adds 1 to the clip count while the scene is `video-generating`. Do not insert the row at submit: usage and cost reports read it as a finished request.
+- **The estimate is computed on read**, never stored: the median of the provider's earlier successful clips (same requested duration when at least 3, else any duration), or none. The page owns the clock (elapsed time, expected arrival), so a snapshot is not pushed per second.
 
 ### Retries and attempts
 

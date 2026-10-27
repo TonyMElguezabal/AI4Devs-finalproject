@@ -236,6 +236,7 @@ describe("OpenAPI document", () => {
     expect(document.paths["/admin/provider-profiles"]).toHaveProperty("post");
     expect(document.paths["/admin/provider-profiles/{id}"]).toHaveProperty("put");
     expect(document.paths["/admin/provider-profiles/{id}"]).toHaveProperty("delete");
+    expect(document.paths["/admin/provider-profiles/{id}/test"]).toHaveProperty("post");
   });
 });
 

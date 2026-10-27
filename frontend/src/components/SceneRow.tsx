@@ -8,6 +8,7 @@ import { sceneRecoveryRefusalSentence } from "../sceneRecoveryRefusals";
 import { AFFECTED_STAGE_LABEL, DURATION_WARNING_TEXT, SCENE_STATE_LABEL, SPEED_WARNING_TEXT } from "../statusLabels";
 import { Icon } from "./Icon";
 import { PauseDial } from "./PauseDial";
+import { VideoRequestStatus } from "./VideoRequestStatus";
 import { StatusPill } from "./StatusPill";
 
 interface Props {
@@ -190,6 +191,8 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, onSetPause }: Prop
                 {formatStageDiagnostic(scene.stages.video)}
               </div>
             )}
+            {/* show-video-request-status (JOS-200) — the request sent for a clip that is still generating. */}
+            {scene.videoRequest && <VideoRequestStatus sceneIndex={scene.index} request={scene.videoRequest} />}
 
             {actions.retry && (
               <button type="button" disabled={pending} onClick={() => void runAction(() => onRetry(scene.sceneId))}>

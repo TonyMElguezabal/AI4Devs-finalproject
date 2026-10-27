@@ -44,7 +44,7 @@ describe("With no override file", () => {
     expect(providers.MAX_SIMULTANEOUS_REQUESTS).toEqual({ decomposition: 50, image: 200, voice: 3, alignment: 2, video: 3 });
     expect(providers.PER_PHASE_MAX_TIME_SECONDS).toEqual({
       decomposition: 600,
-      image: 120,
+      image: 300,
       voice: 600,
       alignment: 5,
       video: 1200,

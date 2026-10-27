@@ -19,7 +19,7 @@ export type GeneratedClip =
 
 /** Result of a `submit` call. */
 export type VideoSubmitResult =
-  | { kind: "submitted"; requestId: string }
+  | { kind: "submitted"; requestId: string; /** The JSON body of the submit request as sent (show-video-request-status, JOS-200); the orchestrator keeps an allow-list of it. */ sentBody?: Record<string, unknown> }
   | { kind: "failed_transient"; reason: string }
   | { kind: "failed_not_retryable"; reason: string };
 
@@ -119,17 +119,18 @@ export function createRunningHubVideoProvider(
       const upload = await doUpload(imageBytes, apiKey);
       if (!upload.ok) return { kind: upload.kind, reason: upload.reason };
 
+      const sentBody = {
+        prompt: instruction,
+        duration: durationSeconds,
+        resolution: VIDEO_GENERATION_SETTING.resolution,
+        firstFrameUrl: upload.url,
+      };
       let response: Response;
       try {
         response = await fetchFn(`${RUNNINGHUB_BASE}${endpoint}`, {
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt: instruction,
-            duration: durationSeconds,
-            resolution: VIDEO_GENERATION_SETTING.resolution,
-            firstFrameUrl: upload.url,
-          }),
+          body: JSON.stringify(sentBody),
         });
       } catch {
         return { kind: "failed_transient", reason: "the video provider could not be reached during task submission" };
@@ -148,7 +149,7 @@ export function createRunningHubVideoProvider(
       const taskId = parsed.data.taskId || parsed.data.data?.taskId;
       if (!taskId) return { kind: "failed_transient", reason: "the task submission response had no task id" };
 
-      return { kind: "submitted", requestId: taskId };
+      return { kind: "submitted", requestId: taskId, sentBody };
     },
 
     async poll(requestId) {
@@ -215,12 +216,12 @@ export function createStubVideoProvider(
   return {
     calls,
     // eslint-disable-next-line @typescript-eslint/require-await -- implements the async video provider contract
-    async submit({ instruction }) {
+    async submit({ instruction, durationSeconds }) {
       calls.push(instruction);
       // Unique across restarts, like a real provider task id: `provider_requests.id` is a primary key and survives a restart.
       const requestId = `stub-video-req-${randomUUID()}`;
       submitted.set(requestId, mode);
-      return { kind: "submitted", requestId };
+      return { kind: "submitted", requestId, sentBody: { prompt: instruction, duration: durationSeconds, resolution: VIDEO_GENERATION_SETTING.resolution, firstFrameUrl: "https://stub.example/frame.png" } };
     },
     // eslint-disable-next-line @typescript-eslint/require-await -- implements the async video provider contract
     async poll(requestId) {

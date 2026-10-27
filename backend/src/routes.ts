@@ -131,6 +131,21 @@ const stageDiagnosticSchema = z
   })
   .strict();
 
+// show-video-request-status (JOS-200) Decision 6 — the clip request in flight: a closed list at every level, so nothing the adapter sent beyond the allow-list reaches the page.
+const videoRequestSchema = z
+  .object({
+    provider: z.object({ name: z.string(), model: z.string().nullable() }).strict(),
+    attempt: z.number().int().min(1),
+    sentAt: z.string().describe("ISO 8601 instant the request was sent."),
+    estimate: z
+      .object({ seconds: z.number(), basedOn: z.number().int().min(1) })
+      .strict()
+      .nullable()
+      .describe("Median generation time of earlier clips of the same provider (and duration when at least 3 exist); null when there are none."),
+    body: z.object({ prompt: z.string(), duration: z.number(), resolution: z.string(), firstFrame: z.string() }).strict(),
+  })
+  .strict();
+
 const sceneResponseSchema = z.object({
   type: z.literal("scene"),
   sessionId: z.string(),
@@ -143,6 +158,7 @@ const sceneResponseSchema = z.object({
     .object({ image: stageDiagnosticSchema.optional(), video: stageDiagnosticSchema.optional() })
     .strict()
     .describe("PRD §3: which provider each stage used and how many attempts it made. A key is present once that stage has at least one attempt. Derived from the stored attempt records, never stored."),
+  videoRequest: videoRequestSchema.optional().describe("JOS-200: present only while the scene's clip request has been sent and is in flight. Derived from the stored request; absent once the clip is complete or the scene failed."),
   result: z.object({ imageUrl: z.string().optional(), videoUrl: z.string().optional() }).optional(),
   downloads: z
     .object({ imageUrl: z.string().optional(), clipUrl: z.string().optional() })
