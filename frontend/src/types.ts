@@ -285,6 +285,83 @@ export interface PipelinePhaseRow {
   superseded: number | null;
 }
 
+// report-failures-and-retries (JOS-224): a `null` budget or manual-retry count is "not recorded" (the scene stages keep no cycles).
+export interface FailureStageRow {
+  stage: ProviderStage;
+  transient: number;
+  notRetryable: number;
+  timedOut: number;
+  budgetsExhausted: number | null;
+  manualRetries: number | null;
+}
+
+export interface FailuresReport {
+  from: string | null;
+  to: string;
+  stages: FailureStageRow[];
+  wordings: Array<{ stage: ProviderStage; message: string; attempts: number }>;
+  failedScenesNow: { image: number; video: number };
+}
+
+// report-sessions (JOS-225): no text other than the session title is part of either report.
+export interface SessionReportRow {
+  id: string;
+  title: string;
+  createdAt: string;
+  state: "final-video-ready" | "failed" | "in-progress";
+  failedPhase: "voice-over" | "decomposition" | "assembly" | null;
+  paused: boolean;
+  scenes: number;
+  failedScenes: number;
+  attempts: number;
+  secondsToVoiceOver: number | null;
+  secondsToFinalVideo: number | null;
+}
+
+export interface SessionsReport {
+  from: string | null;
+  to: string;
+  rows: SessionReportRow[];
+}
+
+export interface SceneReportRow {
+  number: number;
+  status: string;
+  imageProvider: string | null;
+  clipProvider: string | null;
+  imageAttempts: number;
+  clipAttempts: number;
+  requestedDurationSeconds: number | null;
+  speedFactor: number | null;
+  durationWarning: string | null;
+  speedFactorWarning: string | null;
+}
+
+export interface SessionScenesReport {
+  sessionId: string;
+  rows: SceneReportRow[];
+}
+
+// record-provider-changes (JOS-229): ids and display names as logged, the session title and the scene number; no other text.
+export interface ProviderChangeRow {
+  changedAt: string;
+  kind: "active-provider" | "failed-stage-move";
+  stage: ProviderStage;
+  sessionId: string | null;
+  sessionTitle: string | null;
+  sceneNumber: number | null;
+  previousProviderId: string;
+  previousProviderLabel: string;
+  newProviderId: string;
+  newProviderLabel: string;
+}
+
+export interface ProviderChangesReport {
+  from: string | null;
+  to: string;
+  entries: ProviderChangeRow[];
+}
+
 export interface PipelineTimeReport {
   from: string | null;
   to: string;
