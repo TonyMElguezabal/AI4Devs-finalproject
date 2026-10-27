@@ -50,11 +50,11 @@
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Unlock `/admin`, open Reports, confirm the Failures and retries table matches the curl answer of 7.2, switch to "All time" and back, and confirm the failed-now counts do not change; record in `reports/YYYY-MM-DD-step-8-e2e-testing.md`
-- [ ] 8.2 Stop the servers, remove the scratch database copy and confirm the original `Winrun_results/vid4you.sqlite` is unchanged
+- [x] 8.1 Unlock `/admin`, open Reports, confirm the Failures and retries table matches the curl answer of 7.2, switch to "All time" and back, and confirm the failed-now counts do not change; record in `reports/YYYY-MM-DD-step-8-e2e-testing.md`
+- [x] 8.2 Stop the servers, remove the scratch database copy and confirm the original `Winrun_results/vid4you.sqlite` is unchanged
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [ ] 9.1 `docs/api-spec.yml`: add `GET /admin/reports/failures`
-- [ ] 9.2 Run `graphify update .`
+- [x] 9.1 `docs/api-spec.yml`: add `GET /admin/reports/failures`
+- [x] 9.2 Run `graphify update .`
 - [ ] 9.3 Commit, then (after the user's go-ahead) push and open the PR linking JOS-224; archive the change after merge
