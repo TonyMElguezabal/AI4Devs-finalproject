@@ -20,21 +20,21 @@
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Review the other tests of `ReportsSection` and `ReportPeriodSelector` for any that rely on the error being cleared inside the effect
-- [ ] 5.2 Update the affected tests (none expected) and make group 1 pass
+- [x] 5.1 Review the other tests of `ReportsSection` and `ReportPeriodSelector` for any that rely on the error being cleared inside the effect
+- [x] 5.2 Update the affected tests (none expected) and make group 1 pass — none needed: all 19 tests of the file pass; the other users of `ReportPeriodSelector` (`Harness` in the same file) do not read the errors
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 6.1 Capture the pre-test database baseline (no database is used by the frontend tests; record `backend/data` absent)
-- [ ] 6.2 Run targeted tests for the changed files
-- [ ] 6.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `frontend`, and the same three in `backend` (nothing changed there)
-- [ ] 6.4 Verify post-test state and restore if needed
-- [ ] 6.5 Create report `reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
-- [ ] 6.6 Mark the step complete only after tests pass and the report exists
+- [x] 6.1 Capture the pre-test database baseline (no database is used by the frontend tests; record `backend/data` absent)
+- [x] 6.2 Run targeted tests for the changed files
+- [x] 6.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `frontend`, and the same three in `backend` (nothing changed there)
+- [x] 6.4 Verify post-test state and restore if needed
+- [x] 6.5 Create report `reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
+- [x] 6.6 Mark the step complete only after tests pass and the report exists
 
 ## 7. Manual Endpoint Testing with curl (not applicable)
 
-- [ ] 7.1 Record in `reports/YYYY-MM-DD-step-7-curl-endpoint-testing.md` that no endpoint changed
+- [x] 7.1 Record in `reports/YYYY-MM-DD-step-7-curl-endpoint-testing.md` that no endpoint changed
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
