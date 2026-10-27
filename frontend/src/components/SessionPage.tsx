@@ -14,8 +14,8 @@ interface Props {
    * identifier, reported identically. */
   notFound: boolean;
   onStartNew: () => void;
-  onPause: () => void;
-  onContinue: () => void;
+  onPause: () => Promise<unknown>;
+  onContinue: () => Promise<unknown>;
   /** Starts a scene retry; rejects with the refusal reason (retry-or-correct-image, JOS-157). */
   onRetry: (sceneId: string) => Promise<unknown>;
   /** Corrects IMAGE and retries; rejects with the refusal reason. */
