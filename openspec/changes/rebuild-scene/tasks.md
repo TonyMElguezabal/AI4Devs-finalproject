@@ -54,15 +54,15 @@
 
 ## 6. Frontend: Rebuild scene and the stale final video (TDD; design Decision 9)
 
-- [ ] 6.1 Write failing tests:
+- [x] 6.1 Write failing tests:
   - `sceneActions` gives `rebuild` for `image-complete` and `chunk-complete`, but not while the session is `final-video-generating` and not for other states;
   - `SceneRow` opens the inline form with `IMAGE` and `VIDEO` prefilled and the confirmation sentence, sends only the edited fields, and shows refusals as sentences;
   - `FinalVideoDownload` offers Rebuild when `staleScenes` is true.
-- [ ] 6.2 Add `rebuildScene` to `api/client.ts`; extend `sceneActions.ts`, `SceneRow.tsx`, `SessionPage.tsx` (pass the session state and the handler), `sceneRecoveryRefusals.ts`, `FinalVideoDownload.tsx` and `types.ts`; add CSS only if needed. Make 6.1 pass.
+- [x] 6.2 Add `rebuildScene` to `api/client.ts`; extend `sceneActions.ts`, `SceneRow.tsx`, `SessionPage.tsx` (pass the session state and the handler), `sceneRecoveryRefusals.ts`, `FinalVideoDownload.tsx` and `types.ts`; add CSS only if needed. Make 6.1 pass.
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review tests that assert `nothing-to-rebuild`, the final-video status shape, scene image URLs, file names, or `sceneActions` output. Update a test only where this change intends the new behaviour, and record each change in the report.
+- [x] 7.1 Review tests that assert `nothing-to-rebuild`, the final-video status shape, scene image URLs, file names, or `sceneActions` output. Update a test only where this change intends the new behaviour, and record each change in the report.
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 

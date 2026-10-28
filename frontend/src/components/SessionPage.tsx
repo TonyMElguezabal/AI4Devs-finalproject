@@ -1,6 +1,7 @@
 import type { Phase, SessionSnapshot } from "../types";
 import { SessionHeader } from "./SessionHeader";
 import { SceneList } from "./SceneList";
+import type { SceneRebuildHandler } from "./SceneRow";
 import { SceneProgressSummary } from "./SceneProgressSummary";
 import { FinalVideoDownload } from "./FinalVideoDownload";
 import { PhaseSection } from "./PhaseSection";
@@ -27,6 +28,8 @@ interface Props {
   onSetPause?: (sceneId: string, seconds: number) => Promise<unknown>;
   /** Rebuilds the final video with the stored pause edits (adjust-scene-pause, JOS-190). */
   onRebuildFinalVideo?: () => Promise<unknown>;
+  /** Rebuilds one scene's image and clip (rebuild-scene, JOS-235). */
+  onRebuildScene?: SceneRebuildHandler;
 }
 
 /** "14 Oct, 10:42" in the User's own locale and time zone; the instant stays machine-readable on the element. */
@@ -58,6 +61,7 @@ export function SessionPage({
   onRetryPhase,
   onSetPause,
   onRebuildFinalVideo,
+  onRebuildScene,
 }: Props) {
   if (notFound) {
     return (
@@ -125,7 +129,7 @@ export function SessionPage({
         {session.phases.map((progress) => (
           <PhaseSection key={progress.phase} progress={progress} onRetry={() => onRetryPhase(progress.phase)}>
             {progress.phase === "scenes" && (
-              <SceneList scenes={scenes} paused={session.paused} onRetry={onRetry} onCorrect={onCorrect} onSetPause={onSetPause} />
+              <SceneList scenes={scenes} paused={session.paused} onRetry={onRetry} onCorrect={onCorrect} onSetPause={onSetPause} onRebuild={onRebuildScene} sessionState={session.state} />
             )}
             {progress.phase === "assembly" && (
               <FinalVideoDownload
