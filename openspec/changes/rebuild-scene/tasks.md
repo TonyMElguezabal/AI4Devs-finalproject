@@ -76,11 +76,11 @@
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
 - [x] 9.0 Add the manual-testing flag `USE_STUB_IMAGE_PROVIDER` in `backend/src/bootstrap.ts` (design Decision 10) and list it with the other stub flags in `readme.md`, `backend/README.md` and `docs/development_guide.md`
-- [ ] 9.1 Start the backend on scratch paths with `USE_STUB_IMAGE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER` and `USE_STUB_ASSEMBLY_TOOL` set (short delays), and bring a session to `final-video`
-- [ ] 9.2 `POST …/scenes/{id}/rebuild` with an edited `imageInstruction`: 202. Follow `GET /sessions/{id}` until the scene is `chunk-complete` and the final video is `final-video-2.mp4`. List the project folder to show the old and new files.
-- [ ] 9.3 Refusals: a rebuild while a scene is generating (409 `scene-not-ready`), during the assembly (409 `assembly-in-progress`), on another session's scene (404), and with an empty instruction (400). Also `final-video/rebuild` while a scene rebuilds (409 `scenes-not-complete`).
-- [ ] 9.4 A session failed at assembly (stub assembly failing, then succeeding): rebuild a scene and see the assembly run again by itself
-- [ ] 9.5 Document commands and responses in `reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`; remove the scratch data
+- [x] 9.1 Start the backend on scratch paths with `USE_STUB_IMAGE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER` and `USE_STUB_ASSEMBLY_TOOL` set (short delays), and bring a session to `final-video`
+- [x] 9.2 `POST …/scenes/{id}/rebuild` with an edited `imageInstruction`: 202. Follow `GET /sessions/{id}` until the scene is `chunk-complete` and the final video is `final-video-2.mp4`. List the project folder to show the old and new files.
+- [x] 9.3 Refusals: a rebuild while a scene is generating (409 `scene-not-ready`), during the assembly (409 `assembly-in-progress`), on another session's scene (404), and with an empty instruction (400). Also `final-video/rebuild` while a scene rebuilds (409 `scenes-not-complete`).
+- [x] 9.4 A session failed at assembly (stub assembly failing, then succeeding): rebuild a scene and see the assembly run again by itself
+- [x] 9.5 Document commands and responses in `reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`; remove the scratch data
 
 ## 10. E2E Testing in the Browser (MANDATORY - AGENT MUST EXECUTE)
 
