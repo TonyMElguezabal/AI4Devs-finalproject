@@ -437,6 +437,11 @@ button.toggle[aria-expanded="true"] .icon {
   gap: 0.375rem;
 }
 
+.field-hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+}
+
 .field label,
 .correction-form label {
   font-size: var(--font-size-sm);

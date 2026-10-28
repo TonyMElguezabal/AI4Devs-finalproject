@@ -834,6 +834,58 @@ describe("StartProjectForm", () => {
     await user.click(submit);
     expect(onStart).toHaveBeenCalledWith({ title: "My Trip", script: "A wide shot of a harbor at dusk.", language: "en" });
   });
+
+  // show-script-word-count (JOS-236) — word count and estimated duration under the Script field.
+  describe("script estimate (JOS-236)", () => {
+    const ESTIMATE_ID = "project-script-estimate";
+
+    it("shows the word count and estimated duration, and describes the Script field with them", async () => {
+      const user = userEvent.setup();
+      render(<StartProjectForm onStart={() => {}} languages={languages} />);
+      const script = screen.getByLabelText("Script");
+      await user.type(script, "one two three four five six seven eight nine ten");
+      const line = "10 words · Estimated video duration ~0:04";
+      expect(screen.getByText(line)).toBeInTheDocument();
+      expect(script).toHaveAccessibleDescription(line);
+      expect(screen.getByRole("textbox", { name: "Script" })).toBe(script);
+    });
+
+    it("updates the line while typing, without leaving the field", async () => {
+      const user = userEvent.setup();
+      render(<StartProjectForm onStart={() => {}} languages={languages} />);
+      const script = screen.getByLabelText("Script");
+      await user.type(script, "one");
+      expect(screen.getByText("1 word · Estimated video duration ~0:00")).toBeInTheDocument();
+      await user.type(script, " two three");
+      expect(screen.getByText("3 words · Estimated video duration ~0:01")).toBeInTheDocument();
+      expect(script).toHaveFocus();
+    });
+
+    it("shows no line and no aria-describedby while the script is empty or whitespace", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<StartProjectForm onStart={() => {}} languages={languages} />);
+      const script = screen.getByLabelText("Script");
+      expect(container.querySelector(`#${ESTIMATE_ID}`)).toBeNull();
+      expect(script).not.toHaveAttribute("aria-describedby");
+      await user.type(script, "   ");
+      expect(container.querySelector(`#${ESTIMATE_ID}`)).toBeNull();
+      expect(script).not.toHaveAttribute("aria-describedby");
+    });
+
+    it("does not change when Start project is enabled or what is submitted", async () => {
+      const user = userEvent.setup();
+      const onStart = vi.fn();
+      render(<StartProjectForm onStart={onStart} languages={languages} />);
+      await user.type(screen.getByLabelText("Title"), "My Trip");
+      await user.type(screen.getByLabelText("Script"), "A wide shot of a harbor at dusk.");
+      const submit = screen.getByRole("button", { name: "Start project" });
+      expect(submit).toBeDisabled();
+      await user.selectOptions(screen.getByLabelText("Language"), "en");
+      expect(submit).not.toBeDisabled();
+      await user.click(submit);
+      expect(onStart).toHaveBeenCalledWith({ title: "My Trip", script: "A wide shot of a harbor at dusk.", language: "en" });
+    });
+  });
 });
 
 // consult-session (JOS-135) task 4 — the session page.
