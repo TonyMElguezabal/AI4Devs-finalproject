@@ -99,4 +99,4 @@
 - [x] 11.3 `docs/data-model.md`: `scenes.rebuild_count`, `runs.final_video_stale`, the versioned file names, and the guard rows cleared by a rebuild
 - [x] 11.4 `readme.md` (Spanish): one line in the usage or troubleshooting section on Rebuild scene
 - [x] 11.5 Run `graphify update .`
-- [ ] 11.6 Commit, then push and open the PR into `feature/entrega-3-JAME` linking JOS-235 (on the user's go-ahead)
+- [x] 11.6 Commit, then push and open the PR into `feature/entrega-3-JAME` linking JOS-235 (on the user's go-ahead)
