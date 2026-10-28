@@ -66,12 +66,12 @@
 
 ## 8. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test baseline (the worktree has no local database; every run uses scratch `DB_PATH` and `PROJECTS_ROOT`)
-- [ ] 8.2 Run the targeted tests from groups 2-6
-- [ ] 8.3 Run the full backend suite (scratch paths), the full frontend suite, `npm run lint` and the type checks in both packages
-- [ ] 8.4 Verify the post-test state matches the baseline and restore if needed
-- [ ] 8.5 Create report `openspec/changes/rebuild-scene/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
-- [ ] 8.6 Mark this group complete only after tests pass and the report exists
+- [x] 8.1 Capture the pre-test baseline (the worktree has no local database; every run uses scratch `DB_PATH` and `PROJECTS_ROOT`)
+- [x] 8.2 Run the targeted tests from groups 2-6
+- [x] 8.3 Run the full backend suite (scratch paths), the full frontend suite, `npm run lint` and the type checks in both packages
+- [x] 8.4 Verify the post-test state matches the baseline and restore if needed
+- [x] 8.5 Create report `openspec/changes/rebuild-scene/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
+- [x] 8.6 Mark this group complete only after tests pass and the report exists
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
