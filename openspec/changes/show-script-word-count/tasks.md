@@ -68,4 +68,4 @@
   - the §16 changelog row (product owner, JOS-236, 2026-10-28).
 - [x] 8.2 `docs/frontend-standards.md`: on the Screen Inventory row "Start a project", add the word count and estimated duration.
 - [x] 8.3 Run `graphify update .`.
-- [ ] 8.4 Commit. Then push with an explicit `origin feature/jos-236-script-word-count` and open the PR into `feature/entrega-3-JAME` linking JOS-236 (on the user's go-ahead).
+- [x] 8.4 Commit. Then push with an explicit `origin feature/jos-236-script-word-count` and open the PR into `feature/entrega-3-JAME` linking JOS-236 (on the user's go-ahead).
