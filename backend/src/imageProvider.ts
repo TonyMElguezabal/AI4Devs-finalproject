@@ -209,5 +209,10 @@ export async function downloadGeneratedImage(url: string): Promise<DownloadResul
     return { ok: false, reason: `downloading the generated image answered HTTP ${response.status}` };
   }
   const contentType = response.headers.get("content-type") ?? "application/octet-stream";
-  return { ok: true, bytes: Buffer.from(await response.arrayBuffer()), contentType };
+  // The body streams after the headers: a connection reset here throws, and nothing above would catch it.
+  try {
+    return { ok: true, bytes: Buffer.from(await response.arrayBuffer()), contentType };
+  } catch {
+    return { ok: false, reason: "the generated image could not be downloaded" };
+  }
 }
