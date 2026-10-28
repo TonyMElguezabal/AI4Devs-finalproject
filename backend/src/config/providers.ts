@@ -238,6 +238,16 @@ export function phaseTimeoutMs(stage: PhaseStage): number | undefined {
   return seconds === "undetermined" ? undefined : seconds * 1000;
 }
 
+/**
+ * keep-clip-task-on-timeout (JOS-204), design Decision 2 — how long a clip task is followed, from the moment it was sent,
+ * before the scene fails as not retryable: twice the video limit. A clip past the limit keeps its one provider task until
+ * then. `undefined` when the video stage has no limit. Recorded in PRD §11.3 and pinned to it by a test.
+ */
+export function videoTaskCeilingMs(): number | undefined {
+  const limit = phaseTimeoutMs("video");
+  return limit === undefined ? undefined : 2 * limit;
+}
+
 /** Moderation runs while the User waits (JOS-187). Provisional: observed 0.12-2.2 s (report: step 1). */
 export const MODERATION_MAX_TIME_SECONDS = 10;
 
