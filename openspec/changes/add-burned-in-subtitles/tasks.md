@@ -84,4 +84,4 @@
 - [x] 10.2 `docs/adr/0005-media-assembly.md`: the subtitles step (filter, ASS, cwd trick, the failure rule). `docs/adr/0007-deployment.md`: libass in the pinned builds (confirmed, no replacement), the font and its licence embedded in the executable and written to the data folder at start, `SUBTITLE_FONT_PATH`.
 - [x] 10.3 `docs/data-model.md`: the subtitle file is temporary and not stored; no schema change. `readme.md` (Spanish) and `backend/README.md`: the libass requirement and the `FFMPEG_PATH` / `SUBTITLE_FONT_PATH` notes for development.
 - [x] 10.4 Run `graphify update .`.
-- [ ] 10.5 Commit, then push with an explicit `origin feature/jos-237-subtitles` and open the PR into `feature/entrega-3-JAME` linking JOS-237 (on the user's go-ahead).
+- [x] 10.5 Commit, then push with an explicit `origin feature/jos-237-subtitles` and open the PR into `feature/entrega-3-JAME` linking JOS-237 (on the user's go-ahead).
