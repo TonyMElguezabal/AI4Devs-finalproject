@@ -15,6 +15,7 @@ import {
   FINAL_OUTPUT,
   MAX_SIMULTANEOUS_REQUESTS,
   PER_PHASE_MAX_TIME_SECONDS,
+  videoTaskCeilingMs,
   SPEED_FACTOR_LIMIT,
   MAX_ATTEMPTS_PER_CYCLE,
   RETRY_DELAY_SECONDS,
@@ -117,6 +118,21 @@ describe("Per-phase maximum times are set above the measured slow tail (Decision
     // Clips of 14 s timed out at 607-610 s three times each on 2026-10-14 (a real 11-scene run, JOS-197); 7-13 s clips took 394-546 s.
     // The longest admitted clip is 15 s, so the limit must clear the longest observed time with room.
     expect(PER_PHASE_MAX_TIME_SECONDS.video).toBeGreaterThan(610 * 1.5);
+  });
+
+  // keep-clip-task-on-timeout (JOS-204), design Decision 2 — a clip past its limit keeps its one provider task until twice the limit.
+  it("gives a clip that is past its limit twice the limit before it fails", () => {
+    expect(videoTaskCeilingMs()).toBe(2 * (PER_PHASE_MAX_TIME_SECONDS.video as number) * 1000);
+    expect(videoTaskCeilingMs()).toBe(2_400_000);
+  });
+
+  it("equals the clip wait ceiling recorded in PRD §11.3", () => {
+    const prd = readFileSync(resolve(import.meta.dirname, "../../docs/PRD.md"), "utf8");
+    const row = prd.split("\n").find((line) => line.startsWith("| Per-phase maximum times"));
+    const match = row?.match(/Clip wait ceiling (\d+)s/);
+
+    expect(match, "the §11.3 row does not record the clip wait ceiling").not.toBeNull();
+    expect(Number(match![1]) * 1000).toBe(videoTaskCeilingMs());
   });
 
   it("assembly is explicitly undetermined pending define-media-assembly (JOS-182)", () => {
