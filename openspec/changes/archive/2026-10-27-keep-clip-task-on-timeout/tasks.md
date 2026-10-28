@@ -63,4 +63,4 @@
 - [x] 9.1 `docs/PRD.md` v1.24 (keep v1.23 as `docs/PRD-v1.23.md`): §11.3 row with the clip wait ceiling and its reason; §10.1 note that a clip past its limit keeps its task; status line and §16 entry
 - [x] 9.2 Confirm `docs/api-spec.yml` and `docs/data-model.md` need no schema or API change; update the `current_request_id` note in `docs/data-model.md`, which described the old restart rule (checked: no API or schema change; the scene's `errorCause` is free text)
 - [x] 9.3 Run `graphify update .`
-- [ ] 9.4 Commit (done), then (after the user's go-ahead) push and open the PR linking JOS-204; archive the change after merge
+- [x] 9.4 Commit (done), then push and open the PR linking JOS-204 (PR #127 merged 2026-10-27); archived 2026-10-27
