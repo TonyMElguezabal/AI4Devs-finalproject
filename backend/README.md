@@ -27,7 +27,7 @@ RUN_PROVIDER_CONTRACT_TESTS=1 npx vitest run test/voice-provider.contract.test.t
 
 ## Environment
 
-`PORT` (3100), `DB_PATH` (`data/skeleton.sqlite`), `PROJECTS_ROOT` (`data/projects`), `CORS_ALLOWED_ORIGINS`, `FFMPEG_PATH`, `FFPROBE_PATH`, and the test-only `ALLOW_TEST_ENDPOINTS`, `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS`, `STAGE_CONCURRENCY_LIMIT`. The full table is in the root `readme.md`.
+`PORT` (3100), `DB_PATH` (`data/skeleton.sqlite`), `PROJECTS_ROOT` (`data/projects`), `CORS_ALLOWED_ORIGINS`, `FFMPEG_PATH`, `FFPROBE_PATH`, and the test-only `ALLOW_TEST_ENDPOINTS`, `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_IMAGE_PROVIDER`, `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS`, `STAGE_CONCURRENCY_LIMIT`. The full table is in the root `readme.md`.
 
 ## Restarting
 

@@ -104,6 +104,9 @@ An interrupted automatic rebuild has its request cleared by the existing boot se
 - Refusal sentences are added to `sceneRecoveryRefusals.ts`.
 - `FinalVideoDownload` offers Rebuild when `pendingPauseEdits || staleScenes`.
 
+### 10. A stub image provider for manual testing
+`USE_STUB_IMAGE_PROVIDER=success|transient-failure|not-retryable-failure` registers `createStubImageProvider` as the only image provider, exactly as `USE_STUB_VIDEO_PROVIDER` and `USE_STUB_VOICE_PROVIDER` do for their stages. Without it, no image can be generated in the curl and browser checks without a paid provider key. Manual testing only, like the other stubs.
+
 ## Risks / Trade-offs
 
 - [Paid calls the User did not intend] → An explicit inline confirmation that names the image, the clip and the rebuild.

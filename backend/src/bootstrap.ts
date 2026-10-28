@@ -3,6 +3,7 @@ import * as concurrency from "./concurrency.ts";
 import { STAGE } from "./types.ts";
 import { setRetryDelayConfig } from "./retry/stageAttemptRecorder.ts";
 import { setVoiceProviderRegistry, createStubVoiceProvider as createStubVoice, type StubVoiceProviderMode } from "./voiceProvider.ts";
+import { setImageProviderRegistry, createStubImageProvider, type StubImageProviderMode } from "./imageProvider.ts";
 import { setVideoProviderRegistry, createStubVideoProvider, STUB_VIDEO_PROVIDER_NAME, type StubVideoProviderMode } from "./videoProvider.ts";
 import { recoverOnBoot } from "./orchestrator.ts";
 import { setDecompositionLogger } from "./decompositionPhase.ts";
@@ -34,6 +35,18 @@ export async function startServer(options: StartServerOptions = {}): Promise<Fas
       : (["success-bytes", "pending", "request-lost", "not-retryable-failure"] as const).find((m) => m === stubVideoMode) ?? "transient-failure";
     const stub = createStubVideoProvider(resolvedMode, { bytes });
     setVideoProviderRegistry({ defaultIdentifier: STUB_VIDEO_PROVIDER_NAME, adapters: { [STUB_VIDEO_PROVIDER_NAME]: stub } });
+  }
+  // USE_STUB_IMAGE_PROVIDER=success|transient-failure|not-retryable-failure — manual endpoint testing only: every image is a valid 1920x1088 PNG header.
+  const stubImageMode = process.env.USE_STUB_IMAGE_PROVIDER;
+  if (stubImageMode) {
+    const png = Buffer.alloc(29);
+    png.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+    png.writeUInt32BE(13, 8);
+    png.write("IHDR", 12, "ascii");
+    png.writeUInt32BE(1920, 16);
+    png.writeUInt32BE(1088, 20);
+    const resolvedMode: StubImageProviderMode = stubImageMode === "success" ? "success-bytes" : stubImageMode === "not-retryable-failure" ? "not-retryable-failure" : "transient-failure";
+    setImageProviderRegistry({ defaultIdentifier: "stub-image", adapters: { "stub-image": createStubImageProvider(resolvedMode, { bytes: png }) } });
   }
   // RETRY_BASE_DELAY_SECONDS / RETRY_CAP_DELAY_SECONDS — manual endpoint testing only: shortens the retry delays so a retry sequence can be watched in seconds (fractions allowed).
   const retryBaseSeconds = Number(process.env.RETRY_BASE_DELAY_SECONDS);
