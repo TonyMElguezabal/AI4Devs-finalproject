@@ -70,7 +70,7 @@ import { describeProvider, diagnosticStageOf, type StageDiagnostic } from "./sta
 import { allowListVideoRequest, videoRequestView } from "./videoRequestStatus.ts";
 import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
-import { FINAL_OUTPUT, phaseTimeoutMs } from "./config/providers.ts";
+import { FINAL_OUTPUT, videoTaskCeilingMs } from "./config/providers.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
 import { downloadGeneratedImage, getImageProviderRegistry, type ImageGenerationResult, type ReferenceImage } from "./imageProvider.ts";
 import {
@@ -877,17 +877,6 @@ async function pollVideoRequestOnce(
     return;
   }
 
-  const elapsed = Date.now() - sentAtMs;
-  const videoTimeoutMs = phaseTimeoutMs("video");
-  if (videoTimeoutMs !== undefined && elapsed > videoTimeoutMs) {
-    insertProviderRequest(requestId, sceneId, elapsed, "transient_failure", attemptNumber, "video");
-    markProviderRequestResolved(requestId);
-    concurrency.release(VIDEO_STAGE, sceneId);
-    applyVideoFailureOutcome(sceneId, { kind: "failed_transient", reason: `the clip request exceeded the ${videoTimeoutMs / 1000} s phase limit` }, attemptNumber);
-    broadcast(fresh.runId);
-    return;
-  }
-
   let pollResult: VideoGenerationResult;
   try {
     pollResult = await adapter.poll(requestId);
@@ -896,6 +885,25 @@ async function pollVideoRequestOnce(
   }
 
   if (pollResult.kind === "pending") {
+    // keep-clip-task-on-timeout (JOS-204), design Decisions 1-2 — past the video limit the same task keeps being followed;
+    // only the ceiling (twice the limit, from the original send) ends the wait, and it ends it without a new task.
+    const ceilingMs = videoTaskCeilingMs();
+    const elapsedMs = Date.now() - sentAtMs;
+    if (ceilingMs !== undefined && elapsedMs > ceilingMs) {
+      insertProviderRequest(requestId, sceneId, elapsedMs, "not_retryable_failure", attemptNumber, "video");
+      markProviderRequestResolved(requestId);
+      concurrency.release(VIDEO_STAGE, sceneId);
+      applyVideoFailureOutcome(
+        sceneId,
+        {
+          kind: "failed_not_retryable",
+          reason: `the clip task did not finish within ${ceilingMs / 1000} s (twice the ${ceilingMs / 2000} s phase limit); the provider task may still be running and billed. Retry to send a new task.`,
+        },
+        attemptNumber,
+      );
+      broadcast(fresh.runId);
+      return;
+    }
     const timer = setTimeout(() => { void pollVideoRequestOnce(sceneId, requestId, attemptNumber, sentAtMs); }, videoPollIntervalMs);
     if (typeof timer === "object" && timer !== null && "unref" in timer) timer.unref();
     return;
@@ -1582,9 +1590,11 @@ function settleVideoInFlight(): SettleSummary {
       continue;
     }
 
-    // The request already holds its slot (taken above): resume polling from now
-    // (gives the full phase window after restart).
-    void pollVideoRequestOnce(scene.id, requestId, scene.attempts, Date.now());
+    // The request already holds its slot (taken above): resume polling the same task. keep-clip-task-on-timeout (JOS-204),
+    // design Decision 3 — the ceiling counts from the original send, so a restart never extends the wait; a scene with no
+    // stored send time (sent before JOS-200) is counted from now.
+    const sentAtMs = scene.videoRequestSentAt ? Date.parse(scene.videoRequestSentAt) : Number.NaN;
+    void pollVideoRequestOnce(scene.id, requestId, scene.attempts, Number.isNaN(sentAtMs) ? Date.now() : sentAtMs);
     stillPending++;
   }
   return { resumed: 0, recordedFailedAttempt, stillPending };
