@@ -1,6 +1,7 @@
 import type { Phase, SessionSnapshot } from "../types";
 import { SessionHeader } from "./SessionHeader";
 import { SceneList } from "./SceneList";
+import { SceneProgressSummary } from "./SceneProgressSummary";
 import { FinalVideoDownload } from "./FinalVideoDownload";
 import { PhaseSection } from "./PhaseSection";
 import { PhaseStepper } from "./PhaseStepper";
@@ -112,6 +113,7 @@ export function SessionPage({
               </span>
             </div>
             <progress aria-label="Scenes done" value={scenesDone} max={scenes.length} />
+            <SceneProgressSummary scenes={scenes} />
           </div>
         )}
         <p className="session-id">

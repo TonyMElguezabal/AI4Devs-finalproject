@@ -1,4 +1,5 @@
-import { db } from "./db.ts";
+import { videoTaskCeilingMs } from "./config/providers.ts";
+import { db, sceneCurrentRequestId } from "./db.ts";
 import { nearestRankPercentile } from "./providerUsageReport.ts";
 import { describeProvider } from "./stageDiagnostics.ts";
 import type { Scene, VideoRequestBody, VideoRequestView } from "./types.ts";
@@ -41,14 +42,35 @@ export function videoEstimate(provider: string | null, requestedDuration: number
   return seconds === null ? null : { seconds, basedOn: clips.length };
 }
 
+// show-clip-task-liveness (JOS-233), design Decision 2 — the last "still running" answer per scene, in memory only: it
+// means "this running application is following the task", so a restart honestly starts with none, and a check of an
+// earlier task (a retry) is never shown for the current one because the task id has to match.
+const taskChecks = new Map<string, { taskId: string; at: string }>();
+
+export function recordTaskCheck(sceneId: string, taskId: string, at: string): void {
+  taskChecks.set(sceneId, { taskId, at });
+}
+
+/** Test-only: what a new process starts with. */
+export function resetTaskChecksForTests(): void {
+  taskChecks.clear();
+}
+
 /** The request status of a scene whose clip request was sent and has not ended; `undefined` otherwise. */
 export function videoRequestView(scene: Scene): VideoRequestView | undefined {
   if (scene.status !== "video-generating" || scene.videoRequestSentAt === null || scene.videoRequestBody === null) return undefined;
+  // Once the request is sent the column holds the provider's own task id (design Decision 1); never read before that.
+  const taskId = sceneCurrentRequestId(scene.id) ?? "";
+  const check = taskChecks.get(scene.id);
+  const ceilingMs = videoTaskCeilingMs();
   return {
     provider: describeProvider("video", scene.videoProvider),
     attempt: scene.attempts,
     sentAt: scene.videoRequestSentAt,
     estimate: videoEstimate(scene.videoProvider, scene.requestedDurationSeconds),
     body: scene.videoRequestBody,
+    taskId,
+    lastCheckedAt: check && check.taskId === taskId ? check.at : null,
+    waitEndsAt: ceilingMs === undefined ? null : new Date(Date.parse(scene.videoRequestSentAt) + ceilingMs).toISOString(),
   };
 }

@@ -9,7 +9,8 @@ interface Props {
 
 /**
  * show-video-request-status (JOS-200), design Decision 5 — what was sent for a clip that is still generating, when, how
- * long it has taken and when it may arrive. The clock is the browser's, ticking once a second while the block is
+ * long it has taken and when it may arrive, plus (JOS-233) the provider's task id, how long ago it was last checked and when
+ * the wait ends. The clock is the browser's, ticking once a second while the block is
  * shown, so the server does not push a snapshot per second.
  */
 export function VideoRequestStatus({ sceneIndex, request }: Props) {
@@ -47,6 +48,18 @@ export function VideoRequestStatus({ sceneIndex, request }: Props) {
               ? "Taking longer than estimated"
               : `Expected around ${formatClock(new Date(sentAtMs + estimate.seconds * 1000).toISOString())}, based on ${estimate.basedOn} earlier ${estimate.basedOn === 1 ? "clip" : "clips"}`}
         </dd>
+        <dt>Task id</dt>
+        <dd>
+          <code className="video-request-task-id">{request.taskId}</code>
+        </dd>
+        <dt>Last checked</dt>
+        <dd>{request.lastCheckedAt === null ? "Not checked yet" : `${formatElapsed((nowMs - Date.parse(request.lastCheckedAt)) / 1000)} ago`}</dd>
+        {request.waitEndsAt !== null && (
+          <>
+            <dt>Gives up at</dt>
+            <dd>{formatClock(request.waitEndsAt)} if unfinished</dd>
+          </>
+        )}
       </dl>
       <button type="button" className="toggle" aria-expanded={showJson} onClick={() => setShowJson((open) => !open)}>
         {showJson ? `Hide the request sent for scene ${sceneIndex}` : `Show the request sent for scene ${sceneIndex}`}

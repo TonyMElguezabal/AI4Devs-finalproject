@@ -180,6 +180,10 @@ describe("The stub adapter (group 3, task 3.2)", () => {
 // §12.2 — resolving a temporary-link result to bytes before the image stage
 // can succeed (design Decision 6). Exercised end-to-end in
 // `test/image-stage.test.ts`; these are the direct unit tests.
+function resettingBody(): ReadableStream<Uint8Array> {
+  return new ReadableStream({ start: (controller) => controller.error(new Error("read ECONNRESET")) });
+}
+
 describe("downloadGeneratedImage (§12.2)", () => {
   afterEach(() => {
     resetDownloadFetch();
@@ -206,6 +210,16 @@ describe("downloadGeneratedImage (§12.2)", () => {
     setDownloadFetch((async () => {
       throw new Error("network unreachable");
     }));
+
+    const result = await downloadGeneratedImage("https://fal.media/files/example.jpg");
+
+    expect(result).toEqual({ ok: false, reason: "the generated image could not be downloaded" });
+  });
+
+  // A connection reset while the body streams (ECONNRESET) must be a failed download, never an unhandled rejection
+  // that ends the backend process.
+  it("fails when the connection resets while the body is being read", async () => {
+    setDownloadFetch((async () => new Response(resettingBody(), { status: 200 })));
 
     const result = await downloadGeneratedImage("https://fal.media/files/example.jpg");
 
