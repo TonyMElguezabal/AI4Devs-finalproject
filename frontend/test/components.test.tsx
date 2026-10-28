@@ -2035,7 +2035,7 @@ describe("The Final video section's rebuild (JOS-190)", () => {
     render(
       <SessionPage
         sessionId="01ARZ3NDEKTSV4RRFFQ69G5FAV"
-        snapshot={{ session, scenes: [] }}
+        snapshot={{ session, scenes: [makeScene({ state: "chunk-complete" })] }}
         notFound={false}
         onStartNew={() => {}}
         onPause={asyncNoop}

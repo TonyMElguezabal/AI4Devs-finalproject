@@ -137,7 +137,8 @@ export function SessionPage({
                 finalVideo={session.finalVideo}
                 // A session that already has a final video and is generating one again is rebuilding (JOS-190, Decision 7).
                 rebuilding={session.state === "final-video-generating" && Boolean(session.finalVideoUrl)}
-                onRebuild={onRebuildFinalVideo}
+                // rebuild-scene (JOS-235), Decision 9 — offered only while every scene is complete; the backend refuses it otherwise.
+                onRebuild={scenes.length > 0 && scenes.every((scene) => scene.state === "chunk-complete") ? onRebuildFinalVideo : undefined}
               />
             )}
           </PhaseSection>

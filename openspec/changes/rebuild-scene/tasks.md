@@ -60,6 +60,10 @@
   - `FinalVideoDownload` offers Rebuild when `staleScenes` is true.
 - [x] 6.2 Add `rebuildScene` to `api/client.ts`; extend `sceneActions.ts`, `SceneRow.tsx`, `SessionPage.tsx` (pass the session state and the handler), `sceneRecoveryRefusals.ts`, `FinalVideoDownload.tsx` and `types.ts`; add CSS only if needed. Make 6.1 pass.
 
+- [x] 6.1a Write a failing test: with a rebuilt scene still generating, the page does not offer Rebuild final video, and offers it again once every scene is complete; `scenes-not-complete` has a refusal sentence
+- [x] 6.2a Pass the final-video rebuild handler from `SessionPage` only while every scene is `chunk-complete`; add the sentence in `pauseRefusals.ts`. Make 6.1a pass.
+- [x] 6.2b Let the scene details grid shrink to the card at 375 px (`minmax(min(17rem, 100%), 1fr)` in `frontend/src/styles/app.css`); verified in the browser (group 10), as jsdom has no layout
+
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
 - [x] 7.1 Review tests that assert `nothing-to-rebuild`, the final-video status shape, scene image URLs, file names, or `sceneActions` output. Update a test only where this change intends the new behaviour, and record each change in the report.
@@ -84,9 +88,9 @@
 
 ## 10. E2E Testing in the Browser (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Open the session, expand a complete scene, open Rebuild scene, edit `IMAGE`, confirm. Check the scene's state updates live, the new image appears (not the cached one), and the final video becomes version 2 by itself.
-- [ ] 10.2 Check the action is absent on a generating scene and while the final video is assembling; check a refusal sentence
-- [ ] 10.3 Screenshot at 375 px width of the open Rebuild form; restore the environment and record in `reports/YYYY-MM-DD-step-10-e2e-testing.md`
+- [x] 10.1 Open the session, expand a complete scene, open Rebuild scene, edit `IMAGE`, confirm. Check the scene's state updates live, the new image appears (not the cached one), and the final video becomes version 2 by itself.
+- [x] 10.2 Check the action is absent on a generating scene and while the final video is assembling; check a refusal sentence
+- [x] 10.3 Screenshot at 375 px width of the open Rebuild form; restore the environment and record in `reports/YYYY-MM-DD-step-10-e2e-testing.md`
 
 ## 11. Update Technical Documentation (MANDATORY)
 

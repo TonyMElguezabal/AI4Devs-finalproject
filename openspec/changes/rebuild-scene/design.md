@@ -102,7 +102,8 @@ An interrupted automatic rebuild has its request cleared by the existing boot se
 - `SceneRow` shows a "Rebuild scene" button that opens an inline form: two textareas prefilled with `IMAGE` and `VIDEO`, a sentence saying the image and clip will be generated again and the final video rebuilt, and "Rebuild image and clip". There is no browser `confirm()`.
 - Unchanged instructions are omitted from the body.
 - Refusal sentences are added to `sceneRecoveryRefusals.ts`.
-- `FinalVideoDownload` offers Rebuild when `pendingPauseEdits || staleScenes`.
+- The scene details grid (`.scene-details`) has a 17 rem minimum column that is wider than the card at 375 px, which already clips the PROMPT/IMAGE/VIDEO rows and the diagnostics and would clip the form's fields. Its minimum becomes `min(17rem, 100%)`. Found in the browser check (group 10).
+- `FinalVideoDownload` offers Rebuild when `pendingPauseEdits || staleScenes`, and `SessionPage` passes the handler only while every scene is `chunk-complete`, so the page never offers a rebuild the backend would refuse with `scenes-not-complete` (Decision 7). Found in the browser check (group 10).
 
 ### 10. A stub image provider for manual testing
 `USE_STUB_IMAGE_PROVIDER=success|transient-failure|not-retryable-failure` registers `createStubImageProvider` as the only image provider, exactly as `USE_STUB_VIDEO_PROVIDER` and `USE_STUB_VOICE_PROVIDER` do for their stages. Without it, no image can be generated in the curl and browser checks without a paid provider key. Manual testing only, like the other stubs.

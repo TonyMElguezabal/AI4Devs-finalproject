@@ -109,6 +109,11 @@ The expanded details of a scene in `image-complete` or `chunk-complete` SHALL sh
 - **WHEN** the User expands it, edits `IMAGE`, and confirms Rebuild scene
 - **THEN** the command is sent with the edited `imageInstruction`, and scene 4's state updates live to `image-generating`
 
+#### Scenario: Rebuild final video only while every scene is complete
+- **GIVEN** a final video older than a rebuilt scene (or with pause edits pending), and a scene that is still being rebuilt
+- **THEN** the page does not offer "Rebuild final video" until every scene is complete again, because the command would be refused with `scenes-not-complete`
+- **AND** if the command is refused anyway, the refusal is shown as a sentence
+
 #### Scenario: No action while generating or assembling
 - **GIVEN** scene 5 is `video-generating`, or the session's final video is being assembled
 - **THEN** scene 5 (or every scene) shows no Rebuild scene action

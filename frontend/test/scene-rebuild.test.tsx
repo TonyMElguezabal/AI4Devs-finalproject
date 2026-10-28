@@ -3,10 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FinalVideoDownload } from "../src/components/FinalVideoDownload";
 import { SceneRow } from "../src/components/SceneRow";
+import { SessionPage } from "../src/components/SessionPage";
+import { pauseRefusalSentence } from "../src/pauseRefusals";
 import { rebuildScene } from "../src/api/client";
 import { sceneActions } from "../src/sceneActions";
 import { sceneRecoveryRefusalSentence } from "../src/sceneRecoveryRefusals";
-import type { SceneEventPayload, SceneState, SessionState } from "../src/types";
+import type { PhaseProgress, SceneEventPayload, SceneState, SessionEventPayload, SessionState } from "../src/types";
 
 // rebuild-scene (JOS-235), spec scene-rebuild "The page offers Rebuild scene" — design Decision 9.
 
@@ -205,5 +207,44 @@ describe("rebuildScene (API client)", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ok: false, reason: "assembly-in-progress" }), { status: 409 })));
 
     await expect(rebuildScene("s1", "scene-4", {})).rejects.toThrow("assembly-in-progress");
+  });
+});
+
+describe("Rebuild final video on the session page (design Decision 9)", () => {
+  const phases: PhaseProgress[] = (["voice-over", "decomposition", "scenes", "assembly"] as const).map((phase) => ({ phase, status: "complete", heldCount: 0, stages: [] }));
+  const session: SessionEventPayload = {
+    type: "session",
+    sessionId: "s1",
+    title: "A title",
+    script: "A script.",
+    language: "en",
+    state: "final-video",
+    paused: false,
+    held: [],
+    running: [],
+    phases,
+    finalVideoUrl: "/sessions/s1/download/final-video",
+    finalVideo: { version: 1, pendingPauseEdits: false, staleScenes: true },
+    createdAt: "2026-10-28T00:00:00.000Z",
+    updatedAt: "2026-10-28T00:00:00.000Z",
+  };
+  const props = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: () => {}, onPause: noop, onContinue: noop, onRetry: noop, onCorrect: noop, onRetryPhase: noop, onRebuildFinalVideo: noop };
+
+  it("is not offered while a rebuilt scene is still being generated", () => {
+    const scenes = [makeScene({ sceneId: "a", index: 1 }), makeScene({ sceneId: "b", index: 2, state: "video-generating" })];
+    render(<SessionPage {...props} snapshot={{ session, scenes }} />);
+
+    expect(screen.queryByRole("button", { name: "Rebuild final video" })).not.toBeInTheDocument();
+  });
+
+  it("is offered once every scene is complete", () => {
+    const scenes = [makeScene({ sceneId: "a", index: 1 }), makeScene({ sceneId: "b", index: 2 })];
+    render(<SessionPage {...props} snapshot={{ session, scenes }} />);
+
+    expect(screen.getByRole("button", { name: "Rebuild final video" })).toBeInTheDocument();
+  });
+
+  it("says in words that a scene is still being rebuilt when the command is refused anyway", () => {
+    expect(pauseRefusalSentence("scenes-not-complete")).toBe("A scene is still being generated. Try again when every scene is done.");
   });
 });

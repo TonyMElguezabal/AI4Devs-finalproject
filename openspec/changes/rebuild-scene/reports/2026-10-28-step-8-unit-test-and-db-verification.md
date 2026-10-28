@@ -30,6 +30,10 @@
 - `frontend/test/components.test.tsx`: the `FinalVideoStatus` fixtures gain `staleScenes: false`. The `sceneActions` tests of JOS-151/158 assert retry and correction only, so they now go through a local `recoveryActions` helper that picks those three keys; `rebuild` is covered by `scene-rebuild.test.tsx`. No assertion about retry or correction was loosened.
 - No test that counts broadcasts, assembly launches or file names needed a change: none failed.
 
+## Added after the browser check (tasks 6.1a, 6.2a)
+- The browser check (group 10) showed "Rebuild final video" offered while a rebuilt scene was still generating, a request the backend refuses with `scenes-not-complete`. The artifacts were updated first (spec scene-rebuild, design Decision 9, tasks 6.1a-6.2a); `scene-rebuild.test.tsx` gained 3 tests (seen failing: the button was offered; no sentence for `scenes-not-complete`), and `SessionPage` now passes the handler only while every scene is `chunk-complete`.
+- `frontend/test/components.test.tsx` "is wired through the session page" built a session with a final video and no scenes; it now carries one complete scene. Frontend suite after: 446 passed.
+
 ## Database State Verification
 - Pre-test baseline: this worktree has no `backend/data/` directory and every run used a scratch `DB_PATH` and `PROJECTS_ROOT`, so no shared or local database was opened.
 - Post-test validation: `backend/data/` still absent; only the scratch directories were written. Migration 26 was applied to throwaway in-memory databases and to the scratch database only.
