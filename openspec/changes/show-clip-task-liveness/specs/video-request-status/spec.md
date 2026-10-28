@@ -40,3 +40,9 @@ Each check that answers "still running" SHALL update `lastCheckedAt` and publish
 - **GIVEN** scene 10's clip is complete or the scene failed
 - **WHEN** the User reads the details
 - **THEN** no task id, last check or wait end is shown, because `videoRequest` is absent
+
+#### Scenario: The task id is not part of the request body
+- **GIVEN** a clip request in flight with task `abc123`
+- **WHEN** the User opens the request as sent
+- **THEN** the body shown contains only the prompt, the duration, the resolution and the first frame named `scene {index} image`, and no task id
+- **AND** the provider's upload URL, endpoint and credentials appear nowhere in the read or the snapshot

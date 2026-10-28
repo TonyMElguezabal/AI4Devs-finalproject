@@ -396,6 +396,12 @@ export interface VideoRequestView {
   /** Calculated from earlier clips of the same provider; null when there is none to base it on. */
   estimate: { seconds: number; basedOn: number } | null;
   body: VideoRequestBody;
+  /** JOS-233 — the provider's task id of the current attempt. */
+  taskId: string;
+  /** JOS-233 — the last "still running" answer this application received for the task; null until the first one since it started. */
+  lastCheckedAt: string | null;
+  /** JOS-233 — when the clip wait ceiling fails the scene if the task is unfinished; null when the video stage has no time limit. */
+  waitEndsAt: string | null;
 }
 
 /** Scene event / snapshot entry — carries CURRENT state, never a delta. */

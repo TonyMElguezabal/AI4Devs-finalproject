@@ -254,9 +254,10 @@ describe("The diagnostics expose no credentials or confidential data", () => {
       recordVideoRequestSent(sceneId, NOW, allowListVideoRequest(sentBody, 1));
       return runId;
     }
-    const LEAKS = ["SENTINEL-UPLOAD-URL", "SENTINEL-TASK-ID", "SENTINEL-API-KEY", VIDEO_PROVIDER.endpoint];
+    // show-clip-task-liveness (JOS-233), design Decision 6 — the task id is shown on purpose, only as `videoRequest.taskId`.
+    const LEAKS = ["SENTINEL-UPLOAD-URL", "SENTINEL-API-KEY", VIDEO_PROVIDER.endpoint];
 
-    it("keeps the provider's upload URL, task id, key and endpoint out of the read and the snapshot, and shows the allow-listed body", async () => {
+    it("keeps the provider's upload URL, key and endpoint out of the read and the snapshot, and shows the allow-listed body", async () => {
       const runId = sessionWithClipRequest();
 
       const res = await app.inject({ method: "GET", url: `/sessions/${runId}` });
@@ -269,6 +270,16 @@ describe("The diagnostics expose no credentials or confidential data", () => {
       }
       expect(res.body).toContain("VISIBLE-PROMPT"); // positive control
       expect(res.json().scenes[0].videoRequest.body).toEqual({ prompt: "VISIBLE-PROMPT", duration: 8, resolution: "2K", firstFrame: "scene 1 image" });
+    });
+
+    it("shows the task id only as videoRequest.taskId, never in the request body", async () => {
+      const runId = sessionWithClipRequest();
+
+      const { videoRequest } = (await app.inject({ method: "GET", url: `/sessions/${runId}` })).json().scenes[0];
+
+      expect(videoRequest.taskId).toBe("SENTINEL-TASK-ID");
+      expect(JSON.stringify(videoRequest.body)).not.toContain("SENTINEL-TASK-ID");
+      expect(JSON.stringify(videoRequest.body)).not.toContain("taskId");
     });
   });
 });

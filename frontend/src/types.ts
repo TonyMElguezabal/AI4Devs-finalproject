@@ -103,6 +103,12 @@ export interface VideoRequestView {
   estimate: { seconds: number; basedOn: number } | null;
   /** What was sent, reduced to the prompt, duration and resolution; the first frame is named, never a URL. */
   body: { prompt: string; duration: number; resolution: string; firstFrame: string };
+  /** JOS-233 — the provider's task id of the current attempt. */
+  taskId: string;
+  /** JOS-233 — the last "still running" answer the application received for the task; null until the first one since it started. */
+  lastCheckedAt: string | null;
+  /** JOS-233 — when the clip wait ceiling fails the scene if the task is unfinished; null when the video stage has no time limit. */
+  waitEndsAt: string | null;
 }
 
 export interface SceneEventPayload {

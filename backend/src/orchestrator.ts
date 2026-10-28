@@ -67,7 +67,7 @@ import { hasPendingPauseEdits, loadSessionPauses, scenePauseViews } from "./sess
 import * as concurrency from "./concurrency.ts";
 import { admitLaunch, launchHeldWork, registerStageLauncher, relaunchPendingWork, RESTART_CAUSE, sessionHeldWork, sessionRunningWork, settleAllInFlight, type SettleSummary, type StageLauncher } from "./launchGate.ts";
 import { describeProvider, diagnosticStageOf, type StageDiagnostic } from "./stageDiagnostics.ts";
-import { allowListVideoRequest, videoRequestView } from "./videoRequestStatus.ts";
+import { allowListVideoRequest, recordTaskCheck, videoRequestView } from "./videoRequestStatus.ts";
 import { assemblyGate } from "./assemblyGate.ts";
 import * as provider from "./provider.ts";
 import { FINAL_OUTPUT, videoTaskCeilingMs } from "./config/providers.ts";
@@ -904,6 +904,9 @@ async function pollVideoRequestOnce(
       broadcast(fresh.runId);
       return;
     }
+    // show-clip-task-liveness (JOS-233), design Decision 3 — the task was asked about and is still running: say so.
+    recordTaskCheck(sceneId, requestId, new Date().toISOString());
+    broadcast(fresh.runId);
     const timer = setTimeout(() => { void pollVideoRequestOnce(sceneId, requestId, attemptNumber, sentAtMs); }, videoPollIntervalMs);
     if (typeof timer === "object" && timer !== null && "unref" in timer) timer.unref();
     return;

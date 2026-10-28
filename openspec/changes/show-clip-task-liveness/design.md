@@ -36,8 +36,11 @@ A clip attempt (`runVideoAttempt` in `backend/src/orchestrator.ts`) submits the 
 ### 5. The page: three rows, the existing clock
 In `VideoRequestStatus.tsx`, after Estimate: "Task id" (the id in `<code>`), "Last checked" (`formatElapsed(now − lastCheckedAt)` + " ago", or "Not checked yet"), and "Gives up at" (`formatClock(waitEndsAt)` + " if unfinished", the row omitted when null). The existing one-second interval already re-renders the block, so "ago" ticks without extra timers.
 
-### 6. The task id is not a secret
-A RunningHub task id can only be queried with the account's API key, and it does not reveal the key or the upload URL. The allow-list that keeps the request body private (`allowListVideoRequest`) is unchanged. Only the id is added.
+### 6. The task id is not a secret, and this reverses one earlier rule on purpose
+A RunningHub task id can only be queried with the account's API key, and it does not reveal the key or the upload URL. JOS-200 (design Decision 6) nevertheless kept the task id off the page, and `docs/backend-standards.md` and the sentinel test in `test/stage-diagnostics-surface.test.ts` state that as a rule. JOS-233 exists to show it, so that rule changes, narrowly:
+- The task id appears in exactly one place: `videoRequest.taskId`. The request **body** (`videoRequest.body`, and the collapsed JSON view) still never carries it; `allowListVideoRequest` is unchanged and the existing spec requirement for the body view stands.
+- The upload URL, the API key and the provider endpoint stay out of the read and the snapshot, as before.
+- The sentinel test keeps all three of those as leaks and no longer treats the task id as one, and it adds a positive check that the id appears only as `videoRequest.taskId`. The standards line is updated to the same wording.
 
 ## Risks / Trade-offs
 
