@@ -1591,12 +1591,93 @@ describe("The session page layout (JOS-198)", () => {
     const bar = screen.getByRole("progressbar", { name: "Scenes done" });
     expect(bar).toHaveAttribute("value", "2");
     expect(bar).toHaveAttribute("max", "3");
-    expect(within(screen.getByRole("complementary")).getByText("2 of 3")).toBeInTheDocument();
+    // The bar's own label; the summary's Done line (JOS-234) repeats the figure beside it.
+    expect(within(bar.previousElementSibling as HTMLElement).getByText("2 of 3")).toBeInTheDocument();
   });
 
   it("shows no progress bar while there are no scenes", () => {
     render(<SessionPage {...baseProps} snapshot={snapshotWith([])} />);
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  // summarise-scene-progress (JOS-234) — the project panel's read-only scene summary, under the Scenes done bar.
+  describe("scene progress summary (JOS-234)", () => {
+    const summary = () => within(within(screen.getByRole("complementary")).getByRole("group", { name: "Scene progress" }));
+    const mixedScenes = () => [
+      makeScene({ sceneId: "a", index: 1, state: "chunk-complete" }),
+      makeScene({ sceneId: "b", index: 2, state: "submitted" }),
+      makeScene({ sceneId: "c", index: 3, state: "image-generating" }),
+      makeScene({ sceneId: "d", index: 4, state: "image-generating" }),
+      makeScene({ sceneId: "e", index: 5, state: "image-complete" }),
+      makeScene({ sceneId: "f", index: 6, state: "video-generating" }),
+      makeScene({ sceneId: "g", index: 7, state: "failed", affectedStage: "image" }),
+    ];
+
+    it("shows each non-zero line with its count and scene numbers, in the panel", () => {
+      render(<SessionPage {...baseProps} snapshot={snapshotWith(mixedScenes())} />);
+
+      expect(summary().getByText("Generating image").closest("div")).toHaveTextContent("Generating image2 · 3–4");
+      expect(summary().getByText("Image ready, waiting for a clip slot").closest("div")).toHaveTextContent("5");
+      expect(summary().getByText("Generating clip").closest("div")).toHaveTextContent("Generating clip1 · 6");
+      expect(summary().getByText("Failed at image").closest("div")).toHaveTextContent("Failed at image1 · 7");
+      expect(summary().getByText("Queued for image").closest("div")).toHaveTextContent("Queued for image1");
+      expect(summary().getByText("Images left").closest("div")).toHaveTextContent("Images left4");
+      expect(summary().getByText("Clips left").closest("div")).toHaveTextContent("Clips left6");
+      expect(summary().queryByText("Failed at clip")).not.toBeInTheDocument();
+    });
+
+    it("shows Done as N of total", () => {
+      render(<SessionPage {...baseProps} snapshot={snapshotWith(mixedScenes())} />);
+
+      expect(summary().getByText("Done").closest("div")).toHaveTextContent("Done1 of 7");
+    });
+
+    it("shows only Done when every scene is done", () => {
+      const scenes = [makeScene({ sceneId: "a", index: 1, state: "chunk-complete" }), makeScene({ sceneId: "b", index: 2, state: "chunk-complete" })];
+      render(<SessionPage {...baseProps} snapshot={snapshotWith(scenes)} />);
+
+      const terms = Array.from(screen.getByRole("group", { name: "Scene progress" }).querySelectorAll("dt")).map((term) => term.textContent);
+      expect(terms).toEqual(["Done"]);
+    });
+
+    it("shows no summary while there are no scenes", () => {
+      render(<SessionPage {...baseProps} snapshot={snapshotWith([])} />);
+
+      expect(screen.queryByRole("group", { name: "Scene progress" })).not.toBeInTheDocument();
+    });
+
+    it("moves a scene's number between lines when a live snapshot changes its state", () => {
+      const before = [makeScene({ sceneId: "a", index: 1, state: "image-complete" }), makeScene({ sceneId: "b", index: 2, state: "image-complete" })];
+      const { rerender } = render(<SessionPage {...baseProps} snapshot={snapshotWith(before)} />);
+      expect(summary().getByText("Image ready, waiting for a clip slot").closest("div")).toHaveTextContent("2 · 1–2");
+      expect(summary().queryByText("Generating clip")).not.toBeInTheDocument();
+
+      const after = [makeScene({ sceneId: "a", index: 1, state: "video-generating" }), before[1]!];
+      rerender(<SessionPage {...baseProps} snapshot={snapshotWith(after)} />);
+
+      expect(summary().getByText("Image ready, waiting for a clip slot").closest("div")).toHaveTextContent("1 · 2");
+      expect(summary().getByText("Generating clip").closest("div")).toHaveTextContent("1 · 1");
+    });
+
+    it("is information only: no control, and neither a live region nor an alert", () => {
+      render(<SessionPage {...baseProps} snapshot={snapshotWith(mixedScenes())} />);
+      const group = screen.getByRole("group", { name: "Scene progress" });
+
+      expect(group.querySelectorAll("button, a, input, select, textarea")).toHaveLength(0);
+      for (let node: Element | null = group; node && node.tagName !== "ASIDE"; node = node.parentElement) {
+        expect(node).not.toHaveAttribute("aria-live");
+        expect(node).not.toHaveAttribute("role", "alert");
+      }
+      expect(group).not.toHaveAttribute("aria-live");
+    });
+
+    it("counts a paused session's scenes by their own state", () => {
+      const snapshot = snapshotWith(mixedScenes());
+      snapshot.session.paused = true;
+      render(<SessionPage {...baseProps} snapshot={snapshot} />);
+
+      expect(summary().getByText("Generating image").closest("div")).toHaveTextContent("Generating image2 · 3–4");
+    });
   });
 
   it("no longer prints the raw session state or a connection line", () => {
