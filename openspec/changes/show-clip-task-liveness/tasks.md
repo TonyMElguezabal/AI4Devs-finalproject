@@ -56,4 +56,4 @@
 - [x] 9.2 `docs/data-model.md`: note that `current_request_id` is shown as the task id once the request is sent, and that the last check is held in memory, not stored
 - [x] 9.3 Check PRD and `readme.md` (Spanish) for a list of the clip request's fields and update them only if they have one; add the "last checked" check to the README troubleshooting row about long clip waits if that row exists
 - [x] 9.4 Run `graphify update .`
-- [ ] 9.5 Commit, then push and open the PR into `feature/entrega-3-JAME` linking JOS-233 (on the user's go-ahead)
+- [x] 9.5 Commit, then push and open the PR into `feature/entrega-3-JAME` linking JOS-233 (on the user's go-ahead)
