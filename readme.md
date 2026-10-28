@@ -176,6 +176,7 @@ Cada comando deja `Vid4You` (`Vid4You.exe` en Windows), `ffmpeg` y `ffprobe` en 
 | "The content check is temporarily unavailable. Submit the script again in a moment." al crear una sesión | Falta `OPENAI_KEY`, el fichero de claves no se puede leer (nombre o BOM en Windows), no hay red hacia `api.openai.com` o OpenAI respondió con error | Revisar el fichero de claves (ver arriba), la conexión y reintentar. El mensaje no distingue la causa. |
 | El navegador no abre la página en el ejecutable | Puerto 3100 ocupado por otro programa | Cerrar el otro programa o abrir `http://127.0.0.1:3100` a mano. |
 | Una fase queda en `failed` | Se agotaron los 3 reintentos automáticos o el fallo no es reintentable | Pulsar el reintento manual de esa fase o escena (abre un ciclo nuevo de hasta 3 reintentos). Lo ya generado se conserva. |
+| Un clip falla con «the clip task did not finish within 2400 s…» | RunningHub no terminó la tarea en el doble del límite de video (2400 s). Hasta ese momento la aplicación sigue esperando la misma tarea y no envía otra, para que una escena cueste una sola tarea; la tarea puede seguir ejecutándose y facturándose en RunningHub | Pulsar el reintento manual de la escena envía una tarea nueva (se factura otra) y abre un ciclo nuevo de hasta 3 reintentos (JOS-204). |
 | La sesión no avanza y está pausada | Hay una pausa de sesión | Pulsar "Continuar". Una pausa no cancela las peticiones ya enviadas. |
 | Se cerró la aplicación a mitad de una generación | — | Volver a abrirla: las sesiones, el progreso y las peticiones en vuelo se recuperan solos (`openspec/specs/restart-recovery/spec.md`). Una petición a un proveedor se espera o se registra como intento fallido y sigue la política de reintentos. |
 | El video final tiene una pausa demasiado larga o corta | Pausa original tras una escena | Ajustar la pausa de esa escena y reconstruir el video final; los intentos anteriores se conservan como versiones. |
@@ -189,7 +190,7 @@ Estado del MVP a 20-oct-2026. Ninguna impide generar un video; todas están regi
 | Limitación | Efecto | Seguimiento |
 |---|---|---|
 | Un clip cuyo intento agota el tiempo se vuelve a pedir al proveedor, y la tarea anterior sigue en marcha y se factura. | Una escena puede costar varias tareas de video (el 14-oct-2026, los clips de 14 s agotaron el tiempo en 8 de 8 intentos). Una sesión corta con clips de 6 s y 11 s sí terminó. | JOS-204 |
-| Los tiempos máximos por fase (voz y razonamiento 600 s, video 1200 s) son provisionales: solo se midió una sesión de 2 escenas con la compilación actual. | Una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips) puede agotar el tiempo. | JOS-209 |
+| Los tiempos máximos por fase (voz y razonamiento 600 s, video 1200 s, y la espera máxima de un clip, 2400 s) son provisionales: solo se midió una sesión de 2 escenas con la compilación actual. | Una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips) puede agotar el tiempo. | JOS-209 |
 | Los límites reales de peticiones por etapa de RunningHub y ElevenLabs, y los casos límite de la división por cláusulas (§6.1), no están verificados. | El límite de peticiones simultáneas usa los valores de `config/providers.ts`, sin contrastar con los límites reales. | JOS-188, JOS-189 (posteriores al MVP) |
 | La comprobación del guion muestra un único mensaje genérico para cuatro causas distintas (falta `OPENAI_KEY`, fichero de claves ilegible, sin red hacia OpenAI, error de OpenAI). | El usuario debe revisar la tabla de la sección 1.5 para descubrir cuál es. | Aplazada por el propietario del producto |
 | El ejecutable no está firmado. | Windows (SmartScreen) y macOS (Gatekeeper) muestran una advertencia al abrirlo. | JOS-207 |
@@ -293,7 +294,7 @@ Los ficheros `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` y `codex.md` apuntan a los es
 
 - El ejecutable se construye con `npm run package:<plataforma>` en `backend/` (JOS-205) y se publica con `release.yml` (JOS-206). Los ffmpeg y ffprobe que fija son una compilación GPL con componentes `nonfree` que **no se puede redistribuir**; el propietario decidió publicarla igualmente (el software no está pensado para distribuirse y el repositorio es público solo por el curso). Las notas de cada versión lo indican. Sustituirla solo exige cambiar `backend/packaging/targets.ts`.
 - El ejecutable no está firmado.
-- Aún no se han medido tiempos con una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips): los límites máximos por fase (voz y razonamiento 600 s, video 1200 s) son provisionales.
+- Aún no se han medido tiempos con una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips): los límites máximos por fase (voz y razonamiento 600 s, video 1200 s) y la espera máxima de un clip (2400 s) son provisionales.
 
 ### **2.5. Seguridad**
 
@@ -487,7 +488,7 @@ flowchart LR
 | Voz | ElevenLabs `eleven_multilingual_v2` | Guion | MP3 y marcas de tiempo nativas | 600 s |
 | Alineación | ElevenLabs Forced Alignment | MP3 y guion | Marcas de tiempo | 5 s |
 | Imagen | Fal.ai `fal-ai/flux/dev` | Instrucción `IMAGE` | Imagen 16:9 | 300 s |
-| Video | RunningHub MiniMax-H3 «Hailuo-03» | Imagen, instrucción `VIDEO`, duración de 5 a 15 s | Clip | 1200 s |
+| Video | RunningHub MiniMax-H3 «Hailuo-03» | Imagen, instrucción `VIDEO`, duración de 5 a 15 s | Clip | 1200 s; si la tarea sigue en marcha, se espera hasta 2400 s |
 
 **Notas de integración**
 - Un solo proveedor por etapa, sin configuración ni cambio en tiempo de ejecución (PRD §11.2). Las llamadas de los adaptadores no reintentan por su cuenta: cada llamada es exactamente un intento registrado.
