@@ -301,5 +301,10 @@ export async function downloadGeneratedClip(url: string): Promise<VideoDownloadR
   if (!response.ok) {
     return { ok: false, reason: `downloading the generated clip answered HTTP ${response.status}` };
   }
-  return { ok: true, bytes: Buffer.from(await response.arrayBuffer()) };
+  // The body streams after the headers: a connection reset here throws, and nothing above would catch it.
+  try {
+    return { ok: true, bytes: Buffer.from(await response.arrayBuffer()) };
+  } catch {
+    return { ok: false, reason: "the generated clip could not be downloaded" };
+  }
 }
