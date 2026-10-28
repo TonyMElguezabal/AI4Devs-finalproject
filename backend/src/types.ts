@@ -379,6 +379,8 @@ export interface FinalVideoStatus {
   version: number;
   /** True when the User's pause edits differ from those the current version was built with. */
   pendingPauseEdits: boolean;
+  /** rebuild-scene (JOS-235) — true when a scene was rebuilt after this version was built, so a rebuild would change it. */
+  staleScenes: boolean;
   /** Present only while the latest rebuild attempt ended in failure; the current version is kept. */
   rebuildFailure?: { cause: string };
 }

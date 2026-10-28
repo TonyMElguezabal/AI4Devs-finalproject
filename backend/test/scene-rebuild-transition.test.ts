@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  applyMigrationsTo,
   commitSceneResult,
   commitSceneVideoResult,
   countSceneResults,
@@ -244,5 +246,24 @@ describe("the final video's staleness", () => {
     markSceneForRebuild(runId, sceneId, {});
 
     expect(stale(runId)).toBe(0);
+  });
+});
+
+describe("migration 26", () => {
+  it("adds the two columns with their defaults and leaves existing runs and scenes as they were", () => {
+    const target = new DatabaseSync(":memory:");
+    target.exec(`
+      CREATE TABLE runs (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL, paused INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE scenes (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, idx INTEGER NOT NULL, status TEXT NOT NULL, instruction TEXT NOT NULL DEFAULT '');
+    `);
+    applyMigrationsTo(target, 25);
+    target.prepare("INSERT INTO runs (id, title, created_at) VALUES ('run-1', 'T', '2026-10-05T10:00:00.000Z')").run();
+    target.prepare("INSERT INTO scenes (id, run_id, idx, status) VALUES ('scene-1', 'run-1', 1, 'chunk-complete')").run();
+
+    expect(applyMigrationsTo(target)).toEqual([26]);
+
+    expect(target.prepare("SELECT rebuild_count AS n FROM scenes").get()).toEqual({ n: 0 });
+    expect(target.prepare("SELECT final_video_stale AS n FROM runs").get()).toEqual({ n: 0 });
+    expect(target.prepare("SELECT status FROM scenes").get()).toEqual({ status: "chunk-complete" });
   });
 });

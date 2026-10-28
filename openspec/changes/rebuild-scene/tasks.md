@@ -33,16 +33,16 @@
 
 ## 4. Backend: the command and route (TDD; design Decision 2)
 
-- [ ] 4.1 Write failing tests for `rebuildScene` and the route:
+- [x] 4.1 Write failing tests for `rebuildScene` and the route:
   - responses: 202; 404 `unknown-scene` (unknown session, unknown scene, cross-session); 409 `scene-not-ready`; 409 `assembly-in-progress` (attempt in flight, or rebuild requested); 400 for an empty or whitespace instruction;
   - an accepted rebuild launches the image stage on the bound provider even after the active provider changed, then the clip;
   - a held launch when paused;
   - two back-to-back calls: 202 then 409.
-- [ ] 4.2 Add `backend/src/sceneRebuild.ts` and `POST /sessions/:sessionId/scenes/:sceneId/rebuild` with Zod schemas. Make 4.1 pass.
+- [x] 4.2 Add `backend/src/sceneRebuild.ts` and `POST /sessions/:sessionId/scenes/:sceneId/rebuild` with Zod schemas. Make 4.1 pass.
 
 ## 5. Backend: automatic reassembly and the final-video rebuild rules (TDD; design Decisions 6, 7, 8)
 
-- [ ] 5.1 Write failing orchestrator tests with stub providers and the stub assembly tool:
+- [x] 5.1 Write failing orchestrator tests with stub providers and the stub assembly tool:
   - a session in `final-video`: rebuilding scene 2 leads, after it completes, to one rebuild assembly that writes `final-video-2.mp4` with scene 2's new clip, clears `final_video_stale`, and leaves the other scenes' clip paths unchanged;
   - two scenes rebuilt: one assembly, after the second completes;
   - a session failed at assembly: the assembly runs again by itself and the session ends `final-video`;
@@ -50,7 +50,7 @@
   - an automatic rebuild that fails: version 1 stays current, `staleScenes` stays true, and `POST …/final-video/rebuild` is then accepted with no pause edits;
   - `POST …/final-video/rebuild` with pending pause edits while a scene is `image-generating`: 409 `scenes-not-complete`, with no assembly;
   - a restart with a stale final video and complete scenes: nothing relaunches, and `staleScenes` is true.
-- [ ] 5.2 Change `triggerAssemblyIfReady`, the rebuild success branch of `runAssemblyAttempt` (clear the flag), `rebuildFinalVideo` (gate, staleness) and `finalVideoStatus` (`staleScenes`); extend the types and the response schema. Make 5.1 pass.
+- [x] 5.2 Change `triggerAssemblyIfReady`, the rebuild success branch of `runAssemblyAttempt` (clear the flag), `rebuildFinalVideo` (gate, staleness) and `finalVideoStatus` (`staleScenes`); extend the types and the response schema. Make 5.1 pass.
 
 ## 6. Frontend: Rebuild scene and the stale final video (TDD; design Decision 9)
 

@@ -22,6 +22,7 @@ import {
   getScenesForRun,
   countProviderRequestsByScene,
   clearFinalVideoRebuildRequest,
+  clearFinalVideoStale,
   clearRunFailure,
   correctImageInstruction,
   correctLegacyInstruction,
@@ -51,6 +52,7 @@ import {
   recordStageAttempt,
   replaceFinalVideoPath,
   resetAttemptsForVideoStart,
+  requestFinalVideoRebuild,
   resolveArtefactPath,
   sceneFileStem,
   sceneCurrentRequestId,
@@ -355,11 +357,12 @@ export function derivePhaseProgress(input: {
  * pause edits differ from what it was built with, and why the latest rebuild failed (derived from its attempt, never
  * stored: a failed rebuild is not the session's failure, Decision 6).
  */
-function finalVideoStatus(runId: string, finalVideoPath: string): FinalVideoStatus {
+function finalVideoStatus(runId: string, finalVideoPath: string, staleScenes: boolean): FinalVideoStatus {
   const builds = getFinalVideoBuilds(runId);
   const status: FinalVideoStatus = {
     version: builds.at(-1)?.version ?? 1,
     pendingPauseEdits: hasPendingPauseEdits(runId),
+    staleScenes,
   };
   const latest = getStageAttempts(runId, "assembly").at(-1);
   const failed = latest !== undefined && (latest.outcome === "transient" || latest.outcome === "not-retryable");
@@ -419,7 +422,7 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
     createdAt: run.createdAt,
     updatedAt: new Date().toISOString(),
     finalVideoUrl: run.finalVideoPath != null ? `/sessions/${run.id}/download/final-video` : undefined,
-    finalVideo: run.finalVideoPath != null ? finalVideoStatus(runId, run.finalVideoPath) : undefined,
+    finalVideo: run.finalVideoPath != null ? finalVideoStatus(runId, run.finalVideoPath, run.finalVideoStale) : undefined,
   };
   // adjust-scene-pause (JOS-190), Decision 9 — each scene's dial, only once there is a final video to rebuild.
   const pauseViews = run.finalVideoPath != null ? scenePauseViews(runId) : new Map<string, ScenePauseView>();
@@ -464,7 +467,7 @@ function hasImageInstruction(scene: Pick<Scene, "imageInstruction">): boolean {
 }
 
 /** Dispatches to the real image stage or the stub stage depending on whether the scene has an IMAGE instruction. */
-function launchSceneStage(sceneId: string): void {
+export function launchSceneStage(sceneId: string): void {
   const scene = getScene(sceneId);
   if (scene && hasImageInstruction(scene)) {
     launchImageStage(sceneId);
@@ -680,6 +683,8 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
       insertFinalVideoBuild({ runId, version, path: fileName, pauses: Object.fromEntries(appliedEdits), createdAt: finishedAt }) &&
       replaceFinalVideoPath(runId, run.finalVideoPath!, fileName);
     completeStageAttempt(attemptId, recorded ? { outcome: "success", finishedAt } : { outcome: "superseded", finishedAt });
+    // rebuild-scene (JOS-235), Decision 5 — the new version was built from every scene's current clip.
+    if (recorded) clearFinalVideoStale(runId);
     clearFinalVideoRebuildRequest(runId);
     broadcast(runId);
     return;
@@ -740,7 +745,14 @@ function triggerAssemblyIfReady(runId: string): void {
   if (!admit.admitted) return;
   const scenes = getScenesForRun(runId);
   const gate = assemblyGate(scenes);
-  if (gate.open) launchAssemblyPhase(runId);
+  if (!gate.open) return;
+  // rebuild-scene (JOS-235), Decision 6 — a session whose final video predates a rebuilt scene gets a new version, the
+  // JOS-190 rebuild: a fresh cycle, the stored pause edits, and the previous version kept until the new one succeeds.
+  // Any other session (first assembly, or one whose assembly failed) takes the normal path.
+  // A rebuild the User asked for (`rebuildFinalVideo` records it first) is already requested and just launches.
+  const run = getRun(runId);
+  if (run?.finalVideoPath && run.finalVideoStale && !run.rebuildRequestedAt && !requestFinalVideoRebuild(runId)) return;
+  launchAssemblyPhase(runId);
 }
 
 /**
@@ -1150,7 +1162,9 @@ export const assemblyStageLauncher: StageLauncher = {
     const blockedByFailure = run?.failure?.phase === "assembly";
     // adjust-scene-pause (JOS-190), Decision 6 — a rebuild asked for while paused is held work like a first assembly.
     const rebuildPending = run?.finalVideoPath != null && run.rebuildRequestedAt != null;
-    const count = run && (!run.finalVideoPath || rebuildPending) && gate.open && !inFlight && !blockedByFailure ? 1 : 0;
+    // rebuild-scene (JOS-235), Decision 6 — a final video older than a rebuilt scene is rebuilt on continue.
+    const stale = run?.finalVideoPath != null && run.finalVideoStale && run.rebuildRequestedAt == null;
+    const count = run && (!run.finalVideoPath || rebuildPending || stale) && gate.open && !inFlight && !blockedByFailure ? 1 : 0;
     return { count, sceneIds: [] };
   },
   // Stricter than `heldWork` (restart-recovery, Decision 3): boot must not relaunch an assembly whose budget is spent

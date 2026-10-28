@@ -1964,6 +1964,11 @@ export function requestFinalVideoRebuild(runId: string): boolean {
   return Number(result.changes) > 0;
 }
 
+/** rebuild-scene (JOS-235), Decision 5 — the final video was just rebuilt from every scene's current clip. */
+export function clearFinalVideoStale(runId: string): void {
+  db.prepare("UPDATE runs SET final_video_stale = 0 WHERE id = ?").run(runId);
+}
+
 export function clearFinalVideoRebuildRequest(runId: string): void {
   db.prepare("UPDATE runs SET rebuild_requested_at = NULL WHERE id = ?").run(runId);
 }
