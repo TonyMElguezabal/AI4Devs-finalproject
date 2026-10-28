@@ -34,20 +34,20 @@
 
 ## 6. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 6.1 Start the backend on a scratch copy of a database with a session whose scenes are in mixed states
-- [ ] 6.2 `GET /sessions/<id>` and confirm each scene carries the `state`, `index` and `affectedStage` the summary derives from (no endpoint changes in this change; this confirms the inputs)
-- [ ] 6.3 Document commands and responses in `reports/YYYY-MM-DD-step-6-manual-endpoint-testing.md`; remove the database copy
+- [x] 6.1 Start the backend on a scratch copy of a database with a session whose scenes are in mixed states
+- [x] 6.2 `GET /sessions/<id>` and confirm each scene carries the `state`, `index` and `affectedStage` the summary derives from (no endpoint changes in this change; this confirms the inputs)
+- [x] 6.3 Document commands and responses in `reports/YYYY-MM-DD-step-6-manual-endpoint-testing.md`; remove the database copy
 
 ## 7. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Open the mixed-state session page and confirm the summary's counts and scene numbers match the cards (AC1, AC2, AC4)
-- [ ] 7.2 Change one scene's state in the scratch database the way the pipeline does and trigger a broadcast (or run a stub-provider session), then confirm the summary updates without a reload (AC3); confirm a finished session shows only "Done N of N" (AC5) and a paused session the same counts (AC7)
-- [ ] 7.3 Screenshots at 375, 1024 and 1440px in light and dark; no horizontal scroll at 375px
-- [ ] 7.4 Restore the environment and record in `reports/YYYY-MM-DD-step-7-e2e-testing.md`
+- [x] 7.1 Open the mixed-state session page and confirm the summary's counts and scene numbers match the cards (AC1, AC2, AC4)
+- [x] 7.2 Change one scene's state in the scratch database the way the pipeline does and trigger a broadcast (or run a stub-provider session), then confirm the summary updates without a reload (AC3); confirm a finished session shows only "Done N of N" (AC5) and a paused session the same counts (AC7)
+- [x] 7.3 Screenshots at 375, 1024 and 1440px in light and dark; no horizontal scroll at 375px
+- [x] 7.4 Restore the environment and record in `reports/YYYY-MM-DD-step-7-e2e-testing.md`
 
 ## 8. Update Technical Documentation (MANDATORY)
 
-- [ ] 8.1 `docs/frontend-standards.md`: add the summary to the naming table and the Layout line, and state that its counts are derived in `sceneProgress.ts` from scene state only
-- [ ] 8.2 Confirm `docs/api-spec.yml` and `docs/data-model.md` need no change; update `readme.md` (Spanish) only if it lists the panel's contents
-- [ ] 8.3 Run `graphify update .`
+- [x] 8.1 `docs/frontend-standards.md`: add the summary to the naming table and the Layout line, and state that its counts are derived in `sceneProgress.ts` from scene state only
+- [x] 8.2 Confirm `docs/api-spec.yml` and `docs/data-model.md` need no change; update `readme.md` (Spanish) only if it lists the panel's contents
+- [x] 8.3 Run `graphify update .`
 - [ ] 8.4 Commit, then push and open the PR into `feature/entrega-3-JAME` linking JOS-234 (on the user's go-ahead)
