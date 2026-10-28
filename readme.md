@@ -80,7 +80,7 @@ Las capturas de pantalla no están incluidas en este fichero; los informes de ve
 **Requisitos previos**
 
 - Node.js **24 o superior** (el backend ejecuta TypeScript de forma nativa y usa `node:sqlite`; CI usa Node 24).
-- `ffmpeg` y `ffprobe` accesibles. El backend los busca, por este orden, en las variables `FFMPEG_PATH` / `FFPROBE_PATH`, en `/opt/homebrew/bin` y en el `PATH`. En macOS: `brew install ffmpeg`; en Windows o Linux, instalarlos y añadirlos al `PATH`.
+- `ffmpeg` y `ffprobe` accesibles. El backend los busca, por este orden, en las variables `FFMPEG_PATH` / `FFPROBE_PATH`, en `/opt/homebrew/bin` y en el `PATH`. En macOS: `brew install ffmpeg`; en Windows o Linux, instalarlos y añadirlos al `PATH`. El `ffmpeg` debe incluir libass (el filtro `subtitles`, que dibuja los subtítulos del video final): compruébalo con `ffmpeg -filters | grep subtitles`. Si no lo tiene, el montaje falla con un aviso claro y el backend lo registra al arrancar; apunta `FFMPEG_PATH` a una versión con libass. La aplicación empaquetada ya lleva uno.
 - Claves de API de los cuatro proveedores (ver "Credenciales" más abajo). Sin la clave de OpenAI no se puede crear ninguna sesión, porque la comprobación de contenido del guion la necesita.
 
 **Instalación y arranque en desarrollo**
@@ -136,6 +136,7 @@ Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en
 | `DB_PATH` | `data/skeleton.sqlite` | Fichero SQLite (relativo a `backend/`). |
 | `PROJECTS_ROOT` | `data/projects` | Carpeta donde se guardan las carpetas de proyecto (guion, MP3, imágenes, clips, MP4). |
 | `FFMPEG_PATH`, `FFPROBE_PATH` | resolución automática | Ruta a `ffmpeg` y `ffprobe`. |
+| `SUBTITLE_FONT_PATH` | `backend/assets/fonts/Montserrat-Bold.ttf` | Fuente de los subtítulos. La aplicación empaquetada la escribe en su carpeta de datos y fija esta variable. |
 | `SECRETS_PATH` | `backend/.secrets.json` | Fichero de credenciales. La aplicación empaquetada lo fija en su carpeta de datos. |
 | `SETTINGS_DEFAULTS_PATH` | `backend/config/settings.default.json` | Ajustes por defecto. La aplicación empaquetada escribe en cada arranque una copia incrustada en su carpeta de datos y apunta a ella. |
 | `VID4YOU_DATA_DIR` | carpeta de datos del usuario | Solo la aplicación empaquetada: cambia la carpeta donde guarda la base de datos, los proyectos, `.secrets.json`, los ajustes y la clave maestra. |

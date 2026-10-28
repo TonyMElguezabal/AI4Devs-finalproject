@@ -420,6 +420,8 @@ Every file a session can produce lives under its own `project_folder` (never del
 | `corrected-instructions.json` | `correctImageInstruction` / `correctLegacyInstruction` / `correctVideoInstruction` (`db.ts`) | Each time a failed scene's `IMAGE`, `VIDEO` or legacy instruction is corrected (§10.3), with a plain `writeArtefact` (not write-once — a scene can be corrected more than once) | `{ "scenes": { "<sceneId>": { "imageInstruction"\|"videoInstruction"\|"instruction": "…", "correctedAt": "<ISO timestamp>" } } }` — merged per scene and field; only the latest correction per field is kept, matching the store |
 | `final-video.mp4` | the assembly phase (`assemble-final-video`, JOS-149) | Once, on a successful assembly, moved in with a hard link | The assembled MP4 |
 
+**Not stored (JOS-237).** The subtitles burned into the final video are built from the script (`runs.script`) and `narration-timestamps.json` on every assembly, first, retried or rebuilt, and moved by the pause edits the build applies. The ASS file and the copy of the font that ffmpeg reads exist only in the assembly attempt's temporary folder, which is removed when the attempt ends. No column, table or project file is added.
+
 `script.txt` and `generated-texts.json` are kept in the project folder in addition to the `runs.script` and `scenes.prompt`/`image_instruction`/`video_instruction`/narration-interval columns documented above — the store is still the system of record; the project folder is a parallel, locally-readable copy (§12.2, AC1).
 
 ## Key Design Principles

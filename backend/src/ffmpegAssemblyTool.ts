@@ -9,12 +9,14 @@
 // (AAC 192 kbps), and the output is measured: audio and video must agree within one frame or the attempt fails.
 // With no edits, step 3 is unchanged and Decision 4b's guarantee holds exactly as before.
 
-import { mkdtempSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { FFMPEG, FFPROBE } from "./config/ffmpeg.ts";
+import { FFMPEG, FFPROBE, ffmpegHasSubtitleFilter } from "./config/ffmpeg.ts";
+import { resolveSubtitleFontPath } from "./config/subtitleFont.ts";
 import type { AssemblyInput, AssemblyResult, AssemblyTool, NarrationEdit } from "./assemblyTool.ts";
+import { renderAss } from "./subtitles.ts";
 
 
 /** The narration's own sample rate and channel layout, so inserted silence matches it exactly. */
@@ -71,10 +73,17 @@ export function buildMuxArguments(input: {
   outputPath: string;
   narrationEdits?: readonly NarrationEdit[];
   audio?: AudioShape;
+  /**
+   * Draw `subtitles.ass` with the font in `fonts/` over the concatenated video (add-burned-in-subtitles, JOS-237,
+   * design Decision 4). Both are plain relative paths: the caller runs ffmpeg inside the folder that holds them, so no
+   * path ever needs filtergraph escaping.
+   */
+  burnSubtitles?: boolean;
 }): string[] {
-  const { videoInputPaths, voiceOverPath, outputPath, narrationEdits, audio } = input;
+  const { videoInputPaths, voiceOverPath, outputPath, narrationEdits, audio, burnSubtitles } = input;
   const voiceIndex = videoInputPaths.length;
-  const videoGraph = `${videoInputPaths.map((_, index) => `[${index}:v]`).join("")}concat=n=${videoInputPaths.length}:v=1:a=0[outv]`;
+  const concat = `${videoInputPaths.map((_, index) => `[${index}:v]`).join("")}concat=n=${videoInputPaths.length}:v=1:a=0`;
+  const videoGraph = burnSubtitles ? `${concat}[cat];[cat]subtitles=subtitles.ass:fontsdir=fonts[outv]` : `${concat}[outv]`;
   const inputs = [...videoInputPaths.flatMap((path) => ["-i", path]), "-i", voiceOverPath];
   const edited = narrationEdits !== undefined && narrationEdits.some((edit) => edit.deltaSeconds !== 0);
 
@@ -139,10 +148,32 @@ function probeAudioStreamDuration(path: string): number {
   return parseFloat(out);
 }
 
-export function createFfmpegAssemblyTool(): AssemblyTool {
+/** What the adapter reads from its surroundings; tests replace both (add-burned-in-subtitles, JOS-237). */
+export interface FfmpegAssemblyOptions {
+  subtitleFontPath?: string;
+  ffmpegHasSubtitleFilter?: () => boolean;
+}
+
+export function createFfmpegAssemblyTool(options: FfmpegAssemblyOptions = {}): AssemblyTool {
+  const { subtitleFontPath = resolveSubtitleFontPath(), ffmpegHasSubtitleFilter: hasSubtitleFilter = ffmpegHasSubtitleFilter } = options;
   return {
     // eslint-disable-next-line @typescript-eslint/require-await -- implements the async AssemblyTool contract
     async assemble(input: AssemblyInput): Promise<AssemblyResult> {
+      // add-burned-in-subtitles (JOS-237), design Decisions 3 and 5 — a video that should have subtitles is never
+      // delivered without them. None of these causes carries the script's text.
+      const { subtitles } = input;
+      if (subtitles === null) {
+        return { kind: "failed_not_retryable", reason: "the subtitles could not be built: the narration's timestamps could not be read or do not match the script" };
+      }
+      if (subtitles !== undefined) {
+        if (!existsSync(subtitleFontPath)) {
+          return { kind: "failed_not_retryable", reason: `the subtitle font is missing (${subtitleFontPath})` };
+        }
+        if (!hasSubtitleFilter()) {
+          return { kind: "failed_not_retryable", reason: "the assembly tool has no subtitle support: this ffmpeg was built without libass (set FFMPEG_PATH to a build that has it)" };
+        }
+      }
+
       const work = mkdtempSync(join(tmpdir(), "vid4you-assembly-"));
       try {
         const { clips, voiceOverPath, outputPath, fps, width, height, narrationEdits } = input;
@@ -169,8 +200,14 @@ export function createFfmpegAssemblyTool(): AssemblyTool {
           normalised.push(outPath);
         }
 
-        // Stage 2 — concat all normalised clips + the narration (copied, or edited and encoded once).
+        // Stage 2 — concat all normalised clips + the narration (copied, or edited and encoded once). With subtitles,
+        // the ASS file and a copy of the font sit in `work` and ffmpeg runs inside it (design Decision 4).
         const edited = narrationEdits !== undefined && narrationEdits.some((edit) => edit.deltaSeconds !== 0);
+        if (subtitles) {
+          writeFileSync(join(work, "subtitles.ass"), renderAss(subtitles));
+          mkdirSync(join(work, "fonts"));
+          copyFileSync(subtitleFontPath, join(work, "fonts", basename(subtitleFontPath)));
+        }
         execFileSync(
           FFMPEG,
           buildMuxArguments({
@@ -178,7 +215,9 @@ export function createFfmpegAssemblyTool(): AssemblyTool {
             voiceOverPath,
             outputPath,
             ...(edited ? { narrationEdits, audio: probeAudioShape(voiceOverPath) } : {}),
+            ...(subtitles ? { burnSubtitles: true } : {}),
           }),
+          subtitles ? { cwd: work } : {},
         );
 
         // Stage 3 — only for an edited narration: measure, never assume (ADR 0005's methodological note).

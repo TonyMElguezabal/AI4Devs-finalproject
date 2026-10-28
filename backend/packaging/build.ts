@@ -66,10 +66,24 @@ export async function bundleBackend(options: { outfile: string; smoke: boolean; 
     absWorkingDir: BACKEND_DIR,
     alias: { "@fastify/swagger-ui": join(import.meta.dirname, "noDocs.ts") },
     define: { __VID4YOU_SMOKE__: JSON.stringify(options.smoke), ...identity },
-    // `import.meta` is empty in CommonJS; the two backend modules that read it are short-circuited by their environment variable.
+    // `import.meta` is empty in CommonJS; the backend modules that read it (settings defaults, secrets, the subtitle font) are short-circuited by their environment variable.
     logOverride: { "empty-import-meta": "silent" },
     logLevel: "warning",
   });
+}
+
+/**
+ * Everything a build embeds in the executable, by asset name: the web build, the settings defaults, and the subtitle
+ * font with its licence (add-burned-in-subtitles, JOS-237, design Decision 4). The entry point writes the last three to
+ * the data folder at every start, so the font always matches the binary.
+ */
+export function embeddedAssets(webDir: string): Record<string, string> {
+  return {
+    ...Object.fromEntries(listFiles(webDir).map((file) => [`web/${relative(webDir, file).split("\\").join("/")}`, file])),
+    "settings.default.json": join(BACKEND_DIR, "config", "settings.default.json"),
+    "Montserrat-Bold.ttf": join(BACKEND_DIR, "assets", "fonts", "Montserrat-Bold.ttf"),
+    "Montserrat-OFL.txt": join(BACKEND_DIR, "assets", "fonts", "OFL.txt"),
+  };
 }
 
 const listFiles = (dir: string): string[] =>
@@ -106,13 +120,10 @@ export async function buildTarget(options: BuildOptions, dependencies: BuildDepe
     const npm = npmInvocation(process.env, options.hostPlatform ?? process.platform);
     run(npm.command, [...npm.prefixArgs, "run", "build", "--", "--outDir", webDir, "--emptyOutDir"], { cwd: join(REPO_DIR, "frontend"), env: { ...process.env, VITE_API_BASE: "" }, shell: npm.shell });
 
-    // 3. Backend bundle and SEA blob (web build and settings defaults embedded as assets).
+    // 3. Backend bundle and SEA blob (web build, settings defaults and subtitle font embedded as assets).
     const bundle = join(work, "vid4you.cjs");
     await bundleBackend({ outfile: bundle, smoke });
-    const assets: Record<string, string> = Object.fromEntries(
-      listFiles(webDir).map((file) => [`web/${relative(webDir, file).split("\\").join("/")}`, file]),
-    );
-    assets["settings.default.json"] = join(BACKEND_DIR, "config", "settings.default.json");
+    const assets = embeddedAssets(webDir);
     const blob = join(work, "sea-prep.blob");
     const seaConfig = join(work, "sea-config.json");
     writeFileSync(seaConfig, JSON.stringify({ main: bundle, output: blob, disableExperimentalSEAWarning: true, assets }, null, 2));

@@ -65,6 +65,7 @@ import {
 import { activeProviderId } from "./activeProvider.ts";
 import { activeVideoDurations } from "./videoDurations.ts";
 import type { AssemblyTool, NarrationEdit } from "./assemblyTool.ts";
+import { buildAssemblySubtitles } from "./assemblySubtitles.ts";
 import { applyPauseEdits } from "./scenePause.ts";
 import { hasPendingPauseEdits, loadSessionPauses, scenePauseViews } from "./sessionPauses.ts";
 import * as concurrency from "./concurrency.ts";
@@ -634,6 +635,10 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
     };
   });
 
+  // add-burned-in-subtitles (JOS-237), Decision 3 — the cues follow the same pause edits as the narration and end with
+  // the video, whose length is where the last clip ends.
+  const subtitles = buildAssemblySubtitles(runId, narrationEdits, prevEndFrame / fps);
+
   // design Decision 2 — a per-attempt temp directory under PROJECTS_ROOT (same filesystem as every project
   // folder in this app, unconditionally), so the move on success is always a same-device hard link.
   const work = mkdtempSync(join(PROJECTS_ROOT, ".assembly-tmp-"));
@@ -664,6 +669,7 @@ async function runAssemblyAttempt(runId: string, attemptNumber: number): Promise
       width: FINAL_OUTPUT.width,
       height: FINAL_OUTPUT.height,
       ...(narrationEdits.length > 0 ? { narrationEdits } : {}),
+      subtitles,
     });
   } catch (err: unknown) {
     result = { kind: "failed_transient" as const, reason: err instanceof Error ? err.message : String(err) };

@@ -5,6 +5,7 @@ import { setRetryDelayConfig } from "./retry/stageAttemptRecorder.ts";
 import { setVoiceProviderRegistry, createStubVoiceProvider as createStubVoice, type StubVoiceProviderMode } from "./voiceProvider.ts";
 import { setImageProviderRegistry, createStubImageProvider, type StubImageProviderMode } from "./imageProvider.ts";
 import { setVideoProviderRegistry, createStubVideoProvider, STUB_VIDEO_PROVIDER_NAME, type StubVideoProviderMode } from "./videoProvider.ts";
+import { ffmpegHasSubtitleFilter } from "./config/ffmpeg.ts";
 import { recoverOnBoot } from "./orchestrator.ts";
 import { setDecompositionLogger } from "./decompositionPhase.ts";
 import { setVoiceOverLogger } from "./voiceOverPhase.ts";
@@ -78,6 +79,11 @@ export async function startServer(options: StartServerOptions = {}): Promise<Fas
   const app = await buildApp({ staticAssets: options.staticAssets });
   setVoiceOverLogger(app.log);
   setDecompositionLogger(app.log);
+  // add-burned-in-subtitles (JOS-237), design Decision 5 — a machine whose ffmpeg cannot draw subtitles finds out now,
+  // not at the first assembly (which would fail as not retryable).
+  if (!process.env.USE_STUB_ASSEMBLY_TOOL && !ffmpegHasSubtitleFilter()) {
+    app.log.warn("ffmpeg has no `subtitles` filter (built without libass): every assembly will fail until FFMPEG_PATH points at a build that has it");
+  }
   const summary = recoverOnBoot();
   app.log.info(bootLogFields(summary), "boot recovery complete");
   app.log.info({ scheduledRetries: rebuildScheduler() }, "scheduled retries re-armed");

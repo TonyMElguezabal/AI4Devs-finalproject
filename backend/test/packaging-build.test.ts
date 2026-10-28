@@ -1,8 +1,8 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { assertHostCanBuild, buildTarget, bundleBackend, npmInvocation } from "../packaging/build.ts";
+import { assertHostCanBuild, buildTarget, bundleBackend, embeddedAssets, npmInvocation } from "../packaging/build.ts";
 import { TARGETS } from "../packaging/targets.ts";
 
 // package-executables-build (JOS-205), tasks 1.4 and 1.7 — everything here runs without network access.
@@ -88,5 +88,20 @@ describe("npmInvocation", () => {
   it("ignores an npm_execpath that is not a JavaScript file", () => {
     expect(npmInvocation({ npm_execpath: "/usr/local/bin/npm-wrapper" }, "darwin")).toEqual({ command: "npm", prefixArgs: [], shell: false });
     expect(npmInvocation({ npm_execpath: "" }, "win32")).toEqual({ command: "npm", prefixArgs: [], shell: true });
+  });
+});
+
+// add-burned-in-subtitles (JOS-237), task 5.1 — the executable carries the subtitle font and its licence.
+describe("embeddedAssets", () => {
+  it("lists the web build, the settings defaults, and the subtitle font with its licence, all of which exist", () => {
+    const webDir = join(dir, "web");
+    mkdirSync(join(webDir, "assets"), { recursive: true });
+    writeFileSync(join(webDir, "index.html"), "<html></html>");
+    writeFileSync(join(webDir, "assets", "app.js"), "//");
+
+    const assets = embeddedAssets(webDir);
+
+    expect(Object.keys(assets).sort()).toEqual(["Montserrat-Bold.ttf", "Montserrat-OFL.txt", "settings.default.json", "web/assets/app.js", "web/index.html"]);
+    for (const file of Object.values(assets)) expect(existsSync(file)).toBe(true);
   });
 });
