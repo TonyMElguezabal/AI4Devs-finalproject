@@ -82,7 +82,7 @@ Every screen traces to a PRD section; none was invented beyond what the PRD impl
 
 | Screen | PRD source | Key content |
 |---|---|---|
-| Start a project | §4.1, AC01 | Title, script, language selector limited to the hardcoded supported list; cannot start without a language |
+| Start a project | §4.1, AC01 | Title, script, language selector limited to the hardcoded supported list; cannot start without a language. Below the script: word count and estimated video duration (`~m:ss`, 150 words per minute), live and informational only (JOS-236) |
 | Session view | §8.1, §8.3, AC21 | Current session state, the failed phase and its actions, provider + attempts for session-level stages |
 | Scene list | §6, §8.2, AC21 | Ascending scene-identifier order regardless of completion order, chunk state, results, errors, actions |
 | Scene details | §3, §7.2, AC23 | `PROMPT`/`IMAGE`/`VIDEO`, narration interval, requested duration, speed factor + warning, provider + attempts |
