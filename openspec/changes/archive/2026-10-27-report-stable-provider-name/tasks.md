@@ -49,4 +49,4 @@ The change has no endpoint, and a session cannot run to a final video without pr
 - [x] 8.1 `infra/grafana/README.md`: list the values `provider` can take
 - [x] 8.2 Confirm `docs/api-spec.yml`, `docs/data-model.md` and the relay allowlist need no change; check the PRD's telemetry section and the published privacy policy, and update them only if they describe the provider label's values (checked: `PRIVACY.md` and PRD §12.4 say only "the provider's name", which stays true, so neither changes)
 - [x] 8.3 Run `graphify update .`
-- [ ] 8.4 Commit (done), then (after the user's go-ahead) push and open the PR linking JOS-213; archive the change after merge
+- [x] 8.4 Commit (done), then push and open the PR linking JOS-213 (PR #126 merged 2026-10-27); archived 2026-10-27
