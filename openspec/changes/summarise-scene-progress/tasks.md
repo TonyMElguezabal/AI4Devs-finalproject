@@ -50,4 +50,4 @@
 - [x] 8.1 `docs/frontend-standards.md`: add the summary to the naming table and the Layout line, and state that its counts are derived in `sceneProgress.ts` from scene state only
 - [x] 8.2 Confirm `docs/api-spec.yml` and `docs/data-model.md` need no change; update `readme.md` (Spanish) only if it lists the panel's contents
 - [x] 8.3 Run `graphify update .`
-- [ ] 8.4 Commit, then push and open the PR into `feature/entrega-3-JAME` linking JOS-234 (on the user's go-ahead)
+- [x] 8.4 Commit, then push and open the PR into `feature/entrega-3-JAME` linking JOS-234 (on the user's go-ahead)
