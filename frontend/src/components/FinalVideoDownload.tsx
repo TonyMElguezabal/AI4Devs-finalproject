@@ -40,7 +40,8 @@ export function FinalVideoDownload({ url, finalVideo, rebuilding, onRebuild }: P
     }
   }
 
-  const offerRebuild = Boolean(finalVideo?.pendingPauseEdits && onRebuild && !rebuilding);
+  // rebuild-scene (JOS-235) — also when a scene was rebuilt after this version, e.g. the automatic rebuild did not finish.
+  const offerRebuild = Boolean((finalVideo?.pendingPauseEdits || finalVideo?.staleScenes) && onRebuild && !rebuilding);
   return (
     <div className="final-video">
       <div className="final-video-actions">

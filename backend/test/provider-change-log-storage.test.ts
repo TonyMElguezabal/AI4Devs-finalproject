@@ -41,7 +41,7 @@ describe("provider_changes migration", () => {
     const snapshot = () => JSON.stringify(["active_providers", "runs", "scenes"].map((table) => target.prepare(`SELECT * FROM ${table}`).all()));
     const before = snapshot();
 
-    const applied = applyMigrationsTo(target);
+    const applied = applyMigrationsTo(target, 25); // later migrations have their own tests
 
     expect(applied).toEqual([25]);
     expect(target.prepare("SELECT COUNT(*) AS n FROM provider_changes").get()).toEqual({ n: 0 });

@@ -924,7 +924,7 @@ progress::-moz-progress-bar {
 
 .scene-details {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
   gap: var(--space-5);
   padding: var(--space-2) var(--space-4) var(--space-5);
   transform-origin: top center;
