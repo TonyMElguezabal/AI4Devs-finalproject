@@ -94,9 +94,9 @@
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/PRD.md` v1.25 (Spanish): §10.3 row "Defecto visto por el Usuario en una escena generada", the §2.3 note, the AC table and the changelog row (product owner, JOS-235, 2026-10-28)
-- [ ] 11.2 `docs/api-spec.yml`: the new route (body, 202/400/404/409 reasons), `scenes-not-complete` and the `nothing-to-rebuild` wording on the final-video rebuild, `finalVideo.staleScenes`, the URL query note, and a JOS-235 changelog line
-- [ ] 11.3 `docs/data-model.md`: `scenes.rebuild_count`, `runs.final_video_stale`, the versioned file names, and the guard rows cleared by a rebuild
-- [ ] 11.4 `readme.md` (Spanish): one line in the usage or troubleshooting section on Rebuild scene
-- [ ] 11.5 Run `graphify update .`
+- [x] 11.1 `docs/PRD.md` v1.25 (Spanish): §10.3 row "Defecto visto por el Usuario en una escena generada", the §2.3 note, the AC table and the changelog row (product owner, JOS-235, 2026-10-28)
+- [x] 11.2 `docs/api-spec.yml`: the new route (body, 202/400/404/409 reasons), `scenes-not-complete` and the `nothing-to-rebuild` wording on the final-video rebuild, `finalVideo.staleScenes`, the URL query note, and a JOS-235 changelog line
+- [x] 11.3 `docs/data-model.md`: `scenes.rebuild_count`, `runs.final_video_stale`, the versioned file names, and the guard rows cleared by a rebuild
+- [x] 11.4 `readme.md` (Spanish): one line in the usage or troubleshooting section on Rebuild scene
+- [x] 11.5 Run `graphify update .`
 - [ ] 11.6 Commit, then push and open the PR into `feature/entrega-3-JAME` linking JOS-235 (on the user's go-ahead)
