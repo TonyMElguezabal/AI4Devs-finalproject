@@ -47,4 +47,4 @@
 
 - [x] 8.1 Confirm `docs/api-spec.yml` and `docs/data-model.md` need no change (no API or schema change); check PRD §8.3/§9 and update it only if it describes pause feedback
 - [x] 8.2 Run `graphify update .`
-- [ ] 8.3 Commit (done), then (after the user's go-ahead) push and open the PR linking JOS-217; archive the change after merge
+- [x] 8.3 Commit (done), then push and open the PR linking JOS-217 (PR #125 merged 2026-10-27); archived 2026-10-27
