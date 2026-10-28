@@ -10,6 +10,7 @@
 // this is no longer a disposable stand-in, it is the decision.
 import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import { ADAPTER_VENDORS, SEEDED_PROFILES } from "./providerTypes.ts";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
 import { getConsent, normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
 import { ulid } from "./util/ulid.ts";
@@ -1834,6 +1835,28 @@ export function completeStageAttempt(
   return true;
 }
 
+/**
+ * report-stable-provider-name (JOS-213), Decision 2 — the `provider` label telemetry reports for a stored identifier: one fixed
+ * vendor name (`ADAPTER_VENDORS` of the profile's adapter type), `local` for assembly, `stub` for a stub, else `unknown`. The
+ * stored identifier, an `/admin` profile's id and its label are never returned. Reads `provider_profiles` directly because
+ * `providerProfiles.ts` imports this module.
+ */
+function telemetryProviderOf(identifier: string | null, stage: string): string {
+  if (identifier === null) return stage === "assembly" ? "local" : "unknown";
+  if (identifier === "elevenlabs-native") return "ElevenLabs";
+  if (identifier.startsWith("stub-")) return "stub";
+  // The ids image and clip scenes stored before the first profiles existed; literals because config/providers.ts loads the
+  // settings file when imported. They are LEGACY_IMAGE_PROVIDER_IDENTIFIER and LEGACY_VIDEO_PROVIDER_IDENTIFIER there.
+  const profileId =
+    identifier === "fal-ai/flux/dev"
+      ? SEEDED_PROFILES.image.id
+      : identifier === "/openapi/v2/minimax/hailuo-h3/image-to-video"
+        ? SEEDED_PROFILES.video.id
+        : identifier;
+  const row = db.prepare("SELECT adapter_type FROM provider_profiles WHERE id = ?").get(profileId) as { adapter_type: string } | undefined;
+  return (row && (ADAPTER_VENDORS as Record<string, string | undefined>)[row.adapter_type]) ?? "unknown";
+}
+
 function reportStageAttempt(
   row: { run_id: string; stage: string; provider_id: string | null; sent_at: string | null },
   outcome: { outcome: string; finishedAt: string; errorCode?: string; errorMessage?: string },
@@ -1841,7 +1864,7 @@ function reportStageAttempt(
   try {
     const consent = getConsent();
     if (!consent.providerUsage && !consent.errors) return;
-    const provider = row.provider_id ?? "unknown";
+    const provider = telemetryProviderOf(row.provider_id, row.stage);
     const normalized = normalizeOutcome(outcome.outcome);
     let billed: BilledUnit | undefined;
     if (normalized === "success" && row.stage === "voice-over") {
@@ -2249,7 +2272,7 @@ function reportProviderRequest(sceneId: string, latencyMs: number, mode: Provide
       | { provider: string | null; video_provider: string | null; requested_duration_seconds: number | null }
       | undefined;
     if (!scene) return;
-    const provider: string = (stage === "video" ? scene.video_provider : scene.provider) ?? "unknown";
+    const provider = telemetryProviderOf(stage === "video" ? scene.video_provider : scene.provider, stage);
     const normalized = normalizeOutcome(mode);
     let billed: BilledUnit | undefined;
     if (stage === "image") billed = { unit: "images", amount: 1 };

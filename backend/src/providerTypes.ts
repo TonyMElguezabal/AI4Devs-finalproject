@@ -48,6 +48,19 @@ export const PARAMETER_SHAPES = {
   },
 } as const;
 
+/**
+ * report-stable-provider-name (JOS-213), Decision 1 — the one vendor name telemetry reports for each adapter type. An adapter
+ * type sends to its own vendor's host, so this is fixed; a profile's label is free text and is never sent. Keyed by the shapes'
+ * keys, so a new adapter type does not compile until it names its vendor.
+ */
+export const ADAPTER_VENDORS: Record<keyof typeof PARAMETER_SHAPES, string> = {
+  "openai-reasoning": "OpenAI",
+  "elevenlabs-voice": "ElevenLabs",
+  "elevenlabs-alignment": "ElevenLabs",
+  "fal-image": "Fal.ai",
+  "runninghub-video": "RunningHub",
+};
+
 const KNOWN_CURRENCIES = new Set(Intl.supportedValuesOf("currency"));
 
 // add-provider-price-per-unit (JOS-226), design Decisions 1 and 2 — the optional price of a profile. Not part of
