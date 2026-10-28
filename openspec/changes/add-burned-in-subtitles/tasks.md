@@ -53,35 +53,35 @@
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 6.1 Review the tests that call `buildMuxArguments`, `createFfmpegAssemblyTool().assemble`, or assert on `AssemblyInput` (`narration-edits.test.ts`, the assembly-phase and rebuild tests). They must pass unchanged, because `subtitles` is optional. Update a test only where this change intends new behaviour, and record each change in the report.
+- [x] 6.1 Review the tests that call `buildMuxArguments`, `createFfmpegAssemblyTool().assemble`, or assert on `AssemblyInput` (`narration-edits.test.ts`, the assembly-phase and rebuild tests). They must pass unchanged, because `subtitles` is optional. Update a test only where this change intends new behaviour, and record each change in the report.
 
 ## 7. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 7.1 Capture the pre-test baseline. The worktree has no local database; every run uses scratch `DB_PATH` and `PROJECTS_ROOT`. Record that `data/projects` of the main checkout is not touched.
-- [ ] 7.2 Run the targeted tests from groups 2-5.
-- [ ] 7.3 Run the full backend suite (scratch paths), `npm run lint` and the type check in `backend/`. Run the frontend suite as a regression check (no frontend change is expected).
-- [ ] 7.4 Verify the post-test state matches the baseline and restore if needed.
-- [ ] 7.5 Create the report `openspec/changes/add-burned-in-subtitles/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`.
-- [ ] 7.6 Mark this group complete only after the tests pass and the report exists.
+- [x] 7.1 Capture the pre-test baseline. The worktree has no local database; every run uses scratch `DB_PATH` and `PROJECTS_ROOT`. Record that `data/projects` of the main checkout is not touched.
+- [x] 7.2 Run the targeted tests from groups 2-5.
+- [x] 7.3 Run the full backend suite (scratch paths), `npm run lint` and the type check in `backend/`. Run the frontend suite as a regression check (no frontend change is expected).
+- [x] 7.4 Verify the post-test state matches the baseline and restore if needed.
+- [x] 7.5 Create the report `openspec/changes/add-burned-in-subtitles/reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`.
+- [x] 7.6 Mark this group complete only after the tests pass and the report exists.
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 This change adds no endpoint. Start the backend on scratch paths with the stub providers of the JOS-235 report and the **real** assembly tool (`FFMPEG_PATH` set to the libass build), and bring a session to `final-video` through the existing endpoints.
-- [ ] 8.2 Extract frames from the downloaded `final-video` (`GET /sessions/{id}/download/final-video`) at three instants and confirm the subtitle line and the pink word; record the commands and the frames' timestamps.
-- [ ] 8.3 `POST /sessions/{id}/scenes/{sceneId}/pause` with a new `seconds` for one scene, then `POST /sessions/{id}/final-video/rebuild`: follow the session until `final-video-2.mp4` and confirm the cues after that pause moved by the edit.
-- [ ] 8.4 Failure path: start the backend with an ffmpeg without libass (the Homebrew one) and confirm a new session's assembly fails as not retryable with the cause naming subtitle support, that no final video is recorded, and that the session read shows the failure.
-- [ ] 8.5 Document commands and responses in `reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`; remove the scratch data and stop only the processes started here.
+- [x] 8.1 This change adds no endpoint. Start the backend on scratch paths with the stub providers of the JOS-235 report and the **real** assembly tool (`FFMPEG_PATH` set to the libass build), and bring a session to `final-video` through the existing endpoints.
+- [x] 8.2 Extract frames from the downloaded `final-video` (`GET /sessions/{id}/download/final-video`) at three instants and confirm the subtitle line and the pink word; record the commands and the frames' timestamps.
+- [x] 8.3 `POST /sessions/{id}/scenes/{sceneId}/pause` with a new `seconds` for one scene, then `POST /sessions/{id}/final-video/rebuild`: follow the session until `final-video-2.mp4` and confirm the cues after that pause moved by the edit.
+- [x] 8.4 Failure path: start the backend with an ffmpeg without libass (the Homebrew one) and confirm a new session's assembly fails as not retryable with the cause naming subtitle support, that no final video is recorded, and that the session read shows the failure.
+- [x] 8.5 Document commands and responses in `reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`; remove the scratch data and stop only the processes started here.
 
 ## 9. E2E Testing in the Browser (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Open the session from 8.1 in the browser. Confirm the final video is offered, download it from the page, and check with `ffprobe` that it is H.264 with the voice-over's audio stream and 1920×1080 at 30 fps (the existing format guarantee is unchanged).
-- [ ] 9.2 Use "Rebuild final video" on the page after a pause edit; confirm version 2 appears and its frames show the shifted subtitles.
-- [ ] 9.3 Save screenshots of two extracted frames (one per scene, English; one Spanish session with `ñ ¿ ¡`); restore the environment and record everything in `reports/YYYY-MM-DD-step-9-e2e-testing.md`.
+- [x] 9.1 Open the session from 8.1 in the browser. Confirm the final video is offered, download it from the page, and check with `ffprobe` that it is H.264 with the voice-over's audio stream and 1920×1080 at 30 fps (the existing format guarantee is unchanged).
+- [x] 9.2 Use "Rebuild final video" on the page after a pause edit; confirm version 2 appears and its frames show the shifted subtitles.
+- [x] 9.3 Save screenshots of two extracted frames (one per scene, English; one Spanish session with `ñ ¿ ¡`); restore the environment and record everything in `reports/YYYY-MM-DD-step-9-e2e-testing.md`.
 
 ## 10. Update Technical Documentation (MANDATORY)
 
-- [ ] 10.1 Copy `docs/PRD.md` to `docs/PRD-v1.26.md`. In `docs/PRD.md` (Spanish) make the v1.27 changes: a paragraph in §7.3 (subtitles burned in, one line of at most 32 characters, narrated word highlighted, follow the pause edits), AC25, the status line and the §16 changelog row (product owner, JOS-237, 2026-10-28).
-- [ ] 10.2 `docs/adr/0005-media-assembly.md`: the subtitles step (filter, ASS, cwd trick, the failure rule). `docs/adr/0007-deployment.md`: libass in the pinned builds (confirmed, no replacement), the font and its licence embedded in the executable and written to the data folder at start, `SUBTITLE_FONT_PATH`.
-- [ ] 10.3 `docs/data-model.md`: the subtitle file is temporary and not stored; no schema change. `readme.md` (Spanish) and `backend/README.md`: the libass requirement and the `FFMPEG_PATH` / `SUBTITLE_FONT_PATH` notes for development.
-- [ ] 10.4 Run `graphify update .`.
+- [x] 10.1 Copy `docs/PRD.md` to `docs/PRD-v1.26.md`. In `docs/PRD.md` (Spanish) make the v1.27 changes: a paragraph in §7.3 (subtitles burned in, one line of at most 32 characters, narrated word highlighted, follow the pause edits), AC25, the status line and the §16 changelog row (product owner, JOS-237, 2026-10-28).
+- [x] 10.2 `docs/adr/0005-media-assembly.md`: the subtitles step (filter, ASS, cwd trick, the failure rule). `docs/adr/0007-deployment.md`: libass in the pinned builds (confirmed, no replacement), the font and its licence embedded in the executable and written to the data folder at start, `SUBTITLE_FONT_PATH`.
+- [x] 10.3 `docs/data-model.md`: the subtitle file is temporary and not stored; no schema change. `readme.md` (Spanish) and `backend/README.md`: the libass requirement and the `FFMPEG_PATH` / `SUBTITLE_FONT_PATH` notes for development.
+- [x] 10.4 Run `graphify update .`.
 - [ ] 10.5 Commit, then push with an explicit `origin feature/jos-237-subtitles` and open the PR into `feature/entrega-3-JAME` linking JOS-237 (on the user's go-ahead).

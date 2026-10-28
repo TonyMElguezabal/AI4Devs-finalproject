@@ -7,7 +7,7 @@ Vid4You is two packages in one repository: `backend/` (Fastify, `node:sqlite`, T
 ## Prerequisites
 
 - **Node.js 26.4.0**, the version the repository is developed and tested with. The backend needs a release that has `node:sqlite` and runs `.ts` files natively (strip-only type removal), so it does not work on older LTS lines. No `engines` field is declared yet.
-- **ffmpeg and ffprobe** (development only). The voice-over probe and the assembly adapter both use one resolver (`backend/src/config/ffmpeg.ts`): `FFMPEG_PATH` / `FFPROBE_PATH` if set, otherwise `/opt/homebrew/bin/ffmpeg` and `ffprobe` when they exist (`brew install ffmpeg` on macOS), otherwise the name on `PATH` (Linux, CI). Both must be installed, including on CI. The packaged app bundles both beside the executable and needs no install.
+- **ffmpeg and ffprobe** (development only). The voice-over probe and the assembly adapter both use one resolver (`backend/src/config/ffmpeg.ts`): `FFMPEG_PATH` / `FFPROBE_PATH` if set, otherwise `/opt/homebrew/bin/ffmpeg` and `ffprobe` when they exist (`brew install ffmpeg` on macOS), otherwise the name on `PATH` (Linux, CI). Both must be installed, including on CI. The `ffmpeg` must also have libass (the `subtitles` filter, JOS-237): `ffmpeg -filters | grep subtitles`. The Homebrew build on the maintainer's machine does not, so the real-ffmpeg subtitle tests (`subtitles-real-ffmpeg.test.ts`) are skipped there; run them with `FFMPEG_PATH` pointing at a build that has libass. The packaged app bundles both beside the executable and needs no install.
 - **Git** and **npm**.
 
 ## Run it
