@@ -1704,9 +1704,9 @@
     "semantic_hash": ""
   },
   "docs/PRD.md": {
-    "mtime": 1793213614.681959,
-    "seen": 1793213647.059872,
-    "ast_hash": "a175c16427062eebc231a6eaba65f2b5",
+    "mtime": 1793225721.8358305,
+    "seen": 1793225743.519388,
+    "ast_hash": "18ae66f59b898a586e5d0ee60c2965c4",
     "semantic_hash": ""
   },
   "docs/adr/0001-backend-stack.md": {
@@ -5412,9 +5412,9 @@
     "semantic_hash": ""
   },
   "openspec/specs/final-video-assembly/spec.md": {
-    "mtime": 1793211652.2734673,
-    "seen": 1793213647.06055,
-    "ast_hash": "910c5178fef1438d98ffc475052bf2d9",
+    "mtime": 1793225721.0922878,
+    "seen": 1793225743.5471418,
+    "ast_hash": "cf777db0d8ca4f963151ef011d676f46",
     "semantic_hash": ""
   },
   "openspec/specs/final-video-download/spec.md": {
@@ -8549,105 +8549,105 @@
     "ast_hash": "2b156b3286de029730f278644e8458a6",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/.openspec.yaml": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/.openspec.yaml": {
     "mtime": 1793211652.7094257,
-    "seen": 1793213647.05989,
+    "seen": 1793225743.545165,
     "ast_hash": "ebd86ffe001e7bb5780bd0727d4db288",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/design.md": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/design.md": {
     "mtime": 1793212808.8115206,
-    "seen": 1793213647.059891,
+    "seen": 1793225743.545166,
     "ast_hash": "6c415867271f8d0cc1fc9926438ff93d",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/proposal.md": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/proposal.md": {
     "mtime": 1793212842.923393,
-    "seen": 1793213647.059892,
+    "seen": 1793225743.545168,
     "ast_hash": "52bf699b89dd7079bd1d8c04a86e58dd",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/reports/2026-10-28-step-1-libass-gate.md": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/reports/2026-10-28-step-1-libass-gate.md": {
     "mtime": 1793212302.803124,
-    "seen": 1793213647.059893,
+    "seen": 1793225743.5451689,
     "ast_hash": "419ccd283a40fd883f6904a73df1d87a",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/reports/2026-10-28-step-5-packaging-smoke.md": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/reports/2026-10-28-step-5-packaging-smoke.md": {
     "mtime": 1793213068.7495859,
-    "seen": 1793213647.059894,
+    "seen": 1793225743.5451698,
     "ast_hash": "a175814248b269f1eadb2b1aed68be61",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/reports/2026-10-28-step-7-unit-test-and-db-verification.md": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/reports/2026-10-28-step-7-unit-test-and-db-verification.md": {
     "mtime": 1793213212.9882624,
-    "seen": 1793213647.059894,
+    "seen": 1793225743.545171,
     "ast_hash": "66526f893aa3fbaff894c303d9ed0457",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/reports/2026-10-28-step-8-manual-endpoint-testing.md": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/reports/2026-10-28-step-8-manual-endpoint-testing.md": {
     "mtime": 1793213417.7213075,
-    "seen": 1793213647.059895,
+    "seen": 1793225743.545172,
     "ast_hash": "f8bfc6460a76a5664c09c936b5cf75c8",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/reports/2026-10-28-step-9-e2e-testing.md": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/reports/2026-10-28-step-9-e2e-testing.md": {
     "mtime": 1793213546.5714893,
-    "seen": 1793213647.059896,
+    "seen": 1793225743.545173,
     "ast_hash": "abb74652f329e75ecc9b0f5296411e9a",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/specs/final-video-assembly/spec.md": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/specs/final-video-assembly/spec.md": {
     "mtime": 1793211844.3322258,
-    "seen": 1793213647.0598972,
+    "seen": 1793225743.5451741,
     "ast_hash": "a6c50dc5dacf33f026d71ff39426e08a",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/tasks.md": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/tasks.md": {
     "mtime": 1793214368.468276,
-    "seen": 1793214456.543385,
+    "seen": 1793225743.545175,
     "ast_hash": "77a8eefbadc563e40d3f34756d221f51",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/reports/screenshots/e2e-english-v2-at-6.9s.png": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/reports/screenshots/e2e-english-v2-at-6.9s.png": {
     "mtime": 1793213546.5631003,
-    "seen": 1793213647.060619,
+    "seen": 1793225743.551448,
     "ast_hash": "ae883f7685ab0e486a20afb0180ad2f0",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/reports/screenshots/e2e-spanish-at-12.5s.png": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/reports/screenshots/e2e-spanish-at-12.5s.png": {
     "mtime": 1793213546.5687068,
-    "seen": 1793213647.06062,
+    "seen": 1793225743.55145,
     "ast_hash": "a59b2937f933991b18cdabfd65f5a66a",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/reports/screenshots/e2e-spanish-at-3.0s.png": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/reports/screenshots/e2e-spanish-at-3.0s.png": {
     "mtime": 1793213546.5657427,
-    "seen": 1793213647.060621,
+    "seen": 1793225743.551451,
     "ast_hash": "647ae3ecf3fd21d800d3552f80ee6896",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/reports/screenshots/packaged-smoke-frame-0.15s.png": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/reports/screenshots/packaged-smoke-frame-0.15s.png": {
     "mtime": 1793213054.1724327,
-    "seen": 1793213647.060622,
+    "seen": 1793225743.5514529,
     "ast_hash": "c4acca8072a073daf8d5a1badf8f1fc4",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/reports/screenshots/packaged-smoke-frame-0.80s.png": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/reports/screenshots/packaged-smoke-frame-0.80s.png": {
     "mtime": 1793213054.174958,
-    "seen": 1793213647.0606232,
+    "seen": 1793225743.551454,
     "ast_hash": "5e011d76c21e4b12bbc1d5765bbac83d",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/reports/screenshots/pause-edit-v1-at-6.9s-no-subtitle.png": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/reports/screenshots/pause-edit-v1-at-6.9s-no-subtitle.png": {
     "mtime": 1793213417.7121177,
-    "seen": 1793213647.060624,
+    "seen": 1793225743.551456,
     "ast_hash": "34c5fedc5505aef2a2f67378626d7b12",
     "semantic_hash": ""
   },
-  "openspec/changes/add-burned-in-subtitles/reports/screenshots/pause-edit-v2-at-6.9s-subtitle.png": {
+  "openspec/changes/archive/2026-10-28-add-burned-in-subtitles/reports/screenshots/pause-edit-v2-at-6.9s-subtitle.png": {
     "mtime": 1793213417.7169876,
-    "seen": 1793213647.060624,
+    "seen": 1793225743.551457,
     "ast_hash": "ae883f7685ab0e486a20afb0180ad2f0",
     "semantic_hash": ""
   }
