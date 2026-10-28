@@ -8,6 +8,8 @@ const PAUSE_REFUSAL_SENTENCES: Record<string, string> = {
   "assembly-in-progress": "The final video is being built. Try again when it is ready.",
   "no-pause": "The pause after this scene cannot be adjusted.",
   "nothing-to-rebuild": "There are no changes to rebuild.",
+  // rebuild-scene (JOS-235)
+  "scenes-not-complete": "A scene is still being generated. Try again when every scene is done.",
 };
 
 export function pauseRefusalSentence(reason: string, fallback = "The change could not be saved."): string {

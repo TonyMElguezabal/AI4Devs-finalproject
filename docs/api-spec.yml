@@ -165,6 +165,7 @@
 # 400 for a bad date-time or `from` not before `to`; 401). Read-only, behind the Administrator password; it carries no key, script, prompt or failure text.
 # JOS-200 (show-video-request-status) - 2026-10-26: the scene representation (`POST /sessions`, `GET /sessions/{sessionId}` and `POST .../scenes/{sceneId}/pause` responses, and the live snapshot, which carries the same fields) gains an optional `videoRequest`, present only while a scene's clip request has been sent and is in flight: `provider` (`name`, `model`), `attempt`, `sentAt`, `estimate` (`{ seconds, basedOn }` or null) and `body` (`prompt`, `duration`, `resolution`, `firstFrame`, the scene's image named, never the provider's URL). The clip `stages.video` entry now counts a request in flight.
 # JOS-233 (show-clip-task-liveness) - 2026-10-28: `videoRequest` gains three required fields, in every place it appears: `taskId` (the provider's task id of the current attempt, shown on purpose and only here, never inside `body`), `lastCheckedAt` (the last "still running" answer this application received for the task, or null until the first one since it started; held in memory, not stored) and `waitEndsAt` (sentAt + the clip wait ceiling, or null when the video stage has no time limit). Each "still running" answer publishes a fresh snapshot on `/events`.
+# JOS-235 (rebuild-scene) - 2026-10-28: new `POST /sessions/{sessionId}/scenes/{sceneId}/rebuild` (body `{ imageInstruction?, videoInstruction? }`, each non-empty after trimming, an omitted one keeps the stored instruction; 202 `{ ok, held }`, 400, 404 `unknown-scene`, 409 `scene-not-ready` or `assembly-in-progress`). It regenerates the scene's image and then its clip on the scene's bound providers, in any session state, and the final video is then rebuilt automatically. `session.finalVideo` gains a required `staleScenes` (a scene was rebuilt after the current version was built). `POST .../final-video/rebuild` also answers 409 `scenes-not-complete`, and accepts a rebuild when `staleScenes` is true. A rebuilt scene's `result.imageUrl` and `downloads.imageUrl` / `downloads.clipUrl` end in `?r={n}` (its rebuild number); the routes ignore the query.
 # JOS-228 (record-phase-instants-and-pipeline-report) - 2026-10-26: new `GET /admin/reports/pipeline-time?from&to` (same period rules as the usage report, applied
 # to the instant a phase started and, for the attempt counts, the instant an attempt was sent; 200 `{ from, to, phases, sessions }`: per phase the number
 # of sessions with a recorded start and end, the median and 95th-percentile seconds, and the attempts that timed out, finished late or were superseded
@@ -505,6 +506,9 @@ paths:
                             type: boolean
                             description: True when the User's pause edits differ from those this version was
                               built with, so a rebuild would change it.
+                          staleScenes:
+                            type: boolean
+                            description: "rebuild-scene (JOS-235): True when a scene was rebuilt after this version was built, so a rebuild would change it."
                           rebuildFailure:
                             type: object
                             properties:
@@ -519,6 +523,7 @@ paths:
                         required:
                           - version
                           - pendingPauseEdits
+                          - staleScenes
                         additionalProperties: false
                         description: "adjust-scene-pause (JOS-190): present once the session has a final
                           video. Derived on every read, never stored."
@@ -1125,6 +1130,9 @@ paths:
                             type: boolean
                             description: True when the User's pause edits differ from those this version was
                               built with, so a rebuild would change it.
+                          staleScenes:
+                            type: boolean
+                            description: "rebuild-scene (JOS-235): True when a scene was rebuilt after this version was built, so a rebuild would change it."
                           rebuildFailure:
                             type: object
                             properties:
@@ -1139,6 +1147,7 @@ paths:
                         required:
                           - version
                           - pendingPauseEdits
+                          - staleScenes
                         additionalProperties: false
                         description: "adjust-scene-pause (JOS-190): present once the session has a final
                           video. Derived on every read, never stored."
@@ -2150,6 +2159,88 @@ paths:
                   - ok
                   - reason
                 additionalProperties: false
+  /sessions/{sessionId}/scenes/{sceneId}/rebuild:
+    post:
+      description: "rebuild-scene (JOS-235): regenerates a generated scene's image and then its clip, optionally with edited instructions."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                imageInstruction:
+                  type: string
+                  minLength: 1
+                  description: The corrected IMAGE instruction; omitted keeps the stored one.
+                videoInstruction:
+                  type: string
+                  minLength: 1
+                  description: The corrected VIDEO instruction; omitted keeps the stored one.
+              additionalProperties: false
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: sessionId
+          required: true
+        - schema:
+            type: string
+            format: uuid
+          in: path
+          name: sceneId
+          required: true
+      responses:
+        "202":
+          description: Accepted. The work happens after the answer.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                  held:
+                    type: boolean
+                    description: "True while the session is paused: the rebuild is accepted and waits for continue."
+                required:
+                  - ok
+                  - held
+                additionalProperties: false
+        "400":
+          description: An instruction is empty after trimming.
+        "404":
+          description: "`unknown-scene`: an unknown session or scene, or a scene of another session."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
+        "409":
+          description: "`scene-not-ready` (the scene is not `image-complete` or `chunk-complete`, or a rebuild already took it) or `assembly-in-progress`. Nothing changes."
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  reason:
+                    type: string
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
   /sessions/{sessionId}/final-video/rebuild:
     post:
       requestBody:
@@ -2205,7 +2296,7 @@ paths:
                   - reason
                 additionalProperties: false
         "409":
-          description: Default Response
+          description: "`assembly-in-progress`, `scenes-not-complete` (a scene is not `chunk-complete`, e.g. one is being rebuilt) or `nothing-to-rebuild` (no pause edit pending and no scene rebuilt since this version). Nothing changes."
           content:
             application/json:
               schema:

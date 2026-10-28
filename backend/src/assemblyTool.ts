@@ -1,6 +1,8 @@
 // assemble-final-video (JOS-149) — the assembly tool port (design.md Decision 3).
 // Uses ffmpeg per ADR 0005; the port decouples the phase from the concrete adapter.
 
+import type { SubtitleCue } from "./subtitles.ts";
+
 /**
  * One clip in the ordered assembly list. Frame geometry uses cumulative accounting
  * (ADR 0005, Decision 4): `cumulativeStartFrame` and `frameCount` are pre-computed
@@ -49,6 +51,12 @@ export interface AssemblyInput {
    * and video agree within one frame, failing the attempt otherwise.
    */
   narrationEdits?: readonly NarrationEdit[];
+  /**
+   * The subtitles to burn in (add-burned-in-subtitles, JOS-237). Absent: none are asked for. `null`: the orchestrator
+   * could not build them (the narration's timestamps are missing or do not match the script), and a tool that draws
+   * subtitles MUST fail the attempt as not retryable rather than deliver a video without them. An array: draw these.
+   */
+  subtitles?: readonly SubtitleCue[] | null;
 }
 
 export type AssemblyResult =

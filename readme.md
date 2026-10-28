@@ -61,6 +61,7 @@ Vid4You es una aplicación web que convierte un guion de texto en un video narra
 - Corrección del prompt visual (imagen o video) de una escena que haya fallado, sin alterar el guion ni el orden narrativo.
 - Persistencia de sesiones, estados y resultados, incluso tras reinicios del sistema: el trabajo en curso se retoma solo al volver a arrancar.
 - Ajuste manual de la pausa que sigue a una escena y reconstrucción del video final, que conserva las versiones anteriores.
+- Reconstrucción de una escena ya generada («Rebuild scene»): se generan de nuevo su imagen y su clip, con las instrucciones `IMAGE` y `VIDEO` editables, y el video final se reconstruye solo con una versión nueva. Los archivos anteriores se conservan.
 - Aplicación local para macOS y Windows (un ejecutable que abre el navegador), con telemetría opcional y desactivada por defecto.
 
 ### **1.3. Diseño y experiencia de usuario:**
@@ -69,7 +70,7 @@ La interfaz es una aplicación web de una sola página (React) que se abre en el
 
 1. **Alta de sesión**: el usuario escribe un título, pega el guion y elige el idioma (inglés o español). Antes de crear la sesión, el guion pasa una comprobación de contenido (moderación de OpenAI); si no pasa, se rechaza y el formulario conserva el texto para editarlo.
 2. **Página de sesión**: muestra el título, el guion, el estado de la sesión y el avance por fase (voz, descomposición, escenas, montaje) y por escena, con su proveedor, número de intentos, errores legibles y resultados disponibles. Se actualiza en vivo sin recargar (Server-Sent Events, ADR 0003).
-3. **Acciones disponibles**: pausar y continuar toda la sesión, reintentar la fase o escena que falló, corregir solo la instrucción `IMAGE` o `VIDEO` de una escena fallida, descargar la imagen o el clip de una escena durante el proceso, ajustar la pausa que sigue a una escena y reconstruir el video final, y descargar el MP4 final.
+3. **Acciones disponibles**: pausar y continuar toda la sesión, reintentar la fase o escena que falló, corregir solo la instrucción `IMAGE` o `VIDEO` de una escena fallida, reconstruir una escena ya generada (imagen y clip) si tiene un defecto, descargar la imagen o el clip de una escena durante el proceso, ajustar la pausa que sigue a una escena y reconstruir el video final, y descargar el MP4 final.
 4. **Privacidad**: en el primer arranque se pregunta, con tres casillas desmarcadas, si se activan los informes de errores, el conteo de uso de proveedores y el conteo de uso anónimo. Todo está desactivado por defecto (`PRIVACY.md`).
 
 Las capturas de pantalla no están incluidas en este fichero; los informes de verificación en navegador de cada cambio (con capturas) están en `openspec/changes/archive/*/reports/`.
@@ -79,7 +80,7 @@ Las capturas de pantalla no están incluidas en este fichero; los informes de ve
 **Requisitos previos**
 
 - Node.js **24 o superior** (el backend ejecuta TypeScript de forma nativa y usa `node:sqlite`; CI usa Node 24).
-- `ffmpeg` y `ffprobe` accesibles. El backend los busca, por este orden, en las variables `FFMPEG_PATH` / `FFPROBE_PATH`, en `/opt/homebrew/bin` y en el `PATH`. En macOS: `brew install ffmpeg`; en Windows o Linux, instalarlos y añadirlos al `PATH`.
+- `ffmpeg` y `ffprobe` accesibles. El backend los busca, por este orden, en las variables `FFMPEG_PATH` / `FFPROBE_PATH`, en `/opt/homebrew/bin` y en el `PATH`. En macOS: `brew install ffmpeg`; en Windows o Linux, instalarlos y añadirlos al `PATH`. El `ffmpeg` debe incluir libass (el filtro `subtitles`, que dibuja los subtítulos del video final): compruébalo con `ffmpeg -filters | grep subtitles`. Si no lo tiene, el montaje falla con un aviso claro y el backend lo registra al arrancar; apunta `FFMPEG_PATH` a una versión con libass. La aplicación empaquetada ya lleva uno.
 - Claves de API de los cuatro proveedores (ver "Credenciales" más abajo). Sin la clave de OpenAI no se puede crear ninguna sesión, porque la comprobación de contenido del guion la necesita.
 
 **Instalación y arranque en desarrollo**
@@ -135,6 +136,7 @@ Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en
 | `DB_PATH` | `data/skeleton.sqlite` | Fichero SQLite (relativo a `backend/`). |
 | `PROJECTS_ROOT` | `data/projects` | Carpeta donde se guardan las carpetas de proyecto (guion, MP3, imágenes, clips, MP4). |
 | `FFMPEG_PATH`, `FFPROBE_PATH` | resolución automática | Ruta a `ffmpeg` y `ffprobe`. |
+| `SUBTITLE_FONT_PATH` | `backend/assets/fonts/Montserrat-Bold.ttf` | Fuente de los subtítulos. La aplicación empaquetada la escribe en su carpeta de datos y fija esta variable. |
 | `SECRETS_PATH` | `backend/.secrets.json` | Fichero de credenciales. La aplicación empaquetada lo fija en su carpeta de datos. |
 | `SETTINGS_DEFAULTS_PATH` | `backend/config/settings.default.json` | Ajustes por defecto. La aplicación empaquetada escribe en cada arranque una copia incrustada en su carpeta de datos y apunta a ella. |
 | `VID4YOU_DATA_DIR` | carpeta de datos del usuario | Solo la aplicación empaquetada: cambia la carpeta donde guarda la base de datos, los proyectos, `.secrets.json`, los ajustes y la clave maestra. |
@@ -143,7 +145,7 @@ Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en
 | `STAGE_CONCURRENCY_LIMIT` | límites de `config/providers.ts` | Sustituye el límite de peticiones simultáneas de la etapa de imagen (solo pruebas manuales). |
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | 2 y 30 | Acortan la espera entre reintentos para pruebas manuales. |
 | `BODY_LIMIT_BYTES` | 50 MiB | Tamaño máximo del cuerpo de una petición. |
-| `ALLOW_TEST_ENDPOINTS`, `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `VOICE_STUB_DELAY_MS` | desactivadas | Solo para pruebas: activan endpoints de prueba y proveedores simulados. La aplicación empaquetada las ignora. |
+| `ALLOW_TEST_ENDPOINTS`, `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_IMAGE_PROVIDER`, `VOICE_STUB_DELAY_MS` | desactivadas | Solo para pruebas: activan endpoints de prueba y proveedores simulados. La aplicación empaquetada las ignora. |
 
 **Publicar una versión y revertirla**
 
@@ -179,6 +181,7 @@ Cada comando deja `Vid4You` (`Vid4You.exe` en Windows), `ffmpeg` y `ffprobe` en 
 | Un clip falla con «the clip task did not finish within 2400 s…» | RunningHub no terminó la tarea en el doble del límite de video (2400 s). Hasta ese momento la aplicación sigue esperando la misma tarea y no envía otra, para que una escena cueste una sola tarea; la tarea puede seguir ejecutándose y facturándose en RunningHub. Mientras el clip se genera, el detalle de la escena muestra el identificador de la tarea (para buscarla en RunningHub), cuándo se comprobó por última vez y hasta cuándo se esperará (JOS-233) | Pulsar el reintento manual de la escena envía una tarea nueva (se factura otra) y abre un ciclo nuevo de hasta 3 reintentos (JOS-204). |
 | La sesión no avanza y está pausada | Hay una pausa de sesión | Pulsar "Continuar". Una pausa no cancela las peticiones ya enviadas. |
 | Se cerró la aplicación a mitad de una generación | — | Volver a abrirla: las sesiones, el progreso y las peticiones en vuelo se recuperan solos (`openspec/specs/restart-recovery/spec.md`). Una petición a un proveedor se espera o se registra como intento fallido y sigue la política de reintentos. |
+| Una escena generada tiene un defecto (contenido equivocado, texto erróneo en la imagen) | La imagen o el clip no salieron como se pedía | Abrir los detalles de la escena, pulsar «Rebuild scene», corregir `IMAGE` y/o `VIDEO` si hace falta y confirmar; se generan de nuevo imagen y clip (una petición de cada uno) y el video final se reconstruye solo. |
 | El video final tiene una pausa demasiado larga o corta | Pausa original tras una escena | Ajustar la pausa de esa escena y reconstruir el video final; los intentos anteriores se conservan como versiones. |
 
 **Copia de seguridad y vuelta atrás.** Los datos de usuario están en la carpeta de datos (SQLite y proyectos); copiarla entera con la aplicación cerrada es una copia de seguridad completa. Para volver a una versión anterior, cerrar la aplicación, restaurar la copia de la carpeta de datos y volver a instalar el ejecutable o la rama anterior. No se ha verificado que una versión antigua del programa pueda abrir una base de datos migrada por una versión más nueva; por eso la copia previa a cada actualización es necesaria.

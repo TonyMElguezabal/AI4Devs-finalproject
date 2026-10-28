@@ -17,6 +17,7 @@ import {
   saveTelemetryConsent,
   pauseSession,
   rebuildFinalVideo,
+  rebuildScene,
   retryAssembly,
   retryDecomposition,
   retryScene,
@@ -160,6 +161,7 @@ function RegularApp() {
           onCorrect={(sceneId, instruction) => correctScene(sessionId, sceneId, instruction)}
           onSetPause={(sceneId, seconds) => setScenePause(sessionId, sceneId, seconds)}
           onRebuildFinalVideo={() => rebuildFinalVideo(sessionId)}
+          onRebuildScene={(sceneId, instructions) => rebuildScene(sessionId, sceneId, instructions)}
           onRetryPhase={(phase) => {
             if (phase === "voice-over") return retryVoiceOver(sessionId);
             if (phase === "decomposition") return retryDecomposition(sessionId);

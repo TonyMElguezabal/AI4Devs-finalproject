@@ -256,9 +256,15 @@ describe("Scene retry and correction refusals show a sentence (JOS-157/JOS-158)"
 });
 
 // show-scene-results-and-actions (JOS-151), group 4 — design Decisions 4 and 5.
+/** The retry and correction actions only: these tests predate "Rebuild scene" (JOS-235), which has its own tests in scene-rebuild.test.tsx. */
+function recoveryActions(scene: SceneEventPayload) {
+  const { retry, correctImage, correctVideo } = sceneActions(scene);
+  return { retry, correctImage, correctVideo };
+}
+
 describe("sceneActions derives actions from state and affected stage (JOS-151, Decision 4)", () => {
   it("offers retry and image correction only for a failed image scene", () => {
-    expect(sceneActions(makeScene({ state: "failed", affectedStage: "image" }))).toEqual({
+    expect(recoveryActions(makeScene({ state: "failed", affectedStage: "image" }))).toEqual({
       retry: true,
       correctImage: true,
       correctVideo: false,
@@ -266,7 +272,7 @@ describe("sceneActions derives actions from state and affected stage (JOS-151, D
   });
 
   it("offers retry and video correction for a failed video scene", () => {
-    expect(sceneActions(makeScene({ state: "failed", affectedStage: "video" }))).toEqual({
+    expect(recoveryActions(makeScene({ state: "failed", affectedStage: "video" }))).toEqual({
       retry: true,
       correctImage: false,
       correctVideo: true,
@@ -274,20 +280,20 @@ describe("sceneActions derives actions from state and affected stage (JOS-151, D
   });
 
   it("offers nothing for a failed scene whose stage is unknown", () => {
-    expect(sceneActions(makeScene({ state: "failed" }))).toEqual({ retry: false, correctImage: false, correctVideo: false });
+    expect(recoveryActions(makeScene({ state: "failed" }))).toEqual({ retry: false, correctImage: false, correctVideo: false });
   });
 
   it.each<SceneState>(["submitted", "image-generating", "image-complete", "video-generating", "chunk-complete"])(
     "offers nothing for a scene in %s",
     (state) => {
-      expect(sceneActions(makeScene({ state, affectedStage: "image" }))).toEqual({ retry: false, correctImage: false, correctVideo: false });
+      expect(recoveryActions(makeScene({ state, affectedStage: "image" }))).toEqual({ retry: false, correctImage: false, correctVideo: false });
     },
   );
 });
 
 describe("Clip recovery controls derive from a failed video stage (JOS-158)", () => {
   it("offers retry and VIDEO correction only for a failed video scene", () => {
-    expect(sceneActions(makeScene({ state: "failed", affectedStage: "video" }))).toEqual({
+    expect(recoveryActions(makeScene({ state: "failed", affectedStage: "video" }))).toEqual({
       retry: true,
       correctImage: false,
       correctVideo: true,
@@ -827,6 +833,58 @@ describe("StartProjectForm", () => {
     expect(submit).not.toBeDisabled();
     await user.click(submit);
     expect(onStart).toHaveBeenCalledWith({ title: "My Trip", script: "A wide shot of a harbor at dusk.", language: "en" });
+  });
+
+  // show-script-word-count (JOS-236) — word count and estimated duration under the Script field.
+  describe("script estimate (JOS-236)", () => {
+    const ESTIMATE_ID = "project-script-estimate";
+
+    it("shows the word count and estimated duration, and describes the Script field with them", async () => {
+      const user = userEvent.setup();
+      render(<StartProjectForm onStart={() => {}} languages={languages} />);
+      const script = screen.getByLabelText("Script");
+      await user.type(script, "one two three four five six seven eight nine ten");
+      const line = "10 words · Estimated video duration ~0:04";
+      expect(screen.getByText(line)).toBeInTheDocument();
+      expect(script).toHaveAccessibleDescription(line);
+      expect(screen.getByRole("textbox", { name: "Script" })).toBe(script);
+    });
+
+    it("updates the line while typing, without leaving the field", async () => {
+      const user = userEvent.setup();
+      render(<StartProjectForm onStart={() => {}} languages={languages} />);
+      const script = screen.getByLabelText("Script");
+      await user.type(script, "one");
+      expect(screen.getByText("1 word · Estimated video duration ~0:00")).toBeInTheDocument();
+      await user.type(script, " two three");
+      expect(screen.getByText("3 words · Estimated video duration ~0:01")).toBeInTheDocument();
+      expect(script).toHaveFocus();
+    });
+
+    it("shows no line and no aria-describedby while the script is empty or whitespace", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<StartProjectForm onStart={() => {}} languages={languages} />);
+      const script = screen.getByLabelText("Script");
+      expect(container.querySelector(`#${ESTIMATE_ID}`)).toBeNull();
+      expect(script).not.toHaveAttribute("aria-describedby");
+      await user.type(script, "   ");
+      expect(container.querySelector(`#${ESTIMATE_ID}`)).toBeNull();
+      expect(script).not.toHaveAttribute("aria-describedby");
+    });
+
+    it("does not change when Start project is enabled or what is submitted", async () => {
+      const user = userEvent.setup();
+      const onStart = vi.fn();
+      render(<StartProjectForm onStart={onStart} languages={languages} />);
+      await user.type(screen.getByLabelText("Title"), "My Trip");
+      await user.type(screen.getByLabelText("Script"), "A wide shot of a harbor at dusk.");
+      const submit = screen.getByRole("button", { name: "Start project" });
+      expect(submit).toBeDisabled();
+      await user.selectOptions(screen.getByLabelText("Language"), "en");
+      expect(submit).not.toBeDisabled();
+      await user.click(submit);
+      expect(onStart).toHaveBeenCalledWith({ title: "My Trip", script: "A wide shot of a harbor at dusk.", language: "en" });
+    });
   });
 });
 
@@ -1968,7 +2026,7 @@ describe("The pause dial (JOS-190)", () => {
 
 describe("The Final video section's rebuild (JOS-190)", () => {
   it("shows the version and offers no rebuild while nothing is pending", () => {
-    render(<FinalVideoDownload url="/sessions/s1/download/final-video" finalVideo={{ version: 2, pendingPauseEdits: false }} />);
+    render(<FinalVideoDownload url="/sessions/s1/download/final-video" finalVideo={{ version: 2, pendingPauseEdits: false, staleScenes: false }} />);
 
     expect(screen.getByText("Version 2")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Rebuild final video" })).not.toBeInTheDocument();
@@ -1978,7 +2036,7 @@ describe("The Final video section's rebuild (JOS-190)", () => {
   it("offers Rebuild final video when edits are pending, and calls the handler", async () => {
     const user = userEvent.setup();
     const onRebuild = vi.fn(async () => ({ ok: true }));
-    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true }} onRebuild={onRebuild} />);
+    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true, staleScenes: false }} onRebuild={onRebuild} />);
 
     await user.click(screen.getByRole("button", { name: "Rebuild final video" }));
 
@@ -1986,7 +2044,7 @@ describe("The Final video section's rebuild (JOS-190)", () => {
   });
 
   it("keeps the download and says the new version is being built while a rebuild runs", () => {
-    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true }} rebuilding onRebuild={async () => ({})} />);
+    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true, staleScenes: false }} rebuilding onRebuild={async () => ({})} />);
 
     expect(screen.getByRole("link", { name: "Download final video" })).toBeInTheDocument();
     expect(screen.getByText(/new version is being built/i)).toBeInTheDocument();
@@ -1995,7 +2053,7 @@ describe("The Final video section's rebuild (JOS-190)", () => {
 
   it("shows a failed rebuild's cause and keeps the button", () => {
     const cause = "The new version could not be built: stub transient failure. Your current final video (version 1) is kept.";
-    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true, rebuildFailure: { cause } }} onRebuild={async () => ({})} />);
+    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true, staleScenes: false, rebuildFailure: { cause } }} onRebuild={async () => ({})} />);
 
     expect(screen.getByRole("alert")).toHaveTextContent(cause);
     expect(screen.getByRole("button", { name: "Rebuild final video" })).toBeInTheDocument();
@@ -2003,7 +2061,7 @@ describe("The Final video section's rebuild (JOS-190)", () => {
 
   it("shows a refusal as a sentence", async () => {
     const user = userEvent.setup();
-    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true }} onRebuild={async () => { throw new Error("nothing-to-rebuild"); }} />);
+    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true, staleScenes: false }} onRebuild={async () => { throw new Error("nothing-to-rebuild"); }} />);
 
     await user.click(screen.getByRole("button", { name: "Rebuild final video" }));
 
@@ -2023,13 +2081,13 @@ describe("The Final video section's rebuild (JOS-190)", () => {
     const session = makeSession({
       state: "final-video",
       finalVideoUrl: "/sessions/s1/download/final-video",
-      finalVideo: { version: 1, pendingPauseEdits: true },
+      finalVideo: { version: 1, pendingPauseEdits: true, staleScenes: false },
       phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "complete", assembly: "complete" }),
     });
     render(
       <SessionPage
         sessionId="01ARZ3NDEKTSV4RRFFQ69G5FAV"
-        snapshot={{ session, scenes: [] }}
+        snapshot={{ session, scenes: [makeScene({ state: "chunk-complete" })] }}
         notFound={false}
         onStartNew={() => {}}
         onPause={asyncNoop}
@@ -2050,7 +2108,7 @@ describe("The Final video section's rebuild (JOS-190)", () => {
     const session = makeSession({
       state: "final-video-generating",
       finalVideoUrl: "/sessions/s1/download/final-video",
-      finalVideo: { version: 1, pendingPauseEdits: true },
+      finalVideo: { version: 1, pendingPauseEdits: true, staleScenes: false },
       phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "complete", assembly: "in-progress" }),
     });
     render(
