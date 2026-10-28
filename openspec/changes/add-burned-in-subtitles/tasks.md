@@ -1,49 +1,49 @@
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
 - [x] 0.1 Branch `feature/jos-237-subtitles` exists from `origin/feature/entrega-3-JAME` (at `d74f314a`, PR #139 merged) with no upstream, in the worktree `../AI4Devs-jos-237` (checked by `/opsx:propose`)
-- [ ] 0.2 `git fetch`. Confirm three things: this is the worktree's current branch, it still has no upstream, and `origin/feature/entrega-3-JAME` has not moved past its base (merge it in if it has). Then run `npm ci` in `backend/` and `frontend/`.
+- [x] 0.2 `git fetch`. Confirm three things: this is the worktree's current branch, it still has no upstream, and `origin/feature/entrega-3-JAME` has not moved past its base (merge it in if it has). Then run `npm ci` in `backend/` and `frontend/`.
 
 ## 1. Gate: libass and the font (design Decisions 4, 6; STOP here if it fails)
 
-- [ ] 1.1 Confirm design.md § Context still holds:
+- [x] 1.1 Confirm design.md § Context still holds:
   - `buildMuxArguments` is the only place the final mux is built, and the video is already re-encoded with `libx264`;
   - `readStoredCharacters` in `sessionPauses.ts` still reads `narration-timestamps.json`;
   - `sentenceSpeechSpans` still matches characters to the script by position, ignoring whitespace;
   - `packaging/build.ts` still copies `ffmpeg` and `ffprobe` beside the executable.
-- [ ] 1.2 Check libass in every ffmpeg the product uses:
+- [x] 1.2 Check libass in every ffmpeg the product uses:
   - the pinned `eugeneware/ffmpeg-static` b6.0 `darwin-arm64`, `darwin-x64` and `win32-x64` builds from `packaging/targets.ts`: download each into its own new, empty scratch folder, verify its SHA-256 against `targets.ts`, and run `ffmpeg -hide_banner -filters` and `-buildconf`;
   - a macOS development build with libass for `FFMPEG_PATH` (the pinned `darwin-arm64` binary, if it has libass; otherwise record how to install one).
   Record each result in `reports/YYYY-MM-DD-step-1-libass-gate.md`. **If a pinned build lacks libass:** replace it in `targets.ts` (new URL and SHA-256) with a build that has it and update ADR 0007's licence note. **If no usable build exists for a target, stop and report to the user before any subtitle code is written.**
-- [ ] 1.3 Obtain the static `Montserrat-Bold.ttf` and its `OFL.txt` from the font's upstream repository (JulietaUla/Montserrat), record the source URL and SHA-256 in the report, and place them in `backend/assets/fonts/`. Check that the file has Latin-1 glyphs (`á é í ó ú ñ ü ¿ ¡`).
-- [ ] 1.4 Spike: with the libass build and that font, render a 3-second black clip with a hand-written ASS file (48 px, outline 3, bottom-centre, one pink word) and extract a frame. Measure the text's height in the frame and record whether `Fontsize: 48` looks as the product owner's image does; adjust `SUBTITLE_STYLE` (design Decision 4) if it does not and record the final numbers.
+- [x] 1.3 Obtain the static `Montserrat-Bold.ttf` and its `OFL.txt` from the font's upstream repository (JulietaUla/Montserrat), record the source URL and SHA-256 in the report, and place them in `backend/assets/fonts/`. Check that the file has Latin-1 glyphs (`á é í ó ú ñ ü ¿ ¡`).
+- [x] 1.4 Spike: with the libass build and that font, render a 3-second black clip with a hand-written ASS file (48 px, outline 3, bottom-centre, one pink word) and extract a frame. Measure the text's height in the frame and record whether `Fontsize: 48` looks as the product owner's image does; adjust `SUBTITLE_STYLE` (design Decision 4) if it does not and record the final numbers.
 
 ## 2. Backend: `subtitles.ts`, times and lines (TDD; design Decisions 1, 2)
 
-- [ ] 2.1 Write failing tests in `backend/test/subtitles.test.ts`:
+- [x] 2.1 Write failing tests in `backend/test/subtitles.test.ts`:
   - `shiftTime`: no edits; a time before, at and after an insertion; after a removal; inside a removal (moves to the cut's start, plus earlier shifts); several edits in order.
   - word starts: each word's start is its first non-whitespace character's `start`; characters that do not match the script throw; whitespace in the script or the characters does not shift the match.
   - lines: at most 32 characters; no word split; a sentence end ends the line; a comma break only when it leaves at least 12 characters; a word longer than 32 characters alone; `600,000` stays one word; accents and `¿ ¡` stay intact; the ticket's example script as a fixture.
-- [ ] 2.2 Create `backend/src/subtitles.ts` with `SubtitleWord`, `SubtitleCue`, `shiftTime` and the first half of `buildSubtitleCues` (words and lines). Fully typed, with no parameter properties or enums (Node strip-only TypeScript). Make 2.1 pass.
+- [x] 2.2 Create `backend/src/subtitles.ts` with `SubtitleWord`, `SubtitleCue`, `shiftTime` and the first half of `buildSubtitleCues` (words and lines). Fully typed, with no parameter properties or enums (Node strip-only TypeScript). Make 2.1 pass.
 
 ## 3. Backend: line timing, highlight events and the ASS text (TDD; design Decisions 1, 4)
 
-- [ ] 3.1 Write failing tests in `backend/test/subtitles.test.ts`:
+- [x] 3.1 Write failing tests in `backend/test/subtitles.test.ts`:
   - line timing: ends at the next line's start or the last character's `end` + 0.5 s, whichever is first; stays at least 0.7 s when the next line allows; never passes `videoSeconds`; the last line ends at or before the video's end;
   - highlight: exactly one active word per instant; a word stays active until the next word starts, across a silence; the last word until the line ends; a zero-length event is dropped;
   - `renderAss`: header values (`PlayResX/Y`, `WrapStyle: 2`), the style line, one `Dialogue` event per word state, `h:mm:ss.cc` times, the colours as BGR (`&HD0CDFF&` for `#FFCDD0`), `{ } \` escaping, and no raw script text outside the events.
-- [ ] 3.2 Finish `buildSubtitleCues` (timing and the `videoSeconds` cap) and add `renderAss` and `SUBTITLE_STYLE`. Make 3.1 pass.
+- [x] 3.2 Finish `buildSubtitleCues` (timing and the `videoSeconds` cap) and add `renderAss` and `SUBTITLE_STYLE`. Make 3.1 pass.
 
 ## 4. Backend: the port, the adapter, the font and the orchestrator (TDD; design Decisions 3, 4, 5)
 
-- [ ] 4.1 Write failing tests:
+- [x] 4.1 Write failing tests:
   - `buildMuxArguments`: with cues, the video graph ends `[cat];[cat]subtitles=subtitles.ass:fontsdir=fonts[outv]`; without, the graph and arguments are exactly as today (the existing assertions);
   - the adapter (with a stubbed `execFileSync`-level seam or a recorded argument list): `subtitles: null` → `failed_not_retryable` naming the timestamps; a missing `subtitles` filter → `failed_not_retryable` naming ffmpeg; a missing font file → `failed_not_retryable`; neither message contains script text; the temp folder is removed;
   - the orchestrator: with a tool double, assembly passes cues built from the stored timestamps; with the stored characters missing or not matching the script, it passes `null`; a rebuild with pause edits passes cues shifted by the same edits; a first assembly passes the stored times;
   - `resolveSubtitleFont`: `SUBTITLE_FONT_PATH` wins; otherwise the bundled default.
-- [ ] 4.2 Add `subtitles?: readonly SubtitleCue[] | null` to `AssemblyInput` in `assemblyTool.ts`; export `readStoredCharacters` from `sessionPauses.ts`; create `config/subtitleFont.ts`.
-- [ ] 4.3 In `ffmpegAssemblyTool.ts`: add the filter to `buildMuxArguments`; write `subtitles.ass` and copy the font into the temp folder; run the mux with `cwd` set to it; check the `subtitles` filter once and cache the answer; return the not-retryable failures above.
-- [ ] 4.4 In `orchestrator.ts`: build the cues for every assembly (first, retry, rebuild) with the snapshotted `narrationEdits` and the video's length, and pass them (or `null`). No stored data is written. In `bootstrap.ts`: log a start-up warning when the ffmpeg in use has no `subtitles` filter. Make 4.1 pass.
-- [ ] 4.5 Real-ffmpeg tests with `describe.skipIf(!haveSubtitleFilter)`, using the committed fixture of `narration-edits.test.ts`: assemble with cues and extract frames at three cue midpoints (the pink word differs between two instants in one line); assemble with pause edits and check the cue appears later by the edit's amount (±1 frame). Skipped, not failed, on a machine without libass.
+- [x] 4.2 Add `subtitles?: readonly SubtitleCue[] | null` to `AssemblyInput` in `assemblyTool.ts`; export `readStoredCharacters` from `sessionPauses.ts`; create `config/subtitleFont.ts`.
+- [x] 4.3 In `ffmpegAssemblyTool.ts`: add the filter to `buildMuxArguments`; write `subtitles.ass` and copy the font into the temp folder; run the mux with `cwd` set to it; check the `subtitles` filter once and cache the answer; return the not-retryable failures above.
+- [x] 4.4 In `orchestrator.ts`: build the cues for every assembly (first, retry, rebuild) with the snapshotted `narrationEdits` and the video's length, and pass them (or `null`). No stored data is written. In `bootstrap.ts`: log a start-up warning when the ffmpeg in use has no `subtitles` filter. Make 4.1 pass.
+- [x] 4.5 Real-ffmpeg tests with `describe.skipIf(!haveSubtitleFilter)`, using the committed fixture of `narration-edits.test.ts`: assemble with cues and extract frames at three cue midpoints (the pink word differs between two instants in one line); assemble with pause edits and check the cue appears later by the edit's amount (±1 frame). Skipped, not failed, on a machine without libass (run them with `FFMPEG_PATH` set to the pinned darwin-arm64 build). Also assert that capital letters are 32-35 px tall (a CSS 48 px Montserrat is 33.6 px), that the frame count, resolution and the copied audio stream are unchanged, and that the temp folder is removed.
 
 ## 5. Packaging: the font beside the executable (design Decision 4)
 

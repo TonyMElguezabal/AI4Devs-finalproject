@@ -66,8 +66,9 @@ The font is a bundled file, never a system font. `config/subtitleFont.ts` resolv
 
 The ASS style (`PlayResX: 1920`, `PlayResY: 1080`, `ScaledBorderAndShadow: yes`):
 
-- `Fontname: Montserrat`, `Bold: -1`, `Fontsize: 48`, primary `&H00FFFFFF`, outline `&H00000000`, `Outline: 3`, `Shadow: 0`, `Alignment: 2` (bottom-centre), `MarginV: 80`, `WrapStyle: 2` (no automatic wrapping, so a line is one line).
-- ASS `Fontsize` is not exactly a pixel height. 48 is kept as the product owner's number, and the real-frame check (task 1.4) measures the rendered text so the result is not assumed.
+- `Fontname: Montserrat`, `Bold: -1`, `Fontsize: 75`, primary `&H00FFFFFF`, outline `&H00000000`, `Outline: 3`, `Shadow: 0`, `Alignment: 2` (bottom-centre), `MarginL`/`MarginR: 60`, `MarginV: 80`, `WrapStyle: 2` (no automatic wrapping, so a line is one line).
+- ASS `Fontsize` is not a CSS pixel size: `Fontsize: 48` renders capitals 21 px tall, while a CSS `48px` Montserrat has 33.6 px capitals. The product owner's "48 px" is the CSS size, so the style uses `Fontsize: 75` (about 33.4 px capitals, measured in task 1.4, `reports/2026-10-28-step-1-libass-gate.md`).
+- The events use the standard 10-field format (`Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`); a test checks that every `Dialogue` has as many fields as the `Format` line.
 - Text escaping: `{` and `}` become `\{` and `\}`, and a backslash is followed by U+200B so it cannot form `\N`, `\n` or `\h`. A script cannot restyle or hide its own subtitles.
 
 ### 5. The adapter checks for the filter before it starts
