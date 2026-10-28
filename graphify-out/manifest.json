@@ -5382,9 +5382,9 @@
     "semantic_hash": ""
   },
   "openspec/specs/app-telemetry/spec.md": {
-    "mtime": 1793140926.3771737,
-    "seen": 1793142744.53597,
-    "ast_hash": "7668fe1f8b226bdd5077fcb788935459",
+    "mtime": 1793146968.5313318,
+    "seen": 1793146979.838743,
+    "ast_hash": "b0a5e413762e58a1e9705cbd3e405b9f",
     "semantic_hash": ""
   },
   "openspec/specs/chunk-image-generation/spec.md": {
@@ -8069,52 +8069,52 @@
     "ast_hash": "67b3c23b7eddeab666d4347e4da18e13",
     "semantic_hash": ""
   },
-  "openspec/changes/report-stable-provider-name/.openspec.yaml": {
+  "openspec/changes/archive/2026-10-27-report-stable-provider-name/.openspec.yaml": {
     "mtime": 1793140993.7543101,
-    "seen": 1793142744.535948,
+    "seen": 1793146979.8372009,
     "ast_hash": "9647580428efcef2cc453d72112b49be",
     "semantic_hash": ""
   },
-  "openspec/changes/report-stable-provider-name/design.md": {
+  "openspec/changes/archive/2026-10-27-report-stable-provider-name/design.md": {
     "mtime": 1793142257.5203724,
-    "seen": 1793142744.535949,
+    "seen": 1793146979.837203,
     "ast_hash": "d7676f799f673e8d1da29f3e18e21411",
     "semantic_hash": ""
   },
-  "openspec/changes/report-stable-provider-name/proposal.md": {
+  "openspec/changes/archive/2026-10-27-report-stable-provider-name/proposal.md": {
     "mtime": 1793141015.0922654,
-    "seen": 1793142744.5359502,
+    "seen": 1793146979.837204,
     "ast_hash": "eae266b941e83fc8f71e1d293c6247af",
     "semantic_hash": ""
   },
-  "openspec/changes/report-stable-provider-name/reports/2026-10-27-step-5-unit-test-and-db-verification.md": {
+  "openspec/changes/archive/2026-10-27-report-stable-provider-name/reports/2026-10-27-step-5-unit-test-and-db-verification.md": {
     "mtime": 1793142659.790832,
-    "seen": 1793142744.5359511,
+    "seen": 1793146979.837205,
     "ast_hash": "6e8b4990155c114b3cf1d62dc6fe1e3e",
     "semantic_hash": ""
   },
-  "openspec/changes/report-stable-provider-name/reports/2026-10-27-step-6-manual-endpoint-testing.md": {
+  "openspec/changes/archive/2026-10-27-report-stable-provider-name/reports/2026-10-27-step-6-manual-endpoint-testing.md": {
     "mtime": 1793142715.2223141,
-    "seen": 1793142744.5359511,
+    "seen": 1793146979.8372061,
     "ast_hash": "ab96566297052977d1a92151aa6a0f25",
     "semantic_hash": ""
   },
-  "openspec/changes/report-stable-provider-name/reports/2026-10-27-step-7-grafana-check.md": {
+  "openspec/changes/archive/2026-10-27-report-stable-provider-name/reports/2026-10-27-step-7-grafana-check.md": {
     "mtime": 1793142733.6191661,
-    "seen": 1793142744.5359519,
+    "seen": 1793146979.837207,
     "ast_hash": "51f769254b5e8b881b342ce3d2efa1a3",
     "semantic_hash": ""
   },
-  "openspec/changes/report-stable-provider-name/specs/app-telemetry/spec.md": {
+  "openspec/changes/archive/2026-10-27-report-stable-provider-name/specs/app-telemetry/spec.md": {
     "mtime": 1793141020.3408391,
-    "seen": 1793142744.5359528,
+    "seen": 1793146979.837208,
     "ast_hash": "326de9d87011d28e85ab403525a1ae23",
     "semantic_hash": ""
   },
-  "openspec/changes/report-stable-provider-name/tasks.md": {
-    "mtime": 1793142733.6446173,
-    "seen": 1793142744.535954,
-    "ast_hash": "497a724c7bae59764eccde458dbc3649",
+  "openspec/changes/archive/2026-10-27-report-stable-provider-name/tasks.md": {
+    "mtime": 1793146968.4969585,
+    "seen": 1793146979.837209,
+    "ast_hash": "2d2195ff40b8b55a4182192ef5dd4045",
     "semantic_hash": ""
   }
 }
