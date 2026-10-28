@@ -11,6 +11,8 @@ import {
   recordStageAttempt,
   resetAll,
 } from "../src/db.ts";
+import { ensureProfiles } from "../src/providerProfiles.ts";
+import { SEEDED_PROFILES } from "../src/providerTypes.ts";
 import { flushTelemetry, resetTelemetryForTest, setConsent, setTelemetryExportersForTest } from "../src/telemetry/index.ts";
 
 // add-observability-telemetry (JOS-199), group 4 — Decision 4: the two recording functions feed telemetry, so
@@ -24,6 +26,7 @@ let logs: InMemoryLogRecordExporter;
 
 beforeEach(() => {
   resetAll();
+  ensureProfiles(); // report-stable-provider-name (JOS-213): the provider label comes from the stored profile
   resetTelemetryForTest();
   metrics = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
   logs = new InMemoryLogRecordExporter();
@@ -44,7 +47,7 @@ async function points(): Promise<Array<{ name: string; attributes: Record<string
 function voiceAttempt() {
   const runId = randomUUID();
   createRun(runId, "telemetry hooks", SCRIPT, "en");
-  return recordStageAttempt({ runId, stage: "voice-over", providerId: "elevenlabs", queuedAt: SENT, sentAt: SENT });
+  return recordStageAttempt({ runId, stage: "voice-over", providerId: SEEDED_PROFILES.voice.id, queuedAt: SENT, sentAt: SENT });
 }
 
 function sceneWith(videoProvider: string, requestedSeconds: number) {
@@ -52,8 +55,8 @@ function sceneWith(videoProvider: string, requestedSeconds: number) {
   createRun(runId, "telemetry hooks", SCRIPT, "en");
   const sceneId = randomUUID();
   db.prepare(
-    "INSERT INTO scenes (id, run_id, idx, status, attempts, instruction, provider_mode, provider_latency_ms, updated_at, provider, video_provider, requested_duration_seconds) VALUES (?, ?, 0, 'submitted', 0, '', 'success', 0, ?, 'fal', ?, ?)",
-  ).run(sceneId, runId, SENT, videoProvider, requestedSeconds);
+    "INSERT INTO scenes (id, run_id, idx, status, attempts, instruction, provider_mode, provider_latency_ms, updated_at, provider, video_provider, requested_duration_seconds) VALUES (?, ?, 0, 'submitted', 0, '', 'success', 0, ?, ?, ?, ?)",
+  ).run(sceneId, runId, SENT, SEEDED_PROFILES.image.id, videoProvider, requestedSeconds);
   return sceneId;
 }
 
@@ -64,13 +67,13 @@ describe("completeStageAttempt", () => {
     const recorded = await points();
     expect(recorded).toContainEqual({
       name: "vid4you_provider_calls_total",
-      attributes: { stage: "voice-over", provider: "elevenlabs", outcome: "success" },
+      attributes: { stage: "voice-over", provider: "ElevenLabs", outcome: "success" },
       value: 1,
     });
     expect(recorded.find((p) => p.name === "vid4you_provider_call_duration_ms")?.value).toMatchObject({ count: 1, sum: 4000 });
     expect(recorded).toContainEqual({
       name: "vid4you_billed_units_total",
-      attributes: { stage: "voice-over", provider: "elevenlabs", unit: "voice_characters" },
+      attributes: { stage: "voice-over", provider: "ElevenLabs", unit: "voice_characters" },
       value: SCRIPT.length,
     });
   });
@@ -96,7 +99,7 @@ describe("completeStageAttempt", () => {
     expect(records).toHaveLength(1);
     expect(records[0]?.attributes).toMatchObject({
       stage: "voice-over",
-      provider: "elevenlabs",
+      provider: "ElevenLabs",
       "error.code": "E_QUOTA",
       outcome: "not-retryable",
       "exception.message": "quota exceeded",
@@ -106,38 +109,38 @@ describe("completeStageAttempt", () => {
 
 describe("insertProviderRequest", () => {
   it("records a successful clip with the scene's video provider and its requested seconds", async () => {
-    const sceneId = sceneWith("runninghub", 6);
+    const sceneId = sceneWith(SEEDED_PROFILES.video.id, 6);
     insertProviderRequest(randomUUID(), sceneId, 1500, "success", 1, "video");
     const recorded = await points();
     expect(recorded).toContainEqual({
       name: "vid4you_provider_calls_total",
-      attributes: { stage: "video", provider: "runninghub", outcome: "success" },
+      attributes: { stage: "video", provider: "RunningHub", outcome: "success" },
       value: 1,
     });
     expect(recorded).toContainEqual({
       name: "vid4you_billed_units_total",
-      attributes: { stage: "video", provider: "runninghub", unit: "clip_seconds" },
+      attributes: { stage: "video", provider: "RunningHub", unit: "clip_seconds" },
       value: 6,
     });
   });
 
   it("records a successful image as one image", async () => {
-    const sceneId = sceneWith("runninghub", 6);
+    const sceneId = sceneWith(SEEDED_PROFILES.video.id, 6);
     insertProviderRequest(randomUUID(), sceneId, 800, "success", 1, "image");
     expect(await points()).toContainEqual({
       name: "vid4you_billed_units_total",
-      attributes: { stage: "image", provider: "fal", unit: "images" },
+      attributes: { stage: "image", provider: "Fal.ai", unit: "images" },
       value: 1,
     });
   });
 
   it("records an error for a not_retryable_failure", async () => {
-    const sceneId = sceneWith("runninghub", 6);
+    const sceneId = sceneWith(SEEDED_PROFILES.video.id, 6);
     insertProviderRequest(randomUUID(), sceneId, 0, "not_retryable_failure", 1, "video");
     await flushTelemetry();
     expect(logs.getFinishedLogRecords()[0]?.attributes).toMatchObject({
       stage: "video",
-      provider: "runninghub",
+      provider: "RunningHub",
       outcome: "not-retryable",
     });
   });
