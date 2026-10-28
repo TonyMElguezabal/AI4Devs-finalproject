@@ -176,6 +176,10 @@ describe("the scene representation (1.3)", () => {
       sentAt: "2026-10-27T12:30:00.000Z",
       estimate: null,
       body: BODY,
+      // show-clip-task-liveness (JOS-233): the task id (the column's value once the request is sent), no check yet, and the wait's end (send + 2400 s).
+      taskId: expect.any(String),
+      lastCheckedAt: null,
+      waitEndsAt: "2026-10-27T13:10:00.000Z",
     });
   });
 

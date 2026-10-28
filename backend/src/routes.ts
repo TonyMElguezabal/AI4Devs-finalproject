@@ -143,6 +143,9 @@ const videoRequestSchema = z
       .nullable()
       .describe("Median generation time of earlier clips of the same provider (and duration when at least 3 exist); null when there are none."),
     body: z.object({ prompt: z.string(), duration: z.number(), resolution: z.string(), firstFrame: z.string() }).strict(),
+    taskId: z.string().describe("JOS-233: the provider's task id of the current attempt."),
+    lastCheckedAt: z.string().nullable().describe("JOS-233: the last 'still running' answer this application received for the task; null until the first one since it started."),
+    waitEndsAt: z.string().nullable().describe("JOS-233: when the clip wait ceiling fails the scene if the task is unfinished; null when the video stage has no time limit."),
   })
   .strict();
 

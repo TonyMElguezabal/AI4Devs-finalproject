@@ -1196,6 +1196,11 @@ progress::-moz-progress-bar {
   font-size: var(--font-size-sm);
 }
 
+/* show-clip-task-liveness (JOS-233) — a long provider task id wraps inside the details instead of widening them. */
+.video-request-task-id {
+  overflow-wrap: anywhere;
+}
+
 .video-request-json {
   margin: 0;
   padding: 0.75rem;
