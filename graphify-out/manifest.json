@@ -8526,9 +8526,9 @@
     "semantic_hash": ""
   },
   "backend/test/subtitles-real-ffmpeg.test.ts": {
-    "mtime": 1793212715.9029393,
-    "seen": 1793213647.059681,
-    "ast_hash": "248602b6dfdc9caacc162f017a71f20d",
+    "mtime": 1793214397.0136647,
+    "seen": 1793214456.535319,
+    "ast_hash": "260b4d56dc938b85348ace575a3750b0",
     "semantic_hash": ""
   },
   "backend/test/subtitles.test.ts": {
@@ -8604,9 +8604,9 @@
     "semantic_hash": ""
   },
   "openspec/changes/add-burned-in-subtitles/tasks.md": {
-    "mtime": 1793213546.593735,
-    "seen": 1793213647.0598972,
-    "ast_hash": "4baf7641d6650ced9f48e224dd543d45",
+    "mtime": 1793214368.468276,
+    "seen": 1793214456.543385,
+    "ast_hash": "77a8eefbadc563e40d3f34756d221f51",
     "semantic_hash": ""
   },
   "openspec/changes/add-burned-in-subtitles/reports/screenshots/e2e-english-v2-at-6.9s.png": {
