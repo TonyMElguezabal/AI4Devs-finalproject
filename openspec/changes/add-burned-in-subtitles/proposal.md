@@ -33,7 +33,7 @@ _None._
   - `orchestrator.ts` (builds the cues from the stored timestamps and the pause edits);
   - `bootstrap.ts` (start-up warning when ffmpeg has no `subtitles` filter);
   - `readStoredCharacters` in `sessionPauses.ts` is exported for reuse.
-- **Assets and packaging:** `backend/assets/fonts/Montserrat-Bold.ttf` and its `OFL.txt`; `packaging/build.ts` and `runtimeEnv.ts` place the font beside the executable and set `SUBTITLE_FONT_PATH`; `packaging/targets.ts` if the pinned ffmpeg builds lack libass.
+- **Assets and packaging:** `backend/assets/fonts/Montserrat-Bold.ttf` and its `OFL.txt`; `packaging/build.ts` embeds the font and its licence in the executable, `entry.ts` writes them to the data folder at start, and `runtimeEnv.ts` sets `SUBTITLE_FONT_PATH`.
 - **Frontend, API and data:** none. There is no endpoint, field or migration change; the subtitle file is a temporary file of the assembly attempt and is not stored.
 - **Docs:** PRD v1.27 (§7.3, AC25, changelog; v1.26 kept as `docs/PRD-v1.26.md`), ADR 0005 (the subtitles step), ADR 0007 (libass and the font in the bundle), `docs/data-model.md`, the Spanish `readme.md` and `backend/README.md` (the `FFMPEG_PATH` note for development).
 - **Cost and time:** no provider calls. One filter on the existing re-encode; expect the mux to take a little longer.

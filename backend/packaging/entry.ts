@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, extname } from "node:path";
+import { dirname, extname, join } from "node:path";
 import sea from "node:sea";
 import { isAlreadyRunning, openBrowser } from "./instance.ts";
 import { buildRuntimeEnvironment, resolveDataDir, sanitizeEnvironment } from "./runtimeEnv.ts";
@@ -44,6 +44,13 @@ async function main(): Promise<void> {
   if (!defaults) throw new Error("the settings defaults are missing from the executable");
   mkdirSync(dirname(runtime.SETTINGS_DEFAULTS_PATH), { recursive: true });
   writeFileSync(runtime.SETTINGS_DEFAULTS_PATH, defaults);
+
+  // add-burned-in-subtitles (JOS-237) — the subtitle font and its licence, rewritten on every start for the same reason.
+  const font = readAsset("Montserrat-Bold.ttf");
+  const fontLicence = readAsset("Montserrat-OFL.txt");
+  if (!font || !fontLicence) throw new Error("the subtitle font is missing from the executable");
+  writeFileSync(runtime.SUBTITLE_FONT_PATH, font);
+  writeFileSync(join(dirname(runtime.SUBTITLE_FONT_PATH), "Montserrat-OFL.txt"), fontLicence);
 
   if (__VID4YOU_SMOKE__) {
     const { installSmokeStubs } = await import("./smokeStubs.ts");

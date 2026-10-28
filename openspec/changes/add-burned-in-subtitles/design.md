@@ -5,7 +5,7 @@
 - The narration's per-character timestamps are stored in `narration-timestamps.json` (`{ mechanism, characters: [{ text, start, end }] }`). `sessionPauses.ts` already reads them with `readStoredCharacters` (not exported) and `sentenceTimings.ts` matches characters to the script by position, ignoring whitespace, and throws when they do not match.
 - A real session always has timestamps by the time it reaches assembly (they are a precondition of decomposition, PRD §6). About 20 existing test files drive assembly with a stub `AssemblyTool` and no stored timestamps, on purpose.
 - ffmpeg: the local Homebrew 8.1.2 has no `subtitles`, `ass` or `drawtext` filter. The packaged builds are the pinned `eugeneware/ffmpeg-static` b6.0 (`packaging/targets.ts`); whether they include libass is not recorded anywhere and must be checked.
-- Packaging: `packaging/build.ts` writes `ffmpeg` and `ffprobe` beside the executable, and `runtimeEnv.ts` points `FFMPEG_PATH` and `FFPROBE_PATH` at them.
+- Packaging: `packaging/build.ts` writes `ffmpeg` and `ffprobe` beside the executable and embeds the web build and `settings.default.json` as single-executable assets; `entry.ts` writes the embedded defaults to the data folder at every start, and `runtimeEnv.ts` points `FFMPEG_PATH`, `FFPROBE_PATH` and `SETTINGS_DEFAULTS_PATH` at their places.
 
 ## Goals / Non-Goals
 
@@ -62,7 +62,7 @@ Alternative rejected: failing in the orchestrator. That would break about 20 tes
 
 In its existing temp `work` folder the adapter writes `subtitles.ass` and copies the font to `fonts/`, then runs the mux with `cwd: work` and the video graph `...concat=...[cat];[cat]subtitles=subtitles.ass:fontsdir=fonts[outv]`. Because both paths are relative and plain, no path needs filtergraph escaping, which removes the Windows drive-letter and quoting problems for free. The other inputs stay absolute arguments. The temp folder is removed in the existing `finally`, so nothing is stored.
 
-The font is a bundled file, never a system font. `config/subtitleFont.ts` resolves it: `SUBTITLE_FONT_PATH` if set, otherwise `assets/fonts/Montserrat-Bold.ttf` relative to the backend source. The packaged app sets `SUBTITLE_FONT_PATH` beside the executable, the way it sets `FFMPEG_PATH`.
+The font is a bundled file, never a system font. `config/subtitleFont.ts` resolves it: `SUBTITLE_FONT_PATH` if set, otherwise `assets/fonts/Montserrat-Bold.ttf` relative to the backend source. The packaged app embeds the font and its licence in the executable and writes them to `<data folder>/runtime/` at every start, as it already does with the settings defaults (`entry.ts`), then sets `SUBTITLE_FONT_PATH` there. That keeps the release archive as it is, and the font can never be separated from the executable it belongs to.
 
 The ASS style (`PlayResX: 1920`, `PlayResY: 1080`, `ScaledBorderAndShadow: yes`):
 

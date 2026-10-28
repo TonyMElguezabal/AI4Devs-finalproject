@@ -45,10 +45,11 @@
 - [x] 4.4 In `orchestrator.ts`: build the cues for every assembly (first, retry, rebuild) with the snapshotted `narrationEdits` and the video's length, and pass them (or `null`). No stored data is written. In `bootstrap.ts`: log a start-up warning when the ffmpeg in use has no `subtitles` filter. Make 4.1 pass.
 - [x] 4.5 Real-ffmpeg tests with `describe.skipIf(!haveSubtitleFilter)`, using the committed fixture of `narration-edits.test.ts`: assemble with cues and extract frames at three cue midpoints (the pink word differs between two instants in one line); assemble with pause edits and check the cue appears later by the edit's amount (±1 frame). Skipped, not failed, on a machine without libass (run them with `FFMPEG_PATH` set to the pinned darwin-arm64 build). Also assert that capital letters are 32-35 px tall (a CSS 48 px Montserrat is 33.6 px), that the frame count, resolution and the copied audio stream are unchanged, and that the temp folder is removed.
 
-## 5. Packaging: the font beside the executable (design Decision 4)
+## 5. Packaging: the font embedded in the executable (design Decision 4)
 
-- [ ] 5.1 Write failing tests: `buildRuntimeEnvironment` returns `SUBTITLE_FONT_PATH` beside the executable; the packaged runtime check (`verify.ts`) fails when the font file is missing.
-- [ ] 5.2 In `packaging/runtimeEnv.ts`, `packaging/build.ts` and `packaging/verify.ts`: copy `backend/assets/fonts/Montserrat-Bold.ttf` and `OFL.txt` beside the executable, set `SUBTITLE_FONT_PATH`, and verify both in the smoke run. Confirm the release workflow's archive includes them (`release.yml` zips the whole output folder). Make 5.1 pass.
+- [x] 5.1 Write failing tests: `buildRuntimeEnvironment` returns `SUBTITLE_FONT_PATH` under the data folder's `runtime/`; a new `embeddedAssets(webDir)` of `packaging/build.ts` (the assets a build embeds) lists `settings.default.json`, `Montserrat-Bold.ttf` and `Montserrat-OFL.txt` next to the `web/` files, and every listed source file exists.
+- [x] 5.2 In `packaging/build.ts` (use `embeddedAssets`), `packaging/entry.ts` (write the font and its licence to `runtime/` at every start; fail to start with a clear message when the font is missing from the executable) and `packaging/runtimeEnv.ts` (`SUBTITLE_FONT_PATH`). Make 5.1 pass.
+- [x] 5.3 If this machine can run the packager (the build needs the exact Node version in `targets.ts`), build the smoke flavor for `darwin-arm64`, start it on a scratch data folder, and check that the font and licence appear in `runtime/` and that the packaged ffmpeg draws subtitles in a smoke assembly. If it cannot, record why in `reports/` and leave the first release run of the workflow to prove it.
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
 
@@ -80,7 +81,7 @@
 ## 10. Update Technical Documentation (MANDATORY)
 
 - [ ] 10.1 Copy `docs/PRD.md` to `docs/PRD-v1.26.md`. In `docs/PRD.md` (Spanish) make the v1.27 changes: a paragraph in §7.3 (subtitles burned in, one line of at most 32 characters, narrated word highlighted, follow the pause edits), AC25, the status line and the §16 changelog row (product owner, JOS-237, 2026-10-28).
-- [ ] 10.2 `docs/adr/0005-media-assembly.md`: the subtitles step (filter, ASS, cwd trick, the failure rule). `docs/adr/0007-deployment.md`: libass in the pinned builds (and any replacement), the font beside the executable, `SUBTITLE_FONT_PATH`.
+- [ ] 10.2 `docs/adr/0005-media-assembly.md`: the subtitles step (filter, ASS, cwd trick, the failure rule). `docs/adr/0007-deployment.md`: libass in the pinned builds (confirmed, no replacement), the font and its licence embedded in the executable and written to the data folder at start, `SUBTITLE_FONT_PATH`.
 - [ ] 10.3 `docs/data-model.md`: the subtitle file is temporary and not stored; no schema change. `readme.md` (Spanish) and `backend/README.md`: the libass requirement and the `FFMPEG_PATH` / `SUBTITLE_FONT_PATH` notes for development.
 - [ ] 10.4 Run `graphify update .`.
 - [ ] 10.5 Commit, then push with an explicit `origin feature/jos-237-subtitles` and open the PR into `feature/entrega-3-JAME` linking JOS-237 (on the user's go-ahead).
