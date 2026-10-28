@@ -1,17 +1,17 @@
-# Graph Report - AI4Devs-jos-213  (2026-10-27)
+# Graph Report - AI4Devs-jos-217  (2026-10-27)
 
 ## Corpus Check
-- 1211 files · ~1,398,743 words
+- 1211 files · ~1,399,170 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 17 file(s) not represented in the graph (top: (none) 10, .dot 2, .css 2)
 
 ## Summary
-- 13771 nodes · 22014 edges · 999 communities (932 shown, 67 thin omitted)
+- 13778 nodes · 22021 edges · 1011 communities (944 shown, 67 thin omitted)
 - Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 1814 edges (avg confidence: 0.94)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `2be1cde7`
+- Built from commit: `e874ebc3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -19,24 +19,24 @@
 - skeleton/src/db.ts
 - providerTypes.ts
 - Requirements
-- createRun
+- getRun
 - Requirements
-- segmentScript
+- Step 6 Report - Unit Tests and Database Verification
 - 16. Registro de cambios
 - scheduled
 - PRD — Vid4You
 - stageAttemptRecorder.ts
-- Tasks — View per-scene status and results (JOS-151, US-19)
+- imageUrl
 - PRD — Vid4You
 - skeleton/src/orchestrator.ts
 - PRD — Vid4You
-- split-segmentation.test.ts
+- Tasks — Assign narration intervals that partition the voice-over (JOS-143)
 - PRD — Vid4You
 - PRD — Vid4You
 - unitBoundaries
 - PRD — Vid4You
 - frontend/src/api/client.ts
-- providerUsageReport.ts
+- failuresReport.ts
 - Step 10 Report — Manual Testing
 - PRD — Vid4You
 - providers.ts
@@ -51,19 +51,19 @@
 - Dead Code Detection Methodology
 - Common Mistakes
 - Tasks — Distinguish a paused session from running generations
-- frontend/src/types.ts
+- SessionsReport.tsx
 - Common Mistakes
 - Requirements
 - ai-specs/skills/writing-skills/render-graphs.js
 - Specboot: Augmented Spec-driven development
-- 2026-10-27-report-provider-usage/proposal.md
+- survey.ts
 - ADDED Requirements
 - providerProfiles.ts
 - ADDED Requirements
 - Requirements
 - Specboot: Augmented Spec-driven development
 - Testing Skills With Subagents
-- backend/package.json
+- telemetry/index.ts
 - backend/src/routes.ts
 - skeleton/package.json
 - ADDED Requirements
@@ -84,13 +84,13 @@
 - ADDED Requirements
 - local/entry.ts
 - ADDED Requirements
-- getRun
+- decompositionPhase.ts
 - ADDED Requirements
 - Requirement: A failed voice-over can be retried by command
 - Requirement: A failed voice-over can be retried by command
 - Requirements
 - Requirements
-- Requirement: The representation reports running work separately from held work
+- Requirement: A failed pause or continue is shown as a sentence and leaves its control usable
 - Step 9 — Manual endpoint testing with curl (retry-decomposition, JOS-156)
 - ref_node_child_process
 - Requirements
@@ -125,14 +125,14 @@
 - Decisions
 - ADDED Requirements
 - Requirements
-- active-providers-section.test.tsx
+- AdminTools
 - Testing Standards
 - ADDED Requirements
 - Requirements
 - ref_vitest
-- recordProviderChange
+- periodOf
 - Backend Project Standards and Best Practices
-- Tasks — Preserve project progress across restarts (JOS-160, US-28)
+- reconcileOnBoot
 - 16. Registro de cambios
 - ADDED Requirements
 - ADDED Requirements
@@ -163,7 +163,7 @@
 - Requirements
 - Requirements
 - Requirements
-- getStageAttempts
+- providerUsageReport.ts
 - Testing CLAUDE.md Skills Documentation
 - Process and rules
 - Persuasion Principles for Skill Design
@@ -181,7 +181,7 @@
 - Writing Skills
 - Requirements
 - ADR 0005 — Provider selection and hardcoded operating parameters
-- adminProviderRoutes.ts
+- admin-provider-connection-test-route.test.ts
 - compilerOptions
 - Tasks — Define the frontend stack
 - Tasks — Define the video and audio assembly tooling
@@ -192,14 +192,14 @@
 - ADDED Requirements
 - Requirements
 - sync-agent-symlinks Skill
-- PhaseRetryButton
+- Step 12: E2E testing (JOS-190, adjust-scene-pause)
 - packaging/build.ts
 - Requirement: An optional reference image is stored, validated and never exposed by path
 - Tasks — Define the backend stack
 - packaging/entry.ts
 - Step 8 Report — Manual Endpoint Testing with curl
 - ADDED Requirements
-- Tasks — Harden the backend foundation (JOS-186)
+- inFlight
 - Tasks — See provider and attempts per stage (JOS-166, US-34)
 - ADDED Requirements
 - Requirement: Retry a failed clip without regenerating its image
@@ -213,7 +213,7 @@
 - ADR 0003 — Live progress update mechanism
 - Tasks — Adjust the pause after a scene and rebuild the final video (JOS-190)
 - Design — Define the frontend stack
-- Requirements
+- Requirement: Interrupted requests are awaited or recorded as failed attempts
 - updateCheck.ts
 - Tasks — Define the production and UAT deployment
 - Requirement: A project's files are kept in its project folder
@@ -225,18 +225,18 @@
 - [Analysis Title]
 - ffmpegAssemblyTool.ts
 - ADR 0004 — Frontend framework and build tooling
-- ADDED Requirements
+- Requirement: Interrupted requests are awaited or recorded as failed attempts
 - Requirements
 - Requirements
 - Design — Define the backend stack
 - Step 7 Report — Manual Endpoint Testing with curl
 - ADDED Requirements
 - Design — Define persistence for sessions and project files
-- narrationTimestamps.ts
+- segmentScript
 - Step 7 — Manual Endpoint Testing with curl
 - Decisions
 - Decisions
-- prototype/src/api/useLiveSession.ts
+- ref_testing_library_react
 - Requirement: Retry a failed clip without regenerating its image
 - Tasks — Retry or correct the image instruction after an image failure (JOS-157, US-25)
 - [Analysis Title]
@@ -258,11 +258,11 @@
 - Report Structure
 - Returns: "OK" or lists conflicts
 - Skill structure
-- Tasks — Segment the script into chunks within duration bounds (JOS-140)
+- Tasks — Split a sentence at clause boundaries (JOS-141)
 - explore.md
 - Step 10 Report — Manual Endpoint Testing with curl (held-open stream)
 - Step 11 Report — E2E Testing (Live Push, Pause, Disconnect, Restart, Diagnostics)
-- DecompositionFailure
+- Obtain narration timestamps for the script
 - Segment the script into chunks within duration bounds
 - Step 7 Report - Unit Tests and Database Verification
 - Split a sentence at clause boundaries when duration bounds can't otherwise be met
@@ -272,7 +272,7 @@
 - ADDED Requirements
 - Tasks — Retime and join scene clips into the video track (JOS-149, US-16a)
 - Requirement: A clip is polled through the query endpoint
-- voiceOverPhase.ts
+- frontend/test/useLiveSession.test.tsx
 - ADDED Requirements
 - Requirement: The intervals partition the voice-over
 - Skill structure
@@ -283,21 +283,21 @@
 - Skill authoring best practices
 - PRD — Vid4You
 - Design — Per-phase maximum execution time, measured from send
-- Design — Retime and join scene clips into the video track
+- admin-page.test.tsx
 - CLAUDE.md
 - codex.md
 - GEMINI.md
 - Requirements
 - Step 7 Report — Live Experiments (Burst, Disconnect, Restart, Idle, Isolation)
-- transient
+- 2026-10-27-define-admin-reports/design.md
 - Step 10 Report - E2E Testing in the Browser
 - Step 7 Report - Unit Tests and Database Verification
 - Step 8 Report - Manual Testing with Real Providers
 - Step 7 Report - Manual Testing with Real Providers
 - Requirements
-- reconcileOnBoot
+- skeleton/src/provider.ts
 - Request the admitted clip duration closest to the narrated interval
-- Step 6: unit tests and database verification (JOS-186, harden-backend-foundation)
+- Tasks — Harden the backend foundation (JOS-186)
 - 16. Registro de cambios
 - Requirement: Repeated confirmations rejected by the store
 - Step 10 Report - Browser E2E (JOS-153, distinguish-paused-session)
@@ -312,7 +312,7 @@
 - Requirement: A clip is polled through the query endpoint
 - Commands and Responses
 - Decisions
-- Tasks — Consult a session by its identifier
+- Tasks — View per-scene status and results (JOS-151, US-19)
 - ADDED Requirements
 - OpenSpec Tasks: Mandatory Steps Enforcement
 - Step 9 Report - Manual Endpoint Testing with curl
@@ -334,7 +334,7 @@
 - Step 7 Report - E2E Testing (Render Console restyle)
 - Step 8 Report - Unit Tests and Database Verification
 - Step 9 Report - Manual Endpoint Testing with curl
-- Step 8 Report - Manual Endpoint Testing with real providers
+- Decisions
 - Requirement: A provider can carry an optional price per unit and currency
 - 16. Registro de cambios
 - Decisions
@@ -351,7 +351,7 @@
 - Step 8 Report - Unit Tests, Coverage and Database Verification
 - Step 8 Report - Unit Tests, Coverage and Database Verification
 - 2026-10-23-record-attempt-provider/tasks.md
-- Tasks — Download individual scene results during processing (JOS-163, US-31)
+- downloadSceneUrl
 - Tasks — Raise the video stage time limit (JOS-197)
 - 16. Registro de cambios
 - telemetry-relay/package.json
@@ -364,13 +364,13 @@
 - Tasks — Keep project files locally without overwriting or expiry (JOS-162, US-30)
 - Step 5 — real timings from the first real script (raise-video-time-limit, JOS-197)
 - Requirement: Every released slot has a matching slot that was taken
-- clauseSplitting.ts
+- clauseBoundaries.ts
 - Requirement: Launch-time check for a newer build on the app's channel
 - Requirement: Voice and decomposition requests are given 600 seconds and clip requests 1200 seconds
 - PRD — Vid4You
 - 16. Registro de cambios
 - PRD — Vid4You
-- Tasks — Run a session end to end (JOS-195)
+- Tasks — Manually retry a failed voice-over (JOS-155, US-23)
 - JOS-199 step 12 — manual endpoint testing with curl
 - 1.2 Spike: cut and insert silence in the narration, encode once
 - Step 11 — Manual Endpoint Testing
@@ -395,7 +395,7 @@
 - SOLID Principles
 - 6. OpenSpec Tasks Mandatory Steps
 - Code Audit Methodology
-- narration-interval-immutability.test.ts
+- createRun
 - Requirements
 - Backend stack walking skeleton (throwaway)
 - Step 6 Report - Unit Test and State Verification
@@ -445,8 +445,8 @@
 - Step 11 Report — E2E Check
 - Step 7c — Rate Limits and Per-Stage Request Caps
 - adminFetch
-- Decisions
-- 2026-10-19-add-observability-telemetry/tasks.md
+- loadCredential
+- redactPaths
 - Step 9 Report - E2E Check in the Browser
 - Step 11 — E2E testing with Playwright (JOS-159, retry-final-assembly)
 - Step 8 — Measure the Timing Values
@@ -457,20 +457,20 @@
 - Step 7 — Manual endpoint testing with curl (JOS-163, download-scene-results)
 - Design — Prevent the final video while any scene is incomplete
 - Prevent the final video while any scene is incomplete
-- retryScheduler.ts
+- voiceOverPhase.ts
 - Proposed text
 - Decisions
 - Requirement: Provider changes in the Reports section
 - Generate the full voice-over
 - Step 10 Report - E2E Testing in the Browser
-- Design — Download individual scene results during processing
+- Tasks — Download individual scene results during processing (JOS-163, US-31)
 - Pause the session and continue explicitly
 - PRD — Vid4You
 - Decisions
 - Raise the per-phase time limits for real script sizes
 - Decisions
 - dependencies
-- 2026-10-22-manage-providers-from-admin/tasks.md
+- stageApiKey
 - Record requested duration and speed-adjustment factor per scene
 - Claude Search Optimization (CSO)
 - Bulletproofing Skills Against Rationalization
@@ -559,7 +559,7 @@
 - compare.ts
 - Step 10: unit tests and database verification (JOS-190, adjust-scene-pause)
 - ADDED Requirements
-- frontend/test/components.test.tsx
+- frontend/src/types.ts
 - Step 10: manual endpoint testing (JOS-218, manage-providers-from-admin)
 - 16. Registro de cambios
 - Step 11: manual endpoint testing (JOS-190, adjust-scene-pause)
@@ -575,7 +575,7 @@
 - Step 15 — Spend Summary Against the $20 Ceiling
 - Model Descriptions
 - Step 9 — Derive the Remaining Values
-- periodOf
+- Decisions
 - Step 8 — E2E testing with the browser (JOS-164, download-final-video)
 - Grafana dashboards
 - Step 6 — Unit test and DB verification (JOS-163, download-scene-results)
@@ -615,19 +615,19 @@
 - Step 8 Report - Unit Tests and Database State Verification
 - Decisions
 - Decisions
-- launchImageStage
+- Tasks — Change the active provider from /admin (JOS-171)
 - build.mjs
 - Step 9 — Curl Endpoint Testing Report
 - Requirement: The requested duration is the admitted duration needing the smallest speed change
 - PRD — Vid4You
 - Borrador de adenda al PRD — telemetría opcional (JOS-199)
-- FailedStagesSection.tsx
+- ref_react
 - Step 6.15 — B+ against the real R2 bucket, from a local container
 - Step 6E — local packaged application, macOS (Decision 14)
 - Step 6.20 — Windows x64 run (JOS-203 B3)
 - 2026-10-27-show-video-request-status/tasks.md
 - Proposed text
-- Execution Record
+- Context
 - Step 8 — E2E testing with the browser (JOS-163, download-scene-results)
 - Step 4 — unit tests and database verification (fix-runninghub-adapter, JOS-196)
 - Step 9 — Unit Test and DB Verification
@@ -639,9 +639,9 @@
 - Step 4 — unit tests and database verification (raise-video-time-limit, JOS-197)
 - Requirement: Editing surface derived from stage state
 - Requirement: No image action once the image succeeded
-- rebindFailedClip
+- startNewCycle
 - Step 4 Report — Rendered Comparison and Threshold Sweep
-- Requirement: A failed pause or continue is shown as a sentence and leaves its control usable
+- 2026-10-27-use-reference-image-in-generation/tasks.md
 - Step 10 — Browser run (JOS-155, retry-voice-over)
 - Design — Lock the script at project start and the narration once complete (JOS-137)
 - Step 10: E2E testing (JOS-168, view-progress-by-phase)
@@ -699,7 +699,7 @@
 - sign-executables/tasks.md
 - Later release
 - Step 7: manual endpoint testing (JOS-174, configure-providers-and-parameters)
-- telemetry/index.ts
+- Step 7: curl endpoint testing (JOS-185, stage-execution-time-limit)
 - Report catalogue: the `/admin` reports (JOS-175)
 - PRD — Vid4You
 - PRD — Vid4You
@@ -710,7 +710,7 @@
 - 8. Estados y progreso
 - ADR 0008 — The `/admin` reports (JOS-175)
 - docs/base-standards.md
-- Download the final video
+- downloadFinalVideoUrl
 - seed.py
 - 4. Entrada y conservación del contenido
 - 6.1 Regla de segmentación
@@ -720,15 +720,15 @@
 - fetch
 - backend/src/orchestrator.ts
 - Requirement: Each phase records its start and end instant once
-- backend/src/server.ts
-- Step 10 Report — Manual Endpoint Testing
+- bootstrap.ts
+- 2026-10-27-surface-pause-continue-failure/tasks.md
 - 2026-10-27-record-phase-instants-and-pipeline-report/tasks.md
-- nearestRankPercentile
+- Step 6: unit tests and database verification (JOS-223, report-provider-usage)
 - 12. Persistencia, archivos y descargas
 - Move a failed stage to the current active provider
-- failure-representation.test.ts
-- 2026-10-27-add-provider-price-per-unit/design.md
-- 2026-10-27-fix-windows-packaging-build/tasks.md
+- 💡 Usage: Official OpenSpec Workflow
+- seedProviderProfiles
+- Generate the clip of each scene
 - PRD — Vid4You
 - Name the downloaded final video after the project title
 - Step 10 — Manual Endpoint Testing with curl
@@ -759,17 +759,17 @@
 - video-request-status.test.tsx
 - 2026-10-27-enable-release-workflow/tasks.md
 - 2026-10-27-package-executables-build/tasks.md
-- Tasks — Redesign the frontend visual design (JOS-198)
+- SessionPage
 - scripts
 - Step 9 Report - E2E Testing in the Browser
 - Step 8 Report — Manual Endpoint Testing
-- startNewCycle
+- Manually retry a failed decomposition
 - move-failed-stage-retry.test.ts
 - Tasks — Generate the full voice-over
-- Tasks — Record requested duration and speed-adjustment factor per scene (JOS-148)
-- active-provider-binding-voice.test.ts
+- runDecompositionPhase
+- Lock the script at project start and the narration once complete
 - frontend/eslint.config.js
-- surface-pause-continue-failure/proposal.md
+- Requirement: A failed pause or continue is shown as a sentence and leaves its control usable
 - 11. Proveedores y operación
 - 12. Persistencia, archivos y descargas
 - 2026-10-23-record-attempt-provider/proposal.md
@@ -804,7 +804,7 @@
 - Tasks — Request the admitted clip duration closest to the narrated interval (JOS-147)
 - Retry or correct the image instruction after an image failure
 - Step 6 — Unit test and DB verification (JOS-164, download-final-video)
-- writeArtefactOnce
+- Tasks — Retry a failed final assembly (JOS-159, US-27)
 - 12. Persistencia, archivos y descargas
 - 11. Proveedores y operación
 - 2026-10-22-step-5-unit-test-and-db-verification.md
@@ -817,10 +817,10 @@
 - Step 8 Report - Manual Endpoint Testing with curl
 - Ignore repeated success confirmations
 - Tasks — Generate the image of each scene (JOS-145)
-- Step 8 — Unit tests and database verification (JOS-167)
-- 2026-10-27-fix-frontend-lint-errors/tasks.md
+- Design — Obtain narration timestamps for the script (JOS-139)
+- Design — Distinguish a paused session from running generations
 - Tasks — Pause the session and continue explicitly (JOS-152, US-20)
-- ImageProvider
+- Generate the image of each scene
 - 2026-10-27-add-linting-and-static-analysis/design.md
 - PRD — Vid4You
 - Design — Retry or correct the image instruction after an image failure
@@ -839,7 +839,7 @@
 - 2026-10-27-record-provider-changes/proposal.md
 - skeleton/src/server.ts
 - 12. Persistencia, archivos y descargas
-- Step 5 Report - Unit Tests and Database Verification
+- Design — Bounded retry policy for provider stages
 - 2026-10-27-report-failures-and-retries/proposal.md
 - 10. Fallos, reintentos y correcciones
 - 10. Fallos, reintentos y correcciones
@@ -869,13 +869,13 @@
 - Download individual scene results during processing
 - Run a session end to end
 - Report - Image model comparison for the reference image (JOS-230)
-- activeProvider.ts
-- 2026-10-27-step-6-manual-endpoint-testing.md
-- Rules and Patterns for documentation and AI specs
+- failedStages.ts
+- Bounded retry policy for provider stages
+- Limit simultaneous provider requests per stage
 - 12. Persistencia, archivos y descargas
 - Step 8 Report - Unit Tests and Database Verification
 - Design — Ignore repeated success confirmations
-- Decisions
+- mode
 - Design — Request the admitted clip duration closest to the narrated interval (JOS-147)
 - Requirement: The provider label is a fixed vendor name
 - 10. Fallos, reintentos y correcciones
@@ -885,21 +885,21 @@
 - release.sh
 - Step 9 Report — Unit Tests and Database Verification
 - Step 9 Report - Manual Endpoint Testing with curl
-- Step 7 — B+ experiments on Cloudflare Containers
+- Design — Segment the script into chunks within duration bounds (JOS-140)
 - Step 5 Report — Manual Endpoint Testing
 - 2026-10-26-test-provider-connection/proposal.md
 - 4. Entrada y conservación del contenido
 - 6.1 Regla de segmentación
 - 11. Proveedores y operación
 - Step 7 Report - Unit Tests and Database Verification
-- Design — Download the final video
+- 2026-10-05-harden-backend-foundation/proposal.md
 - 2026-10-19-fix-runninghub-adapter/design.md
-- 2026-10-27-step-7-e2e-testing.md
+- Step 9: curl endpoint testing (JOS-166, see-provider-and-attempts)
 - sign-macos.sh
 - signing.sh
 - devDependencies
-- sessionsReport.ts
-- Step 9 — Unit test and DB verification (JOS-159, retry-final-assembly)
+- Retry a failed final assembly
+- Step 8 Report - Unit Tests and Database State Verification
 - Design — See provider and attempts per stage
 - Step 9 Report - Manual Endpoint Testing with curl
 - Step 6 — Unit Test and Database State Verification
@@ -908,23 +908,23 @@
 - Step 9 Report - Real adapter check
 - Step 7 Report - Unit Tests and Database Verification
 - Step 10 Report - E2E Testing (Chrome browser automation)
-- Step 9 — unit tests and database verification (run-session-end-to-end, JOS-195)
+- Tasks — Run a session end to end (JOS-195)
 - 12. Persistencia, archivos y descargas
 - Step 9 Report - Manual Endpoint Testing with curl
 - Step 1 — Real-key check of the candidate requests (JOS-220)
-- Step 10 — Manual endpoint testing with curl (JOS-159, retry-final-assembly)
+- 2026-10-27-surface-pause-continue-failure/proposal.md
 - 10. Fallos, reintentos y correcciones
 - 2. Usuarios y alcance
 - 7. Generación visual, duración y montaje
 - 8. Estados y progreso
 - Step 8 Report - E2E Testing with Playwright MCP
-- report-stable-provider-name/tasks.md
+- alignment-provider.test.ts
 - 4. Entrada y conservación del contenido
 - 6.1 Regla de segmentación
 - 2026-10-27-switch-reference-image-model/specs/README.md
 - Step 6 Report - Unit Tests and Database Verification
 - View progress by phase
-- Step 9 Report - E2E Testing in the Browser
+- Step 3 Report — Numeric Comparison
 - Step 8 — Unit tests and database verification (retry-decomposition, JOS-156)
 - Step 8 Report — Unit Tests and Database Verification
 - sweep.ts
@@ -936,23 +936,23 @@
 - Step 8 Report - E2E Testing in the browser
 - Redesign the frontend visual design ("Studio" direction)
 - Step 5 — curl endpoint testing (JOS-205)
-- Step 7 Report - Unit Tests and Database Verification
+- Step 9 — Browser E2E (JOS-151)
 - Step 6 Report - Unit Tests and Database Verification
-- Step 10: unit tests and database verification (JOS-198, redesign-visual-design)
+- Design — Manually retry a failed decomposition
 - Step 7 Report - Manual Endpoint Testing with curl
 - Step 8 Report - E2E Testing in the browser
 - Step 7: manual endpoint testing (JOS-223, report-provider-usage)
-- Design — Assign scene identifiers and visual instructions (JOS-144)
+- SessionFailure
 - Step 9: unit tests and database verification (JOS-172, move-failed-stage-to-active-provider)
 - Step 8 Report - E2E in the browser
 - Step 7 — Unit tests and database verification
 - Design — Generate the image of each scene (JOS-145)
-- Design — Retry a failed final assembly
-- Step 9 Report - Manual Endpoint Testing with curl
+- Step 5b — Verify the Image Provider, Verify the Reasoning Provider, Close Out Group 5
+- Step 10 — Browser end-to-end check (JOS-167)
 - 12. Persistencia, archivos y descargas
-- 2026-10-19-run-session-end-to-end/design.md
+- Step 9 — Manual endpoint testing (JOS-167)
 - Step 2-3: the scratch store and the report queries (JOS-175, define-admin-reports)
-- npmInvocation
+- Step 5 Report - Unit Tests and Database Verification
 - 10. Fallos, reintentos y correcciones
 - 2. Usuarios y alcance
 - 7. Generación visual, duración y montaje
@@ -966,7 +966,7 @@
 - Step 6 Report - Unit Tests and Database Verification
 - Decisions
 - Step 10.2 Report - Fixed-prefix comparison (not run, decision recorded)
-- Requirement: A failed decomposition can be retried by command
+- 🚀 Quick Start
 - Step 6 — Unit tests and database verification (JOS-226)
 - Step 7 Report - Manual Endpoint Testing with curl
 - Step 9 Report - E2E Testing (JOS-228)
@@ -988,15 +988,27 @@
 - 2026-10-22-step-8-e2e.md
 - 2026-10-27-step-5-unit-test-and-db-verification.md
 - Step 7 — proof-of-concept experiments (option A), interim
-- Step 9: unit tests and database verification (JOS-218, manage-providers-from-admin)
+- save
 - report-stable-provider-name/proposal.md
 - Step 5 Report - Unit Tests and Database Verification
 - Step 6 Report - Manual Testing of the Telemetry Export
 - JOS-199 step 9 — packaging check (task 9.1)
 - Step 5 — live API check of the fixed adapter (fix-runninghub-adapter, JOS-196)
 - Step 7 Report - Grafana check (AC5)
-- Step 4 — unit tests and database verification (JOS-205)
-- ai-specs/agents/frontend-developer.md
+- bootLogFields
+- JOS-185: Per-phase maximum execution time, measured from send
+- 🚀 Quick Start
+- 🔧 Customization
+- 🎯 Benefits
+- Open items to know before reviewing
+- Step 9: manual endpoint testing with curl (JOS-168, view-progress-by-phase)
+- 2026-10-19-view-progress-by-phase/reports/pr-description.md
+- 🔧 Customization
+- 🎯 Benefits
+- ai-specs/agents/backend-developer.md
+- 📖 Core Development Rules
+- 2026-10-27-surface-pause-continue-failure/reports/2026-10-27-step-6-manual-endpoint-testing.md
+- 2026-10-27-step-7-e2e-testing.md
 
 ## God Nodes (most connected - your core abstractions)
 1. `createRun()` - 156 edges
@@ -1013,79 +1025,79 @@
 ## Surprising Connections (you probably didn't know these)
 - `Decision 2 — `active_providers` table, read on every bind` --references--> `activeProviderId()`  [INFERRED]
   openspec/changes/archive/2026-10-21-change-active-provider-from-admin/design.md → backend/src/activeProvider.ts
+- `3. Backend: registries and `activeProviderId` (TDD; design Decisions 1, 2)` --references--> `activeProviderId()`  [INFERRED]
+  openspec/changes/archive/2026-10-21-change-active-provider-from-admin/tasks.md → backend/src/activeProvider.ts
 - `1. Gate` --references--> `activeProviderId()`  [INFERRED]
   openspec/changes/archive/2026-10-22-manage-providers-from-admin/tasks.md → backend/src/activeProvider.ts
 - `Impact` --references--> `setActiveProvider()`  [INFERRED]
   openspec/changes/archive/2026-10-27-record-provider-changes/proposal.md → backend/src/activeProvider.ts
 - `7.2-7.3 Commands and results` --references--> `setAdminPasswordReader()`  [INFERRED]
   openspec/changes/archive/2026-10-21-protect-admin-with-password/reports/2026-10-19-step-7-unit-test-and-db-verification.md → backend/src/adminAccess.ts
-- `Decision 3 — One `onRequest` hook for the `/admin/` prefix` --references--> `requireAdministrator()`  [INFERRED]
-  openspec/changes/archive/2026-10-21-protect-admin-with-password/design.md → backend/src/adminAccess.ts
 
 ## Import Cycles
 - None detected.
 
-## Communities (999 total, 67 thin omitted)
+## Communities (1011 total, 67 thin omitted)
 
 ### Community 0 - "skeleton/src/db.ts"
-Cohesion: 0.13
-Nodes (27): applyMigrationsTo(), commitSceneResult(), countSceneResults(), createRun(), createScene(), deriveAndCreateProjectFolder(), formatFolderTimestamp(), getAllInFlightScenes() (+19 more)
+Cohesion: 0.10
+Nodes (35): applyMigrationsTo(), commitSceneResult(), countSceneResults(), createRun(), createScene(), deriveAndCreateProjectFolder(), formatFolderTimestamp(), getAllInFlightScenes() (+27 more)
 
 ### Community 1 - "providerTypes.ts"
-Cohesion: 0.05
-Nodes (50): describeIssue(), dottedPath(), ACCEPTED_PROVIDERS, deepMerge(), evenPositiveInteger, isPlainObject(), JsonObject, loadSettings() (+42 more)
+Cohesion: 0.07
+Nodes (34): describeIssue(), dottedPath(), ACCEPTED_PROVIDERS, deepMerge(), evenPositiveInteger, isPlainObject(), JsonObject, loadSettings() (+26 more)
 
 ### Community 2 - "Requirements"
 Cohesion: 0.05
 Nodes (43): admin-reports Specification, Purpose, Requirement: Provider-usage report, Requirement: Reports are read-only, local and behind the Administrator password, Requirement: Reports take a period applied to the instant an attempt was sent, Requirement: Scene attempts follow the scene's current provider until it is recorded, Requirement: Scene drill-down of a session, Requirement: Sessions report (+35 more)
 
-### Community 3 - "createRun"
+### Community 3 - "getRun"
 Cohesion: 0.02
-Nodes (167): commitSceneResult(), createRun(), getScenesForRun(), insertRegisteredScenes(), markImageComplete(), completeImageStage(), deriveSessionState(), launchVideoStageForRun() (+159 more)
+Nodes (204): intervalDurationSeconds(), AssemblyRetryResult, retryAssembly(), holders, limits, queues, clearRunFailure(), commitSceneResult() (+196 more)
 
 ### Community 4 - "Requirements"
 Cohesion: 0.07
 Nodes (28): failed-stage-move Specification, Purpose, Requirement: A move binds the stage to the current active provider and sends nothing, Requirement: A move is refused when it would not apply, Requirement: A moved clip chooses its duration again from the new provider, Requirement: Completed results are kept, Requirement: Failed stages on a provider other than the active one are listed on /admin, Requirement: Nothing moves automatically (+20 more)
 
-### Community 5 - "segmentScript"
-Cohesion: 0.08
-Nodes (33): closestAdmittedDuration, buildUnits(), FragmentException, Grouping, isBetter(), SegmentationResult, segmentScript(), trimSpan() (+25 more)
+### Community 5 - "Step 6 Report - Unit Tests and Database Verification"
+Cohesion: 0.25
+Nodes (7): Commands Executed, Coverage (task 5.3), Database State Verification, Outcome, Scenario to Test Mapping (task 5.2), Step 6 Report - Unit Tests and Database Verification, Unit Test Results
 
 ### Community 6 - "16. Registro de cambios"
 Cohesion: 0.09
 Nodes (22): 16. Registro de cambios, De la versión 1.1 a la 1.2, From version 1.10 to 1.11, From version 1.11 to 1.12, From version 1.12 to 1.13, From version 1.13 to 1.14, From version 1.14 to 1.15, From version 1.15 to 1.16 (+14 more)
 
 ### Community 7 - "scheduled"
-Cohesion: 0.04
-Nodes (57): sendWithSlot(), scheduled(), 7.3 The first attempt hangs, the retry answers (`hang-once-then-success`, retry delay 1 s), 7.4 The answer arrives late, before the retry's delay (`success-after-limit`, retry delay 10 s), 7.5 The provider always hangs (`hang`, retry delay 1 s), 7.6 Time held before sending is not timed (`hang-once-then-success`, retry delay 3 s), 7.7 Clean-up, 8.1 E2E (+49 more)
+Cohesion: 0.09
+Nodes (27): scheduled(), Design — Limit simultaneous provider requests per stage, Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs, Requirement: Waiting is neither a failed attempt nor execution time, Scenario: A long wait does not time out (+19 more)
 
 ### Community 8 - "PRD — Vid4You"
 Cohesion: 0.20
 Nodes (9): 13. Criterios de aceptación del MVP, 14.1 POC de asignación de silencios (D11) — Cerrada, 14. Decisiones de producto, 15. Gaps abiertos no bloqueantes, 1. Objetivo del producto, 3. Conceptos y datos del proyecto, 5. Flujo funcional, 9. Pausa y continuación (+1 more)
 
 ### Community 9 - "stageAttemptRecorder.ts"
-Cohesion: 0.08
-Nodes (37): timeOutAttempt(), ClassifiedOutcome, decideRetry(), RetryDecision, RetryDelayConfig, retryDelaySeconds(), applyRetryDecision(), AttemptReport (+29 more)
+Cohesion: 0.10
+Nodes (30): timeOutAttempt(), ClassifiedOutcome, decideRetry(), RetryDecision, RetryDelayConfig, retryDelaySeconds(), applyRetryDecision(), AttemptReport (+22 more)
 
-### Community 10 - "Tasks — View per-scene status and results (JOS-151, US-19)"
-Cohesion: 0.09
-Nodes (22): imageUrl(), Coding Standards, Capabilities, Impact, Modified Capabilities, New Capabilities, View per-scene status and results, What Changes (+14 more)
+### Community 10 - "imageUrl"
+Cohesion: 0.12
+Nodes (16): imageUrl(), Coding Standards, Capabilities, Impact, Modified Capabilities, New Capabilities, View per-scene status and results, What Changes (+8 more)
 
 ### Community 11 - "PRD — Vid4You"
 Cohesion: 0.04
 Nodes (45): 10.1 Reintentos automáticos, 10.2 Reintentos manuales, 10.3 Edición permitida, 10. Fallos, reintentos y correcciones, 11.1 Marcas de tiempo y mecanismo de respaldo, 11.2 Vinculación y cambio de proveedor, 11.3 Recorded providers and parameter values (JOS-165), 11. Proveedores y operación (+37 more)
 
 ### Community 12 - "skeleton/src/orchestrator.ts"
-Cohesion: 0.09
-Nodes (45): db, getLatestProviderRequestForScene(), getRun(), getScene(), getScenesForRun(), rowToRun(), setRunPaused(), broadcast() (+37 more)
+Cohesion: 0.11
+Nodes (38): release(), db, getRun(), getScene(), getScenesForRun(), setRunPaused(), broadcast(), continueSession() (+30 more)
 
 ### Community 13 - "PRD — Vid4You"
 Cohesion: 0.04
 Nodes (44): 10.1 Reintentos automáticos, 10.2 Reintentos manuales, 10.3 Edición permitida, 10. Fallos, reintentos y correcciones, 11.1 Marcas de tiempo y mecanismo de respaldo, 11.2 Vinculación y cambio de proveedor, 11.3 Recorded providers and parameter values (JOS-165), 11. Proveedores y operación (+36 more)
 
-### Community 14 - "split-segmentation.test.ts"
-Cohesion: 0.06
-Nodes (28): intervalDurationSeconds(), findFragmentProblem(), normaliseWhitespace(), durations(), fragmentsOf(), segment(), Decisions, Design — Assign narration intervals that partition the voice-over (JOS-143) (+20 more)
+### Community 14 - "Tasks — Assign narration intervals that partition the voice-over (JOS-143)"
+Cohesion: 0.17
+Nodes (11): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 11. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 12. Update Technical Documentation (MANDATORY), 13. Close out, 1. Gate, 5. Immutability through processing and retries (design Decision 6; spec: immutable), 6. Exposure (design Decision 5; spec: readable), 7. Wire-through check (spec: shared boundary rule, partition) (+3 more)
 
 ### Community 15 - "PRD — Vid4You"
 Cohesion: 0.05
@@ -1096,20 +1108,20 @@ Cohesion: 0.04
 Nodes (46): 10.1 Reintentos automáticos, 10.2 Reintentos manuales, 10.3 Edición permitida, 10. Fallos, reintentos y correcciones, 11.1 Marcas de tiempo y mecanismo de respaldo, 11.2 Vinculación y cambio de proveedor, 11.3 Recorded providers and parameter values (JOS-165), 11. Proveedores y operación (+38 more)
 
 ### Community 17 - "unitBoundaries"
-Cohesion: 0.07
-Nodes (33): unitBoundaries(), ADR 0006 — Silence allocation (D11), Consequences, Context, Risks / Trade-offs, Assign narration intervals that partition the voice-over, Capabilities, Impact (+25 more)
+Cohesion: 0.05
+Nodes (39): unitBoundaries(), ADR 0006 — Silence allocation (D11), Consequences, Context, Decision, Idea raised, out of this decision's scope, Risks / Trade-offs, The verdict (+31 more)
 
 ### Community 18 - "PRD — Vid4You"
 Cohesion: 0.05
 Nodes (41): 10.1 Reintentos automáticos, 10.2 Reintentos manuales, 10.3 Edición permitida, 10. Fallos, reintentos y correcciones, 11.1 Marcas de tiempo y mecanismo de respaldo, 11.2 Vinculación y cambio de proveedor, 11. Proveedores y operación, 12.1 Conservación del proyecto (+33 more)
 
 ### Community 19 - "frontend/src/api/client.ts"
-Cohesion: 0.05
-Nodes (63): ADMIN_DENIALS, AdminAccessResult, AdminDenial, AdminProviderChangeResult, AdminProvidersResult, AppSettingsResult, ConnectionTestOutcome, continueSession() (+55 more)
+Cohesion: 0.06
+Nodes (56): ADMIN_DENIALS, AdminAccessResult, AdminDenial, AdminProviderChangeResult, AdminProvidersResult, AppSettingsResult, ConnectionTestOutcome, continueSession() (+48 more)
 
-### Community 20 - "providerUsageReport.ts"
-Cohesion: 0.12
-Nodes (20): failuresReport, FailureStageRow, FailureWording, isFailure(), SESSION_STAGE_OF, SessionAttemptRow, sessionAttempts(), SessionStage (+12 more)
+### Community 20 - "failuresReport.ts"
+Cohesion: 0.17
+Nodes (14): failuresReport, FailureStageRow, FailureWording, isFailure(), SESSION_STAGE_OF, SessionAttemptRow, sessionAttempts(), SessionStage (+6 more)
 
 ### Community 21 - "Step 10 Report — Manual Testing"
 Cohesion: 0.33
@@ -1120,8 +1132,8 @@ Cohesion: 0.05
 Nodes (39): 10.1 Reintentos automáticos, 10.2 Reintentos manuales, 10.3 Edición permitida, 10. Fallos, reintentos y correcciones, 11.1 Marcas de tiempo y mecanismo de respaldo, 11.2 Vinculación y cambio de proveedor, 11. Proveedores y operación, 12.1 Conservación del proyecto (+31 more)
 
 ### Community 23 - "providers.ts"
-Cohesion: 0.05
-Nodes (49): requestedClipDuration, ALIGNMENT_PROVIDER, CappedStage, DECOMPOSITION_PROVIDER, DECOMPOSITION_REQUIRES_WHITESPACE_PRESERVATION_INSTRUCTION, FINAL_OUTPUT, IMAGE_GENERATION_SIZE, IMAGE_PROVIDER (+41 more)
+Cohesion: 0.06
+Nodes (48): ALIGNMENT_PROVIDER, CappedStage, DECOMPOSITION_PROVIDER, DECOMPOSITION_REQUIRES_WHITESPACE_PRESERVATION_INSTRUCTION, FINAL_OUTPUT, IMAGE_GENERATION_SIZE, IMAGE_PROVIDER, loadedSettings (+40 more)
 
 ### Community 24 - "Requirements"
 Cohesion: 0.05
@@ -1167,9 +1179,9 @@ Nodes (32): 1a. Native Worktree Tools (preferred), 1b. Git Worktree Fallback, 5.
 Cohesion: 0.13
 Nodes (14): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 12. Close out, 1. Gate: Confirm the foundations this change stands on, 2. Backend: running-work derivation (TDD), 3. Backend: payload and API schema (TDD), 4. Frontend: types and status mapping (TDD) (+6 more)
 
-### Community 35 - "frontend/src/types.ts"
-Cohesion: 0.07
-Nodes (32): getSessionScenesReport(), getSessionsReport(), created(), factor, HEADERS, ListState, number, Props (+24 more)
+### Community 35 - "SessionsReport.tsx"
+Cohesion: 0.09
+Nodes (24): getSessionScenesReport(), getSessionsReport(), created(), factor, HEADERS, ListState, number, Props (+16 more)
 
 ### Community 36 - "Common Mistakes"
 Cohesion: 0.06
@@ -1184,52 +1196,52 @@ Cohesion: 0.10
 Nodes (25): combineGraphs(), { execSync }, extractDotBlocks(), extractGraphBody(), fs, main(), path, renderToSvg() (+17 more)
 
 ### Community 39 - "Specboot: Augmented Spec-driven development"
-Cohesion: 0.06
-Nodes (30): 1) Install and Initialize OpenSpec, 2) Import Into Your Project, 3) Customize `docs/` for Your Project (Mandatory), 4) Point OpenSpec Config to Your `docs/` and `ai-specs/`, 🙏 Acknowledgements, Adapting to Your Project, 🎯 Benefits, 🤝 Contributing (+22 more)
+Cohesion: 0.18
+Nodes (10): 🙏 Acknowledgements, 🤝 Contributing, 📄 License, 🤖 Multi-Copilot Support, Reference Examples (from LIDR Project), 📁 Repository Structure, Specboot: Augmented Spec-driven development, 📚 Technical context (+2 more)
 
-### Community 40 - "2026-10-27-report-provider-usage/proposal.md"
-Cohesion: 0.29
-Nodes (6): Capabilities, Impact, Modified Capabilities, New Capabilities, What Changes, Why
+### Community 40 - "survey.ts"
+Cohesion: 0.10
+Nodes (10): CLIPS, ClipSpec, IMAGE_TEXTS, rhHeaders, rhKey, alignmentProvider, measurePauses(), PauseRecord (+2 more)
 
 ### Community 41 - "ADDED Requirements"
 Cohesion: 0.06
 Nodes (35): ADDED Requirements, Deployment foundation, Requirement: Build and release pipeline declared as code, Requirement: Credentials stay on the user's computer, Requirement: Data kept in the user's data folder, Requirement: Exactly one backend instance per user, Requirement: Follow-up work is specified, not implied, Requirement: Production releases are the artifacts UAT validated (+27 more)
 
 ### Community 42 - "providerProfiles.ts"
-Cohesion: 0.08
-Nodes (57): ProviderRegistry, registerProviderProfileRoutes(), LEGACY_IMAGE_PROVIDER_IDENTIFIER, LEGACY_VIDEO_PROVIDER_IDENTIFIER, stageInstanceKeyOf(), FailedStage, FailedStageRef, hasPendingSessionAttempt() (+49 more)
+Cohesion: 0.07
+Nodes (64): registerProviderProfileRoutes(), LEGACY_IMAGE_PROVIDER_IDENTIFIER, LEGACY_VIDEO_PROVIDER_IDENTIFIER, SETTINGS, onStoreReset(), parametersOf(), FailedStage, FailedStageRef (+56 more)
 
 ### Community 43 - "ADDED Requirements"
 Cohesion: 0.06
 Nodes (34): ADDED Requirements, Requirement: Consent prompt and settings on the page, Requirement: Dashboards declared in the repository, Requirement: Error reports, Requirement: Per-signal opt-in consent, Requirement: Product usage events, Requirement: Provider usage metrics, Requirement: Published privacy policy (+26 more)
 
 ### Community 44 - "Requirements"
-Cohesion: 0.08
-Nodes (23): decomposition-manual-retry Specification, Purpose, Requirement: A decomposition retry never regenerates the voice-over, Requirement: A division retry re-divides the same script, Requirement: A retry opens a new cycle on the failed step, through the launch gate, Requirement: A timestamps retry runs on the same audio, Requirement: An accepted retry shows the decomposition in progress, Requirement: The page offers the retry on a failed decomposition phase (+15 more)
+Cohesion: 0.06
+Nodes (33): decomposition-manual-retry Specification, Purpose, Requirement: A decomposition retry never regenerates the voice-over, Requirement: A division retry re-divides the same script, Requirement: A failed decomposition can be retried by command, Requirement: A retry opens a new cycle on the failed step, through the launch gate, Requirement: A timestamps retry runs on the same audio, Requirement: An accepted retry shows the decomposition in progress (+25 more)
 
 ### Community 45 - "Specboot: Augmented Spec-driven development"
-Cohesion: 0.06
-Nodes (30): 1) Install and Initialize OpenSpec, 2) Import Into Your Project, 3) Customize `docs/` for Your Project (Mandatory), 4) Point OpenSpec Config to Your `docs/` and `ai-specs/`, 🙏 Acknowledgements, Adapting to Your Project, 🎯 Benefits, 🤝 Contributing (+22 more)
+Cohesion: 0.14
+Nodes (13): 🙏 Acknowledgements, 🤝 Contributing, 📖 Core Development Rules, Key Principles, 📄 License, 🤖 Multi-Copilot Support, Reference Examples (from LIDR Project), 📁 Repository Structure (+5 more)
 
 ### Community 46 - "Testing Skills With Subagents"
 Cohesion: 0.07
 Nodes (29): 1. Explicit Negation in Rules, 2. Entry in Rationalization Table, 3. Red Flag Entry, 4. Update description, Common Mistakes (Same as TDD), Example: TDD Skill Bulletproofing, GREEN Phase: Write Minimal Skill (Make It Pass), Initial Test (Failed) (+21 more)
 
-### Community 47 - "backend/package.json"
-Cohesion: 0.10
-Nodes (20): description, eslint, @eslint/js, fastify, @fastify/cors, @fastify/swagger, @fastify/swagger-ui, fastify-type-provider-zod (+12 more)
+### Community 47 - "telemetry/index.ts"
+Cohesion: 0.07
+Nodes (35): description, eslint, @eslint/js, fastify, @fastify/cors, @fastify/swagger, @fastify/swagger-ui, fastify-type-provider-zod (+27 more)
 
 ### Community 48 - "backend/src/routes.ts"
 Cohesion: 0.06
-Nodes (36): adminDeniedSchema, failedStageSchema, moveBodySchema, registerFailedStageRoutes(), stageEnum, validationErrorSchema, appSettingsResponseSchema, refusalResponseSchema (+28 more)
+Nodes (40): adminDeniedSchema, failedStageSchema, moveBodySchema, stageEnum, validationErrorSchema, adminSettingsImageRoutes(), IMAGE_TYPES, ImageType (+32 more)
 
 ### Community 49 - "skeleton/package.json"
 Cohesion: 0.07
 Nodes (29): dependencies, fastify, @fastify/cors, @fastify/swagger, @fastify/swagger-ui, fastify-type-provider-zod, zod, description (+21 more)
 
 ### Community 50 - "ADDED Requirements"
-Cohesion: 0.07
-Nodes (29): ADDED Requirements, decomposition-manual-retry, Requirement: A decomposition retry never regenerates the voice-over, Requirement: A division retry re-divides the same script, Requirement: A failed decomposition can be retried by command, Requirement: A retry opens a new cycle on the failed step, through the launch gate, Requirement: A timestamps retry runs on the same audio, Requirement: An accepted retry shows the decomposition in progress (+21 more)
+Cohesion: 0.06
+Nodes (32): ADDED Requirements, decomposition-manual-retry, Requirement: A decomposition retry never regenerates the voice-over, Requirement: A division retry re-divides the same script, Requirement: A failed decomposition can be retried by command, Requirement: A retry opens a new cycle on the failed step, through the launch gate, Requirement: A timestamps retry runs on the same audio, Requirement: An accepted retry shows the decomposition in progress (+24 more)
 
 ### Community 51 - "Testing Skills With Subagents"
 Cohesion: 0.07
@@ -1269,7 +1281,7 @@ Nodes (31): chunk-video-generation Specification, Purpose, Requirement: A stored
 
 ### Community 60 - "backend/src/db.ts"
 Cohesion: 0.03
-Nodes (94): adminSettingsImageRoutes(), IMAGE_TYPES, ImageType, isImageType(), MAX_REFERENCE_IMAGE_BYTES, acceptLateResult(), APP_DATA_DIR, AppSettings (+86 more)
+Nodes (107): Goal, AppSettings, AppSettingsRow, ArtefactAlreadyExistsError, assertWithinProjectFolder(), beginAssemblyRetry(), cancelScheduledAttempt(), clearReferenceImage() (+99 more)
 
 ### Community 61 - "Requirements"
 Cohesion: 0.07
@@ -1299,9 +1311,9 @@ Nodes (23): allowedHosts, allowedOrigins, alreadyRunning(), CONTENT_TYPES, main(
 Cohesion: 0.08
 Nodes (25): ADDED Requirements, Live updates foundation, Requirement: A defined event payload, Requirement: An idle connection stays alive or reconnects transparently, Requirement: An open page reaches current state after a disconnection, Requirement: Recorded evidence before implementation, Requirement: Session-scoped delivery, Requirement: Single documented live-update mechanism (+17 more)
 
-### Community 68 - "getRun"
-Cohesion: 0.02
-Nodes (173): resolveBoundAdapter(), AssemblyRetryResult, retryAssembly(), beginAssemblyRetry(), bindAlignmentProvider(), bindDecompositionProvider(), clearScenePauseEdit(), countScenesForRun() (+165 more)
+### Community 68 - "decompositionPhase.ts"
+Cohesion: 0.03
+Nodes (107): resolveBoundAdapter(), AlignmentProvider, AlignmentResult, bindAlignmentProvider(), bindDecompositionProvider(), claimScheduledAttempt(), countNarrationTimestamps(), getNarrationTimestamps() (+99 more)
 
 ### Community 69 - "ADDED Requirements"
 Cohesion: 0.08
@@ -1323,9 +1335,9 @@ Nodes (46): Purpose, Requirement: A pause holds every launch not yet sent, Requi
 Cohesion: 0.07
 Nodes (29): final-video-assembly Specification, Purpose, Requirement: A successful assembly completes the session and makes the video downloadable, Requirement: An assembly failure preserves every successful component, Requirement: Assembly diagnostics are recorded without exposing credentials, Requirement: Assembly launches only when every scene is complete, Requirement: Clips are ordered by ascending scene identifier, Requirement: Each clip is placed at its chunk's persisted narration interval (+21 more)
 
-### Community 74 - "Requirement: The representation reports running work separately from held work"
-Cohesion: 0.08
-Nodes (25): paused-session-display Specification, Purpose, Requirement: A generation still in progress during a pause is shown as in progress, Requirement: A pause is shown as neither success nor failure, Requirement: A paused session shows its state and progress with a marker that waits for the User, Requirement: Continue is available whenever the session is paused, Requirement: The representation reports running work separately from held work, Requirements (+17 more)
+### Community 74 - "Requirement: A failed pause or continue is shown as a sentence and leaves its control usable"
+Cohesion: 0.06
+Nodes (32): paused-session-display Specification, Purpose, Requirement: A failed pause or continue is shown as a sentence and leaves its control usable, Requirement: A generation still in progress during a pause is shown as in progress, Requirement: A pause is shown as neither success nor failure, Requirement: A paused session shows its state and progress with a marker that waits for the User, Requirement: Continue is available whenever the session is paused, Requirement: The representation reports running work separately from held work (+24 more)
 
 ### Community 75 - "Step 9 — Manual endpoint testing with curl (retry-decomposition, JOS-156)"
 Cohesion: 0.40
@@ -1377,7 +1389,7 @@ Nodes (19): ascending(), assemblyGate, isSceneSettled(), SessionProgress, NON_FI
 
 ### Community 87 - "ReportsSection.tsx"
 Cohesion: 0.04
-Nodes (71): getFailuresReport(), getPipelineTimeReport(), getProviderChangesReport(), getProviderUsageReport(), getReport(), AdminTools(), count(), FAILURE_HEADERS (+63 more)
+Nodes (73): getFailuresReport(), getPipelineTimeReport(), getProviderChangesReport(), getProviderUsageReport(), getReport(), count(), FAILURE_HEADERS, FailuresTables() (+65 more)
 
 ### Community 88 - "ADDED Requirements"
 Cohesion: 0.07
@@ -1448,12 +1460,12 @@ Cohesion: 0.09
 Nodes (21): Persistence foundation, Purpose, Requirement: Documented data model for this product, Requirement: File references bound to the owning project folder, Requirement: Provider requests recorded before they are sent, Requirement: Repeated confirmations rejected by the store, Requirement: Verification process reconciled with the chosen store, Requirements (+13 more)
 
 ### Community 105 - "Tasks — Download the final video (JOS-164, US-32)"
-Cohesion: 0.18
-Nodes (10): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Close out, 1. Gate, 3. Backend: prove the download (TDD; design Decision 4), 5. Review and Update Existing Unit Tests (MANDATORY), 6. Run Unit Tests and Verify Database State (MANDATORY), 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 8. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE) (+2 more)
+Cohesion: 0.10
+Nodes (19): resolveResultUrl(), 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Close out, 1. Gate, 3. Backend: prove the download (TDD; design Decision 4), 4. Frontend: render the offered URL (TDD; design Decision 2), 5. Review and Update Existing Unit Tests (MANDATORY), 6. Run Unit Tests and Verify Database State (MANDATORY) (+11 more)
 
 ### Community 106 - "Decisions"
-Cohesion: 0.22
-Nodes (8): Decision 1: Two nullable columns on `scenes`, Decision 2: The adapter reports the body it sent, Decision 5: The page derives the clock, Decision 6: A strict representation, Decisions, Goals / Non-Goals, Open Questions, Risks / Trade-offs
+Cohesion: 0.20
+Nodes (9): Decision 1: Two nullable columns on `scenes`, Decision 2: The adapter reports the body it sent, Decision 4: The estimate is computed on read, Decision 5: The page derives the clock, Decision 6: A strict representation, Decisions, Goals / Non-Goals, Open Questions (+1 more)
 
 ### Community 107 - "ADDED Requirements"
 Cohesion: 0.10
@@ -1463,9 +1475,9 @@ Nodes (20): ADDED Requirements, Narration timestamps, Requirement: A retry after
 Cohesion: 0.07
 Nodes (26): Purpose, Requirement: A language from the supported list is required, Requirement: A session is registered from a title, a script and a language, Requirement: An empty title or script starts nothing, Requirement: No product limit on script length, Requirement: The session records what its project folder name derives from, Requirement: The title, script and language cannot change after registration, Requirement: The User receives the identifier needed to return to the session (+18 more)
 
-### Community 109 - "active-providers-section.test.tsx"
-Cohesion: 0.13
-Nodes (19): getAdminProviders(), putAdminProvider(), ActiveProvidersSection(), handleChange(), Props, STAGE_LABELS, ProviderView, Call (+11 more)
+### Community 109 - "AdminTools"
+Cohesion: 0.06
+Nodes (35): getAdminProviders(), putAdminProvider(), ActiveProvidersSection(), handleChange(), Props, STAGE_LABELS, AdminTools(), ProviderView (+27 more)
 
 ### Community 110 - "Testing Standards"
 Cohesion: 0.10
@@ -1481,19 +1493,19 @@ Nodes (40): clip-duration-request Specification, Purpose, Requirement: A factor 
 
 ### Community 113 - "ref_vitest"
 Cohesion: 0.02
-Nodes (151): AdminDenialReason, defaultReader(), denialFor(), readAdminPassword(), registerAdminGate(), requireAdministrator(), resetAdminPasswordReader(), sameSecret() (+143 more)
+Nodes (151): AdminDenialReason, resetAdminPasswordReader(), setAdminPasswordReader(), requestedClipDuration, APP_DATA_DIR, applyMigrationsTo(), completeStageAttempt(), countVoiceOvers() (+143 more)
 
-### Community 114 - "recordProviderChange"
-Cohesion: 0.11
-Nodes (16): recordProviderChange(), change(), Reading the provider-usage report, Commands Executed, Database verification, Review of existing tests (task 6.1), Step 7 Report - Unit Tests and Database Verification, Unit Test Results (+8 more)
+### Community 114 - "periodOf"
+Cohesion: 0.10
+Nodes (20): periodOf(), 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Update Technical Documentation (MANDATORY), 1. Gate, 3. Backend: log the two kinds of change (TDD; design Decision 3), 4. Backend: report and route (TDD; design Decision 4), 5. Frontend: Provider changes table (TDD; design Decision 5), 6. Backend and Frontend: Review and Update Existing Unit Tests (MANDATORY) (+12 more)
 
 ### Community 115 - "Backend Project Standards and Best Practices"
-Cohesion: 0.10
-Nodes (20): claimedAttempt(), API and OpenAPI Conventions, Backend Project Standards and Best Practices, Coding Standards, Development Workflow, End-to-End Testing, Error Handling, Live Updates (+12 more)
-
-### Community 116 - "Tasks — Preserve project progress across restarts (JOS-160, US-28)"
 Cohesion: 0.07
-Nodes (28): StageLauncher, Capabilities, Impact, Modified Capabilities, New Capabilities, Preserve project progress across restarts, What Changes, Why (+20 more)
+Nodes (29): stageInstanceKey(), API and OpenAPI Conventions, Architecture, Backend Project Standards and Best Practices, Coding Standards, Core components, Development Workflow, End-to-End Testing (+21 more)
+
+### Community 116 - "reconcileOnBoot"
+Cohesion: 0.06
+Nodes (37): launchHeldWork(), StageLauncher, sceneCurrentRequestId(), reconcileOnBoot(), Decision 2: `occupy(stage, holder)` for requests already sent, Context, Decisions, Design — Preserve project progress across restarts (+29 more)
 
 ### Community 117 - "16. Registro de cambios"
 Cohesion: 0.11
@@ -1528,12 +1540,12 @@ Cohesion: 0.07
 Nodes (26): SupportedLanguageCode, sessions(), Context, Decision 1 — JSON, two files, deep-merged, Decision 2 — One zod schema, strict, with cross-field checks; collect all issues, Decision 3 — `providers.ts` keeps its exports, derived from the loaded settings, Decision 4 — Provider name is a per-stage literal union of shipped adapters, Decision 5 — Field-level rules (+18 more)
 
 ### Community 125 - "adminReportRoutes.ts"
-Cohesion: 0.11
-Nodes (21): failuresReportSchema, instantSchema, phaseSchema, pipelineReportSchema, providerChangesSchema, querySchema, registerReportRoutes(), reportSchema (+13 more)
+Cohesion: 0.09
+Nodes (26): failuresReportSchema, instantSchema, phaseSchema, pipelineReportSchema, providerChangesSchema, querySchema, registerReportRoutes(), reportSchema (+18 more)
 
 ### Community 126 - "Tasks — Generate the clip of each scene (JOS-146)"
-Cohesion: 0.05
-Nodes (38): VideoProvider, Capabilities, Fix the RunningHub video adapter, Impact, Modified Capabilities, New Capabilities, What Changes, Why (+30 more)
+Cohesion: 0.06
+Nodes (29): VideoProvider, Capabilities, Fix the RunningHub video adapter, Impact, Modified Capabilities, New Capabilities, What Changes, Why (+21 more)
 
 ### Community 127 - "ADDED Requirements"
 Cohesion: 0.08
@@ -1615,9 +1627,9 @@ Nodes (23): pipeline-handoffs Specification, Purpose, Requirement: A paused sess
 Cohesion: 0.09
 Nodes (22): Purpose, Requirement: A failed scene shows its error, affected stage and only the actions for that stage, Requirement: A scene's stored image is served read-only, scoped to its session, Requirement: Scene details show the available results, Requirement: Scenes are listed in ascending order with their live state, Requirement: The session read points at a scene's viewable results, Requirements, Scenario: A scene of another session (+14 more)
 
-### Community 147 - "getStageAttempts"
-Cohesion: 0.14
-Nodes (34): configuredLimits(), resetAll(), setLimit(), getStageAttempts(), startVoiceAttempt(), restartSettledAssemblyAttempt(), startAttemptTimeoutWatcher(), sweepTimedOutAttempts() (+26 more)
+### Community 147 - "providerUsageReport.ts"
+Cohesion: 0.13
+Nodes (16): PipelinePhase, PHASES, PipelinePhaseRow, PipelineSessionRow, STAGES_OF_PHASE, CountedAttempt, CountedOutcome, nearestRankPercentile() (+8 more)
 
 ### Community 148 - "Testing CLAUDE.md Skills Documentation"
 Cohesion: 0.12
@@ -1636,8 +1648,8 @@ Cohesion: 0.12
 Nodes (15): Code Examples, Common Rationalizations for Skipping Testing, Directory Structure, Discovery Workflow, Flowchart Usage, Overview, Skill Creation Checklist (TDD Adapted), SKILL.md Structure (+7 more)
 
 ### Community 152 - "scenePause.ts"
-Cohesion: 0.18
-Nodes (16): findIntervalPartitionProblem(), derivePauses(), isWhitespace(), locateFragment(), PAUSE_CAP_SECONDS, PAUSE_FLOOR_SECONDS, PAUSE_STEP_SECONDS, PauseEditedScene (+8 more)
+Cohesion: 0.11
+Nodes (25): findIntervalPartitionProblem(), applyPauseEdits(), derivePauses(), isAllowedPause(), isWhitespace(), locateFragment(), PAUSE_CAP_SECONDS, PAUSE_FLOOR_SECONDS (+17 more)
 
 ### Community 153 - "Tasks — Start a video project from a title, a script, and its language"
 Cohesion: 0.12
@@ -1687,9 +1699,9 @@ Nodes (13): attempt-provider-attribution Specification, Purpose, Requirement: At
 Cohesion: 0.13
 Nodes (14): ADR 0005 — Provider selection and hardcoded operating parameters, Consequences, Context, Decision, Decision 1 — Video provider capability and derived duration bounds, Decision 2 — Voice/alignment timestamp mechanism (§11.1), Decision 3 — Reasoning/decomposition fidelity requires an explicit prompt instruction, Decision 4 — Supported language list (+6 more)
 
-### Community 165 - "adminProviderRoutes.ts"
-Cohesion: 0.11
-Nodes (17): connectionCheckSchema, fieldSchema, notFoundSchema, problemSchema, problemsSchema, profileViewSchema, testResultSchema, validationErrorSchema (+9 more)
+### Community 165 - "admin-provider-connection-test-route.test.ts"
+Cohesion: 0.08
+Nodes (27): connectionCheckSchema, fieldSchema, notFoundSchema, problemSchema, problemsSchema, profileViewSchema, testResultSchema, validationErrorSchema (+19 more)
 
 ### Community 166 - "compilerOptions"
 Cohesion: 0.13
@@ -1709,7 +1721,7 @@ Nodes (14): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Record
 
 ### Community 170 - "prototype/src/App.tsx"
 Cohesion: 0.17
-Nodes (14): API_BASE, continueSession(), correctScene(), createSession(), downloadFinalVideoUrl(), pauseSession(), retryScene(), App() (+6 more)
+Nodes (13): API_BASE, continueSession(), correctScene(), createSession(), pauseSession(), retryScene(), App(), sessionIdFromUrl() (+5 more)
 
 ### Community 171 - "ADDED Requirements"
 Cohesion: 0.09
@@ -1731,13 +1743,13 @@ Nodes (26): Purpose, Requirement: Layout adapts to the window width, Requirement
 Cohesion: 0.14
 Nodes (13): Add/Remove Scenarios, Command Patterns (Reference), Red Flags, Scenario A - New skill added in ai-specs, Scenario B - Skill removed from ai-specs, Scope and Safety Rules, Step 1 - Build inventories, Step 2 - Compute sync plan (+5 more)
 
-### Community 176 - "PhaseRetryButton"
-Cohesion: 0.05
-Nodes (40): rebuild(), oneDecimal(), PauseDial(), commit(), save(), Props, PhaseRetryButton(), handleClick() (+32 more)
+### Community 176 - "Step 12: E2E testing (JOS-190, adjust-scene-pause)"
+Cohesion: 0.25
+Nodes (7): Cleanup, Console, Defect found and fixed during this step, Not exercised in the browser, Scenarios, Screenshots (`screenshots/`), Step 12: E2E testing (JOS-190, adjust-scene-pause)
 
 ### Community 177 - "packaging/build.ts"
-Cohesion: 0.17
-Nodes (16): assertHostCanBuild(), BACKEND_DIR, BuildDependencies, BuildOptions, buildTarget(), bundleBackend(), listFiles(), REPO_DIR (+8 more)
+Cohesion: 0.06
+Nodes (37): assertHostCanBuild(), BACKEND_DIR, BuildDependencies, BuildOptions, buildTarget(), bundleBackend(), listFiles(), npmInvocation() (+29 more)
 
 ### Community 178 - "Requirement: An optional reference image is stored, validated and never exposed by path"
 Cohesion: 0.09
@@ -1759,13 +1771,13 @@ Nodes (13): 8.1–8.2 — reachability and pre-test state, 8.3–8.4 — start a
 Cohesion: 0.14
 Nodes (13): ADDED Requirements, Requirement: One documented visual design token set, Requirement: Status is never color-only, Requirement: Styling does not regress the accessibility contract, Requirement: Sufficient text contrast on the chosen background, Scenario: A component needs a status color, Scenario: A failed-state row is rendered, Scenario: A new component is added (+5 more)
 
-### Community 183 - "Tasks — Harden the backend foundation (JOS-186)"
-Cohesion: 0.05
-Nodes (41): occupy(), inFlight(), Context, Decision 1: Slots belong to a holder key, Decision 2: `occupy(stage, holder)` for requests already sent, Decision 3: The boot order stays as it is, and a test pins it, Decision 4: The write-capacity test runs in-process with the stub provider, Decision 5: Per-scene artefacts stay as two columns (+33 more)
+### Community 183 - "inFlight"
+Cohesion: 0.11
+Nodes (17): inFlight(), Decision 7: Two small test aids so a restart can be observed by hand, 7.1 Start, 7.2 Session and five scenes, 7.3 kill -9 and restart, same environment, 7.4 Second restart, pending clips settle, 7.5 Error cases, 7.6 Clean-up (+9 more)
 
 ### Community 184 - "Tasks — See provider and attempts per stage (JOS-166, US-34)"
-Cohesion: 0.13
-Nodes (15): Accessible Naming Convention, formatStageDiagnostic(), 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 12. Close out, 1. Gate, 3. Backend: instruction attempts (design Decision 3) (+7 more)
+Cohesion: 0.12
+Nodes (16): Accessible Naming Convention, describeStageDiagnostic(), formatStageDiagnostic(), 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 12. Close out, 1. Gate (+8 more)
 
 ### Community 185 - "ADDED Requirements"
 Cohesion: 0.11
@@ -1808,20 +1820,20 @@ Cohesion: 0.15
 Nodes (12): ADR 0003 — Live progress update mechanism, Candidate Evaluation, Catch-up Rule, Justified, Consequences, Context, Contract (event payload shapes), Decision, Dependence on stand-ins — closed (+4 more)
 
 ### Community 195 - "Tasks — Adjust the pause after a scene and rebuild the final video (JOS-190)"
-Cohesion: 0.13
-Nodes (13): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Run Unit Tests and Verify Database State (MANDATORY), 11. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 12. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 13. Update Technical Documentation (MANDATORY), 14. Close out, 2. Backend: pause derivation and range (TDD; design Decisions 1-2), 3. Backend: effective intervals (TDD; design Decision 4) (+5 more)
+Cohesion: 0.14
+Nodes (13): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Run Unit Tests and Verify Database State (MANDATORY), 11. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 12. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 13. Update Technical Documentation (MANDATORY), 14. Close out, 1. Gate, 2. Backend: pause derivation and range (TDD; design Decisions 1-2) (+5 more)
 
 ### Community 196 - "Design — Define the frontend stack"
 Cohesion: 0.15
 Nodes (12): §1 — Inputs collected, §2 — Screen inventory, §3 — Candidate evaluation, §5 — Experiments (2026-09-25), Context, Decisions, Design — Define the frontend stack, Execution Record (2026-09-25) (+4 more)
 
-### Community 197 - "Requirements"
-Cohesion: 0.11
-Nodes (17): Purpose, Requirement: A restart never sends a unit of work twice, Requirement: A session reads the same after a restart, Requirement: Every stage declares its restart behaviour, Requirement: Pending work continues after a restart, Requirements, restart-recovery Specification, Scenario: Assembly interrupted with attempts left (+9 more)
+### Community 197 - "Requirement: Interrupted requests are awaited or recorded as failed attempts"
+Cohesion: 0.08
+Nodes (24): Purpose, Requirement: A restart never sends a unit of work twice, Requirement: A session reads the same after a restart, Requirement: Every stage declares its restart behaviour, Requirement: Interrupted requests are awaited or recorded as failed attempts, Requirement: Pending work continues after a restart, Requirements, restart-recovery Specification (+16 more)
 
 ### Community 198 - "updateCheck.ts"
-Cohesion: 0.19
-Nodes (10): BUILD, BuildChannel, BuildConfig, readBuildConfig(), FetchLike, getUpdateResult(), GithubRelease, NOT_AVAILABLE (+2 more)
+Cohesion: 0.16
+Nodes (13): BUILD, BuildChannel, BuildConfig, readBuildConfig(), checkForUpdate(), FetchLike, getUpdateResult(), GithubRelease (+5 more)
 
 ### Community 199 - "Tasks — Define the production and UAT deployment"
 Cohesion: 0.11
@@ -1863,9 +1875,9 @@ Nodes (19): AssemblyClip, AssemblyInput, AssemblyResult, NarrationEdit, ADR-0005
 Cohesion: 0.17
 Nodes (11): ADR 0004 — Frontend framework and build tooling, Candidate Evaluation, Consequences, Context, Decision, Dependence on stand-ins — closed, Evidence, Must-Pass Gates (+3 more)
 
-### Community 209 - "ADDED Requirements"
-Cohesion: 0.12
-Nodes (16): ADDED Requirements, Requirement: A restart never sends a unit of work twice, Requirement: A session reads the same after a restart, Requirement: Every stage declares its restart behaviour, Requirement: Pending work continues after a restart, restart-recovery, Scenario: Assembly interrupted with attempts left, Scenario: Assembly settled and relaunched once (+8 more)
+### Community 209 - "Requirement: Interrupted requests are awaited or recorded as failed attempts"
+Cohesion: 0.08
+Nodes (23): ADDED Requirements, Requirement: A restart never sends a unit of work twice, Requirement: A session reads the same after a restart, Requirement: Every stage declares its restart behaviour, Requirement: Interrupted requests are awaited or recorded as failed attempts, Requirement: Pending work continues after a restart, restart-recovery, Scenario: Assembly attempt lost (+15 more)
 
 ### Community 210 - "Requirements"
 Cohesion: 0.09
@@ -1891,9 +1903,9 @@ Nodes (11): ADDED Requirements, Backend foundation, Requirement: Provider creden
 Cohesion: 0.17
 Nodes (11): §1 — Inputs collected, §2 — Record derivation, §3 — Store evaluation, Context, Decisions, Design — Define persistence for sessions and project files, Execution Record (2026-09-25), Goals / Non-Goals (+3 more)
 
-### Community 216 - "narrationTimestamps.ts"
-Cohesion: 0.11
-Nodes (19): classifyMustSplit(), alignedResponseSchema, nativeAlignmentSchema, nativeTimestampsSchema, ParseResult, TimestampCharacter, UsabilityResult, withoutWhitespace() (+11 more)
+### Community 216 - "segmentScript"
+Cohesion: 0.10
+Nodes (32): buildUnits(), classifyMustSplit(), MustSplitClassification, Unit, Grouping, isBetter(), SegmentationResult, segmentScript() (+24 more)
 
 ### Community 217 - "Step 7 — Manual Endpoint Testing with curl"
 Cohesion: 0.17
@@ -1907,8 +1919,8 @@ Nodes (17): 10. Page, 1. A scene's pause is derived, never stored, 2. The allowe
 Cohesion: 0.17
 Nodes (11): Decision 1 — Keep each registry's existing identifiers and its `defaultIdentifier`, Decision 2 — `active_providers` table, read on every bind, Decision 3 — Reasoning and alignment bind per session, Decision 4 — Every bind point calls `activeProviderId(stage)`, Decision 6 — `/admin` section, Decision 7 — Stub adapters for proof, Decisions, Goals / Non-Goals (+3 more)
 
-### Community 220 - "prototype/src/api/useLiveSession.ts"
-Cohesion: 0.19
+### Community 220 - "ref_testing_library_react"
+Cohesion: 0.18
 Nodes (8): eventsUrl(), fetchSnapshot(), LiveUpdatesLogEntry, record(), useLiveSession(), Window, SessionSnapshot, FakeEventSource
 
 ### Community 221 - "Requirement: Retry a failed clip without regenerating its image"
@@ -1916,8 +1928,8 @@ Cohesion: 0.12
 Nodes (16): ADDED Requirements, Requirement: Correct only `VIDEO` and retry the failed clip, Requirement: Offer clip recovery only for a failed video stage, Requirement: Retry a failed clip without regenerating its image, Scenario: A concurrent correction loses safely, Scenario: Blank correction is refused, Scenario: Concurrent clip retries, Scenario: Corrected instruction is sent to the bound provider (+8 more)
 
 ### Community 222 - "Tasks — Retry or correct the image instruction after an image failure (JOS-157, US-25)"
-Cohesion: 0.17
-Nodes (11): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 12. Close out, 2. Backend: session scoping (TDD; design Decision 1), 3. Backend: conditional writes and reason codes (TDD; design Decisions 2 and 3), 5. Backend: retry guarantees (TDD; design Decision 6), 7. Review and Update Existing Unit Tests (MANDATORY) (+3 more)
+Cohesion: 0.14
+Nodes (14): hasImageInstruction(), 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 12. Close out, 1. Gate, 2. Backend: session scoping (TDD; design Decision 1), 3. Backend: conditional writes and reason codes (TDD; design Decisions 2 and 3) (+6 more)
 
 ### Community 223 - "[Analysis Title]"
 Cohesion: 0.17
@@ -1995,9 +2007,9 @@ Nodes (11): Avoid assuming tools are installed, Create verifiable intermediate o
 Cohesion: 0.20
 Nodes (10): Avoid deeply nested references, Naming conventions, Pattern 1: High-level guide with references, Pattern 2: Domain-specific organization, Pattern 3: Conditional details, Progressive disclosure patterns, Skill structure, Structure longer reference files with table of contents (+2 more)
 
-### Community 242 - "Tasks — Segment the script into chunks within duration bounds (JOS-140)"
-Cohesion: 0.06
-Nodes (32): chunkDurations(), 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Update Technical Documentation (MANDATORY), 11. Close out, 2. Admitted durations (TDD) — design Decision 6, 3. Sentences and their timings (TDD) — Decisions 1, 2 and 3, 4. Grouping (TDD) — Decisions 4 and 5, 5. Phase (TDD) — Decisions 5 and 7 (+24 more)
+### Community 242 - "Tasks — Split a sentence at clause boundaries (JOS-141)"
+Cohesion: 0.09
+Nodes (21): chunkDurations(), 3. Sentences and their timings (TDD) — Decisions 1, 2 and 3, Context, Decisions, Design — Split a sentence at clause boundaries (JOS-141), Goals / Non-Goals, Migration Plan, Open Questions (+13 more)
 
 ### Community 243 - "explore.md"
 Cohesion: 0.20
@@ -2011,13 +2023,13 @@ Nodes (9): 10.1 — Reachability, 10.2–10.3 — Hold the stream open, capture 
 Cohesion: 0.20
 Nodes (9): 11.1 — Environment, 11.2–11.3 — Live update without reload (§8.3), 11.4 — Pause/continue, paused marker distinct from state, 11.5–11.6 — Disconnect/restore and backend restart, 11.7 — A failed scene shows its affected stage, provider and attempt count (§10.1, §11.2), 11.8 — Accessibility-tree-only interaction, 11.9 — Restoration, Outcome (+1 more)
 
-### Community 246 - "DecompositionFailure"
-Cohesion: 0.05
-Nodes (36): DecompositionFailure, Context, Decisions, Design — Obtain narration timestamps for the script (JOS-139), Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs (+28 more)
+### Community 246 - "Obtain narration timestamps for the script"
+Cohesion: 0.18
+Nodes (10): Capabilities, Impact, Mechanism (product owner decision, 2026-09-28), Modified Capabilities, New Capabilities, Obtain narration timestamps for the script, Out of Scope (owned by other tickets), Trigger (+2 more)
 
 ### Community 247 - "Segment the script into chunks within duration bounds"
-Cohesion: 0.20
-Nodes (9): Admitted clip durations (product owner decision, 2026-09-28), Capabilities, Impact, Modified Capabilities, New Capabilities, Out of Scope (owned by other tickets), Segment the script into chunks within duration bounds, What Changes (+1 more)
+Cohesion: 0.22
+Nodes (8): Admitted clip durations (product owner decision, 2026-09-28), Capabilities, Modified Capabilities, New Capabilities, Out of Scope (owned by other tickets), Segment the script into chunks within duration bounds, What Changes, Why
 
 ### Community 248 - "Step 7 Report - Unit Tests and Database Verification"
 Cohesion: 0.20
@@ -2051,9 +2063,9 @@ Nodes (14): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Te
 Cohesion: 0.13
 Nodes (14): Purpose, Requirement: A clip is polled through the query endpoint, Requirement: The clip is requested from the recorded model endpoint, Requirement: The first frame is uploaded as a multipart file, Requirements, runninghub-video-adapter Specification, Scenario: A submit that is refused, Scenario: A successful submit (+6 more)
 
-### Community 256 - "voiceOverPhase.ts"
-Cohesion: 0.12
-Nodes (25): allRows(), cancelScheduledAttemptsOfInstance(), getInFlightAttempts(), getStageInstanceAttempts(), recordLateFailure(), rowToStageAttempt(), attemptFields(), AUDIO_FILE (+17 more)
+### Community 256 - "frontend/test/useLiveSession.test.tsx"
+Cohesion: 0.18
+Nodes (8): eventsUrl(), fetchSnapshot(), LiveUpdatesLogEntry, record(), useLiveSession(), Window, SessionSnapshot, FakeEventSource
 
 ### Community 257 - "ADDED Requirements"
 Cohesion: 0.09
@@ -2095,9 +2107,9 @@ Nodes (9): 13. Criterios de aceptación del MVP, 14.1 POC de asignación de sile
 Cohesion: 0.20
 Nodes (9): registerTimeoutHandler(), Context, Decisions, Design — Per-phase maximum execution time, measured from send, Goals / Non-Goals, Migration Plan, Open Questions, Pre-implementation findings (group 1 gate, 2026-10-05) (+1 more)
 
-### Community 267 - "Design — Retime and join scene clips into the video track"
-Cohesion: 0.25
-Nodes (8): findPartitionProblem(), Context, Decisions, Design — Retime and join scene clips into the video track, Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
+### Community 267 - "admin-page.test.tsx"
+Cohesion: 0.19
+Nodes (7): session(), API_BASE, Call, denied(), jsonResponse(), QuietEventSource, stubAdminBackend()
 
 ### Community 268 - "CLAUDE.md"
 Cohesion: 0.22
@@ -2119,9 +2131,9 @@ Nodes (21): Purpose, reference-image-generation Specification, Requirement: A re
 Cohesion: 0.22
 Nodes (8): 7.1–7.2 — Burst: 200 scenes, driven at real cadence, 7.3–7.4 — Disconnect and backend restart, 7.5 — Idle, 7.6 — Snapshot read cost at scale, 7.7 — Connection ceiling (two tabs), 7.8 — Cross-session isolation (AC22), Outcome, Step 7 Report — Live Experiments (Burst, Disconnect, Restart, Idle, Isolation)
 
-### Community 273 - "transient"
-Cohesion: 0.12
-Nodes (21): transient(), Requirement: The division step is recorded as an attempt, Scenario: A failed division is recorded, Scenario: A retried division is recorded in a new cycle, Requirement: Interrupted requests are awaited or recorded as failed attempts, Scenario: Assembly attempt lost, Scenario: Clip request still held by the provider, Scenario: Image request lost (+13 more)
+### Community 273 - "2026-10-27-define-admin-reports/design.md"
+Cohesion: 0.17
+Nodes (11): classifyHttpStatus(), doUpload(), providerErrorReason(), 2. Implement (design Decisions 1-4), §1 Gate (2026-10-22), Context, Execution Record, Goals / Non-Goals (+3 more)
 
 ### Community 274 - "Step 10 Report - E2E Testing in the Browser"
 Cohesion: 0.22
@@ -2143,17 +2155,17 @@ Nodes (8): Cleanup and state (task 7.4), English (5 sentences, 62.183 s narrated
 Cohesion: 0.10
 Nodes (20): Purpose, Requirement: Documented rule set, Requirement: Justified suppressions only, Requirement: Lint command documented for contributors, Requirement: Lint command in each package, Requirement: Lint findings that indicate defects are reported, Requirement: Lint gate in continuous integration, Requirements (+12 more)
 
-### Community 279 - "reconcileOnBoot"
-Cohesion: 0.11
-Nodes (23): getProviderRequest(), insertProviderRequest(), markProviderRequestResolved(), sceneCurrentRequestId(), handleProviderResult(), reconcileOnBoot(), computeOutcome(), PollOutcome (+15 more)
+### Community 279 - "skeleton/src/provider.ts"
+Cohesion: 0.31
+Nodes (8): getProviderRequest(), insertProviderRequest(), markProviderRequestResolved(), computeOutcome(), PollOutcome, pollResult(), send(), ProviderOutcome
 
 ### Community 280 - "Request the admitted clip duration closest to the narrated interval"
 Cohesion: 0.22
 Nodes (8): Capabilities, Impact, Modified Capabilities, New Capabilities, Out of Scope (owned by other tickets), Request the admitted clip duration closest to the narrated interval, What Changes, Why
 
-### Community 281 - "Step 6: unit tests and database verification (JOS-186, harden-backend-foundation)"
-Cohesion: 0.22
-Nodes (8): 300-scene write capacity (spec `concurrent-write-capacity`), 6.1 Baseline of the default store (`backend/data/skeleton.sqlite`), 6.2 Targeted tests, 6.3 Typecheck and full suite, 6.4 Post-test state, Flaky behaviour found and fixed, Scenario coverage, Step 6: unit tests and database verification (JOS-186, harden-backend-foundation)
+### Community 281 - "Tasks — Harden the backend foundation (JOS-186)"
+Cohesion: 0.09
+Nodes (21): occupy(), Risks left unproven within the timebox, 300-scene write capacity (spec `concurrent-write-capacity`), 6.1 Baseline of the default store (`backend/data/skeleton.sqlite`), 6.2 Targeted tests, 6.3 Typecheck and full suite, 6.4 Post-test state, Flaky behaviour found and fixed (+13 more)
 
 ### Community 282 - "16. Registro de cambios"
 Cohesion: 0.10
@@ -2172,8 +2184,8 @@ Cohesion: 0.14
 Nodes (13): ADDED Requirements, Requirement: Abuse limits, Requirement: Backend token stays on the server, Requirement: Relay accepts OTLP without a client secret, Requirement: Relay declared and deployed from the repository, Scenario: Change deployed, Scenario: Flooding client, Scenario: Oversized body (+5 more)
 
 ### Community 286 - "Tasks — Assemble the final video from completed scenes"
-Cohesion: 0.11
-Nodes (16): AssemblyTool, Media Assembly Pipeline, 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 12. Close out, 1. Gate: Confirm the foundations this phase stands on, 2. Domain: all-scenes-complete gate (TDD) (+8 more)
+Cohesion: 0.13
+Nodes (14): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 12. Close out, 1. Gate: Confirm the foundations this phase stands on, 2. Domain: all-scenes-complete gate (TDD), 3. Persistence: session assembly fields and stage instance (TDD), 4. Assembly tool port and adapter (TDD) (+6 more)
 
 ### Community 287 - "Requirement: The Administrator can test a saved profile's connection"
 Cohesion: 0.12
@@ -2208,12 +2220,12 @@ Cohesion: 0.15
 Nodes (12): 9.3 — Valid start (AC01), 9.4 — Empty title, empty script (AC03), 9.5 — Whitespace-only title (Decision 1), 9.6 — Missing/unsupported language (AC05, Decision 5), 9.7 — Script far longer than the 1500-word reference (AC04), 9.8 — Duplicate submission (Decision 7), 9.9 — Byte-identical script (Decision 1), Cleanup (+4 more)
 
 ### Community 295 - "Decisions"
-Cohesion: 0.11
-Nodes (16): Context, D10 — Frontend: native `<dialog>` for consent, a banner for updates, D12 — Dashboards as committed JSON, imported manually, D13 — Metric names, D1 — Manual OpenTelemetry instrumentation, JSON over HTTP, logs and metrics only, D3 — Consent lives in the store; the flag is checked at record time, D5 — Local log file: Pino multistream to a size-rotated file, written by us, D6 — Relay: a Cloudflare Worker that filters JSON and forwards with Basic auth (+8 more)
+Cohesion: 0.10
+Nodes (19): listen(), Context, D10 — Frontend: native `<dialog>` for consent, a banner for updates, D12 — Dashboards as committed JSON, imported manually, D13 — Metric names, D1 — Manual OpenTelemetry instrumentation, JSON over HTTP, logs and metrics only, D3 — Consent lives in the store; the flag is checked at record time, D5 — Local log file: Pino multistream to a size-rotated file, written by us (+11 more)
 
-### Community 296 - "Tasks — Consult a session by its identifier"
-Cohesion: 0.15
-Nodes (12): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Close out, 1. Gate: Confirm the foundations, 2. Backend: data access scoped by session (TDD), 3. Backend: the session read (TDD), 4. Frontend: the session page (TDD), 5. Review and Update Existing Unit Tests (MANDATORY), 6. Run Unit Tests and Verify Database State (MANDATORY) (+4 more)
+### Community 296 - "Tasks — View per-scene status and results (JOS-151, US-19)"
+Cohesion: 0.17
+Nodes (11): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 11. Close out, 1. Gate, 2. Image route (TDD; design Decisions 1 and 2), 3. Payload (TDD; design Decision 3), 5. AC1 and AC2 evidence, 6. Review and Update Existing Unit Tests (MANDATORY), 7. Run Unit Tests and Verify Database State (MANDATORY) (+3 more)
 
 ### Community 297 - "ADDED Requirements"
 Cohesion: 0.09
@@ -2224,8 +2236,8 @@ Cohesion: 0.13
 Nodes (14): 1. Read openspec/config.yaml First, 2. Mandatory Steps, 3. Manual Testing Requirements - CRITICAL: Agent Must Execute, 4. Verification Checklist, 5. When This Applies, 6. Example Structure, 7. Agent Execution Requirements, Failure to Follow (+6 more)
 
 ### Community 299 - "Step 9 Report - Manual Endpoint Testing with curl"
-Cohesion: 0.20
-Nodes (9): VoiceOver, 9.2 — `running` on a fresh session, 9.3 — running and held beside each other, disjoint, 9.4 — continue, then the stub completing empties running, 9.5 — error cases, 9.6 — Cleanup, Environment, Outcome (+1 more)
+Cohesion: 0.25
+Nodes (7): 9.2 — `running` on a fresh session, 9.4 — continue, then the stub completing empties running, 9.5 — error cases, 9.6 — Cleanup, Environment, Outcome, Step 9 Report - Manual Endpoint Testing with curl
 
 ### Community 300 - "concurrent-write-capacity Specification"
 Cohesion: 0.22
@@ -2299,9 +2311,9 @@ Nodes (7): Commands Executed, Database State Verification, Other Evidence Record
 Cohesion: 0.25
 Nodes (7): Cleanup, Environment, Notes, Outcome, Results, Step 9 Report - Manual Endpoint Testing with curl, Transcript
 
-### Community 318 - "Step 8 Report - Manual Endpoint Testing with real providers"
-Cohesion: 0.25
-Nodes (7): Cleanup, Findings that matter for the next stories, How it was exercised, Outcome, Results, Step 8 Report - Manual Endpoint Testing with real providers, Transcript
+### Community 318 - "Decisions"
+Cohesion: 0.17
+Nodes (11): Context, Decision 1: Slots belong to a holder key, Decision 3: The boot order stays as it is, and a test pins it, Decision 4: The write-capacity test runs in-process with the stub provider, Decision 5: Per-scene artefacts stay as two columns, Decision 6: Documentation matches the code, not the other way round, Decisions, Goals / Non-Goals (+3 more)
 
 ### Community 319 - "Requirement: A provider can carry an optional price per unit and currency"
 Cohesion: 0.10
@@ -2312,16 +2324,16 @@ Cohesion: 0.22
 Nodes (9): 16. Registro de cambios, De la versión 1.1 a la 1.2, From version 1.2 to 1.3, From version 1.3 to 1.4, From version 1.4 to 1.5, From version 1.5 to 1.6, From version 1.6 to 1.7, From version 1.7 to 1.8 (+1 more)
 
 ### Community 321 - "Decisions"
-Cohesion: 0.18
-Nodes (10): Decision 1 — A move rebinds to the provider that is active now, Decision 2 — Which failed stages are listed, and where each binding lives, Decision 3 — A failure with no manual retry is not listed, Decision 6 — API, Decision 7 — `/admin` section "Failed stages", Decisions, Goals / Non-Goals, Migration Plan (+2 more)
+Cohesion: 0.15
+Nodes (12): Decision 1 — A move rebinds to the provider that is active now, Decision 2 — Which failed stages are listed, and where each binding lives, Decision 3 — A failure with no manual retry is not listed, Decision 4 — A clip's duration is chosen again, in one transaction that lifts the locks, Decision 5 — A manual retry takes the stage's binding, Decision 6 — API, Decision 7 — `/admin` section "Failed stages", Decisions (+4 more)
 
 ### Community 322 - "ADDED Requirements"
 Cohesion: 0.09
 Nodes (21): ADDED Requirements, Requirement: A wrong or missing password grants nothing, Requirement: Regular pages need no password, Requirement: The Administrator password is a local secret, Requirement: The app starts without an Administrator password, Requirement: The correct password grants Administrator access, Requirement: The password never leaves the configuration, Scenario: A later Administrator endpoint is protected by default (+13 more)
 
 ### Community 323 - "recordError"
-Cohesion: 0.21
-Nodes (19): reportProviderRequest(), reportStageAttempt(), telemetryProviderOf(), getConsent(), getInstruments(), guarded(), normalizeOutcome(), recordError() (+11 more)
+Cohesion: 0.12
+Nodes (27): reportProviderRequest(), reportStageAttempt(), telemetryProviderOf(), getConsent(), guarded(), normalizeOutcome(), recordError(), recordProductEvent() (+19 more)
 
 ### Community 324 - "scriptModeration.ts"
 Cohesion: 0.09
@@ -2367,13 +2379,13 @@ Nodes (7): Commands Executed, Coverage (task 7.3), Database State Verification, 
 Cohesion: 0.20
 Nodes (9): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 1. Gate, 2. Backend: migration 21 with the backfill (TDD; design Decisions 2, 3), 3. Backend: record and read the provider (TDD; design Decisions 1, 4), 4. Backend: Review and Update Existing Unit Tests (MANDATORY), 5. Backend: Run Unit Tests and Verify Database State (MANDATORY), 6. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 7. Frontend: E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE) (+1 more)
 
-### Community 335 - "Tasks — Download individual scene results during processing (JOS-163, US-31)"
-Cohesion: 0.07
-Nodes (27): downloadSceneUrl(), 8.1 — Reachability, 8.2 — Every endpoint the prototype consumes, with its exact response shape, 8.3 — Field-by-field: what the backend returns vs. what the UI actually reads, 8.4 — A state change reaches the open page without a reload, 8.5 — Cleanup, Outcome, Step 8 Report — curl vs. Rendered UI Shape Comparison (+19 more)
+### Community 335 - "downloadSceneUrl"
+Cohesion: 0.11
+Nodes (16): downloadSceneUrl(), 8.1 — Reachability, 8.2 — Every endpoint the prototype consumes, with its exact response shape, 8.3 — Field-by-field: what the backend returns vs. what the UI actually reads, 8.4 — A state change reaches the open page without a reload, 8.5 — Cleanup, Outcome, Step 8 Report — curl vs. Rendered UI Shape Comparison (+8 more)
 
 ### Community 336 - "Tasks — Raise the video stage time limit (JOS-197)"
-Cohesion: 0.17
-Nodes (11): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 1. Tests first, 2. Implement, 3. Review and Update Existing Unit Tests (MANDATORY), 4. Run Unit Tests and Verify Database State (MANDATORY), 5. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 6. E2E Testing with Playwright MCP (MANDATORY if applicable), 7. Update Technical Documentation (MANDATORY) (+3 more)
+Cohesion: 0.10
+Nodes (17): Database state (8.1, 8.4), Existing tests changed (7.1), Not verified, Results, Scenario to test map (7.2), Step 8 — Unit tests and database verification (JOS-167), 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 1. Tests first (+9 more)
 
 ### Community 337 - "16. Registro de cambios"
 Cohesion: 0.10
@@ -2389,7 +2401,7 @@ Nodes (11): 1. Reuse the existing scene retry and correction routes, 2. Use vide
 
 ### Community 340 - "Tasks — Decompose the script into chunks with their visual instructions"
 Cohesion: 0.12
-Nodes (16): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Run Unit Tests and Verify Database State (MANDATORY), 11. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 12. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 13. Update Technical Documentation (MANDATORY), 14. Close out, 1. Gate: Confirm the foundations this phase stands on, 2. Domain: chunk and stage-instance model (TDD) (+8 more)
+Nodes (15): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Run Unit Tests and Verify Database State (MANDATORY), 11. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 12. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 13. Update Technical Documentation (MANDATORY), 1. Gate: Confirm the foundations this phase stands on, 2. Domain: chunk and stage-instance model (TDD), 3. Persistence: chunks and stage-instance records (TDD) (+7 more)
 
 ### Community 341 - "Step 10 — Unit Test and DB Verification"
 Cohesion: 0.22
@@ -2419,9 +2431,9 @@ Nodes (10): Findings, Findings, Measurements at the product's real script size (
 Cohesion: 0.18
 Nodes (10): MODIFIED Requirements, Requirement: A scene takes at most one slot or queue place per stage, Requirement: Every released slot has a matching slot that was taken, Scenario: A launch for a scene that already holds a slot, Scenario: A release by a scene that holds no slot, Scenario: An attempt's slot is released once, when its call returns, Scenario: The cap holds across a restart and a burst of new work, Scenario: The same scene is launched twice while queued (+2 more)
 
-### Community 348 - "clauseSplitting.ts"
-Cohesion: 0.14
-Nodes (14): conjunctionsFor(), cutAtClauseBoundaries(), directlyAfterPunctuation(), ENGLISH_CONJUNCTIONS, findClauseBoundaries(), SPANISH_CONJUNCTIONS, MustSplitClassification, Unit (+6 more)
+### Community 348 - "clauseBoundaries.ts"
+Cohesion: 0.19
+Nodes (11): conjunctionsFor(), cutAtClauseBoundaries(), directlyAfterPunctuation(), ENGLISH_CONJUNCTIONS, findClauseBoundaries(), SPANISH_CONJUNCTIONS, Files, Results (+3 more)
 
 ### Community 349 - "Requirement: Launch-time check for a newer build on the app's channel"
 Cohesion: 0.18
@@ -2443,9 +2455,9 @@ Nodes (10): 16. Registro de cambios, De la versión 1.1 a la 1.2, From version 1
 Cohesion: 0.20
 Nodes (9): 13. Criterios de aceptación del MVP, 14.1 POC de asignación de silencios (D11) — Cerrada, 14. Decisiones de producto, 15. Gaps abiertos no bloqueantes, 1. Objetivo del producto, 3. Conceptos y datos del proyecto, 5. Flujo funcional, 9. Pausa y continuación (+1 more)
 
-### Community 354 - "Tasks — Run a session end to end (JOS-195)"
-Cohesion: 0.07
-Nodes (27): launchVoiceOverFor(), 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 12. Close out, 1. Gate (hard: no code before every item passes), 2. Backend: retry service checks (TDD; design Decisions 2 and 4), 3. Backend: same script, same provider, nothing deleted (TDD; design Decisions 4-6) (+19 more)
+### Community 354 - "Tasks — Manually retry a failed voice-over (JOS-155, US-23)"
+Cohesion: 0.12
+Nodes (16): launchVoiceOverFor(), 12. Close out, 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 12. Close out, 1. Gate (hard: no code before every item passes), 2. Backend: retry service checks (TDD; design Decisions 2 and 4) (+8 more)
 
 ### Community 355 - "JOS-199 step 12 — manual endpoint testing with curl"
 Cohesion: 0.20
@@ -2472,8 +2484,8 @@ Cohesion: 0.20
 Nodes (9): ADDED Requirements, Requirement: Chunk intervals partition the voice-over without gaps or overlaps, Requirement: Manual retries of the two steps are owned by `retry-decomposition`, Requirement: Timestamps and decomposition are retried as separate stage instances, Scenario: A gap or overlap exists, Scenario: The manual retry is specified elsewhere, Scenario: The partition is valid, Scenario: Timestamps fail transiently and recover (+1 more)
 
 ### Community 361 - "Packaging"
-Cohesion: 0.12
-Nodes (16): Blockers for any useful build, Follow-up stories — JOS-194, L1 — A start-up function that works in a bundle and on Windows — PLAT, L2 — Per-user data folder and credentials file — DATA, CRED, L3 — Accept requests only from the app's own page (security) — LOCAL, L4 — One instance per user — ONE, L5 — Release builds are safe by construction — SAFE, L6 — Build the executables — PLAT (+8 more)
+Cohesion: 0.11
+Nodes (17): Blockers for any useful build, Follow-up stories — JOS-194, L1 — A start-up function that works in a bundle and on Windows — PLAT, L2 — Per-user data folder and credentials file — DATA, CRED, L3 — Accept requests only from the app's own page (security) — LOCAL, L4 — One instance per user — ONE, L5 — Release builds are safe by construction — SAFE, L6 — Build the executables — PLAT (+9 more)
 
 ### Community 362 - "Step 3 — Verify the Video Provider (RunningHub)"
 Cohesion: 0.20
@@ -2543,9 +2555,9 @@ Nodes (8): 6.1 Read OpenSpec configuration first, 6.2 Required backend task stru
 Cohesion: 0.29
 Nodes (6): Code Audit Methodology, Common Pitfalls to Avoid, File Identification, Organization, Performance Optimization, Phase 1: Discovery
 
-### Community 379 - "narration-interval-immutability.test.ts"
-Cohesion: 0.16
-Nodes (12): contiguousFragments(), FragmentSpec, voiceOverDurationOf(), ACCEPTED_PNG, FRAGMENTS, generator, intervalsOf(), REGISTERED_INTERVALS (+4 more)
+### Community 379 - "createRun"
+Cohesion: 0.04
+Nodes (72): configuredLimits(), resetAll(), setLimit(), createRun(), createScene(), markSceneInFlight(), decompositionLauncher, resetImageProviderRegistry() (+64 more)
 
 ### Community 380 - "Requirements"
 Cohesion: 0.11
@@ -2588,8 +2600,8 @@ Cohesion: 0.11
 Nodes (17): Purpose, Requirement: A session snapshots the visual style when it is created, Requirement: The decomposition request carries the run's style as separate creative direction, Requirement: The pipeline contract wins over the style text, Requirement: The style text is not logged, Requirements, Scenario: Empty style leaves the request unchanged, Scenario: Existing database migrated (+9 more)
 
 ### Community 390 - "Run it"
-Cohesion: 0.12
-Nodes (16): Administrator password, Branches and release channels, Development Guide, Development mode, Development-only switches, Local state, Packaged app (macOS), Prerequisites (+8 more)
+Cohesion: 0.11
+Nodes (17): Administrator password, Branches and release channels, Development Guide, Development mode, Development-only switches, Local state, Packaged app (macOS), Prerequisites (+9 more)
 
 ### Community 391 - "Requirement: Voice and decomposition requests are given 600 seconds and clip requests 1200 seconds"
 Cohesion: 0.22
@@ -2612,8 +2624,8 @@ Cohesion: 0.11
 Nodes (18): provider-credentials Specification, Purpose, Requirement: A key is shown only as a status and a hint, Requirement: An API key is entered on /admin and stored encrypted, Requirement: Existing keys keep working without being entered again, Requirement: The application asks for a key by stage role, Requirement: The reasoning key also serves script moderation, Requirements (+10 more)
 
 ### Community 396 - "Tasks — Manually retry a failed decomposition (JOS-156, US-24)"
-Cohesion: 0.09
-Nodes (20): get(), Cleanup, Outcome, Results, Setup, Step 8 Report - Manual Endpoint Testing, 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE) (+12 more)
+Cohesion: 0.13
+Nodes (14): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 11. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 12. Update Technical Documentation (MANDATORY), 13. Close out, 1. Gate (no code before every item passes), 3. Backend: retry service checks and step choice (TDD; design Decisions 1, 2 and 7), 4. Backend: the two steps and the voice-over (TDD; design Decision 4) (+6 more)
 
 ### Community 397 - "Design — Assemble the final video from completed scenes"
 Cohesion: 0.25
@@ -2740,16 +2752,16 @@ Cohesion: 0.25
 Nodes (7): 7.4 — Rate limit and account tier per provider, 7.5 — Derived maximum simultaneous requests per stage, 7.5a — Shared-account stages, 7.6 — Derivation recorded, not just the numbers, Note: an avoidable cost during this task, Spend, Step 7c — Rate Limits and Per-Stage Request Caps
 
 ### Community 429 - "adminFetch"
-Cohesion: 0.03
-Nodes (70): Architecture: The Live-Update Seam, Deployment, Development Workflow, Frontend Project Standards and Best Practices, Not Yet Decided, Overview, Project Structure, Screen Inventory (+62 more)
+Cohesion: 0.05
+Nodes (44): Architecture: The Live-Update Seam, Deployment, Development Workflow, Frontend Project Standards and Best Practices, Not Yet Decided, Overview, Project Structure, Screen Inventory (+36 more)
 
-### Community 430 - "Decisions"
-Cohesion: 0.12
-Nodes (15): Decision 10 — `/admin` "Providers" section, Decision 11 — Script moderation uses the reasoning role's key, Decision 1 — A provider profile is a row; the first profiles keep today's ids, Decision 2 — Adapter types are the shipped catalogue, with their own parameter schema, Decision 4 — Parameters are read per request; admitted durations come from the active video provider, Decision 5 — Keys: encrypted in the database, a master key in a separate file, Decision 6 — Validation, and what "usable" means, Decision 7 — Deleting (+7 more)
+### Community 430 - "loadCredential"
+Cohesion: 0.07
+Nodes (28): loadCredential(), readSecretsFile(), resolveSecretsPath(), resolveSettingsDefaultsPath(), hasKey, Cleanup, Findings that matter for the next stories, How it was exercised (+20 more)
 
-### Community 431 - "2026-10-19-add-observability-telemetry/tasks.md"
-Cohesion: 0.14
-Nodes (13): listen(), Restart recovery, D9 — Update check in the backend, one call per launch, 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 11. Backend: Run Unit Tests and Verify Database State (MANDATORY - AGENT MUST EXECUTE), 12. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 13. Frontend: E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE), 14. Update Technical Documentation (MANDATORY) (+5 more)
+### Community 431 - "redactPaths"
+Cohesion: 0.15
+Nodes (14): escapeRegExp(), redactPaths(), safeUserName(), 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Backend: Review and Update Existing Unit Tests (MANDATORY), 11. Backend: Run Unit Tests and Verify Database State (MANDATORY - AGENT MUST EXECUTE), 12. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 13. Frontend: E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE) (+6 more)
 
 ### Community 432 - "Step 9 Report - E2E Check in the Browser"
 Cohesion: 0.33
@@ -2791,9 +2803,9 @@ Nodes (7): Context, Decisions, Design — Prevent the final video while any scen
 Cohesion: 0.25
 Nodes (7): Capabilities, Impact, Modified Capabilities, New Capabilities, Prevent the final video while any scene is incomplete, What Changes, Why
 
-### Community 442 - "retryScheduler.ts"
-Cohesion: 0.08
-Nodes (36): claimScheduledAttempt(), getScheduledAttempts(), getStageAttempt(), scheduleStageAttempt(), VIDEO_STAGE, armScheduledAttempt(), AttemptSender, dispatch() (+28 more)
+### Community 442 - "voiceOverPhase.ts"
+Cohesion: 0.03
+Nodes (133): installSmokeStubs(), acceptLateResult(), bindVoiceProvider(), cancelScheduledAttemptsOfInstance(), countProviderRequestsByScene(), countScenesForRun(), getScheduledAttempts(), getStageAttempt() (+125 more)
 
 ### Community 443 - "Proposed text"
 Cohesion: 0.15
@@ -2815,9 +2827,9 @@ Nodes (7): Capabilities, Generate the full voice-over, Impact, Modified Capabili
 Cohesion: 0.25
 Nodes (7): Applicability, Cleanup, Environment, Findings, Outcome, Step 10 Report - E2E Testing in the Browser, Steps and Results
 
-### Community 448 - "Design — Download individual scene results during processing"
-Cohesion: 0.25
-Nodes (7): Context, Decisions, Design — Download individual scene results during processing, Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
+### Community 448 - "Tasks — Download individual scene results during processing (JOS-163, US-31)"
+Cohesion: 0.17
+Nodes (11): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Close out, 1. Gate, 2. Backend: the download route (TDD; design Decisions 1, 2 and 4), 3. Backend: downloads in the session read (TDD; design Decision 3), 5. Review and Update Existing Unit Tests (MANDATORY), 6. Run Unit Tests and Verify Database State (MANDATORY), 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE) (+3 more)
 
 ### Community 449 - "Pause the session and continue explicitly"
 Cohesion: 0.29
@@ -2828,8 +2840,8 @@ Cohesion: 0.20
 Nodes (9): 13. Criterios de aceptación del MVP, 14.1 POC de asignación de silencios (D11) — Cerrada, 14. Decisiones de producto, 15. Gaps abiertos no bloqueantes, 1. Objetivo del producto, 3. Conceptos y datos del proyecto, 5. Flujo funcional, 9. Pausa y continuación (+1 more)
 
 ### Community 451 - "Decisions"
-Cohesion: 0.14
-Nodes (13): Context, Decision 1 — The candidate reports, and the recommendation to be reviewed, Decision 2 — Gaps are first-class, and each has a follow-up, Decision 3 — Granularity and period, Decision 4 — Cost is an estimate from units and a price per unit, Decision 5 — Read-only, local, behind the gate, no content, Decision 6 — Separate from the telemetry, Decision 7 — Delivery shape for the stories (+5 more)
+Cohesion: 0.25
+Nodes (8): Decision 1 — The candidate reports, and the recommendation to be reviewed, Decision 2 — Gaps are first-class, and each has a follow-up, Decision 3 — Granularity and period, Decision 4 — Cost is an estimate from units and a price per unit, Decision 5 — Read-only, local, behind the gate, no content, Decision 6 — Separate from the telemetry, Decision 7 — Delivery shape for the stories, Decisions
 
 ### Community 452 - "Raise the per-phase time limits for real script sizes"
 Cohesion: 0.25
@@ -2843,9 +2855,9 @@ Nodes (19): download(), 1. Depth and motion are pure CSS, not an animation libra
 Cohesion: 0.13
 Nodes (15): dependencies, fastify, @fastify/cors, @fastify/swagger, @fastify/swagger-ui, fastify-type-provider-zod, @opentelemetry/api, @opentelemetry/api-logs (+7 more)
 
-### Community 455 - "2026-10-22-manage-providers-from-admin/tasks.md"
-Cohesion: 0.17
-Nodes (11): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 11. E2E Testing with the browser (MANDATORY if applicable - AGENT MUST EXECUTE), 12. Update Technical Documentation (MANDATORY), 1. Gate, 4. Backend: adapter types and registries from profiles (TDD; design Decisions 2, 3, 4), 5. Backend: admitted durations follow the active video provider (TDD; design Decision 4), 6. Backend: admin API (TDD; design Decisions 6, 7, 9) (+3 more)
+### Community 455 - "stageApiKey"
+Cohesion: 0.11
+Nodes (18): stageApiKey(), 8.2 Scenario and acceptance-criterion coverage, 9.1 Baseline, 9.2-9.3 Commands and results, 9.4 Post-test state, Step 9: unit tests and database verification (JOS-218, manage-providers-from-admin), 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE) (+10 more)
 
 ### Community 456 - "Record requested duration and speed-adjustment factor per scene"
 Cohesion: 0.29
@@ -2905,7 +2917,7 @@ Nodes (13): compilerOptions, allowImportingTsExtensions, erasableSyntaxOnly, lib
 
 ### Community 470 - "Step 9 Report — Manual Endpoint Testing"
 Cohesion: 0.25
-Nodes (7): 9.1 — Health check, 9.2 / 9.3 — Launch, completion, and differing latencies, 9.4 — Temporary link, 9.5 — Portrait image rejected, 9.7 — Cleanup, Result, Step 9 Report — Manual Endpoint Testing
+Nodes (7): 9.1 — Health check, 9.2 / 9.3 — Launch, completion, and differing latencies, 9.5 — Portrait image rejected, 9.6 — One real Fal.ai generation, 9.7 — Cleanup, Result, Step 9 Report — Manual Endpoint Testing
 
 ### Community 471 - "template/ai-specs/skills/meta-prompt/SKILL.md"
 Cohesion: 0.40
@@ -3068,12 +3080,12 @@ Cohesion: 0.50
 Nodes (4): Dependency Injection, Environment Variables, Input Validation, Security Best Practices
 
 ### Community 515 - "Decisions"
-Cohesion: 0.13
-Nodes (14): Context, Decision 1: One workflow, one channel, Decision 2: Tree hash keys idempotency; the tag is derived from it, Decision 3: Native runners, no cross-building, Decision 4: Approval gate is a GitHub Environment, Decision 5: Checksums and a verify job, Decision 6: Dry run and test publication, Decision 7: Least privilege and pinned actions (+6 more)
+Cohesion: 0.14
+Nodes (13): Context, Decision 1: One workflow, one channel, Decision 2: Tree hash keys idempotency; the tag is derived from it, Decision 3: Native runners, no cross-building, Decision 4: Approval gate is a GitHub Environment, Decision 5: Checksums and a verify job, Decision 7: Least privilege and pinned actions, Decision 8: Offline-testable tree lookup (+5 more)
 
 ### Community 516 - "ADR 0001 — Backend language, runtime and framework"
-Cohesion: 0.18
-Nodes (10): ADR 0001 — Backend language, runtime and framework, Consequences, Context, Decision, Decision 1 — Are the inherited "database" and "TypeScript DoD" expectations binding?, Decision 2 — Candidate evaluation, Evidence — walking skeleton (Decision 1 of the design doc: prove it, don't just score it), Must-pass gates (+2 more)
+Cohesion: 0.20
+Nodes (9): ADR 0001 — Backend language, runtime and framework, Consequences, Context, Decision, Decision 1 — Are the inherited "database" and "TypeScript DoD" expectations binding?, Decision 2 — Candidate evaluation, Evidence — walking skeleton (Decision 1 of the design doc: prove it, don't just score it), Must-pass gates (+1 more)
 
 ### Community 517 - "Decisions"
 Cohesion: 0.14
@@ -3100,8 +3112,8 @@ Cohesion: 0.29
 Nodes (6): Correction, Findings that are not removals, Needs a rewrite, not a removal, Not covered here, Removals and fixes (approved 2026-10-20), Repository cleanup inventory (MVP closure, JOS-203 item I5)
 
 ### Community 544 - "Step 10 Report - Browser E2E (JOS-157, retry-or-correct-image)"
-Cohesion: 0.20
-Nodes (9): 10.1 — Applicability, 10.2 — Setup, 10.3 — Scene details show PROMPT, IMAGE, VIDEO; form pre-filled with IMAGE, 10.4 — Correcting and submitting updates the row live, 10.5 — AC3: nothing offered once the scene is no longer failed at the image stage, Cleanup, Console, Outcome (+1 more)
+Cohesion: 0.22
+Nodes (8): 10.1 — Applicability, 10.3 — Scene details show PROMPT, IMAGE, VIDEO; form pre-filled with IMAGE, 10.4 — Correcting and submitting updates the row live, 10.5 — AC3: nothing offered once the scene is no longer failed at the image stage, Cleanup, Console, Outcome, Step 10 Report - Browser E2E (JOS-157, retry-or-correct-image)
 
 ### Community 545 - "MVP release-readiness gates"
 Cohesion: 0.29
@@ -3116,7 +3128,7 @@ Cohesion: 0.20
 Nodes (9): 12.3 Modelo de acceso, descargas y aislamiento (one sentence changes), 16 Registro de cambios (new entry), 2.1 Roles (one row added to the table, and the paragraph after it changes), 2.3 Fuera del MVP (two bullets change), Decisions already taken (2026-10-19), Header (status line), Pending, PRD addendum draft — an Administrator password protects /admin (JOS-173) (+1 more)
 
 ### Community 548 - "Tasks — Visual style prompt and reference image from `/admin` (JOS-201)"
-Cohesion: 0.14
+Cohesion: 0.15
 Nodes (12): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Manual checks with the real script (MANDATORY), 11. Update Technical Documentation (MANDATORY), 1. Gate, 3. Backend: the decomposition request (TDD; design Decisions 1-3), 4. Backend: settings routes (TDD; design Decision 6), 5. Frontend: `/admin` page (TDD; design Decision 9), 6. Review and Update Existing Unit Tests (MANDATORY) (+4 more)
 
 ### Community 549 - "Step 7: unit tests and database verification (JOS-173, protect-admin-with-password)"
@@ -3140,8 +3152,8 @@ Cohesion: 0.29
 Nodes (6): Baseline (11.1), JOS-199 step 11 — unit tests and database verification, Notes, Post-test state (11.4), Re-run after the "Not now" and privacy-link change (11.7), Runs
 
 ### Community 555 - "compare.ts"
-Cohesion: 0.05
-Nodes (33): characters, clipIds, GROUPING, native, requestedDurations, sentences, spans, BoundaryRule (+25 more)
+Cohesion: 0.08
+Nodes (23): characters, clipIds, GROUPING, native, requestedDurations, sentences, spans, BoundaryRule (+15 more)
 
 ### Community 556 - "Step 10: unit tests and database verification (JOS-190, adjust-scene-pause)"
 Cohesion: 0.29
@@ -3151,9 +3163,9 @@ Nodes (6): 10.1 Baseline, 10.2-10.3 Commands and results, 10.4 Post-test state, 
 Cohesion: 0.15
 Nodes (12): ADDED Requirements, Requirement: Provider changes in the Reports section, Requirement: Provider-changes report, Requirement: The provider-changes report is gated, read-only and holds no content, Scenario: Access lost, Scenario: Both kinds listed, Scenario: Entries in the period, newest first, Scenario: Invalid period (+4 more)
 
-### Community 558 - "frontend/test/components.test.tsx"
+### Community 558 - "frontend/src/types.ts"
 Cohesion: 0.05
-Nodes (78): Goal, resolveResultUrl(), FinalVideoDownload(), Props, GLYPH, Icon(), IconName, PhaseSection() (+70 more)
+Nodes (79): FinalVideoDownload(), rebuild(), Props, GLYPH, Icon(), IconName, oneDecimal(), PauseDial() (+71 more)
 
 ### Community 559 - "Step 10: manual endpoint testing (JOS-218, manage-providers-from-admin)"
 Cohesion: 0.24
@@ -3184,8 +3196,8 @@ Cohesion: 0.20
 Nodes (9): 13. Criterios de aceptación del MVP, 14.1 POC de asignación de silencios (D11) — Cerrada, 14. Decisiones de producto, 15. Gaps abiertos no bloqueantes, 1. Objetivo del producto, 3. Conceptos y datos del proyecto, 5. Flujo funcional, 9. Pausa y continuación (+1 more)
 
 ### Community 566 - "failure"
-Cohesion: 0.04
-Nodes (52): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 12. Close out, 1. Gate: Confirm what this story builds on, 3. Voice-over record lock (TDD) — design Decision 2, 5. Voice launch guard (TDD) — design Decision 4, 6. API surface (TDD) — design Decision 5 (+44 more)
+Cohesion: 0.05
+Nodes (44): derivePhaseProgress(), 1. Session (`runs` table), 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 1. Gate: Confirm what this story builds on, 3. Voice-over record lock (TDD) — design Decision 2, 5. Voice launch guard (TDD) — design Decision 4, 6. API surface (TDD) — design Decision 5 (+36 more)
 
 ### Community 567 - "Decisions"
 Cohesion: 0.15
@@ -3201,23 +3213,23 @@ Nodes (6): Commands Executed, Database State Verification, Findings for the CI f
 
 ### Community 570 - "attemptTimeoutWatcher.ts"
 Cohesion: 0.08
-Nodes (26): PER_PHASE_MAX_TIME_SECONDS, attemptDeadline(), hasExpired(), LIMIT_KEY, maxExecutionSeconds(), PhaseLimits, handlers, TimeoutHandler (+18 more)
+Nodes (27): PER_PHASE_MAX_TIME_SECONDS, attemptDeadline(), hasExpired(), LIMIT_KEY, maxExecutionSeconds(), PhaseLimits, handlers, TimeoutHandler (+19 more)
 
 ### Community 571 - "Step 15 — Spend Summary Against the $20 Ceiling"
 Cohesion: 0.29
 Nodes (6): ElevenLabs (voice + alignment) — subscription, $0 incremental, Fal.ai (image) — count-measured, dollar cost estimated, OpenAI (decomposition) — token-measured, dollar cost estimated, RunningHub (video) — itemized, exact, Step 15 — Spend Summary Against the $20 Ceiling, Total
 
 ### Community 572 - "Model Descriptions"
-Cohesion: 0.07
-Nodes (27): Goal, Output format, Rules, 4. Scene result commit (`scene_results` table), 4d. Telemetry settings (`telemetry_settings` table) — `add-observability-telemetry`, JOS-199, migration 17, 4f. Provider profiles (`provider_profiles` table) — `manage-providers-from-admin`, JOS-218, migration 19, 4i. Provider changes (`provider_changes` table) — `record-provider-changes`, JOS-229, migration 25, 5. Schema migrations (`schema_migrations` table) (+19 more)
+Cohesion: 0.09
+Nodes (23): 4. Scene result commit (`scene_results` table), 4c. Pause edits (`scene_pause_edits` table) and rebuilt final videos (`final_video_builds` table) — `adjust-scene-pause`, JOS-190, migration 16, 4d. Telemetry settings (`telemetry_settings` table) — `add-observability-telemetry`, JOS-199, migration 17, 4e. Active providers (`active_providers` table) — `change-active-provider-from-admin`, JOS-171, migration 18, 4f. Provider profiles (`provider_profiles` table) — `manage-providers-from-admin`, JOS-218, migration 19, 4i. Provider changes (`provider_changes` table) — `record-provider-changes`, JOS-229, migration 25, 5. Schema migrations (`schema_migrations` table), 5b. Voice-over (`voice_overs` table) and stage attempts (`stage_attempts` table) — `generate-voice-over`, JOS-136, migration 4 (+15 more)
 
 ### Community 573 - "Step 9 — Derive the Remaining Values"
 Cohesion: 0.29
 Nodes (6): 9.1 — Segmentation lower bound, 9.2 — Workability against §6.1.1 edge cases, 9.3 — Output resolution and frame rate vs. D08, 9.4 — Speed-factor limit, 9.5 — Cross-check for internal consistency, Step 9 — Derive the Remaining Values
 
-### Community 574 - "periodOf"
-Cohesion: 0.09
-Nodes (22): periodOf(), 4. Backend: report and route (TDD; design Decision 4), 1. Two routes, one module, 2. Period on creation time, 3. State is derived in the query, 4. Attempts, times and counts, 5. Scene drill-down rows, 6. Response shapes (zod) (+14 more)
+### Community 574 - "Decisions"
+Cohesion: 0.15
+Nodes (12): 1. Two routes, one module, 2. Period on creation time, 3. State is derived in the query, 4. Attempts, times and counts, 5. Scene drill-down rows, 6. Response shapes (zod), 7. Frontend, Decisions (+4 more)
 
 ### Community 575 - "Step 8 — E2E testing with the browser (JOS-164, download-final-video)"
 Cohesion: 0.29
@@ -3260,8 +3272,8 @@ Cohesion: 0.18
 Nodes (10): MODIFIED Requirements, Requirement: The requested duration is stored with the chunk and never changes, Requirement: The speed-adjustment factor is stored with the chunk and never changes, Scenario: A different acceptable limit later, Scenario: A different admitted set later, Scenario: Direct update refused, Scenario: Direct update refused, Scenario: Stored and read back (+2 more)
 
 ### Community 586 - "imageOutputCheck.ts"
-Cohesion: 0.16
-Nodes (13): isAcceptedImageSize(), isStandaloneMarker(), isStartOfFrameMarker(), PNG_SIGNATURE, readImageDimensions(), readJpegDimensions(), 9.6 — One real Fal.ai generation, 2. Output check (TDD) — AC2, design Decision 1 (+5 more)
+Cohesion: 0.14
+Nodes (15): isAcceptedImageSize(), isStandaloneMarker(), isStartOfFrameMarker(), PNG_SIGNATURE, readImageDimensions(), readJpegDimensions(), sniffImageExtension(), Scenario-to-Test Mapping (task 7.3/6.4) (+7 more)
 
 ### Community 587 - "Requirement: The downloaded file is named after the project title"
 Cohesion: 0.12
@@ -3372,12 +3384,12 @@ Cohesion: 0.17
 Nodes (11): Context, Decision 1: Test the saved profile, by id, Decision 2: One check per adapter type, in one module, Decision 3: Cost is part of the catalogue and enforced on the server, Decision 4: A test writes nothing, Decision 5: The response is a closed object, Decision 6: Fal uses the free models endpoint, Decisions (+3 more)
 
 ### Community 614 - "Decisions"
-Cohesion: 0.15
-Nodes (12): Context, Decision 1: Spike first, and the rest waits for it, Decision 2: The port takes the reference as data, Decision 3: Snapshot is a file in the project folder plus three columns on `runs`, Decision 4: The hash is on the run, not on each provider request, Decision 5: Failure classification, Decision 6: Copy on the admin page, Decision 7: One higher maximum time for the image stage (decided by the product owner, 2026-10-26) (+4 more)
+Cohesion: 0.17
+Nodes (11): Context, Decision 1: Spike first, and the rest waits for it, Decision 2: The port takes the reference as data, Decision 4: The hash is on the run, not on each provider request, Decision 5: Failure classification, Decision 6: Copy on the admin page, Decision 7: One higher maximum time for the image stage (decided by the product owner, 2026-10-26), Decisions (+3 more)
 
-### Community 615 - "launchImageStage"
-Cohesion: 0.19
-Nodes (15): launchImageStage(), readRunReferenceImage(), runImageAttempt(), Context, Decisions, Design — Pause the session and continue explicitly, Goals / Non-Goals, Migration Plan (+7 more)
+### Community 615 - "Tasks — Change the active provider from /admin (JOS-171)"
+Cohesion: 0.17
+Nodes (11): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 1. Gate, 3. Backend: registries and `activeProviderId` (TDD; design Decisions 1, 2), 4. Backend: bind points use the active provider (TDD; spec scenarios), 6. Frontend: "Active providers" section on /admin (TDD; design Decision 6), 7. Review and Update Existing Unit Tests (MANDATORY) (+3 more)
 
 ### Community 616 - "build.mjs"
 Cohesion: 0.17
@@ -3399,9 +3411,9 @@ Nodes (9): 13. Criterios de aceptación del MVP, 14.1 POC de asignación de sile
 Cohesion: 0.33
 Nodes (5): 12.4 Telemetría y privacidad (nuevo), Borrador de adenda al PRD — telemetría opcional (JOS-199), Decisiones tomadas (2026-10-18), Pendiente, Propuesta de texto
 
-### Community 621 - "FailedStagesSection.tsx"
-Cohesion: 0.16
-Nodes (16): API_BASE, getFailedStages(), moveFailedStage(), MoveRefusalReason, FailedStagesSection(), handleMove(), load(), Props (+8 more)
+### Community 621 - "ref_react"
+Cohesion: 0.07
+Nodes (37): deleteReferenceImage(), getAppSettings(), getFailedStages(), getReferenceImage(), MAX_REFERENCE_IMAGE_BYTES, MAX_VISUAL_STYLE_PROMPT_CHARS, moveFailedStage(), MoveRefusalReason (+29 more)
 
 ### Community 622 - "Step 6.15 — B+ against the real R2 bucket, from a local container"
 Cohesion: 0.33
@@ -3416,16 +3428,16 @@ Cohesion: 0.33
 Nodes (5): Confirmed, Not reported, Outcome, Step 6.20 — Windows x64 run (JOS-203 B3), What differed from macOS
 
 ### Community 625 - "2026-10-27-show-video-request-status/tasks.md"
-Cohesion: 0.14
-Nodes (14): sceneStageDiagnostics(), sceneToPayload(), videoRequestView(), The clip request in flight (`show-video-request-status`, JOS-200), Decision 3: The in-flight request counts from the send, 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 1. Backend tests first (TDD), 2. Backend implementation (+6 more)
+Cohesion: 0.12
+Nodes (16): sceneStageDiagnostics(), sceneToPayload(), successSeconds(), videoEstimate(), videoRequestView(), The clip request in flight (`show-video-request-status`, JOS-200), Decision 3: The in-flight request counts from the send, 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP) (+8 more)
 
 ### Community 626 - "Proposed text"
 Cohesion: 0.22
 Nodes (8): 11.2 Vinculación y cambio de proveedor, 16. Registro de cambios, 2.1 Roles — Administrator row, 2.3 Fuera del MVP, 7.2 (the requested clip duration), Header (status line), PRD addendum draft — move a failed stage to the current active provider (JOS-172), Proposed text
 
-### Community 627 - "Execution Record"
-Cohesion: 0.13
-Nodes (14): §1.4 — Still undecided at this point, §1 — Product-owner answers (2026-10-12), §3 — Backend option evaluation (tasks 3.1–3.5; documentation retrieved 2026-10-12), §4 — Frontend placement (tasks 4.1–4.3), §5 — Delivery model (tasks 5.1–5.6, option A), §7 — Local packaged application: facts from the code (2026-10-13, base of this branch), Context, Decisions (+6 more)
+### Community 627 - "Context"
+Cohesion: 0.09
+Nodes (23): createFfmpegAssemblyTool(), relaunchPendingWork(), §1.2 — Constraints re-verified against the code (base `2fa63dc`, 2026-10-12), §1.4 — Still undecided at this point, §1 — Product-owner answers (2026-10-12), §3 — Backend option evaluation (tasks 3.1–3.5; documentation retrieved 2026-10-12), §4 — Frontend placement (tasks 4.1–4.3), §5 — Delivery model (tasks 5.1–5.6, option A) (+15 more)
 
 ### Community 628 - "Step 8 — E2E testing with the browser (JOS-163, download-scene-results)"
 Cohesion: 0.33
@@ -3444,16 +3456,16 @@ Cohesion: 0.33
 Nodes (5): Commands Executed, Database State Verification, Outcome, Step 8 Report - Unit Tests and Database State Verification, Unit Test Results
 
 ### Community 632 - "telemetry.test.ts"
-Cohesion: 0.12
-Nodes (10): setTelemetryLogger(), PROVIDER_OUTCOME_MODES, STAGE_ATTEMPT_OUTCOMES, ALL_OFF, ALL_ON, exportedPoints(), exportedResource(), Point (+2 more)
+Cohesion: 0.10
+Nodes (15): flushTelemetry(), setTelemetryLogger(), PROVIDER_OUTCOME_MODES, STAGE_ATTEMPT_OUTCOMES, telemetryUnits(), counter(), points(), everyExportedAttribute() (+7 more)
 
 ### Community 633 - "Step 9: E2E testing (JOS-173, protect-admin-with-password)"
 Cohesion: 0.29
 Nodes (6): Console, Defect found and fixed during this step, Restore, Scenarios, Setup, Step 9: E2E testing (JOS-173, protect-admin-with-password)
 
 ### Community 634 - "Tasks — Fix the RunningHub video adapter (JOS-196)"
-Cohesion: 0.12
-Nodes (15): classifyHttpStatus(), doUpload(), providerErrorReason(), 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 1. Rewrite the adapter tests to the live shapes (TDD, failing first), 2. Implement (design Decisions 1-4), 3. Review and Update Existing Unit Tests (MANDATORY), 4. Run Unit Tests and Verify Database State (MANDATORY) (+7 more)
+Cohesion: 0.20
+Nodes (9): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 1. Rewrite the adapter tests to the live shapes (TDD, failing first), 3. Review and Update Existing Unit Tests (MANDATORY), 4. Run Unit Tests and Verify Database State (MANDATORY), 5. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 6. E2E Testing with Playwright MCP (MANDATORY if applicable), 7. Update Technical Documentation (MANDATORY), 8. Close (+1 more)
 
 ### Community 635 - "Step 1 — Moderation endpoint verification"
 Cohesion: 0.33
@@ -3471,25 +3483,25 @@ Nodes (5): MODIFIED Requirements, Requirement: Editing surface derived from stag
 Cohesion: 0.33
 Nodes (5): MODIFIED Requirements, Requirement: No image action once the image succeeded, Scenario: Failed clip is routed to clip recovery, Scenario: Image generated, scene still processing, Scenario: No image action on a clip failure
 
-### Community 639 - "rebindFailedClip"
-Cohesion: 0.09
-Nodes (26): listRunIds(), rebindFailedClip(), rebindSceneImageProvider(), rebindSessionStage(), listFailedStages(), stagesOf(), Architecture, Core components (+18 more)
+### Community 639 - "startNewCycle"
+Cohesion: 0.08
+Nodes (25): startNewCycle(), Design — Manually retry a failed voice-over, Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs, Capabilities, Impact (+17 more)
 
 ### Community 640 - "Step 4 Report — Rendered Comparison and Threshold Sweep"
 Cohesion: 0.13
 Nodes (14): Files for the product owner (step 5), Method, Real finding: the reasoning provider's default timeout is tight for 5 scenes, Spend, Step 4 Report — Rendered Comparison and Threshold Sweep, Task 4.1 — the pick, Task 4.2 — assets generated, Task 4.3 — base comparison (+6 more)
 
-### Community 641 - "Requirement: A failed pause or continue is shown as a sentence and leaves its control usable"
-Cohesion: 0.22
-Nodes (8): ADDED Requirements, Requirement: A failed pause or continue is shown as a sentence and leaves its control usable, Scenario: A new click clears the previous sentence, Scenario: A successful request shows no sentence, Scenario: Continue fails with a network error, Scenario: Pause fails with a network error, Scenario: The backend refuses because the session is unknown, Scenario: The control is disabled while the request is outstanding
+### Community 641 - "2026-10-27-use-reference-image-in-generation/tasks.md"
+Cohesion: 0.18
+Nodes (10): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Update Technical Documentation (MANDATORY), 1. Spike: reference-capable image models (required before implementation, PRD §11), 2. Backend: Tests first (TDD), 4. Frontend, 5. Review and Update Existing Unit Tests (MANDATORY), 6. Run Unit Tests and Verify Database State (MANDATORY), 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE) (+2 more)
 
 ### Community 642 - "Step 10 — Browser run (JOS-155, retry-voice-over)"
 Cohesion: 0.33
 Nodes (5): 10.1 — Applicability, 10.5 — Environment, Finding and fix (spec, design and tasks updated first), Results, Step 10 — Browser run (JOS-155, retry-voice-over)
 
 ### Community 643 - "Design — Lock the script at project start and the narration once complete (JOS-137)"
-Cohesion: 0.29
-Nodes (6): Context, Design — Lock the script at project start and the narration once complete (JOS-137), Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
+Cohesion: 0.25
+Nodes (7): Context, Decisions, Design — Lock the script at project start and the narration once complete (JOS-137), Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
 
 ### Community 644 - "Step 10: E2E testing (JOS-168, view-progress-by-phase)"
 Cohesion: 0.33
@@ -3683,9 +3695,9 @@ Nodes (11): F1 — Record the provider on scene attempts (S) [JOS-222], F2 — P
 Cohesion: 0.40
 Nodes (4): 7.5 Clean-up, Results, Setup, Step 7: manual endpoint testing (JOS-174, configure-providers-and-parameters)
 
-### Community 699 - "telemetry/index.ts"
-Cohesion: 0.11
-Nodes (21): TelemetrySettings, BilledUnit, Exporters, getProviders(), Instruments, logger(), NormalizedOutcome, ProductEvent (+13 more)
+### Community 699 - "Step 7: curl endpoint testing (JOS-185, stage-execution-time-limit)"
+Cohesion: 0.20
+Nodes (9): 7.3 The first attempt hangs, the retry answers (`hang-once-then-success`, retry delay 1 s), 7.4 The answer arrives late, before the retry's delay (`success-after-limit`, retry delay 10 s), 7.5 The provider always hangs (`hang`, retry delay 1 s), 7.6 Time held before sending is not timed (`hang-once-then-success`, retry delay 3 s), 7.7 Clean-up, 8.1 E2E, Finding outside this change, Not shown over HTTP, and why (+1 more)
 
 ### Community 700 - "Report catalogue: the `/admin` reports (JOS-175)"
 Cohesion: 0.17
@@ -3724,16 +3736,16 @@ Cohesion: 0.33
 Nodes (5): ADR 0008 — The `/admin` reports (JOS-175), Alternatives considered, Consequences, Context, Decision
 
 ### Community 709 - "docs/base-standards.md"
-Cohesion: 0.17
-Nodes (8): 1. Core Principles, 2. Language Standards, 3. Specific standards, 4. Project Skills, 5. Planning Model Requirement, 6. Symlink Integrity and Multi-Agent Portability, 7. Mandatory OpenSpec Artifact Updates for Post-Apply Changes, graphify
+Cohesion: 0.11
+Nodes (14): 1. Core Principles, 2. Language Standards, 3. Specific standards, 4. Project Skills, 5. Planning Model Requirement, 6. Symlink Integrity and Multi-Agent Portability, 7. Mandatory OpenSpec Artifact Updates for Post-Apply Changes, graphify (+6 more)
 
-### Community 710 - "Download the final video"
-Cohesion: 0.25
-Nodes (7): Capabilities, Download the final video, Impact, Modified Capabilities, New Capabilities, What Changes, Why
+### Community 710 - "downloadFinalVideoUrl"
+Cohesion: 0.12
+Nodes (16): downloadFinalVideoUrl(), Context, Decisions, Design — Download the final video, Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs (+8 more)
 
 ### Community 711 - "seed.py"
-Cohesion: 0.23
-Nodes (5): 3. Provider request / stage attempt (`provider_requests` table), http(), mode(), session(), wait()
+Cohesion: 0.21
+Nodes (5): 9.4 — Temporary link, db(), http(), session(), wait()
 
 ### Community 712 - "4. Entrada y conservación del contenido"
 Cohesion: 0.67
@@ -3756,32 +3768,32 @@ Cohesion: 0.25
 Nodes (7): Capabilities, Impact, Manage providers, their parameters and their API keys from /admin, Modified Capabilities, New Capabilities, What Changes, Why
 
 ### Community 717 - "fetch"
-Cohesion: 0.09
-Nodes (24): putBodies(), ALLOWED_ATTRIBUTE_KEYS, ALLOWED, Env, fetch(), PATHS, readCapped(), refuse() (+16 more)
+Cohesion: 0.15
+Nodes (14): putBodies(), ALLOWED_ATTRIBUTE_KEYS, ALLOWED, Env, fetch(), PATHS, readCapped(), refuse() (+6 more)
 
 ### Community 718 - "backend/src/orchestrator.ts"
-Cohesion: 0.03
-Nodes (122): acquire(), holders, holdersOf(), limits, queues, release(), startWaiters(), stats() (+114 more)
+Cohesion: 0.02
+Nodes (211): registerAdminGate(), AssemblyTool, acquire(), holdersOf(), release(), startWaiters(), allRows(), bindSceneImageProvider() (+203 more)
 
 ### Community 719 - "Requirement: Each phase records its start and end instant once"
 Cohesion: 0.17
 Nodes (11): phase-instants Specification, Purpose, Requirement: Each phase records its start and end instant once, Requirement: Existing sessions keep no instants, Requirement: The scenes phase spans scene registration to the last completed scene, Requirements, Scenario: A phase is retried, Scenario: A session runs through every phase (+3 more)
 
-### Community 720 - "backend/src/server.ts"
-Cohesion: 0.08
-Nodes (37): StartServerOptions, DB_PATH, createFfmpegAssemblyTool(), relaunchPendingWork(), stagesWithoutRestartRecovery(), getAssemblyTool(), recoverOnBoot(), allowedOrigins() (+29 more)
+### Community 720 - "bootstrap.ts"
+Cohesion: 0.21
+Nodes (16): startServer(), StartServerOptions, startAttemptTimeoutWatcher(), setRetryDelayConfig(), BODY_LIMIT_BYTES, initTelemetry(), PORT, StaticAssetReader (+8 more)
 
-### Community 721 - "Step 10 Report — Manual Endpoint Testing"
-Cohesion: 0.25
-Nodes (7): Cleanup (task 10.5), OpenAPI (task 10.4), Real narration and decomposition (task 10.2), Result, Setup (task 10.1), Step 10 Report — Manual Endpoint Testing, Trying to change an interval (task 10.3)
+### Community 721 - "2026-10-27-surface-pause-continue-failure/tasks.md"
+Cohesion: 0.20
+Nodes (9): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 1. Gate, 2. Frontend: sentence lookup (TDD; design Decision 2), 3. Frontend: header handles its own failure (TDD; design Decisions 1, 3), 4. Frontend: Review and Update Existing Unit Tests (MANDATORY), 5. Run Unit Tests and Verify Database State (MANDATORY), 6. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 7. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE) (+1 more)
 
 ### Community 722 - "2026-10-27-record-phase-instants-and-pipeline-report/tasks.md"
 Cohesion: 0.18
 Nodes (10): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Update Technical Documentation (MANDATORY), 1. Gate, 2. Backend: migration 22 and the stamping function (TDD; design Decisions 1, 2), 3. Backend: stamp the phase boundaries (TDD; design Decisions 2, 3), 5. Frontend: Pipeline time table (TDD), 6. Backend and Frontend: Review and Update Existing Unit Tests (MANDATORY), 7. Run Unit Tests and Verify Database State (MANDATORY) (+2 more)
 
-### Community 723 - "nearestRankPercentile"
-Cohesion: 0.14
-Nodes (11): nearestRankPercentile(), successSeconds(), videoEstimate(), 4. Backend: pipeline-time report and route (TDD; design Decisions 4, 5), Baseline and isolation, Existing tests reviewed (5.1), Results, Scenario and acceptance-criteria map (5.2) (+3 more)
+### Community 723 - "Step 6: unit tests and database verification (JOS-223, report-provider-usage)"
+Cohesion: 0.29
+Nodes (6): Baseline and isolation, Existing tests reviewed (5.1), Results, Scenario and acceptance-criteria map (5.2), Step 6: unit tests and database verification (JOS-223, report-provider-usage), Test-first note
 
 ### Community 724 - "12. Persistencia, archivos y descargas"
 Cohesion: 0.40
@@ -3791,17 +3803,17 @@ Nodes (5): 12.1 Conservación del proyecto, 12.2 Archivos, 12.3 Modelo de acceso
 Cohesion: 0.25
 Nodes (7): Capabilities, Impact, Modified Capabilities, Move a failed stage to the current active provider, New Capabilities, What Changes, Why
 
-### Community 726 - "failure-representation.test.ts"
-Cohesion: 0.20
-Nodes (10): encodeRandom(), encodeTime(), ulid(), setVoiceOverLogger(), exhaustedSession(), logs, published, useProvider() (+2 more)
+### Community 726 - "💡 Usage: Official OpenSpec Workflow"
+Cohesion: 0.22
+Nodes (9): Example: End-to-End Flow, Optional: MCP Integrations (Jira + Playwright), 💡 Usage: Official OpenSpec Workflow, Useful Skills, commit(), Example: End-to-End Flow, Optional: MCP Integrations (Jira + Playwright), 💡 Usage: Official OpenSpec Workflow (+1 more)
 
-### Community 727 - "2026-10-27-add-provider-price-per-unit/design.md"
-Cohesion: 0.17
-Nodes (11): Context, Decision 1 — Two flat optional parameters, both or neither, Decision 2 — One shape for prices, added only in the /admin validation, Decision 3 — The billed unit per stage is a constant, Decision 4 — The form leaves empty optional fields out, Decision 5 — A price never changes how a provider works, Decisions, Goals / Non-Goals (+3 more)
+### Community 727 - "seedProviderProfiles"
+Cohesion: 0.08
+Nodes (26): seedProviderProfiles(), settingsSection(), withoutPrice(), schemaFor(), validateProviderParameters(), 2. Backend: storage and the first profiles (TDD; design Decisions 1, 8), Context, Decision 1 — Two flat optional parameters, both or neither (+18 more)
 
-### Community 728 - "2026-10-27-fix-windows-packaging-build/tasks.md"
-Cohesion: 0.20
-Nodes (9): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Update Technical Documentation and Verify on CI (MANDATORY), 1. Backend: Tests first (TDD), 3. Frontend, 5. Review and Update Existing Unit Tests (MANDATORY), 6. Run Unit Tests and Verify Database State (MANDATORY), 7. Manual Endpoint Testing with curl (not applicable), 8. E2E Testing with Playwright MCP (not applicable) (+1 more)
+### Community 728 - "Generate the clip of each scene"
+Cohesion: 0.22
+Nodes (8): Capabilities, Generate the clip of each scene, Impact, Modified Capabilities, New Capabilities, Out of Scope (owned by other tickets), What Changes, Why
 
 ### Community 729 - "PRD — Vid4You"
 Cohesion: 0.20
@@ -3908,24 +3920,24 @@ Cohesion: 0.20
 Nodes (9): Candidates, Decision, Error behavior (`flux-2/edit`), Known risks recorded for the design, Outcome, Reference transport and limits, Results (3 scenes each), Setup (+1 more)
 
 ### Community 755 - "Step 7 Report - Manual Endpoint Testing with curl"
-Cohesion: 0.29
-Nodes (6): Cleanup, Commands and results, Outcome, Scope, Step 7 Report - Manual Endpoint Testing with curl, Verification
+Cohesion: 0.25
+Nodes (7): Cleanup, Commands and results, Outcome, Scope, Setup, Step 7 Report - Manual Endpoint Testing with curl, Verification
 
 ### Community 756 - "video-request-status.test.tsx"
 Cohesion: 0.23
 Nodes (7): Props, VideoRequestStatus(), VideoRequestView, formatClock(), formatElapsed(), BODY, renderExpanded()
 
 ### Community 757 - "2026-10-27-enable-release-workflow/tasks.md"
-Cohesion: 0.20
-Nodes (9): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 1. Tests first (TDD), 2. Workflow and scripts, 3. Review and Update Existing Unit Tests (MANDATORY), 4. Run Unit Tests and Verify Database State (MANDATORY), 5. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 6. E2E Testing with Playwright MCP, 7. Exercise the pipeline (+1 more)
+Cohesion: 0.22
+Nodes (8): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 1. Tests first (TDD), 3. Review and Update Existing Unit Tests (MANDATORY), 4. Run Unit Tests and Verify Database State (MANDATORY), 5. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 6. E2E Testing with Playwright MCP, 7. Exercise the pipeline, 8. Update Technical Documentation (MANDATORY)
 
 ### Community 758 - "2026-10-27-package-executables-build/tasks.md"
 Cohesion: 0.22
 Nodes (8): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 2. Backend: Source changes, 3. Backend: Review and Update Existing Unit Tests (MANDATORY), 4. Backend: Run Unit Tests and Verify Database State (MANDATORY), 5. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 6. Frontend: E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE), 7. Verification on the other targets, 8. Update Technical Documentation (MANDATORY)
 
-### Community 759 - "Tasks — Redesign the frontend visual design (JOS-198)"
-Cohesion: 0.14
-Nodes (13): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Run Unit Tests and Verify Database State (MANDATORY), 11. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 12. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 13. Update Technical Documentation (MANDATORY), 14. Close out, 2. Tokens and contrast (design Decisions 2, 7, 8), 4. App shell (TDD; design Decision 4) (+5 more)
+### Community 759 - "SessionPage"
+Cohesion: 0.04
+Nodes (70): Goal, Output format, Rules, PhaseRetryButton(), handleClick(), Props, PhaseSection(), PhaseStepper() (+62 more)
 
 ### Community 760 - "scripts"
 Cohesion: 0.33
@@ -3936,32 +3948,32 @@ Cohesion: 0.25
 Nodes (7): Applicability, Cleanup, Environment, Findings, Outcome, Step 9 Report - E2E Testing in the Browser, Steps and Results
 
 ### Community 762 - "Step 8 Report — Manual Endpoint Testing"
-Cohesion: 0.25
-Nodes (7): Cleanup (task 8.6), OpenAPI (task 8.5), Over-maximum case (task 8.3), Result, Setup (task 8.1), Step 8 Report — Manual Endpoint Testing, Trying to change the values (task 8.4)
+Cohesion: 0.22
+Nodes (8): Cleanup (task 8.6), OpenAPI (task 8.5), Over-maximum case (task 8.3), Real narration and ordinary durations (task 8.2), Result, Setup (task 8.1), Step 8 Report — Manual Endpoint Testing, Trying to change the values (task 8.4)
 
-### Community 763 - "startNewCycle"
-Cohesion: 0.05
-Nodes (39): startNewCycle(), scheduleAndRelease(), scheduleAndRelease(), Decisions, Design — Manually retry a failed decomposition, Goals / Non-Goals, Migration Plan, Open Questions (+31 more)
+### Community 763 - "Manually retry a failed decomposition"
+Cohesion: 0.25
+Nodes (7): Capabilities, Impact, Manually retry a failed decomposition, Modified Capabilities, New Capabilities, What Changes, Why
 
 ### Community 764 - "move-failed-stage-retry.test.ts"
-Cohesion: 0.02
-Nodes (154): installSmokeStubs(), AlignmentProvider, AlignmentResult, createElevenLabsAlignmentProvider(), startServer(), IMAGE_REFERENCE_MODEL, phaseTimeoutMs(), SETTINGS (+146 more)
+Cohesion: 0.03
+Nodes (101): activeProviderId(), orphanedChoice(), ProviderRegistry, providerView, registryFor(), selectableProviders(), setActiveProvider(), warnedOrphans (+93 more)
 
 ### Community 765 - "Tasks — Generate the full voice-over"
-Cohesion: 0.11
-Nodes (18): DerivedSessionState, assertSessionTransition(), canTransitionSession(), InvalidSessionTransitionError, SessionState, ALL_SESSION_STATES, ALLOWED, 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP) (+10 more)
-
-### Community 766 - "Tasks — Record requested duration and speed-adjustment factor per scene (JOS-148)"
-Cohesion: 0.14
-Nodes (13): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 12. Close out, 1. Gate, 2. Domain: expose the speed-adjustment factor already computed by duration selection (TDD, pure logic), 4. Stability across builds (spec: a different acceptable limit later), 5. Backend exposure (spec: readable) (+5 more)
-
-### Community 767 - "active-provider-binding-voice.test.ts"
 Cohesion: 0.09
-Nodes (23): canLaunchVoiceOver(), VoiceLaunchDecision, hasPendingRetry(), retryVoiceOver(), VoiceOverRetryRefusal, VoiceOverRetryResult, newRun(), sendScheduledRetry() (+15 more)
+Nodes (21): DerivedSessionState, assertSessionTransition(), canTransitionSession(), InvalidSessionTransitionError, SessionState, decompositionFailure, PHASES, voiceOverFailure (+13 more)
 
-### Community 769 - "surface-pause-continue-failure/proposal.md"
-Cohesion: 0.29
-Nodes (6): Capabilities, Impact, Modified Capabilities, New Capabilities, What Changes, Why
+### Community 766 - "runDecompositionPhase"
+Cohesion: 0.04
+Nodes (46): runDecompositionPhase(), Applicability, Cleanup, Environment, Findings, Step 9 Report - E2E Testing in the Browser, Steps and Results, 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP) (+38 more)
+
+### Community 767 - "Lock the script at project start and the narration once complete"
+Cohesion: 0.22
+Nodes (8): Capabilities, Impact, Lock the script at project start and the narration once complete, Modified Capabilities, New Capabilities, Out of Scope (owned by other tickets), What Changes, Why
+
+### Community 769 - "Requirement: A failed pause or continue is shown as a sentence and leaves its control usable"
+Cohesion: 0.22
+Nodes (8): ADDED Requirements, Requirement: A failed pause or continue is shown as a sentence and leaves its control usable, Scenario: A new click clears the previous sentence, Scenario: A successful request shows no sentence, Scenario: Continue fails with a network error, Scenario: Pause fails with a network error, Scenario: The backend refuses because the session is unknown, Scenario: The control is disabled while the request is outstanding
 
 ### Community 770 - "11. Proveedores y operación"
 Cohesion: 0.40
@@ -3988,8 +4000,8 @@ Cohesion: 0.40
 Nodes (4): Context, Decisions, Goals / Non-Goals, Risks / Trade-offs
 
 ### Community 776 - "Decisions"
-Cohesion: 0.14
-Nodes (13): Context, Decision 1 — The password is a credential read through `loadCredential`, Decision 2 — The password travels in every Administrator request; no tokens, Decision 3 — One `onRequest` hook for the `/admin/` prefix, Decision 4 — `GET /admin/access` is the only new endpoint, Decision 5 — The `/admin` page and its slot, Decision 6 — The password stays out of logs and telemetry, Decision 7 — Serving `/admin` in the packaged app (+5 more)
+Cohesion: 0.11
+Nodes (18): defaultReader(), denialFor(), readAdminPassword(), requireAdministrator(), sameSecret(), Context, Decision 1 — The password is a credential read through `loadCredential`, Decision 2 — The password travels in every Administrator request; no tokens (+10 more)
 
 ### Community 777 - "10. Fallos, reintentos y correcciones"
 Cohesion: 0.50
@@ -4008,8 +4020,8 @@ Cohesion: 0.50
 Nodes (4): 8.1 Estados de la sesión, 8.2 Estados del chunk, 8.3 Información visible, 8. Estados y progreso
 
 ### Community 781 - "script-segmentation.test.ts"
-Cohesion: 0.19
-Nodes (8): bestGroupingByBruteForce(), fragmentsOf(), Group, isBetter(), narrate(), scenes(), segment(), SILENT_NARRATION
+Cohesion: 0.10
+Nodes (19): closestAdmittedDuration, alignedResponseSchema, nativeAlignmentSchema, nativeTimestampsSchema, parseAlignedCharacters(), parseNativeTimestamps(), ParseResult, TimestampCharacter (+11 more)
 
 ### Community 782 - "4. Entrada y conservación del contenido"
 Cohesion: 0.67
@@ -4052,8 +4064,8 @@ Cohesion: 0.25
 Nodes (7): Capabilities, Fix the two frontend lint errors that fail the release checks, Impact, Modified Capabilities, New Capabilities, What Changes, Why
 
 ### Community 792 - "image"
-Cohesion: 0.04
-Nodes (43): Findings (9.3), Live update (9.4), Restore (9.5), Setup (9.2), Step 9 — Browser E2E (JOS-151), 9.1 Start, 9.2 A scene through the clip stage, then the image stage, 9.3 Session-level stages, with sentinel text in every free-text column (+35 more)
+Cohesion: 0.08
+Nodes (27): JOS-166: See the provider and attempts of each stage, Reconciled with what has merged, Verification, What changed, Worth a look, Requirement: Each scene reports provider and attempts per stage, Scenario: A scene that has not started, Scenario: Attempts count across a manual retry (+19 more)
 
 ### Community 793 - "Decide how narration silences are allocated to scenes (D11)"
 Cohesion: 0.22
@@ -4092,16 +4104,16 @@ Cohesion: 0.18
 Nodes (10): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Update Technical Documentation (MANDATORY), 11. Close out, 4. Stability across builds (spec: a different admitted set later), 5. Exposure (design Decision 4; spec: readable), 6. Review and Update Existing Unit Tests (MANDATORY), 7. Run Unit Tests and Verify Database State (MANDATORY), 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE) (+2 more)
 
 ### Community 802 - "Retry or correct the image instruction after an image failure"
-Cohesion: 0.25
-Nodes (7): Capabilities, Impact, Modified Capabilities, New Capabilities, Retry or correct the image instruction after an image failure, What Changes, Why
+Cohesion: 0.29
+Nodes (6): Capabilities, Impact, Modified Capabilities, New Capabilities, Retry or correct the image instruction after an image failure, What Changes
 
 ### Community 803 - "Step 6 — Unit test and DB verification (JOS-164, download-final-video)"
-Cohesion: 0.20
-Nodes (9): binaryFileSwaggerTransform(), AC/scenario → test map, Default store untouched, Full run, Scope note (task 1.1), Step 6 — Unit test and DB verification (JOS-164, download-final-video), Task 2.1 finding: the published-contract fix, Task 5.3 — coverage not decreased (+1 more)
+Cohesion: 0.22
+Nodes (8): binaryFileSwaggerTransform(), AC/scenario → test map, Default store untouched, Full run, Step 6 — Unit test and DB verification (JOS-164, download-final-video), Task 2.1 finding: the published-contract fix, Task 5.3 — coverage not decreased, 2. Backend: the published contract (design Decision 1)
 
-### Community 804 - "writeArtefactOnce"
-Cohesion: 0.04
-Nodes (110): AssemblyRetryRefusal, ArtefactAlreadyExistsError, assertWithinProjectFolder(), clearFinalVideoRebuildRequest(), clearRunFailure(), commitSceneVideoResult(), correctImageInstruction(), correctLegacyInstruction() (+102 more)
+### Community 804 - "Tasks — Retry a failed final assembly (JOS-159, US-27)"
+Cohesion: 0.08
+Nodes (22): AssemblyRetryRefusal, isReadableMp4(), 10.1 — Server start and health check, 10.2 — A session fails in assembly; nothing generated is touched, 10.3 — Retry succeeds; folder gains only final-video.mp4; download, 10.5 — Cleanup, Step 10 — Manual endpoint testing with curl (JOS-159, retry-final-assembly), AC → test mapping (+14 more)
 
 ### Community 805 - "12. Persistencia, archivos y descargas"
 Cohesion: 0.40
@@ -4145,23 +4157,23 @@ Nodes (6): Capabilities, Ignore repeated success confirmations, Modified Capabil
 
 ### Community 816 - "Tasks — Generate the image of each scene (JOS-145)"
 Cohesion: 0.20
-Nodes (9): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 12. Close out, 1. Gate: Confirm the foundations this story depends on, 5. Independent progression (TDD) — AC3, design Decision 5, 6. Provider binding (TDD) — AC4, design Decision 3, 8. Run Unit Tests and Verify Database State (MANDATORY), 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE) (+1 more)
+Nodes (9): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 12. Close out, 1. Gate: Confirm the foundations this story depends on, 5. Independent progression (TDD) — AC3, design Decision 5, 8. Run Unit Tests and Verify Database State (MANDATORY), 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE) (+1 more)
 
-### Community 817 - "Step 8 — Unit tests and database verification (JOS-167)"
-Cohesion: 0.29
-Nodes (6): Database state (8.1, 8.4), Existing tests changed (7.1), Not verified, Results, Scenario to test map (7.2), Step 8 — Unit tests and database verification (JOS-167)
+### Community 817 - "Design — Obtain narration timestamps for the script (JOS-139)"
+Cohesion: 0.25
+Nodes (7): Context, Decisions, Design — Obtain narration timestamps for the script (JOS-139), Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
 
-### Community 818 - "2026-10-27-fix-frontend-lint-errors/tasks.md"
-Cohesion: 0.20
-Nodes (9): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Update Technical Documentation (MANDATORY), 1. Frontend: Tests first (TDD), 2. Frontend: Implementation, 3. Backend, 6. Run Unit Tests and Verify Database State (MANDATORY), 7. Manual Endpoint Testing with curl (not applicable), 8. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE) (+1 more)
+### Community 818 - "Design — Distinguish a paused session from running generations"
+Cohesion: 0.25
+Nodes (7): Context, Decisions, Design — Distinguish a paused session from running generations, Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
 
 ### Community 819 - "Tasks — Pause the session and continue explicitly (JOS-152, US-20)"
-Cohesion: 0.12
-Nodes (16): DecompositionPhaseResult, 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Run Unit Tests and Verify Database State (MANDATORY), 11. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 12. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 13. Update Technical Documentation (MANDATORY), 14. Close out, 2. The launch gate and the launcher registry (TDD; design Decisions 1, 3, 10) (+8 more)
+Cohesion: 0.14
+Nodes (13): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Run Unit Tests and Verify Database State (MANDATORY), 11. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 12. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 13. Update Technical Documentation (MANDATORY), 14. Close out, 4. Held work and the image launcher (TDD; design Decisions 3, 4, 5, 6), 5. Continue (TDD; design Decision 4) (+5 more)
 
-### Community 820 - "ImageProvider"
-Cohesion: 0.15
-Nodes (11): ImageProvider, Capabilities, Generate the image of each scene, Impact, Modified Capabilities, New Capabilities, Out of Scope (owned by other tickets), What Changes (+3 more)
+### Community 820 - "Generate the image of each scene"
+Cohesion: 0.22
+Nodes (8): Capabilities, Generate the image of each scene, Impact, Modified Capabilities, New Capabilities, Out of Scope (owned by other tickets), What Changes, Why
 
 ### Community 821 - "2026-10-27-add-linting-and-static-analysis/design.md"
 Cohesion: 0.29
@@ -4172,8 +4184,8 @@ Cohesion: 0.20
 Nodes (9): 13. Criterios de aceptación del MVP, 14.1 POC de asignación de silencios (D11) — Cerrada, 14. Decisiones de producto, 15. Gaps abiertos no bloqueantes, 1. Objetivo del producto, 3. Conceptos y datos del proyecto, 5. Flujo funcional, 9. Pausa y continuación (+1 more)
 
 ### Community 823 - "Design — Retry or correct the image instruction after an image failure"
-Cohesion: 0.33
-Nodes (5): Design — Retry or correct the image instruction after an image failure, Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
+Cohesion: 0.29
+Nodes (6): Decisions, Design — Retry or correct the image instruction after an image failure, Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
 
 ### Community 824 - "Step 12 Report - Unit Tests and Database Verification"
 Cohesion: 0.33
@@ -4204,8 +4216,8 @@ Cohesion: 0.20
 Nodes (9): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. Update Technical Documentation (MANDATORY), 11. Close out, 2. Backend: pin the stages that already hold (design Decision 4), 5. Backend: manual-testing aid, 7. Run Unit Tests and Verify Database State (MANDATORY), 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 9. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE) (+1 more)
 
 ### Community 831 - "Tasks — Bounded retry policy for provider stages"
-Cohesion: 0.06
-Nodes (31): stageInstanceKey(), VoiceOverLogEntry, Logging and Diagnostics, 4. Application: the watcher and late results (TDD), Context, Decisions, Design — Bounded retry policy for provider stages, Goals / Non-Goals (+23 more)
+Cohesion: 0.17
+Nodes (11): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 12. Close out, 1. Gate: Confirm the foundations and the values, 4. Application: recorder, scheduler, new cycle (TDD), 5. Adapters: no hidden retries (TDD), 7. Review and Update Existing Unit Tests (MANDATORY) (+3 more)
 
 ### Community 832 - "2026-10-27-record-phase-instants-and-pipeline-report/design.md"
 Cohesion: 0.20
@@ -4229,15 +4241,15 @@ Nodes (6): Capabilities, Impact, Modified Capabilities, New Capabilities, What C
 
 ### Community 837 - "skeleton/src/server.ts"
 Cohesion: 0.12
-Nodes (9): acquire(), inFlightCounts, limits, queues, release(), app, PORT, STAGE_CONCURRENCY_LIMIT (+1 more)
+Nodes (9): acquire(), inFlightCounts, limits, queues, app, PORT, STAGE_CONCURRENCY_LIMIT, summary (+1 more)
 
 ### Community 838 - "12. Persistencia, archivos y descargas"
 Cohesion: 0.40
 Nodes (5): 12.1 Conservación del proyecto, 12.2 Archivos, 12.3 Modelo de acceso, descargas y aislamiento, 12.4 Telemetría y privacidad, 12. Persistencia, archivos y descargas
 
-### Community 839 - "Step 5 Report - Unit Tests and Database Verification"
-Cohesion: 0.33
-Nodes (5): Commands Executed, Database State Verification, Outcome, Step 5 Report - Unit Tests and Database Verification, Unit Test Results
+### Community 839 - "Design — Bounded retry policy for provider stages"
+Cohesion: 0.25
+Nodes (7): Context, Decisions, Design — Bounded retry policy for provider stages, Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
 
 ### Community 840 - "2026-10-27-report-failures-and-retries/proposal.md"
 Cohesion: 0.29
@@ -4296,8 +4308,8 @@ Cohesion: 0.67
 Nodes (3): 4.1 Entrada del usuario, 4.2 Fidelidad e inmutabilidad, 4. Entrada y conservación del contenido
 
 ### Community 854 - "Tasks — Assign scene identifiers and visual instructions (JOS-144)"
-Cohesion: 0.17
-Nodes (11): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 1. Gate and umbrella carve-out, 2. Persistence: columns, unique number, locks (TDD) — design Decisions 2, 3, 7, 5. Session state and representation (TDD) — Decision 6, AC5, 6. API surface (TDD) — AC4, 7. Review and Update Existing Unit Tests (MANDATORY) (+3 more)
+Cohesion: 0.15
+Nodes (12): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 10. E2E Testing (MANDATORY if applicable - AGENT MUST EXECUTE), 11. Update Technical Documentation (MANDATORY), 1. Gate and umbrella carve-out, 2. Persistence: columns, unique number, locks (TDD) — design Decisions 2, 3, 7, 3. Visual instructions port and OpenAI adapter (TDD) — Decision 4, 5. Session state and representation (TDD) — Decision 6, AC5, 6. API surface (TDD) — AC4 (+4 more)
 
 ### Community 855 - "6.1 Regla de segmentación"
 Cohesion: 0.67
@@ -4355,13 +4367,17 @@ Nodes (7): Capabilities, Impact, Modified Capabilities, New Capabilities, Run a 
 Cohesion: 0.25
 Nodes (7): Decision, Flood of Fal's concurrent-request limit, Outcome, Report - Image model comparison for the reference image (JOS-230), Results (8 scenes each), Setup, Why
 
-### Community 870 - "activeProvider.ts"
+### Community 870 - "failedStages.ts"
 Cohesion: 0.07
-Nodes (50): activeProviderId(), labelOf(), orphanedChoice(), providerView, registryFor(), selectableProviders(), setActiveProvider(), warnedOrphans (+42 more)
+Nodes (40): labelOf(), registerFailedStageRoutes(), inTransaction(), listRunIds(), rebindFailedClip(), rebindSceneImageProvider(), rebindSessionStage(), recordProviderChange() (+32 more)
 
-### Community 872 - "Rules and Patterns for documentation and AI specs"
-Cohesion: 0.29
-Nodes (6): AI specs, Common Pitfalls and Anti-Patterns to be avoided by the AI, General rules, Introduction, Rules and Patterns for documentation and AI specs, Technical Documentation
+### Community 871 - "Bounded retry policy for provider stages"
+Cohesion: 0.25
+Nodes (7): Bounded retry policy for provider stages, Capabilities, Impact, Modified Capabilities, New Capabilities, What Changes, Why
+
+### Community 872 - "Limit simultaneous provider requests per stage"
+Cohesion: 0.25
+Nodes (7): Capabilities, Impact, Limit simultaneous provider requests per stage, Modified Capabilities, New Capabilities, What Changes, Why
 
 ### Community 873 - "12. Persistencia, archivos y descargas"
 Cohesion: 0.40
@@ -4375,9 +4391,9 @@ Nodes (8): Commands Executed, Coverage (task 7.3), Database State Verification, 
 Cohesion: 0.33
 Nodes (5): Design — Ignore repeated success confirmations, Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
 
-### Community 876 - "Decisions"
-Cohesion: 0.15
-Nodes (12): 2. SQL selects attempt rows; TypeScript aggregates, 3. Attribution of scene attempts until JOS-222, 4. Response shape, 5. No content in the report, 6. Billed units are derived in SQL, not shared with the telemetry, 7. Frontend: `ReportsSection`, `ReportPeriodSelector`, `ProviderUsageTable`, Context, Decisions (+4 more)
+### Community 876 - "mode"
+Cohesion: 0.12
+Nodes (16): 3. Provider request / stage attempt (`provider_requests` table), mode(), Decision 6: Dry run and test publication, 2. Workflow and scripts, 2. SQL selects attempt rows; TypeScript aggregates, 3. Attribution of scene attempts until JOS-222, 4. Response shape, 5. No content in the report (+8 more)
 
 ### Community 877 - "Design — Request the admitted clip duration closest to the narrated interval (JOS-147)"
 Cohesion: 0.29
@@ -4408,16 +4424,16 @@ Cohesion: 0.83
 Nodes (3): require_tree(), release.sh script, sha256()
 
 ### Community 884 - "Step 9 Report — Unit Tests and Database Verification"
-Cohesion: 0.22
-Nodes (8): Commands Executed, Database State Verification, New tests, by task, Outcome, Review of existing tests (tasks 8.1-8.3), Scenario to Test Mapping, Step 9 Report — Unit Tests and Database Verification, Unit Test Results
+Cohesion: 0.25
+Nodes (7): Commands Executed, Database State Verification, New tests, by task, Outcome, Scenario to Test Mapping, Step 9 Report — Unit Tests and Database Verification, Unit Test Results
 
 ### Community 885 - "Step 9 Report - Manual Endpoint Testing with curl"
 Cohesion: 0.33
 Nodes (5): Cleanup (9.7), Outcome, Results, Setup, Step 9 Report - Manual Endpoint Testing with curl
 
-### Community 886 - "Step 7 — B+ experiments on Cloudflare Containers"
-Cohesion: 0.33
-Nodes (5): Findings, Not done, Results, Stand-ins, Step 7 — B+ experiments on Cloudflare Containers
+### Community 886 - "Design — Segment the script into chunks within duration bounds (JOS-140)"
+Cohesion: 0.29
+Nodes (6): Context, Design — Segment the script into chunks within duration bounds (JOS-140), Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
 
 ### Community 887 - "Step 5 Report — Manual Endpoint Testing"
 Cohesion: 0.29
@@ -4443,25 +4459,29 @@ Nodes (6): 11.1 Marcas de tiempo y mecanismo de respaldo, 11.2 Vinculación y ca
 Cohesion: 0.25
 Nodes (7): Commands Executed, Coverage check (task 6.5), Database State Verification, Outcome, Scenario-to-test mapping (task 6.4), Step 7 Report - Unit Tests and Database Verification, Unit Test Results
 
-### Community 893 - "Design — Download the final video"
+### Community 893 - "2026-10-05-harden-backend-foundation/proposal.md"
 Cohesion: 0.29
-Nodes (6): Context, Design — Download the final video, Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
+Nodes (6): Capabilities, Impact, Modified Capabilities, New Capabilities, What Changes, Why
 
 ### Community 894 - "2026-10-19-fix-runninghub-adapter/design.md"
 Cohesion: 0.33
 Nodes (5): Context, Decisions, Goals / Non-Goals, Open Questions, Risks / Trade-offs
 
+### Community 895 - "Step 9: curl endpoint testing (JOS-166, see-provider-and-attempts)"
+Cohesion: 0.29
+Nodes (6): 9.1 Start, 9.2 A scene through the clip stage, then the image stage, 9.3 Session-level stages, with sentinel text in every free-text column, 9.4 Error case and the generated API docs, 9.5 Clean-up, Step 9: curl endpoint testing (JOS-166, see-provider-and-attempts)
+
 ### Community 898 - "devDependencies"
 Cohesion: 0.22
 Nodes (9): devDependencies, esbuild, eslint, @eslint/js, postject, @types/node, typescript, typescript-eslint (+1 more)
 
-### Community 900 - "sessionsReport.ts"
-Cohesion: 0.25
-Nodes (8): SceneDbRow, SceneRow, secondsBetween(), SessionDbRow, SessionFailedPhase, SessionRow, sessionsReport, list()
+### Community 900 - "Retry a failed final assembly"
+Cohesion: 0.29
+Nodes (6): Capabilities, Modified Capabilities, New Capabilities, Retry a failed final assembly, What Changes, Why
 
-### Community 901 - "Step 9 — Unit test and DB verification (JOS-159, retry-final-assembly)"
-Cohesion: 0.33
-Nodes (5): AC → test mapping, Database state, spec.md scenario → test mapping, Step 9 — Unit test and DB verification (JOS-159, retry-final-assembly), Test runs
+### Community 901 - "Step 8 Report - Unit Tests and Database State Verification"
+Cohesion: 0.29
+Nodes (6): Commands Executed, Coverage (task 7.3), Database State Verification, Spec scenario to test mapping (task 7.2), Step 8 Report - Unit Tests and Database State Verification, Unit Test Results
 
 ### Community 902 - "Design — See provider and attempts per stage"
 Cohesion: 0.25
@@ -4488,16 +4508,16 @@ Cohesion: 0.33
 Nodes (5): Cleanup, Outcome, Result, Step 9 Report - Real adapter check, What ran
 
 ### Community 908 - "Step 7 Report - Unit Tests and Database Verification"
-Cohesion: 0.22
-Nodes (8): API contract (task 10.1), Commands Executed, Coverage (task 6.3), Database State Verification, Existing tests, Spec scenario to test map (task 6.2), Step 7 Report - Unit Tests and Database Verification, Unit Test Results
+Cohesion: 0.25
+Nodes (7): API contract (task 10.1), Commands Executed, Database State Verification, Existing tests, Spec scenario to test map (task 6.2), Step 7 Report - Unit Tests and Database Verification, Unit Test Results
 
 ### Community 909 - "Step 10 Report - E2E Testing (Chrome browser automation)"
 Cohesion: 0.29
 Nodes (6): Applicability (task 10.1), Cleanup (task 10.5), Outcome, Setup, Step 10 Report - E2E Testing (Chrome browser automation), Steps and result (task 10.2-10.4)
 
-### Community 910 - "Step 9 — unit tests and database verification (run-session-end-to-end, JOS-195)"
-Cohesion: 0.29
-Nodes (6): Cleanup, Commands, Database state, Results, Step 9 — unit tests and database verification (run-session-end-to-end, JOS-195), The 11 failures after the hand-off, and what they were
+### Community 910 - "Tasks — Run a session end to end (JOS-195)"
+Cohesion: 0.08
+Nodes (28): launchDecompositionFor(), setDecompositionLogger(), assemblyStubModeFor(), configureAssemblyTool(), handOffAfterNarration(), Coverage (task 6.3), 14. Close out, 14. Merge of JOS-195 (2026-10-13) (+20 more)
 
 ### Community 911 - "12. Persistencia, archivos y descargas"
 Cohesion: 0.40
@@ -4507,9 +4527,9 @@ Nodes (5): 12.1 Conservación del proyecto, 12.2 Archivos, 12.3 Modelo de acceso
 Cohesion: 0.22
 Nodes (8): 9.2 — GET /sessions/:id, hand-verified against the group-2 formula, 9.3 / 9.4 — Factor over the limit, combined with the unsplittable-sentence duration warning, 9.5 — Attempts to change the values are refused, 9.6 — OpenAPI documentation, 9.7 — Cleanup, Outcome, Setup, Step 9 Report - Manual Endpoint Testing with curl
 
-### Community 914 - "Step 10 — Manual endpoint testing with curl (JOS-159, retry-final-assembly)"
-Cohesion: 0.40
-Nodes (4): 10.1 — Server start and health check, 10.2 — A session fails in assembly; nothing generated is touched, 10.5 — Cleanup, Step 10 — Manual endpoint testing with curl (JOS-159, retry-final-assembly)
+### Community 914 - "2026-10-27-surface-pause-continue-failure/proposal.md"
+Cohesion: 0.29
+Nodes (6): Capabilities, Impact, Modified Capabilities, New Capabilities, What Changes, Why
 
 ### Community 915 - "10. Fallos, reintentos y correcciones"
 Cohesion: 0.50
@@ -4527,9 +4547,9 @@ Nodes (4): 7.1 Imagen, 7.2 Clip, 7.3 Sincronización y montaje final, 7. Generac
 Cohesion: 0.50
 Nodes (4): 8.1 Estados de la sesión, 8.2 Estados del chunk, 8.3 Información visible, 8. Estados y progreso
 
-### Community 920 - "report-stable-provider-name/tasks.md"
-Cohesion: 0.25
-Nodes (7): 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP), 2. Backend: vendor per adapter type (TDD; design Decision 1), 4. Backend: Review and Update Existing Unit Tests (MANDATORY), 5. Run Unit Tests and Verify Database State (MANDATORY), 6. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE), 7. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE), 8. Update Technical Documentation (MANDATORY)
+### Community 920 - "alignment-provider.test.ts"
+Cohesion: 0.33
+Nodes (3): AUDIO, providerWith(), RecordedCall
 
 ### Community 921 - "4. Entrada y conservación del contenido"
 Cohesion: 0.67
@@ -4544,20 +4564,20 @@ Cohesion: 0.33
 Nodes (5): Commands Executed, Database State Verification, Outcome, Step 6 Report - Unit Tests and Database Verification, Unit Test Results
 
 ### Community 925 - "View progress by phase"
-Cohesion: 0.25
-Nodes (7): Capabilities, Impact, Modified Capabilities, New Capabilities, View progress by phase, What Changes, Why
-
-### Community 926 - "Step 9 Report - E2E Testing in the Browser"
 Cohesion: 0.29
-Nodes (6): Applicability, Cleanup, Environment, Findings, Step 9 Report - E2E Testing in the Browser, Steps and Results
+Nodes (6): Capabilities, Modified Capabilities, New Capabilities, View progress by phase, What Changes, Why
+
+### Community 926 - "Step 3 Report — Numeric Comparison"
+Cohesion: 0.33
+Nodes (5): Answering §14.1's specific checks (design Decision 6), Conclusion for this step, Files, Results, Step 3 Report — Numeric Comparison
 
 ### Community 927 - "Step 8 — Unit tests and database verification (retry-decomposition, JOS-156)"
 Cohesion: 0.29
 Nodes (6): Coverage (task 8.3), Database state (tasks 9.1, 9.4), Existing tests reviewed (task 8.1), Runs (tasks 9.2-9.3), Scenario coverage (task 8.2), Step 8 — Unit tests and database verification (retry-decomposition, JOS-156)
 
 ### Community 928 - "Step 8 Report — Unit Tests and Database Verification"
-Cohesion: 0.20
-Nodes (9): sniffImageExtension(), Commands Executed, Coverage (task 7.4, already run in full during group 7), Database State Verification, Outcome, Scenario-to-Test Mapping (task 7.3/6.4), Step 8 Report — Unit Tests and Database Verification, Unit Test Results (+1 more)
+Cohesion: 0.29
+Nodes (6): Commands Executed, Coverage (task 7.4, already run in full during group 7), Database State Verification, Outcome, Step 8 Report — Unit Tests and Database Verification, Unit Test Results
 
 ### Community 929 - "sweep.ts"
 Cohesion: 0.38
@@ -4595,17 +4615,17 @@ Nodes (6): Capabilities, Modified Capabilities, New Capabilities, Redesign the f
 Cohesion: 0.33
 Nodes (5): Cleanup (5.6), Release flavor, port 3198, `ALLOW_TEST_ENDPOINTS=1 USE_STUB_VOICE_PROVIDER=success`, Second instance (5.5), Smoke flavor, port 3199, clean data folder, Step 5 — curl endpoint testing (JOS-205)
 
-### Community 938 - "Step 7 Report - Unit Tests and Database Verification"
+### Community 938 - "Step 9 — Browser E2E (JOS-151)"
 Cohesion: 0.33
-Nodes (5): Commands Executed, Database State Verification, Outcome, Step 7 Report - Unit Tests and Database Verification, Unit Test Results
+Nodes (5): Findings (9.3), Live update (9.4), Restore (9.5), Setup (9.2), Step 9 — Browser E2E (JOS-151)
 
 ### Community 939 - "Step 6 Report - Unit Tests and Database Verification"
 Cohesion: 0.33
 Nodes (5): Commands Executed, Database State Verification, Outcome, Step 6 Report - Unit Tests and Database Verification, Unit Test Results
 
-### Community 940 - "Step 10: unit tests and database verification (JOS-198, redesign-visual-design)"
-Cohesion: 0.29
-Nodes (6): 10.1 Baseline, 10.2-10.3 Commands and results, 10.4 Post-test state, 9.3 Ticket acceptance criteria (JOS-198), Outcome, Step 10: unit tests and database verification (JOS-198, redesign-visual-design)
+### Community 940 - "Design — Manually retry a failed decomposition"
+Cohesion: 0.33
+Nodes (5): Design — Manually retry a failed decomposition, Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
 
 ### Community 941 - "Step 7 Report - Manual Endpoint Testing with curl"
 Cohesion: 0.33
@@ -4619,9 +4639,9 @@ Nodes (5): Cleanup, Outcome, Scenarios, Setup, Step 8 Report - E2E Testing in th
 Cohesion: 0.33
 Nodes (5): Cleanup (7.6), Comparison with the spike's R1 query (7.3), Content and side effects (7.5), Results, Step 7: manual endpoint testing (JOS-223, report-provider-usage)
 
-### Community 944 - "Design — Assign scene identifiers and visual instructions (JOS-144)"
-Cohesion: 0.29
-Nodes (6): Context, Design — Assign scene identifiers and visual instructions (JOS-144), Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
+### Community 944 - "SessionFailure"
+Cohesion: 0.15
+Nodes (13): AssemblyFailure, SessionFailure, Impact, 2. Backend: assembly failure on the session (TDD; design Decision 1), Context, Decisions, Design — Assign scene identifiers and visual instructions (JOS-144), Goals / Non-Goals (+5 more)
 
 ### Community 945 - "Step 9: unit tests and database verification (JOS-172, move-failed-stage-to-active-provider)"
 Cohesion: 0.33
@@ -4639,29 +4659,29 @@ Nodes (4): DB baseline (7.1, 7.4), Notes, Results, Step 7 — Unit tests and dat
 Cohesion: 0.29
 Nodes (6): Context, Design — Generate the image of each scene (JOS-145), Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
 
-### Community 949 - "Design — Retry a failed final assembly"
-Cohesion: 0.40
-Nodes (4): Design — Retry a failed final assembly, Goals / Non-Goals, Open Questions, Risks / Trade-offs
+### Community 949 - "Step 5b — Verify the Image Provider, Verify the Reasoning Provider, Close Out Group 5"
+Cohesion: 0.33
+Nodes (5): 5.3 — Image provider (Fal.ai), 5.4 / 5.5 — Reasoning provider (OpenAI), 5.6 — Providers selected, Spend, Step 5b — Verify the Image Provider, Verify the Reasoning Provider, Close Out Group 5
 
-### Community 950 - "Step 9 Report - Manual Endpoint Testing with curl"
-Cohesion: 0.29
-Nodes (6): Additional checks, Cleanup (9.9), Outcome, Results, Setup, Step 9 Report - Manual Endpoint Testing with curl
+### Community 950 - "Step 10 — Browser end-to-end check (JOS-167)"
+Cohesion: 0.33
+Nodes (5): Applicability, Cleanup, Result, Setup, Step 10 — Browser end-to-end check (JOS-167)
 
 ### Community 951 - "12. Persistencia, archivos y descargas"
 Cohesion: 0.40
 Nodes (5): 12.1 Conservación del proyecto, 12.2 Archivos, 12.3 Modelo de acceso, descargas y aislamiento, 12.4 Telemetría y privacidad, 12. Persistencia, archivos y descargas
 
-### Community 952 - "2026-10-19-run-session-end-to-end/design.md"
-Cohesion: 0.40
-Nodes (4): Goals / Non-Goals, Migration Plan, Open Questions, Risks / Trade-offs
+### Community 952 - "Step 9 — Manual endpoint testing (JOS-167)"
+Cohesion: 0.33
+Nodes (5): 9.1 Health and boot log, 9.2 Five sessions at once, 9.3 Pause while waiting, 9.4 Cleanup, Step 9 — Manual endpoint testing (JOS-167)
 
 ### Community 953 - "Step 2-3: the scratch store and the report queries (JOS-175, define-admin-reports)"
 Cohesion: 0.40
 Nodes (4): 2. The scratch store, 3. The queries against the known counts, Findings for the catalogue, Step 2-3: the scratch store and the report queries (JOS-175, define-admin-reports)
 
-### Community 954 - "npmInvocation"
-Cohesion: 0.14
-Nodes (12): npmInvocation(), Commands Executed, Database State Verification, Outcome, Step 6 Report - Unit Tests and Database Verification, Unit Test Results, Not checked here, Outcome (+4 more)
+### Community 954 - "Step 5 Report - Unit Tests and Database Verification"
+Cohesion: 0.33
+Nodes (5): Commands Executed, Database State Verification, Outcome, Step 5 Report - Unit Tests and Database Verification, Unit Test Results
 
 ### Community 955 - "10. Fallos, reintentos y correcciones"
 Cohesion: 0.50
@@ -4715,17 +4735,17 @@ Nodes (6): Decision 1: The vendor comes from the profile's adapter type, not fro
 Cohesion: 0.50
 Nodes (3): Decision, Step 10.2 Report - Fixed-prefix comparison (not run, decision recorded), What was done instead
 
-### Community 968 - "Requirement: A failed decomposition can be retried by command"
-Cohesion: 0.29
-Nodes (7): Requirement: A failed decomposition can be retried by command, Scenario: Retry accepted, Scenario: Retry refused after a not-retryable failure, Scenario: Session already has chunks, Scenario: Session not failed in decomposition, Scenario: Two retries at once, Scenario: Unknown session or a body
+### Community 968 - "🚀 Quick Start"
+Cohesion: 0.40
+Nodes (5): 1) Install and Initialize OpenSpec, 2) Import Into Your Project, 3) Customize `docs/` for Your Project (Mandatory), 4) Point OpenSpec Config to Your `docs/` and `ai-specs/`, 🚀 Quick Start
 
 ### Community 989 - "Step 7 — proof-of-concept experiments (option A), interim"
 Cohesion: 0.33
 Nodes (5): Findings, Not exercised, Stand-ins, Step 7 — proof-of-concept experiments (option A), interim, Update 2026-10-13 — option A, restart during a running stage
 
-### Community 990 - "Step 9: unit tests and database verification (JOS-218, manage-providers-from-admin)"
-Cohesion: 0.33
-Nodes (5): 8.2 Scenario and acceptance-criterion coverage, 9.1 Baseline, 9.2-9.3 Commands and results, 9.4 Post-test state, Step 9: unit tests and database verification (JOS-218, manage-providers-from-admin)
+### Community 990 - "save"
+Cohesion: 0.40
+Nodes (4): save(), Goal, Output format, Rules
 
 ### Community 991 - "report-stable-provider-name/proposal.md"
 Cohesion: 0.33
@@ -4751,29 +4771,69 @@ Nodes (4): After the fix, through the adapter, Before the fix (plain requests, s
 Cohesion: 0.40
 Nodes (4): Outcome, Step 7 Report - Grafana check (AC5), What was checked, What was not checked
 
-### Community 997 - "Step 4 — unit tests and database verification (JOS-205)"
+### Community 997 - "bootLogFields"
+Cohesion: 0.20
+Nodes (9): stats(), stagesWithoutRestartRecovery(), bootLogFields(), clipQueueLength(), trackPeakInFlight(), Existing tests reviewed (task 3.1), Isolation, Results (+1 more)
+
+### Community 998 - "JOS-185: Per-phase maximum execution time, measured from send"
+Cohesion: 0.40
+Nodes (4): JOS-185: Per-phase maximum execution time, measured from send, Merge notes, Verification, Worth a look
+
+### Community 999 - "🚀 Quick Start"
+Cohesion: 0.40
+Nodes (5): 1) Install and Initialize OpenSpec, 2) Import Into Your Project, 3) Customize `docs/` for Your Project (Mandatory), 4) Point OpenSpec Config to Your `docs/` and `ai-specs/`, 🚀 Quick Start
+
+### Community 1000 - "🔧 Customization"
 Cohesion: 0.50
-Nodes (3): Isolation, Results, Step 4 — unit tests and database verification (JOS-205)
+Nodes (4): Adapting to Your Project, 🔧 Customization, Maintaining Standards, Prompt Example: Adapt Technical Context
+
+### Community 1001 - "🎯 Benefits"
+Cohesion: 0.50
+Nodes (4): 🎯 Benefits, For Developers, For Projects, For Teams
+
+### Community 1002 - "Open items to know before reviewing"
+Cohesion: 0.50
+Nodes (3): Open items to know before reviewing, PR description draft — JOS-184 (US-22a) Bounded retry policy for provider stages, Test plan
+
+### Community 1003 - "Step 9: manual endpoint testing with curl (JOS-168, view-progress-by-phase)"
+Cohesion: 0.50
+Nodes (3): 9.5 Cleanup, Finding: held decomposition cannot occur on a real server yet, Step 9: manual endpoint testing with curl (JOS-168, view-progress-by-phase)
+
+### Community 1004 - "2026-10-19-view-progress-by-phase/reports/pr-description.md"
+Cohesion: 0.50
+Nodes (3): Summary, Test plan, Things to know when reviewing
+
+### Community 1005 - "🔧 Customization"
+Cohesion: 0.50
+Nodes (4): Adapting to Your Project, 🔧 Customization, Maintaining Standards, Prompt Example: Adapt Technical Context
+
+### Community 1006 - "🎯 Benefits"
+Cohesion: 0.50
+Nodes (4): 🎯 Benefits, For Developers, For Projects, For Teams
+
+### Community 1008 - "📖 Core Development Rules"
+Cohesion: 0.67
+Nodes (3): 📖 Core Development Rules, Key Principles, Specific Standards
 
 ## Knowledge Gaps
 - **62 isolated node(s):** `@fastify/cors`, `@fastify/swagger`, `@fastify/swagger-ui`, `fastify`, `fastify-type-provider-zod` (+57 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 8716 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 8722 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **67 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `image()` connect `image` to `createRun`, `Tasks — View per-scene status and results (JOS-151, US-19)`, `Requirements`, `Tasks — Distinguish a paused session from running generations`, `ADR 0005 — Provider selection and hardcoded operating parameters`, `writeArtefactOnce`, `frontend/test/components.test.tsx`, `Tasks — Pause the session and continue explicitly (JOS-152, US-20)`, `ImageProvider`, `failure`, `Requirements`, `Model Descriptions`, `Design — Download individual scene results during processing`, `ADDED Requirements`, `ADDED Requirements`, `recordError`, `Decisions`, `local/entry.ts`, `Requirements`, `Requirements`, `ADDED Requirements`, `Tasks — Define the hardcoded providers and parameter values`, `Step 6 Report - Manual Testing of the Telemetry Export`, `Download individual scene results during processing`, `activeProvider.ts`, `ADDED Requirements`, `Backend Project Standards and Best Practices`, `Tasks — Preserve project progress across restarts (JOS-160, US-28)`, `move-failed-stage-retry.test.ts`, `Tasks — Generate the clip of each scene (JOS-146)`?**
+- **Why does `image()` connect `image` to `Run it`, `imageUrl`, `2026-10-27-define-admin-reports/design.md`, `Requirements`, `Tasks — Distinguish a paused session from running generations`, `ADR 0005 — Provider selection and hardcoded operating parameters`, `Step 9 — Browser E2E (JOS-151)`, `frontend/src/types.ts`, `Design — Distinguish a paused session from running generations`, `Tasks — Pause the session and continue explicitly (JOS-152, US-20)`, `Generate the image of each scene`, `Step 5b — Verify the Image Provider, Verify the Reasoning Provider, Close Out Group 5`, `failure`, `Requirements`, `backend/src/db.ts`, `Model Descriptions`, `ADDED Requirements`, `ADDED Requirements`, `recordError`, `decompositionPhase.ts`, `local/entry.ts`, `Requirements`, `backend/src/orchestrator.ts`, `Requirements`, `Generate the clip of each scene`, `ADDED Requirements`, `Tasks — Define the hardcoded providers and parameter values`, `Step 6 Report - Manual Testing of the Telemetry Export`, `Download individual scene results during processing`, `Tasks — Download the final video (JOS-164, US-32)`, `ADDED Requirements`, `SessionPage`, `Tasks — Generate the clip of each scene (JOS-146)`, `Step 9: curl endpoint testing (JOS-166, see-provider-and-attempts)`?**
   _High betweenness centrality (0.017) - this node is a cross-community bridge._
 - **Are the 52 inferred relationships involving `registerDecomposition()` (e.g. with `.generate()` and `Provider adapters`) actually correct?**
   _`registerDecomposition()` has 52 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `@fastify/cors`, `@fastify/swagger`, `@fastify/swagger-ui` to the rest of the system?**
   _62 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `skeleton/src/db.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.13118279569892474 - nodes in this community are weakly interconnected._
-- **Why does `registerDecomposition()` connect `createRun` to `Design — See provider and attempts per stage`, `Design — Retime and join scene clips into the video track`, `script-segmentation.test.ts`, `split-segmentation.test.ts`, `Step 10 Report - E2E Testing (Chrome browser automation)`, `Step 9 Report - Manual Endpoint Testing with curl`, `Step 10 Report - E2E Testing in the Browser`, `Step 9 Report - Manual Endpoint Testing with curl`, `providers.ts`, `Tasks — Request the admitted clip duration closest to the narrated interval (JOS-147)`, `writeArtefactOnce`, `Tasks — Visual style prompt and reference image from `/admin` (JOS-201)`, `adminFetch`, `Tasks — Pause the session and continue explicitly (JOS-152, US-20)`, `backend/src/db.ts`, `getRun`, `Step 10 Report - E2E Testing (Chrome browser automation)`, `backend/src/orchestrator.ts`, `Tasks — Decompose the script into chunks with their visual instructions`, `failure-representation.test.ts`, `Tasks — Assign scene identifiers and visual instructions (JOS-144)`, `Tasks — Prevent the final video while any scene is incomplete (JOS-150, US-17)`, `Step 9 Report - Manual Endpoint Testing with curl`, `ref_vitest`, `Tasks — Segment the script into chunks within duration bounds (JOS-140)`, `Step 9 Report — Unit Tests and Database Verification`, `DecompositionFailure`, `Segment the script into chunks within duration bounds`, `Step 8 Report — Manual Endpoint Testing`, `narration-interval-immutability.test.ts`, `move-failed-stage-retry.test.ts`, `Tasks — Record requested duration and speed-adjustment factor per scene (JOS-148)`, `startNewCycle`?**
+  _Cohesion score 0.09743589743589744 - nodes in this community are weakly interconnected._
+- **Why does `registerDecomposition()` connect `getRun` to `Design — See provider and attempts per stage`, `script-segmentation.test.ts`, `Tasks — Assign narration intervals that partition the voice-over (JOS-143)`, `Step 10 Report - E2E Testing (Chrome browser automation)`, `Step 9 Report - Manual Endpoint Testing with curl`, `unitBoundaries`, `Step 10 Report - E2E Testing in the Browser`, `Step 9 Report - Manual Endpoint Testing with curl`, `scenePause.ts`, `Tasks — Request the admitted clip duration closest to the narrated interval (JOS-147)`, `Tasks — Visual style prompt and reference image from `/admin` (JOS-201)`, `Design — Manually retry a failed decomposition`, `adminFetch`, `SessionFailure`, `Tasks — Pause the session and continue explicitly (JOS-152, US-20)`, `voiceOverPhase.ts`, `backend/src/db.ts`, `decompositionPhase.ts`, `Step 10 Report - E2E Testing (Chrome browser automation)`, `backend/src/orchestrator.ts`, `Tasks — Decompose the script into chunks with their visual instructions`, `Tasks — Assign scene identifiers and visual instructions (JOS-144)`, `Tasks — Prevent the final video while any scene is incomplete (JOS-150, US-17)`, `Step 9 Report - Manual Endpoint Testing with curl`, `ref_vitest`, `Step 8 Report — Manual Endpoint Testing`, `createRun`, `move-failed-stage-retry.test.ts`, `runDecompositionPhase`?**
   _High betweenness centrality (0.016) - this node is a cross-community bridge._
 - **Should `providerTypes.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.046007403490216814 - nodes in this community are weakly interconnected._
-- **Why does `Provider adapters` connect `move-failed-stage-retry.test.ts` to `createRun`, `segmentScript`, `scheduled`, `split-segmentation.test.ts`, `unitBoundaries`, `transient`, `getStageAttempts`, `image`, `writeArtefactOnce`, `ImageProvider`, `Model Descriptions`, `getRun`, `imageOutputCheck.ts`, `fetch`, `backend/src/orchestrator.ts`, `backend/src/server.ts`, `clauseSplitting.ts`, `activeProvider.ts`, `launchImageStage`, `ref_vitest`, `Tasks — Preserve project progress across restarts (JOS-160, US-28)`, `Tasks — Generate the clip of each scene (JOS-146)`, `rebindFailedClip`?**
+  _Cohesion score 0.06765327695560254 - nodes in this community are weakly interconnected._
+- **Why does `Provider adapters` connect `backend/src/orchestrator.ts` to `getRun`, `decompositionPhase.ts`, `move-failed-stage-retry.test.ts`, `scheduled`, `imageOutputCheck.ts`, `fetch`, `loadCredential`, `backend/src/db.ts`, `Tasks — Run a session end to end (JOS-195)`, `unitBoundaries`, `image`, `Backend Project Standards and Best Practices`, `reconcileOnBoot`, `Model Descriptions`, `segmentScript`, `voiceOverPhase.ts`, `clauseBoundaries.ts`, `Tasks — Generate the clip of each scene (JOS-146)`?**
   _High betweenness centrality (0.016) - this node is a cross-community bridge._
