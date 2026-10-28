@@ -1,11 +1,11 @@
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
 - [x] 0.1 Branch `feature/jos-235-rebuild-scene` exists from `origin/feature/entrega-3-JAME` (at `3124559c`, PR #135 merged) with no upstream, in the worktree `../AI4Devs-jos-235` (checked by `/opsx:propose`)
-- [ ] 0.2 `git fetch`; confirm it is the current branch of that worktree, still has no upstream, and `origin/feature/entrega-3-JAME` has not moved past its base (merge it in if it has); run `npm ci` in `backend/` and `frontend/`
+- [x] 0.2 `git fetch`; confirm it is the current branch of that worktree, still has no upstream, and `origin/feature/entrega-3-JAME` has not moved past its base (merge it in if it has); run `npm ci` in `backend/` and `frontend/`
 
 ## 1. Gate
 
-- [ ] 1.1 Confirm design.md § Context still holds:
+- [x] 1.1 Confirm design.md § Context still holds:
   - `scene_results` and `scene_video_results` are keyed by `scene_id`;
   - the image file is `scene-N-attempt-A.ext` and the clip is `scene-N.mp4`, both written with `writeArtefactOnce`;
   - `triggerAssemblyIfReady` is the only automatic assembly trigger after a clip commit;
@@ -15,21 +15,21 @@
 
 ## 2. Backend: migration and the rebuild transition (TDD; design Decisions 1, 5)
 
-- [ ] 2.1 Write failing tests for `markSceneForRebuild`:
+- [x] 2.1 Write failing tests for `markSceneForRebuild`:
   - accepted from `image-complete` and `chunk-complete`; refused (returns false, nothing changes) from `submitted`, `image-generating`, `video-generating`, `failed`, and for a scene of another session;
   - on success: status `submitted`; results, attempts, request fields and error cleared; `rebuild_count` incremented; the given instructions stored and omitted ones kept; guard rows deleted; providers, requested duration and narration interval unchanged;
   - `final_video_stale` set only when the session has a final video;
   - a corrected instruction is recorded like a correction; a skeleton scene's `imageInstruction` goes to the legacy `instruction`.
-- [ ] 2.2 Add the migration (`scenes.rebuild_count`, `runs.final_video_stale`), `Run.finalVideoStale`, `Scene.rebuildCount` and `markSceneForRebuild` in `db.ts`. Make 2.1 pass.
+- [x] 2.2 Add the migration (`scenes.rebuild_count`, `runs.final_video_stale`), `Run.finalVideoStale`, `Scene.rebuildCount` and `markSceneForRebuild` in `db.ts`. Make 2.1 pass.
 
 ## 3. Backend: versioned files and URLs (TDD; design Decisions 3, 4)
 
-- [ ] 3.1 Write failing tests:
+- [x] 3.1 Write failing tests:
   - a scene with `rebuild_count` 1 writes `scene-N-r1-attempt-1.<ext>` and `scene-N-r1.mp4`;
   - `rebuild_count` 0 keeps today's names;
   - the snapshot's image and clip URLs carry `?r=1` only when `rebuild_count` > 0;
   - the image route still serves `/image?r=1`.
-- [ ] 3.2 Add `sceneFileStem` and use it in the image and clip writes; add the query to the snapshot URLs. Make 3.1 pass.
+- [x] 3.2 Add `sceneFileStem` and use it in the image and clip writes; add the query to the snapshot URLs. Make 3.1 pass.
 
 ## 4. Backend: the command and route (TDD; design Decision 2)
 

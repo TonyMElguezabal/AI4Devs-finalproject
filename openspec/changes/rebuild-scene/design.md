@@ -68,7 +68,7 @@ The route answers 202, 404 or 409. The Zod body is `{ imageInstruction?: string(
 A new helper `sceneFileStem(scene)` returns `scene-N` when `rebuild_count` is 0 and `scene-N-r{k}` otherwise. The image becomes `${stem}-attempt-${A}.${ext}` and the clip `${stem}.mp4`. First generations keep their names, so no fixture changes. `writeArtefactOnce` stays the guard.
 
 ### 4. Displayed URLs carry the rebuild number
-When `rebuild_count > 0`, `imageUrl` and the clip URL in the scene payload get `?r={k}`. The routes ignore the query, and the browser loads the new file instead of keeping the old `<img>`/`<video>`. Download URLs are unchanged, because they are fetched fresh.
+When `rebuild_count > 0`, the scene payload's `imageUrl` and both download URLs (`downloads.imageUrl`, `downloads.clipUrl`) get `?r={k}`. The routes ignore the query, and the browser loads the new file instead of keeping the old `<img>`/`<video>`. A first generation keeps its URLs unchanged.
 
 ### 5. `runs.final_video_stale` marks a final video older than a rebuilt scene
 - **Set by:** the rebuild transition (Decision 1), only when a final video exists.

@@ -52,6 +52,7 @@ import {
   replaceFinalVideoPath,
   resetAttemptsForVideoStart,
   resolveArtefactPath,
+  sceneFileStem,
   sceneCurrentRequestId,
   setFinalVideoPath,
   setRunFailure,
@@ -139,6 +140,9 @@ export function setPostAdmitHook(hook: ((runId: string) => void) | undefined): v
 
 // ---- Wire contract helpers (define-live-updates, JOS-183 Decisions 2/4/8) ----
 
+/** rebuild-scene (JOS-235), Decision 4 — a rebuilt scene's media URLs change with its rebuild number, so the page loads the new file; the routes ignore the query. */
+const rebuildQuery = (scene: Pick<Scene, "rebuildCount">): string => (scene.rebuildCount > 0 ? `?r=${scene.rebuildCount}` : "");
+
 function sceneToPayload(scene: Scene, requestCounts: { image: number; video: number } | undefined): SceneEventPayload {
   return {
     type: "scene",
@@ -153,15 +157,15 @@ function sceneToPayload(scene: Scene, requestCounts: { image: number; video: num
     videoRequest: videoRequestView(scene),
     // show-scene-results-and-actions (JOS-151), Decision 3 — the route path,
     // relative to the API base; the stored file path stays internal.
-    result: scene.result ? { imageUrl: `/sessions/${scene.runId}/scenes/${scene.id}/image` } : undefined,
+    result: scene.result ? { imageUrl: `/sessions/${scene.runId}/scenes/${scene.id}/image${rebuildQuery(scene)}` } : undefined,
     // download-scene-results (JOS-163), design Decision 3 — availability
     // follows what is actually stored, built here next to `result`, so the
     // page never derives it from `state`.
     downloads:
       scene.result || scene.videoResult
         ? {
-            ...(scene.result ? { imageUrl: `/sessions/${scene.runId}/scenes/${scene.id}/download/image` } : {}),
-            ...(scene.videoResult ? { clipUrl: `/sessions/${scene.runId}/scenes/${scene.id}/download/video` } : {}),
+            ...(scene.result ? { imageUrl: `/sessions/${scene.runId}/scenes/${scene.id}/download/image${rebuildQuery(scene)}` } : {}),
+            ...(scene.videoResult ? { clipUrl: `/sessions/${scene.runId}/scenes/${scene.id}/download/video${rebuildQuery(scene)}` } : {}),
           }
         : undefined,
     instruction: scene.instruction,
@@ -957,7 +961,7 @@ async function pollVideoRequestOnce(
   const run = getRun(fresh.runId)!;
   let relativePath: string;
   try {
-    relativePath = writeArtefactOnce(run.projectFolder, `scene-${fresh.index}.mp4`, clipBytes);
+    relativePath = writeArtefactOnce(run.projectFolder, `${sceneFileStem(fresh)}.mp4`, clipBytes);
   } catch (err) {
     if (err instanceof ArtefactAlreadyExistsError) {
       // Duplicate success — already committed; release and return
@@ -1297,7 +1301,7 @@ async function runImageAttempt(sceneId: string): Promise<void> {
   }
 
   const extension = sniffImageExtension(bytes) ?? (contentType.includes("png") ? "png" : "jpg");
-  const relativePath = writeArtefactOnce(freshRun.projectFolder, `scene-${fresh.index}-attempt-${attemptNumber}.${extension}`, bytes);
+  const relativePath = writeArtefactOnce(freshRun.projectFolder, `${sceneFileStem(fresh)}-attempt-${attemptNumber}.${extension}`, bytes);
   recordAndRelease("success", latencyMs);
   completeImageStage(fresh.id, relativePath);
   broadcast(fresh.runId);
@@ -1408,7 +1412,7 @@ function applyOutcome(scene: Scene, outcome: ProviderOutcome, attemptNumber: num
   if (outcome.kind === "success") {
     const run = getRun(scene.runId);
     const relativePath = run
-      ? writeArtefact(run.projectFolder, `scene-${scene.index}.png`, `stub image for scene ${scene.index}: ${outcome.result}`)
+      ? writeArtefact(run.projectFolder, `${sceneFileStem(scene)}.png`, `stub image for scene ${scene.index}: ${outcome.result}`)
       : outcome.result;
     completeImageStage(scene.id, relativePath);
     return;
