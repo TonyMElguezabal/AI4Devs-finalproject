@@ -31,29 +31,29 @@
 
 - [x] 6.1 Capture the pre-test baseline (the worktree has no local database; every run uses scratch `DB_PATH` and `PROJECTS_ROOT`)
 - [x] 6.2 Run the targeted tests from groups 2-4
-- [ ] 6.3 Run the full backend suite (scratch paths), the full frontend suite, `npm run lint` and the type checks in both packages
-- [ ] 6.4 Verify the post-test state matches the baseline and restore if needed
-- [ ] 6.5 Create report `openspec/changes/show-clip-task-liveness/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
-- [ ] 6.6 Mark this group complete only after tests pass and the report exists
+- [x] 6.3 Run the full backend suite (scratch paths), the full frontend suite, `npm run lint` and the type checks in both packages
+- [x] 6.4 Verify the post-test state matches the baseline and restore if needed
+- [x] 6.5 Create report `openspec/changes/show-clip-task-liveness/reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
+- [x] 6.6 Mark this group complete only after tests pass and the report exists
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the backend on scratch paths with `USE_STUB_VIDEO_PROVIDER=pending` (and short retry delays), and a session whose scene reaches the video stage
-- [ ] 7.2 `GET /sessions/<id>`: the generating scene's `videoRequest` carries `taskId`, `waitEndsAt` (= `sentAt` + 2400 s) and `lastCheckedAt`; read it again after 10+ s and confirm `lastCheckedAt` moved forward; subscribe to the event stream (`curl -N`) and confirm a snapshot arrives about every 10 s while the clip is pending
-- [ ] 7.3 Restart the backend and read the session before and after the first poll (`lastCheckedAt` null, then set; `taskId` and `waitEndsAt` unchanged)
-- [ ] 7.4 Document commands and responses in `reports/YYYY-MM-DD-step-7-manual-endpoint-testing.md`; remove the scratch data
+- [x] 7.1 Start the backend on scratch paths with `USE_STUB_VIDEO_PROVIDER=pending` (and short retry delays), and a session whose scene reaches the video stage
+- [x] 7.2 `GET /sessions/<id>`: the generating scene's `videoRequest` carries `taskId`, `waitEndsAt` (= `sentAt` + 2400 s) and `lastCheckedAt`; read it again after 10+ s and confirm `lastCheckedAt` moved forward; subscribe to the event stream (`curl -N`) and confirm a snapshot arrives about every 10 s while the clip is pending
+- [x] 7.3 Restart the backend and read the session before and after the first poll (`lastCheckedAt` null, then set; `taskId` and `waitEndsAt` unchanged)
+- [x] 7.4 Document commands and responses in `reports/YYYY-MM-DD-step-7-manual-endpoint-testing.md`; remove the scratch data
 
 ## 8. E2E Testing in the Browser (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 With the same stub setup, open the session, expand the generating scene and confirm the Task id, "Last checked … ago" ticking and resetting every ~10 s, and "Gives up at … if unfinished"
-- [ ] 8.2 Confirm the rows disappear when the clip leaves `video-generating` (switch the stub to success or let it fail)
-- [ ] 8.3 Screenshot at a narrow width to confirm a long task id wraps inside the details; restore the environment and record in `reports/YYYY-MM-DD-step-8-e2e-testing.md`
+- [x] 8.1 With the same stub setup, open the session, expand the generating scene and confirm the Task id, "Last checked … ago" ticking and resetting every ~10 s, and "Gives up at … if unfinished"
+- [x] 8.2 Confirm the rows disappear when the clip leaves `video-generating` (switch the stub to success or let it fail)
+- [x] 8.3 Screenshot at a narrow width to confirm a long task id wraps inside the details; restore the environment and record in `reports/YYYY-MM-DD-step-8-e2e-testing.md`
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [ ] 9.1 `docs/api-spec.yml`: add `taskId`, `lastCheckedAt` and `waitEndsAt` to every `videoRequest` schema and a JOS-233 changelog line
-- [ ] 9.1a `docs/backend-standards.md` (line "The body is an allow-list"): say that the task id is shown only as `videoRequest.taskId`, never in the body, and that the upload URL and other fields still never reach the page
-- [ ] 9.2 `docs/data-model.md`: note that `current_request_id` is shown as the task id once the request is sent, and that the last check is held in memory, not stored
-- [ ] 9.3 Check PRD and `readme.md` (Spanish) for a list of the clip request's fields and update them only if they have one; add the "last checked" check to the README troubleshooting row about long clip waits if that row exists
-- [ ] 9.4 Run `graphify update .`
+- [x] 9.1 `docs/api-spec.yml`: add `taskId`, `lastCheckedAt` and `waitEndsAt` to every `videoRequest` schema and a JOS-233 changelog line
+- [x] 9.1a `docs/backend-standards.md` (line "The body is an allow-list"): say that the task id is shown only as `videoRequest.taskId`, never in the body, and that the upload URL and other fields still never reach the page
+- [x] 9.2 `docs/data-model.md`: note that `current_request_id` is shown as the task id once the request is sent, and that the last check is held in memory, not stored
+- [x] 9.3 Check PRD and `readme.md` (Spanish) for a list of the clip request's fields and update them only if they have one; add the "last checked" check to the README troubleshooting row about long clip waits if that row exists
+- [x] 9.4 Run `graphify update .`
 - [ ] 9.5 Commit, then push and open the PR into `feature/entrega-3-JAME` linking JOS-233 (on the user's go-ahead)
