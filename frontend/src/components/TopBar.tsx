@@ -1,3 +1,4 @@
+import type { AppVersion } from "../types";
 import { Icon } from "./Icon";
 
 interface Props {
@@ -7,10 +8,18 @@ interface Props {
   onNewProject?: () => void;
   /** add-observability-telemetry (JOS-199): reopens the privacy choices. Absent: no button is shown. */
   onOpenPrivacy?: () => void;
+  /** show-app-version (JOS-238): the running build. Absent (not loaded, or the request failed): no label is shown. */
+  appVersion?: AppVersion;
+}
+
+/** design Decision 2 — the development channel has no meaningful version to quote; a uat build is told apart from a release. */
+function versionText({ version, channel }: AppVersion): string {
+  if (channel === "development") return "Development build";
+  return channel === "uat" ? `v${version} · uat` : `v${version}`;
 }
 
 /** redesign-visual-design (JOS-198), design Decision 4 — the wordmark, the connection indicator and "New project". */
-export function TopBar({ connected, onNewProject, onOpenPrivacy }: Props) {
+export function TopBar({ connected, onNewProject, onOpenPrivacy, appVersion }: Props) {
   return (
     <header className="top-bar">
       <div className="brand">
@@ -35,6 +44,11 @@ export function TopBar({ connected, onNewProject, onOpenPrivacy }: Props) {
           <Icon name="plus" />
           New project
         </button>
+      )}
+      {appVersion && (
+        <span className="app-version" aria-label={`Vid4You version ${appVersion.version}`}>
+          {versionText(appVersion)}
+        </span>
       )}
     </header>
   );
