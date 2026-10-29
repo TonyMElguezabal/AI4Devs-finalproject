@@ -14,15 +14,15 @@
 
 ## 3. Frontend: Tests First (TDD)
 
-- [ ] 3.1 In `frontend/test/components.test.tsx`: `TopBar` shows `v2026.10.28-3d00e7b` for `production`, `Development build` for `development`, `v… · uat` for `uat`, with the accessible name `Vid4You version <version>`
-- [ ] 3.2 `TopBar` without a version renders without the label
-- [ ] 3.3 `App` requests `/app/version` once on `/admin`, on the start form and after moving to a session page, and shows no label when the request fails
+- [x] 3.1 In `frontend/test/components.test.tsx`: `TopBar` shows `v2026.10.28-3d00e7b` for `production`, `Development build` for `development`, `v… · uat` for `uat`, with the accessible name `Vid4You version <version>`
+- [x] 3.2 `TopBar` without a version renders without the label
+- [x] 3.3 `App` requests `/app/version` once on `/admin`, on the start form and after moving to a session page, and shows no label when the request fails
 
 ## 4. Frontend: Implementation
 
-- [ ] 4.1 Add the `AppVersion` type in `frontend/src/types.ts` and `getAppVersion()` in `frontend/src/api/client.ts`
-- [ ] 4.2 Add the `appVersion` prop and label to `TopBar`; load the version once in `App` and pass it to all three `TopBar`s (design Decisions 1 and 2)
-- [ ] 4.3 Add the `.app-version` style in `frontend/src/styles/app.css` (design Decision 4)
+- [x] 4.1 Add the `AppVersion` type in `frontend/src/types.ts` and `getAppVersion()` in `frontend/src/api/client.ts`
+- [x] 4.2 Add the `appVersion` prop and label to `TopBar`; load the version once in `App` and pass it to all three `TopBar`s (design Decisions 1 and 2)
+- [x] 4.3 Add the `.app-version` style in `frontend/src/styles/app.css` (design Decision 4)
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
@@ -39,10 +39,10 @@
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the backend from source and `curl` `GET /app/version`: `{"version":"0.0.0-dev","channel":"development"}` and no other field
-- [ ] 7.2 Start it with `VID4YOU_VERSION=2026.10.28-3d00e7b VID4YOU_CHANNEL=production` and `curl` again
-- [ ] 7.3 Check the request is refused for a foreign `Origin` or `Host`, as for the other routes
-- [ ] 7.4 Record the commands and responses in `reports/`; no data is created, so the database needs no restoration
+- [x] 7.1 Start the backend from source and `curl` `GET /app/version`: `{"version":"0.0.0-dev","channel":"development"}` and no other field
+- [x] 7.2 Start it with `VID4YOU_VERSION=2026.10.28-3d00e7b VID4YOU_CHANNEL=production` and `curl` again
+- [x] 7.3 Check the request is refused for a foreign `Origin` or `Host`, as for the other routes
+- [x] 7.4 Record the commands and responses in `reports/`; no data is created, so the database needs no restoration
 
 ## 8. Frontend: E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 

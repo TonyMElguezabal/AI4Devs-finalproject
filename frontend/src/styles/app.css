@@ -320,6 +320,23 @@ button.toggle[aria-expanded="true"] .icon {
   margin-left: 0;
 }
 
+/* ---------- Version label (show-app-version, JOS-238) ---------- */
+
+.app-version {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+  user-select: text;
+}
+
+/* Alone with the wordmark (`/admin`), it goes to the right end; after other controls it already is there. */
+.brand + .app-version {
+  margin-left: auto;
+}
+
 /* ---------- Privacy dialog and update banner (add-observability-telemetry, JOS-199) ---------- */
 
 .top-bar > .privacy-button {

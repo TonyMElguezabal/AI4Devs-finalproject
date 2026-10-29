@@ -1,4 +1,4 @@
-import type { AdapterTypeInfo, AppSettings, AppUpdate, ConnectionTestResult, FailedStageRow, FailuresReport, PipelineTimeReport, ProfileProblem, ProviderChangesReport, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionScenesReport, SessionSnapshot, SessionsReport, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AdapterTypeInfo, AppSettings, AppUpdate, AppVersion, ConnectionTestResult, FailedStageRow, FailuresReport, PipelineTimeReport, ProfileProblem, ProviderChangesReport, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionScenesReport, SessionSnapshot, SessionsReport, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -123,6 +123,10 @@ export function saveTelemetryConsent(choices: TelemetryChoices): Promise<Telemet
 
 export function getAppUpdate(): Promise<AppUpdate> {
   return fetch(`${API_BASE}/app/update`).then(asJson<AppUpdate>);
+}
+
+export function getAppVersion(): Promise<AppVersion> {
+  return fetch(`${API_BASE}/app/version`).then(asJson<AppVersion>);
 }
 
 /** protect-admin-with-password (JOS-173) — why the backend refused an Administrator request (design Decision 3). */

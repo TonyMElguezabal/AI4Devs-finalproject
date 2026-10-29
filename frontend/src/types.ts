@@ -174,6 +174,12 @@ export interface TelemetryConsent extends TelemetryChoices {
 /** `GET /app/update`: a newer build exists on this build's channel. */
 export type AppUpdate = { available: false } | { available: true; tag: string; url: string };
 
+/** show-app-version (JOS-238) — `GET /app/version`: the running build, shown in the top bar. */
+export interface AppVersion {
+  version: string;
+  channel: "development" | "uat" | "production";
+}
+
 /** change-active-provider-from-admin (JOS-171) — one stage's row on `/admin`: `GET /admin/providers`. */
 export type ProviderStage = "reasoning" | "voice" | "alignment" | "image" | "video";
 export interface ProviderView {
