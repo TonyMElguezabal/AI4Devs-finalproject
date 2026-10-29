@@ -7,7 +7,7 @@ JOS-188 was written when these caps were still `undetermined`. JOS-167 (`limit-p
 ## What Changes
 
 - Probe ElevenLabs with short concurrent text-to-speech and forced-alignment calls (5, 6 and 7 at once, then mixed voice + alignment), and record where `429` responses start and what the concurrency headers report.
-- Probe RunningHub with concurrent 5-second image-to-video jobs, stepping 4 → 6 → 8 and stopping at the first queueing, error or slowdown, with a spend ceiling.
+- Probe RunningHub with concurrent 5-second image-to-video jobs, stepping 4 → 6 and stopping at the first queueing, error or slowdown, with a spend ceiling.
 - Write one report per provider with the raw results, the derivation of each cap and a recommendation (keep / raise / lower). Record time spent and money spent.
 - If a measured number changes a cap, update `maxSimultaneousRequests` in `backend/config/settings.default.json`, the source comment in `backend/src/config/providers.ts`, `backend/test/providerConfig.test.ts` and the `provider-request-limit` spec. If no number changes, no code changes.
 - Amend ADR 0005 with the measured limits (DoD: "ADR created if applicable").
@@ -27,5 +27,5 @@ None.
 - **Code**: `backend/config/settings.default.json`, `backend/src/config/providers.ts` (comment only) and `backend/test/providerConfig.test.ts`, each only if a cap changes. No new module, no new dependency. The probe scripts are throwaway files under the change folder, not product code.
 - **APIs**: none. `GET /admin/settings` shows whatever the defaults become.
 - **Docs**: ADR 0005 (request-cap section), `docs/development_guide.md` if a default it quotes changes.
-- **Cost**: RunningHub $0.60 per 5 s job at the 2K setting the app uses (JOS-165 step 3; $0.385 at 768P), at most 20 jobs (2 baselines + 4 + 6 + 8), about $12, hard ceiling $13 (product owner decision 2026-10-29). ElevenLabs uses a few hundred characters of the Creator quota.
+- **Cost**: RunningHub itemizes $0.60 per 5 s job at the 2K setting the app uses (JOS-165 step 3), but the account balance fell $2.04-2.16 per job in the two baselines, so the plan uses about $2.10 per job. At most 12 jobs (2 baselines + 4 + 6), about $27-29 in total, hard ceiling $30 measured by balance (product owner decisions 2026-10-29: $28 after the baselines, raised to $30 after level 4 cost $1.92 per job). Level 8 is not run: a ceiling above 6 changes no cap the app can use today. ElevenLabs uses a few hundred characters of the Creator quota.
 - **Limit of the result**: the numbers hold for the tested accounts (ElevenLabs Creator, RunningHub `SHARED`). Installs on other tiers keep the existing `maxSimultaneousRequests` override in `settings.json`.

@@ -22,8 +22,9 @@ const VOICE = { voiceId: "4YYIPFl9wE5c4L2eu2Gb", model: "eleven_multilingual_v2"
 const SCRIPT = "Testing the limit.";
 /** Voice text for the mixed shapes: long enough (~360 characters) that the voice calls are still in flight when the alignment calls start. */
 const LONG_SCRIPT = `${SCRIPT} `.repeat(20).trim();
-const VIDEO_PRICE_USD = 0.6;
-const SPEND_CEILING_USD = 13;
+// Balance debited per 5 s 2K job in the two baselines ($2.04-2.16); RunningHub itemizes only $0.60 of it.
+const VIDEO_PRICE_USD = 2.16;
+const SPEND_CEILING_USD = 30;
 const JOB_TIMEOUT_MS = 1500_000;
 const POLL_INTERVAL_MS = 1000;
 

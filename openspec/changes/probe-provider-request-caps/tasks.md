@@ -19,12 +19,12 @@
 ## 3. RunningHub probe
 
 - [x] 3.1 Take 2 sequential 5 s 2K baseline samples in the same session. Result 2026-10-29: 318.8 s and 220.7 s (time to `RUNNING` 0.23 s and 0.22 s); the 45% spread between two sequential samples means total time cannot be a clean/dirty criterion on its own
-- [ ] 3.2 Run 4, then 6, then 8 concurrent 5 s 2K jobs, stopping at the first level that is not clean (design Decision 3); repeat only a borderline level, once
-- [ ] 3.3 Write `reports/YYYY-MM-DD-step-3-runninghub-concurrency.md`: per-job time to `RUNNING`, status sequence, totals, highest clean level, spend from balance before and after
+- [x] 3.2 Run 4, then 6 concurrent 5 s 2K jobs (level 8 dropped by the owner on 2026-10-29: about $2.10 of balance per job, ceiling $30 after level 4), stopping at the first level that is not clean (design Decision 3); repeat only a borderline level, once. Result 2026-10-29: level 4 and level 6 both clean (no `QUEUED`, no errors, all totals 227-296 s); level 8 not run
+- [x] 3.3 Write `reports/YYYY-MM-DD-step-3-runninghub-concurrency.md`: per-job time to `RUNNING`, status sequence, totals, highest clean level, spend from balance before and after. Result 2026-10-29: report written; highest clean level 6; balance debits do not match the $0.60 itemized price (open item)
 
 ## 4. Decision
 
-- [ ] 4.1 Write `reports/YYYY-MM-DD-step-4-recommendation.md`: findings, trade-offs, keep / raise / lower per stage, time spent, and next step (proceed / pivot / cancel)
+- [x] 4.1 Write `reports/YYYY-MM-DD-step-4-recommendation.md`: findings, trade-offs, keep / raise / lower per stage, time spent, and next step (proceed / pivot / cancel). Result 2026-10-29: report written; recommends voice 5, alignment 2, video 4 or 6
 - [ ] 4.2 Present the recommendation to the product owner and record the decision. If no cap changes, mark 5.1-5.3 as not applicable and go to 6
 - [ ] 4.3 If a cap changes: update this change's `specs/provider-request-limit/spec.md` with the new values (CLAUDE.md §7) before coding
 
