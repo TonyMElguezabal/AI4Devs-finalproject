@@ -27,8 +27,8 @@
 
 ## 5. Backend: cost per session (TDD; design Decision 5)
 
-- [ ] 5.1 Write failing tests for the sessions report: per-currency estimated cost per session over all its attempts; failed attempts add nothing; `excludesUnpricedProvider` true when a successful attempt ran on an unpriced provider; no amount when nothing is priced.
-- [ ] 5.2 Add the fields to the sessions-report module and its response schema. Make 5.1 pass.
+- [x] 5.1 Write failing tests for the sessions report: per-currency estimated cost per session over all its attempts; failed attempts add nothing; `excludesUnpricedProvider` true when a successful attempt ran on an unpriced provider; no amount when nothing is priced.
+- [x] 5.2 Add the fields to the sessions-report module and its response schema. Make 5.1 pass.
 
 ## 6. Frontend (TDD; design Decision 6)
 

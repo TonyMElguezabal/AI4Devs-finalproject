@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db } from "./db.ts";
 import { PRICE_SHAPE } from "./providerTypes.ts";
-import { STAGE_ORDER, countedAttempts, type CountedAttempt, type ReportStage } from "./providerUsageReport.ts";
+import { STAGE_ORDER, countedAttempts, countedAttemptsOfRuns, type CountedAttempt, type ReportStage } from "./providerUsageReport.ts";
 
 // report-estimated-cost (JOS-227), design Decisions 2–4 — R2 of the admin reports catalogue: billed units of R1 times the
 // current price per unit of each provider profile, with totals per currency.
@@ -95,4 +95,25 @@ export function estimatedCostReport(period: { from?: string; to: string }): Esti
     totals: totalsPerCurrency(rows.flatMap((row) => (row.currency !== null && row.estimatedCost !== null ? [{ currency: row.currency, estimatedCost: row.estimatedCost }] : []))),
     totalsExcludeUnpriced: rows.some((row) => row.estimatedCost === null),
   };
+}
+
+export interface SessionCost {
+  estimatedCost: CurrencyTotal[];
+  excludesUnpricedProvider: boolean;
+}
+
+/** Design Decision 5 — the estimated cost of each session over all its successful attempts, keyed by run id. */
+export function sessionCosts(runIds: readonly string[]): Map<string, SessionCost> {
+  const pricing = providerPricing();
+  const successes = new Map<string, CountedAttempt[]>(runIds.map((runId) => [runId, []]));
+  for (const attempt of countedAttemptsOfRuns(runIds)) if (attempt.outcome === "success") successes.get(attempt.runId)!.push(attempt);
+  return new Map(
+    [...successes].map(([runId, attempts]) => {
+      const amounts = attempts.flatMap((attempt) => {
+        const price = pricing.get(attempt.providerId)?.price;
+        return price ? [{ currency: price.currency, estimatedCost: attempt.units * price.pricePerUnit }] : [];
+      });
+      return [runId, { estimatedCost: totalsPerCurrency(amounts), excludesUnpricedProvider: amounts.length < attempts.length }];
+    }),
+  );
 }

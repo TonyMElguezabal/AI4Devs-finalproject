@@ -72,6 +72,8 @@ describe("GET /admin/reports/sessions", () => {
           attempts: 0,
           secondsToVoiceOver: 0.1,
           secondsToFinalVideo: 18.1,
+          estimatedCost: [],
+          excludesUnpricedProvider: false,
         },
       ],
     });

@@ -116,6 +116,8 @@ const sessionsReportSchema = z.object({
       attempts: z.number(),
       secondsToVoiceOver: z.number().nullable(),
       secondsToFinalVideo: z.number().nullable(),
+      estimatedCost: z.array(currencyTotalSchema),
+      excludesUnpricedProvider: z.boolean(),
     }),
   ),
 });
