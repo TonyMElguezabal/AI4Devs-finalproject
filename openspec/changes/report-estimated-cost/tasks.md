@@ -32,12 +32,12 @@
 
 ## 6. Frontend (TDD; design Decision 6)
 
-- [ ] 6.1 Write failing component tests: `EstimatedCostTable` rows with formatted amounts and currencies, "Unpriced" cells, per-currency totals, the exclusion note shown only when flagged, the "estimate" label and accessible names; `ReportsSection` requests the cost report for the selected period and again on change; the sessions table shows the per-session cost and its note; a 401 locks the page.
-- [ ] 6.2 Add `getEstimatedCostReport` and types to `api/client.ts`, the table, the section wiring and the sessions column. Make 6.1 pass.
+- [x] 6.1 Write failing component tests: `EstimatedCostTable` rows with formatted amounts and currencies, "Unpriced" cells, per-currency totals, the exclusion note shown only when flagged, the "estimate" label and accessible names; `ReportsSection` requests the cost report for the selected period and again on change; the sessions table shows the per-session cost and its note; a 401 locks the page.
+- [x] 6.2 Add `getEstimatedCostReport` and types to `api/client.ts`, the table, the section wiring and the sessions column. Make 6.1 pass.
 
 ## 7. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Update the tests that list `/admin` routes or sections, and the sessions-report and usage-report tests touched by Decisions 1 and 5.
+- [x] 7.1 Update the tests that list `/admin` routes or sections, and the sessions-report and usage-report tests touched by Decisions 1 and 5.
 - [ ] 7.2 Map every scenario in `specs/estimated-cost-report/spec.md` and JOS-227 AC1–AC5 to at least one test; list the mapping in the step 8 report.
 - [ ] 7.3 Confirm module test coverage has not decreased (compare against this change's propose commit).
 

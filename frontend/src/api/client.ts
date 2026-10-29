@@ -1,4 +1,4 @@
-import type { AdapterTypeInfo, AppSettings, AppUpdate, ConnectionTestResult, FailedStageRow, FailuresReport, PipelineTimeReport, ProfileProblem, ProviderChangesReport, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionScenesReport, SessionSnapshot, SessionsReport, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AdapterTypeInfo, AppSettings, AppUpdate, ConnectionTestResult, EstimatedCostReport, FailedStageRow, FailuresReport, PipelineTimeReport, ProfileProblem, ProviderChangesReport, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionScenesReport, SessionSnapshot, SessionsReport, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -282,6 +282,7 @@ export type SessionScenesReportResult = { kind: "ok"; report: SessionScenesRepor
 export type FailuresReportResult = { kind: "ok"; report: FailuresReport } | { kind: "denied" };
 export type ProviderChangesReportResult = { kind: "ok"; report: ProviderChangesReport } | { kind: "denied" };
 export type PipelineTimeReportResult = { kind: "ok"; report: PipelineTimeReport } | { kind: "denied" };
+export type EstimatedCostReportResult = { kind: "ok"; report: EstimatedCostReport } | { kind: "denied" };
 
 /** A report of the Reports section for the period. A 401 is `denied`; any other failure rejects. */
 async function getReport<T>(path: string, password: string, period: ReportPeriod): Promise<{ kind: "ok"; report: T } | { kind: "denied" }> {
@@ -354,3 +355,7 @@ export async function getReferenceImage(password: string): Promise<{ kind: "ok";
 /** record-provider-changes (JOS-229): `GET /admin/reports/provider-changes` for the period. */
 export const getProviderChangesReport = (password: string, period: ReportPeriod): Promise<ProviderChangesReportResult> =>
   getReport<ProviderChangesReport>("/admin/reports/provider-changes", password, period);
+
+/** report-estimated-cost (JOS-227): `GET /admin/reports/estimated-cost` for the period. */
+export const getEstimatedCostReport = (password: string, period: ReportPeriod): Promise<EstimatedCostReportResult> =>
+  getReport<EstimatedCostReport>("/admin/reports/estimated-cost", password, period);

@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useState } from "react";
 import { getSessionScenesReport, getSessionsReport } from "../api/client";
+import { formatCosts } from "./EstimatedCostTable";
 import type { ReportPeriod, SceneReportRow, SessionReportRow, SessionScenesReport, SessionsReport as SessionsReportData } from "../types";
 
-const HEADERS = ["Session", "Created", "State", "Paused", "Scenes", "Failed scenes", "Attempts", "Seconds to voice-over", "Seconds to final video", "Details"];
+const HEADERS = ["Session", "Created", "State", "Paused", "Scenes", "Failed scenes", "Attempts", "Seconds to voice-over", "Seconds to final video", "Estimated cost", "Details"];
 const SCENE_HEADERS = ["Scene", "Status", "Image provider", "Clip provider", "Image requests", "Clip requests", "Requested duration", "Speed factor", "Duration warning", "Speed-factor warning"];
 
 const number = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
@@ -14,6 +15,13 @@ const created = (iso: string) => new Date(iso).toLocaleString("en", { dateStyle:
 const stateText = (row: SessionReportRow) => (row.state === "final-video-ready" ? "Final video ready" : row.state === "failed" ? `Failed in ${row.failedPhase}` : "In progress");
 /** A stored warning is an enum such as `exceeds-maximum`; it reads as words. */
 const warningText = (value: string | null) => (value === null ? dash : value.replace(/-/g, " "));
+/** report-estimated-cost (JOS-227), design Decision 5 — the session's amounts per currency, and whether they leave out an unpriced provider. */
+const EXCLUDES = "excludes unpriced providers";
+function SessionCostCell({ row }: { row: SessionReportRow }) {
+  const amounts = row.estimatedCost.length === 0 ? null : formatCosts(row.estimatedCost);
+  const name = amounts === null && !row.excludesUnpricedProvider ? "none" : `${amounts ?? "none"} (estimate${row.excludesUnpricedProvider ? `, ${EXCLUDES}` : ""})`;
+  return <td aria-label={`Estimated cost of ${row.title}: ${name}`}>{`${amounts ?? dash}${row.excludesUnpricedProvider ? ` (${EXCLUDES})` : ""}`}</td>;
+}
 
 interface Props {
   password: string;
@@ -98,6 +106,7 @@ export function SessionsReport({ password, period, onDenied }: Props) {
               <td>{number.format(row.attempts)}</td>
               <td>{seconds(row.secondsToVoiceOver)}</td>
               <td>{seconds(row.secondsToFinalVideo)}</td>
+              <SessionCostCell row={row} />
               <td>
                 <button type="button" aria-expanded={Boolean(open[row.id])} aria-label={`Scenes of ${row.title}`} onClick={() => toggle(row.id)}>
                   Scenes
