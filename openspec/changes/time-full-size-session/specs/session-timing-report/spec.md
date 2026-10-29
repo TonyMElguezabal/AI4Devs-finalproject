@@ -33,6 +33,21 @@ When any attempt of a stage was stored as timed out, the report SHALL give that 
 - **WHEN** no attempt of a stage timed out
 - **THEN** the report gives the slowest successful time for the stage and no margin
 
+### Requirement: Scene attempts are read from the provider request log
+The report SHALL take the attempts of the scene stages (image, video) from the provider request log (`provider_requests`), with the finish time being the send time plus the recorded latency, and SHALL count a transient failure whose latency reaches the stage limit as timed out, stating this rule with the tables.
+
+#### Scenario: Video clip from the request log
+- **WHEN** a session's `stage_attempts` has no video rows and its request log has a successful video request of 540 s for a scene
+- **THEN** the clip row shows 1 attempt, 540 s generation time and outcome success
+
+#### Scenario: Failure at the limit
+- **WHEN** an image request is stored as a transient failure with a latency of 300 s and the image limit is 300 s
+- **THEN** the image row counts it as an attempt and as timed out
+
+#### Scenario: Failure below the limit
+- **WHEN** an image request is stored as a transient failure with a latency of 40 s and the image limit is 300 s
+- **THEN** the image row counts it as an attempt and not as timed out
+
 ### Requirement: The report reads, never writes
 The report SHALL open a copy of the database read-only, SHALL fail with a clear message when the session is not found, and SHALL NOT modify the database or the project folders.
 

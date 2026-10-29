@@ -66,15 +66,33 @@ export function buildTimingReport(input: { attempts: AttemptRow[]; scenes: Scene
   return { stages, clips };
 }
 
+interface SceneRequest { stage: string; sceneId: string; attemptNumber: number; sentAt: string; latencyMs: number; mode: string }
+const SCENE_OUTCOMES: Record<string, string> = { success: "success", not_retryable_failure: "not-retryable" };
+/** The release stores no `timed-out` mode for scene stages: a transient failure that lasted the whole limit is one. */
+export function sceneRequestToAttempt(request: SceneRequest, limitSeconds: number | null): AttemptRow {
+  const timedOut = request.mode === "transient_failure" && limitSeconds !== null && request.latencyMs >= limitSeconds * 1000;
+  return {
+    stage: request.stage, sceneId: request.sceneId, attemptNumber: request.attemptNumber, sentAt: request.sentAt,
+    finishedAt: new Date(Date.parse(request.sentAt) + request.latencyMs).toISOString(),
+    outcome: timedOut ? "timed-out" : (SCENE_OUTCOMES[request.mode] ?? "transient"),
+  };
+}
+
 /** Reads one session from a copy of the database; the file is opened read-only and never written. */
 export function loadTimingReport(dbFile: string, runId: string, limits: StageLimits): TimingReport {
   const database = new DatabaseSync(dbFile, { readOnly: true });
   try {
     if (database.prepare("SELECT 1 FROM runs WHERE id = ?").get(runId) === undefined) throw new Error(`no session with id ${runId} in ${dbFile}`);
-    const attempts = database
-      .prepare("SELECT stage, scene_id, attempt_number, sent_at, finished_at, outcome FROM stage_attempts WHERE run_id = ?")
+    // Image and video attempts live in the request log, not in `stage_attempts` (design Decision 7).
+    const sessionAttempts = database
+      .prepare("SELECT stage, scene_id, attempt_number, sent_at, finished_at, outcome FROM stage_attempts WHERE run_id = ? AND stage NOT IN ('image', 'video')")
       .all(runId)
       .map((row): AttemptRow => ({ stage: String(row.stage), sceneId: row.scene_id === null ? null : String(row.scene_id), attemptNumber: Number(row.attempt_number), sentAt: String(row.sent_at), finishedAt: row.finished_at === null ? null : String(row.finished_at), outcome: String(row.outcome) }));
+    const sceneAttempts = database
+      .prepare("SELECT p.stage, p.scene_id, p.attempt_number, p.sent_at, p.latency_ms, p.mode FROM provider_requests p JOIN scenes s ON s.id = p.scene_id WHERE s.run_id = ? AND p.stage IN ('image', 'video')")
+      .all(runId)
+      .map((row) => sceneRequestToAttempt({ stage: String(row.stage), sceneId: String(row.scene_id), attemptNumber: Number(row.attempt_number), sentAt: String(row.sent_at), latencyMs: Number(row.latency_ms), mode: String(row.mode) }, limits[String(row.stage)] ?? null));
+    const attempts = [...sessionAttempts, ...sceneAttempts];
     const scenes = database
       .prepare("SELECT id, idx, requested_duration_seconds FROM scenes WHERE run_id = ?")
       .all(runId)
@@ -92,6 +110,7 @@ export function formatMarkdown(report: TimingReport): string {
   const clips = report.clips.map((r) => `| ${r.sceneIndex + 1} | ${cell(r.requestedDurationSeconds)} | ${cell(r.generationSeconds)} | ${r.attempts} | ${r.outcome} |`);
   return [
     "## Stages", "", "| Stage | Attempts | Timed out | Elapsed s | Slowest success s | Limit s | Margin |", "|---|---|---|---|---|---|---|", ...stages,
+    "", "Image and video attempts come from the request log; a transient failure lasting the stage limit is counted as timed out.",
     "", "## Clips", "", "| Clip | Requested s | Generation s | Attempts | Outcome |", "|---|---|---|---|---|", ...clips, "",
   ].join("\n");
 }

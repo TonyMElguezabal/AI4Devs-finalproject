@@ -14,11 +14,13 @@
 - [x] 2.2 Test the clip table: requested duration, generation time of the successful attempt, attempts, outcome; a failed clip shows no generation time
 - [x] 2.3 Test the margin: limit over slowest successful time; not computable without a success; a `late-success` is excluded
 - [x] 2.4 Test that an unknown run id fails naming the id, and that the database file is byte-identical after a run
+- [x] 2.5 Test that image and video attempts are read from the request log (finish = send + latency; `transient_failure` at or above the limit is timed out, below it is not) and that `stage_attempts` image/video rows are ignored
 
 ## 3. Implementation
 
 - [x] 3.1 Add `backend/scripts/sessionTimingReport.ts`: pure function over rows and limits, plus the read-only entry point that prints Markdown
 - [x] 3.2 Add an `npm run report:session-timing -- <db-file> <run-id>` script to `backend/package.json`
+- [x] 3.3 Read the scene-stage attempts from `provider_requests` (design Decision 7) and print the timed-out inference under the tables
 
 ## 4. Review and Update Existing Unit Tests (MANDATORY)
 
@@ -45,9 +47,9 @@
 
 - [ ] 8.1 Owner approves the spend: the script, the expected number of clips and the RunningHub balance; record the approval in `reports/`
 - [ ] 8.2 Build the executable for Windows x64 from `main` (or take the release artifact) and complete the stubbed JOS-205 checks first; a defect there stops this task and is fixed under JOS-205
-- [ ] 8.3 Put the real provider keys in the data folder of that build, run the 1,500-1,800 word session end to end, and record any billing or balance interruption with its time
-- [ ] 8.4 Close the application, copy `vid4you.sqlite` (and the project folder) off the Windows machine, and probe the final video with `ffprobe` (duration within one frame of the narration, 1920x1080, 30 fps)
-- [ ] 8.5 Produce the report with `npm run report:session-timing` and save it with the interruption log and probe output under `reports/`
+- [x] 8.3 Put the real provider keys in the data folder of that build, run the 1,500-1,800 word session end to end, and record any billing or balance interruption with its time
+- [x] 8.4 Close the application, copy `vid4you.sqlite` (and the project folder) off the Windows machine, and probe the final video with `ffprobe` (duration within one frame of the narration, 1920x1080, 30 fps)
+- [x] 8.5 Produce the report with `npm run report:session-timing` and save it with the interruption log and probe output under `reports/`
 
 ## 9. Decide and Update Documentation (MANDATORY)
 

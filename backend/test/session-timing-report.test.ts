@@ -79,7 +79,12 @@ describe("database access", () => {
       CREATE TABLE stage_attempts (run_id TEXT, stage TEXT, scene_id TEXT, attempt_number INTEGER, sent_at TEXT, finished_at TEXT, outcome TEXT);
       INSERT INTO runs VALUES ('r1');
       INSERT INTO scenes VALUES ('s1', 'r1', 0, 9);
-      INSERT INTO stage_attempts VALUES ('r1', 'video', 's1', 1, '${at(0)}', '${at(300)}', 'success');`);
+      CREATE TABLE provider_requests (id TEXT PRIMARY KEY, scene_id TEXT, stage TEXT, sent_at TEXT, latency_ms INTEGER, mode TEXT, attempt_number INTEGER);
+      INSERT INTO stage_attempts VALUES ('r1', 'video', 's1', 1, '${at(0)}', '${at(999)}', 'success');
+      INSERT INTO provider_requests VALUES ('p1', 's1', 'video', '${at(0)}', 300000, 'success', 1),
+        ('p2', 's1', 'image', '${at(0)}', 120000, 'transient_failure', 1),
+        ('p3', 's1', 'image', '${at(130)}', 40000, 'transient_failure', 2),
+        ('p4', 's1', 'image', '${at(180)}', 90000, 'success', 3);`);
     seed.close();
   });
   afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
@@ -89,6 +94,13 @@ describe("database access", () => {
     const report = loadTimingReport(file, "r1", LIMITS);
     expect(report.clips[0]).toMatchObject({ requestedDurationSeconds: 9, generationSeconds: 300 });
     expect(readFileSync(file).equals(before)).toBe(true);
+  });
+
+  it("reads image and video attempts from the request log, counting a failure at the limit as timed out, and ignores stage_attempts rows of those stages", () => {
+    const { clips, stages } = loadTimingReport(file, "r1", LIMITS);
+    expect(clips[0]).toMatchObject({ attempts: 1, generationSeconds: 300 });
+    expect(stages.find((row) => row.stage === "image")).toMatchObject({ attempts: 3, timedOut: 1, slowestSuccessSeconds: 90 });
+    expect(stages.find((row) => row.stage === "video")).toMatchObject({ attempts: 1, timedOut: 0 });
   });
 
   it("fails naming an unknown session id", () => {

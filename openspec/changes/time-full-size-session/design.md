@@ -46,6 +46,12 @@ The owner approves the clip count and balance before the run. A billing or balan
 
 Before the paid run, the same build starts with stub providers for the JOS-205 checks (health, interface, a stubbed session to `final-video`, second launch). The paid run then uses the same build with real keys in the data folder. The two results are recorded separately, in this change's `reports/` and in `package-executables-build/reports/`.
 
+### Decision 7: Scene attempts come from `provider_requests`
+
+`loadTimingReport` builds the image and video `AttemptRow`s from `provider_requests`: `finishedAt` is `sent_at + latency_ms`; `mode` `success` is `success`, `not_retryable_failure` is `not-retryable`, and `transient_failure` is `timed-out` when its `latency_ms` reaches the stage limit and `transient` otherwise. The release records no `timed-out` mode for scene stages, so this is an inference: the limit ends an attempt at exactly its value (observed: 139 image failures at 300.0 s under a 300 s limit). `stage_attempts` rows of image and video, if a build ever writes them, are ignored so an attempt is never counted twice. The report states the inference next to the tables.
+
+*Alternative:* read `stage_attempts` only (what Decision 1 assumed): the video and image tables come out empty on the real run.
+
 ## Risks / Trade-offs
 
 - [The requested clip duration may not be stored per scene] → Task 1.1 finds where it lives (the decomposition artefact or the scene row); if it is only in a file, the script reads that file from the project folder copy, and the owner copies the project folder as well.
@@ -55,5 +61,5 @@ Before the paid run, the same build starts with stub providers for the JOS-205 c
 
 ## Open Questions
 
-- ~~Where the requested clip duration is stored~~ Answered (task 1.1): `scenes.requested_duration_seconds` (nullable for scenes made by the pre-decomposition path). Image and video attempts are rows of `stage_attempts` with `scene_id`, `sent_at`, `finished_at` and `outcome`, so no file from the project folder is needed. The limits come from `maxTimeSeconds` in the settings file (`voice`, `alignment`, `decomposition`, `image`, `video`, `assembly`), which map to the attempt stages `voice-over`, `timestamps`, `decomposition`, `image`, `video`, `assembly`; the script reads the shipped defaults unless given the settings file the run used (task 1.2). The script must not import `src/db.ts`, which opens the configured database on import.
+- ~~Where the requested clip duration is stored~~ Answered (task 1.1): `scenes.requested_duration_seconds` (nullable for scenes made by the pre-decomposition path). Image and video attempts are NOT rows of `stage_attempts` in the released build (confirmed on the Windows run of 2026-10-28, whose `stage_attempts` holds only voice-over, timestamps, decomposition and assembly): they are rows of `provider_requests` (`scene_id`, `stage`, `sent_at`, `latency_ms`, `mode`, `attempt_number`), so no file from the project folder is needed. See Decision 7. The limits come from `maxTimeSeconds` in the settings file (`voice`, `alignment`, `decomposition`, `image`, `video`, `assembly`), which map to the attempt stages `voice-over`, `timestamps`, `decomposition`, `image`, `video`, `assembly`; the script reads the shipped defaults unless given the settings file the run used (task 1.2). The script must not import `src/db.ts`, which opens the configured database on import.
 - The script and the real clip count: the owner chooses the script (1,500-1,800 words) and confirms the spend.
