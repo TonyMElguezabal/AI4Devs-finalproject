@@ -19,7 +19,7 @@
 
 ## 3. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 3.1 Confirm no application code or test changes; the spec scenarios in `specs/secrets-scanning/spec.md` are covered by the scans in 1.3, 2.5 and group 4 and by the CI run in group 7 (no unit test is written)
+- [x] 3.1 Confirm no application code or test changes; the spec scenarios in `specs/secrets-scanning/spec.md` are covered by the scans in 1.3, 2.5 and group 4 and by the CI run in group 7 (no unit test is written)
 
 ## 4. Dry run with a dummy key (Definition of Done)
 
@@ -30,21 +30,21 @@
 
 ## 5. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 5.1 Record in `reports/YYYY-MM-DD-step-5-unit-test-and-db-verification.md` that no application code changes, so the backend and frontend suites are not affected; the CI test job on the pull request is the regression check. No database is touched
+- [x] 5.1 Record in `reports/YYYY-MM-DD-step-5-unit-test-and-db-verification.md` that no application code changes, so the backend and frontend suites are not affected; the CI test job on the pull request is the regression check. No database is touched
 
 ## 6. Manual Endpoint Testing with curl and E2E with Playwright (MANDATORY if applicable)
 
-- [ ] 6.1 Record in the step 5 report that no endpoint and no user workflow changes, so curl and Playwright checks do not apply
+- [x] 6.1 Record in the step 5 report that no endpoint and no user workflow changes, so curl and Playwright checks do not apply
 
 ## 7. Update Technical Documentation (MANDATORY)
 
-- [ ] 7.1 `readme.md` section 2.6: add `gitleaks git --redact --verbose .` next to the test commands, with the CI version, install hint, and the one-line note that a real leaked key must be revoked and rotated, not only removed; mention the secrets job in the CI sentence
-- [ ] 7.2 `readme.md` section 2.5 (Secretos): add that every pull request and push is scanned with gitleaks, with the allowlist files named
-- [ ] 7.3 `docs/release/mvp-closure-report.md` I1 row and action 9, `docs/release/mvp-release-gates.md` security gap, and `docs/release/cleanup-inventory.md` K1: state that the scan runs in CI (JOS-211) and the graph cache is allowlisted
-- [ ] 7.4 Run `graphify update .`
+- [x] 7.1 `readme.md` section 2.6: add `gitleaks git --redact --verbose .` next to the test commands, with the CI version, install hint, and the one-line note that a real leaked key must be revoked and rotated, not only removed; mention the secrets job in the CI sentence
+- [x] 7.2 `readme.md` section 2.5 (Secretos): add that every pull request and push is scanned with gitleaks, with the allowlist files named
+- [x] 7.3 `docs/release/mvp-closure-report.md` I1 row and action 9, `docs/release/mvp-release-gates.md` security gap, and `docs/release/cleanup-inventory.md` K1: state that the scan runs in CI (JOS-211) and the graph cache is allowlisted
+- [x] 7.4 Run `graphify update .`
 
 ## 8. Pull request
 
-- [ ] 8.1 Commit on the feature branch in separate commits: allowlist files, CI job, docs and reports
+- [x] 8.1 Commit on the feature branch in separate commits: allowlist files, CI job, docs and reports
 - [ ] 8.2 After approval, confirm no PR for this branch is already merged, push with an explicit upstream, and open the PR into `feature/entrega-3-JAME` linking JOS-211; the `secrets` job must be green on it. Note in the PR that the check should be made required on `main` and the integration branches
 - [ ] 8.3 Add a comment on JOS-203 updating the I1 note

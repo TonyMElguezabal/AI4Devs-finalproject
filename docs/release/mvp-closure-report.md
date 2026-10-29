@@ -76,7 +76,7 @@ Not done: a full-size session (1,500 to 1,800 words, 30 to 50 clips; JOS-209), a
 
 | Item | Result |
 |---|---|
-| Secrets scan over all history (gitleaks 8.30.1, 641 commits) | No real secret. 16 findings: 8 file-hash false positives, 3 example passwords (replaced), 5 placeholder bearer examples. History not rewritten. Adding gitleaks to CI is JOS-211. |
+| Secrets scan over all history (gitleaks 8.30.1, 641 commits) | No real secret. 16 findings: 8 file-hash false positives, 3 example passwords (replaced), 5 placeholder bearer examples. History not rewritten. Gitleaks now runs in CI with the graph cache and the 8 historical examples allowlisted (JOS-211). |
 | `npm audit --omit=dev` | 0 in backend and frontend |
 | API origin policy | only the app's own origins and loopback hosts |
 | `.gitignore` | `.secrets.json`, `.env`, `.env.*` ignored anywhere; packaged entry strips `ALLOW_TEST_ENDPOINTS` and `USE_STUB_*`; JOS-205 criterion 5 keeps the guard |
@@ -100,7 +100,7 @@ README rewritten for the built MVP (#68) and corrected in #77: known limitations
 | 6 | Release workflow rewritten for the single environment | Dev | **High** for distribution | JOS-206 |
 | 7 | Verify database upgrade and downgrade, or accept the gap in writing | Dev, Owner | Medium | JOS-210 |
 | 8 | Sign the macOS and Windows executables | Dev | Medium | JOS-207 |
-| 9 | Gitleaks in CI with the graph cache allowlisted | Dev | Medium | JOS-211 |
+| 9 | Gitleaks in CI with the graph cache allowlisted | Dev | Medium | JOS-211 (done) |
 | 10 | Lint and static analysis in both packages and CI (baseline in README 2.6) | Dev | Low | JOS-208 |
 | 11 | Scrub API-key-shaped text from telemetry error text | Dev | Low | JOS-212 |
 | 12 | Improve the content-check error message (four causes, one text) | Dev | Low | M3, deferred, no ticket |
