@@ -68,8 +68,8 @@
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `docs/PRD.md`: check the text approved in 1.2 matches what was built.
-- [ ] 11.2 `docs/api-spec.yml`: `GET /admin/reports/estimated-cost` (200, 400, 401) and the sessions-report row fields.
-- [ ] 11.3 `docs/frontend-standards.md`: the accessible names of the cost table and the sessions cost column.
-- [ ] 11.4 `docs/development_guide.md` and the readme's `/admin` section: what the estimate counts, unpriced providers, totals per currency.
-- [ ] 11.5 Run `graphify update .`.
+- [x] 11.1 `docs/PRD.md`: check the text approved in 1.2 matches what was built.
+- [x] 11.2 `docs/api-spec.yml`: `GET /admin/reports/estimated-cost` (200, 400, 401) and the sessions-report row fields.
+- [x] 11.3 `docs/frontend-standards.md`: the accessible names of the cost table and the sessions cost column.
+- [x] 11.4 `docs/development_guide.md` and the readme's `/admin` section: what the estimate counts, unpriced providers, totals per currency.
+- [x] 11.5 Run `graphify update .`.
