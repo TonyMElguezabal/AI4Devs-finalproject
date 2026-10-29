@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { recordProductEvent, setConsent } from "./telemetry/index.ts";
 import { getUpdateResult } from "./telemetry/updateCheck.ts";
+import { BUILD } from "./config/build.ts";
 import { z } from "zod";
 import { jsonSchemaTransform, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
@@ -327,6 +328,8 @@ const appUpdateResponseSchema = z.union([
   z.object({ available: z.literal(false) }),
   z.object({ available: z.literal(true), tag: z.string(), url: z.string() }),
 ]);
+// show-app-version (JOS-238), design Decision 3 — the schema drops any other field, so the release tag and endpoints cannot leak.
+const appVersionResponseSchema = z.object({ version: z.string(), channel: z.enum(["development", "uat", "production"]) });
 const emptyBodySchema = z.object({}).strict().nullish();
 // adjust-scene-pause (JOS-190) — a number only; whether it is on the 0.1 s grid and inside the scene's range depends on
 // the scene, so it is answered 422 with a sentence by the handler rather than rejected by the schema.
@@ -373,6 +376,9 @@ export const routes: FastifyPluginAsync = async (app) => {
   );
 
   typed.get("/app/update", { schema: { response: { 200: appUpdateResponseSchema } } }, async () => getUpdateResult());
+
+  // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract
+  typed.get("/app/version", { schema: { response: { 200: appVersionResponseSchema } } }, async () => ({ version: BUILD.version, channel: BUILD.channel }));
 
   // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
   typed.get("/languages", { schema: { response: { 200: languageResponseSchema } } }, async () => [
