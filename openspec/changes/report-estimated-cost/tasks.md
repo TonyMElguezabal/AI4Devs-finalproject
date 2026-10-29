@@ -22,8 +22,8 @@
 
 ## 4. Backend: the route (TDD; design Decision 3)
 
-- [ ] 4.1 Write failing route tests for `GET /admin/reports/estimated-cost`: 401 without and with a wrong password; 200 with the shape of Decision 3; 400 for an invalid period; no marker text or stored key in the body; table row counts unchanged after the call.
-- [ ] 4.2 Add the route with zod schemas to `adminReportRoutes.ts`. Make 4.1 pass and confirm it is in the generated OpenAPI document.
+- [x] 4.1 Write failing route tests for `GET /admin/reports/estimated-cost`: 401 without and with a wrong password; 200 with the shape of Decision 3; 400 for an invalid period; no marker text or stored key in the body; table row counts unchanged after the call.
+- [x] 4.2 Add the route with zod schemas to `adminReportRoutes.ts`. Make 4.1 pass and confirm it is in the generated OpenAPI document.
 
 ## 5. Backend: cost per session (TDD; design Decision 5)
 
