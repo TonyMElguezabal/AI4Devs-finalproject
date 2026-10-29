@@ -20,7 +20,7 @@ The earlier Phase 4 cleanup commit `802d22ca` ("untrack per-developer config, dr
 
 | ID | Item | Verdict |
 |---|---|---|
-| K1 | `graphify-out/` (588 files, 18 MB) | Keep. It is committed on purpose (project instruction: the graph is rewritten whole on every build). Its hash cache is a gitleaks false positive; JOS-211 will allowlist it. |
+| K1 | `graphify-out/` (588 files, 18 MB) | Keep. It is committed on purpose (project instruction: the graph is rewritten whole on every build). Its hash cache is a gitleaks false positive; `.gitleaks.toml` allowlists it by path (JOS-211). |
 | K2 | `openspec/changes/archive/.../poc/` (7 files) | Keep. README, ADR 0007 and JOS-205 depend on it until the build script is productized. |
 | K3 | `docs/PRD-v1.2.md` to `PRD-v1.9.md` (0.36 MB) | Keep. Version history is part of the PRD process. |
 | K4 | `prompts.md`, `AGENTS.md`/`CLAUDE.md`/`GEMINI.md`/`codex.md` | Keep. Course deliverable and symlinks to `docs/base-standards.md`. |
