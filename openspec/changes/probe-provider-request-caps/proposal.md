@@ -27,5 +27,5 @@ None.
 - **Code**: `backend/config/settings.default.json`, `backend/src/config/providers.ts` (comment only) and `backend/test/providerConfig.test.ts`, each only if a cap changes. No new module, no new dependency. The probe scripts are throwaway files under the change folder, not product code.
 - **APIs**: none. `GET /admin/settings` shows whatever the defaults become.
 - **Docs**: ADR 0005 (request-cap section), `docs/development_guide.md` if a default it quotes changes.
-- **Cost**: RunningHub ≈ $0.39 per call (JOS-165 price; re-check before probing), at most 18 calls, hard ceiling $10. ElevenLabs uses a few hundred characters of the Creator quota.
+- **Cost**: RunningHub $0.60 per 5 s job at the 2K setting the app uses (JOS-165 step 3; $0.385 at 768P), at most 20 jobs (2 baselines + 4 + 6 + 8), about $12, hard ceiling $13 (product owner decision 2026-10-29). ElevenLabs uses a few hundred characters of the Creator quota.
 - **Limit of the result**: the numbers hold for the tested accounts (ElevenLabs Creator, RunningHub `SHARED`). Installs on other tiers keep the existing `maxSimultaneousRequests` override in `settings.json`.

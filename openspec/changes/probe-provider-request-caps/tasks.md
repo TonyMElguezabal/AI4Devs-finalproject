@@ -1,25 +1,25 @@
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Create branch `feature/jos-188-probe-provider-request-caps` from `origin/main` with `--no-track` (worktree `../AI4Devs-finalproject-jos-188`)
-- [ ] 0.2 Verify the branch has no upstream (`git branch -vv`) and record the start time for the DoD time-spent entry
+- [x] 0.1 Create branch `feature/jos-188-probe-provider-request-caps` from `origin/main` with `--no-track` (worktree `../AI4Devs-finalproject-jos-188`)
+- [x] 0.2 Verify the branch has no upstream (`git branch -vv`) and record the start time for the DoD time-spent entry
 
 ## 1. Preparation
 
-- [ ] 1.1 Re-check the RunningHub per-call price for a 5 s 2K job and the account balance (`POST /uc/openapi/accountStatus`, free). Stop and ask if 18 calls would exceed $10
-- [ ] 1.2 Check the ElevenLabs subscription (`GET /v1/user/subscription`) for tier and remaining characters, and the published concurrency limit for that tier
-- [ ] 1.3 Verify design Decision 4's assumption in `concurrency.ts` and the voice, alignment and video call sites: a retry never runs alongside its own earlier attempt, including one that timed out. Record the result (holds / does not hold, with file:line)
-- [ ] 1.4 Write the probe script under `probe/` that drives the existing adapters with the stored keys, logs status, error body, `*concurrent*` headers and timings per call, and enforces the spend ceiling (design Decisions 1-3). Dry-run it at concurrency 1 per provider
+- [x] 1.1 Re-check the RunningHub per-call price for a 5 s 2K job and the account balance (`POST /uc/openapi/accountStatus`, free). Stop and ask if the 20 jobs would exceed $13. Result 2026-10-29: $0.60 per 5 s 2K job (JOS-165 step 3, not the $0.39 first assumed), balance $68.82, 0 tasks running; the owner approved about $12 and a $13 ceiling
+- [x] 1.2 Check the ElevenLabs subscription (`GET /v1/user/subscription`) for tier and remaining characters, and the published concurrency limit for that tier. Result 2026-10-29: Creator, 15,351 of 245,986 characters used, no concurrency field or header in the response (the limit can only come from the probe)
+- [x] 1.3 Verify design Decision 4's assumption in `concurrency.ts` and the voice, alignment and video call sites: a retry never runs alongside its own earlier attempt, including one that timed out. Record the result (holds / does not hold, with file:line). Result 2026-10-29: holds for voice and alignment: `retryScheduler.ts:79-112` releases the slot only when the provider call settles, a retry is a new attempt that takes its own slot, and a timed-out attempt keeps its slot, so live requests never exceed the cap. Holds for video except at the ceiling: `orchestrator.ts:910-917` follows the same task past the limit, and at twice the limit releases the slot while the RunningHub task may still be running, so a later retry can briefly overlap it. No headroom is subtracted; the exception goes into the step 4 report
+- [x] 1.4 Write the probe script under `probe/` that drives the existing adapters with the stored keys, logs status, error body, `*concurrent*` headers and timings per call, and enforces the spend ceiling (design Decisions 1-3). Dry-run it at concurrency 1 per provider. Result 2026-10-29: `probe/probe.ts` runs both dry runs; the ElevenLabs response carries `current-concurrent-requests` and `maximum-concurrent-requests: 5` headers, which the design listed as unconfirmed
 
 ## 2. ElevenLabs probe
 
-- [ ] 2.1 Run voice-only at 5, 6 and 7 concurrent calls; record which return `429` and any concurrency headers
-- [ ] 2.2 Run 3 voice + 3 alignment concurrently to confirm the pool is shared (design Decision 2)
-- [ ] 2.3 Write `reports/YYYY-MM-DD-step-2-elevenlabs-concurrency.md`: raw results, measured limit, shared-pool finding, derived voice/alignment split, characters used
+- [x] 2.1 Run voice-only at 5, 6 and 7 concurrent calls; record which return `429` and any concurrency headers. Result 2026-10-29: voice-only: 5 concurrent all `200`; 6 gives one `429`; 7 gives two `429` (2 runs each)
+- [x] 2.2 Run 3 voice + 3 alignment concurrently to confirm the pool is shared (design Decision 2). Result 2026-10-29: 5 voice + 1 alignment (6 in flight) and 3 + 3 all succeeded in 3 runs each, so alignment does not share the voice pool; alignment alone took 10 concurrent without error
+- [x] 2.3 Write `reports/YYYY-MM-DD-step-2-elevenlabs-concurrency.md`: raw results, measured limit, shared-pool finding, derived voice/alignment split, characters used. Result 2026-10-29: report written; voice limit 5 measured, alignment independent
 
 ## 3. RunningHub probe
 
-- [ ] 3.1 Take 2 sequential 5 s baseline samples in the same session
-- [ ] 3.2 Run 4, then 6, then 8 concurrent 5 s jobs, stopping at the first level that is not clean (design Decision 3); repeat each clean level once at a different time
+- [x] 3.1 Take 2 sequential 5 s 2K baseline samples in the same session. Result 2026-10-29: 318.8 s and 220.7 s (time to `RUNNING` 0.23 s and 0.22 s); the 45% spread between two sequential samples means total time cannot be a clean/dirty criterion on its own
+- [ ] 3.2 Run 4, then 6, then 8 concurrent 5 s 2K jobs, stopping at the first level that is not clean (design Decision 3); repeat only a borderline level, once
 - [ ] 3.3 Write `reports/YYYY-MM-DD-step-3-runninghub-concurrency.md`: per-job time to `RUNNING`, status sequence, totals, highest clean level, spend from balance before and after
 
 ## 4. Decision
