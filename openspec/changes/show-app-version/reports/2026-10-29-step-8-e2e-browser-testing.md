@@ -38,3 +38,17 @@ Difference from the first run: on a real session page the Live indicator is also
 Restoration: servers stopped and scratch folders deleted; the shared database was not touched.
 
 Outcome: PASS. The real-session scroll check is now covered here.
+
+## Dry-run release artifacts (task 9.4)
+
+- Run: `release.yml` `workflow_dispatch` with `mode=dry-run` on `447de421`, [run 40929218089](https://github.com/TonyMElguezabal/AI4Devs-finalproject/actions/runs/40929218089). Attempt 1: checks, darwin-x64 and win32-x64 passed; darwin-arm64 was cancelled before any step because no hosted macOS arm64 runner was free ("The job was not acquired by Runner of type hosted"). Attempt 2 re-ran it and the run passed.
+- Each macOS executable was started from its downloaded zip with `VID4YOU_DATA_DIR` set to a scratch folder, `VID4YOU_PORT=3102` and `VID4YOU_NO_BROWSER=1`.
+
+| Artifact | `GET /app/version` | Top bar on the start form and `/admin` |
+|---|---|---|
+| `Vid4You-darwin-x64` (run through Rosetta) | `{"version":"2026.10.29-5bfcbaa","channel":"production"}` | `v2026.10.29-5bfcbaa`, `aria-label` `Vid4You version 2026.10.29-5bfcbaa` |
+| `Vid4You-darwin-arm64` | same | same |
+
+`5bfcbaa` is the start of the tree hash of `447de421` (`5bfcbaa9afab…`), so the label names the release a push of this tree would publish (`release-<tree hash>`). The Windows artifact was built but not run. The scratch folders were deleted.
+
+Outcome: PASS.
