@@ -23,7 +23,7 @@ ADR 0008 and the catalogue (`openspec/changes/define-admin-reports/reports-catal
 
 ### 1. Reuse R1's attempt-row select; extend it with failed units and the run id
 
-`countedAttempts` in `providerUsageReport.ts` is already exported (JOS-224) and gains the `runId` of each row and an optional third parameter `runIds` that replaces the period (`countedAttempts(from, to, runIds?)`); the failures and usage reports keep calling `countedAttempts(from, to)` unchanged. `units` is already returned for every counted row and R1 already sums only the successes, so R1's numbers do not change; its tests pin that. `estimatedCostReport.ts` uses the same rows, so billed units are identical in both reports by construction.
+`countedAttempts` in `providerUsageReport.ts` is already exported (JOS-224) and gains the `runId` of each row. A second export, `countedAttemptsOfRuns(runIds)`, reads the same rows for the given sessions with no period; both share one private reader, so the counting rules exist once. The failures and usage reports keep calling `countedAttempts(from, to)` unchanged. `units` is already returned for every counted row and R1 already sums only the successes, so R1's numbers do not change; its tests pin that. `estimatedCostReport.ts` uses the same rows, so billed units are identical in both reports by construction.
 *Alternative:* a second select in the cost module. Rejected: two copies of the counting rules would drift.
 *Alternative:* add cost columns to the usage report. Rejected: the catalogue keeps R1 and R2 separate, and the usage table is already wide.
 
@@ -51,7 +51,7 @@ Failed units are the `units` of transient, not-retryable and timed-out rows: the
 
 ### 5. Session cost in the Sessions report
 
-The sessions report (JOS-225) calls `countedAttempts({ runIds })` for the sessions on the page (no `sent_at` filter: a session's cost covers all its attempts) and the same pricing function, and adds to each row `estimatedCost: [{ currency, estimatedCost }]` and `excludesUnpricedProvider: boolean` (true when a successful attempt of the session ran on an unpriced provider). The sessions table shows the amounts, labelled an estimate, and the note.
+The sessions report (JOS-225) calls `countedAttemptsOfRuns(runIds)` for the sessions on the page (no `sent_at` filter: a session's cost covers all its attempts) and the same pricing function, and adds to each row `estimatedCost: [{ currency, estimatedCost }]` and `excludesUnpricedProvider: boolean` (true when a successful attempt of the session ran on an unpriced provider). The sessions table shows the amounts, labelled an estimate, and the note.
 *Alternative:* a separate per-session cost route. Rejected: AC3 asks for the cost in the Sessions report itself, and one request per row would be slower and wider.
 
 ### 6. Frontend

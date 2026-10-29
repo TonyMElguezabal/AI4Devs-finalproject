@@ -12,8 +12,8 @@
 
 ## 2. Backend: shared attempt rows (TDD; design Decision 1)
 
-- [ ] 2.1 Write failing tests that the exported `countedAttempts` returns `units` for failed attempts by the unit rule and the `runId` of each row, and filters by `runIds` without a period.
-- [ ] 2.2 Export `countedAttempts` from `providerUsageReport.ts`, add `runId` and the `runIds` filter. Make 2.1 pass; the existing R1 tests pass unchanged.
+- [x] 2.1 Write failing tests that the exported `countedAttempts` returns `units` for failed attempts by the unit rule and the `runId` of each row, and that `countedAttemptsOfRuns(runIds)` returns only those sessions' rows without a period.
+- [x] 2.2 Add `runId` to the rows of `countedAttempts` in `providerUsageReport.ts` and export `countedAttemptsOfRuns(runIds)` from the same reader. Make 2.1 pass; the existing R1 tests pass unchanged.
 
 ## 3. Backend: the cost report module (TDD; design Decisions 2, 4)
 
