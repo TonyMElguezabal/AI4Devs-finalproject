@@ -330,6 +330,9 @@ export interface SessionReportRow {
   attempts: number;
   secondsToVoiceOver: number | null;
   secondsToFinalVideo: number | null;
+  /** report-estimated-cost (JOS-227) — per currency; empty when nothing priced succeeded. */
+  estimatedCost: CurrencyTotal[];
+  excludesUnpricedProvider: boolean;
 }
 
 export interface SessionsReport {
@@ -381,4 +384,31 @@ export interface PipelineTimeReport {
   to: string;
   phases: PipelinePhaseRow[];
   sessions: Array<{ runId: string; title: string; seconds: Record<PipelinePhase, number | null> }>;
+}
+
+// report-estimated-cost (JOS-227), design Decision 3 — `null` price and cost mean unpriced, never zero.
+export interface CurrencyTotal {
+  currency: string;
+  estimatedCost: number;
+}
+
+export interface EstimatedCostRow {
+  stage: ProviderStage;
+  providerId: string;
+  providerLabel: string;
+  unit: string;
+  billedUnits: number;
+  failedUnits: number;
+  pricePerUnit: number | null;
+  currency: string | null;
+  estimatedCost: number | null;
+}
+
+export interface EstimatedCostReport {
+  from: string | null;
+  to: string;
+  sceneAttemptsFollowCurrentProvider: boolean;
+  rows: EstimatedCostRow[];
+  totals: CurrencyTotal[];
+  totalsExcludeUnpriced: boolean;
 }

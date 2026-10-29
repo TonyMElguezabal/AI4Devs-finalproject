@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { getFailuresReport, getPipelineTimeReport, getProviderChangesReport, getProviderUsageReport } from "../api/client";
-import type { FailuresReport, PipelineTimeReport, ProviderChangesReport, ProviderStage, ProviderUsageReport, ReportPeriod } from "../types";
+import { getEstimatedCostReport, getFailuresReport, getPipelineTimeReport, getProviderChangesReport, getProviderUsageReport } from "../api/client";
+import type { EstimatedCostReport, FailuresReport, PipelineTimeReport, ProviderChangesReport, ProviderStage, ProviderUsageReport, ReportPeriod } from "../types";
+import { EstimatedCostTable } from "./EstimatedCostTable";
 import { FailuresTables } from "./FailuresTables";
 import { PipelineTimeTables } from "./PipelineTimeTables";
 import { ProviderChangesTable } from "./ProviderChangesTable";
@@ -22,7 +23,8 @@ interface Props {
 
 /**
  * report-provider-usage (JOS-223), design Decision 7 — the "Reports" section of `/admin`: a period (last 30 days at first)
- * and the provider-usage table. JOS-228 adds the pipeline time, JOS-224 the failures and retries, JOS-225 the sessions list, JOS-229 the provider changes.
+ * and the provider-usage table. JOS-228 adds the pipeline time, JOS-224 the failures and retries, JOS-225 the sessions list, JOS-229 the provider changes,
+ * JOS-227 the estimated cost.
  */
 export function ReportsSection({ password, onDenied }: Props) {
   const [period, setPeriod] = useState<ReportPeriod>(() => lastDays(30));
@@ -42,6 +44,8 @@ export function ReportsSection({ password, onDenied }: Props) {
   const [failuresError, setFailuresError] = useState<string | undefined>(undefined);
   const [changes, setChanges] = useState<ProviderChangesReport | undefined>(undefined);
   const [changesError, setChangesError] = useState<string | undefined>(undefined);
+  const [cost, setCost] = useState<EstimatedCostReport | undefined>(undefined);
+  const [costError, setCostError] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let current = true;
@@ -60,6 +64,14 @@ export function ReportsSection({ password, onDenied }: Props) {
         else setReport(result.report);
       },
       () => current && setError("Could not load the provider usage report. Is the app running?"),
+    );
+    getEstimatedCostReport(password, period).then(
+      (result) => {
+        if (!current) return;
+        if (result.kind === "denied") deny();
+        else setCost(result.report);
+      },
+      () => current && setCostError("Could not load the estimated cost report. Is the app running?"),
     );
     getPipelineTimeReport(password, period).then(
       (result) => {
@@ -98,6 +110,7 @@ export function ReportsSection({ password, onDenied }: Props) {
     setPipelineError(undefined);
     setFailuresError(undefined);
     setChangesError(undefined);
+    setCostError(undefined);
   };
 
   const showsSceneStage = report?.rows.some((row) => row.stage === "image" || row.stage === "video");
@@ -145,6 +158,12 @@ export function ReportsSection({ password, onDenied }: Props) {
         </table>
       )}
       {report?.sceneAttemptsFollowCurrentProvider && showsSceneStage && <p>Image and clip attempts are counted for the scene's current provider.</p>}
+      {costError && (
+        <p role="alert" className="form-error">
+          {costError}
+        </p>
+      )}
+      {cost && <EstimatedCostTable report={cost} />}
       {pipelineError && (
         <p role="alert" className="form-error">
           {pipelineError}

@@ -65,7 +65,7 @@ const KNOWN_CURRENCIES = new Set(Intl.supportedValuesOf("currency"));
 
 // add-provider-price-per-unit (JOS-226), design Decisions 1 and 2 — the optional price of a profile. Not part of
 // PARAMETER_SHAPES, so the settings files keep rejecting it: a price is entered on /admin only.
-const PRICE_SHAPE = {
+export const PRICE_SHAPE = {
   pricePerUnit: z.number().finite().min(0).optional(),
   priceCurrency: z
     .string()
