@@ -28,7 +28,7 @@ The top bar of every screen (start form, session page and `/admin`) SHALL show t
 
 #### Scenario: Narrow window
 - **WHEN** the window is about 400 px wide
-- **THEN** the label does not push the other top-bar controls off screen
+- **THEN** the label does not push the other top-bar controls off screen, and it stays fully readable (it moves to its own line under the controls, right-aligned, instead of shrinking)
 
 ### Requirement: The version is read from the backend once per page load
 The frontend SHALL request `GET /app/version` once per page load, SHALL keep no copy of the version of its own (no build-time constant), and SHALL show no label, and no error, when the request fails.

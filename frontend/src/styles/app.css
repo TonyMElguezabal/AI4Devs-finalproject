@@ -337,6 +337,19 @@ button.toggle[aria-expanded="true"] .icon {
   margin-left: auto;
 }
 
+/* Up to ~400 px a single line would leave the label a few pixels: it gets its own line (design Decision 4). */
+@media (max-width: 30rem) {
+  .top-bar {
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-2);
+  }
+
+  .app-version {
+    flex-basis: 100%;
+    text-align: right;
+  }
+}
+
 /* ---------- Privacy dialog and update banner (add-observability-telemetry, JOS-199) ---------- */
 
 .top-bar > .privacy-button {

@@ -25,7 +25,7 @@
 
 ### Decision 4: Layout
 
-`.app-version` is small muted text (the muted-text token already used by the design system), pushed to the right end with `margin-left: auto`; the other controls keep their order. At about 400 px the bar already wraps; the label gets `white-space: nowrap` only if the bar can wrap around it, otherwise it may truncate with an ellipsis, with the full text kept in `title`. The exact rule is settled with the Playwright check at 400 px.
+`.app-version` is small muted text (the muted-text token already used by the design system) and is the last child of the bar, so it is at the right end. Alone with the wordmark (`/admin`) it takes `margin-left: auto`. Checked in a browser at 396 px wide: a single-line bar leaves the label about 20 px, an ellipsis with no information, so at widths up to 30 rem the bar wraps and the label takes its own full-width line, right-aligned (`flex-wrap: wrap; flex-basis: 100%`). The bar grows by one line there; it stays sticky.
 
 ## Risks / Trade-offs
 
