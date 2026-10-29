@@ -1,4 +1,7 @@
 import { useState, type FormEvent } from "react";
+import { estimateScript, formatEstimate } from "../scriptEstimate";
+
+const SCRIPT_ESTIMATE_ID = "project-script-estimate";
 
 export interface StartProjectValues {
   title: string;
@@ -32,6 +35,8 @@ export function StartProjectForm({ onStart, languages, submitting, error }: Prop
   const [script, setScript] = useState("");
   const [language, setLanguage] = useState("");
 
+  // show-script-word-count (JOS-236) — derived on every render, so it is current while typing.
+  const estimate = estimateScript(script);
   const canSubmit = title.trim().length > 0 && script.trim().length > 0 && language.length > 0;
 
   function handleSubmit(event: FormEvent) {
@@ -56,7 +61,18 @@ export function StartProjectForm({ onStart, languages, submitting, error }: Prop
         </div>
         <div className="field">
           <label htmlFor="project-script">Script</label>
-          <textarea id="project-script" value={script} onChange={(e) => setScript(e.target.value)} rows={8} />
+          <textarea
+            id="project-script"
+            value={script}
+            onChange={(e) => setScript(e.target.value)}
+            rows={8}
+            aria-describedby={estimate ? SCRIPT_ESTIMATE_ID : undefined}
+          />
+          {estimate && (
+            <p id={SCRIPT_ESTIMATE_ID} className="field-hint">
+              {formatEstimate(estimate)}
+            </p>
+          )}
         </div>
         <div className="field">
           <label htmlFor="project-language">Language</label>

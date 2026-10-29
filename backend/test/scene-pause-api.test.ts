@@ -167,7 +167,7 @@ describe("POST /sessions/:sessionId/final-video/rebuild", () => {
 describe("the session read (design Decision 9)", () => {
   async function read(sessionId: string) {
     return (await app.inject({ method: "GET", url: `/sessions/${sessionId}` })).json<{
-      session: { finalVideo?: { version: number; pendingPauseEdits: boolean; rebuildFailure?: { cause: string } } };
+      session: { finalVideo?: { version: number; pendingPauseEdits: boolean; staleScenes: boolean; rebuildFailure?: { cause: string } } };
       scenes: Array<{ pause?: { originalSeconds: number; seconds: number; minSeconds: number; maxSeconds: number; limitedBySpeedFactor: boolean } }>;
     }>();
   }
@@ -177,7 +177,7 @@ describe("the session read (design Decision 9)", () => {
 
     const body = await read(runId);
 
-    expect(body.session.finalVideo).toEqual({ version: 1, pendingPauseEdits: false });
+    expect(body.session.finalVideo).toEqual({ version: 1, pendingPauseEdits: false, staleScenes: false });
     expect(body.scenes.map((scene) => scene.pause)).toEqual([
       { originalSeconds: 4.3, seconds: 4.3, minSeconds: 1.8, maxSeconds: 4.3, limitedBySpeedFactor: true },
       { originalSeconds: 4.3, seconds: 4.3, minSeconds: 1.8, maxSeconds: 4.3, limitedBySpeedFactor: true },
@@ -199,19 +199,19 @@ describe("the session read (design Decision 9)", () => {
     const body = await read(runId);
 
     expect(body.scenes.every((scene) => scene.pause === undefined)).toBe(true);
-    expect(body.session.finalVideo).toEqual({ version: 1, pendingPauseEdits: false });
+    expect(body.session.finalVideo).toEqual({ version: 1, pendingPauseEdits: false, staleScenes: false });
   });
 
   it("reports pending edits, then the new version and no pending edits after the rebuild", async () => {
     const { runId, sceneIds } = await finishedSession();
     setScenePauseEdit(runId, sceneIds[0]!, 3.3);
 
-    expect((await read(runId)).session.finalVideo).toEqual({ version: 1, pendingPauseEdits: true });
+    expect((await read(runId)).session.finalVideo).toEqual({ version: 1, pendingPauseEdits: true, staleScenes: false });
 
     await app.inject({ method: "POST", url: `/sessions/${runId}/final-video/rebuild` });
     await waitFor(() => getRun(runId)?.finalVideoPath === "final-video-2.mp4");
 
-    expect((await read(runId)).session.finalVideo).toEqual({ version: 2, pendingPauseEdits: false });
+    expect((await read(runId)).session.finalVideo).toEqual({ version: 2, pendingPauseEdits: false, staleScenes: false });
   });
 
   it("reports why the last rebuild failed, keeping the current version", async () => {

@@ -74,6 +74,19 @@ export function rebuildFinalVideo(sessionId: string): Promise<{ ok: true; held: 
   return fetch(`${API_BASE}/sessions/${sessionId}/final-video/rebuild`, { method: "POST" }).then(asJson<{ ok: true; held: boolean }>);
 }
 
+/** rebuild-scene (JOS-235) — regenerates a generated scene's image and clip; omitted instructions keep the stored ones. Rejects with the refusal reason. */
+export function rebuildScene(
+  sessionId: string,
+  sceneId: string,
+  instructions: { imageInstruction?: string; videoInstruction?: string },
+): Promise<{ ok: true; held: boolean }> {
+  return fetch(`${API_BASE}/sessions/${sessionId}/scenes/${sceneId}/rebuild`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(instructions),
+  }).then(asJson<{ ok: true; held: boolean }>);
+}
+
 export function retryScene(sessionId: string, sceneId: string): Promise<{ ok: boolean }> {
   return fetch(`${API_BASE}/sessions/${sessionId}/scenes/${sceneId}/retry`, { method: "POST" }).then(asJson<{ ok: boolean }>);
 }

@@ -61,6 +61,7 @@ Vid4You es una aplicación web que convierte un guion de texto en un video narra
 - Corrección del prompt visual (imagen o video) de una escena que haya fallado, sin alterar el guion ni el orden narrativo.
 - Persistencia de sesiones, estados y resultados, incluso tras reinicios del sistema: el trabajo en curso se retoma solo al volver a arrancar.
 - Ajuste manual de la pausa que sigue a una escena y reconstrucción del video final, que conserva las versiones anteriores.
+- Reconstrucción de una escena ya generada («Rebuild scene»): se generan de nuevo su imagen y su clip, con las instrucciones `IMAGE` y `VIDEO` editables, y el video final se reconstruye solo con una versión nueva. Los archivos anteriores se conservan.
 - Aplicación local para macOS y Windows (un ejecutable que abre el navegador), con telemetría opcional y desactivada por defecto.
 
 ### **1.3. Diseño y experiencia de usuario:**
@@ -69,7 +70,7 @@ La interfaz es una aplicación web de una sola página (React) que se abre en el
 
 1. **Alta de sesión**: el usuario escribe un título, pega el guion y elige el idioma (inglés o español). Antes de crear la sesión, el guion pasa una comprobación de contenido (moderación de OpenAI); si no pasa, se rechaza y el formulario conserva el texto para editarlo.
 2. **Página de sesión**: muestra el título, el guion, el estado de la sesión y el avance por fase (voz, descomposición, escenas, montaje) y por escena, con su proveedor, número de intentos, errores legibles y resultados disponibles. Se actualiza en vivo sin recargar (Server-Sent Events, ADR 0003).
-3. **Acciones disponibles**: pausar y continuar toda la sesión, reintentar la fase o escena que falló, corregir solo la instrucción `IMAGE` o `VIDEO` de una escena fallida, descargar la imagen o el clip de una escena durante el proceso, ajustar la pausa que sigue a una escena y reconstruir el video final, y descargar el MP4 final.
+3. **Acciones disponibles**: pausar y continuar toda la sesión, reintentar la fase o escena que falló, corregir solo la instrucción `IMAGE` o `VIDEO` de una escena fallida, reconstruir una escena ya generada (imagen y clip) si tiene un defecto, descargar la imagen o el clip de una escena durante el proceso, ajustar la pausa que sigue a una escena y reconstruir el video final, y descargar el MP4 final.
 4. **Privacidad**: en el primer arranque se pregunta, con tres casillas desmarcadas, si se activan los informes de errores, el conteo de uso de proveedores y el conteo de uso anónimo. Todo está desactivado por defecto (`PRIVACY.md`).
 
 Las capturas de pantalla no están incluidas en este fichero; los informes de verificación en navegador de cada cambio (con capturas) están en `openspec/changes/archive/*/reports/`.
@@ -79,7 +80,7 @@ Las capturas de pantalla no están incluidas en este fichero; los informes de ve
 **Requisitos previos**
 
 - Node.js **24 o superior** (el backend ejecuta TypeScript de forma nativa y usa `node:sqlite`; CI usa Node 24).
-- `ffmpeg` y `ffprobe` accesibles. El backend los busca, por este orden, en las variables `FFMPEG_PATH` / `FFPROBE_PATH`, en `/opt/homebrew/bin` y en el `PATH`. En macOS: `brew install ffmpeg`; en Windows o Linux, instalarlos y añadirlos al `PATH`.
+- `ffmpeg` y `ffprobe` accesibles. El backend los busca, por este orden, en las variables `FFMPEG_PATH` / `FFPROBE_PATH`, en `/opt/homebrew/bin` y en el `PATH`. En macOS: `brew install ffmpeg`; en Windows o Linux, instalarlos y añadirlos al `PATH`. El `ffmpeg` debe incluir libass (el filtro `subtitles`, que dibuja los subtítulos del video final): compruébalo con `ffmpeg -filters | grep subtitles`. Si no lo tiene, el montaje falla con un aviso claro y el backend lo registra al arrancar; apunta `FFMPEG_PATH` a una versión con libass. La aplicación empaquetada ya lleva uno.
 - Claves de API de los cuatro proveedores (ver "Credenciales" más abajo). Sin la clave de OpenAI no se puede crear ninguna sesión, porque la comprobación de contenido del guion la necesita.
 
 **Instalación y arranque en desarrollo**
@@ -135,6 +136,7 @@ Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en
 | `DB_PATH` | `data/skeleton.sqlite` | Fichero SQLite (relativo a `backend/`). |
 | `PROJECTS_ROOT` | `data/projects` | Carpeta donde se guardan las carpetas de proyecto (guion, MP3, imágenes, clips, MP4). |
 | `FFMPEG_PATH`, `FFPROBE_PATH` | resolución automática | Ruta a `ffmpeg` y `ffprobe`. |
+| `SUBTITLE_FONT_PATH` | `backend/assets/fonts/Montserrat-Bold.ttf` | Fuente de los subtítulos. La aplicación empaquetada la escribe en su carpeta de datos y fija esta variable. |
 | `SECRETS_PATH` | `backend/.secrets.json` | Fichero de credenciales. La aplicación empaquetada lo fija en su carpeta de datos. |
 | `SETTINGS_DEFAULTS_PATH` | `backend/config/settings.default.json` | Ajustes por defecto. La aplicación empaquetada escribe en cada arranque una copia incrustada en su carpeta de datos y apunta a ella. |
 | `VID4YOU_DATA_DIR` | carpeta de datos del usuario | Solo la aplicación empaquetada: cambia la carpeta donde guarda la base de datos, los proyectos, `.secrets.json`, los ajustes y la clave maestra. |
@@ -143,7 +145,14 @@ Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en
 | `STAGE_CONCURRENCY_LIMIT` | límites de `config/providers.ts` | Sustituye el límite de peticiones simultáneas de la etapa de imagen (solo pruebas manuales). |
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | 2 y 30 | Acortan la espera entre reintentos para pruebas manuales. |
 | `BODY_LIMIT_BYTES` | 50 MiB | Tamaño máximo del cuerpo de una petición. |
-| `ALLOW_TEST_ENDPOINTS`, `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `VOICE_STUB_DELAY_MS` | desactivadas | Solo para pruebas: activan endpoints de prueba y proveedores simulados. La aplicación empaquetada las ignora. |
+| `ALLOW_TEST_ENDPOINTS`, `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_IMAGE_PROVIDER`, `VOICE_STUB_DELAY_MS` | desactivadas | Solo para pruebas: activan endpoints de prueba y proveedores simulados. La aplicación empaquetada las ignora. |
+
+**Publicar una versión y revertirla**
+
+- *Quién aprueba:* el entorno `release` (Settings → Environments) exige un revisor, hoy el propietario del repositorio, con "prevent self-review" desactivado porque es el único revisor; la segunda mirada es la revisión de la PR hacia `main`. No hay secretos en el entorno.
+- *Cómo se publica:* al fusionar una PR en `main`, el flujo construye los tres ejecutables y espera. En la pestaña Actions, abrir la ejecución, descargar los artefactos si se quieren probar, y pulsar *Review deployments → Approve*. Si se rechaza o no se responde, no se crea ninguna versión.
+- *Probar el flujo:* Actions → Release → *Run workflow*: `dry-run` solo sube los zips como artefactos; `test-release` crea tras la aprobación una pre-release `test-<hash>` (nunca la devuelve `/releases/latest`), que se borra con `gh release delete test-<hash> --cleanup-tag --yes`.
+- *Revertir una versión mala:* `gh release delete release-<hash> --cleanup-tag --yes` (o, para conservarla, `gh release edit release-<hash> --prerelease`). Así `/releases/latest` devuelve la versión anterior y quien tenga la mala verá la anterior como actualización. Para volver a publicar el mismo árbol hay que borrar también la etiqueta.
 
 **Datos y reinicio**
 
@@ -169,8 +178,10 @@ Cada comando deja `Vid4You` (`Vid4You.exe` en Windows), `ffmpeg` y `ffprobe` en 
 | "The content check is temporarily unavailable. Submit the script again in a moment." al crear una sesión | Falta `OPENAI_KEY`, el fichero de claves no se puede leer (nombre o BOM en Windows), no hay red hacia `api.openai.com` o OpenAI respondió con error | Revisar el fichero de claves (ver arriba), la conexión y reintentar. El mensaje no distingue la causa. |
 | El navegador no abre la página en el ejecutable | Puerto 3100 ocupado por otro programa | Cerrar el otro programa o abrir `http://127.0.0.1:3100` a mano. |
 | Una fase queda en `failed` | Se agotaron los 3 reintentos automáticos o el fallo no es reintentable | Pulsar el reintento manual de esa fase o escena (abre un ciclo nuevo de hasta 3 reintentos). Lo ya generado se conserva. |
+| Un clip falla con «the clip task did not finish within 2400 s…» | RunningHub no terminó la tarea en el doble del límite de video (2400 s). Hasta ese momento la aplicación sigue esperando la misma tarea y no envía otra, para que una escena cueste una sola tarea; la tarea puede seguir ejecutándose y facturándose en RunningHub. Mientras el clip se genera, el detalle de la escena muestra el identificador de la tarea (para buscarla en RunningHub), cuándo se comprobó por última vez y hasta cuándo se esperará (JOS-233) | Pulsar el reintento manual de la escena envía una tarea nueva (se factura otra) y abre un ciclo nuevo de hasta 3 reintentos (JOS-204). |
 | La sesión no avanza y está pausada | Hay una pausa de sesión | Pulsar "Continuar". Una pausa no cancela las peticiones ya enviadas. |
 | Se cerró la aplicación a mitad de una generación | — | Volver a abrirla: las sesiones, el progreso y las peticiones en vuelo se recuperan solos (`openspec/specs/restart-recovery/spec.md`). Una petición a un proveedor se espera o se registra como intento fallido y sigue la política de reintentos. |
+| Una escena generada tiene un defecto (contenido equivocado, texto erróneo en la imagen) | La imagen o el clip no salieron como se pedía | Abrir los detalles de la escena, pulsar «Rebuild scene», corregir `IMAGE` y/o `VIDEO` si hace falta y confirmar; se generan de nuevo imagen y clip (una petición de cada uno) y el video final se reconstruye solo. |
 | El video final tiene una pausa demasiado larga o corta | Pausa original tras una escena | Ajustar la pausa de esa escena y reconstruir el video final; los intentos anteriores se conservan como versiones. |
 
 **Copia de seguridad y vuelta atrás.** Los datos de usuario están en la carpeta de datos (SQLite y proyectos); copiarla entera con la aplicación cerrada es una copia de seguridad completa. Para volver a una versión anterior, cerrar la aplicación, restaurar la copia de la carpeta de datos y volver a instalar el ejecutable o la rama anterior. No se ha verificado que una versión antigua del programa pueda abrir una base de datos migrada por una versión más nueva; por eso la copia previa a cada actualización es necesaria.
@@ -182,7 +193,7 @@ Estado del MVP a 20-oct-2026. Ninguna impide generar un video; todas están regi
 | Limitación | Efecto | Seguimiento |
 |---|---|---|
 | Un clip cuyo intento agota el tiempo se vuelve a pedir al proveedor, y la tarea anterior sigue en marcha y se factura. | Una escena puede costar varias tareas de video (el 14-oct-2026, los clips de 14 s agotaron el tiempo en 8 de 8 intentos). Una sesión corta con clips de 6 s y 11 s sí terminó. | JOS-204 |
-| Los tiempos máximos por fase (voz y razonamiento 600 s, video 1200 s) son provisionales: solo se midió una sesión de 2 escenas con la compilación actual. | Una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips) puede agotar el tiempo. | JOS-209 |
+| Los tiempos máximos por fase (voz y razonamiento 600 s, video 1200 s, y la espera máxima de un clip, 2400 s) son provisionales: solo se midió una sesión de 2 escenas con la compilación actual. | Una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips) puede agotar el tiempo. | JOS-209 |
 | Los límites reales de peticiones por etapa de RunningHub y ElevenLabs, y los casos límite de la división por cláusulas (§6.1), no están verificados. | El límite de peticiones simultáneas usa los valores de `config/providers.ts`, sin contrastar con los límites reales. | JOS-188, JOS-189 (posteriores al MVP) |
 | La comprobación del guion muestra un único mensaje genérico para cuatro causas distintas (falta `OPENAI_KEY`, fichero de claves ilegible, sin red hacia OpenAI, error de OpenAI). | El usuario debe revisar la tabla de la sección 1.5 para descubrir cuál es. | Aplazada por el propietario del producto |
 | El ejecutable no está firmado. | Windows (SmartScreen) y macOS (Gatekeeper) muestran una advertencia al abrirlo. | JOS-207 |
@@ -277,15 +288,16 @@ Los ficheros `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` y `codex.md` apuntan a los es
 ### **2.4. Infraestructura y despliegue**
 
 - **Dónde se ejecuta**: en el equipo del usuario, escuchando solo en `127.0.0.1`; llama a los proveedores de IA en la nube. No hay servidor central ni cuentas (ADR 0007).
-- **Entorno**: `main` es el entorno oficial (decisión del propietario del producto, 20-oct-2026; ADR 0007 enmendado). La rama `feature/entrega-2-JAME` fue la rama de integración del MVP y se promovió a `main` mediante la PR #71. Mientras no exista un flujo de publicación (JOS-205, JOS-206) no se publica nada automáticamente.
+- **Entorno**: `main` es el entorno oficial (decisión del propietario del producto, 20-oct-2026; ADR 0007 enmendado). La rama `feature/entrega-2-JAME` fue la rama de integración del MVP y se promovió a `main` mediante la PR #71. Cada push a `main` con un árbol de código nuevo construye y publica una versión mediante `.github/workflows/release.yml` (JOS-206), tras una aprobación manual (ver 1.4, "Publicar una versión y revertirla").
+- **Publicación**: `.github/workflows/release.yml` (JOS-206). Un push a `main` ejecuta las comprobaciones, construye macOS arm64, macOS x64 y Windows x64 una sola vez por árbol de código (`git rev-parse HEAD^{tree}`) y, tras la aprobación del entorno `release`, publica una versión `release-<hash del árbol>` con `SHA256SUMS.txt`; un trabajo final descarga los ficheros y comprueba las sumas. Un árbol que ya tiene versión no se reconstruye, y un push a otra rama, o con `[skip release]` en el mensaje del último commit, no construye nada.
 - **Integración continua**: `.github/workflows/ci.yml` ejecuta, en cada PR hacia `feature/entrega-2-JAME` o `main` y en cada push a `main` o a la rama de integración, el chequeo de tipos y las pruebas de backend (con ffmpeg instalado) y de frontend, sobre Node 24. Las pruebas nunca usan una base de datos ni un proveedor reales.
 - **Telemetría**: un relé (`infra/telemetry-relay/`, despliegue en `.github/workflows/telemetry-relay.yml`) recibe los datos opt-in, los filtra y los reenvía a Grafana Cloud.
 
 **Limitaciones conocidas del despliegue** (la lista completa está en la sección 1.6)
 
-- El ejecutable se construye con `npm run package:<plataforma>` en `backend/` (JOS-205), pero los ffmpeg y ffprobe que fija son una compilación GPL con componentes `nonfree` que **no se puede redistribuir**: hay que sustituirla (y sus hashes en `backend/packaging/targets.ts`) antes de la primera versión pública. El flujo de publicación automática (construir todas las plataformas por árbol de código, publicar como pre-release en UAT y promover los mismos ficheros en `main`) está descrito en ese mismo directorio (`poc/workflows/release.yml`) como boceto y **no está activado** en `.github/workflows/`.
+- El ejecutable se construye con `npm run package:<plataforma>` en `backend/` (JOS-205) y se publica con `release.yml` (JOS-206). Los ffmpeg y ffprobe que fija son una compilación GPL con componentes `nonfree` que **no se puede redistribuir**; el propietario decidió publicarla igualmente (el software no está pensado para distribuirse y el repositorio es público solo por el curso). Las notas de cada versión lo indican. Sustituirla solo exige cambiar `backend/packaging/targets.ts`.
 - El ejecutable no está firmado.
-- Aún no se han medido tiempos con una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips): los límites máximos por fase (voz y razonamiento 600 s, video 1200 s) son provisionales.
+- Aún no se han medido tiempos con una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips): los límites máximos por fase (voz y razonamiento 600 s, video 1200 s) y la espera máxima de un clip (2400 s) son provisionales.
 
 ### **2.5. Seguridad**
 
@@ -479,7 +491,7 @@ flowchart LR
 | Voz | ElevenLabs `eleven_multilingual_v2` | Guion | MP3 y marcas de tiempo nativas | 600 s |
 | Alineación | ElevenLabs Forced Alignment | MP3 y guion | Marcas de tiempo | 5 s |
 | Imagen | Fal.ai `fal-ai/flux/dev` | Instrucción `IMAGE` | Imagen 16:9 | 300 s |
-| Video | RunningHub MiniMax-H3 «Hailuo-03» | Imagen, instrucción `VIDEO`, duración de 5 a 15 s | Clip | 1200 s |
+| Video | RunningHub MiniMax-H3 «Hailuo-03» | Imagen, instrucción `VIDEO`, duración de 5 a 15 s | Clip | 1200 s; si la tarea sigue en marcha, se espera hasta 2400 s |
 
 **Notas de integración**
 - Un solo proveedor por etapa, sin configuración ni cambio en tiempo de ejecución (PRD §11.2). Las llamadas de los adaptadores no reintentan por su cuenta: cada llamada es exactamente un intento registrado.

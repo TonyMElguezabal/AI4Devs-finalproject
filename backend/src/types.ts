@@ -65,6 +65,8 @@ export interface Run {
    * held by a pause); cleared when the rebuild succeeds or ends in failure. Survives a restart.
    */
   rebuildRequestedAt: string | null;
+  /** rebuild-scene (JOS-235), Decision 5 — a scene was rebuilt after the current final video was built; cleared when a rebuild of the final video succeeds. */
+  finalVideoStale: boolean;
   /** admin-visual-style-prompt (JOS-201), Decision 4 — the `/admin` style prompt copied at creation; decomposition, its retries and recovery read this, never the live setting. */
   visualStylePrompt: string;
   /** use-reference-image-in-generation (JOS-202), Decision 3 — the `/admin` reference image copied into the project folder at creation (`path` is relative to it); every image request of the session carries it. */
@@ -275,6 +277,8 @@ export interface Scene {
   /** When the current clip request was sent, and its allow-listed body; both null before the submit returns and after the attempt ends (show-video-request-status, JOS-200). */
   videoRequestSentAt: string | null;
   videoRequestBody: VideoRequestBody | null;
+  /** rebuild-scene (JOS-235) — how many times the User rebuilt this scene; 0 for the first generation. Versions the scene's file names and URLs. */
+  rebuildCount: number;
 }
 
 /**
@@ -375,6 +379,8 @@ export interface FinalVideoStatus {
   version: number;
   /** True when the User's pause edits differ from those the current version was built with. */
   pendingPauseEdits: boolean;
+  /** rebuild-scene (JOS-235) — true when a scene was rebuilt after this version was built, so a rebuild would change it. */
+  staleScenes: boolean;
   /** Present only while the latest rebuild attempt ended in failure; the current version is kept. */
   rebuildFailure?: { cause: string };
 }
@@ -396,6 +402,12 @@ export interface VideoRequestView {
   /** Calculated from earlier clips of the same provider; null when there is none to base it on. */
   estimate: { seconds: number; basedOn: number } | null;
   body: VideoRequestBody;
+  /** JOS-233 — the provider's task id of the current attempt. */
+  taskId: string;
+  /** JOS-233 — the last "still running" answer this application received for the task; null until the first one since it started. */
+  lastCheckedAt: string | null;
+  /** JOS-233 — when the clip wait ceiling fails the scene if the task is unfinished; null when the video stage has no time limit. */
+  waitEndsAt: string | null;
 }
 
 /** Scene event / snapshot entry — carries CURRENT state, never a delta. */

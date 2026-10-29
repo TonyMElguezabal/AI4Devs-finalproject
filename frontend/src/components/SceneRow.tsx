@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { SceneEventPayload } from "../types";
+import type { SceneEventPayload, SessionState } from "../types";
 import { sceneStatusClass } from "../styles/status";
 import { sceneActions } from "../sceneActions";
 import { resolveResultUrl } from "../api/client";
@@ -10,6 +10,9 @@ import { Icon } from "./Icon";
 import { PauseDial } from "./PauseDial";
 import { VideoRequestStatus } from "./VideoRequestStatus";
 import { StatusPill } from "./StatusPill";
+
+/** rebuild-scene (JOS-235) — rebuilds a scene's image and clip; only the instructions the User changed are passed. Rejects with the refusal reason. */
+export type SceneRebuildHandler = (sceneId: string, instructions: { imageInstruction?: string; videoInstruction?: string }) => Promise<unknown>;
 
 interface Props {
   scene: SceneEventPayload;
@@ -22,6 +25,10 @@ interface Props {
   onCorrect: (sceneId: string, instruction: string) => Promise<unknown>;
   /** Sets the silence after this scene (adjust-scene-pause, JOS-190); rejects with the refusal. Absent: no dial is offered. */
   onSetPause?: (sceneId: string, seconds: number) => Promise<unknown>;
+  /** Rebuilds the scene (rebuild-scene, JOS-235). Absent: the action is not offered. */
+  onRebuild?: SceneRebuildHandler;
+  /** The session's state: a scene cannot be rebuilt while the final video is being assembled. */
+  sessionState?: SessionState;
 }
 
 /**
@@ -42,7 +49,7 @@ interface Props {
  * pill, and the unchanged details toggle. Expanded, the card spans the row and shows the named image in place of
  * the thumbnail, so a scene never has two images.
  */
-export function SceneRow({ scene, paused, onRetry, onCorrect, onSetPause }: Props) {
+export function SceneRow({ scene, paused, onRetry, onCorrect, onSetPause, onRebuild, sessionState }: Props) {
   const [expanded, setExpanded] = useState(false);
   const correctionStage = scene.affectedStage === "video" ? "video" : "image";
   const currentInstruction = correctionStage === "video"
@@ -51,6 +58,11 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, onSetPause }: Prop
   const [draftInstruction, setDraftInstruction] = useState(currentInstruction);
   const [pending, setPending] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
+  const [rebuildOpen, setRebuildOpen] = useState(false);
+  const storedImageInstruction = scene.imageInstruction || scene.instruction || "";
+  const storedVideoInstruction = scene.videoInstruction ?? "";
+  const [imageDraft, setImageDraft] = useState(storedImageInstruction);
+  const [videoDraft, setVideoDraft] = useState(storedVideoInstruction);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the draft when the scene or its affected stage changes
@@ -58,20 +70,43 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, onSetPause }: Prop
   }, [scene.sceneId, scene.state, scene.affectedStage, currentInstruction]);
 
   const isFailed = scene.state === "failed";
-  const actions = sceneActions(scene);
+  const actions = sceneActions(scene, sessionState);
+  const canRebuild = actions.rebuild && Boolean(onRebuild);
   const isGenerating = scene.state === "image-generating" || scene.state === "video-generating";
 
-  async function runAction(action: () => Promise<unknown>) {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the form closes as soon as the scene can no longer be rebuilt (it is generating, or the final video is being assembled)
+    if (!canRebuild) setRebuildOpen(false);
+  }, [canRebuild]);
+
+  /** Runs a scene command; true when it was accepted. A refusal is shown as its sentence. */
+  async function runAction(action: () => Promise<unknown>): Promise<boolean> {
     setPending(true);
     setRefusal(null);
     try {
       await action();
+      return true;
     } catch (error) {
       setRefusal(sceneRecoveryRefusalSentence(error instanceof Error ? error.message : ""));
+      return false;
     } finally {
       setPending(false);
     }
   }
+
+  function openRebuildForm() {
+    setImageDraft(storedImageInstruction);
+    setVideoDraft(storedVideoInstruction);
+    setRefusal(null);
+    setRebuildOpen(true);
+  }
+
+  // Only what the User changed is sent; a changed instruction must not be empty (the backend refuses it too).
+  const rebuildChanges = {
+    ...(imageDraft.trim() !== storedImageInstruction.trim() ? { imageInstruction: imageDraft.trim() } : {}),
+    ...(videoDraft.trim() !== storedVideoInstruction.trim() ? { videoInstruction: videoDraft.trim() } : {}),
+  };
+  const rebuildHasEmptyChange = Object.values(rebuildChanges).some((value) => value === "");
 
   const imageUrl = scene.result?.imageUrl;
   const hasMedia = Boolean(scene.result?.imageUrl || scene.result?.videoUrl || scene.downloads?.imageUrl || scene.downloads?.clipUrl);
@@ -218,6 +253,42 @@ export function SceneRow({ scene, paused, onRetry, onCorrect, onSetPause }: Prop
                 <button type="submit" className="primary" disabled={pending}>
                   Save correction and retry
                 </button>
+              </form>
+            )}
+            {/* rebuild-scene (JOS-235), Decision 9 — derived from state, never rendered-and-disabled; an inline form, not a browser dialog. */}
+            {canRebuild && !rebuildOpen && (
+              <button type="button" onClick={openRebuildForm}>
+                <Icon name="retry" />
+                Rebuild scene {scene.index}
+              </button>
+            )}
+            {canRebuild && rebuildOpen && (
+              <form
+                aria-label={`Rebuild scene ${scene.index}`}
+                className="correction-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void runAction(() => onRebuild!(scene.sceneId, rebuildChanges)).then((accepted) => {
+                    if (accepted) setRebuildOpen(false);
+                  });
+                }}
+              >
+                <p>
+                  The image and the clip are generated again by the providers, which costs one request each. The rest of the session is kept and
+                  the final video is then rebuilt.
+                </p>
+                <label htmlFor={`rebuild-image-${scene.sceneId}`}>IMAGE instruction for scene {scene.index}</label>
+                <textarea id={`rebuild-image-${scene.sceneId}`} value={imageDraft} onChange={(e) => setImageDraft(e.target.value)} />
+                <label htmlFor={`rebuild-video-${scene.sceneId}`}>VIDEO instruction for scene {scene.index}</label>
+                <textarea id={`rebuild-video-${scene.sceneId}`} value={videoDraft} onChange={(e) => setVideoDraft(e.target.value)} />
+                <div className="rebuild-actions">
+                  <button type="submit" className="primary" disabled={pending || rebuildHasEmptyChange}>
+                    Rebuild image and clip
+                  </button>
+                  <button type="button" disabled={pending} onClick={() => setRebuildOpen(false)}>
+                    Cancel
+                  </button>
+                </div>
               </form>
             )}
             {/* retry-or-correct-image (JOS-157), design Decision 7 — a 404/409 refusal shown as its sentence;

@@ -13,6 +13,7 @@ import { appSettingsResponseSchema, visualStylePromptBodySchema } from "./adminS
 import { retryAssembly } from "./assemblyRetry.ts";
 import { retryVoiceOver } from "./voiceOverRetry.ts";
 import { rebuildFinalVideo } from "./finalVideoRebuild.ts";
+import { rebuildScene } from "./sceneRebuild.ts";
 import { setScenePause } from "./scenePauseEdit.ts";
 import { randomUUID } from "node:crypto";
 import {
@@ -119,6 +120,9 @@ const providerCallbackParamsSchema = z.object({ requestId: z.string().uuid() });
 // follows the same "an operation that accepts a body ignores locked fields" convention every other
 // chunk-mutating route in this project uses (consult-session AC1) — an extra field in the body is read nowhere
 // and so changes nothing, the same guarantee `.strict()` would give, without breaking that shared convention.
+// rebuild-scene (JOS-235) — an omitted instruction keeps the stored one; a present one must not be empty.
+const instructionSchema = z.string().transform((value) => value.trim()).pipe(z.string().min(1));
+const rebuildSceneBodySchema = z.object({ imageInstruction: instructionSchema.optional(), videoInstruction: instructionSchema.optional() });
 const correctBodySchema = z.object({ instruction: z.string().transform((value) => value.trim()).pipe(z.string().min(1)) });
 
 // see-provider-and-attempts (JOS-166) Decision 4 — the closed list of what a stage diagnostic may carry. `.strict()` makes
@@ -143,6 +147,9 @@ const videoRequestSchema = z
       .nullable()
       .describe("Median generation time of earlier clips of the same provider (and duration when at least 3 exist); null when there are none."),
     body: z.object({ prompt: z.string(), duration: z.number(), resolution: z.string(), firstFrame: z.string() }).strict(),
+    taskId: z.string().describe("JOS-233: the provider's task id of the current attempt."),
+    lastCheckedAt: z.string().nullable().describe("JOS-233: the last 'still running' answer this application received for the task; null until the first one since it started."),
+    waitEndsAt: z.string().nullable().describe("JOS-233: when the clip wait ceiling fails the scene if the task is unfinished; null when the video stage has no time limit."),
   })
   .strict();
 
@@ -290,6 +297,7 @@ const sessionResponseSchema = z.object({
     .object({
       version: z.number().int().min(1).describe("1 for the original final-video.mp4; 2 onwards for each rebuild. finalVideoUrl always serves this version."),
       pendingPauseEdits: z.boolean().describe("True when the User's pause edits differ from those this version was built with, so a rebuild would change it."),
+      staleScenes: z.boolean().describe("True when a scene was rebuilt after this version was built, so a rebuild would change it (rebuild-scene, JOS-235)."),
       rebuildFailure: z
         .object({ cause: z.string() })
         .optional()
@@ -623,6 +631,28 @@ export const routes: FastifyPluginAsync = async (app) => {
         return { ok: false, reason: result.reason };
       }
       return { ok: true };
+    },
+  );
+
+  // rebuild-scene (JOS-235) — the User rebuilds a generated scene (image, then clip) with optionally edited instructions;
+  // 202: the work happens after the answer, like every generation.
+  typed.post(
+    "/sessions/:sessionId/scenes/:sceneId/rebuild",
+    {
+      schema: {
+        params: sceneParamsSchema,
+        body: rebuildSceneBodySchema,
+        response: { 202: retryAcceptedSchema, 404: conflictSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const result = rebuildScene(request.params.sessionId, request.params.sceneId, request.body);
+      if (result.ok) {
+        reply.code(202);
+        return result;
+      }
+      reply.code(result.reason === "unknown-scene" ? 404 : 409);
+      return { ok: false, reason: result.reason };
     },
   );
 

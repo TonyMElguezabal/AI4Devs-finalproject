@@ -17,6 +17,7 @@ import {
   saveTelemetryConsent,
   pauseSession,
   rebuildFinalVideo,
+  rebuildScene,
   retryAssembly,
   retryDecomposition,
   retryScene,
@@ -154,14 +155,13 @@ function RegularApp() {
           snapshot={snapshot}
           notFound={notFound}
           onStartNew={handleStartNew}
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises -- a failed pause is not surfaced yet (JOS-208 PR note)
           onPause={() => pauseSession(sessionId)}
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises -- a failed continue is not surfaced yet (JOS-208 PR note)
           onContinue={() => continueSession(sessionId)}
           onRetry={(sceneId) => retryScene(sessionId, sceneId)}
           onCorrect={(sceneId, instruction) => correctScene(sessionId, sceneId, instruction)}
           onSetPause={(sceneId, seconds) => setScenePause(sessionId, sceneId, seconds)}
           onRebuildFinalVideo={() => rebuildFinalVideo(sessionId)}
+          onRebuildScene={(sceneId, instructions) => rebuildScene(sessionId, sceneId, instructions)}
           onRetryPhase={(phase) => {
             if (phase === "voice-over") return retryVoiceOver(sessionId);
             if (phase === "decomposition") return retryDecomposition(sessionId);

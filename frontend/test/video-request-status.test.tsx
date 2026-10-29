@@ -10,7 +10,17 @@ const SENT_AT = "2026-10-27T12:04:10.000Z";
 const BODY = { prompt: "Open on the calendar.", duration: 10, resolution: "2K", firstFrame: "scene 3 image" };
 
 function request(overrides: Partial<VideoRequestView> = {}): VideoRequestView {
-  return { provider: { name: "RunningHub", model: "minimax/hailuo-h3" }, attempt: 1, sentAt: SENT_AT, estimate: { seconds: 500, basedOn: 3 }, body: BODY, ...overrides };
+  return {
+    provider: { name: "RunningHub", model: "minimax/hailuo-h3" },
+    attempt: 1,
+    sentAt: SENT_AT,
+    estimate: { seconds: 500, basedOn: 3 },
+    body: BODY,
+    taskId: "task-abc",
+    lastCheckedAt: null,
+    waitEndsAt: new Date(Date.parse(SENT_AT) + 2400 * 1000).toISOString(),
+    ...overrides,
+  };
 }
 
 function generatingScene(videoRequest: VideoRequestView | undefined): SceneEventPayload {
@@ -119,5 +129,51 @@ describe("the time formats", () => {
 
   it("never shows a negative elapsed time when the browser clock is behind the server's", () => {
     expect(formatElapsed(-4)).toBe("0 s");
+  });
+});
+
+// show-clip-task-liveness (JOS-233), design Decision 5 — the task id, the last check and the wait's end, under the same block.
+describe("the task and its last check", () => {
+  const checkedSecondsAfterSend = (seconds: number) => new Date(Date.parse(SENT_AT) + seconds * 1000).toISOString();
+
+  it("shows the provider's task id", async () => {
+    await renderExpanded(generatingScene(request({ taskId: "task-abc" })));
+
+    const view = within(block());
+    expect(view.getByText("Task id")).toBeTruthy();
+    expect(view.getByText("task-abc").tagName).toBe("CODE");
+  });
+
+  it("shows how long ago the task was last checked, counting on without a new snapshot", async () => {
+    await renderExpanded(generatingScene(request({ lastCheckedAt: checkedSecondsAfterSend(200) }))); // the clock is at 210 s
+
+    expect(within(block()).getByText("10 s ago")).toBeTruthy();
+
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(within(block()).getByText("15 s ago")).toBeTruthy();
+  });
+
+  it("says the task has not been checked yet when there is no last check", async () => {
+    await renderExpanded(generatingScene(request({ lastCheckedAt: null })));
+
+    expect(within(block()).getByText("Not checked yet")).toBeTruthy();
+  });
+
+  it("shows when the wait ends if the clip is unfinished", async () => {
+    const waitEndsAt = checkedSecondsAfterSend(2400);
+    await renderExpanded(generatingScene(request({ waitEndsAt })));
+
+    const view = within(block());
+    expect(view.getByText("Gives up at")).toBeTruthy();
+    expect(view.getByText(`${formatClock(waitEndsAt)} if unfinished`)).toBeTruthy();
+  });
+
+  it("shows no end to the wait when the video stage has no time limit", async () => {
+    await renderExpanded(generatingScene(request({ waitEndsAt: null })));
+
+    expect(within(block()).queryByText("Gives up at")).toBeNull();
   });
 });

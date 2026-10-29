@@ -10,6 +10,7 @@
 // this is no longer a disposable stand-in, it is the decision.
 import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import { ADAPTER_VENDORS, SEEDED_PROFILES } from "./providerTypes.ts";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
 import { getConsent, normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
 import { ulid } from "./util/ulid.ts";
@@ -721,6 +722,17 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       `);
     },
   },
+  {
+    version: 26,
+    description: "add scenes.rebuild_count and runs.final_video_stale: how often the User rebuilt a scene, and whether the final video predates one (rebuild-scene, JOS-235)",
+    up: (target) => {
+      // Defaults only, no backfill: every existing scene was generated once, and no existing final video predates a rebuild.
+      target.exec(`
+        ALTER TABLE scenes ADD COLUMN rebuild_count INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE runs ADD COLUMN final_video_stale INTEGER NOT NULL DEFAULT 0;
+      `);
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -867,6 +879,14 @@ export function writeArtefactOnce(projectFolder: string, relativePath: string, c
     rmSync(temporaryPath, { force: true });
   }
   return relativePath;
+}
+
+/**
+ * rebuild-scene (JOS-235), design Decision 3 — the stem of a scene's image and clip file names: `scene-N` for its first
+ * generation (today's names), `scene-N-r{k}` after the k-th User rebuild, so a rebuild never meets an existing file.
+ */
+export function sceneFileStem(scene: Pick<Scene, "index" | "rebuildCount">): string {
+  return scene.rebuildCount > 0 ? `scene-${scene.index}-r${scene.rebuildCount}` : `scene-${scene.index}`;
 }
 
 export function resolveArtefactPath(projectFolder: string, relativePath: string): string {
@@ -1030,7 +1050,7 @@ export function createRun(id: string, title: string, script: string, language: s
   db.prepare(
     "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script, visual_style_prompt, reference_image_path, reference_image_content_type, reference_image_sha256) VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)",
   ).run(id, title, createdAt, language, projectFolder, script, visualStylePrompt, referenceImage?.path ?? null, referenceImage?.contentType ?? null, referenceImage?.sha256 ?? null);
-  return { id, title, script, createdAt, paused: false, language, projectFolder, visualStylePrompt, referenceImage, voiceProviderId: null, decompositionProviderId: null, alignmentProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
+  return { id, title, script, createdAt, paused: false, language, projectFolder, visualStylePrompt, referenceImage, voiceProviderId: null, decompositionProviderId: null, alignmentProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null, finalVideoStale: false };
 }
 
 export function setRunProjectFolder(runId: string, projectFolder: string): void {
@@ -1073,6 +1093,7 @@ export function createScene(
     videoResult: null,
     videoRequestSentAt: null,
     videoRequestBody: null,
+    rebuildCount: 0,
     updatedAt,
   };
 }
@@ -1116,6 +1137,7 @@ interface SceneRow {
   video_provider: string | null;
   video_result: string | null;
   video_request_sent_at: string | null;
+  rebuild_count: number;
   video_request: string | null;
   updated_at: string;
 }
@@ -1139,6 +1161,7 @@ interface RunRow {
   failure: string | null;
   final_video_path: string | null;
   rebuild_requested_at: string | null;
+  final_video_stale: number;
 }
 
 interface VoiceOverRow {
@@ -1255,6 +1278,7 @@ function rowToScene(row: SceneRow): Scene {
     videoResult: row.video_result ?? null,
     videoRequestSentAt: row.video_request_sent_at ?? null,
     videoRequestBody: row.video_request ? (JSON.parse(row.video_request) as VideoRequestBody) : null,
+    rebuildCount: row.rebuild_count ?? 0,
     updatedAt: row.updated_at,
   };
 }
@@ -1274,6 +1298,7 @@ function rowToRun(row: RunRow): Run {
     failure: row.failure ? (JSON.parse(row.failure) as SessionFailure) : null,
     finalVideoPath: row.final_video_path ?? null,
     rebuildRequestedAt: row.rebuild_requested_at ?? null,
+    finalVideoStale: Boolean(row.final_video_stale),
     visualStylePrompt: row.visual_style_prompt ?? "",
     referenceImage:
       row.reference_image_path && row.reference_image_content_type && row.reference_image_sha256
@@ -1834,6 +1859,28 @@ export function completeStageAttempt(
   return true;
 }
 
+/**
+ * report-stable-provider-name (JOS-213), Decision 2 — the `provider` label telemetry reports for a stored identifier: one fixed
+ * vendor name (`ADAPTER_VENDORS` of the profile's adapter type), `local` for assembly, `stub` for a stub, else `unknown`. The
+ * stored identifier, an `/admin` profile's id and its label are never returned. Reads `provider_profiles` directly because
+ * `providerProfiles.ts` imports this module.
+ */
+function telemetryProviderOf(identifier: string | null, stage: string): string {
+  if (identifier === null) return stage === "assembly" ? "local" : "unknown";
+  if (identifier === "elevenlabs-native") return "ElevenLabs";
+  if (identifier.startsWith("stub-")) return "stub";
+  // The ids image and clip scenes stored before the first profiles existed; literals because config/providers.ts loads the
+  // settings file when imported. They are LEGACY_IMAGE_PROVIDER_IDENTIFIER and LEGACY_VIDEO_PROVIDER_IDENTIFIER there.
+  const profileId =
+    identifier === "fal-ai/flux/dev"
+      ? SEEDED_PROFILES.image.id
+      : identifier === "/openapi/v2/minimax/hailuo-h3/image-to-video"
+        ? SEEDED_PROFILES.video.id
+        : identifier;
+  const row = db.prepare("SELECT adapter_type FROM provider_profiles WHERE id = ?").get(profileId) as { adapter_type: string } | undefined;
+  return (row && (ADAPTER_VENDORS as Record<string, string | undefined>)[row.adapter_type]) ?? "unknown";
+}
+
 function reportStageAttempt(
   row: { run_id: string; stage: string; provider_id: string | null; sent_at: string | null },
   outcome: { outcome: string; finishedAt: string; errorCode?: string; errorMessage?: string },
@@ -1841,7 +1888,7 @@ function reportStageAttempt(
   try {
     const consent = getConsent();
     if (!consent.providerUsage && !consent.errors) return;
-    const provider = row.provider_id ?? "unknown";
+    const provider = telemetryProviderOf(row.provider_id, row.stage);
     const normalized = normalizeOutcome(outcome.outcome);
     let billed: BilledUnit | undefined;
     if (normalized === "success" && row.stage === "voice-over") {
@@ -1915,6 +1962,11 @@ export function requestFinalVideoRebuild(runId: string): boolean {
     .prepare("UPDATE runs SET rebuild_requested_at = ? WHERE id = ? AND final_video_path IS NOT NULL AND rebuild_requested_at IS NULL")
     .run(nowIso(), runId);
   return Number(result.changes) > 0;
+}
+
+/** rebuild-scene (JOS-235), Decision 5 — the final video was just rebuilt from every scene's current clip. */
+export function clearFinalVideoStale(runId: string): void {
+  db.prepare("UPDATE runs SET final_video_stale = 0 WHERE id = ?").run(runId);
 }
 
 export function clearFinalVideoRebuildRequest(runId: string): void {
@@ -2098,6 +2150,51 @@ export function markSceneForManualVideoRetry(sessionId: string, sceneId: string,
 }
 
 /**
+ * rebuild-scene (JOS-235), design Decisions 1 and 5 — the User rebuilds a generated scene: one transaction that
+ * returns it to `submitted`, withdraws its image, clip and request, stores any edited instruction, counts the rebuild
+ * and marks an existing final video as older than the scene. The write is conditional on the scene being
+ * `image-complete` or `chunk-complete` in this session, so a scene with work in flight, a failed one and a second
+ * back-to-back call all read as `false`. The bound providers, the requested duration and the narration interval are
+ * not in the column list, so a rebuild cannot change them.
+ */
+export function markSceneForRebuild(
+  sessionId: string,
+  sceneId: string,
+  instructions: { imageInstruction?: string; videoInstruction?: string },
+): boolean {
+  const imageInstruction = instructions.imageInstruction?.trim();
+  const videoInstruction = instructions.videoInstruction?.trim();
+  const changed = inTransaction((): boolean => {
+    const scene = getRow<{ image_instruction: string }>(
+      "SELECT image_instruction FROM scenes WHERE id = ? AND run_id = ? AND status IN ('image-complete', 'chunk-complete')",
+      sceneId,
+      sessionId,
+    );
+    if (!scene) return false;
+    // A skeleton scene (no IMAGE) is generated from its legacy `instruction`, the field a correction also targets.
+    const imageColumn = scene.image_instruction ? "image_instruction" : "instruction";
+    db.prepare(
+      `UPDATE scenes SET status = 'submitted', result = NULL, video_result = NULL, attempts = 0, last_error = NULL,
+         current_request_id = NULL, video_request_sent_at = NULL, video_request = NULL, rebuild_count = rebuild_count + 1,
+         ${imageColumn} = COALESCE(?, ${imageColumn}), video_instruction = COALESCE(?, video_instruction), updated_at = ?
+       WHERE id = ?`,
+    ).run(imageInstruction ?? null, videoInstruction ?? null, nowIso(), sceneId);
+    db.prepare("DELETE FROM scene_results WHERE scene_id = ?").run(sceneId);
+    db.prepare("DELETE FROM scene_video_results WHERE scene_id = ?").run(sceneId);
+    db.prepare("UPDATE runs SET final_video_stale = 1 WHERE id = ? AND final_video_path IS NOT NULL").run(sessionId);
+    return true;
+  });
+  if (changed) {
+    const projectFolder = getRun(sessionId)!.projectFolder;
+    if (imageInstruction !== undefined) {
+      recordCorrectedInstruction(projectFolder, sceneId, getScene(sceneId)!.imageInstruction ? "imageInstruction" : "instruction", imageInstruction);
+    }
+    if (videoInstruction !== undefined) recordCorrectedInstruction(projectFolder, sceneId, "videoInstruction", videoInstruction);
+  }
+  return changed;
+}
+
+/**
  * retry-or-correct-clip (JOS-158) — the clip correction and transition to the video launch state are atomic.
  * No image, narrative, timing, provider-binding or result field is written here.
  */
@@ -2249,7 +2346,7 @@ function reportProviderRequest(sceneId: string, latencyMs: number, mode: Provide
       | { provider: string | null; video_provider: string | null; requested_duration_seconds: number | null }
       | undefined;
     if (!scene) return;
-    const provider: string = (stage === "video" ? scene.video_provider : scene.provider) ?? "unknown";
+    const provider = telemetryProviderOf(stage === "video" ? scene.video_provider : scene.provider, stage);
     const normalized = normalizeOutcome(mode);
     let billed: BilledUnit | undefined;
     if (stage === "image") billed = { unit: "images", amount: 1 };

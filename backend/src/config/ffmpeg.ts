@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 
 // Where the assembly adapter finds ffmpeg and ffprobe. `FFMPEG_PATH` / `FFPROBE_PATH` win; otherwise the Homebrew
@@ -18,3 +19,20 @@ export function resolveTool(
 
 export const FFMPEG = resolveTool("ffmpeg");
 export const FFPROBE = resolveTool("ffprobe");
+
+let subtitleFilterAvailable: boolean | undefined;
+
+/**
+ * Whether the ffmpeg in use lists the `subtitles` filter (it needs libass; the Homebrew build does not have it). Asked
+ * once and remembered. An ffmpeg that cannot even be run counts as having none.
+ */
+export function ffmpegHasSubtitleFilter(): boolean {
+  if (subtitleFilterAvailable === undefined) {
+    try {
+      subtitleFilterAvailable = /^\s*\S+\s+subtitles\s/m.test(execFileSync(FFMPEG, ["-hide_banner", "-filters"], { encoding: "utf8" }));
+    } catch {
+      subtitleFilterAvailable = false;
+    }
+  }
+  return subtitleFilterAvailable;
+}
