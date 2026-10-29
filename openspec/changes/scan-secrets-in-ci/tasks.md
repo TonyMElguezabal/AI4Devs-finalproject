@@ -5,17 +5,17 @@
 
 ## 1. Allowlist files
 
-- [ ] 1.1 Create `.gitleaks.toml`: a header comment naming JOS-211 and this change, `[extend] useDefault = true`, and one `[[allowlists]]` entry with a `description` and the anchored path `^graphify-out/cache/stat-index\.json$` (design Decision 4)
-- [ ] 1.2 Create `.gitleaksignore` with the eight historical fingerprints from a fresh `gitleaks git --redact -f json` run, each under a `# <reason>` line: the example database password (3) and the placeholder curl bearer examples (5)
-- [ ] 1.3 Run gitleaks 8.30.1 over the full history from the repository root with no flags beyond `--redact`; it reports no finding. Save the command and summary in `reports/YYYY-MM-DD-full-history-scan.md`
+- [x] 1.1 Create `.gitleaks.toml`: a header comment naming JOS-211 and this change, `[extend] useDefault = true`, and one `[[allowlists]]` entry with a `description` and the anchored path `^graphify-out/cache/stat-index\.json$` (design Decision 4)
+- [x] 1.2 Create `.gitleaksignore` with the eight historical fingerprints from a fresh `gitleaks git --redact -f json` run, each under a `# <reason>` line: the example database password (3) and the placeholder curl bearer examples (5)
+- [x] 1.3 Run gitleaks 8.30.1 over the full history from the repository root with no flags beyond `--redact`; it reports no finding. Save the command and summary in `reports/YYYY-MM-DD-full-history-scan.md`
 
 ## 2. CI job
 
-- [ ] 2.1 Add a `secrets` job to `.github/workflows/ci.yml`: `ubuntu-latest`, `actions/checkout` at the SHA the test job uses with `fetch-depth: 0`, workflow-level `contents: read` kept, no secrets
-- [ ] 2.2 Add the install step: download the 8.30.1 `linux_x64` archive, `sha256sum -c` against the checksum in design Decision 1, extract
-- [ ] 2.3 Add the scan step with the range logic of design Decision 3 (pull request base..head; push before..after; full history when `before` is all zeros or missing) and `gitleaks git --redact --no-banner .`
-- [ ] 2.4 Update the workflow header comment to mention the secrets scan (JOS-211)
-- [ ] 2.5 Check the step's range logic locally with the same shell on three inputs (a two-commit range, an all-zeros `before`, an unknown `before`) and record the `--log-opts` each one produces
+- [x] 2.1 Add a `secrets` job to `.github/workflows/ci.yml`: `ubuntu-latest`, `actions/checkout` at the SHA the test job uses with `fetch-depth: 0`, workflow-level `contents: read` kept, no secrets
+- [x] 2.2 Add the install step: download the 8.30.1 `linux_x64` archive, `sha256sum -c` against the checksum in design Decision 1, extract
+- [x] 2.3 Add the scan step with the range logic of design Decision 3 (pull request base..head; push before..after; full history when `before` is all zeros or missing) and `gitleaks git --redact --no-banner .`
+- [x] 2.4 Update the workflow header comment to mention the secrets scan (JOS-211)
+- [x] 2.5 Check the step's range logic locally with the same shell on three inputs (a two-commit range, an all-zeros `before`, an unknown `before`) and record the `--log-opts` each one produces
 
 ## 3. Review and Update Existing Unit Tests (MANDATORY)
 
