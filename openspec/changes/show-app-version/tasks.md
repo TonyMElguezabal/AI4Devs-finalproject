@@ -58,4 +58,4 @@
 - [x] 9.2 Update `readme.md` (release section, Spanish): where users find the version and how it maps to a GitHub release (`release-<tree hash>`)
 - [x] 9.3 Run `graphify update .`
 - [x] 9.4 Check with a `dry-run` release artifact that the label shows the date-hash version (ticket Definition of Done)
-- [ ] 9.5 Open the pull request into `feature/entrega-3-JAME` linking JOS-238; archive the change after merge
+- [x] 9.5 Open the pull request into `feature/entrega-3-JAME` linking JOS-238 (PR #146); archive the change after merge
