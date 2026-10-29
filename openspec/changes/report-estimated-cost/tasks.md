@@ -17,8 +17,8 @@
 
 ## 3. Backend: the cost report module (TDD; design Decisions 2, 4)
 
-- [ ] 3.1 Write failing tests for `estimatedCostReport({ from, to })` on a seeded store: billed units × price per row; zero price is priced; no price and no profile are unpriced with `null` cost; failed units shown and not priced; current price used after an edit; one total per currency; `totalsExcludeUnpriced` true only when a row is unpriced; billed units equal R1's for the same period; no rows and no totals for an empty period.
-- [ ] 3.2 Implement `backend/src/estimatedCostReport.ts`. Make 3.1 pass.
+- [x] 3.1 Write failing tests for `estimatedCostReport({ from, to })` on a seeded store: billed units × price per row; zero price is priced; no price and no profile are unpriced with `null` cost; failed units shown and not priced; current price used after an edit; one total per currency; `totalsExcludeUnpriced` true only when a row is unpriced; billed units equal R1's for the same period; no rows and no totals for an empty period.
+- [x] 3.2 Implement `backend/src/estimatedCostReport.ts`. Make 3.1 pass.
 
 ## 4. Backend: the route (TDD; design Decision 3)
 
