@@ -52,19 +52,19 @@
 
 ## 9. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the real server on a scratch store and scratch projects folder with stub adapters and `ALLOW_TEST_ENDPOINTS=1`; price the voice provider in USD, one video provider in EUR, one at 0, and leave the image provider unpriced; run sessions with successes and failed clip attempts.
-- [ ] 9.2 Without the Administrator password: 401.
-- [ ] 9.3 With it: the cost report for the default, all-time and custom periods; compare each row with the spike's R2 query run with `sqlite3` on the same store; check the per-currency totals and the exclusion flag; check the sessions report's per-session cost.
-- [ ] 9.4 Error cases: `from` after `to`, a non-date value (400).
-- [ ] 9.5 Search the response bodies for the session scripts and failure texts: none present. Confirm the store's row counts are unchanged.
-- [ ] 9.6 Delete the scratch store and folder; confirm the default store is untouched. Save `openspec/changes/report-estimated-cost/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
+- [x] 9.1 Start the real server on a scratch store and scratch projects folder with stub adapters and `ALLOW_TEST_ENDPOINTS=1`; price the voice provider in USD, one video provider in EUR, one at 0, and leave the image provider unpriced; run sessions with successes and failed clip attempts.
+- [x] 9.2 Without the Administrator password: 401.
+- [x] 9.3 With it: the cost report for the default, all-time and custom periods; compare each row with the spike's R2 query run with `sqlite3` on the same store; check the per-currency totals and the exclusion flag; check the sessions report's per-session cost.
+- [x] 9.4 Error cases: `from` after `to`, a non-date value (400).
+- [x] 9.5 Search the response bodies for the session scripts and failure texts: none present. Confirm the store's row counts are unchanged.
+- [x] 9.6 Delete the scratch store and folder; confirm the default store is untouched. Save `openspec/changes/report-estimated-cost/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`.
 
 ## 10. E2E Testing with the browser (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Applicability: a new `/admin` table and a sessions column, so this step applies.
-- [ ] 10.2 On the scratch store of step 9: the Reports section shows the cost table with priced and unpriced rows, per-currency totals and the exclusion note; the sessions table shows each session's cost and note.
-- [ ] 10.3 Change the period; the cost table follows. Remove the voice price on `/admin`; the report shows it unpriced on reload.
-- [ ] 10.4 Restore the environment and save `openspec/changes/report-estimated-cost/reports/YYYY-MM-DD-step-10-e2e.md`.
+- [x] 10.1 Applicability: a new `/admin` table and a sessions column, so this step applies.
+- [x] 10.2 On the scratch store of step 9: the Reports section shows the cost table with priced and unpriced rows, per-currency totals and the exclusion note; the sessions table shows each session's cost and note.
+- [x] 10.3 Change the period; the cost table follows. Remove the voice price on `/admin`; the report shows it unpriced on reload.
+- [x] 10.4 Restore the environment and save `openspec/changes/report-estimated-cost/reports/YYYY-MM-DD-step-10-e2e.md`.
 
 ## 11. Update Technical Documentation (MANDATORY)
 
