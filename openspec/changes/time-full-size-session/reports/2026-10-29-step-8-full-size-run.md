@@ -98,4 +98,4 @@ Image and video attempts come from the request log; a transient failure lasting 
 
 - Voice (60 s of 600), decomposition (116 s of 600): keep.
 - Video: keep 1,200 s only if the 1,261 s success is explained; otherwise raise it (suggested 1,800 s) through an OpenSpec change.
-- Image: 300 s is the limit that failed here; a change needs a rerun at the concurrency that ships (200) before choosing a number.
+- Image: 300 s is too tight even at concurrency 6 (139 of 244 attempts hit it, margin 1.01), so raise it through an OpenSpec change. The slowest times are censored at 300 s, so the number needs headroom over what was observed; if the real distribution is wanted, run only the image stage at concurrency 200 with a temporary higher limit (for example 900 s), without paying for video.
