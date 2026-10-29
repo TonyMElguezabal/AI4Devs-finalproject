@@ -23,10 +23,10 @@
 
 ## 4. Dry run with a dummy key (Definition of Done)
 
-- [ ] 4.1 On a throwaway local branch from this branch, commit a file with an OpenAI-shaped dummy key, then a second commit removing it; run the range scan of 2.3 over the two commits and confirm it fails, names file, line, rule and the adding commit, and prints `REDACTED` instead of the value
-- [ ] 4.2 In the same range, add a new key-shaped line to `readme.md` and confirm it is still reported despite the readme fingerprints in `.gitleaksignore`
-- [ ] 4.3 Corrupt the expected checksum in a local copy of the install step and confirm `sha256sum -c` fails before the scanner runs
-- [ ] 4.4 Delete the throwaway branch; record commands and redacted output in `reports/YYYY-MM-DD-dry-run-dummy-key.md`. A test pull request on GitHub is opened only if the user approves it
+- [x] 4.1 On a throwaway local branch from this branch, commit a file with an OpenAI-shaped dummy key, then a second commit removing it; run the range scan of 2.3 over the two commits and confirm it fails, names file, line, rule and the adding commit, and prints `REDACTED` instead of the value
+- [x] 4.2 In the same range, add a new key-shaped line to `readme.md` and confirm it is still reported despite the readme fingerprints in `.gitleaksignore`
+- [x] 4.3 Corrupt the expected checksum in a local copy of the install step and confirm `sha256sum -c` fails before the scanner runs
+- [x] 4.4 Delete the throwaway branch; record commands and redacted output in `reports/YYYY-MM-DD-dry-run-dummy-key.md`. A test pull request on GitHub is opened only if the user approves it
 
 ## 5. Run Unit Tests and Verify Database State (MANDATORY)
 
@@ -38,7 +38,7 @@
 
 ## 7. Update Technical Documentation (MANDATORY)
 
-- [ ] 7.1 `readme.md` section 2.6: add `gitleaks git --redact .` next to the test commands, with the CI version, install hint, and the one-line note that a real leaked key must be revoked and rotated, not only removed; mention the secrets job in the CI sentence
+- [ ] 7.1 `readme.md` section 2.6: add `gitleaks git --redact --verbose .` next to the test commands, with the CI version, install hint, and the one-line note that a real leaked key must be revoked and rotated, not only removed; mention the secrets job in the CI sentence
 - [ ] 7.2 `readme.md` section 2.5 (Secretos): add that every pull request and push is scanned with gitleaks, with the allowlist files named
 - [ ] 7.3 `docs/release/mvp-closure-report.md` I1 row and action 9, `docs/release/mvp-release-gates.md` security gap, and `docs/release/cleanup-inventory.md` K1: state that the scan runs in CI (JOS-211) and the graph cache is allowlisted
 - [ ] 7.4 Run `graphify update .`

@@ -53,7 +53,7 @@ A second job in `ci.yml`, not a new workflow file.
 - `pull_request`: `--log-opts="<base.sha>..<head.sha>"` — every commit of the pull request; commits merged in from the base branch are excluded because they are reachable from the base.
 - `push`: `--log-opts="<before>..<after>"`; if `before` is all zeros (new branch) or not in the clone (force push), no `--log-opts`, which scans the full history.
 
-Always `gitleaks git --redact --no-banner .`; the default output lists file, line, rule and commit, and the exit code is non-zero on a finding.
+Always `gitleaks git --redact --verbose --no-banner .`: without `--verbose` gitleaks prints only a count (found in the task 4.1 dry run), so the file, line, rule and commit would not reach the log; `--redact` replaces the value with `REDACTED`. The exit code is non-zero on a finding.
 
 - **Why:** criterion 3 asks for every commit, not the final tree (`gitleaks dir` would miss a key added and removed). Range scans take seconds, while the full history takes about 70 s and grows with every graph rewrite.
 - **Alternative:** full history on every run. Rejected for cost; it is the fallback and the documented local command instead.
@@ -66,7 +66,7 @@ Always `gitleaks git --redact --no-banner .`; the default output lists file, lin
 
 ### Decision 5: Local command
 
-`readme.md` 2.6 adds, next to the test commands, `gitleaks git --redact .` from the repository root (full history, about 70 s, same config and ignore files), with the version CI pins and a note to install it with `brew install gitleaks` or from the release page.
+`readme.md` 2.6 adds, next to the test commands, `gitleaks git --redact --verbose .` from the repository root (full history, about 70 s, same config and ignore files), with the version CI pins and a note to install it with `brew install gitleaks` or from the release page.
 
 ## Risks / Trade-offs
 

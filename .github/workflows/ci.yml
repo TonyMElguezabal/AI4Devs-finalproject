@@ -73,5 +73,5 @@ jobs:
           elif git cat-file -e "${PUSH_BEFORE}^{commit}" 2>/dev/null; then
             range="${PUSH_BEFORE}..${PUSH_AFTER}"
           fi
-          # --redact: the log names file, line and rule, never the value.
-          gitleaks git --redact --no-banner ${range:+--log-opts="$range"} .
+          # --verbose prints each finding (file, line, rule, commit); --redact keeps the value out of the log.
+          gitleaks git --redact --verbose --no-banner ${range:+--log-opts="$range"} .
