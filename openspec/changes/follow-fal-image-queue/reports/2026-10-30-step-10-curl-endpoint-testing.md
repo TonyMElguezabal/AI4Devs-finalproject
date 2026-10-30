@@ -42,7 +42,29 @@ With the image stub failing every attempt:
 
 All servers were stopped (no `node src/server.ts` process left). The scratch database and projects folder live in the session scratchpad; `backend/data` was not used.
 
+## 10.5 Real long run (46 scenes, real keys)
+
+Run by the owner on the application started from this branch (`FFMPEG_PATH` and `FFPROBE_PATH` set to the pinned build with libass), session `01M65GNA0GJ23QRQB072RYZNZF`, script of 46 scenes (the spend ceiling was approved: $3.105 expected for images, clips on RunningHub). Numbers read from `backend/data/skeleton.sqlite`, read-only:
+
+| Stage | Requests | Scenes | Outcome | Average / longest | Highest attempt |
+| -- | -- | -- | -- | -- | -- |
+| image | 46 | 46 | 46 `success` | 136 s / 213 s | 1 |
+| video (clips) | 46 | 46 | 46 `success` | 531 s / 891 s | 1 |
+
+- **Image failures by cause: none.** No retry, no 429, no request hit the 300 s limit or the ceiling; `runs.image_sweep_at` stayed unset (nothing to sweep). First request 04:25:45Z, last (clip) 06:12:53Z.
+- All 46 scenes ended `chunk-complete`; the session ended in `final-video` (196,763,063 bytes).
+- **fal.ai usage CSV** (exported by the owner, 2026-10-29T04:00Z to 2026-10-30T04:52Z): the 04:00Z bucket bills `bytedance/seedream/v5/pro/edit` for **46 units, $3.105** (46 × $0.0675), exactly the 46 completed requests: no abandoned request was billed. Before the fix, the same kind of run billed 85-93 images per hour for 46-57 scenes (about 72 % of image spend wasted).
+- Fal's other lines in the file (flux/dev at 02:00Z and 03:00Z, one stray seedream image at 02:00Z, about $0.40) are not attributable to this run: they predate it (the run started 04:21Z).
+
+### Finding outside this change: assembly failed on a relative `PROJECTS_ROOT`
+
+The first assembly failed 4 times with `No such file or directory` on `data/projects/.assembly-tmp-XXXX/final-video.mp4`. Cause (pre-existing, from JOS-237): the application was started with the default relative `PROJECTS_ROOT` (`data/projects`), and with subtitles `ffmpegAssemblyTool.ts` runs ffmpeg with `cwd` set to its own temp folder, so the relative output path points nowhere. Not related to the image queue: narration, images and clips were kept. Workaround used: restart with an absolute `PROJECTS_ROOT` pointing at the same folder, then `POST /sessions/<id>/assembly/retry`; the video was built on that retry (the backend does not answer HTTP while ffmpeg runs, because the assembly uses `execFileSync`). To be filed as its own ticket.
+
+## Cleanup
+
+All scratch servers of steps 10.1-10.4 were stopped (no stray `node src/server.ts`). The scratch database and projects folder live in the session scratchpad. The real run's data (`backend/data`) and the running application belong to the owner's run and were left in place.
+
 ## Outcome
 
 - Steps 10.1-10.4: PASS
-- Step 10.5: not run, pending the owner's spend approval
+- Step 10.5: PASS, 46 images for 46 scenes, 0 failures, fal.ai CSV equal to completed requests
