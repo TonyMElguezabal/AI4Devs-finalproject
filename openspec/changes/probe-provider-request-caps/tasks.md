@@ -64,4 +64,4 @@
 - [x] 10.1 Amend ADR 0005's request-cap section with the measured ElevenLabs and RunningHub limits and the derivation. Result: table and paragraph in Decision 7 replaced with the measured limits and caps
 - [x] 10.2 Update `docs/development_guide.md` if a default it quotes changed. Result: no change: the guide quotes no default cap, only `video: 1` as an override example
 - [x] 10.3 Run `graphify update .`. Result: graph.json, graph.html and GRAPH_REPORT.md updated
-- [ ] 10.4 Comment on JOS-188 with the findings, the decision and the time spent, and check off its Definition of Done
+- [x] 10.4 Comment on JOS-188 with the findings, the decision and the time spent, and check off its Definition of Done. Result: comment posted and the four Definition of Done boxes checked on JOS-188 (the issue stays in Backlog)
