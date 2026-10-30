@@ -733,6 +733,18 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       `);
     },
   },
+  {
+    version: 27,
+    description: "add runs.image_sweep_at: when the session's one end-of-session image sweep ran (follow-fal-image-queue, JOS-239)",
+    up: (target) => {
+      // A session that already has a failed scene predates the sweep: its failures stay the owner's call, so it is marked as swept.
+      target.exec(`
+        ALTER TABLE runs ADD COLUMN image_sweep_at TEXT;
+        UPDATE runs SET image_sweep_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+          WHERE EXISTS (SELECT 1 FROM scenes s WHERE s.run_id = runs.id AND s.status = 'failed');
+      `);
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -2058,6 +2070,30 @@ export function markSceneInFlight(sceneId: string, requestId: string, attemptNum
   db.prepare(
     "UPDATE scenes SET status = 'image-generating', current_request_id = ?, attempts = ?, updated_at = ? WHERE id = ?",
   ).run(requestId, attemptNumber, nowIso(), sceneId);
+}
+
+/**
+ * follow-fal-image-queue (JOS-239), design Decision 6 — the scenes of a session that failed at the image stage (no stored
+ * image) for a reason a retry can fix: every one except those whose latest image request was not retryable. Empty once
+ * the session was swept (`image_sweep_at`), so the sweep runs once.
+ */
+export function getSweepableImageFailureIds(runId: string): string[] {
+  const rows = db
+    .prepare(
+      `SELECT s.id FROM scenes s
+       WHERE s.run_id = ? AND s.status = 'failed' AND s.result IS NULL
+         AND (SELECT image_sweep_at FROM runs WHERE id = s.run_id) IS NULL
+         AND COALESCE((SELECT p.mode FROM provider_requests p WHERE p.scene_id = s.id AND p.stage = 'image'
+                       ORDER BY p.sent_at DESC, p.rowid DESC LIMIT 1), '') <> 'not_retryable_failure'
+       ORDER BY s.idx ASC`,
+    )
+    .all(runId) as unknown as Array<{ id: string }>;
+  return rows.map((row) => row.id);
+}
+
+/** Marks the session as swept; true only for the one caller that did it, so two concurrent publishes cannot both sweep. */
+export function claimImageSweep(runId: string): boolean {
+  return Number(db.prepare("UPDATE runs SET image_sweep_at = ? WHERE id = ? AND image_sweep_at IS NULL").run(nowIso(), runId).changes) === 1;
 }
 
 /** follow-fal-image-queue (JOS-239) — the provider's own id of the image request now in flight, for diagnostics; a scene no longer generating keeps its value. */

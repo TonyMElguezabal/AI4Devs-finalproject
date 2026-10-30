@@ -78,7 +78,7 @@ Alternative: a `scenes.image_failure_sweepable` column — redundant with the at
 
 `runs.image_sweep_at TEXT NULL` records that the session was swept. It cannot be derived: a swept retry and a manual retry leave the same rows.
 
-`sweepIdleImageFailures(runId)` runs at the start of `broadcast(runId)`, the one function every scene settle, resume and manual action already calls before publishing. Its checks, in order: marker is null; `admitLaunch(runId).admitted` (not paused); `assemblyGate(scenes).processingSceneIndexes` is empty; at least one sweepable scene. Then it claims the marker with `UPDATE runs SET image_sweep_at = ? WHERE id = ? AND image_sweep_at IS NULL` and proceeds only if one row changed (two concurrent broadcasts cannot both sweep), and calls `manualRetry(runId, sceneId)` for each sweepable scene. Because this happens before `toSnapshot`, the session is never published as `failed` while the sweep is due. Boot calls it once per run after the settle, for a session that went idle just before a shutdown.
+`sweepIdleImageFailures(runId)` runs at the start of `broadcast(runId)`, the one function every scene settle, resume and manual action already calls before publishing. Its checks, in order: marker is null; `admitLaunch(runId).admitted` (not paused); `assemblyGate(scenes).processingSceneIndexes` is empty; at least one sweepable scene. Then it claims the marker with `UPDATE runs SET image_sweep_at = ? WHERE id = ? AND image_sweep_at IS NULL` and proceeds only if one row changed (two concurrent broadcasts cannot both sweep), and calls `manualRetry(runId, sceneId)` for each sweepable scene. Because this happens before `toSnapshot`, the session is never published as `failed` while the sweep is due. There is no sweep at boot: a session that is idle with fixable failures and no marker can only be a paused one (an unpaused one would have been swept when it went idle), and `continueSession` publishes through `broadcast`; sweeping at boot would also retry old failed sessions the owner has not asked about.
 
 Alternatives: call it from each failure/success site (many call sites, easy to miss one); derive the sweep inside `deriveSessionState` (that function is pure and must stay so).
 
@@ -96,7 +96,7 @@ A submitted request is not cancelled by a pause; it keeps being followed and its
 
 ## Migration Plan
 
-- One DB migration: `ALTER TABLE runs ADD COLUMN image_sweep_at TEXT` (null for existing runs, so old sessions can still be swept once if they go idle with fixable failures).
+- One DB migration (27): `ALTER TABLE runs ADD COLUMN image_sweep_at TEXT`, then every run that already has a failed scene is marked as swept: those failures predate the sweep, and what to do with them stays the owner's call. Other existing runs stay eligible, so a session in flight at the upgrade is still swept once if it goes idle with fixable failures.
 - `settings.default.json`: `maxSimultaneousRequests.image` 200 → 6. Installations with their own `settings.json` keep their value.
 - Rollback: revert the release; the extra nullable column is ignored by older builds.
 

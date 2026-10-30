@@ -260,7 +260,7 @@ describe("migration 26", () => {
     target.prepare("INSERT INTO runs (id, title, created_at) VALUES ('run-1', 'T', '2026-10-05T10:00:00.000Z')").run();
     target.prepare("INSERT INTO scenes (id, run_id, idx, status) VALUES ('scene-1', 'run-1', 1, 'chunk-complete')").run();
 
-    expect(applyMigrationsTo(target)).toEqual([26]);
+    expect(applyMigrationsTo(target, 26)).toEqual([26]);
 
     expect(target.prepare("SELECT rebuild_count AS n FROM scenes").get()).toEqual({ n: 0 });
     expect(target.prepare("SELECT final_video_stale AS n FROM runs").get()).toEqual({ n: 0 });

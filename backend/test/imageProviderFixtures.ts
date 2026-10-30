@@ -1,3 +1,4 @@
+import { db } from "../src/db.ts";
 import type { ImageGenerationResult, ImageHandle, ImagePollResult, ImageProvider, ReferenceImage } from "../src/imageProvider.ts";
 
 // follow-fal-image-queue (JOS-239) — the image port is submit / poll / cancel. Most tests only care what an image
@@ -59,4 +60,12 @@ export interface LegacyImageAdapter {
 /** Accepts either port, so a test can pass a hand-written `{ generate }` object or a real provider. */
 export function toImageProvider(adapter: ImageProvider | LegacyImageAdapter): ImageProvider {
   return "generate" in adapter ? imageProviderFromGenerate((instruction, referenceImage) => adapter.generate(instruction, referenceImage)) : adapter;
+}
+
+/**
+ * follow-fal-image-queue (JOS-239) — marks a session's one end-of-session image sweep as already done, for a test that
+ * puts a scene in `failed` by hand and checks something else: the sweep would otherwise retry it (image-sweep.test.ts covers the sweep).
+ */
+export function markImageSweepDone(runId: string): void {
+  db.prepare("UPDATE runs SET image_sweep_at = ? WHERE id = ?").run(new Date().toISOString(), runId);
 }

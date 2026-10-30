@@ -42,6 +42,8 @@ import {
   markSceneForManualRetry,
   markSceneForManualVideoRetry,
   markSceneInFlight,
+  claimImageSweep,
+  getSweepableImageFailureIds,
   recordImageProviderRequestId,
   markScenePendingRetry,
   markSceneVideoRetry,
@@ -74,6 +76,8 @@ import { admitLaunch, launchHeldWork, registerStageLauncher, relaunchPendingWork
 import { describeProvider, diagnosticStageOf, type StageDiagnostic } from "./stageDiagnostics.ts";
 import { allowListVideoRequest, recordTaskCheck, videoRequestView } from "./videoRequestStatus.ts";
 import { assemblyGate } from "./assemblyGate.ts";
+import { retryDelaySeconds } from "./retry/retryPolicy.ts";
+import { getRetryDelayConfig } from "./retry/stageAttemptRecorder.ts";
 import * as provider from "./provider.ts";
 import { FINAL_OUTPUT, imageRequestBoundMs, imageTaskCeilingMs, videoTaskCeilingMs } from "./config/providers.ts";
 import { isAcceptedImageSize, readImageDimensions, sniffImageExtension } from "./imageOutputCheck.ts";
@@ -456,7 +460,23 @@ export function toSnapshot(runId: string): SessionSnapshot | undefined {
   };
 }
 
+/**
+ * follow-fal-image-queue (JOS-239), design Decision 7 — the one-time end-of-session sweep: once no scene of the session
+ * is waiting or generating, each image failure a retry can fix gets one new retry cycle, as after "Retry scene". It
+ * runs from `broadcast`, which every settle and every continue goes through, before the snapshot is built, so the
+ * session is never published as failed while the sweep is due.
+ */
+function sweepIdleImageFailures(runId: string): void {
+  const sceneIds = getSweepableImageFailureIds(runId); // empty once swept
+  if (sceneIds.length === 0 || !admitLaunch(runId).admitted) return;
+  const gate = assemblyGate(getScenesForRun(runId));
+  if (gate.open || gate.processingSceneIndexes.length > 0) return;
+  if (!claimImageSweep(runId)) return;
+  for (const sceneId of sceneIds) manualRetry(runId, sceneId);
+}
+
 export function broadcast(runId: string): void {
+  sweepIdleImageFailures(runId);
   const snapshot = toSnapshot(runId);
   if (snapshot) events.emit("state", snapshot);
 }
@@ -1333,6 +1353,21 @@ function recordAndReleaseImageAttempt(
   markProviderRequestResolved(requestId);
 }
 
+/**
+ * follow-fal-image-queue (JOS-239), design Decision 5 — an automatic image retry is sent only after the retry policy's
+ * delay (at least the provider's own `Retry-After`), not at once: a retry sent at once only joins the queue it is
+ * waiting in. The scene is `submitted` meanwhile, so a pause holds it and a restart relaunches it.
+ */
+function scheduleImageRetry(sceneId: string, failedAttemptNumber: number, retryAfterSeconds?: number): void {
+  const delaySeconds = retryDelaySeconds({
+    failedSequence: failedAttemptNumber,
+    config: getRetryDelayConfig(),
+    ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
+  });
+  const timer = setTimeout(() => launchImageStage(sceneId), delaySeconds * 1000);
+  if (typeof timer === "object" && timer !== null && "unref" in timer) timer.unref();
+}
+
 async function pollImageRequestOnce(request: ImageRequestInFlight): Promise<void> {
   const { sceneId, requestId, handle, attemptNumber, submittedAtMs } = request;
   const fresh = getScene(sceneId);
@@ -1444,7 +1479,9 @@ async function finishImageAttemptAsync(
 
   if (outcome.kind !== "success") {
     record(outcome.kind === "failed_not_retryable" ? "not_retryable_failure" : "transient_failure", latencyMs);
-    applyFailureOutcome(fresh.id, outcome, attemptNumber, () => launchImageStage(fresh.id));
+    applyFailureOutcome(fresh.id, outcome, attemptNumber, () =>
+      scheduleImageRetry(fresh.id, attemptNumber, outcome.kind === "failed_transient" ? outcome.retryAfterSeconds : undefined),
+    );
     broadcast(fresh.runId);
     return;
   }
@@ -1460,7 +1497,7 @@ async function finishImageAttemptAsync(
     if (!downloaded.ok) {
       record("transient_failure", latencyMs);
       applyFailureOutcome(fresh.id, { kind: "failed_transient", reason: downloaded.reason }, attemptNumber, () =>
-        launchImageStage(fresh.id),
+        scheduleImageRetry(fresh.id, attemptNumber),
       );
       broadcast(fresh.runId);
       return;
@@ -1478,7 +1515,7 @@ async function finishImageAttemptAsync(
     const reason = dimensions
       ? `the generated image is ${dimensions.width}x${dimensions.height}, not an accepted horizontal 16:9 size`
       : "the generated image's dimensions could not be read";
-    applyFailureOutcome(fresh.id, { kind: "failed_transient", reason }, attemptNumber, () => launchImageStage(fresh.id));
+    applyFailureOutcome(fresh.id, { kind: "failed_transient", reason }, attemptNumber, () => scheduleImageRetry(fresh.id, attemptNumber));
     broadcast(fresh.runId);
     return;
   }
@@ -1709,7 +1746,7 @@ function settleImageInFlight(): SettleSummary {
         scene.id,
         { kind: "failed_transient", reason: "the image request was interrupted by a restart" },
         scene.attempts,
-        () => launchImageStage(scene.id),
+        () => scheduleImageRetry(scene.id, scene.attempts),
       );
       broadcast(scene.runId);
       recordedFailedAttempt++;

@@ -39,7 +39,8 @@ function sceneInFlightBeforeRestart(attempts: number): string {
   const sceneId = randomUUID();
   createScene(sceneId, runId, 1, "success", 100, "a harbor at dawn");
   bindSceneImageProvider(sceneId, IMAGE_ADAPTER);
-  db.prepare("UPDATE scenes SET status = 'image-generating', current_request_id = ?, attempts = ? WHERE id = ?").run(randomUUID(), attempts, sceneId);
+  // A real image-stage scene has an image instruction: without it boot relaunch takes the legacy stub path, not the adapter.
+  db.prepare("UPDATE scenes SET status = 'image-generating', current_request_id = ?, attempts = ?, image_instruction = 'a harbor at dawn' WHERE id = ?").run(randomUUID(), attempts, sceneId);
   return sceneId;
 }
 

@@ -32,6 +32,13 @@ A failure a retry can fix is one that ended with a transient cause: an exhausted
 - **THEN** no second sweep runs
 - **AND** the session is `failed` with `failedPhase: "scenes"`
 
+#### Scenario: Sessions that failed before the sweep existed are not swept
+
+- **GIVEN** a session that already had a failed scene when the application was upgraded
+- **WHEN** the application starts
+- **THEN** no scene of that session is resent
+- **AND** the session is treated as already swept
+
 #### Scenario: A restart does not repeat the sweep
 
 - **GIVEN** a session that was swept

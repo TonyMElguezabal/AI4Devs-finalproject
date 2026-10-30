@@ -199,8 +199,11 @@ export const FINAL_OUTPUT = {
 export type CappedStage = "decomposition" | "image" | "voice" | "alignment" | "video";
 
 // Shipped defaults (backend/config/settings.default.json): decomposition 50 (500 req/min, OpenAI,
-// measured, ÷ 10 headroom factor — provisional pending group 8 latency data); image 200 (2000, Fal.ai,
-// measured, ÷ 10 — provisional, the rate-limit window's time unit is unconfirmed); voice 4 (ElevenLabs refuses
+// measured, ÷ 10 headroom factor — provisional pending group 8 latency data); image 6 (JOS-239, 2026-10-30: the
+// fal.ai account allows 20 concurrent requests, read from its dashboard; a run of 49 scenes at the old cap of 200 got 29
+// HTTP 429 refusals and then timeouts, and fal.ai billed the requests we abandoned. 6 is the owner's safe value: well
+// under 20, which also covers the reference model and the provider connection check on the same key. An
+// installation raises it in its own settings.json); voice 4 (ElevenLabs refuses
 // the 6th simultaneous call: limit 5, measured; 4 leaves one slot for another consumer of the same key) and alignment 2
 // (a separate pool from voice: 10 simultaneous calls succeeded; the account and its character quota are still shared,
 // see ALIGNMENT_PROVIDER.sharesAccountWith) — JOS-188 report step 2; video 4 (RunningHub: 4 and 6 simultaneous 5 s

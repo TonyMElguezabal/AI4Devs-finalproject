@@ -87,10 +87,10 @@ describe("Per-stage request maximum stays within the recorded rate limit under t
     expect((cap) * RETRY_BUDGET_ATTEMPTS).toBeLessThan(500);
   });
 
-  it("image (Fal.ai): 2000 measured limit", () => {
+  it("image (Fal.ai): 6, below the account's 20 concurrent requests (JOS-239)", () => {
     const cap = MAX_SIMULTANEOUS_REQUESTS.image;
-    expect(typeof cap).toBe("number");
-    expect((cap) * RETRY_BUDGET_ATTEMPTS).toBeLessThan(2000);
+    expect(cap).toBe(6);
+    expect(cap).toBeLessThan(20);
   });
 
   it("voice, alignment and video are numbers, decided by the product owner (JOS-167, raised by JOS-188)", () => {

@@ -18,6 +18,7 @@ import { launchImageStage, resetVideoStageStartDelayMs, setVideoStageStartDelayM
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import { STAGE } from "../src/types.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
+import { markImageSweepDone } from "./imageProviderFixtures.ts";
 
 // follow-fal-image-queue (JOS-239), spec stage-execution-time-limit — an image request is followed from the moment the
 // provider starts it: queue time is not execution time, a request past the limit keeps being followed up to twice the
@@ -207,6 +208,7 @@ describe("an image request that runs past the limit", () => {
     vi.mocked(imageTaskCeilingMs).mockReturnValue(100);
     vi.mocked(imageRequestBoundMs).mockReturnValue(60_000);
     const sceneId = await registeredScene();
+    markImageSweepDone(getScene(sceneId)!.runId); // the end-of-session sweep (image-sweep.test.ts) would resend a failed scene once
     const controlled = controlledProvider();
     controlled.answer({ kind: "in-progress" });
     useProvider(controlled.provider);
@@ -283,6 +285,7 @@ describe("status checks that fail", () => {
     vi.mocked(imageTaskCeilingMs).mockReturnValue(1_000);
     vi.mocked(imageRequestBoundMs).mockReturnValue(150);
     const sceneId = await registeredScene();
+    markImageSweepDone(getScene(sceneId)!.runId); // the end-of-session sweep would resend a failed scene once
     const controlled = controlledProvider();
     controlled.answer({ kind: "check-failed" });
     useProvider(controlled.provider);

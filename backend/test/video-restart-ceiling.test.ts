@@ -43,8 +43,9 @@ function clipSentBeforeBoot(sentSecondsBeforeBoot: number | null): string {
   const sceneId = randomUUID();
   const sentAt = sentSecondsBeforeBoot === null ? null : new Date(BOOT.getTime() - seconds(sentSecondsBeforeBoot)).toISOString();
   db.prepare(
-    `INSERT INTO scenes (id, run_id, idx, status, attempts, current_request_id, video_provider, requested_duration_seconds, video_request_sent_at, updated_at)
-     VALUES (?, ?, 0, 'video-generating', 1, 'task-old', ?, 8, ?, ?)`,
+    // `result`: a clip is only requested once the scene's image is stored (so a failed clip is not an image failure to sweep).
+    `INSERT INTO scenes (id, run_id, idx, status, attempts, current_request_id, video_provider, requested_duration_seconds, video_request_sent_at, updated_at, result)
+     VALUES (?, ?, 0, 'video-generating', 1, 'task-old', ?, 8, ?, ?, 'scene-1.png')`,
   ).run(sceneId, runId, STUB_VIDEO_PROVIDER_NAME, sentAt, BOOT.toISOString());
   return sceneId;
 }
