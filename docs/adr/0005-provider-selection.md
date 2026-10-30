@@ -138,10 +138,17 @@ exists or is planned (§11.2 rules out provider switching in the MVP).
 | Stage | Measured limit | Derived cap (headroom for 1+3 retry budget) |
 |---|---|---|
 | Decomposition (OpenAI) | 500 req/min, 500k tokens/min | 50 |
-| Image (Fal.ai) | 2000 (window unit unconfirmed) | 200, provisional on that window |
+| Image (Fal.ai) | 20 concurrent requests per account, **read from the fal.ai dashboard** (JOS-239, 2026-10-30); a burst of 49 got 20 accepted and 29 refused with `429` | **6**, well under 20: the reference model and the provider connection test share the account's limit |
 | Voice (ElevenLabs) | 5 concurrent requests, **measured** (the 6th simultaneous call gets `429`; header `maximum-concurrent-requests: 5`; JOS-188) | **4**, one below the limit so another consumer of the same key does not cause refusals |
 | Alignment (ElevenLabs) | No limit found up to 10 concurrent calls; a separate pool from voice (5 voice + 1 alignment in flight all succeeded; JOS-188) | **2**, kept (calls last about 0.3 s) |
 | Video (RunningHub) | `apiType: SHARED`, no numeric limit found; 4 and 6 simultaneous 5 s 2K jobs showed no queueing, error or slowdown (JOS-188) | **4**, below the highest level tested (6) |
+
+*Update (JOS-239, 2026-10-30).* The image cap was 200, derived from a rate limit (2000) whose window was
+never confirmed. The real limit is concurrency: 20 requests at once. In a run of 49 scenes fal.ai accepted
+20, refused 29 with `429`, and then held the retries in its own queue; the application's 300 s clock, which
+counted that wait, gave up on 273 of 374 requests, and fal.ai kept processing and billing them (about 72% of
+that run's image spend). The cap is now 6, and the adapter uses fal.ai's queue API so a request is followed
+instead of abandoned (change `follow-fal-image-queue`).
 
 *Update (JOS-167, 2026-10-19 and JOS-188, 2026-10-29).* This table first recorded voice, alignment and
 video as **undetermined** because no limit had been measured. JOS-167 set them to 3, 2 and 3 from the

@@ -256,7 +256,7 @@ describe("The shipped defaults file (task 2.3)", () => {
         segmentation: { lowerBoundSeconds: 5 },
         speedFactorLimit: 2,
         maxTimeSeconds: { decomposition: 600, image: 300, voice: 600, alignment: 5, video: 1200, assembly: null },
-        maxSimultaneousRequests: { decomposition: 50, image: 200, voice: 4, alignment: 2, video: 4 },
+        maxSimultaneousRequests: { decomposition: 50, image: 6, voice: 4, alignment: 2, video: 4 },
         output: { width: 1920, height: 1080, fps: 30 },
         languages: [
           { code: "en", label: "English" },

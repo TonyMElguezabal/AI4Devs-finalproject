@@ -15,6 +15,7 @@ import { resetVideoStageStartDelayMs, setVideoStageStartDelayMs } from "../src/o
 import { releaseAttempt } from "../src/retry/retryScheduler.ts";
 import { startNewCycle } from "../src/retry/stageAttemptRecorder.ts";
 import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
+import { heldImageProvider } from "./imageProviderFixtures.ts";
 
 // change-active-provider-from-admin (JOS-171), group 4 — the reasoning and alignment bind points (AC1, AC3, AC5).
 // Both bind per session, on the first attempt that calls the provider.
@@ -28,7 +29,7 @@ beforeEach(() => {
   resetAll();
   resetDecompositionDependencies();
   setVideoStageStartDelayMs(9_999_999);
-  setImageProviderRegistry({ defaultIdentifier: "held", adapters: { held: { generate: () => new Promise(() => {}) } } });
+  setImageProviderRegistry({ defaultIdentifier: "held", adapters: { held: heldImageProvider() } });
 });
 
 /** A narrated session with no native timestamps, so the timestamps step needs the alignment provider. */

@@ -22,8 +22,8 @@ const header = (call: Captured, name: string) => new Headers(call.init.headers).
 describe("the image factory", () => {
   it("sends the request to the profile's model with the loader's key", async () => {
     const { fetchFn, calls } = capturingFetch(() => new Response("{}", { status: 500 }));
-    await createFalAiImageProvider({ fetchFn, parameters: { model: "fal-ai/flux-pro" }, loadKey: () => "image-key-1" }).generate("a lighthouse");
-    expect(calls[0]!.url).toBe("https://fal.run/fal-ai/flux-pro");
+    await createFalAiImageProvider({ fetchFn, parameters: { model: "fal-ai/flux-pro" }, loadKey: () => "image-key-1" }).submit("a lighthouse");
+    expect(calls[0]!.url).toBe("https://queue.fal.run/fal-ai/flux-pro");
     expect(header(calls[0]!, "authorization")).toBe("Key image-key-1");
   });
 
@@ -31,9 +31,9 @@ describe("the image factory", () => {
     const { fetchFn, calls } = capturingFetch(() => new Response("{}", { status: 500 }));
     let key = "first-key";
     const provider = createFalAiImageProvider({ fetchFn, parameters: { model: "m" }, loadKey: () => key });
-    await provider.generate("a");
+    await provider.submit("a");
     key = "second-key";
-    await provider.generate("b");
+    await provider.submit("b");
     expect(calls.map((call) => header(call, "authorization"))).toEqual(["Key first-key", "Key second-key"]);
   });
 });

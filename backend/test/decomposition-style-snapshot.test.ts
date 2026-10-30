@@ -9,6 +9,7 @@ import { obtainNarrationTimestamps } from "../src/narrationTimestampsPhase.ts";
 import { resetVideoStageStartDelayMs, setVideoStageStartDelayMs } from "../src/orchestrator.ts";
 import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
 import { NARRATED_STEP_SECONDS, narratedSession } from "./narratedSession.ts";
+import { heldImageProvider } from "./imageProviderFixtures.ts";
 
 // admin-visual-style-prompt (JOS-201), group 3 — design Decision 3: the first decomposition, a manual retry and the boot
 // relaunch all reach the generator through `registerDecomposition`, which passes the run's snapshot, never the live setting.
@@ -22,7 +23,7 @@ beforeEach(() => {
   setVideoStageStartDelayMs(9_999_999);
   setImageProviderRegistry({
     defaultIdentifier: "held-image-adapter",
-    adapters: { "held-image-adapter": { generate: () => new Promise(() => {}) } },
+    adapters: { "held-image-adapter": heldImageProvider() },
   });
 });
 

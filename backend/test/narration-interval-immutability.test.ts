@@ -8,6 +8,8 @@ import { registerDecomposition } from "../src/sceneRegistration.ts";
 import { STAGE } from "../src/types.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
 import { contiguousFragments, voiceOverDurationOf } from "./fragmentFixtures.ts";
+import { markImageSweepDone } from "./imageProviderFixtures.ts";
+import { setRetryDelayConfig } from "../src/retry/stageAttemptRecorder.ts";
 
 function buildPng(width: number, height: number): Buffer {
   const buf = Buffer.alloc(29);
@@ -89,6 +91,8 @@ describe("A chunk's interval survives processing and retries (AC4)", () => {
 
   it("is unchanged after a failure, its automatic retries, a manual retry and a corrected instruction", async () => {
     const { runId, sceneId } = await registeredSession();
+    setRetryDelayConfig({ baseSeconds: 0, capSeconds: 0 }); // three automatic retries, without their 2 s, 4 s and 8 s waits
+    markImageSweepDone(runId); // this test follows one cycle by hand; the end-of-session sweep (image-sweep.test.ts) would run another
     // Failure cycle: all attempts via image path (scene has imageInstruction)
     setImageProviderRegistry({ defaultIdentifier: STUB_PROVIDER_ID, adapters: { [STUB_PROVIDER_ID]: createStubImageProvider("transient-failure") } });
 
