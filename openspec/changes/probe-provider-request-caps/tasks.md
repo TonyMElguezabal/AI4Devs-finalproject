@@ -25,43 +25,43 @@
 ## 4. Decision
 
 - [x] 4.1 Write `reports/YYYY-MM-DD-step-4-recommendation.md`: findings, trade-offs, keep / raise / lower per stage, time spent, and next step (proceed / pivot / cancel). Result 2026-10-29: report written; recommends voice 5, alignment 2, video 4 or 6
-- [ ] 4.2 Present the recommendation to the product owner and record the decision. If no cap changes, mark 5.1-5.3 as not applicable and go to 6
-- [ ] 4.3 If a cap changes: update this change's `specs/provider-request-limit/spec.md` with the new values (CLAUDE.md §7) before coding
+- [x] 4.2 Present the recommendation to the product owner and record the decision. If no cap changes, mark 5.1-5.3 as not applicable and go to 6. Result: owner decision 2026-10-29: voice 4, alignment 2, video 4
+- [x] 4.3 If a cap changes: update this change's `specs/provider-request-limit/spec.md` with the new values (CLAUDE.md §7) before coding. Result: spec reworded: voice 4 within the measured 5, alignment independent, video 4 within the measured 6
 
 ## 5. Backend: Apply caps (TDD, only if a cap changes)
 
-- [ ] 5.1 Update the expected values in `backend/test/providerConfig.test.ts` first and see them fail
-- [ ] 5.2 Update `maxSimultaneousRequests` in `backend/config/settings.default.json`
-- [ ] 5.3 Update the source comment above `MAX_SIMULTANEOUS_REQUESTS` in `backend/src/config/providers.ts` to cite the JOS-188 reports
+- [x] 5.1 Update the expected values in `backend/test/providerConfig.test.ts` first and see them fail. Result: expectations changed in `providerConfig.test.ts`, `provider-request-limits.test.ts` and `providers-settings.test.ts`; failed with `expected 3 to be 4`
+- [x] 5.2 Update `maxSimultaneousRequests` in `backend/config/settings.default.json`. Result: voice 4, alignment 2, video 4; the 41 tests in the three files pass
+- [x] 5.3 Update the source comment above `MAX_SIMULTANEOUS_REQUESTS` in `backend/src/config/providers.ts` to cite the JOS-188 reports. Result: comment cites the JOS-188 reports
 
 ## 6. Backend: Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 6.1 Review tests that read the voice, alignment or video caps (`providerConfig.test.ts`, concurrency and restart-safe-concurrency tests) for hardcoded 3 / 2 / 5 values, and update any the decision changed
-- [ ] 6.2 Make sure the probe script is outside the vitest include and lint scope, or excluded
+- [x] 6.1 Review tests that read the voice, alignment or video caps (`providerConfig.test.ts`, concurrency and restart-safe-concurrency tests) for hardcoded 3 / 2 / 5 values, and update any the decision changed. Result: the three files above were the only ones asserting the shipped caps; `settings.test.ts` uses its own fixtures and `restart-concurrency.test.ts` passes `video: 3` as an explicit input
+- [x] 6.2 Make sure the probe script is outside the vitest include and lint scope, or excluded. Result: the probe is under `openspec/`, outside `backend/tsconfig.json` (`src`, `test`, `packaging`), the vitest include and `eslint .` run from `backend/`
 
 ## 7. Backend: Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 7.1 Capture the pre-test baseline of a scratch database: run with a fresh `DB_PATH` and `PROJECTS_ROOT` in the scratchpad, never the real ones
-- [ ] 7.2 Run the targeted tests (`providerConfig.test.ts`, concurrency tests)
-- [ ] 7.3 Run the full backend suite and `tsc --noEmit`
-- [ ] 7.4 Verify the post-test state matches the baseline and that the real `data/` and projects folder are untouched
-- [ ] 7.5 Create `reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`
-- [ ] 7.6 Mark this step complete only after tests pass and the report exists
+- [x] 7.1 Capture the pre-test baseline of a scratch database: run with a fresh `DB_PATH` and `PROJECTS_ROOT` in the scratchpad, never the real ones. Result: fresh scratch database every run; real `backend/data` fingerprint `fa03fb94…` (8 files) recorded
+- [x] 7.2 Run the targeted tests (`providerConfig.test.ts`, concurrency tests). Result: 41 tests passed
+- [x] 7.3 Run the full backend suite and `tsc --noEmit`. Result: 188 files, 2542 tests passed, 0 failed; `tsc` and `eslint` clean (after fixing two tests found by the first full run)
+- [x] 7.4 Verify the post-test state matches the baseline and that the real `data/` and projects folder are untouched. Result: real data unchanged; nothing outside scratch was written
+- [x] 7.5 Create `reports/YYYY-MM-DD-step-7-unit-test-and-db-verification.md`. Result: `reports/2026-10-29-step-7-unit-test-and-db-verification.md`
+- [x] 7.6 Mark this step complete only after tests pass and the report exists
 
 ## 8. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Start the backend with scratch `DB_PATH` and `PROJECTS_ROOT`
-- [ ] 8.2 `curl GET /admin/settings` and check that `maxSimultaneousRequests` shows the decided defaults
-- [ ] 8.3 Check that a `settings.json` override (for example `"video": 1`) still wins over the default, then remove the override
-- [ ] 8.4 Record the commands and responses in `reports/YYYY-MM-DD-step-8-curl-endpoint-testing.md` and confirm the scratch state was discarded
+- [x] 8.1 Start the backend with scratch `DB_PATH` and `PROJECTS_ROOT`. Result: backend started on scratch paths, port 3199
+- [x] 8.2 Check the boot log line of the running backend shows the decided limits (voice 4, alignment 2, video 4), and `curl` an admin endpoint (`GET /admin/access`) to confirm the server answers (no endpoint exposes the caps). Result: boot log voice 4, alignment 2, video 4; `GET /admin/access` 200, wrong password 401
+- [x] 8.3 Restart with a `SETTINGS_PATH` override (`"video": 1`) and check the boot log shows it winning over the default, then remove the override. Result: `video: 1` override wins in the boot log; override file lived in scratch
+- [x] 8.4 Record the commands and responses in `reports/YYYY-MM-DD-step-8-curl-endpoint-testing.md` and confirm the scratch state was discarded. Result: `reports/2026-10-29-step-8-curl-endpoint-testing.md`; servers stopped
 
 ## 9. Frontend: E2E Testing with Playwright MCP
 
-- [ ] 9.1 Not applicable: no frontend change. Record that in the step 8 report
+- [x] 9.1 Not applicable: no frontend change. Record that in the step 8 report. Result: no frontend change
 
 ## 10. Update Technical Documentation (MANDATORY)
 
-- [ ] 10.1 Amend ADR 0005's request-cap section with the measured ElevenLabs and RunningHub limits and the derivation
-- [ ] 10.2 Update `docs/development_guide.md` if a default it quotes changed
-- [ ] 10.3 Run `graphify update .`
+- [x] 10.1 Amend ADR 0005's request-cap section with the measured ElevenLabs and RunningHub limits and the derivation. Result: table and paragraph in Decision 7 replaced with the measured limits and caps
+- [x] 10.2 Update `docs/development_guide.md` if a default it quotes changed. Result: no change: the guide quotes no default cap, only `video: 1` as an override example
+- [x] 10.3 Run `graphify update .`. Result: graph.json, graph.html and GRAPH_REPORT.md updated
 - [ ] 10.4 Comment on JOS-188 with the findings, the decision and the time spent, and check off its Definition of Done

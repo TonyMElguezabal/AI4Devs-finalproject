@@ -2,7 +2,7 @@
 
 - Date: 2026-10-29
 - Change: probe-provider-request-caps (JOS-188)
-- Time spent: about 1 h 45 min of agent work, from 18:44 UTC (task 0.2) to the end of level 6; the longest single wait was level 6 (about 8 minutes)
+- Time spent: 5 h 49 min of wall-clock from 18:44 UTC (task 0.2) to 00:33 UTC (task 10.3), most of it waiting on the owner's decisions; about 45 min were probe runs (ElevenLabs about 5 min, RunningHub baselines 9 min, level 4 about 6 min, level 6 about 8 min, plus settle reads)
 - Reports: step 2 (ElevenLabs), step 3 (RunningHub)
 
 ## Findings
@@ -25,6 +25,8 @@
 - RunningHub billing: the balance falls 3.4 times the itemized price (step 3). Needs the dashboard charge list.
 - Caps are for the developer's accounts (ElevenLabs Creator, RunningHub `SHARED`).
 
-## Decision needed (task 4.2)
+## Decision (task 4.2)
 
-Owner: voice 5? video 4 or 6? alignment 2? Code and spec are changed only after this answer (CLAUDE.md §7).
+Owner, 2026-10-29: **voice 4, alignment 2, video 4.** Voice is one below the measured limit (a slot for another consumer of the key) and video is below the highest level tested (6). The spec was changed first, then the tests, then the config (CLAUDE.md §7).
+
+Next step: **proceed.** The caps are applied. Still open for the owner: the RunningHub charge list (cost 3.4 times the itemized price) and a ticket for `maxTimeSeconds.alignment`.

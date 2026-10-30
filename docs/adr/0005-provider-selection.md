@@ -139,13 +139,20 @@ exists or is planned (§11.2 rules out provider switching in the MVP).
 |---|---|---|
 | Decomposition (OpenAI) | 500 req/min, 500k tokens/min | 50 |
 | Image (Fal.ai) | 2000 (window unit unconfirmed) | 200, provisional on that window |
-| Voice + Alignment (ElevenLabs, shared account) | 137,109 chars/period (Creator tier) — a consumption quota, not a request-rate limit | **undetermined** — no concurrency number exists to derive from |
-| Video (RunningHub) | `apiType: SHARED`, no numeric limit found | **undetermined** — empirical probing deliberately deferred (product owner's choice, cost reasons) |
+| Voice (ElevenLabs) | 5 concurrent requests, **measured** (the 6th simultaneous call gets `429`; header `maximum-concurrent-requests: 5`; JOS-188) | **4**, one below the limit so another consumer of the same key does not cause refusals |
+| Alignment (ElevenLabs) | No limit found up to 10 concurrent calls; a separate pool from voice (5 voice + 1 alignment in flight all succeeded; JOS-188) | **2**, kept (calls last about 0.3 s) |
+| Video (RunningHub) | `apiType: SHARED`, no numeric limit found; 4 and 6 simultaneous 5 s 2K jobs showed no queueing, error or slowdown (JOS-188) | **4**, below the highest level tested (6) |
 
-No invented numbers where no real limit exists (Decision 6 of design.md). Voice and
-alignment must be derived **jointly** against their one shared quota once a number
-exists (task 7.5a) — a case the original shared-account check (task 1.2a, image/video
-only) did not anticipate.
+*Update (JOS-167, 2026-10-19 and JOS-188, 2026-10-29).* This table first recorded voice, alignment and
+video as **undetermined** because no limit had been measured. JOS-167 set them to 3, 2 and 3 from the
+documented ElevenLabs limit and the highest concurrency tried; JOS-188 then probed both providers and the
+product owner set voice 4, alignment 2 and video 4 (reports `probe-provider-request-caps/reports/`, steps 2-4). Voice and alignment still draw on
+one account and one character quota, but **not** on one concurrent-request pool, so their caps are not added
+together. The video ceiling above 6 and the RunningHub charges (the balance fell about 3.4 times the itemized
+$0.60 per job) are still open. The measurement is of one afternoon, on the developer's accounts: ElevenLabs
+Creator and RunningHub `SHARED`.
+
+No invented numbers where no real limit exists (Decision 6 of design.md).
 
 ## Decision 8 — Per-phase maximum times
 
