@@ -40,13 +40,13 @@
 
 ## 7. Backend: opt-in contract test
 
-- [ ] 7.1 Add `backend/test/image-provider-queue.contract.test.ts` (runs only with `RUN_PROVIDER_CONTRACT_TESTS=1`): one real `fal-ai/flux/dev` request through submit → poll → result, asserting the shapes from 1.3. Run it once locally with the owner's key and note the cost in the step 9 report
+- [x] 7.1 Add `backend/test/image-provider-queue.contract.test.ts` (runs only with `RUN_PROVIDER_CONTRACT_TESTS=1`): one real `fal-ai/flux/dev` request through submit → poll → result, asserting the shapes from 1.3. Run it once locally with the owner's key and note the cost in the step 9 report Result 2026-10-30: `test/image-provider-queue.contract.test.ts` (needs `RUN_PROVIDER_CONTRACT_TESTS=1` and a `FAL_API_KEY`, skipped otherwise); run once against the real API with the owner's key: passed in 8.7 s, one `fal-ai/flux/dev` image billed (about the cost of step 1.3's single request)
 
 ## 8. Backend: Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 8.1 Update tests that call `ImageProvider.generate` or the old stub directly (for example `reference-image-generation.test.ts`, `active-provider-binding-image.test.ts`, image restart and retry tests) to the submit / poll interface
-- [ ] 8.2 Update tests that pin the image time limit at the call (JOS-185, `stage-execution-time-limit`) to the new clock, and tests that expect an immediate image retry to the delayed one
-- [ ] 8.3 Check that tests asserting `failed` with `failedPhase: "scenes"` still hold with the sweep (use a not-sweepable failure or an already-swept session where needed)
+- [x] 8.1 Update tests that call `ImageProvider.generate` or the old stub directly (for example `reference-image-generation.test.ts`, `active-provider-binding-image.test.ts`, image restart and retry tests) to the submit / poll interface Result: migrated to the new port with `test/imageProviderFixtures.ts` (`imageProviderFromGenerate`, `heldImageProvider`, `toImageProvider`): decomposition, narration-handoff, provider-request-limit, provider-registries, provider-adapter-parameters, provider-price-route, adapters-no-hidden-retries, restart-no-duplicates, scene-rebuild, image-stage, reference-image-generation, image-provider, provider-binding
+- [x] 8.2 Update tests that pin the image time limit at the call (JOS-185, `stage-execution-time-limit`) to the new clock, and tests that expect an immediate image retry to the delayed one Result: `image-time-limit.test.ts` rewritten for the new clock; `settings-behaviour.test.ts` no longer lists the image adapter in the "no maximum time" signal check (covered by the ceiling tests); the retry-delay tests are new; `test/setup.ts` sets a 1 ms image poll interval, imported inside `beforeEach` so a test's `vi.mock` of the provider constants still applies
+- [x] 8.3 Check that tests asserting `failed` with `failedPhase: "scenes"` still hold with the sweep (use a not-sweepable failure or an already-swept session where needed) Result: tests that put a scene in `failed` by hand and check something else mark the session as swept (`markImageSweepDone`): image-time-limit (2), move-failed-stage, provider-change-log, restart-settle, narration-interval-immutability; `video-restart-ceiling` fixtures now store the scene's image (a clip never starts without one); migration 26's test applies migrations up to 26
 
 ## 9. Backend: Run Unit Tests and Verify Database State (MANDATORY)
 
@@ -59,16 +59,16 @@
 
 ## 10. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Start the backend on scratch `DB_PATH` / `PROJECTS_ROOT` with the stub image provider and short retry delays (`RETRY_BASE_DELAY_SECONDS`); confirm the boot log shows image concurrency limit 6
-- [ ] 10.2 Create a session with curl, follow `GET` of the session until scenes complete; confirm one `provider_requests` row per image attempt in the scratch DB
-- [ ] 10.3 With the stub set to transient failure, confirm the retries are delayed, the sweep runs once when the session goes idle (`runs.image_sweep_at` set), and the session then reads `failed` with `failedPhase: "scenes"`
-- [ ] 10.4 Restart with a `SETTINGS_PATH` override (`"image": 2`) and confirm it wins in the boot log; remove the override
+- [x] 10.1 Start the backend on scratch `DB_PATH` / `PROJECTS_ROOT` with the stub image provider and short retry delays (`RETRY_BASE_DELAY_SECONDS`); confirm the boot log shows image concurrency limit 6 Result: boot log `image concurrency limit 6`
+- [x] 10.2 Create a session with curl, follow `GET` of the session until scenes complete; confirm one `provider_requests` row per image attempt in the scratch DB Result: session and two scenes created with curl; one `provider_requests` row per image attempt in the scratch DB (see the report)
+- [x] 10.3 With the stub set to transient failure, confirm the retries are delayed, the sweep runs once when the session goes idle (`runs.image_sweep_at` set), and the session then reads `failed` with `failedPhase: "scenes"` Result: delayed retries, 8 attempts per scene (4 plus the swept 4), marker set once, session `failed` with `failedSceneIndexes [1, 2]`, nothing resent after a restart
+- [x] 10.4 Restart with a `SETTINGS_PATH` override (`"image": 2`) and confirm it wins in the boot log; remove the override Result: the override (`image: 2`) won in the boot log, then the default (6) returned
 - [ ] 10.5 Real long run (AC 11), only after the owner approves the spend ceiling: a ≥ 500-word script (≥ 50 scenes) with real keys (`FFMPEG_PATH` set to the pinned build). Record image failures by cause, and compare the fal.ai usage CSV for that window (exported by the owner) with the requests that reached `COMPLETED`
 - [ ] 10.6 Record commands, responses and the long-run comparison in `reports/YYYY-MM-DD-step-10-curl-endpoint-testing.md`; stop the servers and discard the scratch state
 
 ## 11. Frontend: E2E Testing with Playwright MCP
 
-- [ ] 11.1 Not applicable: no frontend change (the session header already shows `failedSceneIndexes`). Record that in the step 10 report
+- [x] 11.1 Not applicable: no frontend change (the session header already shows `failedSceneIndexes`). Record that in the step 10 report Result: no frontend change
 
 ## 12. Update Technical Documentation (MANDATORY)
 
