@@ -172,6 +172,13 @@ export const VIDEO_GENERATION_SETTING = { resolution: "2K", nativeWidth: 2560, n
  */
 export const IMAGE_GENERATION_SIZE = { width: 1920, height: 1088 } as const;
 
+/**
+ * follow-fal-image-queue (JOS-239) — how long one image request may wait in fal.ai's queue before fal.ai starts it,
+ * sent as `X-Fal-Request-Start-Timeout`. fal.ai enforces it per request, counted from that request's own submission;
+ * a request that never started is dropped and not billed. It is a constant: it does not vary per installation.
+ */
+export const IMAGE_QUEUE_START_WINDOW_SECONDS = 1800;
+
 // ---- Final assembled MP4 output (D08, §7.3) ----
 // Neither provider above natively produces this — the assembly stage
 // (define-media-assembly, JOS-182) MUST resize + convert frame rate for
@@ -192,8 +199,11 @@ export const FINAL_OUTPUT = {
 export type CappedStage = "decomposition" | "image" | "voice" | "alignment" | "video";
 
 // Shipped defaults (backend/config/settings.default.json): decomposition 50 (500 req/min, OpenAI,
-// measured, ÷ 10 headroom factor — provisional pending group 8 latency data); image 200 (2000, Fal.ai,
-// measured, ÷ 10 — provisional, the rate-limit window's time unit is unconfirmed); voice 4 (ElevenLabs refuses
+// measured, ÷ 10 headroom factor — provisional pending group 8 latency data); image 6 (JOS-239, 2026-10-30: the
+// fal.ai account allows 20 concurrent requests, read from its dashboard; a run of 49 scenes at the old cap of 200 got 29
+// HTTP 429 refusals and then timeouts, and fal.ai billed the requests we abandoned. 6 is the owner's safe value: well
+// under 20, which also covers the reference model and the provider connection check on the same key. An
+// installation raises it in its own settings.json); voice 4 (ElevenLabs refuses
 // the 6th simultaneous call: limit 5, measured; 4 leaves one slot for another consumer of the same key) and alignment 2
 // (a separate pool from voice: 10 simultaneous calls succeeded; the account and its character quota are still shared,
 // see ALIGNMENT_PROVIDER.sharesAccountWith) — JOS-188 report step 2; video 4 (RunningHub: 4 and 6 simultaneous 5 s
@@ -247,6 +257,25 @@ export function phaseTimeoutMs(stage: PhaseStage): number | undefined {
 export function videoTaskCeilingMs(): number | undefined {
   const limit = phaseTimeoutMs("video");
   return limit === undefined ? undefined : 2 * limit;
+}
+
+/**
+ * follow-fal-image-queue (JOS-239), design Decision 4 — how long an image request is followed after the provider started
+ * it, before it is cancelled and the scene fails: twice the image limit. `undefined` when the image stage has no limit.
+ */
+export function imageTaskCeilingMs(): number | undefined {
+  const limit = phaseTimeoutMs("image");
+  return limit === undefined ? undefined : 2 * limit;
+}
+
+/**
+ * follow-fal-image-queue (JOS-239), design Decision 4 — the longest an image request is followed from its submission,
+ * whatever the provider answers: the queue start window plus the ceiling above. It stops a provider or network that no
+ * longer answers status checks from leaving a scene generating for ever.
+ */
+export function imageRequestBoundMs(): number | undefined {
+  const ceiling = imageTaskCeilingMs();
+  return ceiling === undefined ? undefined : IMAGE_QUEUE_START_WINDOW_SECONDS * 1000 + ceiling;
 }
 
 /** Moderation runs while the User waits (JOS-187). Provisional: observed 0.12-2.2 s (report: step 1). */

@@ -31,6 +31,7 @@ import {
 import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegistration.ts";
 import { STAGE } from "../src/types.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
+import { toImageProvider, type LegacyImageAdapter } from "./imageProviderFixtures.ts";
 
 // use-reference-image-in-generation (JOS-202) — the per-session snapshot of the /admin reference image and its use
 // by every image request of that session, including retries (spec reference-image-generation).
@@ -87,12 +88,12 @@ async function registeredScenes(count: number): Promise<{ runId: string; sceneId
   return { runId, sceneIds: result.sceneIds, projectFolder: run.projectFolder };
 }
 
-function useStubAdapter(adapter: ImageProvider): void {
-  setImageProviderRegistry({ defaultIdentifier: TEST_PROVIDER_ID, adapters: { [TEST_PROVIDER_ID]: adapter } });
+function useStubAdapter(adapter: ImageProvider | LegacyImageAdapter): void {
+  setImageProviderRegistry({ defaultIdentifier: TEST_PROVIDER_ID, adapters: { [TEST_PROVIDER_ID]: toImageProvider(adapter) } });
 }
 
 /** An adapter that records the reference it was given on every call and then succeeds. */
-function recordingAdapter(): ImageProvider & { references: Array<ReferenceImage | undefined> } {
+function recordingAdapter(): LegacyImageAdapter & { references: Array<ReferenceImage | undefined> } {
   const references: Array<ReferenceImage | undefined> = [];
   return {
     references,

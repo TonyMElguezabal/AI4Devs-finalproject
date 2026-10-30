@@ -1,7 +1,7 @@
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AssemblyInput } from "../src/assemblyTool.ts";
@@ -194,6 +194,18 @@ describe.skipIf(!haveSubtitleFilter || !haveFixture)("the ffmpeg adapter with su
     expect(await at(5.25)).toHaveLength(0); // the second line is not due yet (it would be, at 6.0 s, without the edit)
     expect((await at(5.6)).length).toBeGreaterThan(500); // it is due from 5.4 s
     expect(Math.abs(Number(probe(videos.edited, "stream=nb_frames", "v:0")) / FPS - Number(probe(videos.edited, "stream=duration", "a:0")))).toBeLessThanOrEqual(1 / FPS);
+  }, 120_000);
+
+  it("builds the video when the voice-over and output paths are relative to the working directory (the default PROJECTS_ROOT)", async () => {
+    const output = relative(process.cwd(), join(dir, "relative.mp4"));
+    const result = await createFfmpegAssemblyTool().assemble(
+      inputFor(originalEnds, output, {
+        voiceOverPath: relative(process.cwd(), join(FIXTURE, "voice-over.m4a")),
+        subtitles: [cue([["alpha", 1]], 1, 2)],
+      }),
+    );
+    expect(result).toEqual({ kind: "success", outputPath: output });
+    expect(existsSync(join(dir, "relative.mp4"))).toBe(true);
   }, 120_000);
 
   it("removes its temporary folders, with the subtitle files and the font copies", () => {

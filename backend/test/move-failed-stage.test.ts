@@ -8,6 +8,7 @@ import { resetKeyStoreCache, storeProfileKey } from "../src/keyStore.ts";
 import { insertProfile } from "../src/providerProfiles.ts";
 import { listFailedStages, moveFailedStage } from "../src/failedStages.ts";
 import { failDecomposition, failImage, failVideo, failVoice, installTwoProvidersPerStage, newRun, registerScenes, removeTwoProvidersPerStage } from "./failedStageFixtures.ts";
+import { markImageSweepDone } from "./imageProviderFixtures.ts";
 
 // move-failed-stage-to-active-provider (JOS-172), group 5 — design Decisions 1, 3 and 4: what a move changes, and what it
 // never changes or refuses.
@@ -66,6 +67,7 @@ describe("moving a failed stage binds it to the active provider and nothing else
   it("image: the scene binding is stub-b and the scene is still failed, unchanged otherwise", async () => {
     const { runId, sceneIds: [scene] } = await registerScenes([7]);
     failImage(scene!);
+    markImageSweepDone(runId); // the end-of-session sweep would resend the failed scene when the move publishes the session
     const before = getScene(scene!)!;
 
     const result = moveFailedStage({ sessionId: runId, stage: "image", sceneId: scene! });

@@ -9,7 +9,7 @@ afterEach(() => concurrency.resetAll());
 describe("provider request caps", () => {
   it("sets every stage's limit from the constants when the module loads", () => {
     expect(concurrency.stats("decomposition").limit).toBe(50);
-    expect(concurrency.stats("image").limit).toBe(200);
+    expect(concurrency.stats("image").limit).toBe(6);
     expect(concurrency.stats("voice").limit).toBe(4);
     expect(concurrency.stats("alignment").limit).toBe(2);
     expect(concurrency.stats("video").limit).toBe(4);

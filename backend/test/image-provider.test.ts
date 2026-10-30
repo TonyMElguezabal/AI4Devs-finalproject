@@ -28,21 +28,27 @@ function fakeFetch(response: () => Response | Promise<Response>) {
   return { fetchFn, calls };
 }
 
+// follow-fal-image-queue (JOS-239): an attempt is a submission to the queue; the status / result / cancel round trip is in image-provider-queue.test.ts.
 const successResponse = () =>
-  new Response(JSON.stringify({ images: [{ url: "https://fal.media/files/abc/image.jpeg" }] }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
+  new Response(
+    JSON.stringify({
+      request_id: "request-1",
+      status_url: "https://queue.fal.run/fal-ai/flux/requests/request-1/status",
+      response_url: "https://queue.fal.run/fal-ai/flux/requests/request-1",
+      cancel_url: "https://queue.fal.run/fal-ai/flux/requests/request-1/cancel",
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
 
-function providerWith(fetchFn: typeof fetch, loadKey: () => string = () => "test-key", timeoutMs = 50) {
-  return createFalAiImageProvider({ fetchFn, loadKey, timeoutMs });
+function providerWith(fetchFn: typeof fetch, loadKey: () => string = () => "test-key") {
+  return createFalAiImageProvider({ fetchFn, loadKey });
 }
 
 describe("The request is unaffected by the /admin settings (JOS-201, AC 8)", () => {
   it("sends the same URL, headers and body with a saved style and a stored reference image as without", async () => {
     const sendOnce = async () => {
       const { fetchFn, calls } = fakeFetch(successResponse);
-      await providerWith(fetchFn).generate(INSTRUCTION);
+      await providerWith(fetchFn).submit(INSTRUCTION);
       const { url, init } = calls[0]!; // the abort signal is per-call, so it is not part of the comparison
       return { url, method: init.method, headers: init.headers, body: init.body };
     };
@@ -65,27 +71,15 @@ describe("The request", () => {
   it("sends one POST with the instruction as prompt, the recorded request size, and the credential", async () => {
     const { fetchFn, calls } = fakeFetch(successResponse);
 
-    await providerWith(fetchFn).generate(INSTRUCTION);
+    await providerWith(fetchFn).submit(INSTRUCTION);
 
     expect(calls).toHaveLength(1);
     const [call] = calls;
-    expect(call?.url).toBe("https://fal.run/fal-ai/flux/dev");
+    expect(call?.url).toBe("https://queue.fal.run/fal-ai/flux/dev");
     expect(call?.init.method).toBe("POST");
     expect((call?.init.headers as Record<string, string>).Authorization).toBe("Key test-key");
     const body = JSON.parse(call?.init.body as string);
     expect(body).toEqual({ prompt: INSTRUCTION, image_size: { width: 1920, height: 1088 } });
-  });
-
-  it("returns the returned image as a temporary URL, never trusting any width/height in the response", async () => {
-    const { fetchFn } = fakeFetch(() =>
-      new Response(JSON.stringify({ images: [{ url: "https://fal.media/files/abc/image.jpeg", width: 999, height: 999 }] }), {
-        status: 200,
-      }),
-    );
-
-    const result = await providerWith(fetchFn).generate(INSTRUCTION);
-
-    expect(result).toEqual({ kind: "success", image: { source: "temporary-url", url: "https://fal.media/files/abc/image.jpeg" } });
   });
 
   it("fails not-retryable when the credential is missing, and sends no request", async () => {
@@ -93,7 +87,7 @@ describe("The request", () => {
 
     const result = await providerWith(fetchFn, () => {
       throw new Error("missing credential 'FAL_API_KEY': set it in the local environment or in the local secrets file");
-    }).generate(INSTRUCTION);
+    }).submit(INSTRUCTION);
 
     expect(result.kind).toBe("failed_not_retryable");
     expect(calls).toHaveLength(0);
@@ -103,7 +97,7 @@ describe("The request", () => {
 describe("Failure classification (product owner rule: 4xx except 408/429 not retryable, else transient)", () => {
   it.each([400, 401, 403, 404, 422])("HTTP %d is not retryable", async (status) => {
     const { fetchFn } = fakeFetch(() => new Response("", { status }));
-    expect(await providerWith(fetchFn).generate(INSTRUCTION)).toEqual({
+    expect(await providerWith(fetchFn).submit(INSTRUCTION)).toEqual({
       kind: "failed_not_retryable",
       reason: `the image provider answered HTTP ${status}`,
     });
@@ -111,7 +105,7 @@ describe("Failure classification (product owner rule: 4xx except 408/429 not ret
 
   it.each([408, 429])("HTTP %d is transient", async (status) => {
     const { fetchFn } = fakeFetch(() => new Response("", { status }));
-    expect(await providerWith(fetchFn).generate(INSTRUCTION)).toEqual({
+    expect(await providerWith(fetchFn).submit(INSTRUCTION)).toEqual({
       kind: "failed_transient",
       reason: `the image provider answered HTTP ${status}`,
     });
@@ -119,7 +113,7 @@ describe("Failure classification (product owner rule: 4xx except 408/429 not ret
 
   it.each([500, 502, 503])("HTTP %d is transient", async (status) => {
     const { fetchFn } = fakeFetch(() => new Response("", { status }));
-    expect(await providerWith(fetchFn).generate(INSTRUCTION)).toEqual({
+    expect(await providerWith(fetchFn).submit(INSTRUCTION)).toEqual({
       kind: "failed_transient",
       reason: `the image provider answered HTTP ${status}`,
     });
@@ -129,13 +123,13 @@ describe("Failure classification (product owner rule: 4xx except 408/429 not ret
     const fetchFn = (async () => {
       throw new Error("fetch failed");
     }) as typeof fetch;
-    const result = await providerWith(fetchFn).generate(INSTRUCTION);
+    const result = await providerWith(fetchFn).submit(INSTRUCTION);
     expect(result).toEqual({ kind: "failed_transient", reason: "the image provider could not be reached" });
   });
 
   it("an unexpected response shape is transient", async () => {
     const { fetchFn } = fakeFetch(() => new Response(JSON.stringify({ unexpected: true }), { status: 200 }));
-    const result = await providerWith(fetchFn).generate(INSTRUCTION);
+    const result = await providerWith(fetchFn).submit(INSTRUCTION);
     expect(result.kind).toBe("failed_transient");
   });
 });
@@ -146,34 +140,57 @@ describe("Failure classification (product owner rule: 4xx except 408/429 not ret
 // bytes/URL success-bytes/success-temporary-url returns, and how the
 // orchestrator's own download step behaves.
 describe("The stub adapter (group 3, task 3.2)", () => {
+  /** Submits once and checks the request once, the way the orchestrator's first status check does. */
+  async function settle(stub: ReturnType<typeof createStubImageProvider>) {
+    const submitted = await stub.submit(INSTRUCTION);
+    if (submitted.kind !== "submitted") throw new Error("the stub refused the submission");
+    return stub.poll(submitted.handle);
+  }
+
   it("success-bytes returns the configured bytes and content type", async () => {
     const bytes = Buffer.from([1, 2, 3]);
-    const result = await createStubImageProvider("success-bytes", { bytes, contentType: "image/jpeg" }).generate(INSTRUCTION);
+    const result = await settle(createStubImageProvider("success-bytes", { bytes, contentType: "image/jpeg" }));
     expect(result).toEqual({ kind: "success", image: { source: "bytes", bytes, contentType: "image/jpeg" } });
   });
 
   it("success-temporary-url returns the configured URL", async () => {
-    const result = await createStubImageProvider("success-temporary-url", { url: "https://example.test/x.jpg" }).generate(
-      INSTRUCTION,
-    );
+    const result = await settle(createStubImageProvider("success-temporary-url", { url: "https://example.test/x.jpg" }));
     expect(result).toEqual({ kind: "success", image: { source: "temporary-url", url: "https://example.test/x.jpg" } });
   });
 
   it("success-temporary-url falls back to a default URL when none is configured", async () => {
-    const result = await createStubImageProvider("success-temporary-url").generate(INSTRUCTION);
+    const result = await settle(createStubImageProvider("success-temporary-url"));
     expect(result).toEqual({ kind: "success", image: { source: "temporary-url", url: "https://fal.media/files/stub.jpg" } });
   });
 
   it("transient-failure and not-retryable-failure return their classified outcome", async () => {
-    expect((await createStubImageProvider("transient-failure").generate(INSTRUCTION)).kind).toBe("failed_transient");
-    expect((await createStubImageProvider("not-retryable-failure").generate(INSTRUCTION)).kind).toBe("failed_not_retryable");
+    expect((await settle(createStubImageProvider("transient-failure"))).kind).toBe("failed_transient");
+    expect((await settle(createStubImageProvider("not-retryable-failure"))).kind).toBe("failed_not_retryable");
   });
 
-  it("records every instruction it was called with", async () => {
+  it("records every instruction it was submitted with", async () => {
     const stub = createStubImageProvider("success-bytes");
-    await stub.generate("first");
-    await stub.generate("second");
+    await stub.submit("first");
+    await stub.submit("second");
     expect(stub.calls).toEqual(["first", "second"]);
+  });
+
+  it("answers the scripted status checks in order, then the configured mode, and records the checks and cancels", async () => {
+    const stub = createStubImageProvider("transient-failure", { script: [{ kind: "queued" }, { kind: "in-progress" }] });
+    const submitted = await stub.submit(INSTRUCTION);
+    if (submitted.kind !== "submitted") throw new Error("the stub refused the submission");
+
+    expect((await stub.poll(submitted.handle)).kind).toBe("queued");
+    expect((await stub.poll(submitted.handle)).kind).toBe("in-progress");
+    expect((await stub.poll(submitted.handle)).kind).toBe("failed_transient");
+    expect(await stub.cancel(submitted.handle)).toBe("cancelled");
+    expect(stub.polls).toHaveLength(3);
+    expect(stub.cancels).toEqual([submitted.handle]);
+  });
+
+  it("refuses the submission with the configured failure", async () => {
+    const stub = createStubImageProvider("success-bytes", { submitFailure: { kind: "failed_transient", reason: "stub: 429", retryAfterSeconds: 30 } });
+    expect(await stub.submit(INSTRUCTION)).toEqual({ kind: "failed_transient", reason: "stub: 429", retryAfterSeconds: 30 });
   });
 });
 
@@ -234,10 +251,10 @@ describe("The request with a reference image (JOS-202)", () => {
   it("posts to the reference model with the reference as a data URI and the recorded request size", async () => {
     const { fetchFn, calls } = fakeFetch(successResponse);
 
-    await providerWith(fetchFn).generate(INSTRUCTION, REFERENCE);
+    await providerWith(fetchFn).submit(INSTRUCTION, REFERENCE);
 
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.url).toBe("https://fal.run/bytedance/seedream/v5/pro/edit");
+    expect(calls[0]?.url).toBe("https://queue.fal.run/bytedance/seedream/v5/pro/edit");
     expect(IMAGE_REFERENCE_MODEL).toBe("bytedance/seedream/v5/pro/edit");
     expect(JSON.parse(calls[0]?.init.body as string)).toEqual({
       prompt: INSTRUCTION,
@@ -250,33 +267,33 @@ describe("The request with a reference image (JOS-202)", () => {
   it("sends the same request as before when there is no reference", async () => {
     const { fetchFn, calls } = fakeFetch(successResponse);
 
-    await providerWith(fetchFn).generate(INSTRUCTION, undefined);
+    await providerWith(fetchFn).submit(INSTRUCTION, undefined);
 
-    expect(calls[0]?.url).toBe("https://fal.run/fal-ai/flux/dev");
+    expect(calls[0]?.url).toBe("https://queue.fal.run/fal-ai/flux/dev");
     expect(JSON.parse(calls[0]?.init.body as string)).toEqual({ prompt: INSTRUCTION, image_size: { width: 1920, height: 1088 } });
   });
 
   it.each([400, 413, 415, 422])("HTTP %d on a request with a reference is not retryable and names the reference image", async (status) => {
     const { fetchFn } = fakeFetch(() => new Response("raw provider detail", { status }));
-    const result = await providerWith(fetchFn).generate(INSTRUCTION, REFERENCE);
+    const result = await providerWith(fetchFn).submit(INSTRUCTION, REFERENCE);
     expect(result).toEqual({ kind: "failed_not_retryable", reason: `the image provider rejected the reference image (HTTP ${status})` });
   });
 
   it.each([401, 403])("HTTP %d on a request with a reference keeps the existing wording", async (status) => {
     const { fetchFn } = fakeFetch(() => new Response("", { status }));
-    const result = await providerWith(fetchFn).generate(INSTRUCTION, REFERENCE);
+    const result = await providerWith(fetchFn).submit(INSTRUCTION, REFERENCE);
     expect(result).toEqual({ kind: "failed_not_retryable", reason: `the image provider answered HTTP ${status}` });
   });
 
   it.each([408, 429, 500, 503])("HTTP %d on a request with a reference stays transient", async (status) => {
     const { fetchFn } = fakeFetch(() => new Response("", { status }));
-    const result = await providerWith(fetchFn).generate(INSTRUCTION, REFERENCE);
+    const result = await providerWith(fetchFn).submit(INSTRUCTION, REFERENCE);
     expect(result.kind).toBe("failed_transient");
   });
 
   it("never copies the reference bytes into a failure reason", async () => {
     const { fetchFn } = fakeFetch(() => new Response("", { status: 422 }));
-    const result = await providerWith(fetchFn).generate(INSTRUCTION, REFERENCE);
+    const result = await providerWith(fetchFn).submit(INSTRUCTION, REFERENCE);
     expect(JSON.stringify(result)).not.toContain(REFERENCE.bytes.toString("base64"));
   });
 });

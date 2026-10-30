@@ -6,6 +6,7 @@ import { setVideoProviderRegistry } from "../src/videoProvider.ts";
 import { setVoiceProviderRegistry } from "../src/voiceProvider.ts";
 import { buildApp } from "../src/server.ts";
 import { failImage, failVideo, failVoice, installTwoProvidersPerStage, newRun, registerScenes, removeTwoProvidersPerStage } from "./failedStageFixtures.ts";
+import { markImageSweepDone } from "./imageProviderFixtures.ts";
 
 // record-provider-changes (JOS-229), group 3 — design Decisions 2 and 3; JOS-229 AC1 and AC2.
 
@@ -99,6 +100,7 @@ describe("moving a failed stage", () => {
     const { runId, sceneIds } = await registerScenes([7, 8]);
     failVideo(runId, sceneIds[0]!);
     failImage(sceneIds[1]!);
+    markImageSweepDone(runId); // the end-of-session sweep would resend the failed scene when a move publishes the session
 
     expect((await move({ sessionId: runId, stage: "video", sceneId: sceneIds[0] })).statusCode).toBe(200);
     expect((await move({ sessionId: runId, stage: "image", sceneId: sceneIds[1] })).statusCode).toBe(200);
