@@ -1,4 +1,5 @@
 import { db } from "./db.ts";
+import { sessionCosts, type CurrencyTotal } from "./estimatedCostReport.ts";
 import { STUB_PROVIDER_NAME } from "./types.ts";
 
 // report-sessions (JOS-225), design Decisions 2–5 — one row per session created in the period, and the scenes of one session.
@@ -19,6 +20,9 @@ export interface SessionRow {
   attempts: number;
   secondsToVoiceOver: number | null;
   secondsToFinalVideo: number | null;
+  /** report-estimated-cost (JOS-227), design Decision 5 — per currency; empty when nothing priced succeeded. */
+  estimatedCost: CurrencyTotal[];
+  excludesUnpricedProvider: boolean;
 }
 
 export interface SessionsReport {
@@ -79,6 +83,7 @@ export function sessionsReport(period: { from?: string; to: string }): SessionsR
        ORDER BY r.created_at DESC, r.id DESC`,
     )
     .all(from, from, period.to) as unknown as SessionDbRow[];
+  const costs = sessionCosts(rows.map((row) => row.id));
 
   return {
     from,
@@ -95,6 +100,7 @@ export function sessionsReport(period: { from?: string; to: string }): SessionsR
       attempts: row.attempts,
       secondsToVoiceOver: secondsBetween(row.created_at, row.voice_over_at),
       secondsToFinalVideo: secondsBetween(row.created_at, row.assembled_at),
+      ...costs.get(row.id)!,
     })),
   };
 }

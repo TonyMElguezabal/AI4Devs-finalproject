@@ -36,6 +36,7 @@ export interface ProviderUsageReport {
 type CountedOutcome = "success" | "transient" | "not-retryable" | "timed-out";
 
 export interface CountedAttempt {
+  runId: string;
   stage: ReportStage;
   providerId: string;
   outcome: CountedOutcome;
@@ -50,32 +51,47 @@ const SESSION_OUTCOMES: Record<string, CountedOutcome> = { success: "success", "
 const SCENE_OUTCOMES: Record<string, CountedOutcome> = { success: "success", transient_failure: "transient", not_retryable_failure: "not-retryable" };
 
 // report-failures-and-retries (JOS-224), design Decision 1 — exported so the failures report counts exactly the rows this report counts.
-// ponytail: reads every counted attempt of the period into memory; move the aggregation into SQL if "all time" gets slow.
 export function countedAttempts(from: string | null, to: string): CountedAttempt[] {
+  return readCountedAttempts((sentAt) => ({ sql: `(? IS NULL OR ${sentAt} >= ?) AND ${sentAt} < ?`, params: [from, from, to] }));
+}
+
+/** report-estimated-cost (JOS-227), design Decision 5 — the same rows for the given sessions, whenever they were sent. */
+export function countedAttemptsOfRuns(runIds: readonly string[]): CountedAttempt[] {
+  if (runIds.length === 0) return [];
+  return readCountedAttempts((_sentAt, runId) => ({ sql: `${runId} IN (${runIds.map(() => "?").join(", ")})`, params: [...runIds] }));
+}
+
+type AttemptFilter = (sentAtColumn: string, runIdColumn: string) => { sql: string; params: (string | null)[] };
+
+// ponytail: reads every counted attempt of the period into memory; move the aggregation into SQL if "all time" gets slow.
+function readCountedAttempts(filter: AttemptFilter): CountedAttempt[] {
+  const sessionFilter = filter("a.sent_at", "a.run_id");
+  const sceneFilter = filter("pr.sent_at", "s.run_id");
   const sessionRows = db
     .prepare(
-      `SELECT a.stage, a.provider_id, a.outcome, a.sent_at, a.finished_at,
+      `SELECT a.run_id, a.stage, a.provider_id, a.outcome, a.sent_at, a.finished_at,
               CASE a.stage WHEN 'voice-over' THEN (SELECT LENGTH(script) FROM runs r WHERE r.id = a.run_id)
                            WHEN 'timestamps' THEN (SELECT duration_seconds FROM voice_overs v WHERE v.run_id = a.run_id)
                            ELSE 1 END AS units
        FROM stage_attempts a
        WHERE a.stage IN ('voice-over', 'timestamps', 'decomposition') AND a.provider_id IS NOT NULL AND a.provider_id <> 'elevenlabs-native'
          AND a.sent_at IS NOT NULL AND a.outcome IN ('success', 'late-success', 'transient', 'not-retryable', 'timed-out')
-         AND (? IS NULL OR a.sent_at >= ?) AND a.sent_at < ?`,
+         AND ${sessionFilter.sql}`,
     )
-    .all(from, from, to) as unknown as { stage: keyof typeof SESSION_STAGES; provider_id: string; outcome: string; sent_at: string; finished_at: string | null; units: number | null }[];
+    .all(...sessionFilter.params) as unknown as { run_id: string; stage: keyof typeof SESSION_STAGES; provider_id: string; outcome: string; sent_at: string; finished_at: string | null; units: number | null }[];
   const sceneRows = db
     .prepare(
-      `SELECT pr.stage, CASE pr.stage WHEN 'image' THEN s.provider ELSE s.video_provider END AS provider_id, pr.mode, pr.latency_ms,
+      `SELECT s.run_id, pr.stage, CASE pr.stage WHEN 'image' THEN s.provider ELSE s.video_provider END AS provider_id, pr.mode, pr.latency_ms,
               CASE pr.stage WHEN 'image' THEN 1 ELSE s.requested_duration_seconds END AS units
        FROM provider_requests pr JOIN scenes s ON s.id = pr.scene_id
        WHERE pr.mode IN ('success', 'transient_failure', 'not_retryable_failure')
-         AND (? IS NULL OR pr.sent_at >= ?) AND pr.sent_at < ?`,
+         AND ${sceneFilter.sql}`,
     )
-    .all(from, from, to) as unknown as { stage: "image" | "video"; provider_id: string | null; mode: string; latency_ms: number; units: number | null }[];
+    .all(...sceneFilter.params) as unknown as { run_id: string; stage: "image" | "video"; provider_id: string | null; mode: string; latency_ms: number; units: number | null }[];
 
   return [
     ...sessionRows.map((row) => ({
+      runId: row.run_id,
       stage: SESSION_STAGES[row.stage][0],
       providerId: row.provider_id,
       outcome: SESSION_OUTCOMES[row.outcome]!,
@@ -86,6 +102,7 @@ export function countedAttempts(from: string | null, to: string): CountedAttempt
     ...sceneRows
       .filter((row) => row.provider_id !== null)
       .map((row) => ({
+        runId: row.run_id,
         stage: row.stage,
         providerId: row.provider_id!,
         outcome: SCENE_OUTCOMES[row.mode]!,

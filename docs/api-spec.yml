@@ -183,6 +183,8 @@
 # clip provider display names, image and clip request counts, requested duration, speed factor and the two warnings; 401; 404 for an unknown session). Both are read-only, behind the
 # Administrator password, and carry no script, prompt, instruction, narration text or failure text: the session title is the only User text.
 # JOS-229 (record-provider-changes) - 2026-10-27: new `GET /admin/reports/provider-changes?from&to` (same period rules as the usage report, applied to the instant of the change; 200 `{ from, to, entries }`, newest first: per entry the instant, its kind (`active-provider` or `failed-stage-move`), the stage, the session id and title and the scene number of a move (`null` for an active-provider change), and the previous and new provider ids and display names as logged; 400 for a bad date-time or `from` not before `to`; 401). Read-only, behind the Administrator password; it carries no script, prompt, instruction, narration text or failure text. The log starts empty with migration 25 and holds changes made from then on.
+# JOS-227 (report-estimated-cost) - 2026-10-29: new `GET /admin/reports/estimated-cost?from&to` (same period rules as the usage report; 200 `{ from, to, sceneAttemptsFollowCurrentProvider, rows, totals, totalsExcludeUnpriced }`: per stage and provider the display name, unit, billed and failed units, the current price per unit and currency, and the estimated cost, all `null` for an unpriced provider; one total per currency; 400 for a bad date-time or `from` not before `to`; 401). Each `GET /admin/reports/sessions` row gains `estimatedCost` (one `{ currency, estimatedCost }` per currency over all the session's successful attempts on priced providers) and `excludesUnpricedProvider`. Read-only, behind the Administrator password; no key, script, prompt, instruction, narration text or failure text.
+# JOS-238 (show-app-version) - 2026-10-29: new `GET /app/version` (200 `{ version, channel }`, `channel` development|uat|production; read from the build identity, no network call, no authentication beyond the loopback, Origin and Host guard). It returns no other field (not the release tag, repository, telemetry endpoint or paths). Read-only.
 # JOS-201 (admin-visual-style-prompt) - 2026-10-19, merged behind the Administrator password 2026-10-22: new GET /admin/settings,
 # PUT /admin/settings/visual-style-prompt (`{ visualStylePrompt }`, at most 8,000 characters after trimming, 400 otherwise) and,
 # for the optional reference image, PUT (raw bytes, `image/png`, `image/jpeg` or `image/webp`, at most 5 MB: 400 for another
@@ -2714,6 +2716,28 @@ paths:
                       - tag
                       - url
                     additionalProperties: false
+  /app/version:
+    get:
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+                  channel:
+                    type: string
+                    enum:
+                      - development
+                      - uat
+                      - production
+                required:
+                  - version
+                  - channel
+                additionalProperties: false
   /events:
     get:
       responses:
@@ -4436,6 +4460,143 @@ paths:
                   - reason
                 additionalProperties: false
 
+  /admin/reports/estimated-cost:
+    get:
+      parameters:
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: from
+          required: false
+        - schema:
+            type: string
+            format: date-time
+          in: query
+          name: to
+          required: false
+      security:
+        - administratorPassword: []
+      responses:
+        "200":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  from:
+                    type: string
+                    nullable: true
+                  to:
+                    type: string
+                  sceneAttemptsFollowCurrentProvider:
+                    type: boolean
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        stage:
+                          type: string
+                          enum:
+                            - voice
+                            - alignment
+                            - reasoning
+                            - image
+                            - video
+                        providerId:
+                          type: string
+                        providerLabel:
+                          type: string
+                        unit:
+                          type: string
+                        billedUnits:
+                          type: number
+                        failedUnits:
+                          type: number
+                        pricePerUnit:
+                          type: number
+                          nullable: true
+                        currency:
+                          type: string
+                          nullable: true
+                        estimatedCost:
+                          type: number
+                          nullable: true
+                      required:
+                        - stage
+                        - providerId
+                        - providerLabel
+                        - unit
+                        - billedUnits
+                        - failedUnits
+                        - pricePerUnit
+                        - currency
+                        - estimatedCost
+                      additionalProperties: false
+                  totals:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        currency:
+                          type: string
+                        estimatedCost:
+                          type: number
+                      required:
+                        - currency
+                        - estimatedCost
+                      additionalProperties: false
+                  totalsExcludeUnpriced:
+                    type: boolean
+                required:
+                  - from
+                  - to
+                  - sceneAttemptsFollowCurrentProvider
+                  - rows
+                  - totals
+                  - totalsExcludeUnpriced
+                additionalProperties: false
+        "400":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: number
+                  error:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - statusCode
+                  - error
+                  - message
+                additionalProperties: true
+        "401":
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - false
+                  reason:
+                    type: string
+                    enum:
+                      - not-configured
+                      - password-required
+                      - wrong-password
+                required:
+                  - ok
+                  - reason
+                additionalProperties: false
   /admin/reports/pipeline-time:
     get:
       parameters:
@@ -4776,6 +4937,21 @@ paths:
                         secondsToFinalVideo:
                           type: number
                           nullable: true
+                        estimatedCost:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              currency:
+                                type: string
+                              estimatedCost:
+                                type: number
+                            required:
+                              - currency
+                              - estimatedCost
+                            additionalProperties: false
+                        excludesUnpricedProvider:
+                          type: boolean
                       required:
                         - id
                         - title
@@ -4788,6 +4964,8 @@ paths:
                         - attempts
                         - secondsToVoiceOver
                         - secondsToFinalVideo
+                        - estimatedCost
+                        - excludesUnpricedProvider
                       additionalProperties: false
                 required:
                   - from

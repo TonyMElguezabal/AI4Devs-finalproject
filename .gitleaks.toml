@@ -1,0 +1,7 @@
+# Secrets scan configuration (JOS-211, change scan-secrets-in-ci). CI and the local command read this file from the repository root.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "graphify file-hash cache: hashes and mtimes written by graphify, rewritten on most commits, no credentials"
+paths = ['''^graphify-out/cache/stat-index\.json$''']

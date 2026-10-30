@@ -23,6 +23,8 @@ const ready: SessionReportRow = {
   attempts: 15,
   secondsToVoiceOver: 0.1,
   secondsToFinalVideo: 18.1,
+  estimatedCost: [],
+  excludesUnpricedProvider: false,
 };
 const failed: SessionReportRow = { ...ready, id: "s-failed", title: "Harbour", state: "failed", failedPhase: "assembly", paused: true, scenes: 0, attempts: 1234, secondsToVoiceOver: null, secondsToFinalVideo: null };
 const running: SessionReportRow = { ...ready, id: "s-running", title: "Cliffs", state: "in-progress", secondsToFinalVideo: null };
@@ -90,8 +92,8 @@ describe("SessionsReport", () => {
     const table = await screen.findByRole("table", { name: "Sessions" });
     const rows = within(table).getAllByRole("row").slice(1);
     const cells = (index: number) => within(rows[index]!).getAllByRole("cell").map((cell) => cell.textContent);
-    expect(cells(0)).toEqual(["Lighthouse", createdText(CREATED), "Final video ready", "—", "2", "0", "15", "0.1 s", "18.1 s", "Scenes"]);
-    expect(cells(1)).toEqual(["Harbour", createdText(CREATED), "Failed in assembly", "Paused", "0", "0", "1,234", "—", "—", "Scenes"]);
+    expect(cells(0)).toEqual(["Lighthouse", createdText(CREATED), "Final video ready", "—", "2", "0", "15", "0.1 s", "18.1 s", "—", "Scenes"]);
+    expect(cells(1)).toEqual(["Harbour", createdText(CREATED), "Failed in assembly", "Paused", "0", "0", "1,234", "—", "—", "—", "Scenes"]);
     expect(cells(2)[2]).toBe("In progress");
   });
 
@@ -109,6 +111,7 @@ describe("SessionsReport", () => {
       "Attempts",
       "Seconds to voice-over",
       "Seconds to final video",
+      "Estimated cost",
       "Details",
     ]);
   });
@@ -217,5 +220,20 @@ describe("SessionsReport scene drill-down", () => {
     await user.click(button);
     await user.click(button);
     expect(await screen.findByRole("table", { name: "Scenes of Lighthouse" })).toBeInTheDocument();
+  });
+});
+
+// report-estimated-cost (JOS-227), task 6.1 — design Decisions 5 and 6.
+describe("SessionsReport estimated cost", () => {
+  it("shows each session's cost per currency, labelled an estimate, with a note for an unpriced provider and a dash for no amount", async () => {
+    const priced: SessionReportRow = { ...ready, estimatedCost: [{ currency: "EUR", estimatedCost: 1.7 }, { currency: "USD", estimatedCost: 0.25 }], excludesUnpricedProvider: true };
+    stub(() => json(listOf([priced, failed])));
+    renderReport();
+
+    const table = await screen.findByRole("table", { name: "Sessions" });
+    expect(within(table).getByRole("columnheader", { name: "Estimated cost" })).toBeInTheDocument();
+    const cell = within(table).getByRole("cell", { name: "Estimated cost of Lighthouse: EUR 1.70, USD 0.25 (estimate, excludes unpriced providers)" });
+    expect(cell).toHaveTextContent("EUR 1.70, USD 0.25 (excludes unpriced providers)");
+    expect(within(table).getByRole("cell", { name: "Estimated cost of Harbour: none" })).toHaveTextContent("—");
   });
 });
