@@ -174,6 +174,12 @@ export interface TelemetryConsent extends TelemetryChoices {
 /** `GET /app/update`: a newer build exists on this build's channel. */
 export type AppUpdate = { available: false } | { available: true; tag: string; url: string };
 
+/** show-app-version (JOS-238) — `GET /app/version`: the running build, shown in the top bar. */
+export interface AppVersion {
+  version: string;
+  channel: "development" | "uat" | "production";
+}
+
 /** change-active-provider-from-admin (JOS-171) — one stage's row on `/admin`: `GET /admin/providers`. */
 export type ProviderStage = "reasoning" | "voice" | "alignment" | "image" | "video";
 export interface ProviderView {
@@ -324,6 +330,9 @@ export interface SessionReportRow {
   attempts: number;
   secondsToVoiceOver: number | null;
   secondsToFinalVideo: number | null;
+  /** report-estimated-cost (JOS-227) — per currency; empty when nothing priced succeeded. */
+  estimatedCost: CurrencyTotal[];
+  excludesUnpricedProvider: boolean;
 }
 
 export interface SessionsReport {
@@ -375,4 +384,31 @@ export interface PipelineTimeReport {
   to: string;
   phases: PipelinePhaseRow[];
   sessions: Array<{ runId: string; title: string; seconds: Record<PipelinePhase, number | null> }>;
+}
+
+// report-estimated-cost (JOS-227), design Decision 3 — `null` price and cost mean unpriced, never zero.
+export interface CurrencyTotal {
+  currency: string;
+  estimatedCost: number;
+}
+
+export interface EstimatedCostRow {
+  stage: ProviderStage;
+  providerId: string;
+  providerLabel: string;
+  unit: string;
+  billedUnits: number;
+  failedUnits: number;
+  pricePerUnit: number | null;
+  currency: string | null;
+  estimatedCost: number | null;
+}
+
+export interface EstimatedCostReport {
+  from: string | null;
+  to: string;
+  sceneAttemptsFollowCurrentProvider: boolean;
+  rows: EstimatedCostRow[];
+  totals: CurrencyTotal[];
+  totalsExcludeUnpriced: boolean;
 }

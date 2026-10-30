@@ -1,0 +1,20 @@
+# Known false positives in history, one finding each (fingerprint = commit:file:rule:line).
+# New findings in the same files are still reported. Add an entry only with a one-line reason above it.
+
+# Example database password in the inherited development guide (replaced in PR #73).
+015902ab74c9f59319a705b73dc2a9c6ae9963fa:docs/development_guide.md:generic-api-key:32
+# Same example password in the specboot template copy of the guide.
+015902ab74c9f59319a705b73dc2a9c6ae9963fa:packages/specboot/template/docs/development_guide.md:generic-api-key:32
+# Same example password in the specboot template copy, later revision.
+7ba30485ca678984820fb77988bd0106f3689c8a:packages/specboot/template/docs/development_guide.md:generic-api-key:32
+
+# Placeholder bearer token in a curl example of the first readme.
+64a9d6a4d7ef460e0d2c34e64da7bf934d0b1199:prompts.md:curl-auth-header:1088
+# Placeholder bearer token in a curl example of the first readme.
+64a9d6a4d7ef460e0d2c34e64da7bf934d0b1199:readme.md:curl-auth-header:4028
+# Placeholder bearer token in a curl example of the first readme.
+64a9d6a4d7ef460e0d2c34e64da7bf934d0b1199:readme.md:curl-auth-header:4288
+# Placeholder bearer token in a curl example of the first readme.
+64a9d6a4d7ef460e0d2c34e64da7bf934d0b1199:readme.md:curl-auth-header:4528
+# Placeholder token in a curl example of the first readme (generic rule on the same example).
+64a9d6a4d7ef460e0d2c34e64da7bf934d0b1199:readme.md:generic-api-key:4592

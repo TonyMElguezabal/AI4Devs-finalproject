@@ -4,7 +4,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReportPeriodSelector } from "../src/components/ReportPeriodSelector";
 import { ReportsSection } from "../src/components/ReportsSection";
-import type { FailuresReport, PipelineTimeReport, ProviderChangesReport, ProviderUsageReport, ProviderUsageRow, ReportPeriod } from "../src/types";
+import type { EstimatedCostReport, FailuresReport, PipelineTimeReport, ProviderChangesReport, ProviderUsageReport, ProviderUsageRow, ReportPeriod } from "../src/types";
 
 // report-provider-usage (JOS-223), group 4 — design Decision 7. `fetch` is mocked with the backend's answers.
 
@@ -61,12 +61,16 @@ const emptyFailures: FailuresReport = { from: null, to: NOW.toISOString(), stage
 // record-provider-changes (JOS-229), group 5.
 const emptyProviderChanges: ProviderChangesReport = { from: null, to: NOW.toISOString(), entries: [] };
 
+// report-estimated-cost (JOS-227), group 6.
+const emptyEstimatedCost: EstimatedCostReport = { from: null, to: NOW.toISOString(), sceneAttemptsFollowCurrentProvider: true, rows: [], totals: [], totalsExcludeUnpriced: false };
+
 /** `answer` replies to the provider-usage request (its URLs are returned); the pipeline-time request gets `pipeline`, the failures request `failures`. */
 function stubBackend(
   answer: (url: URL) => Response,
   pipeline: () => Response = () => new Response(JSON.stringify(emptyPipeline), { status: 200 }),
   failures: () => Response = () => new Response(JSON.stringify(emptyFailures), { status: 200 }),
   providerChanges: () => Response = () => new Response(JSON.stringify(emptyProviderChanges), { status: 200 }),
+  estimatedCost: () => Response = () => new Response(JSON.stringify(emptyEstimatedCost), { status: 200 }),
 ) {
   const urls: URL[] = [];
   vi.stubGlobal(
@@ -76,6 +80,7 @@ function stubBackend(
       if (parsed.pathname.endsWith("/pipeline-time")) return pipeline();
       if (parsed.pathname.endsWith("/failures")) return failures();
       if (parsed.pathname.endsWith("/provider-changes")) return providerChanges();
+      if (parsed.pathname.endsWith("/estimated-cost")) return estimatedCost();
       if (parsed.pathname.endsWith("/sessions")) return new Response(JSON.stringify(emptySessions), { status: 200 });
       urls.push(parsed);
       return answer(parsed);
@@ -171,7 +176,7 @@ describe("ReportsSection", () => {
       }),
     );
     render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
-    await waitFor(() => expect(seen).toEqual(Array(5).fill(`Bearer ${PASSWORD}`)));
+    await waitFor(() => expect(seen).toEqual(Array(6).fill(`Bearer ${PASSWORD}`)));
   });
 
   it("shows one table row per report row with formatted numbers and a dash for a missing latency", async () => {
@@ -558,5 +563,56 @@ describe("ReportsSection provider changes", () => {
 
     await waitFor(() => expect(screen.queryByText(/Could not load the provider changes report/)).not.toBeInTheDocument());
     expect(await screen.findByRole("table", { name: "Provider changes" })).toBeInTheDocument();
+  });
+});
+
+describe("ReportsSection estimated cost", () => {
+  const costReport: EstimatedCostReport = {
+    ...emptyEstimatedCost,
+    rows: [{ stage: "video", providerId: "vid-b", providerLabel: "Vid B", unit: "clip_seconds", billedUnits: 34, failedUnits: 0, pricePerUnit: 0.05, currency: "USD", estimatedCost: 1.7 }],
+    totals: [{ currency: "USD", estimatedCost: 1.7 }],
+  };
+  const withCost = (estimatedCost: () => Response) => stubBackend(() => ok([voiceRow]), undefined, undefined, undefined, estimatedCost);
+
+  it("requests the estimated-cost report for the same period and again when it changes", async () => {
+    const seen: URL[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const parsed = new URL(url);
+        seen.push(parsed);
+        const path = parsed.pathname.split("/").pop();
+        const bodies: Record<string, unknown> = { "pipeline-time": emptyPipeline, failures: emptyFailures, "provider-changes": emptyProviderChanges, sessions: emptySessions, "estimated-cost": costReport };
+        return new Response(JSON.stringify(bodies[path!] ?? reportOf([])), { status: 200 });
+      }),
+    );
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+    await screen.findByRole("table", { name: /Estimated cost/ });
+    const calls = () => seen.filter((url) => url.pathname === "/admin/reports/estimated-cost");
+    expect(calls()[0]!.searchParams.get("from")).toBe(new Date(NOW.getTime() - 30 * DAY_MS).toISOString());
+
+    await userEvent.setup().click(screen.getByRole("radio", { name: "Last 7 days" }));
+
+    await waitFor(() => expect(calls()).toHaveLength(2));
+    expect(calls()[1]!.searchParams.get("from")).toBe(new Date(NOW.getTime() - 7 * DAY_MS).toISOString());
+  });
+
+  it("locks the page, once, when only the estimated-cost request is answered 401", async () => {
+    withCost(() => new Response("{}", { status: 401 }));
+    const onDenied = vi.fn();
+    render(<ReportsSection password={PASSWORD} onDenied={onDenied} />);
+    await waitFor(() => expect(onDenied).toHaveBeenCalledTimes(1));
+  });
+
+  it("shows its own message when only the estimated-cost request fails, and clears it when the period changes", async () => {
+    let calls = 0;
+    withCost(() => (calls++ === 0 ? new Response("{}", { status: 500 }) : new Response(JSON.stringify(costReport), { status: 200 })));
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+
+    expect(await screen.findByText(/Could not load the estimated cost report/)).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("radio", { name: "Last 7 days" }));
+
+    await waitFor(() => expect(screen.queryByText(/Could not load the estimated cost report/)).not.toBeInTheDocument());
+    expect(await screen.findByRole("table", { name: /Estimated cost/ })).toBeInTheDocument();
   });
 });

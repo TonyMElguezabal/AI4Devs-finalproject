@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { adminDeniedSchema } from "./adminAccess.ts";
+import { estimatedCostReport } from "./estimatedCostReport.ts";
 import { failuresReport } from "./failuresReport.ts";
 import { pipelineTimeReport } from "./pipelineTimeReport.ts";
 import { providerChangesReport } from "./providerChangesReport.ts";
@@ -35,6 +36,29 @@ const reportSchema = z.object({
   to: z.string(),
   sceneAttemptsFollowCurrentProvider: z.boolean(),
   rows: z.array(rowSchema),
+});
+
+// report-estimated-cost (JOS-227), design Decision 3 — `null` price and cost mean unpriced, never zero.
+const currencyTotalSchema = z.object({ currency: z.string(), estimatedCost: z.number() });
+const estimatedCostReportSchema = z.object({
+  from: z.string().nullable(),
+  to: z.string(),
+  sceneAttemptsFollowCurrentProvider: z.boolean(),
+  rows: z.array(
+    z.object({
+      stage: z.enum(["voice", "alignment", "reasoning", "image", "video"]),
+      providerId: z.string(),
+      providerLabel: z.string(),
+      unit: z.string(),
+      billedUnits: z.number(),
+      failedUnits: z.number(),
+      pricePerUnit: z.number().nullable(),
+      currency: z.string().nullable(),
+      estimatedCost: z.number().nullable(),
+    }),
+  ),
+  totals: z.array(currencyTotalSchema),
+  totalsExcludeUnpriced: z.boolean(),
 });
 
 const phaseSchema = z.enum(["voice-over", "decomposition", "scenes", "assembly"]);
@@ -92,6 +116,8 @@ const sessionsReportSchema = z.object({
       attempts: z.number(),
       secondsToVoiceOver: z.number().nullable(),
       secondsToFinalVideo: z.number().nullable(),
+      estimatedCost: z.array(currencyTotalSchema),
+      excludesUnpricedProvider: z.boolean(),
     }),
   ),
 });
@@ -153,6 +179,16 @@ export function registerReportRoutes(admin: FastifyInstance): void {
       const period = periodOf(request.query);
       if ("error" in period) return reply.code(400).send({ statusCode: 400, error: "Bad Request", message: period.error });
       return providerUsageReport(period);
+    },
+  );
+
+  admin.withTypeProvider<ZodTypeProvider>().get(
+    "/reports/estimated-cost",
+    { schema: { querystring: querySchema, response: { 200: estimatedCostReportSchema, 400: validationErrorSchema, 401: adminDeniedSchema } } },
+    async (request, reply) => {
+      const period = periodOf(request.query);
+      if ("error" in period) return reply.code(400).send({ statusCode: 400, error: "Bad Request", message: period.error });
+      return estimatedCostReport(period);
     },
   );
 
