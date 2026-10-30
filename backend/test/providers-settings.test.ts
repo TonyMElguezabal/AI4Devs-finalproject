@@ -41,7 +41,7 @@ describe("With no override file", () => {
     expect(providers.SEGMENTATION_LOWER_BOUND_SECONDS).toBe(5);
     expect(providers.SEGMENTATION_UPPER_BOUND_SECONDS).toBe(15);
     expect(providers.SUPPORTED_LANGUAGE_CODES).toEqual(["en", "es"]);
-    expect(providers.MAX_SIMULTANEOUS_REQUESTS).toEqual({ decomposition: 50, image: 200, voice: 3, alignment: 2, video: 3 });
+    expect(providers.MAX_SIMULTANEOUS_REQUESTS).toEqual({ decomposition: 50, image: 200, voice: 4, alignment: 2, video: 4 });
     expect(providers.PER_PHASE_MAX_TIME_SECONDS).toEqual({
       decomposition: 600,
       image: 300,
@@ -59,7 +59,7 @@ describe("With an override file", () => {
   it("exports the configured request cap and maximum time", async () => {
     const providers = await importProviders({ maxSimultaneousRequests: { video: 1 }, maxTimeSeconds: { image: 40 } });
     expect(providers.MAX_SIMULTANEOUS_REQUESTS.video).toBe(1);
-    expect(providers.MAX_SIMULTANEOUS_REQUESTS.voice).toBe(3);
+    expect(providers.MAX_SIMULTANEOUS_REQUESTS.voice).toBe(4);
     expect(providers.PER_PHASE_MAX_TIME_SECONDS.image).toBe(40);
     expect(providers.PER_PHASE_MAX_TIME_SECONDS.video).toBe(1200);
   });

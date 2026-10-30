@@ -193,10 +193,11 @@ export type CappedStage = "decomposition" | "image" | "voice" | "alignment" | "v
 
 // Shipped defaults (backend/config/settings.default.json): decomposition 50 (500 req/min, OpenAI,
 // measured, ÷ 10 headroom factor — provisional pending group 8 latency data); image 200 (2000, Fal.ai,
-// measured, ÷ 10 — provisional, the rate-limit window's time unit is unconfirmed); voice 3 and alignment 2
-// (ElevenLabs Creator tier documents 5 concurrent requests per account, shared by both: 3 + 2, documented,
-// not measured — see ALIGNMENT_PROVIDER.sharesAccountWith); video 3 (RunningHub: the highest concurrency
-// measured with no slowdown, JOS-165 step 8.2).
+// measured, ÷ 10 — provisional, the rate-limit window's time unit is unconfirmed); voice 4 (ElevenLabs refuses
+// the 6th simultaneous call: limit 5, measured; 4 leaves one slot for another consumer of the same key) and alignment 2
+// (a separate pool from voice: 10 simultaneous calls succeeded; the account and its character quota are still shared,
+// see ALIGNMENT_PROVIDER.sharesAccountWith) — JOS-188 report step 2; video 4 (RunningHub: 4 and 6 simultaneous 5 s
+// 2K jobs showed no queueing, error or slowdown, so 6 is the highest tested level; JOS-188 report step 3).
 export const MAX_SIMULTANEOUS_REQUESTS: Record<CappedStage, number> = settings.maxSimultaneousRequests;
 
 // ---- Per-phase maximum times (§10.1, Decision 7) ----

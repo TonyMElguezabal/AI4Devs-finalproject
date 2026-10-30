@@ -93,10 +93,17 @@ describe("Per-stage request maximum stays within the recorded rate limit under t
     expect((cap) * RETRY_BUDGET_ATTEMPTS).toBeLessThan(2000);
   });
 
-  it("voice, alignment and video are numbers, decided by the product owner (JOS-167)", () => {
-    expect(MAX_SIMULTANEOUS_REQUESTS.voice).toBe(3);
+  it("voice, alignment and video are numbers, decided by the product owner (JOS-167, raised by JOS-188)", () => {
+    expect(MAX_SIMULTANEOUS_REQUESTS.voice).toBe(4);
     expect(MAX_SIMULTANEOUS_REQUESTS.alignment).toBe(2);
-    expect(MAX_SIMULTANEOUS_REQUESTS.video).toBe(3);
+    expect(MAX_SIMULTANEOUS_REQUESTS.video).toBe(4);
+  });
+
+  // JOS-188 probe: ElevenLabs refused the 6th simultaneous voice call (limit 5, alignment uses a separate pool);
+  // RunningHub showed no queueing, error or slowdown with 6 simultaneous 5 s 2K jobs.
+  it("voice stays within the ElevenLabs limit and video within the RunningHub concurrency measured by JOS-188", () => {
+    expect(MAX_SIMULTANEOUS_REQUESTS.voice).toBeLessThanOrEqual(5);
+    expect(MAX_SIMULTANEOUS_REQUESTS.video).toBeLessThanOrEqual(6);
   });
 });
 
