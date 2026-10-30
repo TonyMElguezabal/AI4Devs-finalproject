@@ -69,7 +69,7 @@ Alternative considered: keep counting from submit (JOS-185 Decision 9). Rejected
 
 ### 6. Whether an image failure can be swept is derived, not stored
 
-A scene failed at the image stage (`status = 'failed'`, `result IS NULL`) is sweepable when its latest image `provider_requests` row has mode `transient_failure`. Every not-retryable path already records `not_retryable_failure` (rejected reference, missing key, no adapter, invalid input); exhausted cycles, the ceiling (Decision 4) and a passed start window record `transient_failure`. This follows the project's preference for derived state over status columns. Task 1.x verifies that every image failure path writes a row before relying on it.
+A scene failed at the image stage (`status = 'failed'`, `result IS NULL`) is sweepable unless its latest image `provider_requests` row has mode `not_retryable_failure`. Every not-retryable path already records that mode (rejected reference, missing key, no adapter, missing reference file); exhausted cycles, the ceiling (Decision 4), download and size failures and a passed start window record `transient_failure`. The one path that records no row is the restart interruption (`settleImageInFlight`), which is always transient, so "no row, or not `not_retryable_failure`" is the rule rather than "latest row is `transient_failure`" (verified in task 1.1). This follows the project's preference for derived state over status columns.
 
 Alternative: a `scenes.image_failure_sweepable` column — redundant with the attempt history.
 
