@@ -1,0 +1,79 @@
+## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
+
+- [x] 0.1 Create branch `feature/jos-239-follow-fal-queue` from `origin/main` with `--no-track`
+- [ ] 0.2 Verify the branch has no upstream (`git branch -vv`) and record the start time for the DoD time-spent entry
+
+## 1. Preparation: verify the design's assumptions
+
+- [ ] 1.1 Verify design Decision 6: every image failure path in `orchestrator.ts` (submit HTTP error, rejected reference, missing key, no adapter, invalid size, download failure, restart interruption) writes a `provider_requests` row whose mode matches "sweepable = transient". Record each path with file:line; if one writes no row, add the row in group 6 before relying on it
+- [ ] 1.2 Verify design Decision 7: list the callers of `broadcast(runId)` for scene settles (image and clip, success and failure), resume and manual retry; confirm `manualRetry` → `broadcast` recursion stops on the claimed marker. Record the result
+- [ ] 1.3 Check fal.ai's queue responses with a real key once (one cheap `fal-ai/flux/dev` request, owner's key from the credentials file, never printed): submission fields, a status `IN_QUEUE`/`IN_PROGRESS`/`COMPLETED` body, the result body, and a cancel answer. Save the redacted shapes in `reports/YYYY-MM-DD-step-1-fal-queue-shapes.md`; if they differ from design Decision 2, update the design and specs first (CLAUDE.md §7)
+
+## 2. Backend: fal.ai queue adapter (TDD)
+
+- [ ] 2.1 Write failing tests in `backend/test/image-provider-queue.test.ts` with a stubbed `fetch`: one `POST https://queue.fal.run/<model>` with `X-Fal-Request-Start-Timeout: 1800`; reference requests go to `bytedance/seedream/v5/pro/edit`; poll maps `IN_QUEUE` / `IN_PROGRESS` / `COMPLETED` (result fetched from `response_url`) / `COMPLETED` with `error` (transient, invalid input not retryable); network error or HTTP 5xx on status → `check-failed`; HTTP 429 with `Retry-After` → transient with `retryAfterSeconds`; a returned URL outside `https://queue.fal.run` is refused without sending the key; cancel maps 200 / 202 / 400 `ALREADY_COMPLETED` / 404
+- [ ] 2.2 Change `ImageProvider` in `backend/src/imageProvider.ts` to `submit` / `poll` / `cancel` (design Decision 2) and implement the fal.ai adapter on the queue API; keep `falResponseSchema`, `classifyHttpStatus` and `REFERENCE_REJECTION_STATUSES`; failure reasons never include a response body or URL. Make 2.1 pass
+- [ ] 2.3 Give `createStubImageProvider` a scripted poll sequence (`queued` → `in-progress` → `success` / failure) while keeping its existing modes for `bootstrap.ts` (`USE_STUB_IMAGE_PROVIDER`)
+- [ ] 2.4 Add `IMAGE_QUEUE_START_WINDOW_SECONDS = 1800` to `backend/src/config/providers.ts` with a comment citing JOS-239
+
+## 3. Backend: follow one request per attempt (TDD)
+
+- [ ] 3.1 Write failing tests (stub adapter, `setImagePollIntervalMs`, scratch DB): one submission per attempt; a long `IN_QUEUE` wait past `maxTimeSeconds.image` then success on attempt 1 (spec `stage-execution-time-limit`); `IN_PROGRESS` past the limit but before 2× → image accepted, no new submit; still `IN_PROGRESS` at 2× → one cancel, scene `failed` with the ceiling reason, no automatic retry; cancel answered `already-completed` → success; a failed status check consumes no attempt; the image slot stays taken until the request ends (spec `provider-request-limit`)
+- [ ] 3.2 Rewrite `runImageAttempt` to submit and store the request id in `scenes.current_request_id`; add `pollImageRequestOnce` beside `pollVideoRequestOnce` (design Decisions 3-4); release the slot only when the request ends; write one `provider_requests` row per attempt at the end. Make 3.1 pass
+- [ ] 3.3 Remove the image-stage `AbortSignal.timeout` path and update the JOS-185 Decision 9 comments in `imageProvider.ts` / `orchestrator.ts` to point at this change
+
+## 4. Backend: delayed automatic image retries (TDD)
+
+- [ ] 4.1 Write failing tests: a transient image failure with budget left is resubmitted only after `retryDelaySeconds`; HTTP 429 with `Retry-After: 30` delays at least 30 s; the retry is the next attempt; a pause during the wait sends nothing (spec `chunk-image-generation`)
+- [ ] 4.2 Export the configured delay from `backend/src/retry/stageAttemptRecorder.ts` and schedule the image retry in `applyFailureOutcome` after the delay (design Decision 5); the clip retry path is unchanged. Make 4.1 pass
+
+## 5. Backend: image cap 6 (TDD)
+
+- [ ] 5.1 Update the expected image cap in `providerConfig.test.ts`, `provider-request-limits.test.ts` and `providers-settings.test.ts` to 6 and see them fail; keep the override test (`settings.json` wins)
+- [ ] 5.2 Set `maxSimultaneousRequests.image: 6` in `backend/config/settings.default.json` and cite JOS-239 (fal.ai limit 20, evidence, date) in the comment above `MAX_SIMULTANEOUS_REQUESTS` in `backend/src/config/providers.ts`. Make 5.1 pass
+
+## 6. Backend: one-time end-of-session sweep (TDD)
+
+- [ ] 6.1 Write failing tests (spec `image-failure-recovery`, `scene-completion-gate`): fixable image failures (exhausted cycle, ceiling) are retried once when the session's scene work goes idle; a rejected reference stays `failed`; a clip failure is not swept; a second idle after the sweep fails the session (`failedPhase: "scenes"`); a restart does not repeat the sweep; a paused session is swept after it continues; no `failed` snapshot is published while the sweep is due
+- [ ] 6.2 Add the migration `runs.image_sweep_at TEXT` in `backend/src/db.ts`, a claim function (`UPDATE … WHERE image_sweep_at IS NULL`, true only if one row changed), and the query for sweepable scenes (design Decision 6)
+- [ ] 6.3 Add `sweepIdleImageFailures(runId)` and call it at the start of `broadcast(runId)` and once per run after the boot settle (design Decision 7). Make 6.1 pass
+
+## 7. Backend: opt-in contract test
+
+- [ ] 7.1 Add `backend/test/image-provider-queue.contract.test.ts` (runs only with `RUN_PROVIDER_CONTRACT_TESTS=1`): one real `fal-ai/flux/dev` request through submit → poll → result, asserting the shapes from 1.3. Run it once locally with the owner's key and note the cost in the step 9 report
+
+## 8. Backend: Review and Update Existing Unit Tests (MANDATORY)
+
+- [ ] 8.1 Update tests that call `ImageProvider.generate` or the old stub directly (for example `reference-image-generation.test.ts`, `active-provider-binding-image.test.ts`, image restart and retry tests) to the submit / poll interface
+- [ ] 8.2 Update tests that pin the image time limit at the call (JOS-185, `stage-execution-time-limit`) to the new clock, and tests that expect an immediate image retry to the delayed one
+- [ ] 8.3 Check that tests asserting `failed` with `failedPhase: "scenes"` still hold with the sweep (use a not-sweepable failure or an already-swept session where needed)
+
+## 9. Backend: Run Unit Tests and Verify Database State (MANDATORY)
+
+- [ ] 9.1 Capture the pre-test baseline: run with a fresh `DB_PATH` and `PROJECTS_ROOT` in the scratchpad, never the real ones; record the real `backend/data` fingerprint
+- [ ] 9.2 Run the targeted tests (groups 2-6 test files)
+- [ ] 9.3 Run the full backend suite, `tsc --noEmit` and `eslint`
+- [ ] 9.4 Verify the real `data/` and projects folder are unchanged and nothing outside scratch was written
+- [ ] 9.5 Create `reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`
+- [ ] 9.6 Mark this step complete only after tests pass and the report exists
+
+## 10. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
+
+- [ ] 10.1 Start the backend on scratch `DB_PATH` / `PROJECTS_ROOT` with the stub image provider and short retry delays (`RETRY_BASE_DELAY_SECONDS`); confirm the boot log shows image concurrency limit 6
+- [ ] 10.2 Create a session with curl, follow `GET` of the session until scenes complete; confirm one `provider_requests` row per image attempt in the scratch DB
+- [ ] 10.3 With the stub set to transient failure, confirm the retries are delayed, the sweep runs once when the session goes idle (`runs.image_sweep_at` set), and the session then reads `failed` with `failedPhase: "scenes"`
+- [ ] 10.4 Restart with a `SETTINGS_PATH` override (`"image": 2`) and confirm it wins in the boot log; remove the override
+- [ ] 10.5 Real long run (AC 11), only after the owner approves the spend ceiling: a ≥ 500-word script (≥ 50 scenes) with real keys (`FFMPEG_PATH` set to the pinned build). Record image failures by cause, and compare the fal.ai usage CSV for that window (exported by the owner) with the requests that reached `COMPLETED`
+- [ ] 10.6 Record commands, responses and the long-run comparison in `reports/YYYY-MM-DD-step-10-curl-endpoint-testing.md`; stop the servers and discard the scratch state
+
+## 11. Frontend: E2E Testing with Playwright MCP
+
+- [ ] 11.1 Not applicable: no frontend change (the session header already shows `failedSceneIndexes`). Record that in the step 10 report
+
+## 12. Update Technical Documentation (MANDATORY)
+
+- [ ] 12.1 `docs/PRD.md` v1.30 (archive v1.29 as the repo does): §10.1 image time limit counted from when the provider starts the job, 2× ceiling, delayed retries, end-of-session sweep; §11 image cap 6 and the start window
+- [ ] 12.2 `docs/data-model.md`: `runs.image_sweep_at`, and the meaning of `scenes.current_request_id` for images (fal.ai request id)
+- [ ] 12.3 `docs/adr/0005-provider-selection.md` Decision 7: image cap 6 with the fal.ai limit (20) and the JOS-239 evidence; README caps table
+- [ ] 12.4 Run `graphify update .`
+- [ ] 12.5 Comment on JOS-239 with the results, the long-run comparison and the time spent, check off its Definition of Done, and file the follow-up story "Resume in-flight image requests after a restart" (assigned to jose.elguezabal@gmail.com, with a category label)
