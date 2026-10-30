@@ -68,7 +68,7 @@ describe.each(FAILURES)("A failing provider call ($name)", (failure) => {
   it("image: one request", async () => {
     const { fetchFn, calls } = countingFetch(failure);
 
-    await createFalAiImageProvider({ fetchFn, loadKey: KEY }).generate("A lighthouse at dusk");
+    await createFalAiImageProvider({ fetchFn, loadKey: KEY }).submit("A lighthouse at dusk");
 
     expect(calls).toHaveLength(1);
   });

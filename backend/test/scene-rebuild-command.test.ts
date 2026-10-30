@@ -8,6 +8,7 @@ import { createStubAssemblyTool } from "../src/stubAssemblyTool.ts";
 import { resetDownloadFetch, resetImageProviderRegistry, setImageProviderRegistry, type ImageProvider } from "../src/imageProvider.ts";
 import { createStubVideoProvider, resetVideoProviderRegistry, setVideoProviderRegistry } from "../src/videoProvider.ts";
 import { buildApp } from "../src/server.ts";
+import { imageProviderFromGenerate } from "./imageProviderFixtures.ts";
 
 // rebuild-scene (JOS-235), spec scene-rebuild — the command behind `POST /sessions/{id}/scenes/{id}/rebuild`.
 
@@ -31,12 +32,10 @@ let app: FastifyInstance;
 let imageCalls: Array<{ provider: string; instruction: string }>;
 
 function recordingImageProvider(name: string): ImageProvider {
-  return {
-    async generate(instruction) {
-      imageCalls.push({ provider: name, instruction });
-      return { kind: "success", image: { source: "bytes", bytes: ACCEPTED_PNG, contentType: "image/png" } };
-    },
-  };
+  return imageProviderFromGenerate((instruction) => {
+    imageCalls.push({ provider: name, instruction });
+    return Promise.resolve({ kind: "success", image: { source: "bytes", bytes: ACCEPTED_PNG, contentType: "image/png" } });
+  });
 }
 
 function waitFor(predicate: () => boolean, timeoutMs = 5000): Promise<void> {

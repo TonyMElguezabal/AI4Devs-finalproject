@@ -4,6 +4,7 @@ import { bindSceneImageProvider, createRun, createScene, db, getScene, resetAll 
 import { resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
 import { launchImageStage, resetVideoStageStartDelayMs } from "../src/orchestrator.ts";
 import { simulateRestart } from "./restartHelpers.ts";
+import { imageProviderFromGenerate } from "./imageProviderFixtures.ts";
 
 // preserve-progress-across-restarts (JOS-160), spec restart-recovery — "A restart never sends a unit of work twice"
 // (the assembly case is in restart-assembly.test.ts).
@@ -19,12 +20,10 @@ beforeEach(() => {
   setImageProviderRegistry({
     defaultIdentifier: IMAGE_ADAPTER,
     adapters: {
-      [IMAGE_ADAPTER]: {
-        generate: () => {
-          imageRequests++;
-          return new Promise(() => {}); // never answers: the scene stays in flight
-        },
-      },
+      [IMAGE_ADAPTER]: imageProviderFromGenerate(() => {
+        imageRequests++;
+        return new Promise(() => {}); // never answers: the scene stays in flight
+      }),
     },
   });
 });

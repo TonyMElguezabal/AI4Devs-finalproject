@@ -19,8 +19,7 @@ Each image attempt SHALL send exactly one submission to the image provider's que
 #### Scenario: A request ends with a provider error
 
 - **WHEN** a request reports `COMPLETED` with an error
-- **THEN** the attempt is a transient failure handed to the scene's retry path
-- **AND** an error the provider marks as invalid input is a not-retryable failure instead
+- **THEN** the attempt is a transient failure handed to the scene's retry path, whatever the provider's error type (the retry budget bounds the cost, and the provider does not bill a request that failed on its side)
 
 #### Scenario: The provider rejects the submission
 

@@ -28,6 +28,8 @@ The image stage, which records no attempt row, SHALL time each image request in 
 2. **Execution.** The image stage's maximum time SHALL count from the first status check that reports `IN_PROGRESS`.
 3. **Past the maximum time.** The system SHALL keep following the same request, without sending a new one, until twice the maximum time has passed since `IN_PROGRESS`. At that ceiling it SHALL ask the provider once to cancel the request and SHALL mark the scene `failed` with the reason "the image request did not finish within <2 × limit> s (twice the <limit> s limit); the provider may still finish and bill it", with no further automatic retry in that cycle. If the provider answers the cancel by saying the request had already completed, its result SHALL be fetched and accepted.
 
+A request SHALL also be bounded from its submission, so that a provider or network that stops answering status checks cannot leave a scene generating for ever: when the queue start window plus twice the maximum time have passed since the submission without a result, the system SHALL treat the request as having reached its ceiling (one cancel, then the scene `failed` with the same reason).
+
 #### Scenario: A long queue wait does not time out
 
 - **WHEN** a request stays `IN_QUEUE` for longer than the image stage's maximum time and then completes promptly once `IN_PROGRESS`
@@ -50,6 +52,11 @@ The image stage, which records no attempt row, SHALL time each image request in 
 - **THEN** one cancel is sent for it
 - **AND** the scene is `failed` with the ceiling reason
 - **AND** no automatic retry is scheduled in that cycle
+
+#### Scenario: The provider stops answering status checks
+
+- **WHEN** every status check of a request fails, and the queue start window plus twice the maximum time have passed since its submission
+- **THEN** one cancel is sent and the scene is `failed` with the ceiling reason
 
 #### Scenario: The request finished just before the cancel
 

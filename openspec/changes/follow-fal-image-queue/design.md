@@ -42,7 +42,7 @@ cancel(handle): Promise<"cancelled" | "already-completed" | "unknown">
 
 `handle` is `{ requestId, statusUrl, responseUrl, cancelUrl }`. Failures keep the existing `failed_transient` / `failed_not_retryable` kinds and gain an optional `retryAfterSeconds` (parsed from `Retry-After` on HTTP 429). The adapter checks every returned URL with `new URL(u).origin === "https://queue.fal.run"` before sending the key; otherwise the submission is a transient failure whose reason does not echo the URL.
 
-`poll` maps: `IN_QUEUE` → queued; `IN_PROGRESS` → in-progress; `COMPLETED` without `error` → fetch `response_url` and parse `images[0].url` with the existing `falResponseSchema`; `COMPLETED` with `error` → transient, unless `error_type` names invalid input → not retryable. A network error or HTTP 5xx on a status call returns a distinct `check-failed` result that the orchestrator treats as "still pending" (no attempt used).
+`poll` maps: `IN_QUEUE` → queued; `IN_PROGRESS` → in-progress; `COMPLETED` without `error` → fetch `response_url` and parse `images[0].url` with the existing `falResponseSchema`; `COMPLETED` with `error` → transient, whatever `error_type` says (the values for invalid input were not observed in the step 1.3 round trip, so no branch is built on a guess; the retry budget bounds the cost, and fal.ai does not bill a request that failed on its side). A network error or HTTP 5xx on a status call returns a distinct `check-failed` result that the orchestrator treats as "still pending" (no attempt used).
 
 The stub adapter (`createStubImageProvider`) gains a scripted sequence of poll results, so tests can drive `queued → in-progress → success` and every failure path without timers on the provider side.
 
@@ -59,6 +59,7 @@ One `provider_requests` row per attempt is still written at the end, with latenc
 - The submit sends `X-Fal-Request-Start-Timeout: 1800` (`IMAGE_QUEUE_START_WINDOW_SECONDS` in `backend/src/config/providers.ts`, a constant: it does not vary per installation). fal.ai enforces it server-side, so a request that never started is dropped unbilled. The status/result of such a request is classified as transient (Decision 2).
 - `inProgressAtMs` is set on the first poll that reports `IN_PROGRESS` (resolution: one poll interval, ≤ 5 s).
 - Nothing happens at the limit itself. At `2 × phaseTimeoutMs("image")` after `inProgressAtMs` the orchestrator calls `cancel(handle)` once: `already-completed` → poll once more and accept the result; otherwise mark the scene `failed` with the ceiling reason via `markSceneFailed`, record the attempt as `transient_failure` (so it stays sweepable, Decision 6) and do not schedule a retry.
+- A request is also bounded from its submission by `IMAGE_QUEUE_START_WINDOW_SECONDS + 2 × phaseTimeoutMs("image")`, so a provider or network that stops answering status checks cannot leave a scene generating for ever; reaching it is handled as the ceiling above.
 - `phaseTimeoutMs("image")` undefined (limit not set) → no ceiling, consistent with "a stage without a defined maximum time is not timed".
 
 Alternative considered: keep counting from submit (JOS-185 Decision 9). Rejected: that is the bug.

@@ -38,6 +38,7 @@ import { registerDecomposition, type SegmentedFragment } from "../src/sceneRegis
 import { getSubmittedScenesForRun, markSceneInFlight, markScenePendingRetry } from "../src/db.ts";
 import { STAGE, STUB_PROVIDER_NAME } from "../src/types.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
+import { toImageProvider, type LegacyImageAdapter } from "./imageProviderFixtures.ts";
 
 // generate-chunk-image (JOS-145), groups 4 and 5 — AC1 (launch), AC2 (output
 // check and completion), AC3 (independent progression), §12.2 (no expiring
@@ -98,7 +99,7 @@ async function waitForSettled(sceneId: string): Promise<void> {
 }
 
 /** Fails with `badBytes` on the first attempt, then succeeds with `goodBytes` — for proving a failed attempt is recorded, not just ignored. */
-function failOnceThenSucceed(badBytes: Buffer, goodBytes: Buffer = ACCEPTED_PNG): ImageProvider & { calls: number } {
+function failOnceThenSucceed(badBytes: Buffer, goodBytes: Buffer = ACCEPTED_PNG): LegacyImageAdapter & { calls: number } {
   let calls = 0;
   return {
     get calls() {
@@ -125,8 +126,8 @@ async function registeredScene(script = "The lighthouse stands alone against the
   return { runId, sceneId: result.sceneIds[0]!, projectFolder: run.projectFolder };
 }
 
-function useStubAdapter(adapter: ImageProvider) {
-  setImageProviderRegistry({ defaultIdentifier: TEST_PROVIDER_ID, adapters: { [TEST_PROVIDER_ID]: adapter } });
+function useStubAdapter(adapter: ImageProvider | LegacyImageAdapter) {
+  setImageProviderRegistry({ defaultIdentifier: TEST_PROVIDER_ID, adapters: { [TEST_PROVIDER_ID]: toImageProvider(adapter) } });
 }
 
 beforeEach(() => {
@@ -145,7 +146,7 @@ describe("Launch (AC1)", () => {
   it("launches without User action, and is image-generating before the adapter is called", async () => {
     const { sceneId } = await registeredScene();
     let sceneStatusWhenCalled: string | undefined;
-    const adapter: ImageProvider = {
+    const adapter: LegacyImageAdapter = {
       async generate() {
         sceneStatusWhenCalled = getScene(sceneId)?.status;
         return { kind: "success", image: { source: "bytes", bytes: ACCEPTED_PNG, contentType: "image/png" } };

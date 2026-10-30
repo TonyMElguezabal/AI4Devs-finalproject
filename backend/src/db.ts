@@ -2060,6 +2060,11 @@ export function markSceneInFlight(sceneId: string, requestId: string, attemptNum
   ).run(requestId, attemptNumber, nowIso(), sceneId);
 }
 
+/** follow-fal-image-queue (JOS-239) — the provider's own id of the image request now in flight, for diagnostics; a scene no longer generating keeps its value. */
+export function recordImageProviderRequestId(sceneId: string, providerRequestId: string): void {
+  db.prepare("UPDATE scenes SET current_request_id = ? WHERE id = ? AND status = 'image-generating'").run(providerRequestId, sceneId);
+}
+
 // generate-chunk-image (JOS-145), design Decision 4 — the image stage's own
 // terminal state, not the scene's final `chunk-complete` (that needs a
 // clip too, JOS-146). Renamed from the skeleton's `markSceneComplete`,

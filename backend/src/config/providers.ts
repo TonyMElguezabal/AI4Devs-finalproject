@@ -172,6 +172,13 @@ export const VIDEO_GENERATION_SETTING = { resolution: "2K", nativeWidth: 2560, n
  */
 export const IMAGE_GENERATION_SIZE = { width: 1920, height: 1088 } as const;
 
+/**
+ * follow-fal-image-queue (JOS-239) — how long one image request may wait in fal.ai's queue before fal.ai starts it,
+ * sent as `X-Fal-Request-Start-Timeout`. fal.ai enforces it per request, counted from that request's own submission;
+ * a request that never started is dropped and not billed. It is a constant: it does not vary per installation.
+ */
+export const IMAGE_QUEUE_START_WINDOW_SECONDS = 1800;
+
 // ---- Final assembled MP4 output (D08, §7.3) ----
 // Neither provider above natively produces this — the assembly stage
 // (define-media-assembly, JOS-182) MUST resize + convert frame rate for
@@ -247,6 +254,25 @@ export function phaseTimeoutMs(stage: PhaseStage): number | undefined {
 export function videoTaskCeilingMs(): number | undefined {
   const limit = phaseTimeoutMs("video");
   return limit === undefined ? undefined : 2 * limit;
+}
+
+/**
+ * follow-fal-image-queue (JOS-239), design Decision 4 — how long an image request is followed after the provider started
+ * it, before it is cancelled and the scene fails: twice the image limit. `undefined` when the image stage has no limit.
+ */
+export function imageTaskCeilingMs(): number | undefined {
+  const limit = phaseTimeoutMs("image");
+  return limit === undefined ? undefined : 2 * limit;
+}
+
+/**
+ * follow-fal-image-queue (JOS-239), design Decision 4 — the longest an image request is followed from its submission,
+ * whatever the provider answers: the queue start window plus the ceiling above. It stops a provider or network that no
+ * longer answers status checks from leaving a scene generating for ever.
+ */
+export function imageRequestBoundMs(): number | undefined {
+  const ceiling = imageTaskCeilingMs();
+  return ceiling === undefined ? undefined : IMAGE_QUEUE_START_WINDOW_SECONDS * 1000 + ceiling;
 }
 
 /** Moderation runs while the User waits (JOS-187). Provisional: observed 0.12-2.2 s (report: step 1). */
