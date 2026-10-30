@@ -15,6 +15,8 @@ import {
   FINAL_OUTPUT,
   MAX_SIMULTANEOUS_REQUESTS,
   PER_PHASE_MAX_TIME_SECONDS,
+  imageTaskCeilingMs,
+  IMAGE_QUEUE_START_WINDOW_SECONDS,
   videoTaskCeilingMs,
   SPEED_FACTOR_LIMIT,
   MAX_ATTEMPTS_PER_CYCLE,
@@ -140,6 +142,25 @@ describe("Per-phase maximum times are set above the measured slow tail (Decision
 
     expect(match, "the §11.3 row does not record the clip wait ceiling").not.toBeNull();
     expect(Number(match![1]) * 1000).toBe(videoTaskCeilingMs());
+  });
+
+  // follow-fal-image-queue (JOS-239) — the image request ceiling and the queue start window are recorded in PRD §11.3.
+  it("the image request ceiling recorded in PRD §11.3 is twice the image limit", () => {
+    const prd = readFileSync(resolve(import.meta.dirname, "../../docs/PRD.md"), "utf8");
+    const row = prd.split("\n").find((line) => line.startsWith("| Per-phase maximum times"));
+    const match = row?.match(/image request ceiling (\d+) s/);
+
+    expect(match, "the §11.3 row does not record the image request ceiling").not.toBeNull();
+    expect(Number(match![1]) * 1000).toBe(imageTaskCeilingMs());
+  });
+
+  it("the image queue start window recorded in PRD §11.3 is the one the adapter sends", () => {
+    const prd = readFileSync(resolve(import.meta.dirname, "../../docs/PRD.md"), "utf8");
+    const row = prd.split("\n").find((line) => line.startsWith("| Image queue start window"));
+    const match = row?.match(/\| (\d+) s per request/);
+
+    expect(match, "the §11.3 row for the image queue start window was not found").not.toBeNull();
+    expect(Number(match![1])).toBe(IMAGE_QUEUE_START_WINDOW_SECONDS);
   });
 
   it("assembly is explicitly undetermined pending define-media-assembly (JOS-182)", () => {

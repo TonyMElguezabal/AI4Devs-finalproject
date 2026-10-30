@@ -50,12 +50,12 @@
 
 ## 9. Backend: Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 9.1 Capture the pre-test baseline: run with a fresh `DB_PATH` and `PROJECTS_ROOT` in the scratchpad, never the real ones; record the real `backend/data` fingerprint
-- [ ] 9.2 Run the targeted tests (groups 2-6 test files)
-- [ ] 9.3 Run the full backend suite, `tsc --noEmit` and `eslint`
-- [ ] 9.4 Verify the real `data/` and projects folder are unchanged and nothing outside scratch was written
-- [ ] 9.5 Create `reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md`
-- [ ] 9.6 Mark this step complete only after tests pass and the report exists
+- [x] 9.1 Capture the pre-test baseline: run with a fresh `DB_PATH` and `PROJECTS_ROOT` in the scratchpad, never the real ones; record the real `backend/data` fingerprint Result 2026-10-30: fresh scratch database and projects folder every run; real `backend/data` fingerprint `6b3a353058932186` (8 files)
+- [x] 9.2 Run the targeted tests (groups 2-6 test files) Result: all targeted files pass (see the report)
+- [x] 9.3 Run the full backend suite, `tsc --noEmit` and `eslint` Result: 197 files, 2607 tests passed, 0 failed; `tsc` and `eslint` clean
+- [x] 9.4 Verify the real `data/` and projects folder are unchanged and nothing outside scratch was written Result: the real `data/` has the same fingerprint after; nothing outside scratch was written
+- [x] 9.5 Create `reports/YYYY-MM-DD-step-9-unit-test-and-db-verification.md` Result: `reports/2026-10-30-step-9-unit-test-and-db-verification.md`
+- [x] 9.6 Mark this step complete only after tests pass and the report exists Result: tests pass and the report exists
 
 ## 10. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
@@ -72,8 +72,8 @@
 
 ## 12. Update Technical Documentation (MANDATORY)
 
-- [ ] 12.1 `docs/PRD.md` v1.30 (archive v1.29 as the repo does): §10.1 image time limit counted from when the provider starts the job, 2× ceiling, delayed retries, end-of-session sweep; §11 image cap 6 and the start window
-- [ ] 12.2 `docs/data-model.md`: `runs.image_sweep_at`, and the meaning of `scenes.current_request_id` for images (fal.ai request id)
-- [ ] 12.3 `docs/adr/0005-provider-selection.md` Decision 7: image cap 6 with the fal.ai limit (20) and the JOS-239 evidence; README caps table
-- [ ] 12.4 Run `graphify update .`
+- [x] 12.1 `docs/PRD.md` v1.30 (archive v1.29 as the repo does): §10.1 image time limit counted from when the provider starts the job, 2× ceiling, delayed retries, end-of-session sweep; §11 image cap 6 and the start window Result: `docs/PRD.md` is v1.30 (v1.29 archived as `docs/PRD-v1.29.md`): §10.1 image request flow and end-of-session retry, §11.3 image cap 6, queue start window and image request ceiling, §16 changelog; two pin tests tie the ceiling and the start window to the code
+- [x] 12.2 `docs/data-model.md`: `runs.image_sweep_at`, and the meaning of `scenes.current_request_id` for images (fal.ai request id) Result: `docs/data-model.md`: `runs.image_sweep_at` and the image use of `scenes.current_request_id`
+- [x] 12.3 `docs/adr/0005-provider-selection.md` Decision 7: image cap 6 with the fal.ai limit (20) and the JOS-239 evidence; README caps table Result: `docs/adr/0005-provider-selection.md` Decision 7 (image row and an update note); no other README or guide lists the caps
+- [x] 12.4 Run `graphify update .` Result: `graphify update .` run (15420 nodes)
 - [ ] 12.5 Comment on JOS-239 with the results, the long-run comparison and the time spent, check off its Definition of Done, and file the follow-up story "Resume in-flight image requests after a restart" (assigned to jose.elguezabal@gmail.com, with a category label)
