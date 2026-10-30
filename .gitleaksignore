@@ -18,3 +18,6 @@
 64a9d6a4d7ef460e0d2c34e64da7bf934d0b1199:readme.md:curl-auth-header:4528
 # Placeholder token in a curl example of the first readme (generic rule on the same example).
 64a9d6a4d7ef460e0d2c34e64da7bf934d0b1199:readme.md:generic-api-key:4592
+
+# Throwaway admin password of a scratch server on port 3199 in a curl example of the JOS-188 probe report (not a credential).
+8c5e32f18eb2956a0aa46b2cf89e4e3f24fc03d4:openspec/changes/probe-provider-request-caps/reports/2026-10-29-step-8-curl-endpoint-testing.md:curl-auth-header:15
