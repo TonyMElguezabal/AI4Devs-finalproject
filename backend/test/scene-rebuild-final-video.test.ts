@@ -17,6 +17,7 @@ import { rebuildScene } from "../src/sceneRebuild.ts";
 import { getStageAttempts } from "../src/db.ts";
 import { resetImageProviderRegistry, setImageProviderRegistry, type ImageProvider } from "../src/imageProvider.ts";
 import { finishedSession, resetRebuildEnvironment, waitFor } from "./rebuildFixtures.ts";
+import { imageProviderFromGenerate } from "./imageProviderFixtures.ts";
 
 // rebuild-scene (JOS-235), design Decisions 5-8 — the final video follows a rebuilt scene by itself, and the existing
 // "Rebuild final video" stays the way out when the automatic rebuild did not finish.
@@ -38,12 +39,10 @@ const ACCEPTED_PNG = buildPng(1920, 1088);
 function controllableImageProvider(): { provider: ImageProvider; release: () => void } {
   let release = () => {};
   const gate = new Promise<void>((resolve) => (release = resolve));
-  const provider: ImageProvider = {
-    async generate(instruction) {
-      if (instruction.includes("slow")) await gate;
-      return { kind: "success", image: { source: "bytes", bytes: ACCEPTED_PNG, contentType: "image/png" } };
-    },
-  };
+  const provider: ImageProvider = imageProviderFromGenerate(async (instruction) => {
+    if (instruction.includes("slow")) await gate;
+    return { kind: "success", image: { source: "bytes", bytes: ACCEPTED_PNG, contentType: "image/png" } };
+  });
   return { provider, release: () => release() };
 }
 

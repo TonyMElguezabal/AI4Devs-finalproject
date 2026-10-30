@@ -4,6 +4,7 @@ import { bindSceneImageProvider, createRun, createScene, db, getScene, resetAll 
 import { resetImageProviderRegistry, setImageProviderRegistry } from "../src/imageProvider.ts";
 import { launchImageStage, resetVideoStageStartDelayMs } from "../src/orchestrator.ts";
 import { simulateRestart } from "./restartHelpers.ts";
+import { imageProviderFromGenerate } from "./imageProviderFixtures.ts";
 
 // preserve-progress-across-restarts (JOS-160), spec restart-recovery — "A restart never sends a unit of work twice"
 // (the assembly case is in restart-assembly.test.ts).
@@ -19,12 +20,10 @@ beforeEach(() => {
   setImageProviderRegistry({
     defaultIdentifier: IMAGE_ADAPTER,
     adapters: {
-      [IMAGE_ADAPTER]: {
-        generate: () => {
-          imageRequests++;
-          return new Promise(() => {}); // never answers: the scene stays in flight
-        },
-      },
+      [IMAGE_ADAPTER]: imageProviderFromGenerate(() => {
+        imageRequests++;
+        return new Promise(() => {}); // never answers: the scene stays in flight
+      }),
     },
   });
 });
@@ -40,7 +39,8 @@ function sceneInFlightBeforeRestart(attempts: number): string {
   const sceneId = randomUUID();
   createScene(sceneId, runId, 1, "success", 100, "a harbor at dawn");
   bindSceneImageProvider(sceneId, IMAGE_ADAPTER);
-  db.prepare("UPDATE scenes SET status = 'image-generating', current_request_id = ?, attempts = ? WHERE id = ?").run(randomUUID(), attempts, sceneId);
+  // A real image-stage scene has an image instruction: without it boot relaunch takes the legacy stub path, not the adapter.
+  db.prepare("UPDATE scenes SET status = 'image-generating', current_request_id = ?, attempts = ?, image_instruction = 'a harbor at dawn' WHERE id = ?").run(randomUUID(), attempts, sceneId);
   return sceneId;
 }
 

@@ -77,18 +77,11 @@ describe("Clip durations and segmentation follow the configured range (spec clip
   });
 });
 
-describe("A stage with no maximum time is not timed (spec stage-execution-time-limit)", () => {
+describe("A stage with no maximum time is not timed (spec stage-execution-time-limit; the image stage: image-time-limit.test.ts)", () => {
   const noAnswerFetch = () => vi.fn(async (_url: unknown, _init?: RequestInit) => new Response("{}", { status: 500 }));
   const signalOf = (fetchFn: ReturnType<typeof noAnswerFetch>): AbortSignal | null | undefined => fetchFn.mock.calls[0]![1]?.signal;
 
   const adapters: Array<{ stage: string; send: (fetchFn: ReturnType<typeof noAnswerFetch>) => Promise<unknown> }> = [
-    {
-      stage: "image",
-      send: async (fetchFn) => {
-        const { createFalAiImageProvider } = await import("../src/imageProvider.ts");
-        return createFalAiImageProvider({ fetchFn: fetchFn as unknown as typeof fetch, loadKey: () => "key" }).generate("a lighthouse");
-      },
-    },
     {
       stage: "alignment",
       send: async (fetchFn) => {

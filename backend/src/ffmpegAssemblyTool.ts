@@ -11,7 +11,7 @@
 
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { FFMPEG, FFPROBE, ffmpegHasSubtitleFilter } from "./config/ffmpeg.ts";
 import { resolveSubtitleFontPath } from "./config/subtitleFont.ts";
@@ -212,8 +212,9 @@ export function createFfmpegAssemblyTool(options: FfmpegAssemblyOptions = {}): A
           FFMPEG,
           buildMuxArguments({
             videoInputPaths: normalised,
-            voiceOverPath,
-            outputPath,
+            // Absolute: with subtitles ffmpeg runs inside `work`, where a relative path (the default PROJECTS_ROOT) points nowhere.
+            voiceOverPath: resolve(voiceOverPath),
+            outputPath: resolve(outputPath),
             ...(edited ? { narrationEdits, audio: probeAudioShape(voiceOverPath) } : {}),
             ...(subtitles ? { burnSubtitles: true } : {}),
           }),

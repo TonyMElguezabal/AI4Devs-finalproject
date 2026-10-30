@@ -85,8 +85,17 @@ describe("The image stage, end to end, with the real Fal.ai adapter and a stubbe
     // Set before the modules load: the default Fal.ai adapter captures the global fetch when it is created.
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string) => {
-        urls.push(url);
+      // follow-fal-image-queue (JOS-239): a submission, then a status check that says completed, then the result.
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (init?.method === "POST") {
+          urls.push(url);
+          const base = "https://queue.fal.run/fal-ai/flux/requests/request-1";
+          return new Response(
+            JSON.stringify({ request_id: "request-1", status_url: `${base}/status`, response_url: base, cancel_url: `${base}/cancel` }),
+            { status: 200 },
+          );
+        }
+        if (url.endsWith("/status")) return new Response(JSON.stringify({ status: "COMPLETED" }), { status: 200 });
         return new Response(JSON.stringify({ images: [{ url: "https://fal.media/files/x.png" }] }), { status: 200 });
       }),
     );
@@ -101,6 +110,7 @@ describe("The image stage, end to end, with the real Fal.ai adapter and a stubbe
     concurrency.resetAll();
     concurrency.setLimit(STAGE, 10);
     orchestrator.setVideoStageStartDelayMs(9_999_999); // the video stage must not start: it would reach a real provider
+    orchestrator.setImagePollIntervalMs(1); // the modules were reloaded, so the global test setup did not reach this instance
     setDownloadFetch((async () => new Response(new Uint8Array(pngHeader(1920, 1088)), { status: 200, headers: { "content-type": "image/png" } })));
 
     const runId = "01J00000000000000000000175";
@@ -131,7 +141,7 @@ describe("The image stage, end to end, with the real Fal.ai adapter and a stubbe
     expect(scene.lastError).toBeNull();
     expect(scene.provider).toBe("Fal.ai");
     expect(scene.status).toBe("image-complete");
-    expect(urls).toEqual(["https://fal.run/fal-ai/flux/dev"]);
+    expect(urls).toEqual(["https://queue.fal.run/fal-ai/flux/dev"]);
   });
 
   it.each([
@@ -142,7 +152,7 @@ describe("The image stage, end to end, with the real Fal.ai adapter and a stubbe
     const { scene, urls } = await runImageStage(bound);
     expect(scene.status).toBe("image-complete");
     expect(scene.provider).toBe(bound); // its binding is left alone
-    expect(urls).toEqual(["https://fal.run/fal-ai/flux/pro"]);
+    expect(urls).toEqual(["https://queue.fal.run/fal-ai/flux/pro"]);
   });
 
   it("still fails a scene bound to a provider name the build does not ship, as not retryable", async () => {

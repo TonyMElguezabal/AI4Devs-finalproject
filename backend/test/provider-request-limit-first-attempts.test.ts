@@ -11,6 +11,7 @@ import { resetScheduler } from "../src/retry/retryScheduler.ts";
 import { generateVoiceOver } from "../src/voiceOverPhase.ts";
 import { createSilentMp3, setVoiceProviderRegistry, type VoiceProvider, type VoiceSynthesisResult } from "../src/voiceProvider.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
+import { heldImageProvider } from "./imageProviderFixtures.ts";
 
 // limit-provider-requests-per-stage (JOS-167), group 4 — a first attempt that
 // cannot get a slot is recorded `scheduled`, sends nothing and sets no failure;
@@ -34,7 +35,7 @@ beforeEach(() => {
   resetImageProviderRegistry();
   resetVideoStageStartDelayMs();
   setVideoStageStartDelayMs(9_999_999);
-  setImageProviderRegistry({ defaultIdentifier: "held", adapters: { held: { generate: () => new Promise(() => {}) } } });
+  setImageProviderRegistry({ defaultIdentifier: "held", adapters: { held: heldImageProvider() } });
 });
 
 const registerSession = () => {

@@ -41,7 +41,7 @@ describe("With no override file", () => {
     expect(providers.SEGMENTATION_LOWER_BOUND_SECONDS).toBe(5);
     expect(providers.SEGMENTATION_UPPER_BOUND_SECONDS).toBe(15);
     expect(providers.SUPPORTED_LANGUAGE_CODES).toEqual(["en", "es"]);
-    expect(providers.MAX_SIMULTANEOUS_REQUESTS).toEqual({ decomposition: 50, image: 200, voice: 4, alignment: 2, video: 4 });
+    expect(providers.MAX_SIMULTANEOUS_REQUESTS).toEqual({ decomposition: 50, image: 6, voice: 4, alignment: 2, video: 4 });
     expect(providers.PER_PHASE_MAX_TIME_SECONDS).toEqual({
       decomposition: 600,
       image: 300,

@@ -10,6 +10,7 @@ import { createGatedVoiceProvider, useProvider } from "./voiceTimeoutFixtures.ts
 import { installStubDecompositionDependencies, removeStubDecompositionDependencies, type StubDecompositionCalls } from "./decompositionStubs.ts";
 import { narratedSession, NARRATED_SCRIPT } from "./narratedSession.ts";
 import { simulateRestart } from "./restartHelpers.ts";
+import { heldImageProvider } from "./imageProviderFixtures.ts";
 
 // run-session-end-to-end (JOS-195), design Decision 4 — at boot a narrated session that never started its
 // decomposition starts it, and nothing else about boot changes. A restart is simulated with `restartHelpers`.
@@ -23,7 +24,7 @@ beforeEach(() => {
   resetImageProviderRegistry();
   setImageProviderRegistry({
     defaultIdentifier: "held-image-adapter",
-    adapters: { "held-image-adapter": { generate: () => new Promise(() => {}) } },
+    adapters: { "held-image-adapter": heldImageProvider() },
   });
   stubs = installStubDecompositionDependencies();
 });
