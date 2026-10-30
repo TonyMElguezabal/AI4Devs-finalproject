@@ -29,6 +29,7 @@ None.
 - `stage-execution-time-limit`: the image request's clock starts when the provider starts the job, not at the call; the queue wait has its own start window; past the limit the same request is followed up to twice the limit, then cancelled.
 - `provider-request-limit`: the image cap becomes 6 and must stay under fal.ai's account limit (20).
 - `image-failure-recovery`: adds the one-time end-of-session sweep of image failures a retry can fix.
+- `final-video-assembly`: assembly gives the same result with relative or absolute paths (a relative `PROJECTS_ROOT` made every subtitled assembly fail in the real run).
 - `scene-completion-gate`: a session derives `failed` (`failedPhase: "scenes"`) only once the sweep has run or has nothing to retry.
 
 ## Impact

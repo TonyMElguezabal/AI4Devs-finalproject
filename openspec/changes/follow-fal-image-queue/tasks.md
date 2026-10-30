@@ -42,6 +42,11 @@
 
 - [x] 7.1 Add `backend/test/image-provider-queue.contract.test.ts` (runs only with `RUN_PROVIDER_CONTRACT_TESTS=1`): one real `fal-ai/flux/dev` request through submit → poll → result, asserting the shapes from 1.3. Run it once locally with the owner's key and note the cost in the step 9 report Result 2026-10-30: `test/image-provider-queue.contract.test.ts` (needs `RUN_PROVIDER_CONTRACT_TESTS=1` and a `FAL_API_KEY`, skipped otherwise); run once against the real API with the owner's key: passed in 8.7 s, one `fal-ai/flux/dev` image billed (about the cost of step 1.3's single request)
 
+## 7A. Backend: assembly with a relative `PROJECTS_ROOT` (TDD)
+
+- [x] 7A.1 Failing test first: in `backend/test/subtitles-real-ffmpeg.test.ts`, a subtitled build with the voice-over and output paths relative to the working directory succeeds and writes the output (real ffmpeg with libass, skipped without it) Result: failed first with the real run's `No such file or directory`
+- [x] 7A.2 Make it pass: in `ffmpegAssemblyTool.ts` the mux step gets absolute voice-over and output paths (design Decision 9); the returned `outputPath` is unchanged Result: the test passes (6 of 6 in the file)
+
 ## 8. Backend: Review and Update Existing Unit Tests (MANDATORY)
 
 - [x] 8.1 Update tests that call `ImageProvider.generate` or the old stub directly (for example `reference-image-generation.test.ts`, `active-provider-binding-image.test.ts`, image restart and retry tests) to the submit / poll interface Result: migrated to the new port with `test/imageProviderFixtures.ts` (`imageProviderFromGenerate`, `heldImageProvider`, `toImageProvider`): decomposition, narration-handoff, provider-request-limit, provider-registries, provider-adapter-parameters, provider-price-route, adapters-no-hidden-retries, restart-no-duplicates, scene-rebuild, image-stage, reference-image-generation, image-provider, provider-binding

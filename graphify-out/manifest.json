@@ -108,9 +108,9 @@
     "semantic_hash": ""
   },
   "backend/src/ffmpegAssemblyTool.ts": {
-    "mtime": 1793321274.5404053,
-    "seen": 1793330244.04046,
-    "ast_hash": "36dbb2a5acf4d5c82536eaa103756c70",
+    "mtime": 1793373316.8819752,
+    "seen": 1793373491.016858,
+    "ast_hash": "5f10a2baae6d2a7d3025b0363b8d45b0",
     "semantic_hash": ""
   },
   "backend/src/imageOutputCheck.ts": {
@@ -624,9 +624,9 @@
     "semantic_hash": ""
   },
   "backend/test/providerConfig.test.ts": {
-    "mtime": 1793329658.5472336,
-    "seen": 1793330244.040642,
-    "ast_hash": "25c322c5a3d7bf2986b9f37b19dd32a7",
+    "mtime": 1793330430.3803658,
+    "seen": 1793373491.0218098,
+    "ast_hash": "24b5bbb491b5dbc5063247d66bb55138",
     "semantic_hash": ""
   },
   "backend/test/repeated-confirmations.test.ts": {
@@ -1704,9 +1704,9 @@
     "semantic_hash": ""
   },
   "docs/PRD.md": {
-    "mtime": 1793330205.33167,
-    "seen": 1793330244.041037,
-    "ast_hash": "db97114a307ae1547063f859f2b7b705",
+    "mtime": 1793330410.6313488,
+    "seen": 1793373491.030974,
+    "ast_hash": "ed0a7fc9dac84992861384f49e2de68f",
     "semantic_hash": ""
   },
   "docs/adr/0001-backend-stack.md": {
@@ -8526,9 +8526,9 @@
     "semantic_hash": ""
   },
   "backend/test/subtitles-real-ffmpeg.test.ts": {
-    "mtime": 1793321274.5504315,
-    "seen": 1793330244.040782,
-    "ast_hash": "260b4d56dc938b85348ace575a3750b0",
+    "mtime": 1793373285.9938781,
+    "seen": 1793373491.023424,
+    "ast_hash": "e3f3f80173b705393fcde3e22d22563f",
     "semantic_hash": ""
   },
   "backend/test/subtitles.test.ts": {
@@ -8976,15 +8976,15 @@
     "semantic_hash": ""
   },
   "openspec/changes/follow-fal-image-queue/design.md": {
-    "mtime": 1793329658.5484564,
-    "seen": 1793330244.041779,
-    "ast_hash": "ecfbaf8a9f00b81280488f3a3a35fb13",
+    "mtime": 1793373276.8684196,
+    "seen": 1793373491.0590148,
+    "ast_hash": "25669d3320cbd04c0801e9e613891b66",
     "semantic_hash": ""
   },
   "openspec/changes/follow-fal-image-queue/proposal.md": {
-    "mtime": 1793327495.8083215,
-    "seen": 1793330244.041779,
-    "ast_hash": "8a912443d678fddd4cce615bd7267f6d",
+    "mtime": 1793373276.8687682,
+    "seen": 1793373491.059016,
+    "ast_hash": "7fe5fadbbf615a0d667608c1273baa7e",
     "semantic_hash": ""
   },
   "openspec/changes/follow-fal-image-queue/reports/2026-10-30-step-1-fal-queue-shapes.md": {
@@ -8994,9 +8994,9 @@
     "semantic_hash": ""
   },
   "openspec/changes/follow-fal-image-queue/reports/2026-10-30-step-10-curl-endpoint-testing.md": {
-    "mtime": 1793330164.0279908,
-    "seen": 1793330244.041781,
-    "ast_hash": "6bb2406cd0a6d7b59f1ac071b8d70d26",
+    "mtime": 1793370983.753599,
+    "seen": 1793373491.059051,
+    "ast_hash": "ca190501ea865c90c6a2e01aeda374b6",
     "semantic_hash": ""
   },
   "openspec/changes/follow-fal-image-queue/specs/chunk-image-generation/spec.md": {
@@ -9030,9 +9030,21 @@
     "semantic_hash": ""
   },
   "openspec/changes/follow-fal-image-queue/tasks.md": {
-    "mtime": 1793330164.0526395,
-    "seen": 1793330244.0417862,
-    "ast_hash": "578cb91f3e162d35343064247dedcc7c",
+    "mtime": 1793373350.537216,
+    "seen": 1793373491.059232,
+    "ast_hash": "10f4924dc49d200208d631483e48f389",
+    "semantic_hash": ""
+  },
+  "openspec/changes/follow-fal-image-queue/reports/2026-10-30-step-9-unit-test-and-db-verification.md": {
+    "mtime": 1793330609.263479,
+    "seen": 1793373491.059053,
+    "ast_hash": "d48101fbe03e8ae2507b5819eb0ff466",
+    "semantic_hash": ""
+  },
+  "openspec/changes/follow-fal-image-queue/specs/final-video-assembly/spec.md": {
+    "mtime": 1793373276.8450694,
+    "seen": 1793373491.0590909,
+    "ast_hash": "110023b92392feafb0eee7e53e8dc3f4",
     "semantic_hash": ""
   }
 }

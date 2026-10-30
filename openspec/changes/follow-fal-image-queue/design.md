@@ -86,6 +86,10 @@ Alternatives: call it from each failure/success site (many call sites, easy to m
 
 A submitted request is not cancelled by a pause; it keeps being followed and its result is kept. On restart, an in-flight image scene is still settled as "interrupted by a restart" (transient), and the fal.ai job may still finish and be billed: recorded as a risk.
 
+### 9. Assembly runs ffmpeg's mux step with absolute paths
+
+Found in the real 46-scene run (a pre-existing defect from JOS-237): with subtitles the mux step runs ffmpeg with `cwd` set to the assembly's temp folder, so the voice-over and output paths, relative under the default `PROJECTS_ROOT` (`data/projects`), pointed nowhere and all 4 assembly attempts failed. The adapter resolves both to absolute paths for that call, which covers every caller; the path it returns is unchanged. `PROJECTS_ROOT` itself is not made absolute (other code and tests compare it as written).
+
 ## Risks / Trade-offs
 
 - [The exact shape fal.ai uses for a passed start window or an `error` on `COMPLETED` is documented loosely] → classify unknown errors as transient; the opt-in contract test records the real responses in the change report.
