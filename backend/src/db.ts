@@ -1847,6 +1847,8 @@ export function completeStageAttempt(
     externalRequestId?: string;
     errorCode?: string;
     errorMessage?: string;
+    /** alert-unresponsive-provider (JOS-257) Decision 2 — the adapter's mark, for telemetry only: never stored. */
+    unresponsive?: boolean;
   },
 ): boolean {
   if ((outcome.outcome as StageAttemptOutcome) === "in-flight") {
@@ -1895,7 +1897,7 @@ function telemetryProviderOf(identifier: string | null, stage: string): string {
 
 function reportStageAttempt(
   row: { run_id: string; stage: string; provider_id: string | null; sent_at: string | null },
-  outcome: { outcome: string; finishedAt: string; errorCode?: string; errorMessage?: string },
+  outcome: { outcome: string; finishedAt: string; errorCode?: string; errorMessage?: string; unresponsive?: boolean },
 ): void {
   try {
     const consent = getConsent();
@@ -1909,7 +1911,7 @@ function reportStageAttempt(
     }
     const sentAt = row.sent_at ? Date.parse(row.sent_at) : NaN;
     const latencyMs = Number.isNaN(sentAt) ? 0 : Math.max(0, Date.parse(outcome.finishedAt) - sentAt);
-    recordProviderCall({ stage: row.stage, provider, outcome: outcome.outcome, latencyMs, billed });
+    recordProviderCall({ stage: row.stage, provider, outcome: outcome.outcome, latencyMs, billed, unresponsive: outcome.unresponsive });
     if (normalized === "not-retryable") {
       recordError({
         stage: row.stage,
@@ -2365,6 +2367,8 @@ export function insertProviderRequest(
   mode: ProviderOutcomeMode,
   attemptNumber: number,
   stage: "image" | "video" = "image",
+  /** alert-unresponsive-provider (JOS-257) Decision 2 — the adapter's mark, for telemetry only: never stored. */
+  mark: { unresponsive?: boolean } = {},
 ): ProviderRequestRow {
   const sentAt = nowIso();
   // record-attempt-provider (JOS-222) Decision 1 — the stage's binding cannot change while an attempt is in flight.
@@ -2372,12 +2376,12 @@ export function insertProviderRequest(
     `INSERT INTO provider_requests (id, scene_id, sent_at, latency_ms, mode, attempt_number, resolved, stage, provider_id)
      VALUES (?, ?, ?, ?, ?, ?, 0, ?, (SELECT CASE WHEN ? = 'video' THEN video_provider ELSE provider END FROM scenes WHERE id = ?))`,
   ).run(id, sceneId, sentAt, latencyMs, mode, attemptNumber, stage, stage, sceneId);
-  reportProviderRequest(sceneId, latencyMs, mode, stage);
+  reportProviderRequest(sceneId, latencyMs, mode, stage, mark.unresponsive);
   return getProviderRequest(id)!;
 }
 
 /** add-observability-telemetry (JOS-199) Decision 4 — the image and clip stages report here, not through stage attempts. */
-function reportProviderRequest(sceneId: string, latencyMs: number, mode: ProviderOutcomeMode, stage: "image" | "video"): void {
+function reportProviderRequest(sceneId: string, latencyMs: number, mode: ProviderOutcomeMode, stage: "image" | "video", unresponsive?: boolean): void {
   try {
     const consent = getConsent();
     if (!consent.providerUsage && !consent.errors) return;
@@ -2392,7 +2396,7 @@ function reportProviderRequest(sceneId: string, latencyMs: number, mode: Provide
     let billed: BilledUnit | undefined;
     if (stage === "image") billed = { unit: "images", amount: 1 };
     else if (typeof scene.requested_duration_seconds === "number") billed = { unit: "clip_seconds", amount: scene.requested_duration_seconds };
-    recordProviderCall({ stage, provider, outcome: mode, latencyMs, billed });
+    recordProviderCall({ stage, provider, outcome: mode, latencyMs, billed, unresponsive });
     if (normalized === "not-retryable") {
       recordError({ stage, provider, outcome: normalized, message: `${stage} request failed (${mode})` });
     }
