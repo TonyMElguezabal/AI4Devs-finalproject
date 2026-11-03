@@ -1745,10 +1745,16 @@ export function claimScheduledAttempt(attemptId: string, sentAt: string, notBefo
 
 /** JOS-185 Decision 3 — the one update that decides a timeout: only an in-flight attempt can time out, once. */
 export function timeOutAttempt(attemptId: string, finishedAt: string, errorMessage?: string): boolean {
-  const result = db
-    .prepare("UPDATE stage_attempts SET outcome = 'timed-out', finished_at = ?, error_message = ? WHERE id = ? AND outcome = 'in-flight'")
-    .run(finishedAt, errorMessage ?? null, attemptId);
-  return Number(result.changes) > 0;
+  const row = db
+    .prepare(
+      "UPDATE stage_attempts SET outcome = 'timed-out', finished_at = ?, error_message = ? WHERE id = ? AND outcome = 'in-flight' RETURNING run_id, stage, provider_id, sent_at",
+    )
+    .get(finishedAt, errorMessage ?? null, attemptId) as { run_id: string; stage: string; provider_id: string | null; sent_at: string | null } | undefined;
+  if (!row) return false;
+  // alert-unresponsive-provider (JOS-257) Decision 3 — the call got no answer in time: reported once, here, where the
+  // timeout is decided. A late result changes `late_result_at` only and is never reported again.
+  reportStageAttempt(row, { outcome: "timed-out", finishedAt });
+  return true;
 }
 
 /** Every attempt that has been sent and has no outcome yet — what the timeout watcher checks against each stage's deadline. */

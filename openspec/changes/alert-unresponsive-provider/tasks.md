@@ -21,9 +21,9 @@
 
 ## 3. Backend: timed-out attempts are reported (TDD; design Decision 3; JOS-257)
 
-- [ ] 3.1 Write a failing test: with `providerUsage` on, `timeOutAttempt` on an in-flight voice-over attempt records one provider call for `voice-over`, its provider and `unresponsive`, with latency `finished_at − sent_at`
-- [ ] 3.2 Write a failing test: a second `timeOutAttempt` on the same attempt, and a later `late-success` or `superseded` result, record no further provider call
-- [ ] 3.3 Record the call in `timeOutAttempt` only when the update changed a row, inside the same "telemetry never fails a write" guard the other paths use; make 3.1 and 3.2 pass
+- [x] 3.1 Write a failing test: with `providerUsage` on, `timeOutAttempt` on an in-flight voice-over attempt records one provider call for `voice-over`, its provider and `unresponsive`, with latency `finished_at − sent_at`
+- [x] 3.2 Write a failing test: a second `timeOutAttempt` on the same attempt, and a later `late-success` or `superseded` result, record no further provider call
+- [x] 3.3 Record the call in `timeOutAttempt` only when the update changed a row, inside the same "telemetry never fails a write" guard the other paths use; make 3.1 and 3.2 pass
 
 ## 4. Infra: dashboard, alert rule and README (design Decisions 4, 5; JOS-258)
 

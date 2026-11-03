@@ -8,8 +8,10 @@ import {
   db,
   getTelemetrySettings,
   insertProviderRequest,
+  acceptLateResult,
   recordStageAttempt,
   resetAll,
+  timeOutAttempt,
 } from "../src/db.ts";
 import { ensureProfiles } from "../src/providerProfiles.ts";
 import { SEEDED_PROFILES } from "../src/providerTypes.ts";
@@ -178,5 +180,30 @@ describe("unresponsive calls", () => {
       value: 1,
     });
     expect(db.prepare("SELECT outcome FROM stage_attempts WHERE id = ?").get(attempt.id)).toEqual({ outcome: "transient" });
+  });
+});
+
+// alert-unresponsive-provider (JOS-257), design Decision 3 — a timed-out attempt is a call that got no answer in time.
+// Before this change it reached no metric at all; it now counts once, as unresponsive, whatever arrives later.
+describe("timeOutAttempt", () => {
+  const voiceCalls = async () =>
+    (await points()).filter((point) => point.name === "vid4you_provider_calls_total" && point.attributes.stage === "voice-over");
+
+  it("records one unresponsive call with the attempt's provider and its latency", async () => {
+    const attempt = voiceAttempt();
+    expect(timeOutAttempt(attempt.id, FINISHED, "the voice provider did not answer in time")).toBe(true);
+    expect(await voiceCalls()).toEqual([
+      { name: "vid4you_provider_calls_total", attributes: { stage: "voice-over", provider: "ElevenLabs", outcome: "unresponsive" }, value: 1 },
+    ]);
+    const latency = (await points()).find((point) => point.name === "vid4you_provider_call_duration_ms");
+    expect(latency?.value).toMatchObject({ sum: 4000, count: 1 });
+  });
+
+  it("records nothing more for a second timeout or a late result", async () => {
+    const attempt = voiceAttempt();
+    timeOutAttempt(attempt.id, FINISHED);
+    expect(timeOutAttempt(attempt.id, FINISHED)).toBe(false);
+    acceptLateResult(attempt.id, FINISHED);
+    expect((await voiceCalls()).map((point) => point.value)).toEqual([1]);
   });
 });
