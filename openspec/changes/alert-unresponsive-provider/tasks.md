@@ -5,9 +5,9 @@
 
 ## 1. Backend: the `unresponsive` outcome (TDD; design Decision 2; JOS-257)
 
-- [ ] 1.1 Write failing tests in `backend/test` for `normalizeOutcome`: `timed-out` → `unresponsive`; any raw outcome with the `unresponsive` flag → `unresponsive`; `transient`, `transient_failure`, `success`, `late-success`, `not-retryable`, `not_retryable_failure` and an unknown value unchanged from today
-- [ ] 1.2 Add `unresponsive` to `NormalizedOutcome` and the flag to `normalizeOutcome` and `recordProviderCall` in `backend/src/telemetry/index.ts`; make 1.1 pass
-- [ ] 1.3 Confirm `outcome` is still on `ALLOWED_ATTRIBUTE_KEYS` (`infra/telemetry-relay/src/allowlist.ts`) and no new attribute key is sent; the allowlist test stays green
+- [x] 1.1 Write failing tests in `backend/test` for `normalizeOutcome`: `timed-out` → `unresponsive`; any raw outcome with the `unresponsive` flag → `unresponsive`; `transient`, `transient_failure`, `success`, `late-success`, `not-retryable`, `not_retryable_failure` and an unknown value unchanged from today
+- [x] 1.2 Add `unresponsive` to `NormalizedOutcome` and the flag to `normalizeOutcome` and `recordProviderCall` in `backend/src/telemetry/index.ts`; make 1.1 pass
+- [x] 1.3 Confirm `outcome` is still on `ALLOWED_ATTRIBUTE_KEYS` (`infra/telemetry-relay/src/allowlist.ts`) and no new attribute key is sent; the allowlist test stays green
 
 ## 2. Backend: adapters mark a call that got no answer (TDD; design Decisions 1, 2; JOS-257)
 
