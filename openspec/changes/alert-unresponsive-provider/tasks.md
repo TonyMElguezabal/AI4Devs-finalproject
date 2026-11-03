@@ -57,11 +57,11 @@
 
 ## 8. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Start the real server on a scratch store and scratch projects folder with `USE_STUB_VOICE_PROVIDER=hang`, the other stubs on success, and short retry delays
-- [ ] 8.2 Create a session with curl; wait past the voice stage's time limit; `GET /sessions/:id` shows the voice-over attempt `timed-out` and the retry scheduled exactly as before this change
-- [ ] 8.3 Restart with `USE_STUB_VOICE_PROVIDER=transient-failure`; the attempt is `transient` and retried as before
-- [ ] 8.4 Check the local log file under the scratch store's `logs/` for the timed-out attempt; confirm no response body carries the script
-- [ ] 8.5 Delete the scratch store and folder; confirm the default store is untouched. Save `openspec/changes/alert-unresponsive-provider/reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`
+- [x] 8.1 Start the real server on a scratch store and scratch projects folder with `USE_STUB_VOICE_PROVIDER=hang`, the other stubs on success, and short retry delays
+- [x] 8.2 Create a session with curl; wait past the voice stage's time limit; `GET /sessions/:id` shows the voice-over attempt `timed-out` and the retry scheduled exactly as before this change
+- [x] 8.3 Restart with `USE_STUB_VOICE_PROVIDER=transient-failure`; the attempt is `transient` and retried as before
+- [x] 8.4 Check the local log file under the scratch store's `logs/` for the timed-out attempt; confirm the log does not carry the script
+- [x] 8.5 Delete the scratch store and folder; confirm the default store is untouched. Save `openspec/changes/alert-unresponsive-provider/reports/YYYY-MM-DD-step-8-manual-endpoint-testing.md`
 
 ## 9. Live Grafana alert test (MANDATORY - needs the owner's Grafana Cloud access)
 
@@ -73,7 +73,7 @@
 
 ## 10. E2E Testing with the browser (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Applicability: this change touches no frontend code and no page, so this step does not apply; record that in the step 8 report
+- [x] 10.1 Applicability: this change touches no frontend code and no page, so this step does not apply; record that in the step 8 report
 
 ## 11. Update Technical Documentation (MANDATORY)
 
