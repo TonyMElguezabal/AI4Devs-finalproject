@@ -11,11 +11,13 @@
 
 ## 2. Backend: adapters mark a call that got no answer (TDD; design Decisions 1, 2; JOS-257)
 
-- [ ] 2.1 Trace, for each adapter, how a `failed_transient` result reaches `recordProviderCall`: image and clip through `insertProviderRequest` → `reportProviderRequest` (`db.ts:2380`); voice-over, narration timestamps and decomposition through stage-attempt completion (`db.ts:1912`). Record the hand-off per adapter in design.md Decision 2 before coding; use the `error_code` fallback only where no in-memory hand-off exists
-- [ ] 2.2 Write failing tests per adapter (fal image, RunningHub video, ElevenLabs voice, ElevenLabs alignment, OpenAI decomposition): a `fetchFn` that rejects with `TimeoutError` → `failed_transient` with `unresponsive: true`; one that rejects with a connection error → same; one that answers 503 → `failed_transient` without the mark; a malformed 200 body → no mark
-- [ ] 2.3 Set `unresponsive: true` only in the `catch` directly around each `fetch(...)` call in `imageProvider.ts`, `videoProvider.ts`, `voiceProvider.ts`, `alignmentProvider.ts` and `visualInstructions.ts`; make 2.2 pass with no change to the returned `kind` or `reason`
+- [x] 2.1 (result in design.md Decision 2 table; decomposition and alignment left to their time limit, Decision 7, decided with the owner) Trace, for each adapter, how a `failed_transient` result reaches `recordProviderCall`: image and clip through `insertProviderRequest` → `reportProviderRequest` (`db.ts:2380`); voice-over, narration timestamps and decomposition through stage-attempt completion (`db.ts:1912`). Record the hand-off per adapter in design.md Decision 2 before coding; use the `error_code` fallback only where no in-memory hand-off exists
+- [ ] 2.2 Write failing tests per adapter (fal image, RunningHub video, ElevenLabs voice; not alignment or decomposition, Decision 7): a `fetchFn` that rejects with `TimeoutError` → `failed_transient` with `unresponsive: true`; one that rejects with a connection error → same; one that answers 503 → `failed_transient` without the mark; a malformed 200 body → no mark
+- [ ] 2.3 Set `unresponsive: true` only in the `catch` directly around each `fetch(...)` call in `imageProvider.ts`, `videoProvider.ts` and `voiceProvider.ts`; make 2.2 pass with no change to the returned `kind` or `reason`
 - [ ] 2.4 Write failing tests that an unresponsive image request and an unresponsive voice-over attempt are recorded with `outcome="unresponsive"`, and a 503 with `outcome="transient"`; pass the mark through the hand-off found in 2.1 and make them pass
-- [ ] 2.5 Confirm the stored `provider_requests.mode` and `stage_attempts.outcome` values and the retry scheduling are unchanged for an unresponsive call (existing retry-policy tests stay green; add one assertion if none covers it)
+- [ ] 2.5 Write a test that a refused connection to the reasoning provider is still recorded as `transient` (Decision 7)
+- [x] 2.6 (JOS-260) Create the follow-up Linear ticket under JOS-246 for marking refused connections to the decomposition and alignment providers (Decision 7)
+- [ ] 2.7 Confirm the stored `provider_requests.mode` and `stage_attempts.outcome` values and the retry scheduling are unchanged for an unresponsive call (existing retry-policy tests stay green; add one assertion if none covers it)
 
 ## 3. Backend: timed-out attempts are reported (TDD; design Decision 3; JOS-257)
 

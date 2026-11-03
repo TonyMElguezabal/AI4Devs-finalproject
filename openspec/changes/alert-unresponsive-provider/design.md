@@ -24,6 +24,7 @@ The metric reader exports every 60 s (`telemetry/index.ts:199`). Only installs w
 **Non-Goals:**
 - Changing retry behaviour, retry delays, time limits or any stored outcome. `stage_attempts.outcome` and `provider_requests.mode` keep their values, so the `/admin` failures report is untouched.
 - Alerting on anything other than `unresponsive`. Other channels (Slack, paging).
+- Marking a refused connection to the decomposition or alignment providers as `unresponsive` (D7; follow-up ticket).
 - Seeing installs that declined provider-usage telemetry.
 - The E14–E16 stories.
 
@@ -41,7 +42,21 @@ The mark travels with the in-memory call result to the point that records it:
 - For image and clip requests, `insertProviderRequest` takes an optional `unresponsive` flag and passes it to `reportProviderRequest`.
 - For stage attempts, the completion path passes it alongside the outcome.
 
-Nothing new is written to the database. `normalizeOutcome(raw, { unresponsive })` returns `unresponsive` when the flag is set, or when `raw` is `timed-out`; otherwise it behaves as today. The exact parameter each adapter's result travels through is confirmed while implementing (tasks group 2). If any path has no in-memory hand-off, the fallback is the attempt's existing `error_code` column with the value `provider-unresponsive`, which still needs no migration.
+Nothing new is written to the database. `normalizeOutcome(raw, { unresponsive })` returns `unresponsive` when the flag is set, or when `raw` is `timed-out`; otherwise it behaves as today.
+
+Hand-off per adapter, traced in task 2.1:
+
+| Adapter | Where its failure is recorded | Hand-off |
+|---|---|---|
+| fal image | `finishImageAttemptAsync` → `recordAndReleaseImageAttempt` → `insertProviderRequest` (`orchestrator.ts`) | the `ImageGenerationResult` is in scope; pass `outcome.unresponsive` |
+| RunningHub video | the poll failure and the submit failure, both calling `insertProviderRequest` (`orchestrator.ts`) | the poll/submit result is in scope; pass its `unresponsive` |
+| ElevenLabs voice | `finishFailure` → `recordAttemptOutcome` → `completeStageAttempt` (`voiceOverPhase.ts`, `retry/stageAttemptRecorder.ts`) | add `unresponsive` to `AttemptReport` and to `completeStageAttempt`'s outcome, read by `reportStageAttempt` |
+| OpenAI reasoning, ElevenLabs alignment | through `createDecompositionFailure`, `SegmentStoredResult` and `ObtainResult` before `completeStageAttempt` | **not marked in this change** (D7) |
+
+The `error_code` fallback isn't used: every marked path has an in-memory hand-off.
+
+### D7. Decomposition and alignment are covered by their time limit only
+Decided with the owner during apply. Carrying the mark through the decomposition failure types (`createDecompositionFailure`, `SegmentStoredResult`, `ObtainResult`) would change the decomposition phase's own failure model for a telemetry-only need. These two stages run once per session, before any scene work, and both have a stage time limit. A provider that hangs is therefore still reported as `unresponsive` through D3 (timed-out attempts). Only a connection that is refused outright, before the time limit, stays `transient` for these two stages. That gap is tracked as JOS-260 under JOS-246.
 
 ### D3. Report timed-out attempts from `timeOutAttempt`
 When `timeOutAttempt` actually changes a row (`changes > 0`), it records one provider call with outcome `timed-out`. The latency is `finished_at − sent_at`, and the stage and provider are looked up the way the completion path already does. The update itself is the only place a timeout is decided, once (JOS-185 Decision 3), so the metric can't be double-counted.

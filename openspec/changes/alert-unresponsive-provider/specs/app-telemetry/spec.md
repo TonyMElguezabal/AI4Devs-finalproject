@@ -10,7 +10,7 @@ The metrics SHALL be:
 - a latency histogram in milliseconds;
 - billed-unit counters, counted on success only, where the unit is known: clip seconds requested, images generated and voice characters sent.
 
-`unresponsive` SHALL be used for a call that got no answer from the provider: a stage attempt that ended `timed-out`, a request that exceeded its call time limit, or a request that could not reach the provider (DNS, connection refused or reset). A provider that answered, with any HTTP status, SHALL NOT be `unresponsive`: a retryable answer stays `transient`. Reporting a call as `unresponsive` SHALL NOT change how the application retries it.
+`unresponsive` SHALL be used for a call that got no answer from the provider: a stage attempt that ended `timed-out`, a request that exceeded its call time limit, or a request that could not reach the provider (DNS, connection refused or reset). A provider that answered, with any HTTP status, SHALL NOT be `unresponsive`: a retryable answer stays `transient`. Reporting a call as `unresponsive` SHALL NOT change how the application retries it. For the decomposition (reasoning) and alignment stages, only a `timed-out` attempt SHALL be `unresponsive`; a request to those providers that could not reach them is still reported as `transient`.
 
 #### Scenario: Completed attempt is counted once
 - **WHEN** `providerUsage` is on and a voice-over attempt is completed with outcome `success`
@@ -35,6 +35,10 @@ The metrics SHALL be:
 #### Scenario: Provider that cannot be reached is unresponsive
 - **WHEN** `providerUsage` is on and a clip request fails because the connection to the provider is refused
 - **THEN** the attempt counter increases by one for `video`, `RunningHub` and `unresponsive`
+
+#### Scenario: Unreachable reasoning provider is still transient
+- **WHEN** `providerUsage` is on and a decomposition attempt fails because the connection to OpenAI is refused, before the stage's time limit
+- **THEN** the attempt counter increases by one for `decomposition`, `OpenAI` and `transient`
 
 #### Scenario: Retryable HTTP answer stays transient
 - **WHEN** `providerUsage` is on and the provider answers a request with HTTP 503
