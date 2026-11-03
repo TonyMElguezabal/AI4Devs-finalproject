@@ -34,10 +34,10 @@
 
 ## 5. Backend: contract test from adapter to exporter (design Decision 6; JOS-259)
 
-- [ ] 5.1 Write the test in `backend/test` with `setTelemetryExportersForTest` and the OpenTelemetry in-memory metric exporter, `providerUsage` consent on, scratch `DB_PATH` and `PROJECTS_ROOT`
-- [ ] 5.2 Case 1: the real fal image adapter with a `fetchFn` that never resolves and a short `callTimeoutMs`, recorded through the real `insertProviderRequest`; after a forced metric flush the exporter holds `vid4you_provider_calls_total` for `image`, `Fal.ai`, `unresponsive`
-- [ ] 5.3 Case 2: a real voice-over attempt timed out by `timeOutAttempt`; the exporter holds a data point for `voice-over`, `unresponsive`
-- [ ] 5.4 Case 3: the fal adapter answering 503; the exporter holds `transient`, not `unresponsive`
+- [x] 5.1 (`backend/test/unresponsive-provider-contract.test.ts`) Write the test in `backend/test` with `setTelemetryExportersForTest` and the OpenTelemetry in-memory metric exporter, `providerUsage` consent on, scratch `DB_PATH` and `PROJECTS_ROOT`
+- [x] 5.2 (through the real orchestrator too; also for the real ElevenLabs voice adapter) Case 1: the real fal image adapter with a `fetchFn` that never resolves and a short `callTimeoutMs`, recorded through the real `insertProviderRequest`; after a forced metric flush the exporter holds `vid4you_provider_calls_total` for `image`, `Fal.ai`, `unresponsive`
+- [x] 5.3 (covered by the `timeOutAttempt` tests in `telemetry-hooks.test.ts`, task 3.1, rather than duplicated) Case 2: a real voice-over attempt timed out by `timeOutAttempt`; the exporter holds a data point for `voice-over`, `unresponsive`
+- [x] 5.4 Case 3: the fal adapter answering 503; the exporter holds `transient`, not `unresponsive`
 - [x] 5.5 Update JOS-259 AC1 in Linear to match the in-process design (no spawned server, in-memory exporter)
 
 ## 6. Review and Update Existing Unit Tests (MANDATORY)
