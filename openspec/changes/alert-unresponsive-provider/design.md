@@ -71,13 +71,12 @@ The rule is stored in `infra/grafana/alerts/unresponsive-provider.json`, in the 
 ### D5. Keep the retry rate unchanged
 The retry-rate panel filters on `outcome=~"transient|unresponsive"`. That is the only panel that filters on `transient`. The error-rate panel filters on `not-retryable` and is untouched.
 
-### D6. CI test runs in-process with in-memory exporters
-The per-stage time limit is a constant (`PER_PHASE_MAX_TIME_SECONDS`), and the OTLP endpoint is fixed at build time (`BUILD.telemetryEndpoint`). A spawned server can't be pointed at a fake receiver or made to time out quickly without new configuration that exists only for this test. Instead, the test:
-- uses `setTelemetryExportersForTest` with the OpenTelemetry in-memory exporters;
-- calls the real fal adapter with a `fetchFn` that never resolves and a short `callTimeoutMs`, through the real store's `insertProviderRequest`;
-- times out a real voice-over attempt with `timeOutAttempt`.
+### D6. CI test runs in-process with in-memory exporters; the real server is checked by hand
+The CI test uses `setTelemetryExportersForTest` with the OpenTelemetry in-memory exporters. It calls the real fal and ElevenLabs adapters with a `fetchFn` that never answers and a short time limit, through the real orchestrator, voice-over phase and store, and it covers `timeOutAttempt`. This covers the adapter, the store and the normalisation, up to the exporter, in seconds and with no network or child process.
 
-This covers the adapter, the store and the normalisation, up to the exporter. The relay and Grafana are covered by the manual live test (tasks group 6).
+A spawned server could also do it: `VID4YOU_TELEMETRY_ENDPOINT` redirects the export, and a scratch `SETTINGS_PATH` shortens a stage's time limit. That is slower, though, and its first export only comes after 60 s or at shutdown. So the spawned-server path is checked once by hand (step 8, with a local OTLP receiver), and CI keeps the in-process test. The relay and Grafana are covered by the manual live test (tasks group 9).
+
+(Corrected during apply: an earlier draft said the endpoint and the time limit were fixed constants. Both can be overridden, as above.)
 
 ## Risks / Trade-offs
 

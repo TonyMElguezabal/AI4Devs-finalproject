@@ -37,6 +37,21 @@ curl -s -X POST http://127.0.0.1:3199/sessions -H 'content-type: application/jso
 ```
 `stage_attempts`: attempts 1–4 are `transient`, "stub: transient voice provider error (503)". `GET /sessions/:id`: `state failed`, `retryable true`, `manualRetryAvailable true`, `attemptsInCycle 4`. These are the same budget and the same failure as run 1: only the reported telemetry outcome differs between the two runs (`unresponsive` vs `transient`).
 
+## Run 3: the real server's export, at a local OTLP receiver
+Same setup as run 1, plus `VID4YOU_TELEMETRY_ENDPOINT=http://127.0.0.1:4399`. The receiver was a small Python HTTP server in the session scratchpad that answers 200 and keeps each body.
+```bash
+curl -s -X PUT http://127.0.0.1:3199/telemetry/consent -H 'content-type: application/json' \
+  -d '{"errors":true,"providerUsage":true,"productUsage":true}'      # 200
+curl -s -X POST http://127.0.0.1:3199/sessions -H 'content-type: application/json' \
+  -d '{"title":"JOS-246 otlp hang","script":"A short script for the OTLP test.","language":"en"}'   # 201
+# 9 s later: SIGTERM, which flushes the export
+```
+The receiver got one `/v1/metrics` export (`application/json`), with resource `service.name=vid4you`, `deployment.environment=development`, and:
+- `vid4you_provider_calls_total {stage: voice-over, provider: stub, outcome: unresponsive}` = **2**. The store had 2 `timed-out` voice-over attempts at shutdown.
+- The session script appears in no export.
+
+This is the spawned-server path that design Decision 6 leaves to a manual check. The environment label is `development` unless `VID4YOU_CHANNEL` is `uat` or `production`, which is what the live test (step 9) uses.
+
 ## Error case
 ```bash
 curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3199/sessions -H 'content-type: application/json' \
