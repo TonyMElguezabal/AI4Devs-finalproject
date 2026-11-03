@@ -124,7 +124,7 @@ describe("Failure classification (product owner rule: 4xx except 408/429 not ret
       throw new Error("fetch failed");
     }) as typeof fetch;
     const result = await providerWith(fetchFn).submit(INSTRUCTION);
-    expect(result).toEqual({ kind: "failed_transient", reason: "the image provider could not be reached" });
+    expect(result).toEqual({ kind: "failed_transient", reason: "the image provider could not be reached", unresponsive: true });
   });
 
   it("an unexpected response shape is transient", async () => {

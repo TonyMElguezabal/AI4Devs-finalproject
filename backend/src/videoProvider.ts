@@ -20,7 +20,7 @@ export type GeneratedClip =
 /** Result of a `submit` call. */
 export type VideoSubmitResult =
   | { kind: "submitted"; requestId: string; /** The JSON body of the submit request as sent (show-video-request-status, JOS-200); the orchestrator keeps an allow-list of it. */ sentBody?: Record<string, unknown> }
-  | { kind: "failed_transient"; reason: string }
+  | { kind: "failed_transient"; reason: string; /** alert-unresponsive-provider (JOS-257) Decision 1 — set only when `fetch` itself failed: the provider never answered. */ unresponsive?: true }
   | { kind: "failed_not_retryable"; reason: string };
 
 /** Result of a `poll` call. */
@@ -28,7 +28,7 @@ export type VideoGenerationResult =
   | { kind: "success"; clip: GeneratedClip }
   | { kind: "pending" }
   | { kind: "not_found" }
-  | { kind: "failed_transient"; reason: string }
+  | { kind: "failed_transient"; reason: string; /** alert-unresponsive-provider (JOS-257) Decision 1 — set only when `fetch` itself failed: the provider never answered. */ unresponsive?: true }
   | { kind: "failed_not_retryable"; reason: string };
 
 export interface VideoProvider {
@@ -79,7 +79,7 @@ export function createRunningHubVideoProvider(
   const endpoint = (options.parameters ?? { endpoint: VIDEO_PROVIDER.endpoint }).endpoint;
   const loadKey = options.loadKey ?? (() => stageApiKey("video"));
 
-  async function doUpload(imageBytes: Buffer, apiKey: string): Promise<{ ok: true; url: string } | { ok: false; kind: "failed_transient" | "failed_not_retryable"; reason: string }> {
+  async function doUpload(imageBytes: Buffer, apiKey: string): Promise<{ ok: true; url: string } | { ok: false; kind: "failed_transient" | "failed_not_retryable"; reason: string; unresponsive?: true }> {
     // multipart/form-data with a `file` part; the content type (with its boundary) is set by the form, not by us.
     const form = new FormData();
     form.append("file", new Blob([new Uint8Array(imageBytes)], { type: "image/png" }), "frame.png");
@@ -91,7 +91,7 @@ export function createRunningHubVideoProvider(
         body: form,
       });
     } catch {
-      return { ok: false, kind: "failed_transient", reason: "the video provider could not be reached during image upload" };
+      return { ok: false, kind: "failed_transient", reason: "the video provider could not be reached during image upload", unresponsive: true };
     }
     if (!response.ok) {
       return { ok: false, kind: classifyHttpStatus(response.status), reason: `image upload answered HTTP ${response.status}` };
@@ -117,7 +117,9 @@ export function createRunningHubVideoProvider(
       }
 
       const upload = await doUpload(imageBytes, apiKey);
-      if (!upload.ok) return { kind: upload.kind, reason: upload.reason };
+      if (!upload.ok) {
+        return upload.unresponsive ? { kind: "failed_transient", reason: upload.reason, unresponsive: true } : { kind: upload.kind, reason: upload.reason };
+      }
 
       const sentBody = {
         prompt: instruction,
@@ -133,7 +135,7 @@ export function createRunningHubVideoProvider(
           body: JSON.stringify(sentBody),
         });
       } catch {
-        return { kind: "failed_transient", reason: "the video provider could not be reached during task submission" };
+        return { kind: "failed_transient", reason: "the video provider could not be reached during task submission", unresponsive: true };
       }
 
       if (!response.ok) {
@@ -168,7 +170,7 @@ export function createRunningHubVideoProvider(
           body: JSON.stringify({ taskId: requestId }),
         });
       } catch {
-        return { kind: "failed_transient", reason: "the video provider could not be reached during polling" };
+        return { kind: "failed_transient", reason: "the video provider could not be reached during polling", unresponsive: true };
       }
 
       if (!response.ok) {
