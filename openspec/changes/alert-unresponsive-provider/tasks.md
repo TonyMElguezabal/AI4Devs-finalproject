@@ -27,10 +27,10 @@
 
 ## 4. Infra: dashboard, alert rule and README (design Decisions 4, 5; JOS-258)
 
-- [ ] 4.1 Change the retry-rate query in `infra/grafana/dashboards/providers.json` from `outcome="transient"` to `outcome=~"transient|unresponsive"`; confirm it is the only query filtering on `transient`
-- [ ] 4.2 Create `infra/grafana/alerts/unresponsive-provider.json` (Grafana alert-rule provisioning format): query `sum by (provider) (increase(vid4you_provider_calls_total{outcome="unresponsive", deployment_environment!="development"}[5m])) >= 3`, evaluated every 1 m, pending period 0, label `severity=critical`, summary naming the provider and the stages, routed to the contact point `vid4you-critical`
-- [ ] 4.3 Add a test (or extend the existing dashboard JSON test, if one exists) that parses the rule file and asserts the query, threshold, window, severity and contact point name, and that no `@` email address appears anywhere under `infra/grafana/`
-- [ ] 4.4 `infra/grafana/README.md`: a section on the alert: create the contact point `vid4you-critical` (email) by hand, import the rule, what it fires on, and its limits (opted-in installs only, about 1–3 minutes latency, one user's network outage can fire it); note that timed-out attempts now appear in the provider metrics and that the retry rate includes `unresponsive`
+- [x] 4.1 Change the retry-rate query in `infra/grafana/dashboards/providers.json` from `outcome="transient"` to `outcome=~"transient|unresponsive"`; confirm it is the only query filtering on `transient`
+- [x] 4.2 Create `infra/grafana/alerts/unresponsive-provider.json` (body format of the alert-rule provisioning API): query `sum by (provider, stage) (increase(vid4you_provider_calls_total{outcome="unresponsive", deployment_environment!="development"}[5m])) >= 3`, no data counted as OK, evaluated every 1 m, pending period 0, label `severity=critical`, summary naming the provider and the stage, routed to the contact point `vid4you-critical`
+- [x] 4.3 Add a test (or extend the existing dashboard JSON test, if one exists) that parses the rule file and asserts the query, threshold, window, severity and contact point name, and that no `@` email address appears anywhere under `infra/grafana/`
+- [x] 4.4 `infra/grafana/README.md`: a section on the alert: create the contact point `vid4you-critical` (email) by hand, import the rule, what it fires on, and its limits (opted-in installs only, about 1–3 minutes latency, one user's network outage can fire it); note that timed-out attempts now appear in the provider metrics and that the retry rate includes `unresponsive`
 
 ## 5. Backend: contract test from adapter to exporter (design Decision 6; JOS-259)
 

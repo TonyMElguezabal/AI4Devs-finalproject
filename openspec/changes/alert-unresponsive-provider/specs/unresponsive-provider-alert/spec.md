@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Critical alert when a provider stops responding
-A Grafana alert rule SHALL fire with severity `critical` when the `vid4you_provider_calls_total` counter with `outcome="unresponsive"` increases by 3 or more for one `provider` within any 5-minute window, summed over every install and stage. The alert SHALL name the provider and the stages that reported it. It SHALL resolve once a full 5-minute window has fewer than 3 such calls for that provider. Builds from the `development` environment SHALL NOT fire it.
+A Grafana alert rule SHALL fire with severity `critical` when the `vid4you_provider_calls_total` counter with `outcome="unresponsive"` increases by 3 or more for one `provider` and `stage` within any 5-minute window, summed over every install. The alert SHALL name the provider and the stage. It SHALL resolve once a full 5-minute window has fewer than 3 such calls for that provider and stage. Builds from the `development` environment SHALL NOT fire it.
 
 #### Scenario: Provider stops responding
 - **WHEN** installs report 3 `unresponsive` calls for `RunningHub` within 5 minutes
@@ -11,12 +11,12 @@ A Grafana alert rule SHALL fire with severity `critical` when the `vid4you_provi
 - **WHEN** installs report 2 `unresponsive` calls for `Fal.ai` within 5 minutes and no more
 - **THEN** no alert fires
 
-#### Scenario: Thresholds are per provider
+#### Scenario: Thresholds are per provider and stage
 - **WHEN** within 5 minutes installs report 2 `unresponsive` calls for `Fal.ai` and 2 for `OpenAI`
 - **THEN** no alert fires
 
 #### Scenario: Provider recovers
-- **WHEN** an alert is firing for a provider and a full 5-minute window passes with fewer than 3 `unresponsive` calls for it
+- **WHEN** an alert is firing for a provider and stage and a full 5-minute window passes with fewer than 3 `unresponsive` calls for them
 - **THEN** the alert resolves
 
 #### Scenario: Development builds are ignored
@@ -35,7 +35,7 @@ The rule SHALL be routed to a contact point named `vid4you-critical`, which deli
 - **THEN** it is not found
 
 ### Requirement: The alert rule is declared in the repository
-The alert rule SHALL be stored as a file under `infra/grafana/alerts/` and imported into Grafana Cloud from there, by hand, like the dashboards. `infra/grafana/README.md` SHALL explain how to create the contact point and import the rule, and SHALL state the rule's limits: only installs with provider-usage telemetry on are seen, the alert fires about 1–3 minutes after the provider stops responding, and one user's own network outage can fire it.
+The alert rule SHALL be stored as a file under `infra/grafana/alerts/`, in the body format of Grafana's alert-rule provisioning API, and created in Grafana Cloud from there by hand, like the dashboards. `infra/grafana/README.md` SHALL explain how to create the contact point and import the rule, and SHALL state the rule's limits: only installs with provider-usage telemetry on are seen, the alert fires about 1–3 minutes after the provider stops responding, and one user's own network outage can fire it.
 
 #### Scenario: Rule reproducible from the repository
 - **WHEN** the rule file is imported into a Grafana Cloud stack that has the contact point `vid4you-critical`
