@@ -65,7 +65,7 @@
 
 ## 9. Live Grafana alert test (MANDATORY - needs the owner's Grafana Cloud access)
 
-- [ ] 9.1 The agent prepares the exact steps and a build that emits `unresponsive` calls (a non-`development` test environment label, or a temporary copy of the rule without the `development` filter, removed afterwards)
+- [x] 9.1 (no temporary rule copy needed: a local run with `VID4YOU_CHANNEL=uat` is labelled `uat`; steps given to the owner on 2026-11-03) The agent prepares the exact steps and a build that emits `unresponsive` calls (a non-`development` test environment label, or a temporary copy of the rule without the `development` filter, removed afterwards)
 - [ ] 9.2 With the owner: create the contact point `vid4you-critical` (email), import the rule and re-import `providers.json`
 - [ ] 9.3 Produce 3 or more unresponsive calls for one provider within 5 minutes; confirm the alert fires as critical naming the provider and stage, the email arrives, and the alert resolves after 5 quiet minutes
 - [ ] 9.4 In Explore, confirm the `outcome` and `deployment_environment` labels as named in the rule; fix the rule query in the repository if they differ
