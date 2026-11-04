@@ -64,13 +64,13 @@
 
 ## 9. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start the backend with literal scratch `DB_PATH` and `PROJECTS_ROOT`, `VID4YOU_ERROR_TRIGGERS=1` and `VID4YOU_TELEMETRY_ENDPOINT` pointed at a local fake receiver; guard that the server does not use `data/`
-- [ ] 9.2 `POST /telemetry/frontend-errors` with a valid body → 204 and an `error` line in the scratch log
-- [ ] 9.3 Error cases: oversized message, unknown `kind`, extra field → 400; 15 reports in a row → the 11th onward answer 204 and are not logged at `error`
-- [ ] 9.4 `POST /dev/errors/route-crash` → 500 with today's body; with consent on, one record at the receiver
-- [ ] 9.5 Restart without `VID4YOU_ERROR_TRIGGERS` → both trigger routes 404
-- [ ] 9.6 Restore the consent value changed in 9.4 and remove the scratch folders
-- [ ] 9.7 Document every command and response in `reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`
+- [x] 9.1 Start the backend with literal scratch `DB_PATH` and `PROJECTS_ROOT`, `VID4YOU_ERROR_TRIGGERS=1` and `VID4YOU_TELEMETRY_ENDPOINT` pointed at a local fake receiver; guard that the server does not use `data/`
+- [x] 9.2 `POST /telemetry/frontend-errors` with a valid body → 204 and an `error` line in the scratch log
+- [x] 9.3 Error cases: oversized message, unknown `kind`, extra field → 400; 15 reports in a row → the 11th onward answer 204 and are not logged at `error`
+- [x] 9.4 `POST /dev/errors/route-crash` → 500 with today's body; with consent on, one record at the receiver
+- [x] 9.5 Restart without `VID4YOU_ERROR_TRIGGERS` → both trigger routes 404
+- [x] 9.6 Restore the consent value changed in 9.4 and remove the scratch folders
+- [x] 9.7 Document every command and response in `reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`
 
 ## 10. Frontend: E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
