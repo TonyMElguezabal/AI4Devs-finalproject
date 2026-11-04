@@ -49,18 +49,18 @@
 
 ## 7. Backend: Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review the telemetry tests (`telemetry*.test.ts`, `error-log.test.ts`) and the workflow tests for assumptions the `onError` hook or the harness change break; update them
-- [ ] 7.2 Check `telemetry.test.ts`'s allowlist assertion still covers the new paths (no new attribute keys)
-- [ ] 7.3 Review the frontend tests that render `<App />` for the new boundary
+- [x] 7.1 (no update needed: the telemetry, error-log, process-handler and workflow tests pass unchanged; `processHandlers.ts` now goes through `recordCaughtError` with the same fields) Review the telemetry tests (`telemetry*.test.ts`, `error-log.test.ts`) and the workflow tests for assumptions the `onError` hook or the harness change break; update them
+- [x] 7.2 (`route` is the only new key; added to the allowlist, which `telemetry.test.ts` and `route-error-reporting.test.ts` both check) Check `telemetry.test.ts`'s allowlist assertion still covers the new paths (no new attribute keys)
+- [x] 7.3 (the App tests render `<App />` directly, not `main.tsx`, so the boundary does not change them; 483 pass) Review the frontend tests that render `<App />` for the new boundary
 
 ## 8. Backend: Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture a pre-test baseline of the Developer's `data/` store (session count, file list of `data/projects`)
-- [ ] 8.2 Run the targeted tests from groups 1–6 with scratch `DB_PATH` and `PROJECTS_ROOT`
-- [ ] 8.3 Run the full backend and frontend suites with scratch `DB_PATH` and `PROJECTS_ROOT`; run lint and type-check
-- [ ] 8.4 Verify the baseline is unchanged after the tests and restore it if needed
-- [ ] 8.5 Create `reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
-- [ ] 8.6 Mark this step complete only after the tests pass and the report exists
+- [x] 8.1 Capture a pre-test baseline of the Developer's `data/` store (session count, file list of `data/projects`)
+- [x] 8.2 Run the targeted tests from groups 1–6 with scratch `DB_PATH` and `PROJECTS_ROOT`
+- [x] 8.3 Run the full backend and frontend suites with scratch `DB_PATH` and `PROJECTS_ROOT`; run lint and type-check
+- [x] 8.4 Verify the baseline is unchanged after the tests and restore it if needed
+- [x] 8.5 Create `reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
+- [x] 8.6 Mark this step complete only after the tests pass and the report exists
 
 ## 9. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
