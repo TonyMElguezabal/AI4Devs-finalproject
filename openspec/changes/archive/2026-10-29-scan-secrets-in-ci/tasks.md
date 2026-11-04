@@ -46,5 +46,5 @@
 ## 8. Pull request
 
 - [x] 8.1 Commit on the feature branch in separate commits: allowlist files, CI job, docs and reports
-- [ ] 8.2 After approval, confirm no PR for this branch is already merged, push with an explicit upstream, and open the PR into `feature/entrega-3-JAME` linking JOS-211; the `secrets` job must be green on it. Note in the PR that the check should be made required on `main` and the integration branches
-- [ ] 8.3 Add a comment on JOS-203 updating the I1 note
+- [x] 8.2 After approval, confirm no PR for this branch is already merged, push with an explicit upstream, and open the PR into `feature/entrega-3-JAME` linking JOS-211; the `secrets` job must be green on it. Note in the PR that the check should be made required on `main` and the integration branches
+- [x] 8.3 Add a comment on JOS-203 updating the I1 note
