@@ -67,13 +67,13 @@
 
 ## 9. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 9.1 Start `node src/server.ts` on a scratch `DB_PATH`, `PROJECTS_ROOT`, `SETTINGS_PATH` and `SECRETS_PATH`, with every `USE_STUB_*` variable on and `NODE_ENV=development`
-- [ ] 9.2 `curl -X POST /sessions` with a short script: 201, no request to OpenAI (the log shows `stub-*` providers only)
-- [ ] 9.3 `curl GET /sessions/:id` until `final-video`; `curl GET /sessions/:id/download/final-video`: 200 with a non-empty body
-- [ ] 9.4 Restart with `USE_STUB_IMAGE_PROVIDER=not-retryable-failure`; create a session; `GET /sessions/:id` shows the scenes failed on `image` and `assembly` `pending`; `logs/vid4you.log` has the `error` line
-- [ ] 9.5 Error cases: start with `USE_STUB_DECOMPOSITION=bogus` and confirm the boot warning; `GET /sessions/<unknown ulid>` answers 404
-- [ ] 9.6 Stop the server, delete the scratch folder, confirm `backend/data/` is unchanged
-- [ ] 9.7 Document the commands and responses in `openspec/changes/verify-internal-workflow/reports/YYYY-MM-DD-step-9-manual-endpoint-testing.md`
+- [x] 9.1 Start `node src/server.ts` on a scratch `DB_PATH`, `PROJECTS_ROOT`, `SETTINGS_PATH` and `SECRETS_PATH`, with every `USE_STUB_*` variable on and `NODE_ENV=development`
+- [x] 9.2 `curl -X POST /sessions` with a short script: 201, no request to OpenAI (the log shows `stub-*` providers only)
+- [x] 9.3 `curl GET /sessions/:id` until `final-video`; `curl GET /sessions/:id/download/final-video`: 200 with a non-empty body
+- [x] 9.4 Restart with `USE_STUB_IMAGE_PROVIDER=not-retryable-failure`; create a session; `GET /sessions/:id` shows the scenes failed on `image` and `assembly` `pending`; `logs/vid4you.log` has the `error` line
+- [x] 9.5 Error cases: start with `USE_STUB_DECOMPOSITION=bogus` and confirm the boot warning; `GET /sessions/<unknown ulid>` answers 404
+- [x] 9.6 Stop the server, delete the scratch folder, confirm `backend/data/` is unchanged
+- [x] 9.7 (includes an incident: one server briefly started on the Developer's database with no request sent; data verified unchanged, 5 log lines removed) Document the commands and responses in `openspec/changes/verify-internal-workflow/reports/2026-11-03-step-9-manual-endpoint-testing.md`
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
