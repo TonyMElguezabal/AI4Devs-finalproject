@@ -140,6 +140,7 @@ const errorTriggerBodySchema = z.object({ tag: z.string().regex(/^[A-Za-z0-9-]{1
 
 function registerErrorTriggers(app: FastifyInstance): void {
   const typed = app.withTypeProvider<ZodTypeProvider>();
+  // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
   typed.post("/dev/errors/route-crash", { schema: { body: errorTriggerBodySchema } }, async (request) => {
     throw Object.assign(new Error(`synthetic route crash ${request.body?.tag ?? "untagged"}`), { code: "SYNTHETIC_ERROR" });
   });

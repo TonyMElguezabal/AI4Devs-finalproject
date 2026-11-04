@@ -18,10 +18,10 @@
 
 ## 3. Backend: `POST /telemetry/frontend-errors` (TDD; design D3; JOS-254 AC1, AC3–AC5)
 
-- [ ] 3.1 Write failing tests in `backend/test/frontend-error-endpoint.test.ts`: a valid report answers 204 and reports `stage` `frontend` with `kind` as the error code; a message of 1001 characters, a stack of 8001, an unknown `kind` and an extra field each answer 400 and report nothing; with consent off the log line is written and no OTLP record is sent
-- [ ] 3.2 Write a failing test for the limit with a fake clock: 50 reports in one window → 10 reported, 40 answered 204, one `warn`; the next window reports again
-- [ ] 3.3 Add the route and its Zod schemas next to `/telemetry/consent` in `backend/src/routes.ts`, with the module-level window and its `ponytail:` comment; expose a reset for tests; make 3.1 and 3.2 pass
-- [ ] 3.4 Check the route sits behind the origin policy (a request from another origin is refused as for every route)
+- [x] 3.1 Write failing tests in `backend/test/frontend-error-endpoint.test.ts`: a valid report answers 204 and reports `stage` `frontend` with `kind` as the error code; a message of 1001 characters, a stack of 8001, an unknown `kind` and an extra field each answer 400 and report nothing; with consent off the log line is written and no OTLP record is sent
+- [x] 3.2 Write a failing test for the limit with a fake clock: 50 reports in one window → 10 reported, 40 answered 204, one `warn`; the next window reports again
+- [x] 3.3 Add the route and its Zod schemas next to `/telemetry/consent` in `backend/src/routes.ts`, with the module-level window and its `ponytail:` comment; expose a reset for tests; make 3.1 and 3.2 pass
+- [x] 3.4 Check the route sits behind the origin policy (a request from another origin is refused as for every route)
 
 ## 4. Frontend: capture and fallback (TDD; design D3; JOS-254 AC1, AC2, AC4)
 
