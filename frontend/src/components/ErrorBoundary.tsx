@@ -28,7 +28,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, { failed: boole
     const reload = this.props.reload ?? (() => window.location.reload());
     return (
       <main className="app-main">
-        <section className="card" aria-labelledby="error-fallback-title">
+        <section className="card error-fallback" aria-labelledby="error-fallback-title">
           <h1 id="error-fallback-title">Something went wrong</h1>
           <p>The page stopped working. Reload to continue.</p>
           <button type="button" className="primary" onClick={reload}>

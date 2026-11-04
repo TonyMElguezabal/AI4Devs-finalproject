@@ -74,12 +74,12 @@
 
 ## 10. Frontend: E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Start the backend (scratch folders as in 9.1) and the frontend dev server
-- [ ] 10.2 Open the app with `browser_navigate`; take a snapshot
-- [ ] 10.3 With `browser_evaluate`, throw from a `setTimeout` and reject a promise unhandled; check two `frontend` lines in the scratch log
-- [ ] 10.4 Try to force a render error from `browser_evaluate` (no test-only route is added); if one is found, check the fallback and the "Reload" button by snapshot and keyboard; if none exists, record that the boundary is covered by the 4.3 unit test
-- [ ] 10.5 Restore the environment and close the browser
-- [ ] 10.6 Document the scenarios in `reports/YYYY-MM-DD-step-10-e2e-playwright.md`
+- [x] 10.1 Start the backend (scratch folders as in 9.1) and the frontend dev server
+- [x] 10.2 Open the app with `browser_navigate`; take a snapshot
+- [x] 10.3 With `browser_evaluate`, throw from a `setTimeout` and reject a promise unhandled; check two `frontend` lines in the scratch log
+- [x] 10.4 (done by dispatching `null` into a hook state through the React fiber tree; the fallback had no padding, fixed with `.error-fallback`) Try to force a render error from `browser_evaluate` (no test-only route is added); if one is found, check the fallback and the "Reload" button by snapshot and keyboard; if none exists, record that the boundary is covered by the 4.3 unit test
+- [x] 10.5 Restore the environment and close the browser
+- [x] 10.6 Document the scenarios in `reports/YYYY-MM-DD-step-10-e2e-playwright.md`
 
 ## 11. Live check on the Grafana stack (MANUAL with the Developer; design D6; JOS-256)
 
