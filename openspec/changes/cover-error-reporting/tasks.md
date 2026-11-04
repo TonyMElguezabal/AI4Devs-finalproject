@@ -25,11 +25,11 @@
 
 ## 4. Frontend: capture and fallback (TDD; design D3; JOS-254 AC1, AC2, AC4)
 
-- [ ] 4.1 Write failing tests for `reportFrontendError` in `frontend/src`: it posts only `kind`, `message` and `stack`; it cuts the message to 1000 and the stack to 8000; a non-`Error` reason is sent as `String(reason)`; a rejected `fetch` does not throw and sends nothing more
-- [ ] 4.2 Add `reportFrontendError` to `frontend/src/api/client.ts` and the request type to `frontend/src/types.ts`; make 4.1 pass
-- [ ] 4.3 Write failing tests for `ErrorBoundary`: a child that throws while rendering shows the fallback (heading and a "Reload" button found by role) and calls the reporter once with `render`; the button calls `window.location.reload`
-- [ ] 4.4 Add `frontend/src/components/ErrorBoundary.tsx` styled with the existing tokens; make 4.3 pass
-- [ ] 4.5 In `frontend/src/main.tsx`, add the `error` and `unhandledrejection` listeners once before `createRoot`, and wrap `<App />` in the boundary; add a test that dispatching each event calls the reporter with the right kind
+- [x] 4.1 Write failing tests for `reportFrontendError` in `frontend/src`: it posts only `kind`, `message` and `stack`; it cuts the message to 1000 and the stack to 8000; a non-`Error` reason is sent as `String(reason)`; a rejected `fetch` does not throw and sends nothing more
+- [x] 4.2 Add `reportFrontendError` to `frontend/src/api/client.ts` and the request type to `frontend/src/types.ts`; make 4.1 pass
+- [x] 4.3 Write failing tests for `ErrorBoundary`: a child that throws while rendering shows the fallback (heading and a "Reload" button found by role) and calls the reporter once with `render`; the button calls `window.location.reload`
+- [x] 4.4 Add `frontend/src/components/ErrorBoundary.tsx` styled with the existing tokens; make 4.3 pass
+- [x] 4.5 In `frontend/src/main.tsx`, add the `error` and `unhandledrejection` listeners once before `createRoot`, and wrap `<App />` in the boundary; add a test that dispatching each event calls the reporter with the right kind
 
 ## 5. Backend: catch audit (design D2; JOS-253)
 
