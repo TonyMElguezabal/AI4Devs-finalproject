@@ -109,6 +109,7 @@ describe("the provider label of a stage attempt", () => {
 
   it("is stub for a stub identifier", async () => {
     expect(await attemptProvider("voice-over", "stub-voice")).toBe("stub");
+    expect(await attemptProvider("decomposition", "stub-reasoning")).toBe("stub"); // USE_STUB_DECOMPOSITION (JOS-243)
   });
 
   it("is the vendor, not the id or the typed label, for a provider added on /admin", async () => {

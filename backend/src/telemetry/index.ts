@@ -34,6 +34,10 @@ let loggerProvider: LoggerProvider | null = null;
 let instruments: Instruments | null = null;
 let logger: (message: string) => void = (message) => console.warn(message);
 let lastWarningAt = 0;
+// verify-internal-workflow (JOS-243), design D5 — the local log every reported error is written to, whatever the consent.
+// The boot code sets it to the application logger; until then (unit tests, in-process apps) nothing is written.
+type ErrorLog = { error: (fields: Record<string, string>, message: string) => void };
+let errorLog: ErrorLog | null = null;
 
 /** Refreshed by the boot code and by `PUT /telemetry/consent`, so a change applies without a restart (Decision 3). */
 export function setConsent(next: TelemetrySettings): void {
@@ -53,12 +57,17 @@ export function setTelemetryLogger(next: (message: string) => void): void {
   logger = next;
 }
 
+export function setErrorLog(next: ErrorLog): void {
+  errorLog = next;
+}
+
 export function resetTelemetryForTest(): void {
   void meterProvider?.shutdown().catch(() => {});
   void loggerProvider?.shutdown().catch(() => {});
   meterProvider = loggerProvider = instruments = null;
   exporterOverride = null;
   lastWarningAt = 0;
+  errorLog = null;
   logger = (message) => console.warn(message);
   settings = { errors: false, providerUsage: false, productUsage: false, answered: false, installId: "" };
 }
@@ -115,6 +124,7 @@ export function recordError(error: {
   message: string;
   stack?: string;
 }): void {
+  writeErrorLog(error);
   if (!settings.errors) return;
   guarded(() => {
     getProviders();
@@ -131,6 +141,21 @@ export function recordError(error: {
       attributes,
     });
   });
+}
+
+function writeErrorLog(error: Parameters<typeof recordError>[0]): void {
+  if (!errorLog) return;
+  const fields: Record<string, string> = {};
+  if (error.stage) fields.stage = error.stage;
+  if (error.provider) fields.provider = error.provider;
+  if (error.errorCode) fields.errorCode = error.errorCode;
+  if (error.outcome) fields.outcome = error.outcome;
+  if (error.stack) fields.stack = redactPaths(error.stack);
+  try {
+    errorLog.error(fields, redactPaths(error.message));
+  } catch {
+    // A failing log must never fail the caller (a database write or the process handlers).
+  }
 }
 
 export function recordProductEvent(event: ProductEvent): void {

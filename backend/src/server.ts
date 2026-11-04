@@ -18,6 +18,9 @@ import { recordProductEvent, setConsent } from "./telemetry/index.ts";
 import { createStubAssemblyTool, type StubAssemblyMode } from "./stubAssemblyTool.ts";
 import { createFfmpegAssemblyTool } from "./ffmpegAssemblyTool.ts";
 import type { AssemblyTool } from "./assemblyTool.ts";
+import { setAlignmentProviderRegistry, setDecompositionDependencies, setReasoningProviderRegistry } from "./decompositionDependencies.ts";
+import { createStubAlignmentProvider, createStubInstructionGenerator } from "./decompositionStubs.ts";
+import { setScriptModerator } from "./scriptModeration.ts";
 
 export const PORT = Number(process.env.PORT ?? 3100);
 
@@ -160,6 +163,34 @@ export function configureAssemblyTool(
   const tool = stubMode ? factories.stub(assemblyStubModeFor(stubMode, env.ASSEMBLY_STUB_DELAY_MS)) : factories.ffmpeg();
   setAssemblyTool(tool);
   return tool;
+}
+
+/**
+ * verify-internal-workflow (JOS-243), design D1 and D2 — the stubs for the providers that had no variable, so a session
+ * can run with no provider request (manual and workflow testing only). `USE_STUB_DECOMPOSITION=success` installs the
+ * reasoning and alignment stubs under `stub-` identifiers, which the attempts record and telemetry reports as `stub`;
+ * `USE_STUB_SCRIPT_MODERATION=clean` accepts every script. Returns a warning for each unknown value, which is ignored.
+ */
+export function configureProviderStubs(env: Record<string, string | undefined> = process.env): string[] {
+  const warnings: string[] = [];
+  const decomposition = env.USE_STUB_DECOMPOSITION;
+  if (decomposition === "success") {
+    // The same instances in both places: `resolveBoundAdapter` answers the injected dependency for the default id.
+    const instructionGenerator = createStubInstructionGenerator();
+    const alignmentProvider = createStubAlignmentProvider();
+    setDecompositionDependencies({ instructionGenerator, alignmentProvider });
+    setReasoningProviderRegistry({ defaultIdentifier: "stub-reasoning", adapters: { "stub-reasoning": instructionGenerator } });
+    setAlignmentProviderRegistry({ defaultIdentifier: "stub-alignment", adapters: { "stub-alignment": alignmentProvider } });
+  } else if (decomposition) {
+    warnings.push(`USE_STUB_DECOMPOSITION='${decomposition}' is not a stub mode (success): the real reasoning and alignment providers are used`);
+  }
+  const moderation = env.USE_STUB_SCRIPT_MODERATION;
+  if (moderation === "clean") {
+    setScriptModerator({ moderate: () => Promise.resolve({ kind: "clean" as const }) });
+  } else if (moderation) {
+    warnings.push(`USE_STUB_SCRIPT_MODERATION='${moderation}' is not a stub mode (clean): the real script moderation is used`);
+  }
+  return warnings;
 }
 
 // Bootstrap only when this file is run directly (`node src/server.ts`), not when imported by tests or bundled

@@ -12,7 +12,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { ADAPTER_VENDORS, SEEDED_PROFILES } from "./providerTypes.ts";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
-import { getConsent, normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
+import { normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
 import { ulid } from "./util/ulid.ts";
 import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
@@ -1906,8 +1906,6 @@ function reportStageAttempt(
   outcome: { outcome: string; finishedAt: string; errorCode?: string; errorMessage?: string; unresponsive?: boolean },
 ): void {
   try {
-    const consent = getConsent();
-    if (!consent.providerUsage && !consent.errors) return;
     const provider = telemetryProviderOf(row.provider_id, row.stage);
     const normalized = normalizeOutcome(outcome.outcome);
     let billed: BilledUnit | undefined;
@@ -2389,8 +2387,6 @@ export function insertProviderRequest(
 /** add-observability-telemetry (JOS-199) Decision 4 — the image and clip stages report here, not through stage attempts. */
 function reportProviderRequest(sceneId: string, latencyMs: number, mode: ProviderOutcomeMode, stage: "image" | "video", unresponsive?: boolean): void {
   try {
-    const consent = getConsent();
-    if (!consent.providerUsage && !consent.errors) return;
     const scene = db
       .prepare("SELECT provider, video_provider, requested_duration_seconds FROM scenes WHERE id = ?")
       .get(sceneId) as
