@@ -35,6 +35,12 @@ describe("sanitizeEnvironment", () => {
     sanitizeEnvironment(env);
     expect(env).toEqual({ OPENAI_API_KEY: "kept", PATH: "/usr/bin" });
   });
+
+  it("removes VID4YOU_ERROR_TRIGGERS, so a release never exposes the error triggers (cover-error-reporting, design D4)", () => {
+    const env: Record<string, string | undefined> = { VID4YOU_ERROR_TRIGGERS: "1", VID4YOU_DATA_DIR: "/data" };
+    sanitizeEnvironment(env);
+    expect(env).toEqual({ VID4YOU_DATA_DIR: "/data" });
+  });
 });
 
 describe("buildRuntimeEnvironment", () => {

@@ -82,7 +82,7 @@ React 18 rethrows render errors in development, so they also reach the `window` 
 - `POST /dev/errors/route-crash` → throws `new Error(\`synthetic route crash ${tag}\`)` with `code` `SYNTHETIC_ERROR`;
 - `POST /dev/errors/unhandled-rejection` → answers 202, then `setImmediate(() => void Promise.reject(new Error(\`synthetic unhandled rejection ${tag}\`)))`.
 
-`tag` is an optional body field, `z.string().regex(/^[A-Za-z0-9-]{1,40}$/)`. Both serve JOS-255 (CI) and JOS-256 (live check). The api-spec is generated from an app without the variable, so they never appear in `docs/api-spec.yml`. The variable is not `USE_STUB_*`: nothing is stubbed. The spawned-server harness passes it explicitly.
+`tag` is an optional body field, `z.string().regex(/^[A-Za-z0-9-]{1,40}$/)`. Both serve JOS-255 (CI) and JOS-256 (live check). The api-spec is generated from an app without the variable, so they never appear in `docs/api-spec.yml`. The variable is not `USE_STUB_*`: nothing is stubbed. The spawned-server harness passes it explicitly. Because of that, the packaged entry's `sanitizeEnvironment` (`packaging/runtimeEnv.ts`), which removes `ALLOW_TEST_ENDPOINTS` and every `USE_STUB_*`, would not have caught it; it gains the variable by name (found while writing task 12.3, 2026-11-04). The JOS-256 check runs from `npm run dev`, not a packaged build, so it is not affected.
 
 - *Alternative: make a real route crash.* Rejected: no route crashes on demand without corrupting the store, and an unhandled rejection cannot be caused from outside at all.
 

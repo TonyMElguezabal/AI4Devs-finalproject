@@ -87,11 +87,15 @@ The backend SHALL accept `POST /telemetry/frontend-errors` with a JSON body `{ k
 - **THEN** the local log holds it at `error` level and no OTLP record is sent
 
 ### Requirement: Error triggers exist only behind an environment variable
-When `VID4YOU_ERROR_TRIGGERS` is `1`, the backend SHALL register `POST /dev/errors/route-crash`, which throws an error, and `POST /dev/errors/unhandled-rejection`, which causes an unhandled promise rejection. Both take an optional `tag` (letters, digits and `-`, at most 40 characters) and put `synthetic` and the tag in the error's message. Without the variable neither route SHALL exist (404), and neither SHALL appear in `docs/api-spec.yml`.
+When `VID4YOU_ERROR_TRIGGERS` is `1`, the backend SHALL register `POST /dev/errors/route-crash`, which throws an error, and `POST /dev/errors/unhandled-rejection`, which causes an unhandled promise rejection. Both take an optional `tag` (letters, digits and `-`, at most 40 characters) and put `synthetic` and the tag in the error's message. Without the variable neither route SHALL exist (404), and neither SHALL appear in `docs/api-spec.yml`. A packaged build SHALL remove the variable from its environment at start, like `ALLOW_TEST_ENDPOINTS` and every `USE_STUB_*`, so a release never exposes the triggers.
 
 #### Scenario: Triggers off by default
 - **WHEN** the backend runs without `VID4YOU_ERROR_TRIGGERS`
 - **THEN** `POST /dev/errors/route-crash` is answered 404 and nothing is reported
+
+#### Scenario: A packaged build ignores the variable
+- **WHEN** a packaged build starts with `VID4YOU_ERROR_TRIGGERS=1` in the user's environment
+- **THEN** the variable is removed before the server is built, and both trigger routes answer 404
 
 #### Scenario: Tagged route crash
 - **WHEN** the backend runs with `VID4YOU_ERROR_TRIGGERS=1` and `POST /dev/errors/route-crash` is sent with tag `jos-256`
