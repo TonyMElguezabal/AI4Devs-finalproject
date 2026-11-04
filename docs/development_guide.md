@@ -184,6 +184,7 @@ These exist for manual endpoint testing and **must never be set in UAT or produc
 |---|---|
 | `ALLOW_TEST_ENDPOINTS` | enables `POST /internal/test/quick-voice-over` and `POST /internal/test/quick-scene` |
 | `USE_STUB_VOICE_PROVIDER`, `USE_STUB_IMAGE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_ASSEMBLY_TOOL` | replace a provider with a stub (values are listed in `backend/src/server.ts` and `backend/src/bootstrap.ts`) |
+| `VID4YOU_ERROR_TRIGGERS=1` | registers `POST /dev/errors/route-crash` and `POST /dev/errors/unhandled-rejection` (optional body `{"tag":"..."}`), which fail on purpose so an error can be followed to the log file and Grafana (`cover-error-reporting`, JOS-245). The second one ends the process. Ignored by a packaged build |
 | `USE_STUB_DECOMPOSITION=success`, `USE_STUB_SCRIPT_MODERATION=clean` | replace the reasoning and alignment providers, and the script check, with succeeding stubs (`configureProviderStubs` in `backend/src/server.ts`). Together with the four above, a session runs to `final-video` with no provider key. Unlike the others, an unknown value keeps the real provider and logs a warning at boot. The stub assembly tool writes a small placeholder file (not a playable MP4), so the final-video download works |
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | shorten retry delays |
 | `CORS_ALLOWED_ORIGINS` | comma-separated extra origins allowed to call the API. By default only `http://127.0.0.1:5173`, `http://localhost:5173` and the backend's own address are; any other web page gets a 403 |

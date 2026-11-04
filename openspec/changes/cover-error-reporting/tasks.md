@@ -91,9 +91,9 @@
 
 ## 12. Update Technical Documentation (MANDATORY)
 
-- [ ] 12.1 Regenerate `docs/api-spec.yml` from the live OpenAPI (the new endpoint; no trigger routes)
-- [ ] 12.2 `PRIVACY.md`: error reports now include 5xx route errors (with the route pattern) and frontend errors, with the size cap; `infra/grafana/README.md` lists the `route` label
-- [ ] 12.3 `docs/backend-standards.md`: the catch rule (report, rethrow, or a one-line comment) and `VID4YOU_ERROR_TRIGGERS`
-- [ ] 12.4 `docs/frontend-standards.md`: the error boundary, the fallback in the screen inventory, the reporter
-- [ ] 12.5 Run `graphify update .`
+- [x] 12.1 Regenerate `docs/api-spec.yml` from the live OpenAPI (the new endpoint; no trigger routes)
+- [x] 12.2 `PRIVACY.md`: error reports now include 5xx route errors (with the route pattern) and frontend errors, with the size cap; `infra/grafana/README.md` lists the `route` label
+- [x] 12.3 `docs/backend-standards.md`: the catch rule (report, rethrow, or a one-line comment) and `VID4YOU_ERROR_TRIGGERS`
+- [x] 12.4 `docs/frontend-standards.md`: the error boundary, the fallback in the screen inventory, the reporter
+- [x] 12.5 Run `graphify update .`
 - [ ] 12.6 Open the PR into `feature/entrega-3-JAME` explaining the architectural motivation, linking JOS-245 and JOS-252 to JOS-256 (after the Developer's go-ahead to push)

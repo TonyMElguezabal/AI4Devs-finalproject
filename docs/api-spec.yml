@@ -21,6 +21,10 @@
 # file (same
 # command) whenever a route changes, rather than hand-editing it out of sync.
 #
+# cover-error-reporting (JOS-245) - 2026-11-04: new path `POST /telemetry/frontend-errors`, generated
+# from the running app (`app.swagger()`); the 204 keeps a description only, like the other 204s here. The
+# error-trigger routes (`/dev/errors/*`) exist only with VID4YOU_ERROR_TRIGGERS=1 and are not part of the contract.
+#
 # JOS-174 (configure-providers-and-parameters) - 2026-10-19: no new path. The `language`
 # request field of `POST /sessions` is validated against the configured list of supported
 # languages (the `languages` setting, `docs/development_guide.md` "Settings files"); the
@@ -2683,6 +2687,38 @@ paths:
                   - productUsage
                   - answered
                 additionalProperties: false
+  /telemetry/frontend-errors:
+    post:
+      description: "cover-error-reporting (JOS-254): one uncaught error, unhandled rejection or render error from the
+        frontend. It is written to the local log at `error` level and, with error telemetry consent, exported with
+        `stage` `frontend` and `kind` as the error code. At most 10 reports per minute are passed on; the rest are
+        answered 204 and dropped. Covered by the origin policy."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - error
+                    - unhandledrejection
+                    - render
+                message:
+                  type: string
+                  maxLength: 1000
+                stack:
+                  type: string
+                  maxLength: 8000
+              required:
+                - kind
+                - message
+              additionalProperties: false
+      responses:
+        "204":
+          description: Accepted (reported, or dropped by the rate limit).
   /app/update:
     get:
       responses:
