@@ -96,4 +96,4 @@
 - [x] 12.3 `docs/backend-standards.md`: the catch rule (report, rethrow, or a one-line comment) and `VID4YOU_ERROR_TRIGGERS`
 - [x] 12.4 `docs/frontend-standards.md`: the error boundary, the fallback in the screen inventory, the reporter
 - [x] 12.5 Run `graphify update .`
-- [ ] 12.6 Open the PR into `feature/entrega-3-JAME` explaining the architectural motivation, linking JOS-245 and JOS-252 to JOS-256 (after the Developer's go-ahead to push)
+- [x] 12.6 (PR #163, opened 2026-11-04 before the live check, at the owner's request; tasks 11.1-11.4 stay open for JOS-256) Open the PR into `feature/entrega-3-JAME` explaining the architectural motivation, linking JOS-245 and JOS-252 to JOS-256 (after the Developer's go-ahead to push)
