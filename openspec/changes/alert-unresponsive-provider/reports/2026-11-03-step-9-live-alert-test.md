@@ -28,12 +28,14 @@ Same setup; the stub answers 2 s after the 3 s limit, so every attempt is first 
 `outcome` and `deployment_environment` exist under these names (the `deployment_environment="uat"` query returns the series; equality on `outcome` matched). No rule change needed. The README note "not yet checked against a live stack" is updated for the metric labels; the Loki names remain unchecked.
 
 ## Resolve
-Expected about 5 minutes after the last call (18:57:52), when the 5-minute window no longer holds 3 calls. Confirmed by the owner: see Outcome.
+Alert history (owner's screenshot), instance `provider=stub`, `stage=voice-over`, `severity=critical`, folder `Vid4You alerts`:
+- 18:56:00 Normal → Alerting (about 2 minutes after the first unresponsive call at 18:54:01);
+- 19:02:00 Alerting → Normal (about 4 minutes after the last call at 18:57:52, when the 5-minute window no longer held 3 calls).
 
 ## Cleanup
 - Both servers stopped; port 3199 is free. The scratch store, projects folder, settings and key are deleted.
 - No temporary rule copy was used.
 
 ## Outcome
-- Step 9 status: PASS for fire, routing, email and labels; resolve: pending the owner's confirmation
+- Step 9 status: PASS (fire, routing, email, labels and resolve)
 - Finding: calls before an install's first export are not counted (run 1); accepted for this change, follow-up to be decided by the owner

@@ -67,9 +67,9 @@
 
 - [x] 9.1 (no temporary rule copy needed: a local run with `VID4YOU_CHANNEL=uat` is labelled `uat`; steps given to the owner on 2026-11-03) The agent prepares the exact steps and a build that emits `unresponsive` calls (a non-`development` test environment label, or a temporary copy of the rule without the `development` filter, removed afterwards)
 - [x] 9.2 (contact point, rule in folder `fjt7jw` on `grafanacloud-prom`, providers.json re-imported) With the owner: create the contact point `vid4you-critical` (email), import the rule and re-import `providers.json`
-- [ ] 9.3 Produce 3 or more unresponsive calls for one provider within 5 minutes; confirm the alert fires as critical naming the provider and stage, the email arrives, and the alert resolves after 5 quiet minutes
+- [x] 9.3 (run 2: fired 18:56, email received, resolved 19:02) Produce 3 or more unresponsive calls for one provider within 5 minutes; confirm the alert fires as critical naming the provider and stage, the email arrives, and the alert resolves after 5 quiet minutes
 - [x] 9.4 (both labels as named; no rule change) In Explore, confirm the `outcome` and `deployment_environment` labels as named in the rule; fix the rule query in the repository if they differ
-- [ ] 9.5 Save `openspec/changes/alert-unresponsive-provider/reports/YYYY-MM-DD-step-9-live-alert-test.md` with the date, what was fired, and the result; remove any temporary rule copy
+- [x] 9.5 Save `openspec/changes/alert-unresponsive-provider/reports/YYYY-MM-DD-step-9-live-alert-test.md` with the date, what was fired, and the result; remove any temporary rule copy
 
 ## 10. E2E Testing with the browser (MANDATORY if applicable - AGENT MUST EXECUTE)
 
