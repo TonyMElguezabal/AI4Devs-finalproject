@@ -52,18 +52,18 @@
 
 ## 7. Backend: Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 7.1 Review the tests that use `createStubAssemblyTool`, `installSmokeStubs`, `setScriptModerator`, the reasoning and alignment registry setters, and `recordError`; update any that the changes in groups 1–4 make wrong, and record each change in the step 8 report
-- [ ] 7.2 Confirm the backend coverage of the touched modules does not decrease (`npm run test -- --coverage` before and after, or the project's coverage command); record both numbers
+- [x] 7.1 (listed in the step 8 report) Review the tests that use `createStubAssemblyTool`, `installSmokeStubs`, `setScriptModerator`, the reasoning and alignment registry setters, and `recordError`; update any that the changes in groups 1–4 make wrong, and record each change in the step 8 report
+- [x] 7.2 (not measurable: no coverage provider is installed, and adding one is a new dependency; the step 8 report lists the tests that cover each new module and each removed line) Confirm the backend coverage of the touched modules does not decrease (`npm run test -- --coverage` before and after, or the project's coverage command); record both numbers
 
 ## 8. Backend: Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 8.1 Capture the pre-test baseline of the Developer's `backend/data/` (database row counts for `runs` and `stage_attempts`, the `projects/` entries) without changing it
-- [ ] 8.2 Run the targeted tests (groups 1–6) with scratch `DB_PATH` and `PROJECTS_ROOT`
-- [ ] 8.3 Run `npm run typecheck`, `npm run lint` and the full `npm test` in `backend/`, with scratch `DB_PATH` and `PROJECTS_ROOT`
-- [ ] 8.4 Run the full suite again in a fresh worktree with no `backend/.secrets.json`, to rule out local secrets masking a failure
-- [ ] 8.5 Verify the post-test state of `backend/data/` matches 8.1; restore it if not, and document the restoration
-- [ ] 8.6 Create report `openspec/changes/verify-internal-workflow/reports/YYYY-MM-DD-step-8-unit-test-and-db-verification.md`
-- [ ] 8.7 Mark this step complete only after the tests pass and the report exists
+- [x] 8.1 Capture the pre-test baseline of the Developer's `backend/data/` (database row counts for `runs` and `stage_attempts`, the `projects/` entries) without changing it
+- [x] 8.2 Run the targeted tests (groups 1–6) with scratch `DB_PATH` and `PROJECTS_ROOT`
+- [x] 8.3 Run `npm run typecheck`, `npm run lint` and the full `npm test` in `backend/`, with scratch `DB_PATH` and `PROJECTS_ROOT`
+- [x] 8.4 (2660 passed, 12 skipped; the extra skip is the RunningHub real-API contract test, which needs a key) Run the full suite again in a fresh worktree with no `backend/.secrets.json`, to rule out local secrets masking a failure
+- [x] 8.5 Verify the post-test state of `backend/data/` matches 8.1; restore it if not, and document the restoration
+- [x] 8.6 Create report `openspec/changes/verify-internal-workflow/reports/2026-11-03-step-8-unit-test-and-db-verification.md`
+- [x] 8.7 Mark this step complete only after the tests pass and the report exists
 
 ## 9. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
@@ -77,7 +77,7 @@
 
 ## 10. E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 10.1 Applicability: this change touches no frontend code and no page, so this step does not apply; record that in the step 8 report
+- [x] 10.1 Applicability: this change touches no frontend code and no page, so this step does not apply; record that in the step 8 report
 
 ## 11. Update Technical Documentation (MANDATORY)
 
