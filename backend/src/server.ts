@@ -14,7 +14,7 @@ import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
 import { DB_PATH, getTelemetrySettings } from "./db.ts";
 import { createAppLogger } from "./telemetry/logFile.ts";
 import { dirname, join } from "node:path";
-import { recordProductEvent, setConsent } from "./telemetry/index.ts";
+import { recordError, recordProductEvent, setConsent } from "./telemetry/index.ts";
 import { createStubAssemblyTool, type StubAssemblyMode } from "./stubAssemblyTool.ts";
 import { createFfmpegAssemblyTool } from "./ffmpegAssemblyTool.ts";
 import type { AssemblyTool } from "./assemblyTool.ts";
@@ -58,6 +58,19 @@ export async function buildApp(options: { logger?: FastifyBaseLogger; staticAsse
   const app = Fastify({ ...loggerOptions, bodyLimit: BODY_LIMIT_BYTES });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+  // cover-error-reporting (JOS-252), design D1 — `onError` runs before Fastify's own error handler and cannot change the
+  // answer, so the 5xx body stays as it was. Fastify answers 500 for an error with no status or one below 400.
+  app.addHook("onError", async (request, _reply, error) => {
+    const status = error.statusCode ?? 500;
+    if (status >= 400 && status < 500) return;
+    recordError({
+      stage: "api",
+      route: `${request.method} ${request.routeOptions.url ?? "unknown"}`,
+      errorCode: error.code ?? error.name,
+      message: error.message,
+      stack: error.stack,
+    });
+  });
 
   // The frontend (define-frontend-stack, JOS-180) runs on its own Vite dev server port; CORS lets it call this
   // backend directly with no proxy config. There is no auth layer (C9), so only the app's own origins are allowed
