@@ -50,6 +50,13 @@ describe("describeProvider shows a readable provider for each stage", () => {
     expect(describeProvider("video", STUB_VIDEO_PROVIDER_NAME)).toEqual({ name: "Stub provider", model: STUB_VIDEO_PROVIDER_NAME });
     expect(describeProvider("voice-over", "stub-voice")).toEqual({ name: "Stub provider", model: "stub-voice" });
   });
+
+  // verify-internal-workflow (JOS-243) — any `stub-` identifier, including the decomposition stubs, is a stub provider.
+  it("any stub- identifier: Stub provider, with the identifier as the model, and nothing logged", () => {
+    expect(describeProvider("instructions", "stub-reasoning")).toEqual({ name: "Stub provider", model: "stub-reasoning" });
+    expect(describeProvider("timestamps", "stub-alignment")).toEqual({ name: "Stub provider", model: "stub-alignment" });
+    expect(logged).toEqual([]);
+  });
 });
 
 describe("an identifier with no entry", () => {

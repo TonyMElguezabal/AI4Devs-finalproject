@@ -14,7 +14,7 @@ import { startUpdateCheck } from "./telemetry/updateCheck.ts";
 import { installProcessErrorHandlers } from "./telemetry/processHandlers.ts";
 import { rebuildScheduler } from "./retry/retryScheduler.ts";
 import { startAttemptTimeoutWatcher } from "./retry/attemptTimeoutWatcher.ts";
-import { BODY_LIMIT_BYTES, PORT, bootLogFields, buildApp, configureAssemblyTool, initTelemetry, type StaticAssetReader } from "./server.ts";
+import { BODY_LIMIT_BYTES, PORT, bootLogFields, buildApp, configureAssemblyTool, configureProviderStubs, initTelemetry, type StaticAssetReader } from "./server.ts";
 
 // package-executables-build (JOS-205) Decision 4 — the boot sequence, moved out of `server.ts` so `npm start` and the
 // packaged executable run the same code (the packaged entry only adds what is packaged-specific).
@@ -70,6 +70,9 @@ export async function startServer(options: StartServerOptions = {}): Promise<Fas
   // `slow-success` (JOS-161) answers success after ASSEMBLY_STUB_DELAY_MS (default 15000), so a pause can land during assembly.
   // Without it the real ffmpeg adapter is registered (run-session-end-to-end, JOS-195).
   configureAssemblyTool();
+  // USE_STUB_DECOMPOSITION=success and USE_STUB_SCRIPT_MODERATION=clean — manual and workflow testing only (JOS-243): the
+  // reasoning, alignment and moderation stubs. An unknown value keeps the real provider and is warned about in the boot log.
+  const stubWarnings = configureProviderStubs();
   initTelemetry();
   installProcessErrorHandlers();
   startUpdateCheck(); // not awaited: the answer is read by GET /app/update, and listen is never delayed
@@ -79,6 +82,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Fas
   const app = await buildApp({ staticAssets: options.staticAssets });
   setVoiceOverLogger(app.log);
   setDecompositionLogger(app.log);
+  for (const warning of stubWarnings) app.log.warn(warning);
   // add-burned-in-subtitles (JOS-237), design Decision 5 — a machine whose ffmpeg cannot draw subtitles finds out now,
   // not at the first assembly (which would fail as not retryable).
   if (!process.env.USE_STUB_ASSEMBLY_TOOL && !ffmpegHasSubtitleFilter()) {

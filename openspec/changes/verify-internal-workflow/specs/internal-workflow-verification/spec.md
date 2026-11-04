@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Decomposition and alignment stubs by environment variable
-When the backend starts with `USE_STUB_DECOMPOSITION=success`, it SHALL replace the reasoning provider and the alignment provider with succeeding stubs, so a session's decomposition never sends a request to OpenAI or ElevenLabs. The stub reasoning provider SHALL return one image and one video instruction per text it receives. The stub alignment provider SHALL return character timestamps that end within the narration. The stubs SHALL be registered under identifiers starting with `stub-`, so the attempts record them and telemetry reports their provider as `stub`. When the variable is unset or empty, the real OpenAI and ElevenLabs providers SHALL be used, as before.
+When the backend starts with `USE_STUB_DECOMPOSITION=success`, it SHALL replace the reasoning provider and the alignment provider with succeeding stubs, so a session's decomposition never sends a request to OpenAI or ElevenLabs. The stub reasoning provider SHALL return one image and one video instruction per text it receives. The stub alignment provider SHALL return character timestamps that end within the narration. The stubs SHALL be registered under identifiers starting with `stub-`, so the attempts record them, telemetry reports their provider as `stub`, and the session page shows them as `Stub provider`. When the variable is unset or empty, the real OpenAI and ElevenLabs providers SHALL be used, as before.
 
 #### Scenario: Stubbed decomposition registers scenes for free
 - **WHEN** the backend runs with `USE_STUB_DECOMPOSITION=success` and a session reaches decomposition
@@ -14,6 +14,21 @@ When the backend starts with `USE_STUB_DECOMPOSITION=success`, it SHALL replace 
 #### Scenario: Telemetry names the stub
 - **WHEN** a decomposition attempt runs on the stub reasoning provider and its provider call is recorded
 - **THEN** the telemetry `provider` label is `stub`
+
+#### Scenario: The session page names the stub
+- **WHEN** a session's decomposition ran on the stub reasoning provider and `GET /sessions/:id` is read
+- **THEN** the `instructions` stage reports the provider `Stub provider`, not `Unknown provider`
+
+### Requirement: Every stub identifier is shown as a stub provider
+The session page SHALL show any stage provider identifier that starts with `stub-` and matches no profile as `Stub provider`, with the identifier as its model, in every stage. It SHALL NOT log it as an unknown identifier. Identifiers that don't start with `stub-` SHALL be shown as before.
+
+#### Scenario: A stub identifier in any stage
+- **WHEN** a stage's stored provider identifier is `stub-alignment`
+- **THEN** it is shown as `Stub provider` with the model `stub-alignment`
+
+#### Scenario: An unknown identifier stays unknown
+- **WHEN** a stage's stored provider identifier is `retired-vendor` and matches no profile
+- **THEN** it is shown as `Unknown provider` and logged once, as before
 
 ### Requirement: Script moderation stub by environment variable
 When the backend starts with `USE_STUB_SCRIPT_MODERATION=clean`, the script check of `POST /sessions` SHALL accept every script without sending a request to OpenAI. When the variable is unset or empty, the real moderation SHALL be used, as before.

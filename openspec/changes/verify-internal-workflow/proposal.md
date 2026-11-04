@@ -23,7 +23,7 @@ Nothing in CI runs a whole session through the real backend process. The unit su
 
 ## Impact
 
-- **Backend**: `src/bootstrap.ts` reads the two new variables; a new `configureDecompositionStubs(env)` next to `configureAssemblyTool(env)` in `src/server.ts`; new stub factories for the reasoning and alignment providers in `src/`; `src/stubAssemblyTool.ts` writes its placeholder; `packaging/smokeStubs.ts` reuses the shared stub factories; `src/telemetry/index.ts` (`recordError` writes to a log sink that `bootstrap.ts` sets).
+- **Backend**: `src/bootstrap.ts` reads the two new variables; a new `configureProviderStubs(env)` next to `configureAssemblyTool(env)` in `src/server.ts`; new stub factories for the reasoning and alignment providers in `src/`; `src/stubAssemblyTool.ts` writes its placeholder; `packaging/smokeStubs.ts` reuses the shared stub factories; `src/telemetry/index.ts` (`recordError` writes to a log sink that `bootstrap.ts` sets).
 - **Tests**: two new spawned-server tests in `backend/test`, plus unit tests for the variable parsing. They run in the existing CI job (`npm test`); no workflow change, no new dependency.
 - **Docs**: the `USE_STUB_*` lists in `backend/README.md`, `docs/development_guide.md` and `readme.md` gain the two variables.
 - **Out of scope**: UI journeys, real-provider runs, boundary values (they stay in the unit suites), and the error contract test of E16.

@@ -18,11 +18,13 @@
 
 ## 3. Backend: `USE_STUB_DECOMPOSITION` and `USE_STUB_SCRIPT_MODERATION` (TDD; design D1, D2; JOS-247)
 
-- [ ] 3.1 Write failing tests for `configureDecompositionStubs(env)`: with `USE_STUB_DECOMPOSITION=success` the reasoning and alignment registries default to `stub-reasoning` and `stub-alignment`; with it unset or empty, both registries are the profile-built ones (as before); with any other value the registries are unchanged and a warning is returned or logged
-- [ ] 3.2 Same tests for `USE_STUB_SCRIPT_MODERATION=clean`: the moderator answers `clean` for any script; unset keeps the real moderator
-- [ ] 3.3 Write a failing test: a decomposition attempt bound to `stub-reasoning` is reported to telemetry with `provider` `stub` (JOS-247 AC3)
-- [ ] 3.4 Implement `configureDecompositionStubs(env)` in `backend/src/server.ts` next to `configureAssemblyTool`, call it from `startServer`, and add its comment to the `USE_STUB_*` comments in `bootstrap.ts`; make 3.1–3.3 pass
-- [ ] 3.5 Reset the registries and the moderator in the new tests' teardown so no other test sees the stubs
+- [x] 3.1 (`backend/test/provider-stub-variables.test.ts`; unknown values are returned as warnings and logged at boot) Write failing tests for `configureProviderStubs(env)`: with `USE_STUB_DECOMPOSITION=success` the reasoning and alignment registries default to `stub-reasoning` and `stub-alignment`; with it unset or empty, both registries are the profile-built ones (as before); with any other value the registries are unchanged and a warning is returned or logged
+- [x] 3.2 Same tests for `USE_STUB_SCRIPT_MODERATION=clean`: the moderator answers `clean` for any script; unset keeps the real moderator
+- [x] 3.3 (passed at once: `telemetryProviderOf` has had the `stub-` rule since JOS-213; kept as a pinning case in `telemetry-provider-name.test.ts`) Write a failing test: a decomposition attempt bound to `stub-reasoning` is reported to telemetry with `provider` `stub` (JOS-247 AC3)
+- [x] 3.4 Write failing tests in `backend/test/stage-diagnostics.test.ts`: `stub-reasoning` (instructions) and `stub-alignment` (timestamps) show as `Stub provider` with the identifier as the model, and are not logged as unknown; an unknown identifier without the prefix stays `Unknown provider`
+- [x] 3.5 Replace the three exact stub entries in `describeProvider`'s display maps with a `stub-` prefix rule checked after the profile lookup; make 3.4 pass with the existing stub assertions unchanged
+- [x] 3.6 (full suite: 2650 passed, 11 skipped) Implement `configureProviderStubs(env)` in `backend/src/server.ts` next to `configureAssemblyTool`, call it from `startServer`, and add its comment to the `USE_STUB_*` comments in `bootstrap.ts`; make 3.1–3.3 pass
+- [x] 3.7 Reset the registries and the moderator in the new tests' teardown so no other test sees the stubs
 
 ## 4. Backend: reported errors reach the local log file (TDD; design D5)
 
