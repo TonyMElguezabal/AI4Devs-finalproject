@@ -46,9 +46,9 @@
 
 ## 6. Backend: permanent stage failure test (design D6; JOS-249)
 
-- [ ] 6.1 Write `backend/test/workflow-stage-failure.test.ts` on the same harness with `USE_STUB_IMAGE_PROVIDER=not-retryable-failure`: wait until every scene is `failed` with `affectedStage` `image`; assert the `assembly` phase is `pending` and `finalVideoUrl` is absent
-- [ ] 6.2 Read `logs/vid4you.log` in the scratch folder and assert a JSON line with `level` 50 and `stage` `image`
-- [ ] 6.3 Make 6.1 and 6.2 pass; scratch folder removed and server stopped as in 5.4
+- [x] 6.1 Write `backend/test/workflow-stage-failure.test.ts` on the same harness with `USE_STUB_IMAGE_PROVIDER=not-retryable-failure`: wait until every scene is `failed` with `affectedStage` `image`; assert the `assembly` phase is `pending` and `finalVideoUrl` is absent
+- [x] 6.2 Read `logs/vid4you.log` in the scratch folder and assert a JSON line with `level` 50 and `stage` `image`
+- [x] 6.3 (passed at once, 5.6 s; with `setErrorLog(app.log)` taken out of `bootstrap.ts` it fails on the log assertion, so it guards group 4) Make 6.1 and 6.2 pass; scratch folder removed and server stopped as in 5.4
 
 ## 7. Backend: Review and Update Existing Unit Tests (MANDATORY)
 
