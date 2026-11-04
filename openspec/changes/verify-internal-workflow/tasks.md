@@ -11,10 +11,10 @@
 
 ## 2. Backend: one copy of the decomposition stubs (design D3)
 
-- [ ] 2.1 Write failing tests for `createStubInstructionGenerator()` (one image and one video instruction per text) and `createStubAlignmentProvider()` (one timestamp per character, the last ending at or before 0.96 s)
-- [ ] 2.2 Add them to a new `backend/src/decompositionStubs.ts`, moved from `packaging/smokeStubs.ts`; make 2.1 pass
-- [ ] 2.3 Make `packaging/smokeStubs.ts` use them; the packaging tests (including the one asserting a release build has no smoke stubs) stay green
-- [ ] 2.4 Leave `backend/test/decompositionStubs.ts` as it is (it counts calls and uses its own step)
+- [x] 2.1 (`backend/test/decomposition-stub-factories.test.ts`) Write failing tests for `createStubInstructionGenerator()` (one image and one video instruction per text) and `createStubAlignmentProvider()` (one timestamp per character, the last ending at or before 0.96 s)
+- [x] 2.2 Add them to a new `backend/src/decompositionStubs.ts`, moved from `packaging/smokeStubs.ts`; make 2.1 pass
+- [x] 2.3 (`packaging-build.test.ts` checks the `smoke-stubs` marker, which stays in the smoke file only) Make `packaging/smokeStubs.ts` use them; the packaging tests (including the one asserting a release build has no smoke stubs) stay green
+- [x] 2.4 Leave `backend/test/decompositionStubs.ts` as it is (it counts calls and uses its own step)
 
 ## 3. Backend: `USE_STUB_DECOMPOSITION` and `USE_STUB_SCRIPT_MODERATION` (TDD; design D1, D2; JOS-247)
 
