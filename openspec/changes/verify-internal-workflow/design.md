@@ -41,7 +41,7 @@ The same function reads it and calls `setScriptModerator` with an always-clean m
 
 ### D4. The stub assembly tool writes a placeholder file
 
-In the `success` and `slow-success` modes, `createStubAssemblyTool` writes a few fixed bytes to `input.outputPath` (creating the folder if needed) before it returns success. The failing modes write nothing. The real ffmpeg tool can't stand in: the stub clips are a 12-byte `ftyp` header that ffmpeg can't decode, and Homebrew's ffmpeg lacks the `subtitles` filter (pinned build needed locally). The file is not a playable MP4. The tests only check that the download serves it.
+In the `success` and `slow-success` modes, `createStubAssemblyTool` writes a few fixed bytes to `input.outputPath` (creating the folder if needed) before it returns success, unless a file is already there. Some tests wrap the stub: they write real MP4 bytes and then call it (`final-video-download.test.ts`, `assembly-failure-recovery.test.ts`), and those bytes must survive. The failing modes write nothing. The real ffmpeg tool can't stand in: the stub clips are a 12-byte `ftyp` header that ffmpeg can't decode, and Homebrew's ffmpeg lacks the `subtitles` filter (pinned build needed locally). The file is not a playable MP4. The tests only check that the download serves it.
 
 - *Alternative: generate a real clip with ffmpeg, as `--smoke` does.* Rejected: it ties the test to a local ffmpeg build with libass, and a missing filter would fail it on a developer machine.
 

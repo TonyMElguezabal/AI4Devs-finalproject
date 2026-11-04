@@ -27,11 +27,15 @@ When the backend starts with `USE_STUB_SCRIPT_MODERATION=clean`, the script chec
 - **THEN** `POST /sessions` checks the script with the real moderation, as before
 
 ### Requirement: The stub assembly tool writes its output
-When the stub assembly tool succeeds (modes `success` and `slow-success`), it SHALL write a non-empty placeholder file at the output path it was given before it reports success, so the final-video download serves a file. The failing modes SHALL write nothing.
+When the stub assembly tool succeeds (modes `success` and `slow-success`), it SHALL write a non-empty placeholder file at the output path it was given before it reports success, so the final-video download serves a file. A file already at that path SHALL be left as it is. The failing modes SHALL write nothing.
 
 #### Scenario: Stubbed assembly leaves a downloadable file
 - **WHEN** a session assembles with `USE_STUB_ASSEMBLY_TOOL=success` and reaches `final-video`
 - **THEN** `GET /sessions/:id/download/final-video` answers 200 with a non-empty body
+
+#### Scenario: An existing output file is kept
+- **WHEN** a file already exists at the output path and the stub assembly tool succeeds
+- **THEN** the file keeps its bytes
 
 #### Scenario: Failing stub writes nothing
 - **WHEN** the stub assembly tool runs in `not-retryable-failure` mode

@@ -5,9 +5,9 @@
 
 ## 1. Backend: the stub assembly tool writes its output (TDD; design D4)
 
-- [ ] 1.1 Write failing tests in `backend/test`: `createStubAssemblyTool({ kind: "success" })` and `slow-success` leave a non-empty file at `input.outputPath` (its folder created if missing); `transient-failure` and `not-retryable-failure` leave none
-- [ ] 1.2 Make `success` and `slow-success` write a fixed placeholder before they return; make 1.1 pass
-- [ ] 1.3 Run the full backend suite with scratch `DB_PATH` and `PROJECTS_ROOT`; fix any test that relied on the stub writing nothing (design Risks)
+- [x] 1.1 (`backend/test/stub-assembly-slow.test.ts`) Write failing tests in `backend/test`: `createStubAssemblyTool({ kind: "success" })` and `slow-success` leave a non-empty file at `input.outputPath` (its folder created if missing) and keep a file already there; `transient-failure` and `not-retryable-failure` leave none
+- [x] 1.2 Make `success` and `slow-success` write a fixed placeholder before they return, unless a file is already there; make 1.1 pass
+- [x] 1.3 (first run: 3 failures in `final-video-download.test.ts` and `assembly-failure-recovery.test.ts`, which write real bytes then call the stub; fixed by keeping an existing file, spec and design D4 updated; second run 2640 passed, 11 skipped) Run the full backend suite with scratch `DB_PATH` and `PROJECTS_ROOT`; fix any test that relied on the stub writing nothing (design Risks)
 
 ## 2. Backend: one copy of the decomposition stubs (design D3)
 
