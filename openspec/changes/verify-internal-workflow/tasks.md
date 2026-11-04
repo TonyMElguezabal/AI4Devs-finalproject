@@ -81,8 +81,8 @@
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `backend/README.md`, `docs/development_guide.md` and `readme.md`: add `USE_STUB_DECOMPOSITION` and `USE_STUB_SCRIPT_MODERATION` to the `USE_STUB_*` lists; say that the stub assembly writes a placeholder file; name the two workflow tests and how to run them
-- [ ] 11.2 `docs/development_guide.md` (telemetry or logging section, if present): errors reported to telemetry are also written to the local log; `PRIVACY.md` already covers the local log file, so confirm it needs no change
-- [ ] 11.3 `docs/api-spec.yml` and `docs/data-model.md`: no endpoint or schema change; record "no change" in the step 8 report
-- [ ] 11.4 Run `graphify update .`
+- [x] 11.1 `backend/README.md`, `docs/development_guide.md` and `readme.md`: add `USE_STUB_DECOMPOSITION` and `USE_STUB_SCRIPT_MODERATION` to the `USE_STUB_*` lists; say that the stub assembly writes a placeholder file; name the two workflow tests and how to run them
+- [x] 11.2 (`PRIVACY.md` already says the local log never leaves the machine; unchanged) `docs/development_guide.md` (telemetry or logging section, if present): errors reported to telemetry are also written to the local log; `PRIVACY.md` already covers the local log file, so confirm it needs no change
+- [x] 11.3 (recorded in the step 8 report) `docs/api-spec.yml` and `docs/data-model.md`: no endpoint or schema change; record "no change" in the step 8 report
+- [x] 11.4 Run `graphify update .`
 - [ ] 11.5 Open the PR against `feature/entrega-3-JAME` (after asking); it states the architectural motivation and the accepted product change of design D5; update JOS-247, JOS-248 and JOS-249 in Linear with the PR link

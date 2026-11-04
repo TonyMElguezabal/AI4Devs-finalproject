@@ -184,6 +184,7 @@ These exist for manual endpoint testing and **must never be set in UAT or produc
 |---|---|
 | `ALLOW_TEST_ENDPOINTS` | enables `POST /internal/test/quick-voice-over` and `POST /internal/test/quick-scene` |
 | `USE_STUB_VOICE_PROVIDER`, `USE_STUB_IMAGE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_ASSEMBLY_TOOL` | replace a provider with a stub (values are listed in `backend/src/server.ts` and `backend/src/bootstrap.ts`) |
+| `USE_STUB_DECOMPOSITION=success`, `USE_STUB_SCRIPT_MODERATION=clean` | replace the reasoning and alignment providers, and the script check, with succeeding stubs (`configureProviderStubs` in `backend/src/server.ts`). Together with the four above, a session runs to `final-video` with no provider key. Unlike the others, an unknown value keeps the real provider and logs a warning at boot. The stub assembly tool writes a small placeholder file (not a playable MP4), so the final-video download works |
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | shorten retry delays |
 | `CORS_ALLOWED_ORIGINS` | comma-separated extra origins allowed to call the API. By default only `http://127.0.0.1:5173`, `http://localhost:5173` and the backend's own address are; any other web page gets a 403 |
 
@@ -202,6 +203,8 @@ Metrics are exported every 60 s and on SIGINT/SIGTERM. `VID4YOU_CHANNEL=producti
 
 - **Relay.** `infra/telemetry-relay/` is a Cloudflare Worker that filters attributes and forwards to Grafana Cloud. `npx vitest run` tests it; `.github/workflows/telemetry-relay.yml` deploys it with the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, and the Worker needs `GRAFANA_OTLP_URL` and `GRAFANA_OTLP_AUTH` (`wrangler secret put`).
 - **Dashboards.** Import the JSON files in `infra/grafana/dashboards/` as described in `infra/grafana/README.md`. The cost panels use placeholder prices that must be replaced first.
+
+Every error reported to telemetry (a stage or request that failed for good, an uncaught exception) is also written to the local log file `logs/vid4you.log` at `error` level, whether or not the error signal is on. The log never leaves the machine.
 
 ## Test
 
@@ -224,6 +227,7 @@ Notes from running the suites on a clean checkout:
 - `providerConfig.test.ts` reads `docs/PRD-v1.4.md`, so the `docs/` tree must be present.
 - `test/orchestrator.test.ts` is timing-sensitive and fails occasionally in a full run; rerun the file alone before treating it as a regression.
 - The `*.contract.test.ts` files call real providers and are skipped when no key is set.
+- `workflow-end-to-end.test.ts` and `workflow-stage-failure.test.ts` spawn the real `node src/server.ts` with every provider stubbed and run a session over HTTP (about 6 s each). They give the server its own scratch folders and keys file, so they never touch `data/` or `.secrets.json`. Run them alone with `npx vitest run test/workflow-`.
 
 ## Branches and release channels
 

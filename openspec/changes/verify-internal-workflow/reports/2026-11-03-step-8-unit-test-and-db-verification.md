@@ -53,6 +53,10 @@ Not measurable. The backend has no coverage provider (`@vitest/coverage-*` is no
 
 Not applicable: this change touches no frontend code and no page.
 
+## API Contract and Data Model (task 11.3)
+
+No change. Since the base commit (`69dde226`), `backend/src/routes.ts` and the migrations are untouched. The only change in `backend/src/db.ts` removes the consent shortcut in `reportStageAttempt` and `reportProviderRequest` (design D5), which changes no endpoint, schema or stored value. `docs/api-spec.yml` and `docs/data-model.md` need no update.
+
 ## Outcome
 
 - Step 8 status: PASS
