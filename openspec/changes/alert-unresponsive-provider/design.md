@@ -85,6 +85,7 @@ A spawned server could also do it: `VID4YOU_TELEMETRY_ENDPOINT` redirects the ex
 - [Alert latency of 1–3 minutes from the 60 s export plus 1 minute evaluation] → Accepted for an email alert.
 - [Timed-out attempts start appearing in the provider metrics, so attempt counts rise for releases that include this change] → Expected: they were missing before. Noted in the README and the release notes.
 - [Grafana Cloud's OTLP-to-Prometheus translation keeps label names but has never been checked live (`infra/grafana/README.md`; report-stable-provider-name step 7 left it to the owner)] → The live alert test (tasks group 6) is the first real check of `outcome` on the stack. If the label differs there, the rule's query is fixed before archiving.
+- [Calls before an install's first export of the series are not counted (found in the live test, step 9)] → Each app process is its own series (`instance`), and Grafana Cloud stores a new cumulative series from its first exported value without a zero before it, so `increase()` sees no rise for calls that all fall within the first 60 s export window. A provider that stays down keeps producing calls through the retries, and those are counted. Accepted for this change and documented in the README; the owner decides on a follow-up.
 - [An adapter whose `catch` also wraps response parsing would mark a malformed answer as unresponsive] → Only the `catch` directly around `fetch(...)` sets the mark. Each adapter gets a unit test for a 503 answer that stays `transient`.
 
 ## Migration Plan

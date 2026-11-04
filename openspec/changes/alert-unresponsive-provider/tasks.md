@@ -66,9 +66,9 @@
 ## 9. Live Grafana alert test (MANDATORY - needs the owner's Grafana Cloud access)
 
 - [x] 9.1 (no temporary rule copy needed: a local run with `VID4YOU_CHANNEL=uat` is labelled `uat`; steps given to the owner on 2026-11-03) The agent prepares the exact steps and a build that emits `unresponsive` calls (a non-`development` test environment label, or a temporary copy of the rule without the `development` filter, removed afterwards)
-- [ ] 9.2 With the owner: create the contact point `vid4you-critical` (email), import the rule and re-import `providers.json`
+- [x] 9.2 (contact point, rule in folder `fjt7jw` on `grafanacloud-prom`, providers.json re-imported) With the owner: create the contact point `vid4you-critical` (email), import the rule and re-import `providers.json`
 - [ ] 9.3 Produce 3 or more unresponsive calls for one provider within 5 minutes; confirm the alert fires as critical naming the provider and stage, the email arrives, and the alert resolves after 5 quiet minutes
-- [ ] 9.4 In Explore, confirm the `outcome` and `deployment_environment` labels as named in the rule; fix the rule query in the repository if they differ
+- [x] 9.4 (both labels as named; no rule change) In Explore, confirm the `outcome` and `deployment_environment` labels as named in the rule; fix the rule query in the repository if they differ
 - [ ] 9.5 Save `openspec/changes/alert-unresponsive-provider/reports/YYYY-MM-DD-step-9-live-alert-test.md` with the date, what was fired, and the result; remove any temporary rule copy
 
 ## 10. E2E Testing with the browser (MANDATORY if applicable - AGENT MUST EXECUTE)
@@ -77,7 +77,7 @@
 
 ## 11. Update Technical Documentation (MANDATORY)
 
-- [ ] 11.1 `infra/grafana/README.md`: checked against what was built in group 4 and the result of group 9; correct the "not yet checked against a live stack" note for the labels group 9 confirmed
+- [x] 11.1 (data source, `X-Disable-Provenance`, first-export limit, labels checked live) `infra/grafana/README.md`: checked against what was built in group 4 and the result of group 9; correct the "not yet checked against a live stack" note for the labels group 9 confirmed
 - [x] 11.2 (`PRIVACY.md` gains "no answer from the provider"; the development guide lists no outcome values, so it is unchanged) `docs/development_guide.md` (telemetry section, if present) and `PRIVACY.md`: the `unresponsive` outcome value; no new data leaves the machine
 - [x] 11.3 (v1.31, §12.4 and §16, awaiting the product owner's approval; v1.30 kept in `docs/PRD-v1.30.md`) `docs/PRD.md`: add the alert only if the PRD describes telemetry outcomes or alerting; otherwise record "no PRD change" in the step 7 report
 - [x] 11.4 Run `graphify update .`
