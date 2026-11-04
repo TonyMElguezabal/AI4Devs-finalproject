@@ -12,9 +12,9 @@
 
 ## 2. Backend: error triggers behind `VID4YOU_ERROR_TRIGGERS` (TDD; design D4)
 
-- [ ] 2.1 Write failing tests in `backend/test/error-triggers.test.ts`: without the variable both routes answer 404; with it, `route-crash` answers 500 and reports a message holding `synthetic` and the tag, with code `SYNTHETIC_ERROR`; a tag outside `^[A-Za-z0-9-]{1,40}$` answers 400; `unhandled-rejection` answers 202 (the rejection itself is pinned by the contract test in group 6, not in-process)
-- [ ] 2.2 Register the two routes in `buildApp` only when `process.env.VID4YOU_ERROR_TRIGGERS === "1"`; make 2.1 pass
-- [ ] 2.3 Restore the variable in the tests' teardown
+- [x] 2.1 Write failing tests in `backend/test/error-triggers.test.ts`: without the variable both routes answer 404; with it, `route-crash` answers 500 and reports a message holding `synthetic` and the tag, with code `SYNTHETIC_ERROR`; a tag outside `^[A-Za-z0-9-]{1,40}$` answers 400; `unhandled-rejection` answers 202 (the rejection itself is pinned by the contract test in group 6, not in-process)
+- [x] 2.2 Register the two routes in `buildApp` only when `process.env.VID4YOU_ERROR_TRIGGERS === "1"`; make 2.1 pass
+- [x] 2.3 Restore the variable in the tests' teardown
 
 ## 3. Backend: `POST /telemetry/frontend-errors` (TDD; design D3; JOS-254 AC1, AC3–AC5)
 

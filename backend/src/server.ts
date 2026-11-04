@@ -4,7 +4,8 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
-import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
+import { z } from "zod";
+import { jsonSchemaTransform, serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { routes } from "./routes.ts";
 import { allowedOrigins, registerOriginPolicy } from "./originPolicy.ts";
 import { type recoverOnBoot, setAssemblyTool } from "./orchestrator.ts";
@@ -107,6 +108,7 @@ export async function buildApp(options: { logger?: FastifyBaseLogger; staticAsse
   await app.register(swaggerUi, { routePrefix: "/docs" });
 
   await app.register(routes);
+  if (process.env.VID4YOU_ERROR_TRIGGERS === "1") registerErrorTriggers(app);
 
   const staticAssets = options.staticAssets;
   if (staticAssets) {
@@ -130,6 +132,22 @@ export async function buildApp(options: { logger?: FastifyBaseLogger; staticAsse
   }
 
   return app;
+}
+
+// cover-error-reporting, design D4 — errors on demand, for the contract test (JOS-255) and the live Grafana check (JOS-256).
+// Registered after the API document is built from the default app, so they never appear in docs/api-spec.yml.
+const errorTriggerBodySchema = z.object({ tag: z.string().regex(/^[A-Za-z0-9-]{1,40}$/).optional() }).strict().nullish();
+
+function registerErrorTriggers(app: FastifyInstance): void {
+  const typed = app.withTypeProvider<ZodTypeProvider>();
+  typed.post("/dev/errors/route-crash", { schema: { body: errorTriggerBodySchema } }, async (request) => {
+    throw Object.assign(new Error(`synthetic route crash ${request.body?.tag ?? "untagged"}`), { code: "SYNTHETIC_ERROR" });
+  });
+  typed.post("/dev/errors/unhandled-rejection", { schema: { body: errorTriggerBodySchema } }, async (request, reply) => {
+    const tag = request.body?.tag ?? "untagged";
+    setImmediate(() => void Promise.reject(new Error(`synthetic unhandled rejection ${tag}`)));
+    return reply.code(202).send();
+  });
 }
 
 /** add-observability-telemetry (JOS-199) — load the stored consent, then count the start. Everything stays off until the user opts in. */
