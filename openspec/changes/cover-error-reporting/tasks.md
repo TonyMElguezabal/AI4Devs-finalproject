@@ -41,11 +41,11 @@
 
 ## 6. Backend: error contract test (TDD; design D5; JOS-255)
 
-- [ ] 6.1 Add `backend/test/fakeOtlpReceiver.ts` (`node:http` on port 0, collects `POST /v1/logs` JSON bodies, answers 200)
-- [ ] 6.2 Let `startWorkflowServer` take the extra env (`VID4YOU_TELEMETRY_ENDPOINT`, `VID4YOU_ERROR_TRIGGERS`) and make `stop()` tolerate a process that already exited; the existing workflow tests stay green
-- [ ] 6.3 Write `backend/test/error-reporting-contract.test.ts`, consent on: route crash, not-retryable image failure, frontend report, then unhandled rejection; wait for the exit; assert one `error` log line per class and at least one OTLP record per class with `error.code`, `stage` where it applies and `provider` `stub` for the image failure
-- [ ] 6.4 Same test with consent off: the log lines are there and the receiver got no log record
-- [ ] 6.5 Confirm it runs in the existing CI backend job with no new step, and record its run time
+- [x] 6.1 Add `backend/test/fakeOtlpReceiver.ts` (`node:http` on port 0, collects `POST /v1/logs` JSON bodies, answers 200)
+- [x] 6.2 (no change needed: `startWorkflowServer` already merges the map it is given into the child's env, and `stop()` already skips the kill when the process has exited) Let `startWorkflowServer` take the extra env (`VID4YOU_TELEMETRY_ENDPOINT`, `VID4YOU_ERROR_TRIGGERS`) and make `stop()` tolerate a process that already exited; the existing workflow tests stay green
+- [x] 6.3 (mutation check: with the `onError` hook disabled both cases fail) Write `backend/test/error-reporting-contract.test.ts`, consent on: route crash, not-retryable image failure, frontend report, then unhandled rejection; wait for the exit; assert one `error` log line per class and at least one OTLP record per class with `error.code`, `stage` where it applies and `provider` `stub` for the image failure
+- [x] 6.4 Same test with consent off: the log lines are there and the receiver got no log record
+- [x] 6.5 (`ci.yml` runs `npm test` in `backend`, which picks the file up; about 11 s locally for both cases) Confirm it runs in the existing CI backend job with no new step, and record its run time
 
 ## 7. Backend: Review and Update Existing Unit Tests (MANDATORY)
 
