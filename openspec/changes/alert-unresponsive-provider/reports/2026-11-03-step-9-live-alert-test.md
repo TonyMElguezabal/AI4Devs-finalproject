@@ -38,4 +38,4 @@ Alert history (owner's screenshot), instance `provider=stub`, `stage=voice-over`
 
 ## Outcome
 - Step 9 status: PASS (fire, routing, email, labels and resolve)
-- Finding: calls before an install's first export are not counted (run 1); accepted for this change, follow-up to be decided by the owner
+- Finding: calls before an install's first export are not counted (run 1); accepted by the owner on 2026-11-03, no follow-up
