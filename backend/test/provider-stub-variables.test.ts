@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   getAlignmentProviderRegistry,
+  getDecompositionDependencies,
+  resetDecompositionDependencies,
   getReasoningProviderRegistry,
   resetAlignmentProviderRegistry,
   resetReasoningProviderRegistry,
@@ -12,6 +14,7 @@ import { configureProviderStubs } from "../src/server.ts";
 // replace the reasoning, alignment and moderation providers at boot, so a session runs with no OpenAI or ElevenLabs call.
 
 afterEach(() => {
+  resetDecompositionDependencies();
   resetReasoningProviderRegistry();
   resetAlignmentProviderRegistry();
   resetScriptModerator();
@@ -29,6 +32,14 @@ describe("USE_STUB_DECOMPOSITION", () => {
     expect(Object.keys(alignment.adapters)).toEqual(["stub-alignment"]);
     expect(await reasoning.adapters["stub-reasoning"]!.generate(["a text"], "en")).toEqual({ kind: "success", pairs: [{ image: "image 1", video: "video 1" }] });
     expect((await alignment.adapters["stub-alignment"]!.align(new Uint8Array(), "ab")).kind).toBe("success");
+  });
+
+  // `resolveBoundAdapter` answers the injected dependency, not the registry's adapter, when the bound id is the default.
+  it("installs the same stub instances as the decomposition dependencies the phases inject", () => {
+    configureProviderStubs({ USE_STUB_DECOMPOSITION: "success" });
+
+    expect(getDecompositionDependencies().instructionGenerator).toBe(getReasoningProviderRegistry().adapters["stub-reasoning"]);
+    expect(getDecompositionDependencies().alignmentProvider).toBe(getAlignmentProviderRegistry().adapters["stub-alignment"]);
   });
 
   for (const value of [undefined, ""]) {

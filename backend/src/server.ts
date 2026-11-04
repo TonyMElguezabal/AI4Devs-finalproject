@@ -18,7 +18,7 @@ import { recordProductEvent, setConsent } from "./telemetry/index.ts";
 import { createStubAssemblyTool, type StubAssemblyMode } from "./stubAssemblyTool.ts";
 import { createFfmpegAssemblyTool } from "./ffmpegAssemblyTool.ts";
 import type { AssemblyTool } from "./assemblyTool.ts";
-import { setAlignmentProviderRegistry, setReasoningProviderRegistry } from "./decompositionDependencies.ts";
+import { setAlignmentProviderRegistry, setDecompositionDependencies, setReasoningProviderRegistry } from "./decompositionDependencies.ts";
 import { createStubAlignmentProvider, createStubInstructionGenerator } from "./decompositionStubs.ts";
 import { setScriptModerator } from "./scriptModeration.ts";
 
@@ -175,8 +175,12 @@ export function configureProviderStubs(env: Record<string, string | undefined> =
   const warnings: string[] = [];
   const decomposition = env.USE_STUB_DECOMPOSITION;
   if (decomposition === "success") {
-    setReasoningProviderRegistry({ defaultIdentifier: "stub-reasoning", adapters: { "stub-reasoning": createStubInstructionGenerator() } });
-    setAlignmentProviderRegistry({ defaultIdentifier: "stub-alignment", adapters: { "stub-alignment": createStubAlignmentProvider() } });
+    // The same instances in both places: `resolveBoundAdapter` answers the injected dependency for the default id.
+    const instructionGenerator = createStubInstructionGenerator();
+    const alignmentProvider = createStubAlignmentProvider();
+    setDecompositionDependencies({ instructionGenerator, alignmentProvider });
+    setReasoningProviderRegistry({ defaultIdentifier: "stub-reasoning", adapters: { "stub-reasoning": instructionGenerator } });
+    setAlignmentProviderRegistry({ defaultIdentifier: "stub-alignment", adapters: { "stub-alignment": alignmentProvider } });
   } else if (decomposition) {
     warnings.push(`USE_STUB_DECOMPOSITION='${decomposition}' is not a stub mode (success): the real reasoning and alignment providers are used`);
   }

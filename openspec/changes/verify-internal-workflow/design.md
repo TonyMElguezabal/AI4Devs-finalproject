@@ -30,7 +30,9 @@ A new `configureProviderStubs(env)` in `server.ts`, next to `configureAssemblyTo
 
 The session page names a provider through `describeProvider` (`stageDiagnostics.ts`). It knows the three existing stubs by exact identifier and would show `stub-reasoning` and `stub-alignment` as `Unknown provider`. Every stub identifier already starts with `stub-` (`stub-image-provider`, `stub-video-provider`, `stub-voice`), so one prefix rule, checked after the profile lookup, replaces the three entries and covers the new stubs. This is the same rule `telemetryProviderOf` uses. Added on 2026-11-03 at the owner's request.
 
-- *Alternative: `setDecompositionDependencies`* (the ticket's note). Rejected because telemetry would report the real vendors (fact 2).
+The registries alone are not enough. `resolveBoundAdapter` (`activeProvider.ts:100`) returns the *injected* default adapter, not the registry's, whenever the bound id equals the registry's default id. The phases inject `getDecompositionDependencies()`. So the stubs also go in through `setDecompositionDependencies`, as the same instances the registries hold. The first workflow run found this: the real ElevenLabs alignment adapter answered "missing API key" under the `stub-alignment` id.
+
+- *Alternative: only `setDecompositionDependencies`* (the ticket's note). Rejected because the ids would stay `openai-decomposition` and `elevenlabs-forced-alignment`, so telemetry would report the real vendors (fact 2).
 - *Alternative: one variable per provider* (`USE_STUB_REASONING_PROVIDER`, `USE_STUB_ALIGNMENT_PROVIDER`). Rejected: the two stages always run together in decomposition, and JOS-247 asks for one variable.
 
 ### D2. `USE_STUB_SCRIPT_MODERATION=clean` is its own variable
@@ -60,6 +62,7 @@ A small helper in `backend/test/` (for example `workflowServer.ts`) used by both
 - `mkdtempSync(join(tmpdir(), "vid4you-workflow-"))` holding `db.sqlite`, `projects/`, `settings.json` (absent: defaults) and `secrets.json` (absent: no keys).
 - `spawn(process.execPath, ["src/server.ts"])` with `PORT=0`, `NODE_ENV=development`, the four path variables, the six stub variables, and `VID4YOU_TELEMETRY_ENDPOINT=http://127.0.0.1:9` (fact 5; nothing is exported without consent, and if something were, it would go nowhere).
 - The port is read from Fastify's own `Server listening at http://127.0.0.1:<port>` line on stdout. The server's `listening on …` line prints the `PORT` constant, which would be `0`.
+- The script is at most 19 characters. The stub voice gives each character 0.05 s of native timestamps on a narration of about 1 s, and the product rejects timestamps that end after the narration. A longer script would fall through to alignment, which is stubbed too but not what this test is about.
 - `waitFor(read, done, { timeoutMs, intervalMs })` polls `GET /sessions/:id`. When the bound is reached it throws with the last snapshot it read. There are no fixed sleeps.
 - `afterEach` / `finally` kills the child process, waits for it to exit, then `rmSync(scratch, { recursive: true, force: true })`. The test asserts nothing under `backend/data/` changed (its mtime and entries are compared before and after).
 

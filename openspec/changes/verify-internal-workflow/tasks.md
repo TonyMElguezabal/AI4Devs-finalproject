@@ -25,6 +25,7 @@
 - [x] 3.5 Replace the three exact stub entries in `describeProvider`'s display maps with a `stub-` prefix rule checked after the profile lookup; make 3.4 pass with the existing stub assertions unchanged
 - [x] 3.6 (full suite: 2650 passed, 11 skipped) Implement `configureProviderStubs(env)` in `backend/src/server.ts` next to `configureAssemblyTool`, call it from `startServer`, and add its comment to the `USE_STUB_*` comments in `bootstrap.ts`; make 3.1–3.3 pass
 - [x] 3.7 Reset the registries and the moderator in the new tests' teardown so no other test sees the stubs
+- [x] 3.8 (found by task 5.5: `resolveBoundAdapter` returns the injected dependency when the bound id is the registry default) Write a failing test that after `USE_STUB_DECOMPOSITION=success` the decomposition dependencies are the same stub instances the registries hold; install them through `setDecompositionDependencies` too, and reset them in teardown
 
 ## 4. Backend: reported errors reach the local log file (TDD; design D5)
 
@@ -36,12 +37,12 @@
 
 ## 5. Backend: workflow harness and end-to-end test (design D6; JOS-248)
 
-- [ ] 5.1 Add `backend/test/workflowServer.ts`: scratch folder under `tmpdir()`, `spawn` of `node src/server.ts` with `PORT=0`, `NODE_ENV=development`, `DB_PATH`, `PROJECTS_ROOT`, `SETTINGS_PATH`, `SECRETS_PATH`, `VID4YOU_TELEMETRY_ENDPOINT=http://127.0.0.1:9`, zero retry delays and caller-given stub variables; port read from Fastify's `Server listening at` line; `stop()` kills the child, waits for its exit, and removes the scratch folder
-- [ ] 5.2 Add `waitFor(read, done, { timeoutMs, intervalMs })`: polls, and when the bound is reached throws with the last value read; a unit test proves it gives up and names the last state (spec "A stuck session fails the test in bounded time")
-- [ ] 5.3 Write `backend/test/workflow-end-to-end.test.ts`: every stub on, `POST /sessions`, wait for `state` `final-video` and four phases `complete`, `GET /sessions/:id/download/final-video` answers 200 with a non-empty body
-- [ ] 5.4 In the same test, record `backend/data/` (entries and mtimes) before and compare after; `stop()` runs in `finally`/`afterEach`, and the test asserts the scratch folder is gone
-- [ ] 5.5 Make 5.3 pass; if a step fails, fix the cause in the product or the stubs (update this file and the design first, per CLAUDE.md §7), never by loosening the assertion
-- [ ] 5.6 Run it 5 times in a row locally to check for flakiness; record the runtimes in the step 8 report
+- [x] 5.1 Add `backend/test/workflowServer.ts`: scratch folder under `tmpdir()`, `spawn` of `node src/server.ts` with `PORT=0`, `NODE_ENV=development`, `DB_PATH`, `PROJECTS_ROOT`, `SETTINGS_PATH`, `SECRETS_PATH`, `VID4YOU_TELEMETRY_ENDPOINT=http://127.0.0.1:9`, zero retry delays and caller-given stub variables; port read from Fastify's `Server listening at` line; `stop()` kills the child, waits for its exit, and removes the scratch folder
+- [x] 5.2 (`backend/test/workflow-wait-for.test.ts`) Add `waitFor(read, done, { timeoutMs, intervalMs })`: polls, and when the bound is reached throws with the last value read; a unit test proves it gives up and names the last state (spec "A stuck session fails the test in bounded time")
+- [x] 5.3 Write `backend/test/workflow-end-to-end.test.ts`: every stub on, `POST /sessions`, wait for `state` `final-video` and four phases `complete`, `GET /sessions/:id/download/final-video` answers 200 with a non-empty body
+- [x] 5.4 In the same test, record `backend/data/` (entries and mtimes) before and compare after; `stop()` runs in `finally`/`afterEach`, and the test asserts the scratch folder is gone
+- [x] 5.5 (two causes: the stub's native timestamps outran the ~1 s stub narration for a long script, so the script is now at most 19 characters, design D6; and the real alignment adapter answered under `stub-alignment`, fixed in task 3.8, design D1) Make 5.3 pass; if a step fails, fix the cause in the product or the stubs (update this file and the design first, per CLAUDE.md §7), never by loosening the assertion
+- [x] 5.6 (5/5 passed, 5.54–5.58 s each; no scratch folder left, including after the two failed runs) Run it 5 times in a row locally to check for flakiness; record the runtimes in the step 8 report
 
 ## 6. Backend: permanent stage failure test (design D6; JOS-249)
 
