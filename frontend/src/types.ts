@@ -167,6 +167,14 @@ export interface TelemetryChoices {
   providerUsage: boolean;
   productUsage: boolean;
 }
+/** cover-error-reporting (JOS-254) — the body of POST /telemetry/frontend-errors; nothing else ever leaves with it. */
+export type FrontendErrorKind = "error" | "unhandledrejection" | "render";
+export interface FrontendErrorReport {
+  kind: FrontendErrorKind;
+  message: string;
+  stack?: string;
+}
+
 export interface TelemetryConsent extends TelemetryChoices {
   answered: boolean;
 }

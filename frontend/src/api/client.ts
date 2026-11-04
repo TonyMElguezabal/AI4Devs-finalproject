@@ -1,4 +1,4 @@
-import type { AdapterTypeInfo, AppSettings, AppUpdate, AppVersion, ConnectionTestResult, EstimatedCostReport, FailedStageRow, FailuresReport, PipelineTimeReport, ProfileProblem, ProviderChangesReport, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionScenesReport, SessionSnapshot, SessionsReport, TelemetryChoices, TelemetryConsent } from "../types";
+import type { AdapterTypeInfo, AppSettings, AppUpdate, AppVersion, ConnectionTestResult, EstimatedCostReport, FailedStageRow, FrontendErrorKind, FrontendErrorReport, FailuresReport, PipelineTimeReport, ProfileProblem, ProviderChangesReport, ProfileView, ProviderStage, ProviderUsageReport, ProviderView, ReportPeriod, SceneEventPayload, SessionScenesReport, SessionSnapshot, SessionsReport, TelemetryChoices, TelemetryConsent } from "../types";
 
 // Points at the `define-backend-stack` harness (JOS-179) directly — no
 // third mock server (Decision 7 / task 4.2). Overridable for other harness
@@ -119,6 +119,26 @@ export function saveTelemetryConsent(choices: TelemetryChoices): Promise<Telemet
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(choices),
   }).then(asJson<TelemetryConsent>);
+}
+
+/**
+ * cover-error-reporting (JOS-254), design D3 — cut to the backend's caps (so a long error is shortened, not refused) and
+ * sent with `keepalive`, so it survives a reload from the fallback. Never throws, and a failed send is not reported:
+ * reporting its own failure could loop.
+ */
+export async function reportFrontendError(kind: FrontendErrorKind, reason: unknown): Promise<void> {
+  const error = reason instanceof Error ? reason : undefined;
+  const report: FrontendErrorReport = { kind, message: (error ? error.message : String(reason)).slice(0, 1000) };
+  if (error?.stack) report.stack = error.stack.slice(0, 8000);
+  await fetch(`${API_BASE}/telemetry/frontend-errors`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(report),
+    keepalive: true,
+  }).then(
+    () => undefined,
+    () => undefined,
+  );
 }
 
 export function getAppUpdate(): Promise<AppUpdate> {

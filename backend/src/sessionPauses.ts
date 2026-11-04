@@ -33,6 +33,7 @@ export function readStoredCharacters(projectFolder: string, relativePath: string
     }
     return characters;
   } catch {
+    // unreadable or malformed timestamps: the pause view shows none, and assembly fails as not retryable.
     return null;
   }
 }

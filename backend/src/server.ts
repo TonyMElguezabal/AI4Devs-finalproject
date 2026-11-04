@@ -4,7 +4,8 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
-import { jsonSchemaTransform, serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
+import { z } from "zod";
+import { jsonSchemaTransform, serializerCompiler, validatorCompiler, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { routes } from "./routes.ts";
 import { allowedOrigins, registerOriginPolicy } from "./originPolicy.ts";
 import { type recoverOnBoot, setAssemblyTool } from "./orchestrator.ts";
@@ -14,7 +15,7 @@ import { MAX_SIMULTANEOUS_REQUESTS } from "./config/providers.ts";
 import { DB_PATH, getTelemetrySettings } from "./db.ts";
 import { createAppLogger } from "./telemetry/logFile.ts";
 import { dirname, join } from "node:path";
-import { recordProductEvent, setConsent } from "./telemetry/index.ts";
+import { recordError, recordProductEvent, setConsent } from "./telemetry/index.ts";
 import { createStubAssemblyTool, type StubAssemblyMode } from "./stubAssemblyTool.ts";
 import { createFfmpegAssemblyTool } from "./ffmpegAssemblyTool.ts";
 import type { AssemblyTool } from "./assemblyTool.ts";
@@ -58,6 +59,19 @@ export async function buildApp(options: { logger?: FastifyBaseLogger; staticAsse
   const app = Fastify({ ...loggerOptions, bodyLimit: BODY_LIMIT_BYTES });
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
+  // cover-error-reporting (JOS-252), design D1 — `onError` runs before Fastify's own error handler and cannot change the
+  // answer, so the 5xx body stays as it was. Fastify answers 500 for an error with no status or one below 400.
+  app.addHook("onError", async (request, _reply, error) => {
+    const status = error.statusCode ?? 500;
+    if (status >= 400 && status < 500) return;
+    recordError({
+      stage: "api",
+      route: `${request.method} ${request.routeOptions.url ?? "unknown"}`,
+      errorCode: error.code ?? error.name,
+      message: error.message,
+      stack: error.stack,
+    });
+  });
 
   // The frontend (define-frontend-stack, JOS-180) runs on its own Vite dev server port; CORS lets it call this
   // backend directly with no proxy config. There is no auth layer (C9), so only the app's own origins are allowed
@@ -94,6 +108,7 @@ export async function buildApp(options: { logger?: FastifyBaseLogger; staticAsse
   await app.register(swaggerUi, { routePrefix: "/docs" });
 
   await app.register(routes);
+  if (process.env.VID4YOU_ERROR_TRIGGERS === "1") registerErrorTriggers(app);
 
   const staticAssets = options.staticAssets;
   if (staticAssets) {
@@ -117,6 +132,23 @@ export async function buildApp(options: { logger?: FastifyBaseLogger; staticAsse
   }
 
   return app;
+}
+
+// cover-error-reporting, design D4 — errors on demand, for the contract test (JOS-255) and the live Grafana check (JOS-256).
+// Registered after the API document is built from the default app, so they never appear in docs/api-spec.yml.
+const errorTriggerBodySchema = z.object({ tag: z.string().regex(/^[A-Za-z0-9-]{1,40}$/).optional() }).strict().nullish();
+
+function registerErrorTriggers(app: FastifyInstance): void {
+  const typed = app.withTypeProvider<ZodTypeProvider>();
+  // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
+  typed.post("/dev/errors/route-crash", { schema: { body: errorTriggerBodySchema } }, async (request) => {
+    throw Object.assign(new Error(`synthetic route crash ${request.body?.tag ?? "untagged"}`), { code: "SYNTHETIC_ERROR" });
+  });
+  typed.post("/dev/errors/unhandled-rejection", { schema: { body: errorTriggerBodySchema } }, async (request, reply) => {
+    const tag = request.body?.tag ?? "untagged";
+    setImmediate(() => void Promise.reject(new Error(`synthetic unhandled rejection ${tag}`)));
+    return reply.code(202).send();
+  });
 }
 
 /** add-observability-telemetry (JOS-199) — load the stored consent, then count the start. Everything stays off until the user opts in. */

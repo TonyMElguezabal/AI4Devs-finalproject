@@ -118,6 +118,7 @@ import {
   type StageAttempt,
 } from "./types.ts";
 import { redactPaths } from "./util/redactPaths.ts";
+import { recordCaughtError } from "./telemetry/index.ts";
 
 /** 1 initial attempt + this many automatic retries, per PRD §10.1 (C2). */
 export const RETRY_BUDGET = 3;
@@ -1101,7 +1102,8 @@ async function runVideoAttempt(sceneId: string): Promise<void> {
   let imageBytes: Buffer;
   try {
     imageBytes = readFileSync(resolveArtefactPath(freshRun.projectFolder, fresh.result));
-  } catch {
+  } catch (err) {
+    recordCaughtError(err, { stage: "video" }); // fails the scene with no attempt or request, so nothing else reports it
     if (fresh.videoProvider === null) resetAttemptsForVideoStart(sceneId);
     concurrency.release(VIDEO_STAGE, sceneId);
     markSceneFailed(sceneId, `the image file '${fresh.result}' could not be read (not retryable)`);

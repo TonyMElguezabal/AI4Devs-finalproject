@@ -25,6 +25,7 @@ async function readJson(response: Response): Promise<unknown> {
   try {
     return await response.json();
   } catch {
+    // a body that is not JSON: the check reports the HTTP status alone.
     return undefined;
   }
 }

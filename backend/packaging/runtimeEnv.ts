@@ -17,7 +17,7 @@ export function resolveDataDir(options: { platform: NodeJS.Platform; env: Env; h
 /** A packaged build never exposes test endpoints or stubs, whatever the user's environment says. Mutates and returns `env`. */
 export function sanitizeEnvironment(env: Env): Env {
   for (const name of Object.keys(env)) {
-    if (name === "ALLOW_TEST_ENDPOINTS" || name.startsWith("USE_STUB_")) delete env[name];
+    if (name === "ALLOW_TEST_ENDPOINTS" || name === "VID4YOU_ERROR_TRIGGERS" || name.startsWith("USE_STUB_")) delete env[name];
   }
   return env;
 }

@@ -38,6 +38,7 @@ import { createVoiceOverFailure } from "./sessionStateMachine.ts";
 import { getVoiceProviderRegistry, type VoiceSynthesisResult } from "./voiceProvider.ts";
 import { canLaunchVoiceOver } from "./voiceLaunchGuard.ts";
 import type { StageAttempt, VoiceOver } from "./types.ts";
+import { recordCaughtError } from "./telemetry/index.ts";
 
 // generate-voice-over (JOS-136) — PRD §5 step 2, §10.1, §10.3, §11.2: one
 // request with the whole stored script, one MP3 kept for good, whatever the
@@ -471,6 +472,7 @@ function handOffAfterNarration(sessionId: string): void {
 
 function launchInBackground(sessionId: string): void {
   generateVoiceOver(sessionId).catch((err: unknown) => {
+    recordCaughtError(err, { stage: "voice-over" }); // cover-error-reporting (JOS-253): a throw here is a bug, not an outcome
     logger.info({ event: "voice-over.launch.error", sessionId, stage: "voice-over", reason: err instanceof Error ? err.name : "unknown" });
   });
 }

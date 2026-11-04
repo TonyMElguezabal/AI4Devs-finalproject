@@ -21,6 +21,7 @@ function safeUserName(): string {
   try {
     return userInfo().username;
   } catch {
+    // no OS user name (some containers): only the user-name step is skipped, paths are still scrubbed.
     return "";
   }
 }

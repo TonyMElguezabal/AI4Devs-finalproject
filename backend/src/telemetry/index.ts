@@ -118,6 +118,8 @@ export function recordProviderCall(call: {
 
 export function recordError(error: {
   stage?: string;
+  /** cover-error-reporting (JOS-252) D1 — method and route pattern, from the code; not scrubbed (any `/` would become `[path]`). */
+  route?: string;
   provider?: string;
   errorCode?: string;
   outcome?: string;
@@ -130,6 +132,7 @@ export function recordError(error: {
     getProviders();
     const attributes: Record<string, string> = { "exception.message": redactPaths(error.message) };
     if (error.stage) attributes.stage = error.stage;
+    if (error.route) attributes.route = error.route;
     if (error.provider) attributes.provider = error.provider;
     if (error.errorCode) attributes["error.code"] = error.errorCode;
     if (error.outcome) attributes.outcome = error.outcome;
@@ -143,10 +146,20 @@ export function recordError(error: {
   });
 }
 
+/**
+ * cover-error-reporting (JOS-253), design D2 — an error a `catch` caught that no other path reports: a bug, not a
+ * provider outcome. Anything thrown is accepted; a non-Error becomes one, as the process handlers do.
+ */
+export function recordCaughtError(reason: unknown, context: { stage?: string; provider?: string } = {}): void {
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  recordError({ ...context, errorCode: error.name, message: error.message, stack: error.stack });
+}
+
 function writeErrorLog(error: Parameters<typeof recordError>[0]): void {
   if (!errorLog) return;
   const fields: Record<string, string> = {};
   if (error.stage) fields.stage = error.stage;
+  if (error.route) fields.route = error.route;
   if (error.provider) fields.provider = error.provider;
   if (error.errorCode) fields.errorCode = error.errorCode;
   if (error.outcome) fields.outcome = error.outcome;
