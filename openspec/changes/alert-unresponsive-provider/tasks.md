@@ -81,4 +81,4 @@
 - [x] 11.2 (`PRIVACY.md` gains "no answer from the provider"; the development guide lists no outcome values, so it is unchanged) `docs/development_guide.md` (telemetry section, if present) and `PRIVACY.md`: the `unresponsive` outcome value; no new data leaves the machine
 - [x] 11.3 (v1.31, §12.4 and §16, awaiting the product owner's approval; v1.30 kept in `docs/PRD-v1.30.md`) `docs/PRD.md`: add the alert only if the PRD describes telemetry outcomes or alerting; otherwise record "no PRD change" in the step 7 report
 - [x] 11.4 Run `graphify update .`
-- [ ] 11.5 Update JOS-257, JOS-258 and JOS-259 in Linear with the PR link
+- [x] 11.5 (PR #160, against feature/entrega-3-JAME; comments on all three tickets) Update JOS-257, JOS-258 and JOS-259 in Linear with the PR link
