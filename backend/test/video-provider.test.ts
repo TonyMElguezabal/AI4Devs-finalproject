@@ -227,6 +227,37 @@ describe("RunningHub adapter (JOS-196 — the live API's request and answer shap
     expect(result.reason).toContain("1002");
   });
 
+  // alert-unresponsive-provider (JOS-257) Decision 1 — a request the provider never answered carries the mark;
+  // an answer of any kind, even an error envelope, does not.
+  it.each([
+    ["the image upload", "/media/upload", "the video provider could not be reached during image upload"],
+    ["the task submission", VIDEO_PROVIDER.endpoint, "the video provider could not be reached during task submission"],
+  ])("submit: %s that cannot reach the provider is transient and unresponsive", async (_step, failingPath, reason) => {
+    const result = await provider(async (url) => {
+      if (url.includes(failingPath)) throw new TypeError("fetch failed");
+      return uploadAnswer("https://cdn.runninghub.io/img/abc.png");
+    }).submit(submitArgs);
+
+    expect(result).toEqual({ kind: "failed_transient", reason, unresponsive: true });
+  });
+
+  it("poll: a query that cannot reach the provider is transient and unresponsive", async () => {
+    const result = await provider(async () => {
+      throw new TypeError("fetch failed");
+    }).poll("task-1");
+
+    expect(result).toEqual({ kind: "failed_transient", reason: "the video provider could not be reached during polling", unresponsive: true });
+  });
+
+  it("submit: a refused task answer carries no unresponsive mark", async () => {
+    const result = await provider(async (url) => {
+      if (url.includes("/media/upload")) return uploadAnswer("https://cdn.runninghub.io/img/abc.png");
+      return new Response("busy", { status: 503 });
+    }).submit(submitArgs);
+
+    expect(result).toEqual({ kind: "failed_transient", reason: "task submission answered HTTP 503" });
+  });
+
   it("poll: posts the task id to the query endpoint", async () => {
     const calls: { url: string; options?: RequestInit }[] = [];
     await provider(async (url, options) => {

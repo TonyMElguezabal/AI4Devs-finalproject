@@ -980,7 +980,8 @@ async function pollVideoRequestOnce(
     const mode = isNotRetryable ? "not_retryable_failure" : "transient_failure";
     const reason = pollResult.kind === "not_found" ? "the video provider no longer holds the request" : pollResult.reason;
     const kind: "failed_not_retryable" | "failed_transient" = isNotRetryable ? "failed_not_retryable" : "failed_transient";
-    insertProviderRequest(requestId, sceneId, latencyMs, mode, attemptNumber, "video");
+    const unresponsive = pollResult.kind === "failed_transient" && pollResult.unresponsive;
+    insertProviderRequest(requestId, sceneId, latencyMs, mode, attemptNumber, "video", { unresponsive });
     markProviderRequestResolved(requestId);
     concurrency.release(VIDEO_STAGE, sceneId);
     applyVideoFailureOutcome(sceneId, { kind, reason }, attemptNumber);
@@ -1151,7 +1152,8 @@ async function runVideoAttempt(sceneId: string): Promise<void> {
   if (submitResult.kind !== "submitted") {
     const latencyMs = Date.now() - sentAtMs;
     const mode = submitResult.kind === "failed_not_retryable" ? "not_retryable_failure" : "transient_failure";
-    insertProviderRequest(localId, sceneId, latencyMs, mode, attemptNumber, "video");
+    const unresponsive = submitResult.kind === "failed_transient" && submitResult.unresponsive;
+    insertProviderRequest(localId, sceneId, latencyMs, mode, attemptNumber, "video", { unresponsive });
     markProviderRequestResolved(localId);
     concurrency.release(VIDEO_STAGE, sceneId);
     applyVideoFailureOutcome(sceneId, submitResult, attemptNumber);
@@ -1346,10 +1348,11 @@ function recordAndReleaseImageAttempt(
   attemptNumber: number,
   mode: "success" | "transient_failure" | "not_retryable_failure",
   latencyMs: number,
+  unresponsive?: boolean,
 ): void {
   concurrency.release(STAGE, sceneId);
   // design Decision 6 — inserted already resolved: the request has already ended by the time it is recorded.
-  insertProviderRequest(requestId, sceneId, latencyMs, mode, attemptNumber);
+  insertProviderRequest(requestId, sceneId, latencyMs, mode, attemptNumber, "image", { unresponsive });
   markProviderRequestResolved(requestId);
 }
 
@@ -1474,11 +1477,12 @@ async function finishImageAttemptAsync(
     concurrency.release(STAGE, sceneId);
     return;
   }
-  const record = (mode: "success" | "transient_failure" | "not_retryable_failure", ms: number) =>
-    recordAndReleaseImageAttempt(sceneId, requestId, attemptNumber, mode, ms);
+  const record = (mode: "success" | "transient_failure" | "not_retryable_failure", ms: number, unresponsive?: boolean) =>
+    recordAndReleaseImageAttempt(sceneId, requestId, attemptNumber, mode, ms, unresponsive);
 
   if (outcome.kind !== "success") {
-    record(outcome.kind === "failed_not_retryable" ? "not_retryable_failure" : "transient_failure", latencyMs);
+    if (outcome.kind === "failed_not_retryable") record("not_retryable_failure", latencyMs);
+    else record("transient_failure", latencyMs, outcome.unresponsive);
     applyFailureOutcome(fresh.id, outcome, attemptNumber, () =>
       scheduleImageRetry(fresh.id, attemptNumber, outcome.kind === "failed_transient" ? outcome.retryAfterSeconds : undefined),
     );

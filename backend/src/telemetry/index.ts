@@ -15,7 +15,7 @@ import { redactPaths } from "../util/redactPaths.ts";
 
 export type ProductEvent = "app_start" | "session_started" | "final_video";
 export type BilledUnit = { unit: "clip_seconds" | "images" | "voice_characters"; amount: number };
-export type NormalizedOutcome = "success" | "transient" | "not-retryable" | "other";
+export type NormalizedOutcome = "success" | "transient" | "unresponsive" | "not-retryable" | "other";
 
 type Exporters = { metrics: PushMetricExporter; logs: LogRecordExporter };
 type Instruments = {
@@ -63,16 +63,22 @@ export function resetTelemetryForTest(): void {
   settings = { errors: false, providerUsage: false, productUsage: false, answered: false, installId: "" };
 }
 
-/** Decision 4 — one place maps both the stage-attempt and the provider-request vocabularies. */
-export function normalizeOutcome(raw: string): NormalizedOutcome {
+/**
+ * Decision 4 — one place maps both the stage-attempt and the provider-request vocabularies.
+ * alert-unresponsive-provider (JOS-257) Decision 2: a call that got no answer — timed out, or flagged by its adapter
+ * because `fetch` itself failed — is `unresponsive`, apart from a provider that answered with a retryable error.
+ */
+export function normalizeOutcome(raw: string, mark: { unresponsive?: boolean } = {}): NormalizedOutcome {
+  if (mark.unresponsive) return "unresponsive";
   switch (raw) {
     case "success":
     case "late-success":
       return "success";
     case "transient":
     case "transient_failure":
-    case "timed-out":
       return "transient";
+    case "timed-out":
+      return "unresponsive";
     case "not-retryable":
     case "not_retryable_failure":
       return "not-retryable";
@@ -87,11 +93,12 @@ export function recordProviderCall(call: {
   outcome: string;
   latencyMs: number;
   billed?: BilledUnit;
+  unresponsive?: boolean;
 }): void {
   if (!settings.providerUsage) return;
   guarded(() => {
     const { calls, duration, billed } = getInstruments();
-    const outcome = normalizeOutcome(call.outcome);
+    const outcome = normalizeOutcome(call.outcome, { unresponsive: call.unresponsive });
     calls.add(1, { stage: call.stage, provider: call.provider, outcome });
     duration.record(call.latencyMs, { stage: call.stage, provider: call.provider });
     if (outcome === "success" && call.billed) {

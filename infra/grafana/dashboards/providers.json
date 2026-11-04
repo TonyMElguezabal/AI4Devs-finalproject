@@ -195,7 +195,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Retry rate (transient outcomes)",
+      "title": "Retry rate (transient and unresponsive outcomes)",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -207,7 +207,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (stage, provider) (increase(vid4you_provider_calls_total{deployment_environment=~\"$env\", outcome=\"transient\"}[$__rate_interval])) / sum by (stage, provider) (increase(vid4you_provider_calls_total{deployment_environment=~\"$env\"}[$__rate_interval]))",
+          "expr": "sum by (stage, provider) (increase(vid4you_provider_calls_total{deployment_environment=~\"$env\", outcome=~\"transient|unresponsive\"}[$__rate_interval])) / sum by (stage, provider) (increase(vid4you_provider_calls_total{deployment_environment=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "{{stage}} / {{provider}}",
           "refId": "A"
         }

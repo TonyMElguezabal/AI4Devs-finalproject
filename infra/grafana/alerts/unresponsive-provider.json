@@ -1,0 +1,39 @@
+{
+  "uid": "vid4you-unresponsive-provider",
+  "title": "Provider stopped responding",
+  "ruleGroup": "vid4you-critical",
+  "folderUID": "${FOLDER_UID}",
+  "condition": "C",
+  "data": [
+    {
+      "refId": "A",
+      "relativeTimeRange": { "from": 300, "to": 0 },
+      "datasourceUid": "${DS_PROMETHEUS}",
+      "model": {
+        "refId": "A",
+        "expr": "sum by (provider, stage) (increase(vid4you_provider_calls_total{outcome=\"unresponsive\", deployment_environment!=\"development\"}[5m])) >= 3",
+        "instant": true,
+        "range": false
+      }
+    },
+    {
+      "refId": "B",
+      "datasourceUid": "__expr__",
+      "model": { "refId": "B", "type": "reduce", "expression": "A", "reducer": "last" }
+    },
+    {
+      "refId": "C",
+      "datasourceUid": "__expr__",
+      "model": { "refId": "C", "type": "threshold", "expression": "B", "conditions": [{ "evaluator": { "type": "gt", "params": [0] } }] }
+    }
+  ],
+  "noDataState": "OK",
+  "execErrState": "Error",
+  "for": "0s",
+  "labels": { "severity": "critical" },
+  "annotations": {
+    "summary": "{{ $labels.provider }} stopped responding: {{ $values.B }} calls in the {{ $labels.stage }} stage got no answer within 5 minutes",
+    "description": "Counts provider calls that timed out or could not reach the provider, from installs with provider-usage telemetry on. One user's own network outage can also fire this: check whether more than one install reports it on the providers dashboard."
+  },
+  "notification_settings": { "receiver": "vid4you-critical" }
+}

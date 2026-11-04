@@ -163,7 +163,8 @@ describe("Failure classification by HTTP status (design Decision 4)", () => {
       throw new TypeError("fetch failed");
     })).synthesize(REQUEST);
 
-    expect(result).toEqual({ kind: "failed_transient", reason: "the voice provider could not be reached" });
+    // alert-unresponsive-provider (JOS-257) Decision 1 — the provider never answered, so the failure carries the mark.
+    expect(result).toEqual({ kind: "failed_transient", reason: "the voice provider could not be reached", unresponsive: true });
   });
 
   it("a timeout is transient", async () => {
@@ -174,7 +175,7 @@ describe("Failure classification by HTTP status (design Decision 4)", () => {
 
     const result = await providerWith(hangs, () => "test-key", 20).synthesize(REQUEST);
 
-    expect(result.kind).toBe("failed_transient");
+    expect(result).toMatchObject({ kind: "failed_transient", unresponsive: true });
     if (result.kind === "failed_transient") expect(result.reason).toContain("time limit");
   });
 

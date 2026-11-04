@@ -356,11 +356,18 @@ export async function sendVoiceAttempt(
     detail: string,
     errorCode?: string,
     providerRequestId?: string,
+    unresponsive?: boolean,
   ): VoiceOverOutcome => {
     const occurredAt = now();
     const recorded = recordAttemptOutcome(
       attempt.id,
-      { outcome, errorMessage: detail, ...(errorCode ? { errorCode } : {}), ...(providerRequestId ? { externalRequestId: providerRequestId } : {}) },
+      {
+        outcome,
+        errorMessage: detail,
+        ...(errorCode ? { errorCode } : {}),
+        ...(providerRequestId ? { externalRequestId: providerRequestId } : {}),
+        ...(unresponsive ? { unresponsive } : {}),
+      },
       { now },
     );
     logger.info({
@@ -407,7 +414,9 @@ export async function sendVoiceAttempt(
   if (getStageAttempt(attempt.id)?.outcome === "timed-out") return handleLateResult(attempt, result, now);
 
   if (result.kind !== "success") {
-    return finishFailure(result.kind === "failed_transient" ? "transient" : "not-retryable", result.reason);
+    return result.kind === "failed_transient"
+      ? finishFailure("transient", result.reason, undefined, undefined, result.unresponsive)
+      : finishFailure("not-retryable", result.reason);
   }
 
   const confirmed = await confirmVoiceOver(runId, result, now);

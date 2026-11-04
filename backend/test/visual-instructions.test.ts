@@ -111,7 +111,11 @@ describe("Failures are classified by HTTP status (product owner rule)", () => {
     const fetchFn = (async () => {
       throw new TypeError("fetch failed");
     }) as typeof fetch;
-    expect((await generatorWith(fetchFn).generate(FRAGMENTS, "en")).kind).toBe("failed_transient");
+    const result = await generatorWith(fetchFn).generate(FRAGMENTS, "en");
+    expect(result.kind).toBe("failed_transient");
+    // alert-unresponsive-provider (JOS-257) Decision 7 — the reasoning adapter is not marked; its hangs reach
+    // telemetry as timed-out attempts instead. JOS-260 tracks marking a refused connection here.
+    expect(result).not.toHaveProperty("unresponsive");
   });
 
   it("classifies exceeding the phase limit as transient", async () => {
