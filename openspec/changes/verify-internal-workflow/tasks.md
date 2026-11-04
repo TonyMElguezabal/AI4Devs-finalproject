@@ -85,4 +85,4 @@
 - [x] 11.2 (`PRIVACY.md` already says the local log never leaves the machine; unchanged) `docs/development_guide.md` (telemetry or logging section, if present): errors reported to telemetry are also written to the local log; `PRIVACY.md` already covers the local log file, so confirm it needs no change
 - [x] 11.3 (recorded in the step 8 report) `docs/api-spec.yml` and `docs/data-model.md`: no endpoint or schema change; record "no change" in the step 8 report
 - [x] 11.4 Run `graphify update .`
-- [ ] 11.5 Open the PR against `feature/entrega-3-JAME` (after asking); it states the architectural motivation and the accepted product change of design D5; update JOS-247, JOS-248 and JOS-249 in Linear with the PR link
+- [x] 11.5 Open the PR against `feature/entrega-3-JAME` (after asking); it states the architectural motivation and the accepted product change of design D5; update JOS-247, JOS-248 and JOS-249 in Linear with the PR link
