@@ -9,7 +9,7 @@ import { ffmpegHasSubtitleFilter } from "./config/ffmpeg.ts";
 import { recoverOnBoot } from "./orchestrator.ts";
 import { setDecompositionLogger } from "./decompositionPhase.ts";
 import { setVoiceOverLogger } from "./voiceOverPhase.ts";
-import { shutdownTelemetry } from "./telemetry/index.ts";
+import { setErrorLog, shutdownTelemetry } from "./telemetry/index.ts";
 import { startUpdateCheck } from "./telemetry/updateCheck.ts";
 import { installProcessErrorHandlers } from "./telemetry/processHandlers.ts";
 import { rebuildScheduler } from "./retry/retryScheduler.ts";
@@ -82,6 +82,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Fas
   const app = await buildApp({ staticAssets: options.staticAssets });
   setVoiceOverLogger(app.log);
   setDecompositionLogger(app.log);
+  setErrorLog(app.log); // verify-internal-workflow (JOS-243) D5 — every reported error reaches the local log file
   for (const warning of stubWarnings) app.log.warn(warning);
   // add-burned-in-subtitles (JOS-237), design Decision 5 — a machine whose ffmpeg cannot draw subtitles finds out now,
   // not at the first assembly (which would fail as not retryable).

@@ -28,11 +28,11 @@
 
 ## 4. Backend: reported errors reach the local log file (TDD; design D5)
 
-- [ ] 4.1 Write failing tests in `backend/test`: with an error-log sink set and error consent off, `recordError` calls the sink once at `error` with `stage`, `provider`, `outcome`, `errorCode` and the path-redacted message, and emits no OTLP record; with consent on it does both; with no sink set it writes nothing and behaves as today
-- [ ] 4.2 Add the sink setter to `backend/src/telemetry/index.ts` and call the sink in `recordError` before the consent check; make 4.1 pass
-- [ ] 4.3 Set the sink to `app.log` in `startServer` after `buildApp`
-- [ ] 4.4 Write a failing test, then confirm it passes: a not-retryable image request recorded through `insertProviderRequest` writes an `error` line with `stage` `image` to a test logger (spec "Permanent stage failure with consent off")
-- [ ] 4.5 The existing telemetry tests (`recordError`, process handlers, the contract tests) stay green with no change to what is exported
+- [x] 4.1 (`backend/test/error-log.test.ts`; also: the redacted stack of an uncaught error, and a failing log never throws) Write failing tests in `backend/test`: with an error-log sink set and error consent off, `recordError` calls the sink once at `error` with `stage`, `provider`, `outcome`, `errorCode` and the path-redacted message, and emits no OTLP record; with consent on it does both; with no sink set it writes nothing and behaves as today
+- [x] 4.2 (`setErrorLog`) Add the sink setter to `backend/src/telemetry/index.ts` and call the sink in `recordError` before the consent check; make 4.1 pass
+- [x] 4.3 Set the sink to `app.log` in `startServer` after `buildApp`
+- [x] 4.4 (it failed: `reportStageAttempt` and `reportProviderRequest` in `db.ts` returned early with no consent on; the early returns are removed, design D5) Write a failing test, then make it pass: a not-retryable image request recorded through `insertProviderRequest` writes an `error` line with `stage` `image` to a test logger (spec "Permanent stage failure with consent off")
+- [x] 4.5 (full suite: 2656 passed, 11 skipped) The existing telemetry tests (`recordError`, process handlers, the contract tests) stay green with no change to what is exported
 
 ## 5. Backend: workflow harness and end-to-end test (design D6; JOS-248)
 
