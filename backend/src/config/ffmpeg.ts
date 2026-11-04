@@ -31,6 +31,7 @@ export function ffmpegHasSubtitleFilter(): boolean {
     try {
       subtitleFilterAvailable = /^\s*\S+\s+subtitles\s/m.test(execFileSync(FFMPEG, ["-hide_banner", "-filters"], { encoding: "utf8" }));
     } catch {
+      // ffmpeg missing or failing: no subtitle filter, which the boot log warns about.
       subtitleFilterAvailable = false;
     }
   }

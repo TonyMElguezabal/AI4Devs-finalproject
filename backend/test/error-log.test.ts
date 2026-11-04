@@ -4,7 +4,7 @@ import { InMemoryLogRecordExporter } from "@opentelemetry/sdk-logs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createRun, db, getTelemetrySettings, insertProviderRequest, resetAll } from "../src/db.ts";
 import { ensureProfiles } from "../src/providerProfiles.ts";
-import { flushTelemetry, recordError, resetTelemetryForTest, setConsent, setErrorLog, setTelemetryExportersForTest } from "../src/telemetry/index.ts";
+import { flushTelemetry, recordCaughtError, recordError, resetTelemetryForTest, setConsent, setErrorLog, setTelemetryExportersForTest } from "../src/telemetry/index.ts";
 
 // verify-internal-workflow (JOS-243), design D5 — every error given to `recordError` is also written to the local log at
 // `error` level, whatever the consent; what is exported over OTLP, and when, is unchanged.
@@ -97,5 +97,25 @@ describe("a permanent stage failure reaches the local log", () => {
 
     expect(logged).toHaveLength(1);
     expect(logged[0]!.fields).toMatchObject({ stage: "image", provider: "stub", outcome: "not-retryable" });
+  });
+});
+
+// cover-error-reporting (JOS-253), design D2 — what a catch block calls for an error no other path reports.
+describe("recordCaughtError", () => {
+  it("writes the error's name as its code, its message and its stack, with the given stage", () => {
+    const error = new RangeError("index out of range");
+
+    recordCaughtError(error, { stage: "video" });
+
+    expect(logged).toHaveLength(1);
+    expect(logged[0]!.fields).toMatchObject({ stage: "video", errorCode: "RangeError" });
+    expect(String(logged[0]!.fields.stack)).toContain("RangeError: index out of range");
+    expect(logged[0]!.message).toBe("index out of range");
+  });
+
+  it("turns a thrown value that is not an Error into one", () => {
+    recordCaughtError("plain string");
+
+    expect(logged[0]).toMatchObject({ fields: { errorCode: "Error" }, message: "plain string" });
   });
 });

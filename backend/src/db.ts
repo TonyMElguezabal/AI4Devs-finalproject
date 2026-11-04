@@ -1044,6 +1044,7 @@ function snapshotReferenceImage(projectFolder: string): Run["referenceImage"] {
   try {
     bytes = readFileSync(file.path);
   } catch {
+    // the file vanished since it was chosen: the session starts without a reference image, as with none set.
     return null;
   }
   const path = writeArtefactOnce(projectFolder, `reference-image.${extension}`, bytes);

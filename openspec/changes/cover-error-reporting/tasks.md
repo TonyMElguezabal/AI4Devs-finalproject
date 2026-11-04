@@ -33,11 +33,11 @@
 
 ## 5. Backend: catch audit (design D2; JOS-253)
 
-- [ ] 5.1 List every `catch` block and `.catch(` handler in `backend/src` with file, line and group (A–D, design D2) in `reports/YYYY-MM-DD-catch-audit.md`
-- [ ] 5.2 Group C without a comment: add a one-line comment saying why the error is not reported
-- [ ] 5.3 Group D in `db.ts`, `orchestrator.ts` and the phase files: add `recordError` with the stage when known, changing no `return` or `throw`; add a test where the module already tests that path; run the full backend suite
-- [ ] 5.4 Group D in the provider adapters, `retry/`, `config/`, `keyStore.ts` and the rest; same rule; run the full backend suite
-- [ ] 5.5 Complete the report with what changed per block and the counts per group
+- [x] 5.1 List every `catch` block and `.catch(` handler in `backend/src` with file, line and group (A–D, design D2) in `reports/YYYY-MM-DD-catch-audit.md`
+- [x] 5.2 Group C without a comment: add a one-line comment saying why the error is not reported
+- [x] 5.3 Group D in `db.ts`, `orchestrator.ts` and the phase files: add `recordError` with the stage when known, changing no `return` or `throw`; add a test where the module already tests that path; run the full backend suite
+- [x] 5.4 Group D in the provider adapters, `retry/`, `config/`, `keyStore.ts` and the rest; same rule; run the full backend suite
+- [x] 5.5 Complete the report with what changed per block and the counts per group
 
 ## 6. Backend: error contract test (TDD; design D5; JOS-255)
 

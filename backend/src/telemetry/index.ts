@@ -146,6 +146,15 @@ export function recordError(error: {
   });
 }
 
+/**
+ * cover-error-reporting (JOS-253), design D2 — an error a `catch` caught that no other path reports: a bug, not a
+ * provider outcome. Anything thrown is accepted; a non-Error becomes one, as the process handlers do.
+ */
+export function recordCaughtError(reason: unknown, context: { stage?: string; provider?: string } = {}): void {
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  recordError({ ...context, errorCode: error.name, message: error.message, stack: error.stack });
+}
+
 function writeErrorLog(error: Parameters<typeof recordError>[0]): void {
   if (!errorLog) return;
   const fields: Record<string, string> = {};
