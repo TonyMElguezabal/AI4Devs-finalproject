@@ -157,7 +157,7 @@ The Grafana dashboards SHALL be stored as JSON in the repository and imported in
 
 ### Requirement: The provider label is a fixed vendor name
 
-Every provider-usage metric and error record SHALL set `provider` to one value from a fixed set defined in the code, and SHALL NOT send the identifier stored for the attempt or the scene. The value SHALL be the vendor of the adapter type of the provider profile the identifier names (`OpenAI`, `ElevenLabs`, `Fal.ai` or `RunningHub`), after resolving the legacy image and clip identifiers to their seeded profiles. ElevenLabs' native timestamps SHALL report `ElevenLabs`. The assembly stage, which calls no provider, SHALL report `local`. A stub provider SHALL report `stub`. Any other identifier, a missing one included, SHALL report `unknown`. A profile's admin-editable label SHALL NOT be sent (JOS-213).
+Every provider-usage metric and error record SHALL set `provider` to one value from a fixed set defined in the code, and SHALL NOT send the identifier stored for the attempt or the scene. The value SHALL be the vendor of the adapter type of the provider profile the identifier names (`OpenAI`, `ElevenLabs`, `Fal.ai` or `RunningHub`), after resolving the legacy image and clip identifiers to their seeded profiles. Native timestamps SHALL report the value of the voice provider that produced them, and the legacy native identifier `elevenlabs-native` SHALL report `ElevenLabs`. The assembly stage, which calls no provider, SHALL report `local`. A stub provider SHALL report `stub`. Any other identifier, a missing one included, SHALL report `unknown`. A profile's admin-editable label SHALL NOT be sent (JOS-213).
 
 #### Scenario: Each stage reports its vendor
 
@@ -168,6 +168,16 @@ Every provider-usage metric and error record SHALL set `provider` to one value f
 
 - **WHEN** a voice-over attempt and a native timestamps attempt complete
 - **THEN** both carry `provider` `ElevenLabs` and differ only by `stage`
+
+#### Scenario: Native timestamps from the stub voice provider report stub
+
+- **WHEN** a native timestamps attempt completes for a session whose voice provider is the stub
+- **THEN** it carries `provider` `stub`
+
+#### Scenario: A legacy native identifier reports ElevenLabs
+
+- **WHEN** an attempt stored with `elevenlabs-native` is reported
+- **THEN** it carries `provider` `ElevenLabs`
 
 #### Scenario: Legacy identifiers resolve to their vendor
 
@@ -284,3 +294,4 @@ A CI test SHALL spawn the real backend with its OTLP endpoint pointed at a fake 
 #### Scenario: Consent off
 - **WHEN** error consent is off and the same errors are triggered
 - **THEN** the log file holds each at `error` level, and the receiver gets no log record
+
