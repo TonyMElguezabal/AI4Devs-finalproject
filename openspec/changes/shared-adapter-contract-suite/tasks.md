@@ -50,4 +50,4 @@
 ## 8. Delivery
 
 - [x] 8.1 Commit on the feature branch
-- [ ] 8.2 Ask before pushing. Open a PR into `feature/entrega-3-JAME` that explains the architectural motivation, lists the removed cases with their replacements, and proposes the `classifyHttpStatus` extraction as a follow-up
+- [x] 8.2 (PR #166 opened 2026-11-05) Ask before pushing. Open a PR into `feature/entrega-3-JAME` that explains the architectural motivation, lists the removed cases with their replacements, and proposes the `classifyHttpStatus` extraction as a follow-up
