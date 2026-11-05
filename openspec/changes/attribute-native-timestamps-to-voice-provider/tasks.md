@@ -24,10 +24,10 @@
 
 ## 5. Backend: Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 5.1 Capture the pre-test baseline of `backend/data/`
-- [ ] 5.2 Run the targeted tests and the full backend suite with a scratch `DB_PATH`, `PROJECTS_ROOT` and an empty `SECRETS_PATH`, plus `npm run typecheck` and `npm run lint`
-- [ ] 5.3 Verify the post-test state of `backend/data/` matches 5.1, and restore it if it does not
-- [ ] 5.4 Create report `openspec/changes/attribute-native-timestamps-to-voice-provider/reports/YYYY-MM-DD-step-5-unit-test-and-db-verification.md`
+- [x] 5.1 Capture the pre-test baseline of `backend/data/`
+- [x] 5.2 Run the targeted tests and the full backend suite with a scratch `DB_PATH`, `PROJECTS_ROOT` and an empty `SECRETS_PATH`, plus `npm run typecheck` and `npm run lint`
+- [x] 5.3 Verify the post-test state of `backend/data/` matches 5.1, and restore it if it does not
+- [x] 5.4 Create report `openspec/changes/attribute-native-timestamps-to-voice-provider/reports/YYYY-MM-DD-step-5-unit-test-and-db-verification.md`
 
 ## 6. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
