@@ -57,4 +57,4 @@
 ## 9. Delivery
 
 - [x] 9.1 Commit on the feature branch
-- [ ] 9.2 Ask before pushing. Open a PR into `feature/entrega-3-JAME` that explains the architectural motivation and copies the audit table from design.md § Context, including the per-stage adapter construction gap left for JOS-263
+- [x] 9.2 (PR #165 opened 2026-11-04) Ask before pushing. Open a PR into `feature/entrega-3-JAME` that explains the architectural motivation and copies the audit table from design.md § Context, including the per-stage adapter construction gap left for JOS-263
