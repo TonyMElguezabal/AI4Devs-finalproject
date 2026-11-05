@@ -18,18 +18,18 @@
 
 ## 3. Backend: Review and Update Existing Unit Tests (MANDATORY; design Decision 4)
 
-- [ ] 3.1 List, per file, every case the suite now repeats exactly (same adapter, operation, answer and classification): `voice-provider`, `alignment-provider`, `visual-instructions`, `image-provider`, `image-provider-queue`, `video-provider` and the six adapter cases of `adapters-no-hidden-retries`
-- [ ] 3.2 Remove only those cases. Keep every vendor-specific case listed in Decision 4, and keep the script moderation case. Remove imports and helpers that are left unused
-- [ ] 3.3 Record the case lists before and after, and the suite case that replaces each removed one
+- [x] 3.1 List, per file, every case the suite now repeats exactly (same adapter, operation, answer and classification): `voice-provider`, `alignment-provider`, `visual-instructions`, `image-provider`, `image-provider-queue`, `video-provider` and the six adapter cases of `adapters-no-hidden-retries`
+- [x] 3.2 Remove only those cases. Keep every vendor-specific case listed in Decision 4, and keep the script moderation case. Remove imports and helpers that are left unused
+- [x] 3.3 Record the case lists before and after, and the suite case that replaces each removed one
 
 ## 4. Backend: Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 4.1 Capture the pre-test baseline of `backend/data/` (`skeleton.sqlite` profile and run counts with checksum, `store.sqlite` checksum, `projects/` entries)
-- [ ] 4.2 Run the targeted tests (the suite and the seven trimmed files) with a scratch `DB_PATH`, `PROJECTS_ROOT` and an empty `SECRETS_PATH`
-- [ ] 4.3 Run the full backend suite the same way, plus `npm run typecheck` and `npm run lint`
-- [ ] 4.4 Verify the post-test state of `backend/data/` matches 4.1, and restore it if it does not
-- [ ] 4.5 Create report `openspec/changes/shared-adapter-contract-suite/reports/YYYY-MM-DD-step-4-unit-test-and-db-verification.md`, including the case mapping of 3.3
-- [ ] 4.6 Mark step complete only after tests pass and the report exists
+- [x] 4.1 Capture the pre-test baseline of `backend/data/` (`skeleton.sqlite` profile and run counts with checksum, `store.sqlite` checksum, `projects/` entries)
+- [x] 4.2 Run the targeted tests (the suite and the seven trimmed files) with a scratch `DB_PATH`, `PROJECTS_ROOT` and an empty `SECRETS_PATH`
+- [x] 4.3 Run the full backend suite the same way, plus `npm run typecheck` and `npm run lint`
+- [x] 4.4 Verify the post-test state of `backend/data/` matches 4.1, and restore it if it does not
+- [x] 4.5 Create report `openspec/changes/shared-adapter-contract-suite/reports/YYYY-MM-DD-step-4-unit-test-and-db-verification.md`, including the case mapping of 3.3
+- [x] 4.6 Mark step complete only after tests pass and the report exists
 
 ## 5. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 

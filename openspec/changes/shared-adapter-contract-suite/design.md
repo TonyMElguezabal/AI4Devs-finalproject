@@ -80,19 +80,24 @@ The fixture record's type makes a missing adapter type a compile error. The runt
 
 ### 4. What is removed and what stays
 
+- **The rule:** a case is removed only if the suite asserts everything it asserts: the same adapter, operation and vendor answer, with the same classification and request count. A case that also checks something else stays: reason wording, request body, a different malformed body, or headers.
 - **Removed:**
-  - The status-classification `it.each` blocks, the "network error is transient" cases and the "makes exactly one request even when it fails" cases from `voice-provider`, `alignment-provider`, `visual-instructions`, `image-provider` and `image-provider-queue`. That includes `image-provider-queue.test.ts:87` and `:97`.
-  - In `video-provider.test.ts`, the "4xx except 408/429", "408 is transient" and "unexpected response shape" cases.
-  - The six adapter cases in `adapters-no-hidden-retries.test.ts`.
+  - `voice-provider`: the transient status list and "not JSON is transient". The not-retryable status list becomes one case that checks the reason names the status.
+  - `alignment-provider`: both status lists, "network error is transient", "exactly one request", and the "not JSON" row of the invalid-output table.
+  - `visual-instructions`: both status lists, "network error is transient (no unresponsive mark)" and "exactly one request".
+  - `image-provider`: the three status lists. Their reason wording is still asserted by the status loop in `image-provider-queue.test.ts`.
+  - `video-provider`: "403 is not retryable" and "408 is transient".
+  - `adapters-no-hidden-retries`: the six adapter cases. The suite's 429 answer carries `Retry-After`, as that table's did, so the replacement is exact.
 - **Stays:**
   - Request shape and success payload details.
-  - The time-limit reason wording.
+  - The network-error and time-limit cases that check reason wording.
+  - Malformed bodies other than "not JSON" (wrong JSON shape, missing fields).
   - The reference-image statuses and `Retry-After`.
   - Queue addresses and status checks.
   - RunningHub error envelopes, error codes and the "refused task answer carries no unresponsive mark" case.
   - Credentials, "never copies the body", downloads and stubs.
   - The script moderation case.
-- **Before removing a case**, check that the suite asserts the same classification for the same adapter and operation. Record the mapping in the step report.
+  - `image-provider-queue.test.ts`, which is unchanged: every case there checks more than the classification.
 
 ## Risks / Trade-offs
 
