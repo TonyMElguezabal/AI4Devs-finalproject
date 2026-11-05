@@ -9479,64 +9479,70 @@
     "ast_hash": "8c883bf4cfdb1ebd0a9b7e3ad3e4212e",
     "semantic_hash": ""
   },
-  "openspec/changes/time-full-size-session/.openspec.yaml": {
+  "openspec/changes/archive/2026-11-05-time-full-size-session/.openspec.yaml": {
     "mtime": 1793047231.4862227,
-    "seen": 1793900999.404316,
+    "seen": 1793903087.330654,
     "ast_hash": "3ce363b0ba4427eec150032196c5725b",
     "semantic_hash": ""
   },
-  "openspec/changes/time-full-size-session/design.md": {
+  "openspec/changes/archive/2026-11-05-time-full-size-session/design.md": {
     "mtime": 1793292873.2763984,
-    "seen": 1793900999.404317,
+    "seen": 1793903087.330656,
     "ast_hash": "060c20741659e6bb1e7665f78c2560c3",
     "semantic_hash": ""
   },
-  "openspec/changes/time-full-size-session/proposal.md": {
+  "openspec/changes/archive/2026-11-05-time-full-size-session/proposal.md": {
     "mtime": 1793047277.5874414,
-    "seen": 1793900999.404317,
+    "seen": 1793903087.330657,
     "ast_hash": "f7c6bb8dcaf5ad5b4db7346148a7e3cd",
     "semantic_hash": ""
   },
-  "openspec/changes/time-full-size-session/reports/2026-10-27-step-5-unit-test-and-db-verification.md": {
+  "openspec/changes/archive/2026-11-05-time-full-size-session/reports/2026-10-27-step-5-unit-test-and-db-verification.md": {
     "mtime": 1793047537.080821,
-    "seen": 1793900999.4043179,
+    "seen": 1793903087.330658,
     "ast_hash": "c664189367b9578e8869f9e4cf696e33",
     "semantic_hash": ""
   },
-  "openspec/changes/time-full-size-session/reports/2026-10-27-step-6-curl-not-applicable.md": {
+  "openspec/changes/archive/2026-11-05-time-full-size-session/reports/2026-10-27-step-6-curl-not-applicable.md": {
     "mtime": 1793047537.0812507,
-    "seen": 1793900999.404319,
+    "seen": 1793903087.3306592,
     "ast_hash": "abaaa82bb83c2e2d35b19f9aef8fb806",
     "semantic_hash": ""
   },
-  "openspec/changes/time-full-size-session/reports/2026-10-27-step-7-e2e-not-applicable.md": {
+  "openspec/changes/archive/2026-11-05-time-full-size-session/reports/2026-10-27-step-7-e2e-not-applicable.md": {
     "mtime": 1793047537.0813506,
-    "seen": 1793900999.40432,
+    "seen": 1793903087.330661,
     "ast_hash": "58572dffe84020311e251444cb731a4b",
     "semantic_hash": ""
   },
-  "openspec/changes/time-full-size-session/reports/2026-10-28-step-8-spend-approval-and-build.md": {
+  "openspec/changes/archive/2026-11-05-time-full-size-session/reports/2026-10-28-step-8-spend-approval-and-build.md": {
     "mtime": 1793900247.522898,
-    "seen": 1793900999.404321,
+    "seen": 1793903087.330661,
     "ast_hash": "2a68f088a763360d18a4f4fd37c2b691",
     "semantic_hash": ""
   },
-  "openspec/changes/time-full-size-session/reports/2026-10-29-step-8-full-size-run.md": {
+  "openspec/changes/archive/2026-11-05-time-full-size-session/reports/2026-10-29-step-8-full-size-run.md": {
     "mtime": 1793900538.211912,
-    "seen": 1793900999.404321,
+    "seen": 1793903087.3306618,
     "ast_hash": "22e6b3f678fcaa11138cbb625cfe2a00",
     "semantic_hash": ""
   },
-  "openspec/changes/time-full-size-session/specs/session-timing-report/spec.md": {
+  "openspec/changes/archive/2026-11-05-time-full-size-session/specs/session-timing-report/spec.md": {
     "mtime": 1793292873.2767549,
-    "seen": 1793900999.4043221,
+    "seen": 1793903087.330664,
     "ast_hash": "61b6642d90ce79ef37864ee8b836c150",
     "semantic_hash": ""
   },
-  "openspec/changes/time-full-size-session/tasks.md": {
-    "mtime": 1793900905.1556504,
-    "seen": 1793900999.404323,
-    "ast_hash": "c9ece493f0118986221d04e639d42cb6",
+  "openspec/changes/archive/2026-11-05-time-full-size-session/tasks.md": {
+    "mtime": 1793903045.2632763,
+    "seen": 1793903087.3306649,
+    "ast_hash": "76d5da4fd61b3417f41f60828c15d60f",
+    "semantic_hash": ""
+  },
+  "openspec/specs/session-timing-report/spec.md": {
+    "mtime": 1793903064.6417944,
+    "seen": 1793903087.332692,
+    "ast_hash": "2bbfec10668c5dd8b17e867f15d8ce7e",
     "semantic_hash": ""
   }
 }

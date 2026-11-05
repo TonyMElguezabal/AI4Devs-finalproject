@@ -57,4 +57,4 @@
 - [x] 9.2 Update `readme.md` sections 2.4 and 4.1 (Spanish): confirm or remove the "provisional" wording
 - [x] 9.3 Post the result as a comment on JOS-197
 - [x] 9.4 Run `graphify update .`
-- [ ] 9.5 Open the pull request linking JOS-209; archive the change after merge
+- [x] 9.5 Open the pull request linking JOS-209; archive the change after merge
