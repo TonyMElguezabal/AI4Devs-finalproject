@@ -16,6 +16,7 @@ import {
   VOICE_LIMIT_MS,
   waitFor,
 } from "./voiceTimeoutFixtures.ts";
+import { heldImageProvider } from "./imageProviderFixtures.ts";
 
 // run-session-end-to-end (JOS-195), design Decision 3 — every way a voice-over can be stored hands the session to
 // decomposition once, and a failure or a pause does not.
@@ -28,7 +29,7 @@ beforeEach(() => {
   resetImageProviderRegistry();
   setImageProviderRegistry({
     defaultIdentifier: "held-image-adapter",
-    adapters: { "held-image-adapter": { generate: () => new Promise(() => {}) } },
+    adapters: { "held-image-adapter": heldImageProvider() },
   });
   installStubDecompositionDependencies();
 });

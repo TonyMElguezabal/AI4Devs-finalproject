@@ -21,7 +21,7 @@ export interface SessionPauses {
   scenes: PauseSceneState[];
 }
 
-function readStoredCharacters(projectFolder: string, relativePath: string): TimestampCharacter[] | null {
+export function readStoredCharacters(projectFolder: string, relativePath: string): TimestampCharacter[] | null {
   try {
     const parsed = JSON.parse(readFileSync(resolveArtefactPath(projectFolder, relativePath), "utf8")) as { characters?: unknown };
     if (!Array.isArray(parsed.characters)) return null;

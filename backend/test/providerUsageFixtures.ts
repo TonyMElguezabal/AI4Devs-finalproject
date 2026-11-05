@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { completeStageAttempt, db, insertProviderRequest, recordStageAttempt, scheduleStageAttempt } from "../src/db.ts";
-import type { AttemptStage, ProviderOutcomeMode, StageAttemptOutcome } from "../src/types.ts";
+import type { AttemptStage, AttemptTrigger, ProviderOutcomeMode, StageAttemptOutcome } from "../src/types.ts";
 import { newRun } from "./failedStageFixtures.ts";
 
 // report-provider-usage (JOS-223) — seeding helpers shared by the report and route tests.
@@ -21,16 +21,32 @@ export function seedAttempt(input: {
   latencyMs?: number;
   scriptLength?: number;
   runId?: string;
+  /** Defaults to the stage instance's latest cycle; a manual retry starts the next one. */
+  cycle?: number;
+  trigger?: AttemptTrigger;
+  /** The failure wording stored on a failed attempt. */
+  errorMessage?: string;
 }): string {
   const runId = input.runId ?? newRun("Usage", "x".repeat(input.scriptLength ?? 28));
-  const base = { runId, stage: input.stage, providerId: input.providerId, queuedAt: input.sentAt };
+  const base = {
+    runId,
+    stage: input.stage,
+    providerId: input.providerId,
+    queuedAt: input.sentAt,
+    ...(input.cycle !== undefined ? { cycle: input.cycle } : {}),
+    ...(input.trigger !== undefined ? { trigger: input.trigger } : {}),
+  };
   if (input.outcome === "scheduled") {
     scheduleStageAttempt({ ...base, dueAt: input.sentAt });
     return runId;
   }
   const attempt = recordStageAttempt({ ...base, sentAt: input.sentAt });
   if (input.outcome !== "in-flight") {
-    completeStageAttempt(attempt.id, { outcome: input.outcome, finishedAt: plusMs(input.sentAt, input.latencyMs ?? 100) });
+    completeStageAttempt(attempt.id, {
+      outcome: input.outcome,
+      finishedAt: plusMs(input.sentAt, input.latencyMs ?? 100),
+      ...(input.errorMessage !== undefined ? { errorMessage: input.errorMessage } : {}),
+    });
   }
   return runId;
 }

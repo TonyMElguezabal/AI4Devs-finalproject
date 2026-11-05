@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.18  
+**Versión:** 1.30  
 **Alcance:** MVP  
-**Status (v1.19, Approved):** the `/admin` reference image is sent to the image provider with every scene of the sessions created after it is saved (`use-reference-image-in-generation`, JOS-202, §2.1, §11.3, §11.5). The previous version is kept in `docs/PRD-v1.18.md`. **Status (v1.18, awaiting the product owner's approval):** the Administrator can enter an optional price per unit and currency on each provider on `/admin` (`add-provider-price-per-unit`, JOS-226, §11.4). The previous version is kept in `docs/PRD-v1.17.md`. **Status (v1.17, awaiting the product owner's approval):** the visual style prompt and reference image of `/admin` (`admin-visual-style-prompt`, JOS-201, drafted on its own line as v1.10) join this version behind the Administrator password, as §11.5 (§2.1, §2.2). The previous version is kept in `docs/PRD-v1.16.md`. **Status (v1.16, awaiting the product owner's approval):** the Administrator's reports are defined: provider usage, failures and retries, and sessions in the first release; estimated cost, pipeline time and provider changes later (`define-admin-reports`, JOS-175, §2.1, §2.3, §11.4). **Status (v1.15, awaiting the product owner's approval):** the Administrator moves a failed stage to the current active provider on `/admin` (`move-failed-stage-to-active-provider`, JOS-172, §2.1, §2.3, §7.2, §11.2). **Status (v1.14, approved by the product owner 2026-10-22):** the Administrator adds, edits and deletes providers, their parameters and their API keys on `/admin` (`manage-providers-from-admin`, JOS-218, §2.1, §2.3, §11, §11.2). **Status (v1.13, awaiting the product owner's approval):** the Administrator can change the active provider of each stage on `/admin` (`change-active-provider-from-admin`, JOS-171, §2.1, §2.3, §11, §11.2). **Status (v1.12, awaiting the product owner's approval):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3). **Status (v1.11, awaiting the product owner's approval):** one shared Administrator password protects `/admin` (`protect-admin-with-password`, JOS-173, §2.1, §2.3, §12.3). **Status (v1.10):** the final MP4's audio is the voice-over's MP3 stream copied unchanged, not AAC (§7.3, D08), and the automatic-retry delay (2 s base, 30 s cap) is recorded (§11.3) (JOS-203). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous versions are kept in `docs/PRD-v1.14.md` and `docs/PRD-v1.13.md`.
+**Status (v1.30, awaiting the product owner's approval):** an image request is sent once to the provider's queue and followed until it ends, instead of being abandoned at the time limit and resent: the image limit counts from when the provider starts the request, automatic image retries wait, the image cap is 6, and a failed image a retry can fix is retried once more at the end of the session (`follow-fal-image-queue`, JOS-239, §10.1, §11.3). The previous version is kept in `docs/PRD-v1.29.md`. **Status (v1.29, awaiting the product owner's approval):** the shipped request caps are set from measured limits: voice 4 (ElevenLabs allows 5), alignment 2 and video 4 (`probe-provider-request-caps`, JOS-188, §11.3). The previous version is kept in `docs/PRD-v1.28.md`. **Status (v1.28, Approved):** the Administrator's estimated-cost report moves into scope: billed units times the price per unit of each provider, per stage and provider, with totals per currency and a cost per session in the Sessions report (`report-estimated-cost`, JOS-227, §11.4). The previous version is kept in `docs/PRD-v1.27.md`. **Status (v1.27, Approved):** the final video burns the script in as subtitles, one line at a time, with the word being narrated highlighted (`add-burned-in-subtitles`, JOS-237, §7.3, AC25). The previous version is kept in `docs/PRD-v1.26.md`. **Status (v1.26, Approved):** the start form shows the script's word count and an estimated video duration, for information only (`show-script-word-count`, JOS-236, §4.1). The previous version is kept in `docs/PRD-v1.25.md`. **Status (v1.25, awaiting the product owner's approval):** the User can rebuild a generated scene when they see a defect in it: its image and clip are generated again, optionally with edited `IMAGE` and `VIDEO` instructions, and the final video is rebuilt from the updated scene (`rebuild-scene`, JOS-235, §2.3, §10.3, §11.2, AC24). The previous version is kept in `docs/PRD-v1.24.md`. **Status (v1.24, awaiting the product owner's approval):** a clip that passes its phase limit while the provider still runs it is no longer failed and resent: the same provider task keeps being followed, so one scene costs one task, until twice the limit (a 2400 s clip wait ceiling, §11.3), when the scene fails as not retryable and can be retried by hand (`keep-clip-task-on-timeout`, JOS-204, §10.1, §11.3). The previous version is kept in `docs/PRD-v1.23.md`. **Status (v1.23, awaiting the product owner's approval):** the application records every change of an active provider and every move of a failed stage from this version on, and the Administrator's Reports section lists them (`record-provider-changes`, JOS-229, §11.4). The previous version is kept in `docs/PRD-v1.22.md`. **Status (v1.22, awaiting the product owner's approval):** the reference-image model is `bytedance/seedream/v5/pro/edit` and the image stage's maximum time is 300 s, after the first full run showed garbled text and a drifting style with the previous model (`switch-reference-image-model`, JOS-230, §3, §11.3, §11.5). The previous version is kept in `docs/PRD-v1.21.md`. **Status (v1.21, awaiting the product owner's approval):** the Administrator can test a saved provider's connection on `/admin`: one request to the vendor with the stored key, its cost stated before it is sent, and what it checked stated with the result (`test-provider-connection`, JOS-220, §2.1, §11.2). The previous version is kept in `docs/PRD-v1.20.md`. **Status (v1.20, awaiting the product owner's approval):** while a scene's clip is generating, its details show the request sent, when it was sent, the elapsed time, an estimated arrival calculated from earlier clips, and the request body as sent (`show-video-request-status`, JOS-200, §3). The previous version is kept in `docs/PRD-v1.19.md`. **Status (v1.19, awaiting the product owner's approval):** the `/admin` reference image is sent to the image provider with every scene of the sessions created after it is saved (`use-reference-image-in-generation`, JOS-202, §2.1, §11.3, §11.5). The previous version is kept in `docs/PRD-v1.18.md`. **Status (v1.18, awaiting the product owner's approval):** the Administrator can enter an optional price per unit and currency on each provider on `/admin` (`add-provider-price-per-unit`, JOS-226, §11.4). The previous version is kept in `docs/PRD-v1.17.md`. **Status (v1.17, awaiting the product owner's approval):** the visual style prompt and reference image of `/admin` (`admin-visual-style-prompt`, JOS-201, drafted on its own line as v1.10) join this version behind the Administrator password, as §11.5 (§2.1, §2.2). The previous version is kept in `docs/PRD-v1.16.md`. **Status (v1.16, awaiting the product owner's approval):** the Administrator's reports are defined: provider usage, failures and retries, and sessions in the first release; estimated cost, pipeline time and provider changes later (`define-admin-reports`, JOS-175, §2.1, §2.3, §11.4). **Status (v1.15, awaiting the product owner's approval):** the Administrator moves a failed stage to the current active provider on `/admin` (`move-failed-stage-to-active-provider`, JOS-172, §2.1, §2.3, §7.2, §11.2). **Status (v1.14, approved by the product owner 2026-10-22):** the Administrator adds, edits and deletes providers, their parameters and their API keys on `/admin` (`manage-providers-from-admin`, JOS-218, §2.1, §2.3, §11, §11.2). **Status (v1.13, awaiting the product owner's approval):** the Administrator can change the active provider of each stage on `/admin` (`change-active-provider-from-admin`, JOS-171, §2.1, §2.3, §11, §11.2). **Status (v1.12, awaiting the product owner's approval):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3). **Status (v1.11, awaiting the product owner's approval):** one shared Administrator password protects `/admin` (`protect-admin-with-password`, JOS-173, §2.1, §2.3, §12.3). **Status (v1.10):** the final MP4's audio is the voice-over's MP3 stream copied unchanged, not AAC (§7.3, D08), and the automatic-retry delay (2 s base, 30 s cap) is recorded (§11.3) (JOS-203). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous versions are kept in `docs/PRD-v1.14.md` and `docs/PRD-v1.13.md`.
 
 ## 1. Objetivo del producto
 
@@ -19,7 +19,7 @@ El usuario puede consultar el progreso por fase y por escena, descargar resultad
 | Rol | Responsabilidad |
 |---|---|
 | User (*Usuario*) | Enter a title, a script, and the script's language; follow progress and per-scene diagnostics; pause and continue the session; download results; retry failed stages. |
-| Administrator | Unlock `/admin` with the Administrator password; add, edit and delete the providers of each stage, their parameters and their API keys; change the active provider of each stage there, and move a failed stage to the current active provider (§11.2); set the visual style of new sessions (§11.5); see the reports of §11.4. Further Administrator tools are added by later stories. A User never needs the password. |
+| Administrator | Unlock `/admin` with the Administrator password; add, edit and delete the providers of each stage, their parameters and their API keys; change the active provider of each stage there, and move a failed stage to the current active provider (§11.2); set the visual style of new sessions (§11.5); see the reports of §11.4; test a saved provider's connection (§11.2). Further Administrator tools are added by later stories. A User never needs the password. |
 
 The MVP has a single role: the User. The operational settings (§11) are read at start-up from local settings files: a default file that ships with the application and an optional per-user file that overrides it. A change takes effect after the application restarts, and these settings are edited by hand, not through the application. The providers are the exception: the Administrator adds, edits and deletes the providers of each stage, their parameters and their API keys, and chooses each stage's active provider, all on `/admin`, and these apply without a restart (§11.2). The product has two roles. The User needs no login. The Administrator unlocks `/admin` with one shared password, not an account. The password is a local secret, read from `ADMIN_PASSWORD` in the process environment or, when the environment has none, from the credentials file in the user's application-data folder; it is never part of a settings file, never part of the application download, and never shown in the interface, a response or a log. When no password is configured the application still starts, and `/admin` says so and explains how to set one. `/admin` is not linked from the User's pages. A provider's API key is entered on `/admin` and stored encrypted in the local database; it is never part of a settings file, never part of the application download, never returned by the application after it is saved (only its status and its last four characters) and never shown in a log. A key given in the process environment or in the credentials file in the user's application-data folder keeps working for the providers created from the first settings, until a key is stored for them. The other Administrator tools (diagnostics on `/admin`) and the reports of §11.4 are deferred post-MVP.
 
@@ -46,7 +46,7 @@ The MVP has a single role: the User. The operational settings (§11) are read at
 - Reportes de uso, fallos, sesiones, costos, tiempos y cambios de proveedor: fuera del MVP; están en alcance de la versión que los construya, descritos en §11.4.
 - Importación o edición libre de chunks.
 - Reescritura del guion o regeneración de una narración ya completada.
-- Regeneración de imágenes o clips exitosos por preferencia estética.
+- Regeneración de imágenes o clips exitosos por preferencia estética. Un defecto que el usuario ve en una escena generada (contenido equivocado, texto erróneo dentro de la imagen, artefactos) no es una preferencia estética: es un fallo que el sistema no detectó y se recupera como indica §10.3.
 - Cancelación de solicitudes ya enviadas a un proveedor.
 - Montajes que omitan escenas del guion.
 - Changing an operational setting from the application (interface or API) and applying one without a restart (§11). The providers, their parameters and keys, and the active provider are the exception (§11.2).
@@ -77,7 +77,7 @@ Un **chunk** es una escena y contiene, como mínimo:
 | Duración solicitada y factor de ajuste | Duración pedida al proveedor y factor de velocidad resultante, conforme a §7.2 y §7.3. | No permitida, salvo cuando el Administrator mueve un clip fallido a otro proveedor de video (§7.2, §11.2). |
 | Estado y resultados | Progreso, imagen, clip y error, cuando corresponda. | Actualizados por el sistema. |
 
-Cada etapa conserva la identificación del proveedor utilizado y los intentos realizados. Esta información permite diagnosticar fallos sin exponer credenciales ni datos confidenciales. It is shown to the User in each scene's details (image and clip stages) and in each phase's section (session-level stages).
+Cada etapa conserva la identificación del proveedor utilizado y los intentos realizados. Esta información permite diagnosticar fallos sin exponer credenciales ni datos confidenciales. It is shown to the User in each scene's details (image and clip stages) and in each phase's section (session-level stages). While a scene's clip is generating, its details also show the clip request (`show-video-request-status`, JOS-200): the provider and the attempt, when the request was sent, the time elapsed (updated live) and an estimated arrival, calculated as the median generation time of the provider's earlier successful clips (those of the same requested duration when there are at least three) and labelled as an estimate, or "no estimate yet" when there is none; the User can open the request body as sent (prompt, duration and resolution, with the first frame named as the scene's image). The provider's addresses, request identifiers and credentials are never shown. The clip line counts the attempt in flight from the moment its request is sent.
 
 ## 4. Entrada y conservación del contenido
 
@@ -88,6 +88,8 @@ El usuario introduce un título y un guion no vacíos. No necesita proporcionar 
 The User also selects the script's language from the configured list of supported languages (§11; shipped default §11.3: **English, Spanish**). Only supported languages can be chosen, and a project cannot start without a selected language; no provider is called before that.
 
 No existe un límite funcional de palabras establecido por el producto. Un guion de aproximadamente 1500 palabras es una referencia habitual, no una restricción ni una duración obligatoria. La duración del video depende de la narración real del guion. The MVP sets no limit on script words, number of scenes, or provider calls per session.
+
+El formulario de inicio muestra, bajo el campo del guion, su número de palabras y una duración estimada del video (a 150 palabras por minuto, en formato `~m:ss`). Es solo informativo: no bloquea ni modifica el envío, no añade ningún límite y el guion no sale de la página para calcularlo. La duración real la fija la narración (§7.3).
 
 Si una restricción del servicio impide procesar el contenido, el sistema informa la causa. No recorta ni resume el guion para adaptarlo silenciosamente.
 
@@ -190,6 +192,8 @@ El video final solo puede generarse cuando todas las escenas estén en `chunk-co
 
 **Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are configured (shipped default 1920×1080 at 30 fps), with H.264 video. The audio is the voice-over's MP3 stream copied into the MP4 without re-encoding; only a rebuild with an adjusted pause re-encodes it (to AAC).
 
+**Subtítulos (JOS-237, product owner decision 2026-10-28).** El video final muestra el guion como subtítulos incrustados en la imagen, en todas las escenas y en todo montaje (el primero, el reintento y la reconstrucción). El texto es el del guion, de una línea en una línea y de 32 caracteres como máximo: una línea no parte palabras ni cruza el final de una frase, y prefiere cortar tras una coma, un punto y coma o dos puntos. Cada línea aparece cuando se pronuncia su primera palabra y ha desaparecido antes de que aparezca la siguiente. La palabra que se está narrando se resalta en `#FFCDD0` y vuelve a blanco cuando la narración pasa a la siguiente; el resto del texto es blanco con un contorno oscuro (Montserrat Bold, 48 px en el cuadro de 1920×1080, abajo y centrado, igual en todos los idiomas). Los tiempos salen de las marcas de tiempo de la narración (§11.1) y se desplazan igual que la narración cuando el usuario ajusta una pausa. No requieren ninguna llamada a un proveedor ni tienen coste. Los subtítulos no se pueden desactivar y no se entrega un archivo de subtítulos aparte. Si no se pueden construir (las marcas de tiempo no se pueden leer o no coinciden con el guion) o dibujar (la herramienta de montaje no admite subtítulos o falta la fuente), el montaje falla como no reintentable y la causa lo dice; nunca se entrega un video sin ellos. Un video final anterior no cambia hasta que el usuario lo reconstruye.
+
 Si falla el montaje, se conserva el audio y las escenas exitosas. El reintento se aplica al montaje, sin volver a generar los componentes ya completados.
 
 ## 8. Estados y progreso
@@ -253,9 +257,13 @@ A failure the provider reports as not retryable (for example, a content-filter r
 
 Each stage has a configured maximum of simultaneous provider requests, shared across all sessions. Requests beyond it wait their turn and are sent first come, first served, regardless of session. Waiting counts neither as a failed attempt nor as execution time.
 
-Al agotar el límite, la etapa queda en `failed`. La interfaz muestra un error comprensible y la opción de reintento manual cuando corresponda. La política debe evitar que mecanismos internos de recuperación multipliquen inadvertidamente el límite funcional.
+Al agotar el límite, la etapa queda en `failed`. La interfaz muestra un error comprensible y la opción de reintento manual cuando corresponda. La política debe evitar que mecanismos internos de recuperación multipliquen inadvertidamente el límite funcional. A clip request that passes its phase limit while the provider still reports it as running is therefore neither failed nor resent: the same provider task keeps being followed, and a result that arrives late is accepted, so one scene costs one provider task. The wait ends at the clip wait ceiling (§11.3), counted from the moment the task was sent and across restarts; the scene then fails as not retryable, with a cause saying the provider task may still be running, and the User can retry it by hand, which sends a new task. A task the provider reports as failed, or no longer holds, follows the automatic retry rule above (JOS-204).
 
 La espera previa al inicio de una etapa no debe confundirse con el tiempo de ejecución ni provocar un fallo prematuro de escenas que comienzan más tarde. Per-phase maximum times are configured (§11).
+
+**Image requests (JOS-239).** The provider keeps working on, and bills, a request the application stops waiting for, so an image request is never abandoned and resent while it can still finish. Each image attempt sends one request to the provider's queue and follows that same request until it completes, fails or reaches its ceiling. Time the request spends waiting in the provider's queue is not execution time: the image stage's maximum time counts from the moment the provider starts the request, and the wait in the queue is bounded by a start window set on the request (§11.3). A request still running past the maximum time keeps being followed, and its image is accepted; at twice the maximum time the application cancels it and the scene fails with a cause saying the provider may still finish and bill it, with no further automatic retry in that cycle. A status check that gets no answer is not a failed attempt. An automatic image retry is sent only after the automatic-retry delay (§11.3), and at least as long as the provider's own request for a later retry (HTTP 429, `Retry-After`).
+
+**End-of-session image retry (JOS-239).** When no scene of a session is still waiting or generating an image or a clip, each scene that failed at the image stage for a reason a retry can fix (an exhausted retry cycle, the ceiling above, a request that never started) gets one new retry cycle automatically, as if the User had pressed "Retry scene". This happens at most once per session. A failure a retry cannot fix (for example a rejected reference image or a missing key) and a clip failure are not retried this way. The session is shown as failed, with its failed scenes, only after this retry has run or has nothing to retry; a paused session is retried once it continues. A session that already had a failed scene when this version was installed is treated as already retried.
 
 ### 10.2 Reintentos manuales
 
@@ -273,8 +281,9 @@ When a scene ends in `failed`, all other scenes keep generating until they reach
 | Obtención de marcas de tiempo | Retry on the same audio. If native timestamps were returned but are unusable, automatic and manual retries switch directly to the alignment stage (§11.1); the voice provider is not asked again. |
 | Descomposición | Reintentar la división del mismo guion sin reescribirlo ni regenerar el audio. |
 | Montaje final | Reintentar el montaje con los componentes ya generados. |
+| Defecto que el usuario ve en una escena generada | Reconstruir la escena: se generan de nuevo su imagen y su clip, con las mismas instrucciones o con `IMAGE` y/o `VIDEO` corregidas, con el proveedor al que la escena quedó ligada. Está disponible en cualquier sesión con escenas generadas, también durante el procesamiento y tras un fallo de montaje, salvo mientras se monta el video final. El video final se reconstruye automáticamente con el clip nuevo y los clips de las demás escenas, que se dan por correctos. Nada se sobrescribe: los archivos anteriores se conservan. |
 
-Ninguna recuperación permite cambiar `ID`, `PROMPT`, el orden narrativo o un voice-over completado. Las correcciones visuales son la única excepción a la regla de chunks no editables.
+Ninguna recuperación permite cambiar `ID`, `PROMPT`, el orden narrativo, el intervalo de narración, la duración pedida del clip, el factor de velocidad o un voice-over completado. Las correcciones visuales son la única excepción a la regla de chunks no editables.
 
 ## 11. Proveedores y operación
 
@@ -307,7 +316,9 @@ The Administrator adds, edits and deletes providers on `/admin`. A change to a p
 
 Every stage is bound to a provider at its first attempt, once and for good: reasoning, voice and alignment per session; image and video per chunk. The binding is the provider active at that moment. The stage keeps it for its automatic and manual retries, whatever the active provider is later. Changing the active provider never regenerates a completed result. A stage that used native timestamps binds no alignment provider.
 
-A stage tied to a provider that is unavailable keeps retrying that same provider until it recovers, unless the Administrator moves it. `/admin` lists the failed stages that are bound to a provider other than the current active provider of their stage type, with an action to move each one to the current active provider. A move binds that one stage to the provider that is active at that moment and nothing else: it sends no request and does not retry; the next retry, automatic or manual, goes to the new provider, and the attempts recorded before the move keep the provider they ran on. A stage whose failure offers no manual retry is not listed. A move never regenerates a completed result of the session or its scenes, and nothing moves by itself, not even when retries are exhausted. Completed results are never regenerated.
+A stage tied to a provider that is unavailable keeps retrying that same provider until it recovers, unless the Administrator moves it. `/admin` lists the failed stages that are bound to a provider other than the current active provider of their stage type, with an action to move each one to the current active provider. A move binds that one stage to the provider that is active at that moment and nothing else: it sends no request and does not retry; the next retry, automatic or manual, goes to the new provider, and the attempts recorded before the move keep the provider they ran on. A stage whose failure offers no manual retry is not listed. A move never regenerates a completed result of the session or its scenes, and nothing moves by itself, not even when retries are exhausted. Completed results are never regenerated, except a scene the User rebuilds because of a defect they see (§10.3): that scene is no longer a completed result, and every other result is kept.
+
+The Administrator can test a saved provider's connection on `/admin`. A test sends exactly one request, with no retry, to the host of the provider's vendor, with the provider's stored key and current parameters; it shows one of: connected, key rejected, model or voice not found, vendor unreachable, or an unexpected answer with its HTTP status. Each result says what the check covered: the key and the model (reasoning, image), the key and the voice but not the voice model (voice), or only the key, not the endpoint (alignment, video). A pass proves what it covered and nothing more: it does not prove the balance, the content filters or the endpoint's parameters. Every check shipped today is a free lookup. A check the vendor charges for would be stated on the page before it is sent and refused by the server until the Administrator confirms it. A test shows neither the key nor the vendor's answer and changes nothing: no provider, key, binding, attempt or usage record is written, and the test is not counted in the reports (§11.4). A restricted key (for example one that cannot read voices) can fail the test and still work for generation.
 
 A change to the configured admitted durations, languages, or any other setting, after a restart, does not alter what existing sessions have already established: intervals, chunks, requested durations, speed factors, warnings, the session's language, and completed results stay as they were. A stage that already has a bound provider keeps it for its retries.
 
@@ -320,7 +331,7 @@ Defined by `define-provider-configuration` (JOS-165) and, since v1.10, shipped a
 | Reasoning | OpenAI | `gpt-6-astra` |
 | Voice | ElevenLabs | `eleven_multilingual_v2`, voice "Burt Reynolds™" |
 | Alignment | ElevenLabs | Forced Alignment API — same account as Voice |
-| Image | Fal.ai | `fal-ai/flux/dev`; with a reference image, `fal-ai/flux-2/edit` (setting `imageReferenceModel`, §11.5) |
+| Image | Fal.ai | `fal-ai/flux/dev`; with a reference image, `bytedance/seedream/v5/pro/edit` (setting `imageReferenceModel`, §11.5) |
 | Video | RunningHub | MiniMax-H3 "Hailuo-03" |
 
 | Parameter | Value | Notes |
@@ -330,9 +341,10 @@ Defined by `define-provider-configuration` (JOS-165) and, since v1.10, shipped a
 | Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264 video, voice-over MP3 audio copied unchanged | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
 | Supported script languages (§4.1, D09) | English, Spanish | Each verified independently across voice, alignment and reasoning |
 | Acceptable speed-factor limit | **Provisional** | `define-media-assembly` (JOS-182) recommends 0.5x-2.0x (its ADR, Decision 5); `decide-silence-allocation` (JOS-142) verified D11's adopted rule against that recommendation (max 1.08x observed). Not yet the fixed constant: US-33 records it, and JOS-182's own PR is not yet merged into this branch's history. |
-| Per-phase maximum times | Reasoning 600s, Image 120s, Voice 600s, Alignment 5s, Video 1200s, Assembly provisional | Set above the observed slow tail; assembly depends on JOS-182. Re-measured at the product's real script size in v1.8 (2026-10-13/14): reasoning 208.6 s for 67 fragments (was 20 s), voice 151 s for 10,217 characters (was 10 s), video clips at 2K 394 s for 7 s, 528 s for 12 s, 546 s for 13 s and above 610 s for 14 s (was 240 s; 15 s is admitted); provisional until a full-size session (1,500-1,800 words, 30-50 chunks) has been timed |
+| Per-phase maximum times | Reasoning 600s, Image 300s, Voice 600s, Alignment 5s, Video 1200s, Assembly provisional, Clip wait ceiling 2400s | Set above the observed slow tail; assembly depends on JOS-182. Re-measured at the product's real script size in v1.8 (2026-10-13/14): reasoning 208.6 s for 67 fragments (was 20 s), voice 151 s for 10,217 characters (was 10 s), video clips at 2K 394 s for 7 s, 528 s for 12 s, 546 s for 13 s and above 610 s for 14 s (was 240 s; 15 s is admitted); provisional until a full-size session (1,500-1,800 words, 30-50 chunks) has been timed; image raised from 120 s to 300 s in v1.22: `bytedance/seedream/v5/pro/edit` took 84 to 233 s (127 s on average, 8 scenes) and 125 s in the real-adapter check (JOS-230); **image request ceiling 600 s (JOS-239):** the image limit counts from when the provider starts the request (time in the provider's queue does not count), and a request still running at twice the limit is cancelled and the scene fails with no retry in that cycle; **clip wait ceiling 2400 s (JOS-204):** twice the video limit, counted from the moment the clip task was sent. A clip past its 1200 s limit keeps its one provider task (which the provider keeps running and billing) instead of being resent; at the ceiling the scene fails as not retryable and can be retried by hand. Provisional like the limit: the 14 s clips measured 661-730 s on 2026-10-14, well inside it |
+| Image queue start window | 1800 s per request | Sent with each image request: how long it may wait in the provider's queue before the provider starts it; a request that never started is dropped and not billed. Fixed in the application (JOS-239) |
 | Automatic-retry delay | Base 2 s, cap 30 s | Exponential: `min(2 s × 2^(attempt−1), 30 s)` between attempts of a cycle; a provider's Retry-After is never undercut. Accepted by the product owner (JOS-203 B5) |
-| Maximum simultaneous requests per stage | Reasoning 50, Image 200 (provisional), Voice 3, Alignment 2, Video 3 (`limit-provider-requests-per-stage`, JOS-167) | Voice and alignment add up to the 5 concurrent requests ElevenLabs documents for the Creator tier; that value is documented, not measured. Video 3 is the highest concurrency measured with no slowdown (JOS-165, step 8.2) |
+| Maximum simultaneous requests per stage | Reasoning 50, Image 6, Voice 4, Alignment 2, Video 4 (`limit-provider-requests-per-stage`, JOS-167; raised by `probe-provider-request-caps`, JOS-188; image set by `follow-fal-image-queue`, JOS-239) | Image: the fal.ai account allows 20 concurrent requests (dashboard, 2026-10-30), and a run of 49 scenes at the former cap of 200 got 29 refusals (HTTP 429), then timeouts, while the provider billed the requests the application had abandoned (about 72% of that run's image spend); 6 is the product owner's safe value, well under 20, which the reference model and the connection test share. Voice: ElevenLabs refuses the 6th simultaneous call (limit 5, measured on the Creator tier), so 4 leaves one slot for another use of the same key. Alignment draws on a separate pool from voice (10 simultaneous calls succeeded) and keeps 2. Video 4: 4 and 6 simultaneous 5 s 2K RunningHub jobs showed no queueing, error or slowdown, so 6 is the highest level tested. One afternoon, on a `SHARED` RunningHub account |
 
 **Not-retryable failure signal**: tested against all four provider-calling stages with disallowed instructional content — **none produced a distinguishable rejection** (`docs/adr/0005-provider-selection.md`, Decision 5). **Resolved at the entry point by JOS-187**: the script is checked by OpenAI's moderation endpoint before a session exists. Moderation model `omni-moderation-2024-09-26`, maximum time 10 seconds (measured 0.12–2.2 s). The downstream stages still have no content signal, and corrected `IMAGE`/`VIDEO` instructions (§10.3) remain unmoderated.
 
@@ -346,9 +358,13 @@ The first release has three reports:
 2. **Failures and retries**, per stage: failed attempts by outcome, retry budgets exhausted, manual retries, the most frequent failure wordings of the session-level stages, and the scenes that are failed now by stage.
 3. **Sessions**: one row per session created in the period (title, created, state, scenes, failed scenes, attempts, time to the voice-over and to the final video) with a drill-down to its scenes (providers, attempts, requested duration, speed factor and warnings).
 
-A later release adds an **estimated cost** (billed units times a price per unit that the Administrator enters on each provider; every amount is an estimate, and a provider with no price is shown as unpriced, never as zero), **pipeline time** (elapsed time per phase and time-limit hits) and **provider changes** (when the active provider changed or a failed stage was moved). Each of these needs the application to record something it does not record today.
+A later release adds **pipeline time** (elapsed time per phase and time-limit hits) and **provider changes** (when the active provider changed or a failed stage was moved): built, see below. The estimated cost and the pipeline time need the application to record something it does not record today.
+
+**Estimated cost (JOS-227).** A fourth report, from the same attempts as provider usage so that the billed units in both always agree. Per stage and provider it shows the billed units (those of the successful attempts), the failed units (those of the failed attempts, shown and never priced), the provider's price per unit and currency, and the **estimated cost** = billed units times the price per unit. A provider with no price is shown as **unpriced**: it has no amount and adds nothing to any total, and zero is a price, not unpriced. Totals are given per currency and are never added across currencies; a total says it leaves out unpriced providers when the period has one. The price used is the provider's current price (the application keeps no price history), so a price edited later changes the estimate of earlier periods. Every amount is labelled an estimate and shown with its currency. The Sessions report gains the estimated cost of each session, per currency, over all its attempts, with a note when a successful attempt ran on an unpriced provider. The report contains no key, script, prompt, instruction, narration text or failure text. It is an estimate of what the vendors bill for the attempts the application recorded; it is not an invoice, converts no currency, and does not include the Administrator's own taxes or plan discounts.
 
 **Price per unit (JOS-226).** Each provider profile accepts an optional **price per unit** (a number zero or greater) and a **currency** (a three-letter ISO 4217 code), both or neither, entered only on `/admin` (the settings files do not take it). The unit is the stage's billed unit: voice character (voice), audio second (alignment), request (reasoning), image (image), clip second (video). A profile with neither is *unpriced*; a price of zero is a price (a free provider), not unpriced. The price is never sent to the provider and never makes a profile unusable; the estimated cost report is its only reader.
+
+**Provider changes (JOS-229).** From this version on the application writes one entry to an append-only log, in the same transaction as the change, whenever the Administrator saves a different active provider for a stage or moves a failed stage to the active provider. An entry holds the instant, the kind, the stage, the session and scene of a move, and the previous and new provider with their display names as the Administrator saw them, so a later rename or deletion does not alter it. Saving the provider that is already active, and any refused request, log nothing; changes made before this version were not recorded and cannot be recovered. The report lists the entries of the period (the instant the change was made), newest first: when, what (active provider changed or failed stage moved), stage, session title and scene number (blank for an active-provider change), from and to. It shows no other text of the User. Editing a provider's profile, parameters or key is not a provider change.
 
 Until the provider is recorded on each scene attempt, the per-provider figures of the image and video stages attribute an attempt to the provider its scene is bound to now; after a provider move, earlier failed attempts are counted for the provider the scene was moved to. The reports say so.
 
@@ -433,6 +449,8 @@ The application accepts requests only from its own interface on the same compute
 | AC21 | La interfaz muestra, por fase y por escena, el estado vigente, los resultados disponibles, los errores y las acciones aplicables, y refleja el avance durante el procesamiento. |
 | AC22 | Una sesión consultada por su identificador muestra únicamente sus propios chunks, archivos y resultados. |
 | AC23 | Each scene records the requested duration and the applied speed factor, and shows them in its scene details. |
+| AC24 | The User can rebuild a generated scene, optionally editing its `IMAGE` and `VIDEO`; only that scene's image and clip are generated again, with its bound providers, nothing already produced is overwritten, and the final video is rebuilt automatically from the updated scene. |
+| AC25 | The final video shows the script as one-line subtitles of at most 32 characters, with the word being narrated highlighted, in every assembly; the subtitles follow the User's pause edits; and an assembly fails, rather than deliver a video without them, when they cannot be built or drawn. |
 
 Los criterios afectados por la sección siguiente deberán completarse al cerrar esas decisiones. AC12 y AC19 reflejan ya la regla adoptada en D11 (silencios asignados a la escena anterior).
 
@@ -486,6 +504,104 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
+
+### From version 1.29 to 1.30
+
+Origin: `follow-fal-image-queue` (JOS-239), 2026-10-30. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §10.1: an image request is sent once to the provider's queue and followed until it ends; the image limit counts from when the provider starts it, a request past the limit keeps being followed until twice the limit, automatic image retries wait the retry delay (and a provider's `Retry-After`). | JOS-239 |
+| §10.1: a failed image that a retry can fix is retried once more, automatically, when the session's scene work is idle; the session is shown as failed only after that. | JOS-239 |
+| §11.3: the image cap is 6 (was 200), the image queue start window is 1800 s, and the image maximum time counts from when the provider starts the request. | JOS-239 |
+
+### From version 1.28 to 1.29
+
+Origin: `probe-provider-request-caps` (JOS-188), 2026-10-29. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §11.3: the maximum simultaneous requests are voice 4 (was 3), alignment 2 and video 4 (was 3). The note no longer says that voice and alignment add up to ElevenLabs' limit of 5: the probe measured the limit at 5 for voice and found alignment on a separate pool. | JOS-188 |
+
+### From version 1.27 to 1.28
+
+Origin: `report-estimated-cost` (JOS-227), 2026-10-27. **Approved by the product owner, 2026-10-27.**
+
+| Change | Origin |
+|---|---|
+| §11.4: the estimated-cost report (catalogue R2) moves from "a later release" into scope as specified above: per stage and provider, per-currency totals, unpriced providers shown as unpriced, failed units shown and not priced, and a cost per session in the Sessions report. §2.3 already sends the reports to the version that builds them and needs no change. | JOS-227 |
+### From version 1.26 to 1.27
+
+Origin: `add-burned-in-subtitles` (JOS-237), 2026-10-28. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §7.3: the final video shows the script as burned-in subtitles. One line of at most 32 characters, Montserrat Bold 48 px, white with a dark outline; the word being narrated is `#FFCDD0`. The times come from the stored narration timestamps and move with the pause edits. An assembly that cannot build or draw them fails as not retryable. No sidecar file, no on/off choice. | JOS-237 |
+| AC25 added. | JOS-237 |
+
+### From version 1.25 to 1.26
+
+Origin: `show-script-word-count` (JOS-236), 2026-10-28. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §4.1: the start form shows the script's word count and an estimated video duration (150 words per minute, `~m:ss`), updated while the User types. It is informational only: it does not block or change the submission and adds no word limit. | JOS-236 |
+
+### From version 1.24 to 1.25
+
+Origin: `rebuild-scene` (JOS-235), 2026-10-28. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §10.3: new row. A defect the User sees in a generated scene is a failure the system did not detect, and is recovered by rebuilding the scene: its image and clip are generated again, optionally with `IMAGE` and/or `VIDEO` corrected, on the scene's bound providers, in any session with generated scenes except while the final video is being assembled. The final video is rebuilt automatically from the updated scene and the unchanged others. The narration interval, requested duration and speed factor stay locked. | JOS-235, product owner's decisions 2026-10-28 |
+| §2.3: the exclusion of regenerating successful results for aesthetic preference is kept; it now says that a defect the User sees is not a preference. | JOS-235 |
+| §11.2: "completed results are never regenerated" now excepts the scene the User rebuilds. | JOS-235 |
+| AC24 added. | JOS-235 |
+
+### From version 1.23 to 1.24
+
+Origin: `keep-clip-task-on-timeout` (JOS-204), 2026-10-27. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §10.1: a clip request that passes its phase limit while the provider still runs it is no longer failed and resent; the same provider task keeps being followed, so one scene costs one provider task. On 2026-10-14 the 14 s clips timed out on 8 of 8 uncut attempts and every timed-out attempt had already been billed. | JOS-204 (from JOS-197 task 9.3) |
+| §11.3: new clip wait ceiling of 2400 s (twice the video limit), counted from the original send and across restarts. At the ceiling the scene fails as not retryable and no task is sent automatically; the User can retry it by hand. | JOS-204, product owner's decision 2026-10-27 |
+
+### From version 1.22 to 1.23
+
+Origin: `record-provider-changes` (JOS-229), 2026-10-27. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §11.4: provider changes move from "a later release" to built. The application records every change of an active provider and every move of a failed stage from this version on, and the Reports section lists them. Earlier changes were not recorded. | JOS-229 |
+
+### From version 1.21 to 1.22
+
+Origin: `switch-reference-image-model` (JOS-230), 2026-10-26. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §3, §11.3, §11.5: the model that receives the `/admin` reference image changes from `fal-ai/flux-2/edit` to `bytedance/seedream/v5/pro/edit`. The first full run (53 scenes) showed garbled text in diagrams, a drifting style and a missing character with the previous model; six models were compared on eight of the worst scenes (`openspec/changes/switch-reference-image-model/reports/2026-10-26-model-comparison.md`) and this one gave clean text and a consistent style at 1920x1088 for $0.0675 per image. Requests without a reference still use `fal-ai/flux/dev`. | Product owner, JOS-230 |
+| §11.3: the image stage's maximum time rises from 120 s to 300 s. The new model took 84 to 233 s (127 s on average) and 125 s in the real-adapter check, so 120 s would cut off most requests. Chosen by the product owner on 2026-10-26 over a second limit for reference requests only; it applies to every image request. | Product owner, JOS-230 |
+
+### From version 1.20 to 1.21
+
+Origin: `test-provider-connection` (JOS-220), 2026-10-26. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §2.1, §11.2: the Administrator can test a saved provider's connection on `/admin`: one request to the vendor, one outcome in words, what it covered, and a cost notice with confirmation for any charged check (none ships today). Checked against the real vendors on 2026-10-26: OpenAI model lookup, ElevenLabs voice and model lookups, Fal.ai model lookup and RunningHub account status are free. | Story JOS-220 |
+| §11.2: a test writes nothing and is not counted in the usage, cost or failure reports. Testing unsaved form values and marking a provider as verified are left out. | Story JOS-220 |
+
+### From version 1.19 to 1.20
+
+Origin: `show-video-request-status` (JOS-200), 2026-10-26. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §3: the scene details of a clip that is generating show the request sent, its send time, the elapsed time, an estimated arrival (from earlier clips of the same provider, or "no estimate yet") and the request body as sent, without provider addresses, identifiers or credentials. | Product owner, JOS-200 |
+| §3: the clip line (provider and attempts) counts the attempt in flight as soon as the request is sent, instead of only after it ends. | JOS-166 requirement, met by JOS-200 |
+| §3 (versioning): the title line "Versión" is brought to the current version (it still read 1.18 since v1.19). | JOS-200 |
 
 ### From version 1.18 to 1.19
 

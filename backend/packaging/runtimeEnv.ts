@@ -29,6 +29,8 @@ export interface RuntimeEnvironment {
   SETTINGS_PATH: string;
   PROVIDER_KEY_PATH: string;
   SETTINGS_DEFAULTS_PATH: string;
+  /** The subtitle font, written from the executable to the data folder at every start (JOS-237). */
+  SUBTITLE_FONT_PATH: string;
   FFMPEG_PATH: string;
   FFPROBE_PATH: string;
 }
@@ -44,6 +46,7 @@ export function buildRuntimeEnvironment(options: { dataDir: string; binDir: stri
     SETTINGS_PATH: join(dataDir, "settings.json"),
     PROVIDER_KEY_PATH: join(dataDir, "provider-keys.key"),
     SETTINGS_DEFAULTS_PATH: join(dataDir, "runtime", "settings.default.json"),
+    SUBTITLE_FONT_PATH: join(dataDir, "runtime", "Montserrat-Bold.ttf"),
     FFMPEG_PATH: join(binDir, `ffmpeg${exe}`),
     FFPROBE_PATH: join(binDir, `ffprobe${exe}`),
   };

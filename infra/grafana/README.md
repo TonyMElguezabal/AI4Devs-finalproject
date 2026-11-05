@@ -27,6 +27,7 @@ In Grafana: **Dashboard settings → Variables**, edit `price_clip_second`, `pri
 ## Metric and label names the queries rely on
 
 - Metrics: `vid4you_provider_calls_total{stage,provider,outcome}`, `vid4you_provider_call_duration_ms_{bucket,sum,count}`, `vid4you_billed_units_total{stage,provider,unit}`, `vid4you_app_starts_total`, `vid4you_sessions_started_total`, `vid4you_final_videos_total`.
+- `provider` is one fixed name per vendor, never a model, an endpoint or an id (`report-stable-provider-name`, JOS-213): `OpenAI` (decomposition), `ElevenLabs` (voice-over and timestamps, apart by `stage`), `Fal.ai` (image), `RunningHub` (video), plus `local` (final video assembly, which calls no provider), `stub` (the offline stub providers) and `unknown` (an identifier nothing maps). Series recorded before this change keep their old values until Grafana's retention removes them; the panels group by `provider` and filter on no value, so a re-import needs no edit.
 - Resource attributes appear as `job` (`service.name`), `instance` (`service.instance.id`), `deployment_environment`, and, through the `target_info` metric, `service_version`.
 - Error records are logs with `service_name="vid4you"` and `detected_level="error"`; `stage`, `provider`, `error_code` and `service_version` are structured metadata.
 

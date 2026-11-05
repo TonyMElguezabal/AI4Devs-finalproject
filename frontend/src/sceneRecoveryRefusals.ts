@@ -3,6 +3,9 @@
 const SCENE_RECOVERY_REFUSAL_SENTENCES: Record<string, string> = {
   "unknown-scene": "This scene could not be found.",
   "not-failed": "This scene is not currently failed.",
+  // rebuild-scene (JOS-235)
+  "scene-not-ready": "This scene is being generated right now. Try again when it finishes.",
+  "assembly-in-progress": "The final video is being built. Try again when it finishes.",
 };
 
 export function sceneRecoveryRefusalSentence(reason: string): string {

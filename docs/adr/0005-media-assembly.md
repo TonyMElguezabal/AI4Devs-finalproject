@@ -86,6 +86,18 @@ Swept a clean `testsrc` source (already at the 1920×1080@30fps target, no norma
 
 **Fixture limitation, stated honestly**: `testsrc`'s content is a continuously-driven synthetic pattern with no discrete real-world motion or motion blur. It is well-suited to objectively measuring frame duplication but may understate perceptual speed-up artefacts (strobing, choppy panning) that real footage with genuine discrete motion could show. This recommendation should be revisited once real provider footage (US-33) is available.
 
+## Decision 6 — Subtitles are burned into the final re-encode (add-burned-in-subtitles, JOS-237)
+
+The product owner asked for the narration as subtitles on every scene (one line of at most 32 characters, Montserrat Bold 48 px, white with a dark outline, the narrated word in `#FFCDD0`). They are drawn by the `subtitles` filter (libass) on the concatenated video, in the **same** `libx264` re-encode that already exists, so there is no extra pass and Decision 4b is untouched: with no pause edits the voice-over is still copied with `-c:a copy`.
+
+- **Source of the text and times.** The script, and the stored per-character narration timestamps (`narration-timestamps.json`); no speech recognition and no provider call. `backend/src/subtitles.ts` builds the lines and moves every time with the same `NarrationEdit[]` as the audio filter, so the two cannot disagree after a pause edit.
+- **The highlight** is one ASS `Dialogue` event per word state (the whole line with only the active word in `#FFCDD0`). The built-in `\k` karaoke tags fill words in and leave them coloured, so they are not used.
+- **No path escaping.** The adapter writes `subtitles.ass` and a copy of the bundled font into its temporary folder and runs ffmpeg with that folder as the working directory: the filter reads `subtitles=subtitles.ass:fontsdir=fonts`, plain relative paths, so there is no filtergraph quoting problem on Windows or with odd project paths.
+- **Size is measured, not assumed.** ASS `Fontsize` is not a CSS pixel size: `48` drew capitals 21 px tall, while a CSS `48px` Montserrat has 33.6 px capitals. `Fontsize: 75` renders about 33.4 px (measured on rendered frames), and a real-ffmpeg test asserts 32-35 px.
+- **Never silently without subtitles.** When the orchestrator cannot build the cues it passes `null`; the adapter fails the attempt as not retryable ("the subtitles could not be built"), and it does the same when ffmpeg has no `subtitles` filter or the font is missing. The causes never contain the script. A machine whose ffmpeg lacks libass (the local Homebrew build did) logs a warning at start-up.
+- **Escaping.** `{`, `}` and `\` in the script are escaped, so a script cannot restyle or hide its own subtitles (verified by rendering `a{b}` and `x\Ny`).
+- **Evidence.** `openspec/changes/add-burned-in-subtitles/reports/` (libass gate on the three pinned builds, packaged smoke run, curl and browser checks with frames).
+
 ## Design open questions, answered
 
 1. **Is ±1 frame the right tolerance?** Yes — see Decision 4's precise justification (it is the exact cost of the only technique that bounds cumulative drift).

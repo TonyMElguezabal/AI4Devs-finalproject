@@ -7,6 +7,7 @@ import { continueSession, pauseSession, resetVideoStageStartDelayMs, setVideoSta
 import { createDecompositionFailure } from "../src/sessionStateMachine.ts";
 import { narratedSession, NARRATED_SCRIPT } from "./narratedSession.ts";
 import { installStubDecompositionDependencies, removeStubDecompositionDependencies, type StubDecompositionCalls } from "./decompositionStubs.ts";
+import { heldImageProvider } from "./imageProviderFixtures.ts";
 
 // run-session-end-to-end (JOS-195), design Decisions 1-2 — the decomposition launcher gains the "waiting after the
 // narration" term, so the gate's pause, continue and held-work reporting cover the first start too.
@@ -21,7 +22,7 @@ beforeEach(() => {
   resetImageProviderRegistry();
   setImageProviderRegistry({
     defaultIdentifier: "held-image-adapter",
-    adapters: { "held-image-adapter": { generate: () => new Promise(() => {}) } },
+    adapters: { "held-image-adapter": heldImageProvider() },
   });
   stubs = installStubDecompositionDependencies();
 });

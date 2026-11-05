@@ -15,6 +15,9 @@ import {
   FINAL_OUTPUT,
   MAX_SIMULTANEOUS_REQUESTS,
   PER_PHASE_MAX_TIME_SECONDS,
+  imageTaskCeilingMs,
+  IMAGE_QUEUE_START_WINDOW_SECONDS,
+  videoTaskCeilingMs,
   SPEED_FACTOR_LIMIT,
   MAX_ATTEMPTS_PER_CYCLE,
   RETRY_DELAY_SECONDS,
@@ -86,16 +89,23 @@ describe("Per-stage request maximum stays within the recorded rate limit under t
     expect((cap) * RETRY_BUDGET_ATTEMPTS).toBeLessThan(500);
   });
 
-  it("image (Fal.ai): 2000 measured limit", () => {
+  it("image (Fal.ai): 6, below the account's 20 concurrent requests (JOS-239)", () => {
     const cap = MAX_SIMULTANEOUS_REQUESTS.image;
-    expect(typeof cap).toBe("number");
-    expect((cap) * RETRY_BUDGET_ATTEMPTS).toBeLessThan(2000);
+    expect(cap).toBe(6);
+    expect(cap).toBeLessThan(20);
   });
 
-  it("voice, alignment and video are numbers, decided by the product owner (JOS-167)", () => {
-    expect(MAX_SIMULTANEOUS_REQUESTS.voice).toBe(3);
+  it("voice, alignment and video are numbers, decided by the product owner (JOS-167, raised by JOS-188)", () => {
+    expect(MAX_SIMULTANEOUS_REQUESTS.voice).toBe(4);
     expect(MAX_SIMULTANEOUS_REQUESTS.alignment).toBe(2);
-    expect(MAX_SIMULTANEOUS_REQUESTS.video).toBe(3);
+    expect(MAX_SIMULTANEOUS_REQUESTS.video).toBe(4);
+  });
+
+  // JOS-188 probe: ElevenLabs refused the 6th simultaneous voice call (limit 5, alignment uses a separate pool);
+  // RunningHub showed no queueing, error or slowdown with 6 simultaneous 5 s 2K jobs.
+  it("voice stays within the ElevenLabs limit and video within the RunningHub concurrency measured by JOS-188", () => {
+    expect(MAX_SIMULTANEOUS_REQUESTS.voice).toBeLessThanOrEqual(5);
+    expect(MAX_SIMULTANEOUS_REQUESTS.video).toBeLessThanOrEqual(6);
   });
 });
 
@@ -117,6 +127,40 @@ describe("Per-phase maximum times are set above the measured slow tail (Decision
     // Clips of 14 s timed out at 607-610 s three times each on 2026-10-14 (a real 11-scene run, JOS-197); 7-13 s clips took 394-546 s.
     // The longest admitted clip is 15 s, so the limit must clear the longest observed time with room.
     expect(PER_PHASE_MAX_TIME_SECONDS.video).toBeGreaterThan(610 * 1.5);
+  });
+
+  // keep-clip-task-on-timeout (JOS-204), design Decision 2 — a clip past its limit keeps its one provider task until twice the limit.
+  it("gives a clip that is past its limit twice the limit before it fails", () => {
+    expect(videoTaskCeilingMs()).toBe(2 * (PER_PHASE_MAX_TIME_SECONDS.video as number) * 1000);
+    expect(videoTaskCeilingMs()).toBe(2_400_000);
+  });
+
+  it("equals the clip wait ceiling recorded in PRD §11.3", () => {
+    const prd = readFileSync(resolve(import.meta.dirname, "../../docs/PRD.md"), "utf8");
+    const row = prd.split("\n").find((line) => line.startsWith("| Per-phase maximum times"));
+    const match = row?.match(/Clip wait ceiling (\d+)s/);
+
+    expect(match, "the §11.3 row does not record the clip wait ceiling").not.toBeNull();
+    expect(Number(match![1]) * 1000).toBe(videoTaskCeilingMs());
+  });
+
+  // follow-fal-image-queue (JOS-239) — the image request ceiling and the queue start window are recorded in PRD §11.3.
+  it("the image request ceiling recorded in PRD §11.3 is twice the image limit", () => {
+    const prd = readFileSync(resolve(import.meta.dirname, "../../docs/PRD.md"), "utf8");
+    const row = prd.split("\n").find((line) => line.startsWith("| Per-phase maximum times"));
+    const match = row?.match(/image request ceiling (\d+) s/);
+
+    expect(match, "the §11.3 row does not record the image request ceiling").not.toBeNull();
+    expect(Number(match![1]) * 1000).toBe(imageTaskCeilingMs());
+  });
+
+  it("the image queue start window recorded in PRD §11.3 is the one the adapter sends", () => {
+    const prd = readFileSync(resolve(import.meta.dirname, "../../docs/PRD.md"), "utf8");
+    const row = prd.split("\n").find((line) => line.startsWith("| Image queue start window"));
+    const match = row?.match(/\| (\d+) s per request/);
+
+    expect(match, "the §11.3 row for the image queue start window was not found").not.toBeNull();
+    expect(Number(match![1])).toBe(IMAGE_QUEUE_START_WINDOW_SECONDS);
   });
 
   it("assembly is explicitly undetermined pending define-media-assembly (JOS-182)", () => {

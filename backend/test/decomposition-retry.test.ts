@@ -12,6 +12,7 @@ import { NOT_YET_LAUNCHABLE } from "../src/launchGate.ts";
 import { createVoiceOverFailure } from "../src/sessionStateMachine.ts";
 import type { SessionSnapshot, StageAttempt } from "../src/types.ts";
 import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
+import { heldImageProvider } from "./imageProviderFixtures.ts";
 
 // retry-decomposition (JOS-156), group 3 — design Decisions 2 and 7: the order
 // of the refusals, that a refusal calls no provider, that two back-to-back
@@ -31,7 +32,7 @@ beforeEach(() => {
   setVideoStageStartDelayMs(9_999_999);
   setImageProviderRegistry({
     defaultIdentifier: "held-image-adapter",
-    adapters: { "held-image-adapter": { generate: () => new Promise(() => {}) } },
+    adapters: { "held-image-adapter": heldImageProvider() },
   });
   providerCalls.align = 0;
   providerCalls.generate = 0;

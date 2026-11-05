@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import { recordProductEvent, setConsent } from "./telemetry/index.ts";
 import { getUpdateResult } from "./telemetry/updateCheck.ts";
+import { BUILD } from "./config/build.ts";
 import { z } from "zod";
 import { jsonSchemaTransform, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
@@ -13,6 +14,7 @@ import { appSettingsResponseSchema, visualStylePromptBodySchema } from "./adminS
 import { retryAssembly } from "./assemblyRetry.ts";
 import { retryVoiceOver } from "./voiceOverRetry.ts";
 import { rebuildFinalVideo } from "./finalVideoRebuild.ts";
+import { rebuildScene } from "./sceneRebuild.ts";
 import { setScenePause } from "./scenePauseEdit.ts";
 import { randomUUID } from "node:crypto";
 import {
@@ -119,6 +121,9 @@ const providerCallbackParamsSchema = z.object({ requestId: z.string().uuid() });
 // follows the same "an operation that accepts a body ignores locked fields" convention every other
 // chunk-mutating route in this project uses (consult-session AC1) — an extra field in the body is read nowhere
 // and so changes nothing, the same guarantee `.strict()` would give, without breaking that shared convention.
+// rebuild-scene (JOS-235) — an omitted instruction keeps the stored one; a present one must not be empty.
+const instructionSchema = z.string().transform((value) => value.trim()).pipe(z.string().min(1));
+const rebuildSceneBodySchema = z.object({ imageInstruction: instructionSchema.optional(), videoInstruction: instructionSchema.optional() });
 const correctBodySchema = z.object({ instruction: z.string().transform((value) => value.trim()).pipe(z.string().min(1)) });
 
 // see-provider-and-attempts (JOS-166) Decision 4 — the closed list of what a stage diagnostic may carry. `.strict()` makes
@@ -128,6 +133,24 @@ const stageDiagnosticSchema = z
     stage: z.enum(["image", "video", "voice-over", "timestamps", "instructions", "assembly"]),
     provider: z.object({ name: z.string(), model: z.string().nullable() }).strict(),
     attempts: z.number().int().min(1).describe("Attempts recorded for this stage across every retry cycle, including one still in flight."),
+  })
+  .strict();
+
+// show-video-request-status (JOS-200) Decision 6 — the clip request in flight: a closed list at every level, so nothing the adapter sent beyond the allow-list reaches the page.
+const videoRequestSchema = z
+  .object({
+    provider: z.object({ name: z.string(), model: z.string().nullable() }).strict(),
+    attempt: z.number().int().min(1),
+    sentAt: z.string().describe("ISO 8601 instant the request was sent."),
+    estimate: z
+      .object({ seconds: z.number(), basedOn: z.number().int().min(1) })
+      .strict()
+      .nullable()
+      .describe("Median generation time of earlier clips of the same provider (and duration when at least 3 exist); null when there are none."),
+    body: z.object({ prompt: z.string(), duration: z.number(), resolution: z.string(), firstFrame: z.string() }).strict(),
+    taskId: z.string().describe("JOS-233: the provider's task id of the current attempt."),
+    lastCheckedAt: z.string().nullable().describe("JOS-233: the last 'still running' answer this application received for the task; null until the first one since it started."),
+    waitEndsAt: z.string().nullable().describe("JOS-233: when the clip wait ceiling fails the scene if the task is unfinished; null when the video stage has no time limit."),
   })
   .strict();
 
@@ -143,6 +166,7 @@ const sceneResponseSchema = z.object({
     .object({ image: stageDiagnosticSchema.optional(), video: stageDiagnosticSchema.optional() })
     .strict()
     .describe("PRD §3: which provider each stage used and how many attempts it made. A key is present once that stage has at least one attempt. Derived from the stored attempt records, never stored."),
+  videoRequest: videoRequestSchema.optional().describe("JOS-200: present only while the scene's clip request has been sent and is in flight. Derived from the stored request; absent once the clip is complete or the scene failed."),
   result: z.object({ imageUrl: z.string().optional(), videoUrl: z.string().optional() }).optional(),
   downloads: z
     .object({ imageUrl: z.string().optional(), clipUrl: z.string().optional() })
@@ -274,6 +298,7 @@ const sessionResponseSchema = z.object({
     .object({
       version: z.number().int().min(1).describe("1 for the original final-video.mp4; 2 onwards for each rebuild. finalVideoUrl always serves this version."),
       pendingPauseEdits: z.boolean().describe("True when the User's pause edits differ from those this version was built with, so a rebuild would change it."),
+      staleScenes: z.boolean().describe("True when a scene was rebuilt after this version was built, so a rebuild would change it (rebuild-scene, JOS-235)."),
       rebuildFailure: z
         .object({ cause: z.string() })
         .optional()
@@ -303,6 +328,8 @@ const appUpdateResponseSchema = z.union([
   z.object({ available: z.literal(false) }),
   z.object({ available: z.literal(true), tag: z.string(), url: z.string() }),
 ]);
+// show-app-version (JOS-238), design Decision 3 — the schema drops any other field, so the release tag and endpoints cannot leak.
+const appVersionResponseSchema = z.object({ version: z.string(), channel: z.enum(["development", "uat", "production"]) });
 const emptyBodySchema = z.object({}).strict().nullish();
 // adjust-scene-pause (JOS-190) — a number only; whether it is on the 0.1 s grid and inside the scene's range depends on
 // the scene, so it is answered 422 with a sentence by the handler rather than rejected by the schema.
@@ -349,6 +376,9 @@ export const routes: FastifyPluginAsync = async (app) => {
   );
 
   typed.get("/app/update", { schema: { response: { 200: appUpdateResponseSchema } } }, async () => getUpdateResult());
+
+  // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract
+  typed.get("/app/version", { schema: { response: { 200: appVersionResponseSchema } } }, async () => ({ version: BUILD.version, channel: BUILD.channel }));
 
   // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
   typed.get("/languages", { schema: { response: { 200: languageResponseSchema } } }, async () => [
@@ -607,6 +637,28 @@ export const routes: FastifyPluginAsync = async (app) => {
         return { ok: false, reason: result.reason };
       }
       return { ok: true };
+    },
+  );
+
+  // rebuild-scene (JOS-235) — the User rebuilds a generated scene (image, then clip) with optionally edited instructions;
+  // 202: the work happens after the answer, like every generation.
+  typed.post(
+    "/sessions/:sessionId/scenes/:sceneId/rebuild",
+    {
+      schema: {
+        params: sceneParamsSchema,
+        body: rebuildSceneBodySchema,
+        response: { 202: retryAcceptedSchema, 404: conflictSchema, 409: conflictSchema },
+      },
+    },
+    async (request, reply) => {
+      const result = rebuildScene(request.params.sessionId, request.params.sceneId, request.body);
+      if (result.ok) {
+        reply.code(202);
+        return result;
+      }
+      reply.code(result.reason === "unknown-scene" ? 404 : 409);
+      return { ok: false, reason: result.reason };
     },
   );
 

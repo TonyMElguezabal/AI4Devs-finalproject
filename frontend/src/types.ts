@@ -79,6 +79,8 @@ export interface FinalVideoStatus {
   version: number;
   /** True when the User's pause edits differ from those the current version was built with. */
   pendingPauseEdits: boolean;
+  /** rebuild-scene (JOS-235) — true when a scene was rebuilt after this version was built. */
+  staleScenes: boolean;
   /** Present only while the latest rebuild attempt ended in failure; the current version is kept. */
   rebuildFailure?: { cause: string };
 }
@@ -93,6 +95,24 @@ export interface ScenePauseView {
   limitedBySpeedFactor: boolean;
 }
 
+/** show-video-request-status (JOS-200) — the clip request of a scene whose clip is generating; absent otherwise. */
+export interface VideoRequestView {
+  provider: { name: string; model: string | null };
+  attempt: number;
+  /** ISO 8601 instant the request was sent. */
+  sentAt: string;
+  /** Median generation time of earlier clips of the same provider; null when there are none to base it on. */
+  estimate: { seconds: number; basedOn: number } | null;
+  /** What was sent, reduced to the prompt, duration and resolution; the first frame is named, never a URL. */
+  body: { prompt: string; duration: number; resolution: string; firstFrame: string };
+  /** JOS-233 — the provider's task id of the current attempt. */
+  taskId: string;
+  /** JOS-233 — the last "still running" answer the application received for the task; null until the first one since it started. */
+  lastCheckedAt: string | null;
+  /** JOS-233 — when the clip wait ceiling fails the scene if the task is unfinished; null when the video stage has no time limit. */
+  waitEndsAt: string | null;
+}
+
 export interface SceneEventPayload {
   type: "scene";
   sessionId: string;
@@ -103,6 +123,8 @@ export interface SceneEventPayload {
   errorCause?: string | null;
   /** JOS-166 — per stage; a key is present once that stage has at least one attempt. */
   stages: { image?: StageDiagnostic; video?: StageDiagnostic };
+  /** JOS-200 — present only while the scene's clip request has been sent and is in flight. */
+  videoRequest?: VideoRequestView;
   result?: { imageUrl?: string; videoUrl?: string };
   /** download-scene-results (JOS-163) — present only for the files that actually exist; render a download link for exactly these, never derived from `state`. */
   downloads?: { imageUrl?: string; clipUrl?: string };
@@ -152,6 +174,12 @@ export interface TelemetryConsent extends TelemetryChoices {
 /** `GET /app/update`: a newer build exists on this build's channel. */
 export type AppUpdate = { available: false } | { available: true; tag: string; url: string };
 
+/** show-app-version (JOS-238) — `GET /app/version`: the running build, shown in the top bar. */
+export interface AppVersion {
+  version: string;
+  channel: "development" | "uat" | "production";
+}
+
 /** change-active-provider-from-admin (JOS-171) — one stage's row on `/admin`: `GET /admin/providers`. */
 export type ProviderStage = "reasoning" | "voice" | "alignment" | "image" | "video";
 export interface ProviderView {
@@ -181,6 +209,14 @@ export interface AdapterTypeInfo {
   stage: ProviderStage;
   label: string;
   fields: ParameterFieldInfo[];
+  /** test-provider-connection (JOS-220): whether the vendor charges for the check, and what a pass proves. */
+  connectionCheck: { charged: boolean; covers: string };
+}
+export type ConnectionOutcome = "connected" | "key-rejected" | "not-found" | "unreachable" | "unexpected" | "no-key";
+export interface ConnectionTestResult {
+  outcome: ConnectionOutcome;
+  covers: string;
+  httpStatus?: number;
 }
 export interface ProfileProblem {
   field: string;
@@ -263,9 +299,116 @@ export interface PipelinePhaseRow {
   superseded: number | null;
 }
 
+// report-failures-and-retries (JOS-224): a `null` budget or manual-retry count is "not recorded" (the scene stages keep no cycles).
+export interface FailureStageRow {
+  stage: ProviderStage;
+  transient: number;
+  notRetryable: number;
+  timedOut: number;
+  budgetsExhausted: number | null;
+  manualRetries: number | null;
+}
+
+export interface FailuresReport {
+  from: string | null;
+  to: string;
+  stages: FailureStageRow[];
+  wordings: Array<{ stage: ProviderStage; message: string; attempts: number }>;
+  failedScenesNow: { image: number; video: number };
+}
+
+// report-sessions (JOS-225): no text other than the session title is part of either report.
+export interface SessionReportRow {
+  id: string;
+  title: string;
+  createdAt: string;
+  state: "final-video-ready" | "failed" | "in-progress";
+  failedPhase: "voice-over" | "decomposition" | "assembly" | null;
+  paused: boolean;
+  scenes: number;
+  failedScenes: number;
+  attempts: number;
+  secondsToVoiceOver: number | null;
+  secondsToFinalVideo: number | null;
+  /** report-estimated-cost (JOS-227) — per currency; empty when nothing priced succeeded. */
+  estimatedCost: CurrencyTotal[];
+  excludesUnpricedProvider: boolean;
+}
+
+export interface SessionsReport {
+  from: string | null;
+  to: string;
+  rows: SessionReportRow[];
+}
+
+export interface SceneReportRow {
+  number: number;
+  status: string;
+  imageProvider: string | null;
+  clipProvider: string | null;
+  imageAttempts: number;
+  clipAttempts: number;
+  requestedDurationSeconds: number | null;
+  speedFactor: number | null;
+  durationWarning: string | null;
+  speedFactorWarning: string | null;
+}
+
+export interface SessionScenesReport {
+  sessionId: string;
+  rows: SceneReportRow[];
+}
+
+// record-provider-changes (JOS-229): ids and display names as logged, the session title and the scene number; no other text.
+export interface ProviderChangeRow {
+  changedAt: string;
+  kind: "active-provider" | "failed-stage-move";
+  stage: ProviderStage;
+  sessionId: string | null;
+  sessionTitle: string | null;
+  sceneNumber: number | null;
+  previousProviderId: string;
+  previousProviderLabel: string;
+  newProviderId: string;
+  newProviderLabel: string;
+}
+
+export interface ProviderChangesReport {
+  from: string | null;
+  to: string;
+  entries: ProviderChangeRow[];
+}
+
 export interface PipelineTimeReport {
   from: string | null;
   to: string;
   phases: PipelinePhaseRow[];
   sessions: Array<{ runId: string; title: string; seconds: Record<PipelinePhase, number | null> }>;
+}
+
+// report-estimated-cost (JOS-227), design Decision 3 — `null` price and cost mean unpriced, never zero.
+export interface CurrencyTotal {
+  currency: string;
+  estimatedCost: number;
+}
+
+export interface EstimatedCostRow {
+  stage: ProviderStage;
+  providerId: string;
+  providerLabel: string;
+  unit: string;
+  billedUnits: number;
+  failedUnits: number;
+  pricePerUnit: number | null;
+  currency: string | null;
+  estimatedCost: number | null;
+}
+
+export interface EstimatedCostReport {
+  from: string | null;
+  to: string;
+  sceneAttemptsFollowCurrentProvider: boolean;
+  rows: EstimatedCostRow[];
+  totals: CurrencyTotal[];
+  totalsExcludeUnpriced: boolean;
 }

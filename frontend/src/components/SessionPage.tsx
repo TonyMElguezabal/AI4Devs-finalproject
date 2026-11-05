@@ -1,6 +1,8 @@
 import type { Phase, SessionSnapshot } from "../types";
 import { SessionHeader } from "./SessionHeader";
 import { SceneList } from "./SceneList";
+import type { SceneRebuildHandler } from "./SceneRow";
+import { SceneProgressSummary } from "./SceneProgressSummary";
 import { FinalVideoDownload } from "./FinalVideoDownload";
 import { PhaseSection } from "./PhaseSection";
 import { PhaseStepper } from "./PhaseStepper";
@@ -14,8 +16,8 @@ interface Props {
    * identifier, reported identically. */
   notFound: boolean;
   onStartNew: () => void;
-  onPause: () => void;
-  onContinue: () => void;
+  onPause: () => Promise<unknown>;
+  onContinue: () => Promise<unknown>;
   /** Starts a scene retry; rejects with the refusal reason (retry-or-correct-image, JOS-157). */
   onRetry: (sceneId: string) => Promise<unknown>;
   /** Corrects IMAGE and retries; rejects with the refusal reason. */
@@ -26,6 +28,8 @@ interface Props {
   onSetPause?: (sceneId: string, seconds: number) => Promise<unknown>;
   /** Rebuilds the final video with the stored pause edits (adjust-scene-pause, JOS-190). */
   onRebuildFinalVideo?: () => Promise<unknown>;
+  /** Rebuilds one scene's image and clip (rebuild-scene, JOS-235). */
+  onRebuildScene?: SceneRebuildHandler;
 }
 
 /** "14 Oct, 10:42" in the User's own locale and time zone; the instant stays machine-readable on the element. */
@@ -57,6 +61,7 @@ export function SessionPage({
   onRetryPhase,
   onSetPause,
   onRebuildFinalVideo,
+  onRebuildScene,
 }: Props) {
   if (notFound) {
     return (
@@ -112,6 +117,7 @@ export function SessionPage({
               </span>
             </div>
             <progress aria-label="Scenes done" value={scenesDone} max={scenes.length} />
+            <SceneProgressSummary scenes={scenes} />
           </div>
         )}
         <p className="session-id">
@@ -123,7 +129,7 @@ export function SessionPage({
         {session.phases.map((progress) => (
           <PhaseSection key={progress.phase} progress={progress} onRetry={() => onRetryPhase(progress.phase)}>
             {progress.phase === "scenes" && (
-              <SceneList scenes={scenes} paused={session.paused} onRetry={onRetry} onCorrect={onCorrect} onSetPause={onSetPause} />
+              <SceneList scenes={scenes} paused={session.paused} onRetry={onRetry} onCorrect={onCorrect} onSetPause={onSetPause} onRebuild={onRebuildScene} sessionState={session.state} />
             )}
             {progress.phase === "assembly" && (
               <FinalVideoDownload
@@ -131,7 +137,8 @@ export function SessionPage({
                 finalVideo={session.finalVideo}
                 // A session that already has a final video and is generating one again is rebuilding (JOS-190, Decision 7).
                 rebuilding={session.state === "final-video-generating" && Boolean(session.finalVideoUrl)}
-                onRebuild={onRebuildFinalVideo}
+                // rebuild-scene (JOS-235), Decision 9 — offered only while every scene is complete; the backend refuses it otherwise.
+                onRebuild={scenes.length > 0 && scenes.every((scene) => scene.state === "chunk-complete") ? onRebuildFinalVideo : undefined}
               />
             )}
           </PhaseSection>

@@ -47,6 +47,11 @@ export function setRetryDelayConfig(config: RetryDelayConfig): void {
   configuredDelay = config;
 }
 
+/** follow-fal-image-queue (JOS-239) — the delay the image stage's automatic retries use, the same one the recorded stages use. */
+export function getRetryDelayConfig(): RetryDelayConfig {
+  return configuredDelay;
+}
+
 export function resetRetryDelayConfig(): void {
   configuredDelay = DEFAULT_DELAY;
 }

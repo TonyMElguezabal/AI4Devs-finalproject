@@ -21,6 +21,7 @@ import "../src/voiceOverPhase.ts"; // registers the voice-over timeout handler a
 import "../src/decompositionPhase.ts"; // registers the decomposition launcher
 import type { AttemptStage } from "../src/types.ts";
 import { simulateRestart } from "./restartHelpers.ts";
+import { markImageSweepDone } from "./imageProviderFixtures.ts";
 
 // preserve-progress-across-restarts (JOS-160), spec restart-recovery — "Interrupted requests are awaited or
 // recorded as failed attempts": what a restart does with each attempt left in flight.
@@ -63,6 +64,7 @@ describe("Image requests lost at a restart (3.1)", () => {
     createScene(sceneId, runId, 1, "success", 100, "scene 1");
     bindSceneImageProvider(sceneId, "bound-image-adapter");
     markSceneInFlight(sceneId, "req-1", 1 + RETRY_BUDGET);
+    markImageSweepDone(runId); // the end-of-session sweep (image-sweep.test.ts) would resend the failed scene once
 
     simulateRestart();
 

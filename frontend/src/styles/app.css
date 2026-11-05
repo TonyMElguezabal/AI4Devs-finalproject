@@ -320,6 +320,36 @@ button.toggle[aria-expanded="true"] .icon {
   margin-left: 0;
 }
 
+/* ---------- Version label (show-app-version, JOS-238) ---------- */
+
+.app-version {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
+  user-select: text;
+}
+
+/* Alone with the wordmark (`/admin`), it goes to the right end; after other controls it already is there. */
+.brand + .app-version {
+  margin-left: auto;
+}
+
+/* Up to ~400 px a single line would leave the label a few pixels: it gets its own line (design Decision 4). */
+@media (max-width: 30rem) {
+  .top-bar {
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-2);
+  }
+
+  .app-version {
+    flex-basis: 100%;
+    text-align: right;
+  }
+}
+
 /* ---------- Privacy dialog and update banner (add-observability-telemetry, JOS-199) ---------- */
 
 .top-bar > .privacy-button {
@@ -435,6 +465,11 @@ button.toggle[aria-expanded="true"] .icon {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
+}
+
+.field-hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-muted);
 }
 
 .field label,
@@ -646,6 +681,32 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
+}
+
+/* summarise-scene-progress (JOS-234) — a compact two-column list under the bar; the numbers wrap inside the panel. */
+.scene-progress dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: var(--font-size-xs);
+}
+
+.scene-progress-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.scene-progress-line dt {
+  color: var(--color-muted);
+}
+
+.scene-progress-line dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
 }
 
 .scenes-progress-label {
@@ -898,7 +959,7 @@ progress::-moz-progress-bar {
 
 .scene-details {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
   gap: var(--space-5);
   padding: var(--space-2) var(--space-4) var(--space-5);
   transform-origin: top center;
@@ -1161,4 +1222,26 @@ progress::-moz-progress-bar {
   max-height: 20rem;
   object-fit: contain;
   border-radius: var(--radius-control);
+}
+
+/* show-video-request-status (JOS-200) — the request sent for a clip that is still generating. */
+.video-request {
+  display: grid;
+  gap: var(--space-2, 0.5rem);
+  font-size: var(--font-size-sm);
+}
+
+/* show-clip-task-liveness (JOS-233) — a long provider task id wraps inside the details instead of widening them. */
+.video-request-task-id {
+  overflow-wrap: anywhere;
+}
+
+.video-request-json {
+  margin: 0;
+  padding: 0.75rem;
+  overflow-x: auto;
+  border-radius: 10px;
+  background: var(--color-surface-sunken);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

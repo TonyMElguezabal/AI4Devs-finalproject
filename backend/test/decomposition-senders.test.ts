@@ -14,6 +14,7 @@ import { resetVideoStageStartDelayMs, setVideoStageStartDelayMs } from "../src/o
 import { releaseAttempt } from "../src/retry/retryScheduler.ts";
 import { startNewCycle } from "../src/retry/stageAttemptRecorder.ts";
 import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
+import { heldImageProvider } from "./imageProviderFixtures.ts";
 
 // retry-decomposition (JOS-156), group 2 — design Decision 4: the providers
 // registry, and the attempt senders that run a scheduled `timestamps` or
@@ -31,7 +32,7 @@ beforeEach(() => {
   setVideoStageStartDelayMs(9_999_999);
   setImageProviderRegistry({
     defaultIdentifier: "held-image-adapter",
-    adapters: { "held-image-adapter": { generate: () => new Promise(() => {}) } },
+    adapters: { "held-image-adapter": heldImageProvider() },
   });
 });
 

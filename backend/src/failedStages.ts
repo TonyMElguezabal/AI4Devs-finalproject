@@ -13,6 +13,7 @@ import {
   rebindFailedClip,
   rebindSceneImageProvider,
   rebindSessionStage,
+  recordProviderChange,
   stageInstanceKeyOf,
 } from "./db.ts";
 import { resolveProfileId } from "./keyStore.ts";
@@ -169,6 +170,19 @@ export function moveFailedStage(ref: FailedStageRef): MoveResult {
       if (!rebindFailedClip(scene!.id, bound, active, values)) return refuse("not-failed");
       requestedDurationSeconds = seconds;
     }
+    // record-provider-changes (JOS-229), design Decision 3 — logged in this transaction, after the rebind succeeded.
+    const previous = resolveProfileId(ref.stage, bound);
+    recordProviderChange({
+      changedAt: new Date().toISOString(),
+      kind: "failed-stage-move",
+      stage: ref.stage,
+      runId: ref.sessionId,
+      sceneId: scene?.id ?? null,
+      previousProviderId: previous,
+      previousProviderLabel: labelOf(ref.stage, previous),
+      newProviderId: active,
+      newProviderLabel: labelOf(ref.stage, active),
+    });
     return { ok: true, moved: { sessionId: ref.sessionId, stage: ref.stage, sceneId: scene?.id ?? null, providerId: active, providerLabel: labelOf(ref.stage, active), requestedDurationSeconds } };
   });
   if (moved.ok) broadcast(ref.sessionId);

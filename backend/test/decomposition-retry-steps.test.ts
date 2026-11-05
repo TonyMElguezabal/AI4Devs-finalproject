@@ -22,6 +22,7 @@ import { obtainNarrationTimestamps } from "../src/narrationTimestampsPhase.ts";
 import { resetVideoStageStartDelayMs, setVideoStageStartDelayMs, toSnapshot } from "../src/orchestrator.ts";
 import { createStubVoiceProvider, setVoiceProviderRegistry } from "../src/voiceProvider.ts";
 import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
+import { heldImageProvider } from "./imageProviderFixtures.ts";
 
 // retry-decomposition (JOS-156), group 4 — design Decision 4: each step re-run
 // through the retry, on the stored audio and the locked script, and (AC3) the
@@ -42,7 +43,7 @@ beforeEach(() => {
   setVideoStageStartDelayMs(9_999_999);
   setImageProviderRegistry({
     defaultIdentifier: "held-image-adapter",
-    adapters: { "held-image-adapter": { generate: () => new Promise(() => {}) } },
+    adapters: { "held-image-adapter": heldImageProvider() },
   });
   voiceStub.calls.length = 0;
   setVoiceProviderRegistry({ defaultIdentifier: "stub-voice", adapters: { "stub-voice": voiceStub } });

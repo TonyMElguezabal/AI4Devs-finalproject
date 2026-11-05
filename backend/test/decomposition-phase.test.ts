@@ -18,6 +18,7 @@ import { deriveSessionState, pauseSession, setVideoStageStartDelayMs, resetVideo
 import { registerDecomposition } from "../src/sceneRegistration.ts";
 import type { VisualInstructionGenerator } from "../src/visualInstructions.ts";
 import { writeFileSync } from "node:fs";
+import { heldImageProvider } from "./imageProviderFixtures.ts";
 
 // segment-script-into-chunks (JOS-140), group 5 — design Decisions 5 and 7:
 // segmenting a session's stored timestamps and registering the chunks, a
@@ -53,7 +54,7 @@ beforeEach(() => {
 function holdImageStage(): void {
   setImageProviderRegistry({
     defaultIdentifier: "test-decomposition-held-adapter",
-    adapters: { "test-decomposition-held-adapter": { generate: () => new Promise(() => {}) } },
+    adapters: { "test-decomposition-held-adapter": heldImageProvider() },
   });
 }
 

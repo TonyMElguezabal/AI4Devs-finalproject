@@ -1,8 +1,8 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { assertHostCanBuild, buildTarget, bundleBackend } from "../packaging/build.ts";
+import { assertHostCanBuild, buildTarget, bundleBackend, embeddedAssets, npmInvocation } from "../packaging/build.ts";
 import { TARGETS } from "../packaging/targets.ts";
 
 // package-executables-build (JOS-205), tasks 1.4 and 1.7 — everything here runs without network access.
@@ -59,5 +59,49 @@ describe("macOS targets on another host", () => {
     await expect(buildTarget({ target: TARGETS["darwin-arm64"], outDir: dir, smoke: false, hostPlatform: "linux" }, { download }))
       .rejects.toThrow(/macOS host/);
     expect(download).not.toHaveBeenCalled();
+  });
+});
+
+// fix-windows-packaging-build (JOS-232), design Decisions 1-3 — how the build starts npm; `npm` is `npm.cmd` on Windows and Node
+// does not start a `.cmd` file without a shell, so the build runs npm's own script with the current Node.
+describe("npmInvocation", () => {
+  const WIN_NPM = "C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js";
+  const MAC_NPM = "/usr/local/lib/node_modules/npm/bin/npm-cli.js";
+
+  it.each([
+    ["win32", WIN_NPM],
+    ["darwin", MAC_NPM],
+    ["linux", MAC_NPM],
+  ] as const)("runs npm's own script with the current Node, with no shell, on %s when npm started the build", (platform, npmCli) => {
+    expect(npmInvocation({ npm_execpath: npmCli }, platform)).toEqual({ command: process.execPath, prefixArgs: [npmCli], shell: false });
+  });
+
+  it("falls back to `npm` with no shell on macOS and Linux when npm did not start the build", () => {
+    expect(npmInvocation({}, "darwin")).toEqual({ command: "npm", prefixArgs: [], shell: false });
+    expect(npmInvocation({}, "linux")).toEqual({ command: "npm", prefixArgs: [], shell: false });
+  });
+
+  it("falls back to `npm` through a shell on Windows when npm did not start the build", () => {
+    expect(npmInvocation({}, "win32")).toEqual({ command: "npm", prefixArgs: [], shell: true });
+  });
+
+  it("ignores an npm_execpath that is not a JavaScript file", () => {
+    expect(npmInvocation({ npm_execpath: "/usr/local/bin/npm-wrapper" }, "darwin")).toEqual({ command: "npm", prefixArgs: [], shell: false });
+    expect(npmInvocation({ npm_execpath: "" }, "win32")).toEqual({ command: "npm", prefixArgs: [], shell: true });
+  });
+});
+
+// add-burned-in-subtitles (JOS-237), task 5.1 — the executable carries the subtitle font and its licence.
+describe("embeddedAssets", () => {
+  it("lists the web build, the settings defaults, and the subtitle font with its licence, all of which exist", () => {
+    const webDir = join(dir, "web");
+    mkdirSync(join(webDir, "assets"), { recursive: true });
+    writeFileSync(join(webDir, "index.html"), "<html></html>");
+    writeFileSync(join(webDir, "assets", "app.js"), "//");
+
+    const assets = embeddedAssets(webDir);
+
+    expect(Object.keys(assets).sort()).toEqual(["Montserrat-Bold.ttf", "Montserrat-OFL.txt", "settings.default.json", "web/assets/app.js", "web/index.html"]);
+    for (const file of Object.values(assets)) expect(existsSync(file)).toBe(true);
   });
 });

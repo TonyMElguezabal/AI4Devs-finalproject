@@ -18,6 +18,7 @@ const imageType: AdapterTypeInfo = {
     { path: ["pricePerUnit"], label: "Price per image", kind: "number", required: false },
     { path: ["priceCurrency"], label: "Currency", kind: "text", required: false },
   ],
+  connectionCheck: { charged: false, covers: "Only the key was checked." },
 };
 const videoType: AdapterTypeInfo = {
   id: "runninghub-video",
@@ -28,6 +29,7 @@ const videoType: AdapterTypeInfo = {
     { path: ["admittedDurationSeconds", "min"], label: "Shortest clip (seconds)", kind: "number", required: true },
     { path: ["admittedDurationSeconds", "max"], label: "Longest clip (seconds)", kind: "number", required: true },
   ],
+  connectionCheck: { charged: false, covers: "Only the key was checked." },
 };
 const voiceType: AdapterTypeInfo = {
   id: "elevenlabs-voice",
@@ -38,6 +40,7 @@ const voiceType: AdapterTypeInfo = {
     { path: ["pricePerUnit"], label: "Price per voice character", kind: "number", required: false },
     { path: ["priceCurrency"], label: "Currency", kind: "text", required: false },
   ],
+  connectionCheck: { charged: false, covers: "Only the key was checked." },
 };
 
 const profile = (overrides: Partial<ProfileView> & Pick<ProfileView, "id" | "stage" | "adapterType" | "label">): ProfileView => ({

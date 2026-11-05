@@ -50,6 +50,7 @@ describe("buildRuntimeEnvironment", () => {
       SETTINGS_PATH: join(dataDir, "settings.json"),
       PROVIDER_KEY_PATH: join(dataDir, "provider-keys.key"),
       SETTINGS_DEFAULTS_PATH: join(dataDir, "runtime", "settings.default.json"),
+      SUBTITLE_FONT_PATH: join(dataDir, "runtime", "Montserrat-Bold.ttf"),
       FFMPEG_PATH: join(binDir, "ffmpeg"),
       FFPROBE_PATH: join(binDir, "ffprobe"),
     });

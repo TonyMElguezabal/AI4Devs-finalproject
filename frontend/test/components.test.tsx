@@ -48,6 +48,9 @@ function makePhases(statuses: Partial<Record<Phase, PhaseStatus>> = {}, extras: 
   return PHASE_ORDER.map((phase) => ({ phase, status: statuses[phase] ?? "pending", heldCount: 0, stages: [], ...extras[phase] }));
 }
 
+/** surface-pause-continue-failure (JOS-217) — Pause and Continue return a promise now. */
+const asyncNoop = async () => {};
+
 function makeSession(overrides: Partial<SessionEventPayload>): SessionEventPayload {
   return {
     type: "session",
@@ -253,9 +256,15 @@ describe("Scene retry and correction refusals show a sentence (JOS-157/JOS-158)"
 });
 
 // show-scene-results-and-actions (JOS-151), group 4 — design Decisions 4 and 5.
+/** The retry and correction actions only: these tests predate "Rebuild scene" (JOS-235), which has its own tests in scene-rebuild.test.tsx. */
+function recoveryActions(scene: SceneEventPayload) {
+  const { retry, correctImage, correctVideo } = sceneActions(scene);
+  return { retry, correctImage, correctVideo };
+}
+
 describe("sceneActions derives actions from state and affected stage (JOS-151, Decision 4)", () => {
   it("offers retry and image correction only for a failed image scene", () => {
-    expect(sceneActions(makeScene({ state: "failed", affectedStage: "image" }))).toEqual({
+    expect(recoveryActions(makeScene({ state: "failed", affectedStage: "image" }))).toEqual({
       retry: true,
       correctImage: true,
       correctVideo: false,
@@ -263,7 +272,7 @@ describe("sceneActions derives actions from state and affected stage (JOS-151, D
   });
 
   it("offers retry and video correction for a failed video scene", () => {
-    expect(sceneActions(makeScene({ state: "failed", affectedStage: "video" }))).toEqual({
+    expect(recoveryActions(makeScene({ state: "failed", affectedStage: "video" }))).toEqual({
       retry: true,
       correctImage: false,
       correctVideo: true,
@@ -271,20 +280,20 @@ describe("sceneActions derives actions from state and affected stage (JOS-151, D
   });
 
   it("offers nothing for a failed scene whose stage is unknown", () => {
-    expect(sceneActions(makeScene({ state: "failed" }))).toEqual({ retry: false, correctImage: false, correctVideo: false });
+    expect(recoveryActions(makeScene({ state: "failed" }))).toEqual({ retry: false, correctImage: false, correctVideo: false });
   });
 
   it.each<SceneState>(["submitted", "image-generating", "image-complete", "video-generating", "chunk-complete"])(
     "offers nothing for a scene in %s",
     (state) => {
-      expect(sceneActions(makeScene({ state, affectedStage: "image" }))).toEqual({ retry: false, correctImage: false, correctVideo: false });
+      expect(recoveryActions(makeScene({ state, affectedStage: "image" }))).toEqual({ retry: false, correctImage: false, correctVideo: false });
     },
   );
 });
 
 describe("Clip recovery controls derive from a failed video stage (JOS-158)", () => {
   it("offers retry and VIDEO correction only for a failed video scene", () => {
-    expect(sceneActions(makeScene({ state: "failed", affectedStage: "video" }))).toEqual({
+    expect(recoveryActions(makeScene({ state: "failed", affectedStage: "video" }))).toEqual({
       retry: true,
       correctImage: false,
       correctVideo: true,
@@ -594,7 +603,7 @@ describe("Session status class mapping (define-visual-design, Decision 2)", () =
   for (const state of ALL_SESSION_STATES) {
     it(`renders session state "${state}" with its mapped status class and its plain-language label`, () => {
       const session = makeSession({ state });
-      render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+      render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
 
       const section = screen.getByRole("region", { name: "Session status" });
       expect(section.className.split(/\s+/)).toContain(sessionStatusClass(state));
@@ -605,7 +614,7 @@ describe("Session status class mapping (define-visual-design, Decision 2)", () =
 
   it("keeps the paused marker identifiable by text, not color alone", () => {
     const session = makeSession({ state: "chunks-processing", paused: true });
-    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     expect(screen.getByText(/paused/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue session" })).toBeInTheDocument();
@@ -617,7 +626,7 @@ describe("Session status class mapping (define-visual-design, Decision 2)", () =
 describe("SessionHeader paused and running display (JOS-153)", () => {
   it("shows the state and the paused marker as separate statements, the marker not an alert", () => {
     const session = makeSession({ state: "chunks-processing", paused: true });
-    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     expect(screen.getByText("Generating scenes")).toBeInTheDocument();
     const marker = screen.getByText("Paused — waiting for you to continue");
@@ -627,30 +636,30 @@ describe("SessionHeader paused and running display (JOS-153)", () => {
 
   it("shows what is still generating from running", () => {
     const session = makeSession({ state: "chunks-processing", paused: true, running: [{ stage: "image", count: 1 }] });
-    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     expect(screen.getByText(/still generating: 1 image/i)).toBeInTheDocument();
   });
 
   it("shows nothing is generating when running is empty", () => {
     const session = makeSession({ state: "chunks-processing", paused: true, running: [] });
-    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     expect(screen.getByText(/nothing is generating/i)).toBeInTheDocument();
   });
 
   it("shows waiting for continue from held, and omits it when held is empty", () => {
     const withHeld = makeSession({ state: "chunks-processing", paused: true, held: [{ stage: "image", count: 2 }] });
-    const { rerender } = render(<SessionHeader session={withHeld} onPause={() => {}} onContinue={() => {}} />);
+    const { rerender } = render(<SessionHeader session={withHeld} onPause={asyncNoop} onContinue={asyncNoop} />);
     expect(screen.getByText(/waiting for continue: 2 image/i)).toBeInTheDocument();
 
-    rerender(<SessionHeader session={makeSession({ state: "chunks-processing", paused: true, held: [] })} onPause={() => {}} onContinue={() => {}} />);
+    rerender(<SessionHeader session={makeSession({ state: "chunks-processing", paused: true, held: [] })} onPause={asyncNoop} onContinue={asyncNoop} />);
     expect(screen.queryByText(/waiting for continue/i)).not.toBeInTheDocument();
   });
 
   it("shows none of the marker, running or held line when not paused", () => {
     const session = makeSession({ state: "chunks-processing", paused: false, running: [{ stage: "image", count: 1 }], held: [] });
-    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     expect(screen.queryByText(/paused/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/still generating/i)).not.toBeInTheDocument();
@@ -660,7 +669,7 @@ describe("SessionHeader paused and running display (JOS-153)", () => {
 
   it("keeps the failed phase and failed scenes visible, with the marker as its own statement, when paused and failed", () => {
     const session = makeSession({ state: "failed", paused: true, failedPhase: "scenes", failedSceneIndexes: [2, 5] });
-    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     expect(screen.getByText(/Failed phase: scenes/)).toBeInTheDocument();
     expect(screen.getByText(/Failed scenes: 2, 5/)).toBeInTheDocument();
@@ -669,7 +678,7 @@ describe("SessionHeader paused and running display (JOS-153)", () => {
 
   it("keeps the header's state styling (not complete or failed) when paused in chunks-processing", () => {
     const session = makeSession({ state: "chunks-processing", paused: true });
-    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     const section = screen.getByRole("region", { name: "Session status" });
     expect(section.className.split(/\s+/)).toContain(sessionStatusClass("chunks-processing"));
@@ -679,7 +688,7 @@ describe("SessionHeader paused and running display (JOS-153)", () => {
 
   it("keeps the header's final-video styling when paused in final-video", () => {
     const session = makeSession({ state: "final-video", paused: true });
-    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     const section = screen.getByRole("region", { name: "Session status" });
     expect(section.className.split(/\s+/)).toContain(sessionStatusClass("final-video"));
@@ -702,7 +711,7 @@ describe("SessionHeader Continue/Pause availability (JOS-153, design Decision 8)
 
   for (const state of ALL_SESSION_STATES) {
     it(`offers Continue and not Pause when paused in ${state}`, () => {
-      render(<SessionHeader session={makeSession({ state, paused: true })} onPause={() => {}} onContinue={() => {}} />);
+      render(<SessionHeader session={makeSession({ state, paused: true })} onPause={asyncNoop} onContinue={asyncNoop} />);
 
       expect(screen.getByRole("button", { name: "Continue session" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Pause session" })).not.toBeInTheDocument();
@@ -711,7 +720,7 @@ describe("SessionHeader Continue/Pause availability (JOS-153, design Decision 8)
 
   for (const state of ALL_SESSION_STATES.filter((s) => s !== "final-video")) {
     it(`offers Pause and not Continue when not paused in ${state}`, () => {
-      render(<SessionHeader session={makeSession({ state, paused: false })} onPause={() => {}} onContinue={() => {}} />);
+      render(<SessionHeader session={makeSession({ state, paused: false })} onPause={asyncNoop} onContinue={asyncNoop} />);
 
       expect(screen.getByRole("button", { name: "Pause session" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Continue session" })).not.toBeInTheDocument();
@@ -719,7 +728,7 @@ describe("SessionHeader Continue/Pause availability (JOS-153, design Decision 8)
   }
 
   it("offers neither control when not paused in final-video", () => {
-    render(<SessionHeader session={makeSession({ state: "final-video", paused: false })} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={makeSession({ state: "final-video", paused: false })} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     expect(screen.queryByRole("button", { name: "Pause session" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Continue session" })).not.toBeInTheDocument();
@@ -729,13 +738,13 @@ describe("SessionHeader Continue/Pause availability (JOS-153, design Decision 8)
 // retry-decomposition (JOS-156) task 7.3 — a retry held by a pause derives chunk-decomposing, which must offer Continue.
 describe("SessionHeader pause and continue while decomposing (JOS-156)", () => {
   it("offers Continue session when paused in chunk-decomposing", () => {
-    render(<SessionHeader session={makeSession({ state: "chunk-decomposing", paused: true })} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={makeSession({ state: "chunk-decomposing", paused: true })} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     expect(screen.getByRole("button", { name: "Continue session" })).toBeInTheDocument();
   });
 
   it("offers Pause session when not paused in chunk-decomposing", () => {
-    render(<SessionHeader session={makeSession({ state: "chunk-decomposing" })} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={makeSession({ state: "chunk-decomposing" })} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     expect(screen.getByRole("button", { name: "Pause session" })).toBeInTheDocument();
   });
@@ -746,7 +755,7 @@ describe("SessionHeader pause and continue while decomposing (JOS-156)", () => {
 describe("SessionHeader failed scenes (JOS-150)", () => {
   it("shows the failed phase and the failed scene indexes", () => {
     const session = makeSession({ state: "failed", failedPhase: "scenes", failedSceneIndexes: [2, 5] });
-    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     expect(screen.getByText(/Failed phase: scenes/)).toBeInTheDocument();
     expect(screen.getByText(/Failed scenes: 2, 5/)).toBeInTheDocument();
@@ -754,7 +763,7 @@ describe("SessionHeader failed scenes (JOS-150)", () => {
 
   it("shows no scene list for a session that failed in another phase", () => {
     const session = makeSession({ state: "failed", failedPhase: "decomposition" });
-    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     expect(screen.getByText(/Failed phase: decomposition/)).toBeInTheDocument();
     expect(screen.queryByText(/Failed scenes/)).not.toBeInTheDocument();
@@ -774,7 +783,7 @@ describe("Styling does not regress accessible names (define-visual-design)", () 
 
   it("keeps SessionHeader's accessible names exactly as documented once status classes are applied", () => {
     const session = makeSession({ state: "chunks-processing" });
-    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
 
     expect(screen.getByRole("region", { name: "Session status" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pause session" })).toBeInTheDocument();
@@ -825,6 +834,58 @@ describe("StartProjectForm", () => {
     await user.click(submit);
     expect(onStart).toHaveBeenCalledWith({ title: "My Trip", script: "A wide shot of a harbor at dusk.", language: "en" });
   });
+
+  // show-script-word-count (JOS-236) — word count and estimated duration under the Script field.
+  describe("script estimate (JOS-236)", () => {
+    const ESTIMATE_ID = "project-script-estimate";
+
+    it("shows the word count and estimated duration, and describes the Script field with them", async () => {
+      const user = userEvent.setup();
+      render(<StartProjectForm onStart={() => {}} languages={languages} />);
+      const script = screen.getByLabelText("Script");
+      await user.type(script, "one two three four five six seven eight nine ten");
+      const line = "10 words · Estimated video duration ~0:04";
+      expect(screen.getByText(line)).toBeInTheDocument();
+      expect(script).toHaveAccessibleDescription(line);
+      expect(screen.getByRole("textbox", { name: "Script" })).toBe(script);
+    });
+
+    it("updates the line while typing, without leaving the field", async () => {
+      const user = userEvent.setup();
+      render(<StartProjectForm onStart={() => {}} languages={languages} />);
+      const script = screen.getByLabelText("Script");
+      await user.type(script, "one");
+      expect(screen.getByText("1 word · Estimated video duration ~0:00")).toBeInTheDocument();
+      await user.type(script, " two three");
+      expect(screen.getByText("3 words · Estimated video duration ~0:01")).toBeInTheDocument();
+      expect(script).toHaveFocus();
+    });
+
+    it("shows no line and no aria-describedby while the script is empty or whitespace", async () => {
+      const user = userEvent.setup();
+      const { container } = render(<StartProjectForm onStart={() => {}} languages={languages} />);
+      const script = screen.getByLabelText("Script");
+      expect(container.querySelector(`#${ESTIMATE_ID}`)).toBeNull();
+      expect(script).not.toHaveAttribute("aria-describedby");
+      await user.type(script, "   ");
+      expect(container.querySelector(`#${ESTIMATE_ID}`)).toBeNull();
+      expect(script).not.toHaveAttribute("aria-describedby");
+    });
+
+    it("does not change when Start project is enabled or what is submitted", async () => {
+      const user = userEvent.setup();
+      const onStart = vi.fn();
+      render(<StartProjectForm onStart={onStart} languages={languages} />);
+      await user.type(screen.getByLabelText("Title"), "My Trip");
+      await user.type(screen.getByLabelText("Script"), "A wide shot of a harbor at dusk.");
+      const submit = screen.getByRole("button", { name: "Start project" });
+      expect(submit).toBeDisabled();
+      await user.selectOptions(screen.getByLabelText("Language"), "en");
+      expect(submit).not.toBeDisabled();
+      await user.click(submit);
+      expect(onStart).toHaveBeenCalledWith({ title: "My Trip", script: "A wide shot of a harbor at dusk.", language: "en" });
+    });
+  });
 });
 
 // consult-session (JOS-135) task 4 — the session page.
@@ -834,8 +895,8 @@ describe("SessionPage", () => {
     sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
     notFound: false,
     onStartNew: noop,
-    onPause: noop,
-    onContinue: noop,
+    onPause: asyncNoop,
+    onContinue: asyncNoop,
     onRetry: async () => {},
     onCorrect: async () => {},
     onRetryPhase: () => Promise.resolve(),
@@ -902,14 +963,14 @@ describe("SessionPage", () => {
 describe("held indicator in session header and scene rows (JOS-152, task 8.1)", () => {
   it("shows held stages and count in header when paused with held work", () => {
     const session = makeSession({ state: "chunks-processing", paused: true, held: [{ stage: "image", count: 2 }] });
-    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
     expect(screen.getByText(/paused/i)).toBeInTheDocument();
     expect(screen.getByText(/waiting for continue: 2 image/i)).toBeInTheDocument();
   });
 
   it("does not show held stages when not paused", () => {
     const session = makeSession({ state: "chunks-processing", paused: false, held: [] });
-    render(<SessionHeader session={session} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={session} onPause={asyncNoop} onContinue={asyncNoop} />);
     expect(screen.queryByText(/held/i)).not.toBeInTheDocument();
   });
 
@@ -1015,7 +1076,7 @@ describe("Phase actions, status classes and labels (JOS-168)", () => {
 // view-progress-by-phase (JOS-168), tasks 6.1-6.3 — design Decisions 6 and 8.
 describe("The session page shows one section per phase (JOS-168)", () => {
   const noop = () => {};
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {}, onRetryPhase: () => Promise.resolve() };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: asyncNoop, onContinue: asyncNoop, onRetry: async () => {}, onCorrect: async () => {}, onRetryPhase: () => Promise.resolve() };
   const SECTION_NAMES = ["Voice-over phase", "Decomposition phase", "Scenes phase", "Final video phase"];
 
   it("lists the four sections in pipeline order, each with its status label (6.1)", () => {
@@ -1136,7 +1197,7 @@ describe("The session page shows one section per phase (JOS-168)", () => {
 describe("The Decomposition section offers a retry (JOS-156)", () => {
   const noop = () => {};
   const cause = "The narration's timestamps could not be obtained: alignment answered HTTP 503.";
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {} };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: asyncNoop, onContinue: asyncNoop, onRetry: async () => {}, onCorrect: async () => {} };
 
   function failedDecomposition(retryable: boolean) {
     const session = makeSession({
@@ -1223,7 +1284,7 @@ describe("The Decomposition section offers a retry (JOS-156)", () => {
 describe("The Final video section offers a retry (JOS-159)", () => {
   const noop = () => {};
   const cause = "The final video could not be assembled: stub failure. Your narration, images and clips are kept.";
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {} };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: asyncNoop, onContinue: asyncNoop, onRetry: async () => {}, onCorrect: async () => {} };
 
   function failedAssembly(retryable: boolean) {
     const session = makeSession({
@@ -1339,7 +1400,7 @@ describe("Scene details show the provider and attempts of each stage that ran (J
 
 describe("Phase sections list the session-level stages that ran (JOS-166)", () => {
   const noop = () => {};
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {}, onRetryPhase: () => Promise.resolve() };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: asyncNoop, onContinue: asyncNoop, onRetry: async () => {}, onCorrect: async () => {}, onRetryPhase: () => Promise.resolve() };
 
   const timestamps = { stage: "timestamps", provider: { name: "ElevenLabs", model: "forced alignment" }, attempts: 2 } as const;
   const instructions = { stage: "instructions", provider: { name: "OpenAI", model: "gpt-6-astra" }, attempts: 1 } as const;
@@ -1533,7 +1594,7 @@ describe("The start form card (JOS-198)", () => {
 // group 5 — design Decision 4: project panel beside the pipeline, a phase stepper, a plain-language header.
 describe("The session page layout (JOS-198)", () => {
   const noop = () => {};
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {}, onRetryPhase: () => Promise.resolve() };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: asyncNoop, onContinue: asyncNoop, onRetry: async () => {}, onCorrect: async () => {}, onRetryPhase: () => Promise.resolve() };
 
   function snapshotWith(scenes: SceneEventPayload[]) {
     const session = makeSession({
@@ -1588,12 +1649,93 @@ describe("The session page layout (JOS-198)", () => {
     const bar = screen.getByRole("progressbar", { name: "Scenes done" });
     expect(bar).toHaveAttribute("value", "2");
     expect(bar).toHaveAttribute("max", "3");
-    expect(within(screen.getByRole("complementary")).getByText("2 of 3")).toBeInTheDocument();
+    // The bar's own label; the summary's Done line (JOS-234) repeats the figure beside it.
+    expect(within(bar.previousElementSibling as HTMLElement).getByText("2 of 3")).toBeInTheDocument();
   });
 
   it("shows no progress bar while there are no scenes", () => {
     render(<SessionPage {...baseProps} snapshot={snapshotWith([])} />);
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  });
+
+  // summarise-scene-progress (JOS-234) — the project panel's read-only scene summary, under the Scenes done bar.
+  describe("scene progress summary (JOS-234)", () => {
+    const summary = () => within(within(screen.getByRole("complementary")).getByRole("group", { name: "Scene progress" }));
+    const mixedScenes = () => [
+      makeScene({ sceneId: "a", index: 1, state: "chunk-complete" }),
+      makeScene({ sceneId: "b", index: 2, state: "submitted" }),
+      makeScene({ sceneId: "c", index: 3, state: "image-generating" }),
+      makeScene({ sceneId: "d", index: 4, state: "image-generating" }),
+      makeScene({ sceneId: "e", index: 5, state: "image-complete" }),
+      makeScene({ sceneId: "f", index: 6, state: "video-generating" }),
+      makeScene({ sceneId: "g", index: 7, state: "failed", affectedStage: "image" }),
+    ];
+
+    it("shows each non-zero line with its count and scene numbers, in the panel", () => {
+      render(<SessionPage {...baseProps} snapshot={snapshotWith(mixedScenes())} />);
+
+      expect(summary().getByText("Generating image").closest("div")).toHaveTextContent("Generating image2 · 3–4");
+      expect(summary().getByText("Image ready, waiting for a clip slot").closest("div")).toHaveTextContent("5");
+      expect(summary().getByText("Generating clip").closest("div")).toHaveTextContent("Generating clip1 · 6");
+      expect(summary().getByText("Failed at image").closest("div")).toHaveTextContent("Failed at image1 · 7");
+      expect(summary().getByText("Queued for image").closest("div")).toHaveTextContent("Queued for image1");
+      expect(summary().getByText("Images left").closest("div")).toHaveTextContent("Images left4");
+      expect(summary().getByText("Clips left").closest("div")).toHaveTextContent("Clips left6");
+      expect(summary().queryByText("Failed at clip")).not.toBeInTheDocument();
+    });
+
+    it("shows Done as N of total", () => {
+      render(<SessionPage {...baseProps} snapshot={snapshotWith(mixedScenes())} />);
+
+      expect(summary().getByText("Done").closest("div")).toHaveTextContent("Done1 of 7");
+    });
+
+    it("shows only Done when every scene is done", () => {
+      const scenes = [makeScene({ sceneId: "a", index: 1, state: "chunk-complete" }), makeScene({ sceneId: "b", index: 2, state: "chunk-complete" })];
+      render(<SessionPage {...baseProps} snapshot={snapshotWith(scenes)} />);
+
+      const terms = Array.from(screen.getByRole("group", { name: "Scene progress" }).querySelectorAll("dt")).map((term) => term.textContent);
+      expect(terms).toEqual(["Done"]);
+    });
+
+    it("shows no summary while there are no scenes", () => {
+      render(<SessionPage {...baseProps} snapshot={snapshotWith([])} />);
+
+      expect(screen.queryByRole("group", { name: "Scene progress" })).not.toBeInTheDocument();
+    });
+
+    it("moves a scene's number between lines when a live snapshot changes its state", () => {
+      const before = [makeScene({ sceneId: "a", index: 1, state: "image-complete" }), makeScene({ sceneId: "b", index: 2, state: "image-complete" })];
+      const { rerender } = render(<SessionPage {...baseProps} snapshot={snapshotWith(before)} />);
+      expect(summary().getByText("Image ready, waiting for a clip slot").closest("div")).toHaveTextContent("2 · 1–2");
+      expect(summary().queryByText("Generating clip")).not.toBeInTheDocument();
+
+      const after = [makeScene({ sceneId: "a", index: 1, state: "video-generating" }), before[1]!];
+      rerender(<SessionPage {...baseProps} snapshot={snapshotWith(after)} />);
+
+      expect(summary().getByText("Image ready, waiting for a clip slot").closest("div")).toHaveTextContent("1 · 2");
+      expect(summary().getByText("Generating clip").closest("div")).toHaveTextContent("1 · 1");
+    });
+
+    it("is information only: no control, and neither a live region nor an alert", () => {
+      render(<SessionPage {...baseProps} snapshot={snapshotWith(mixedScenes())} />);
+      const group = screen.getByRole("group", { name: "Scene progress" });
+
+      expect(group.querySelectorAll("button, a, input, select, textarea")).toHaveLength(0);
+      for (let node: Element | null = group; node && node.tagName !== "ASIDE"; node = node.parentElement) {
+        expect(node).not.toHaveAttribute("aria-live");
+        expect(node).not.toHaveAttribute("role", "alert");
+      }
+      expect(group).not.toHaveAttribute("aria-live");
+    });
+
+    it("counts a paused session's scenes by their own state", () => {
+      const snapshot = snapshotWith(mixedScenes());
+      snapshot.session.paused = true;
+      render(<SessionPage {...baseProps} snapshot={snapshot} />);
+
+      expect(summary().getByText("Generating image").closest("div")).toHaveTextContent("Generating image2 · 3–4");
+    });
   });
 
   it("no longer prints the raw session state or a connection line", () => {
@@ -1611,17 +1753,17 @@ describe("The session page layout (JOS-198)", () => {
 
 describe("The session header as a status pill (JOS-198)", () => {
   it("shows the plain label in a pill carrying the state's status class", () => {
-    render(<SessionHeader session={makeSession({ state: "chunk-decomposing" })} onPause={() => {}} onContinue={() => {}} />);
+    render(<SessionHeader session={makeSession({ state: "chunk-decomposing" })} onPause={asyncNoop} onContinue={asyncNoop} />);
     const pill = screen.getByText("Splitting into scenes");
     expect(pill.className.split(/\s+/)).toContain("status-pill");
     expect(pill.className.split(/\s+/)).toContain(sessionStatusClass("chunk-decomposing"));
   });
 
   it("keeps Pause and Continue by name, with a hidden icon", () => {
-    const { rerender } = render(<SessionHeader session={makeSession({ state: "chunks-processing" })} onPause={() => {}} onContinue={() => {}} />);
+    const { rerender } = render(<SessionHeader session={makeSession({ state: "chunks-processing" })} onPause={asyncNoop} onContinue={asyncNoop} />);
     const pause = screen.getByRole("button", { name: "Pause session" });
     expect(pause.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
-    rerender(<SessionHeader session={makeSession({ state: "chunks-processing", paused: true })} onPause={() => {}} onContinue={() => {}} />);
+    rerender(<SessionHeader session={makeSession({ state: "chunks-processing", paused: true })} onPause={asyncNoop} onContinue={asyncNoop} />);
     expect(screen.getByRole("button", { name: "Continue session" })).toBeInTheDocument();
   });
 });
@@ -1884,7 +2026,7 @@ describe("The pause dial (JOS-190)", () => {
 
 describe("The Final video section's rebuild (JOS-190)", () => {
   it("shows the version and offers no rebuild while nothing is pending", () => {
-    render(<FinalVideoDownload url="/sessions/s1/download/final-video" finalVideo={{ version: 2, pendingPauseEdits: false }} />);
+    render(<FinalVideoDownload url="/sessions/s1/download/final-video" finalVideo={{ version: 2, pendingPauseEdits: false, staleScenes: false }} />);
 
     expect(screen.getByText("Version 2")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Rebuild final video" })).not.toBeInTheDocument();
@@ -1894,7 +2036,7 @@ describe("The Final video section's rebuild (JOS-190)", () => {
   it("offers Rebuild final video when edits are pending, and calls the handler", async () => {
     const user = userEvent.setup();
     const onRebuild = vi.fn(async () => ({ ok: true }));
-    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true }} onRebuild={onRebuild} />);
+    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true, staleScenes: false }} onRebuild={onRebuild} />);
 
     await user.click(screen.getByRole("button", { name: "Rebuild final video" }));
 
@@ -1902,7 +2044,7 @@ describe("The Final video section's rebuild (JOS-190)", () => {
   });
 
   it("keeps the download and says the new version is being built while a rebuild runs", () => {
-    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true }} rebuilding onRebuild={async () => ({})} />);
+    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true, staleScenes: false }} rebuilding onRebuild={async () => ({})} />);
 
     expect(screen.getByRole("link", { name: "Download final video" })).toBeInTheDocument();
     expect(screen.getByText(/new version is being built/i)).toBeInTheDocument();
@@ -1911,7 +2053,7 @@ describe("The Final video section's rebuild (JOS-190)", () => {
 
   it("shows a failed rebuild's cause and keeps the button", () => {
     const cause = "The new version could not be built: stub transient failure. Your current final video (version 1) is kept.";
-    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true, rebuildFailure: { cause } }} onRebuild={async () => ({})} />);
+    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true, staleScenes: false, rebuildFailure: { cause } }} onRebuild={async () => ({})} />);
 
     expect(screen.getByRole("alert")).toHaveTextContent(cause);
     expect(screen.getByRole("button", { name: "Rebuild final video" })).toBeInTheDocument();
@@ -1919,7 +2061,7 @@ describe("The Final video section's rebuild (JOS-190)", () => {
 
   it("shows a refusal as a sentence", async () => {
     const user = userEvent.setup();
-    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true }} onRebuild={async () => { throw new Error("nothing-to-rebuild"); }} />);
+    render(<FinalVideoDownload url="/x" finalVideo={{ version: 1, pendingPauseEdits: true, staleScenes: false }} onRebuild={async () => { throw new Error("nothing-to-rebuild"); }} />);
 
     await user.click(screen.getByRole("button", { name: "Rebuild final video" }));
 
@@ -1939,17 +2081,17 @@ describe("The Final video section's rebuild (JOS-190)", () => {
     const session = makeSession({
       state: "final-video",
       finalVideoUrl: "/sessions/s1/download/final-video",
-      finalVideo: { version: 1, pendingPauseEdits: true },
+      finalVideo: { version: 1, pendingPauseEdits: true, staleScenes: false },
       phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "complete", assembly: "complete" }),
     });
     render(
       <SessionPage
         sessionId="01ARZ3NDEKTSV4RRFFQ69G5FAV"
-        snapshot={{ session, scenes: [] }}
+        snapshot={{ session, scenes: [makeScene({ state: "chunk-complete" })] }}
         notFound={false}
         onStartNew={() => {}}
-        onPause={() => {}}
-        onContinue={() => {}}
+        onPause={asyncNoop}
+        onContinue={asyncNoop}
         onRetry={async () => {}}
         onCorrect={async () => {}}
         onRetryPhase={() => Promise.resolve()}
@@ -1966,7 +2108,7 @@ describe("The Final video section's rebuild (JOS-190)", () => {
     const session = makeSession({
       state: "final-video-generating",
       finalVideoUrl: "/sessions/s1/download/final-video",
-      finalVideo: { version: 1, pendingPauseEdits: true },
+      finalVideo: { version: 1, pendingPauseEdits: true, staleScenes: false },
       phases: makePhases({ "voice-over": "complete", decomposition: "complete", scenes: "complete", assembly: "in-progress" }),
     });
     render(
@@ -1975,8 +2117,8 @@ describe("The Final video section's rebuild (JOS-190)", () => {
         snapshot={{ session, scenes: [] }}
         notFound={false}
         onStartNew={() => {}}
-        onPause={() => {}}
-        onContinue={() => {}}
+        onPause={asyncNoop}
+        onContinue={asyncNoop}
         onRetry={async () => {}}
         onCorrect={async () => {}}
         onRetryPhase={() => Promise.resolve()}
@@ -1993,7 +2135,7 @@ describe("The Final video section's rebuild (JOS-190)", () => {
 describe("The Voice-over section offers a retry (JOS-155)", () => {
   const noop = () => {};
   const cause = "The voice provider is not reachable.";
-  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: noop, onContinue: noop, onRetry: async () => {}, onCorrect: async () => {} };
+  const baseProps = { sessionId: "01ARZ3NDEKTSV4RRFFQ69G5FAV", notFound: false, onStartNew: noop, onPause: asyncNoop, onContinue: asyncNoop, onRetry: async () => {}, onCorrect: async () => {} };
 
   function failedVoiceOver(retryable: boolean) {
     const session = makeSession({

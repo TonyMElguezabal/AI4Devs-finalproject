@@ -65,6 +65,8 @@ export interface Run {
    * held by a pause); cleared when the rebuild succeeds or ends in failure. Survives a restart.
    */
   rebuildRequestedAt: string | null;
+  /** rebuild-scene (JOS-235), Decision 5 — a scene was rebuilt after the current final video was built; cleared when a rebuild of the final video succeeds. */
+  finalVideoStale: boolean;
   /** admin-visual-style-prompt (JOS-201), Decision 4 — the `/admin` style prompt copied at creation; decomposition, its retries and recovery read this, never the live setting. */
   visualStylePrompt: string;
   /** use-reference-image-in-generation (JOS-202), Decision 3 — the `/admin` reference image copied into the project folder at creation (`path` is relative to it); every image request of the session carries it. */
@@ -228,6 +230,15 @@ export type DurationWarning = "exceeds-maximum";
 /** record-speed-adjustment-factor (JOS-148) — the one speed-factor-warning value ever recorded; the factor exceeds `SPEED_FACTOR_LIMIT` (§7.2). */
 export type SpeedFactorWarning = "exceeds-limit";
 
+/** show-video-request-status (JOS-200) Decision 2 — what the page may show of a clip request: an allow-list, never the adapter's whole body. */
+export interface VideoRequestBody {
+  prompt: string;
+  duration: number;
+  resolution: string;
+  /** The scene's image, named; never the provider's upload URL. */
+  firstFrame: string;
+}
+
 export interface Scene {
   id: string;
   runId: string;
@@ -263,6 +274,11 @@ export interface Scene {
   videoProvider: string | null;
   /** The clip's relative path in the project folder; null until the video stage succeeds (JOS-146, Decision 5). */
   videoResult: string | null;
+  /** When the current clip request was sent, and its allow-listed body; both null before the submit returns and after the attempt ends (show-video-request-status, JOS-200). */
+  videoRequestSentAt: string | null;
+  videoRequestBody: VideoRequestBody | null;
+  /** rebuild-scene (JOS-235) — how many times the User rebuilt this scene; 0 for the first generation. Versions the scene's file names and URLs. */
+  rebuildCount: number;
 }
 
 /**
@@ -363,6 +379,8 @@ export interface FinalVideoStatus {
   version: number;
   /** True when the User's pause edits differ from those the current version was built with. */
   pendingPauseEdits: boolean;
+  /** rebuild-scene (JOS-235) — true when a scene was rebuilt after this version was built, so a rebuild would change it. */
+  staleScenes: boolean;
   /** Present only while the latest rebuild attempt ended in failure; the current version is kept. */
   rebuildFailure?: { cause: string };
 }
@@ -375,6 +393,21 @@ export interface ScenePauseView {
   maxSeconds: number;
   /** Whether the speed-factor limit, not the 0.2 s floor or 3.0 s cap, set a bound. */
   limitedBySpeedFactor: boolean;
+}
+
+export interface VideoRequestView {
+  provider: { name: string; model: string | null };
+  attempt: number;
+  sentAt: string;
+  /** Calculated from earlier clips of the same provider; null when there is none to base it on. */
+  estimate: { seconds: number; basedOn: number } | null;
+  body: VideoRequestBody;
+  /** JOS-233 — the provider's task id of the current attempt. */
+  taskId: string;
+  /** JOS-233 — the last "still running" answer this application received for the task; null until the first one since it started. */
+  lastCheckedAt: string | null;
+  /** JOS-233 — when the clip wait ceiling fails the scene if the task is unfinished; null when the video stage has no time limit. */
+  waitEndsAt: string | null;
 }
 
 /** Scene event / snapshot entry — carries CURRENT state, never a delta. */
@@ -408,6 +441,8 @@ export interface SceneEventPayload {
   speedFactor?: number;
   /** Set only when the factor exceeds the hardcoded `SPEED_FACTOR_LIMIT`. Immutable. */
   speedFactorWarning?: SpeedFactorWarning;
+  /** show-video-request-status (JOS-200) — present only while the scene's clip request is in flight and has been sent. */
+  videoRequest?: VideoRequestView;
   held?: boolean; // true only while the session is paused and this scene has pending work
   /** adjust-scene-pause (JOS-190): present only once the session has a final video and this scene's pause can be derived. */
   pause?: ScenePauseView;

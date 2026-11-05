@@ -4,7 +4,9 @@ import { VIDEO_PROVIDER } from "../src/config/providers.ts";
 import {
   createStubVideoProvider,
   createRunningHubVideoProvider,
+  downloadGeneratedClip,
   resetVideoDownloadFetch,
+  setVideoDownloadFetch,
 } from "../src/videoProvider.ts";
 
 // generate-chunk-video (JOS-146), group 3 — Decision 3: the VideoProvider port
@@ -163,7 +165,12 @@ describe("RunningHub adapter (JOS-196 — the live API's request and answer shap
       return new Response("unexpected", { status: 404 });
     }).submit(submitArgs);
 
-    expect(result).toEqual({ kind: "submitted", requestId: taskId });
+    // show-video-request-status (JOS-200): the result also reports the body it sent, for the request view.
+    expect(result).toEqual({
+      kind: "submitted",
+      requestId: taskId,
+      sentBody: { prompt: "animate the scene", duration: 8, resolution: "2K", firstFrameUrl: uploadUrl },
+    });
 
     const upload = calls.find((c) => c.url.includes("/media/upload"));
     expect(upload).toBeTruthy();
@@ -190,7 +197,7 @@ describe("RunningHub adapter (JOS-196 — the live API's request and answer shap
       return json({ code: 0, data: { taskId: "nested-1" } });
     }).submit(submitArgs);
 
-    expect(result).toEqual({ kind: "submitted", requestId: "nested-1" });
+    expect(result).toMatchObject({ kind: "submitted", requestId: "nested-1" });
   });
 
   it("submit: an upload answered with an error envelope is transient, names the upload and carries the error code", async () => {
@@ -324,5 +331,20 @@ describe("RunningHub adapter (JOS-196 — the live API's request and answer shap
     if (result.kind === "failed_not_retryable") {
       expect(result.reason).toContain("RUNNINGHUB_API_KEY");
     }
+  });
+});
+
+describe("downloadGeneratedClip", () => {
+  beforeEach(() => resetVideoDownloadFetch());
+
+  // A connection reset while the body streams (ECONNRESET) must be a failed download, never an unhandled rejection
+  // that ends the backend process.
+  it("fails when the connection resets while the body is being read", async () => {
+    const body = new ReadableStream<Uint8Array>({ start: (controller) => controller.error(new Error("read ECONNRESET")) });
+    setVideoDownloadFetch((async () => new Response(body, { status: 200 })));
+
+    const result = await downloadGeneratedClip("https://example.com/clip.mp4");
+
+    expect(result).toEqual({ ok: false, reason: "the generated clip could not be downloaded" });
   });
 });

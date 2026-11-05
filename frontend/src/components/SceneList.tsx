@@ -1,5 +1,5 @@
-import type { SceneEventPayload } from "../types";
-import { SceneRow } from "./SceneRow";
+import type { SceneEventPayload, SessionState } from "../types";
+import { SceneRow, type SceneRebuildHandler } from "./SceneRow";
 
 interface Props {
   scenes: SceneEventPayload[];
@@ -11,6 +11,9 @@ interface Props {
   onCorrect: (sceneId: string, instruction: string) => Promise<unknown>;
   /** adjust-scene-pause (JOS-190) — passed through to each row. */
   onSetPause?: (sceneId: string, seconds: number) => Promise<unknown>;
+  /** rebuild-scene (JOS-235) — passed through to each row, with the session's state that decides whether it is offered. */
+  onRebuild?: SceneRebuildHandler;
+  sessionState?: SessionState;
 }
 
 /**
@@ -19,7 +22,7 @@ interface Props {
  * render, not trusting arrival/array order, is the point of this component
  * existing separately from `SessionView` — see its ordering test.
  */
-export function SceneList({ scenes, paused, onRetry, onCorrect, onSetPause }: Props) {
+export function SceneList({ scenes, paused, onRetry, onCorrect, onSetPause, onRebuild, sessionState }: Props) {
   const ordered = [...scenes].sort((a, b) => a.index - b.index);
 
   return (
@@ -31,7 +34,7 @@ export function SceneList({ scenes, paused, onRetry, onCorrect, onSetPause }: Pr
       ) : (
         <ul className="scene-list">
           {ordered.map((scene) => (
-            <SceneRow key={scene.sceneId} scene={scene} paused={paused} onRetry={onRetry} onCorrect={onCorrect} onSetPause={onSetPause} />
+            <SceneRow key={scene.sceneId} scene={scene} paused={paused} onRetry={onRetry} onCorrect={onCorrect} onSetPause={onSetPause} onRebuild={onRebuild} sessionState={sessionState} />
           ))}
         </ul>
       )}

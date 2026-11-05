@@ -17,6 +17,7 @@ import { obtainNarrationTimestamps } from "../src/narrationTimestampsPhase.ts";
 import { resetVideoStageStartDelayMs, setVideoStageStartDelayMs } from "../src/orchestrator.ts";
 import type { StageAttempt } from "../src/types.ts";
 import type { VisualInstructionGenerator, VisualInstructionResult } from "../src/visualInstructions.ts";
+import { heldImageProvider } from "./imageProviderFixtures.ts";
 
 // retry-decomposition (JOS-156), group 2 — design Decisions 3 and 4: the
 // division step records one `decomposition` attempt per try, and both steps
@@ -34,7 +35,7 @@ beforeEach(() => {
   setVideoStageStartDelayMs(9_999_999);
   setImageProviderRegistry({
     defaultIdentifier: "held-image-adapter",
-    adapters: { "held-image-adapter": { generate: () => new Promise(() => {}) } },
+    adapters: { "held-image-adapter": heldImageProvider() },
   });
 });
 

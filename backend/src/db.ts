@@ -10,6 +10,7 @@
 // this is no longer a disposable stand-in, it is the decision.
 import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import { ADAPTER_VENDORS, SEEDED_PROFILES } from "./providerTypes.ts";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
 import { getConsent, normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
 import { ulid } from "./util/ulid.ts";
@@ -18,6 +19,7 @@ import { dirname, join, resolve, sep } from "node:path";
 import type {
   AttemptStage,
   DurationWarning,
+  VideoRequestBody,
   NarrationInterval,
   ProviderOutcomeMode,
   ProviderRequestRow,
@@ -687,6 +689,62 @@ const MIGRATIONS: Array<{ version: number; description: string; up: (target: Dat
       `);
     },
   },
+  {
+    version: 24,
+    description: "add scenes.video_request_sent_at and video_request: the clip request in flight, as sent (show-video-request-status, JOS-200)",
+    up: (target) => {
+      // Nullable, no backfill: a request sent before this change has no recorded send time or body, and one finished is never shown.
+      target.exec(`
+        ALTER TABLE scenes ADD COLUMN video_request_sent_at TEXT;
+        ALTER TABLE scenes ADD COLUMN video_request TEXT;
+      `);
+    },
+  },
+  {
+    version: 25,
+    description: "add provider_changes: the append-only log of active-provider changes and failed-stage moves (record-provider-changes, JOS-229)",
+    up: (target) => {
+      // Empty, no backfill: active_providers keeps only the last choice, so earlier changes cannot be reconstructed.
+      target.exec(`
+        CREATE TABLE provider_changes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          changed_at TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('active-provider', 'failed-stage-move')),
+          stage TEXT NOT NULL CHECK (stage IN ('reasoning', 'voice', 'alignment', 'image', 'video')),
+          run_id TEXT REFERENCES runs(id),
+          scene_id TEXT REFERENCES scenes(id),
+          previous_provider_id TEXT NOT NULL,
+          previous_provider_label TEXT NOT NULL,
+          new_provider_id TEXT NOT NULL,
+          new_provider_label TEXT NOT NULL
+        );
+        CREATE INDEX idx_provider_changes_changed_at ON provider_changes (changed_at);
+      `);
+    },
+  },
+  {
+    version: 26,
+    description: "add scenes.rebuild_count and runs.final_video_stale: how often the User rebuilt a scene, and whether the final video predates one (rebuild-scene, JOS-235)",
+    up: (target) => {
+      // Defaults only, no backfill: every existing scene was generated once, and no existing final video predates a rebuild.
+      target.exec(`
+        ALTER TABLE scenes ADD COLUMN rebuild_count INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE runs ADD COLUMN final_video_stale INTEGER NOT NULL DEFAULT 0;
+      `);
+    },
+  },
+  {
+    version: 27,
+    description: "add runs.image_sweep_at: when the session's one end-of-session image sweep ran (follow-fal-image-queue, JOS-239)",
+    up: (target) => {
+      // A session that already has a failed scene predates the sweep: its failures stay the owner's call, so it is marked as swept.
+      target.exec(`
+        ALTER TABLE runs ADD COLUMN image_sweep_at TEXT;
+        UPDATE runs SET image_sweep_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+          WHERE EXISTS (SELECT 1 FROM scenes s WHERE s.run_id = runs.id AND s.status = 'failed');
+      `);
+    },
+  },
 ];
 
 export function applyMigrationsTo(target: DatabaseSync, upToVersion: number = Number.POSITIVE_INFINITY): number[] {
@@ -833,6 +891,14 @@ export function writeArtefactOnce(projectFolder: string, relativePath: string, c
     rmSync(temporaryPath, { force: true });
   }
   return relativePath;
+}
+
+/**
+ * rebuild-scene (JOS-235), design Decision 3 — the stem of a scene's image and clip file names: `scene-N` for its first
+ * generation (today's names), `scene-N-r{k}` after the k-th User rebuild, so a rebuild never meets an existing file.
+ */
+export function sceneFileStem(scene: Pick<Scene, "index" | "rebuildCount">): string {
+  return scene.rebuildCount > 0 ? `scene-${scene.index}-r${scene.rebuildCount}` : `scene-${scene.index}`;
 }
 
 export function resolveArtefactPath(projectFolder: string, relativePath: string): string {
@@ -996,7 +1062,7 @@ export function createRun(id: string, title: string, script: string, language: s
   db.prepare(
     "INSERT INTO runs (id, title, created_at, paused, language, project_folder, script, visual_style_prompt, reference_image_path, reference_image_content_type, reference_image_sha256) VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)",
   ).run(id, title, createdAt, language, projectFolder, script, visualStylePrompt, referenceImage?.path ?? null, referenceImage?.contentType ?? null, referenceImage?.sha256 ?? null);
-  return { id, title, script, createdAt, paused: false, language, projectFolder, visualStylePrompt, referenceImage, voiceProviderId: null, decompositionProviderId: null, alignmentProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null };
+  return { id, title, script, createdAt, paused: false, language, projectFolder, visualStylePrompt, referenceImage, voiceProviderId: null, decompositionProviderId: null, alignmentProviderId: null, failure: null, finalVideoPath: null, rebuildRequestedAt: null, finalVideoStale: false };
 }
 
 export function setRunProjectFolder(runId: string, projectFolder: string): void {
@@ -1037,6 +1103,9 @@ export function createScene(
     providerLatencyMs,
     videoProvider: null,
     videoResult: null,
+    videoRequestSentAt: null,
+    videoRequestBody: null,
+    rebuildCount: 0,
     updatedAt,
   };
 }
@@ -1079,6 +1148,9 @@ interface SceneRow {
   provider_latency_ms: number;
   video_provider: string | null;
   video_result: string | null;
+  video_request_sent_at: string | null;
+  rebuild_count: number;
+  video_request: string | null;
   updated_at: string;
 }
 
@@ -1101,6 +1173,7 @@ interface RunRow {
   failure: string | null;
   final_video_path: string | null;
   rebuild_requested_at: string | null;
+  final_video_stale: number;
 }
 
 interface VoiceOverRow {
@@ -1215,6 +1288,9 @@ function rowToScene(row: SceneRow): Scene {
     providerLatencyMs: row.provider_latency_ms,
     videoProvider: row.video_provider ?? null,
     videoResult: row.video_result ?? null,
+    videoRequestSentAt: row.video_request_sent_at ?? null,
+    videoRequestBody: row.video_request ? (JSON.parse(row.video_request) as VideoRequestBody) : null,
+    rebuildCount: row.rebuild_count ?? 0,
     updatedAt: row.updated_at,
   };
 }
@@ -1234,6 +1310,7 @@ function rowToRun(row: RunRow): Run {
     failure: row.failure ? (JSON.parse(row.failure) as SessionFailure) : null,
     finalVideoPath: row.final_video_path ?? null,
     rebuildRequestedAt: row.rebuild_requested_at ?? null,
+    finalVideoStale: Boolean(row.final_video_stale),
     visualStylePrompt: row.visual_style_prompt ?? "",
     referenceImage:
       row.reference_image_path && row.reference_image_content_type && row.reference_image_sha256
@@ -1794,6 +1871,28 @@ export function completeStageAttempt(
   return true;
 }
 
+/**
+ * report-stable-provider-name (JOS-213), Decision 2 — the `provider` label telemetry reports for a stored identifier: one fixed
+ * vendor name (`ADAPTER_VENDORS` of the profile's adapter type), `local` for assembly, `stub` for a stub, else `unknown`. The
+ * stored identifier, an `/admin` profile's id and its label are never returned. Reads `provider_profiles` directly because
+ * `providerProfiles.ts` imports this module.
+ */
+function telemetryProviderOf(identifier: string | null, stage: string): string {
+  if (identifier === null) return stage === "assembly" ? "local" : "unknown";
+  if (identifier === "elevenlabs-native") return "ElevenLabs";
+  if (identifier.startsWith("stub-")) return "stub";
+  // The ids image and clip scenes stored before the first profiles existed; literals because config/providers.ts loads the
+  // settings file when imported. They are LEGACY_IMAGE_PROVIDER_IDENTIFIER and LEGACY_VIDEO_PROVIDER_IDENTIFIER there.
+  const profileId =
+    identifier === "fal-ai/flux/dev"
+      ? SEEDED_PROFILES.image.id
+      : identifier === "/openapi/v2/minimax/hailuo-h3/image-to-video"
+        ? SEEDED_PROFILES.video.id
+        : identifier;
+  const row = db.prepare("SELECT adapter_type FROM provider_profiles WHERE id = ?").get(profileId) as { adapter_type: string } | undefined;
+  return (row && (ADAPTER_VENDORS as Record<string, string | undefined>)[row.adapter_type]) ?? "unknown";
+}
+
 function reportStageAttempt(
   row: { run_id: string; stage: string; provider_id: string | null; sent_at: string | null },
   outcome: { outcome: string; finishedAt: string; errorCode?: string; errorMessage?: string },
@@ -1801,7 +1900,7 @@ function reportStageAttempt(
   try {
     const consent = getConsent();
     if (!consent.providerUsage && !consent.errors) return;
-    const provider = row.provider_id ?? "unknown";
+    const provider = telemetryProviderOf(row.provider_id, row.stage);
     const normalized = normalizeOutcome(outcome.outcome);
     let billed: BilledUnit | undefined;
     if (normalized === "success" && row.stage === "voice-over") {
@@ -1875,6 +1974,11 @@ export function requestFinalVideoRebuild(runId: string): boolean {
     .prepare("UPDATE runs SET rebuild_requested_at = ? WHERE id = ? AND final_video_path IS NOT NULL AND rebuild_requested_at IS NULL")
     .run(nowIso(), runId);
   return Number(result.changes) > 0;
+}
+
+/** rebuild-scene (JOS-235), Decision 5 — the final video was just rebuilt from every scene's current clip. */
+export function clearFinalVideoStale(runId: string): void {
+  db.prepare("UPDATE runs SET final_video_stale = 0 WHERE id = ?").run(runId);
 }
 
 export function clearFinalVideoRebuildRequest(runId: string): void {
@@ -1968,6 +2072,35 @@ export function markSceneInFlight(sceneId: string, requestId: string, attemptNum
   ).run(requestId, attemptNumber, nowIso(), sceneId);
 }
 
+/**
+ * follow-fal-image-queue (JOS-239), design Decision 6 — the scenes of a session that failed at the image stage (no stored
+ * image) for a reason a retry can fix: every one except those whose latest image request was not retryable. Empty once
+ * the session was swept (`image_sweep_at`), so the sweep runs once.
+ */
+export function getSweepableImageFailureIds(runId: string): string[] {
+  const rows = db
+    .prepare(
+      `SELECT s.id FROM scenes s
+       WHERE s.run_id = ? AND s.status = 'failed' AND s.result IS NULL
+         AND (SELECT image_sweep_at FROM runs WHERE id = s.run_id) IS NULL
+         AND COALESCE((SELECT p.mode FROM provider_requests p WHERE p.scene_id = s.id AND p.stage = 'image'
+                       ORDER BY p.sent_at DESC, p.rowid DESC LIMIT 1), '') <> 'not_retryable_failure'
+       ORDER BY s.idx ASC`,
+    )
+    .all(runId) as unknown as Array<{ id: string }>;
+  return rows.map((row) => row.id);
+}
+
+/** Marks the session as swept; true only for the one caller that did it, so two concurrent publishes cannot both sweep. */
+export function claimImageSweep(runId: string): boolean {
+  return Number(db.prepare("UPDATE runs SET image_sweep_at = ? WHERE id = ? AND image_sweep_at IS NULL").run(nowIso(), runId).changes) === 1;
+}
+
+/** follow-fal-image-queue (JOS-239) — the provider's own id of the image request now in flight, for diagnostics; a scene no longer generating keeps its value. */
+export function recordImageProviderRequestId(sceneId: string, providerRequestId: string): void {
+  db.prepare("UPDATE scenes SET current_request_id = ? WHERE id = ? AND status = 'image-generating'").run(providerRequestId, sceneId);
+}
+
 // generate-chunk-image (JOS-145), design Decision 4 — the image stage's own
 // terminal state, not the scene's final `chunk-complete` (that needs a
 // clip too, JOS-146). Renamed from the skeleton's `markSceneComplete`,
@@ -2058,6 +2191,51 @@ export function markSceneForManualVideoRetry(sessionId: string, sceneId: string,
 }
 
 /**
+ * rebuild-scene (JOS-235), design Decisions 1 and 5 — the User rebuilds a generated scene: one transaction that
+ * returns it to `submitted`, withdraws its image, clip and request, stores any edited instruction, counts the rebuild
+ * and marks an existing final video as older than the scene. The write is conditional on the scene being
+ * `image-complete` or `chunk-complete` in this session, so a scene with work in flight, a failed one and a second
+ * back-to-back call all read as `false`. The bound providers, the requested duration and the narration interval are
+ * not in the column list, so a rebuild cannot change them.
+ */
+export function markSceneForRebuild(
+  sessionId: string,
+  sceneId: string,
+  instructions: { imageInstruction?: string; videoInstruction?: string },
+): boolean {
+  const imageInstruction = instructions.imageInstruction?.trim();
+  const videoInstruction = instructions.videoInstruction?.trim();
+  const changed = inTransaction((): boolean => {
+    const scene = getRow<{ image_instruction: string }>(
+      "SELECT image_instruction FROM scenes WHERE id = ? AND run_id = ? AND status IN ('image-complete', 'chunk-complete')",
+      sceneId,
+      sessionId,
+    );
+    if (!scene) return false;
+    // A skeleton scene (no IMAGE) is generated from its legacy `instruction`, the field a correction also targets.
+    const imageColumn = scene.image_instruction ? "image_instruction" : "instruction";
+    db.prepare(
+      `UPDATE scenes SET status = 'submitted', result = NULL, video_result = NULL, attempts = 0, last_error = NULL,
+         current_request_id = NULL, video_request_sent_at = NULL, video_request = NULL, rebuild_count = rebuild_count + 1,
+         ${imageColumn} = COALESCE(?, ${imageColumn}), video_instruction = COALESCE(?, video_instruction), updated_at = ?
+       WHERE id = ?`,
+    ).run(imageInstruction ?? null, videoInstruction ?? null, nowIso(), sceneId);
+    db.prepare("DELETE FROM scene_results WHERE scene_id = ?").run(sceneId);
+    db.prepare("DELETE FROM scene_video_results WHERE scene_id = ?").run(sceneId);
+    db.prepare("UPDATE runs SET final_video_stale = 1 WHERE id = ? AND final_video_path IS NOT NULL").run(sessionId);
+    return true;
+  });
+  if (changed) {
+    const projectFolder = getRun(sessionId)!.projectFolder;
+    if (imageInstruction !== undefined) {
+      recordCorrectedInstruction(projectFolder, sceneId, getScene(sceneId)!.imageInstruction ? "imageInstruction" : "instruction", imageInstruction);
+    }
+    if (videoInstruction !== undefined) recordCorrectedInstruction(projectFolder, sceneId, "videoInstruction", videoInstruction);
+  }
+  return changed;
+}
+
+/**
  * retry-or-correct-clip (JOS-158) — the clip correction and transition to the video launch state are atomic.
  * No image, narrative, timing, provider-binding or result field is written here.
  */
@@ -2086,8 +2264,13 @@ export function resetAttemptsForVideoStart(sceneId: string): void {
 
 export function markVideoGenerating(sceneId: string, requestId: string, attemptNumber: number): void {
   db.prepare(
-    "UPDATE scenes SET status = 'video-generating', current_request_id = ?, attempts = ?, updated_at = ? WHERE id = ?",
+    "UPDATE scenes SET status = 'video-generating', current_request_id = ?, attempts = ?, video_request_sent_at = NULL, video_request = NULL, updated_at = ? WHERE id = ?",
   ).run(requestId, attemptNumber, nowIso(), sceneId);
+}
+
+/** show-video-request-status (JOS-200) — the clip request of the current attempt, as sent: when, and the allow-listed body. Overwrites the previous attempt's (`markVideoGenerating` cleared it). */
+export function recordVideoRequestSent(sceneId: string, sentAt: string, body: VideoRequestBody): void {
+  db.prepare("UPDATE scenes SET video_request_sent_at = ?, video_request = ? WHERE id = ?").run(sentAt, JSON.stringify(body), sceneId);
 }
 
 export function markChunkComplete(sceneId: string, videoResult: string): void {
@@ -2204,7 +2387,7 @@ function reportProviderRequest(sceneId: string, latencyMs: number, mode: Provide
       | { provider: string | null; video_provider: string | null; requested_duration_seconds: number | null }
       | undefined;
     if (!scene) return;
-    const provider: string = (stage === "video" ? scene.video_provider : scene.provider) ?? "unknown";
+    const provider = telemetryProviderOf(stage === "video" ? scene.video_provider : scene.provider, stage);
     const normalized = normalizeOutcome(mode);
     let billed: BilledUnit | undefined;
     if (stage === "image") billed = { unit: "images", amount: 1 };
@@ -2274,7 +2457,7 @@ export function resetAll(): void {
     db.exec("DROP TRIGGER narration_timestamps_no_delete");
     db.exec("DROP TRIGGER final_video_builds_no_delete");
     db.exec(
-      "DELETE FROM phase_instants; DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM scenes; DELETE FROM runs; DELETE FROM active_providers; DELETE FROM provider_profiles;",
+      "DELETE FROM phase_instants; DELETE FROM scene_pause_edits; DELETE FROM final_video_builds; DELETE FROM stage_attempts; DELETE FROM narration_timestamps; DELETE FROM voice_overs; DELETE FROM scene_video_results; DELETE FROM scene_results; DELETE FROM provider_requests; DELETE FROM provider_changes; DELETE FROM scenes; DELETE FROM runs; DELETE FROM active_providers; DELETE FROM provider_profiles;",
     );
     db.exec(VOICE_OVER_NO_DELETE_TRIGGER_DDL);
     db.exec(SCENE_NO_DELETE_TRIGGER_DDL);
@@ -2305,6 +2488,25 @@ export function upsertActiveProviderChoice(stage: string, providerId: string, ch
   db.prepare(
     "INSERT INTO active_providers (stage, provider_id, changed_at) VALUES (?, ?, ?) ON CONFLICT(stage) DO UPDATE SET provider_id = excluded.provider_id, changed_at = excluded.changed_at",
   ).run(stage, providerId, changedAt);
+}
+
+// record-provider-changes (JOS-229), design Decisions 1 and 2 — the one writer of the log; labels are copied as the Administrator saw them.
+export interface ProviderChangeEntry {
+  changedAt: string;
+  kind: "active-provider" | "failed-stage-move";
+  stage: "reasoning" | "voice" | "alignment" | "image" | "video";
+  runId: string | null;
+  sceneId: string | null;
+  previousProviderId: string;
+  previousProviderLabel: string;
+  newProviderId: string;
+  newProviderLabel: string;
+}
+
+export function recordProviderChange(entry: ProviderChangeEntry): void {
+  db.prepare(
+    "INSERT INTO provider_changes (changed_at, kind, stage, run_id, scene_id, previous_provider_id, previous_provider_label, new_provider_id, new_provider_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  ).run(entry.changedAt, entry.kind, entry.stage, entry.runId, entry.sceneId, entry.previousProviderId, entry.previousProviderLabel, entry.newProviderId, entry.newProviderLabel);
 }
 
 // manage-providers-from-admin (JOS-218) — something that derives state from the stored provider profiles (the adapter

@@ -6,17 +6,19 @@ import { TelemetryConsentDialog } from "./components/TelemetryConsentDialog";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { AdminTools } from "./components/AdminTools";
 import { AdminPage } from "./components/AdminPage";
-import type { TelemetryConsent } from "./types";
+import type { AppVersion, TelemetryConsent } from "./types";
 import { useLiveSession } from "./api/useLiveSession";
 import {
   correctScene,
   createSession,
   continueSession,
   fetchLanguages,
+  getAppVersion,
   getTelemetryConsent,
   saveTelemetryConsent,
   pauseSession,
   rebuildFinalVideo,
+  rebuildScene,
   retryAssembly,
   retryDecomposition,
   retryScene,
@@ -40,20 +42,25 @@ function sessionIdFromUrl(): string | undefined {
  * is not linked from the top bar: the Administrator opens the address directly.
  */
 export default function App() {
+  // show-app-version (JOS-238), design Decision 1 — asked here, where nothing remounts, so it is one request per page load.
+  const [appVersion, setAppVersion] = useState<AppVersion | undefined>(undefined);
+  useEffect(() => {
+    getAppVersion().then(setAppVersion).catch(() => setAppVersion(undefined));
+  }, []);
   if (window.location.pathname === "/admin") {
     return (
       <>
-        <TopBar />
+        <TopBar appVersion={appVersion} />
         <main className="app-main">
           <AdminPage tools={(context) => <AdminTools {...context} />} />
         </main>
       </>
     );
   }
-  return <RegularApp />;
+  return <RegularApp appVersion={appVersion} />;
 }
 
-function RegularApp() {
+function RegularApp({ appVersion }: { appVersion: AppVersion | undefined }) {
   const [sessionId, setSessionId] = useState<string | undefined>(sessionIdFromUrl);
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | undefined>(undefined);
@@ -134,7 +141,7 @@ function RegularApp() {
   if (!sessionId) {
     return (
       <>
-        <TopBar onOpenPrivacy={() => setPrivacyOpen(true)} />
+        <TopBar onOpenPrivacy={() => setPrivacyOpen(true)} appVersion={appVersion} />
         {privacy}
         <main className="app-main">
           {/* eslint-disable-next-line @typescript-eslint/no-misused-promises -- handleStart catches its own failure */}
@@ -146,7 +153,7 @@ function RegularApp() {
 
   return (
     <>
-      <TopBar connected={notFound ? undefined : connected} onNewProject={handleStartNew} onOpenPrivacy={() => setPrivacyOpen(true)} />
+      <TopBar connected={notFound ? undefined : connected} onNewProject={handleStartNew} onOpenPrivacy={() => setPrivacyOpen(true)} appVersion={appVersion} />
       {privacy}
       <main className="app-main">
         <SessionPage
@@ -154,14 +161,13 @@ function RegularApp() {
           snapshot={snapshot}
           notFound={notFound}
           onStartNew={handleStartNew}
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises -- a failed pause is not surfaced yet (JOS-208 PR note)
           onPause={() => pauseSession(sessionId)}
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises -- a failed continue is not surfaced yet (JOS-208 PR note)
           onContinue={() => continueSession(sessionId)}
           onRetry={(sceneId) => retryScene(sessionId, sceneId)}
           onCorrect={(sceneId, instruction) => correctScene(sessionId, sceneId, instruction)}
           onSetPause={(sceneId, seconds) => setScenePause(sessionId, sceneId, seconds)}
           onRebuildFinalVideo={() => rebuildFinalVideo(sessionId)}
+          onRebuildScene={(sceneId, instructions) => rebuildScene(sessionId, sceneId, instructions)}
           onRetryPhase={(phase) => {
             if (phase === "voice-over") return retryVoiceOver(sessionId);
             if (phase === "decomposition") return retryDecomposition(sessionId);

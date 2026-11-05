@@ -26,7 +26,7 @@ describe("the boot log line", () => {
       concurrency: {
         decomposition: { inFlight: 0, limit: 50 },
         image: { inFlight: 1, limit: 2 },
-        voice: { inFlight: 0, limit: 3 },
+        voice: { inFlight: 0, limit: 4 },
         alignment: { inFlight: 0, limit: 2 },
         video: { inFlight: 2, limit: 3 },
       },

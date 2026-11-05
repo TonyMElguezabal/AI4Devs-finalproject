@@ -3,6 +3,7 @@ import { recoverOnBoot, VIDEO_STAGE } from "../src/orchestrator.ts";
 import { rebuildScheduler, resetScheduler } from "../src/retry/retryScheduler.ts";
 import { sweepTimedOutAttempts } from "../src/retry/attemptTimeoutWatcher.ts";
 import { STAGE } from "../src/types.ts";
+import { resetTaskChecksForTests } from "../src/videoRequestStatus.ts";
 
 // preserve-progress-across-restarts (JOS-160), design Decision 5 — a restart is simulated by discarding what a
 // process loses (request-cap queues and counts, scheduler wake-up timers) while keeping the store, then running
@@ -15,6 +16,7 @@ export interface SimulatedRestartOptions {
 
 export function simulateRestart(options: SimulatedRestartOptions = {}): ReturnType<typeof recoverOnBoot> {
   concurrency.resetAll();
+  resetTaskChecksForTests(); // show-clip-task-liveness (JOS-233): a new process has checked nothing yet
   concurrency.setLimit(STAGE, options.limits?.image ?? 10);
   concurrency.setLimit(VIDEO_STAGE, options.limits?.video ?? 10);
   resetScheduler();

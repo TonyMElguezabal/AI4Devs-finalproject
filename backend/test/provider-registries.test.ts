@@ -12,6 +12,7 @@ import { SETTINGS } from "../src/config/providers.ts";
 import { getVideoProviderRegistry, resetVideoProviderRegistry } from "../src/videoProvider.ts";
 import { getVoiceProviderRegistry, resetVoiceProviderRegistry } from "../src/voiceProvider.ts";
 import { LEGACY_IMAGE_PROVIDER_IDENTIFIER, LEGACY_VIDEO_PROVIDER_IDENTIFIER } from "../src/config/providers.ts";
+import { imageProviderFromGenerate } from "./imageProviderFixtures.ts";
 
 // manage-providers-from-admin (JOS-218), group 4 — design Decision 3: the registries are built from the provider
 // profiles; a change to a profile reaches the next resolution without a restart.
@@ -76,8 +77,8 @@ describe("the registries built from the profiles", () => {
   it("sends an added profile's requests to its own model with its own key", async () => {
     addImageProfile("01ADDED", "fal-ai/flux-pro");
     storeProfileKey("01ADDED", "added-profile-key-1");
-    await getImageProviderRegistry().adapters["01ADDED"]!.generate("a lighthouse");
-    expect(fetchedUrls).toEqual(["https://fal.run/fal-ai/flux-pro"]);
+    await getImageProviderRegistry().adapters["01ADDED"]!.submit("a lighthouse");
+    expect(fetchedUrls).toEqual(["https://queue.fal.run/fal-ai/flux-pro"]);
   });
 
   it("uses an edited parameter on the next resolution, while a call already holding the old adapter is unaffected", async () => {
@@ -86,10 +87,10 @@ describe("the registries built from the profiles", () => {
     const before = getImageProviderRegistry().adapters["01ADDED"]!;
     updateProfile("01ADDED", { label: "Renamed", parameters: { model: "model-after" } }, NOW);
 
-    await getImageProviderRegistry().adapters["01ADDED"]!.generate("a");
-    await before.generate("b");
+    await getImageProviderRegistry().adapters["01ADDED"]!.submit("a");
+    await before.submit("b");
 
-    expect(fetchedUrls).toEqual(["https://fal.run/model-after", "https://fal.run/model-before"]);
+    expect(fetchedUrls).toEqual(["https://queue.fal.run/model-after", "https://queue.fal.run/model-before"]);
     expect(selectableProviders("image").find((provider) => provider.id === "01ADDED")!.label).toBe("Renamed");
   });
 
@@ -107,7 +108,7 @@ describe("the registries built from the profiles", () => {
   });
 
   it("lets a test replace a registry, and puts the profiles back on reset", () => {
-    setImageProviderRegistry({ defaultIdentifier: "stub", adapters: { stub: { generate: async () => ({ kind: "failed_transient", reason: "x" }) } } });
+    setImageProviderRegistry({ defaultIdentifier: "stub", adapters: { stub: imageProviderFromGenerate(async () => ({ kind: "failed_transient", reason: "x" })) } });
     expect(getImageProviderRegistry().defaultIdentifier).toBe("stub");
     resetImageProviderRegistry();
     expect(getImageProviderRegistry().defaultIdentifier).toBe("Fal.ai");

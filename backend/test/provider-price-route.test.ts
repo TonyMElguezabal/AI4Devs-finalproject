@@ -119,7 +119,7 @@ describe("a price changes nothing else", () => {
       bodies.push(String(init?.body));
       return new Response("{}", { status: 500 });
     }) as typeof fetch;
-    await createFalAiImageProvider({ fetchFn, parameters: { model: "m", pricePerUnit: 0.04, priceCurrency: "USD" } as { model: string }, loadKey: () => "k" }).generate("a lighthouse");
+    await createFalAiImageProvider({ fetchFn, parameters: { model: "m", pricePerUnit: 0.04, priceCurrency: "USD" } as { model: string }, loadKey: () => "k" }).submit("a lighthouse");
     expect(bodies.length).toBeGreaterThan(0);
     expect(bodies.join("")).not.toMatch(/price|USD|0\.04/i);
   });
