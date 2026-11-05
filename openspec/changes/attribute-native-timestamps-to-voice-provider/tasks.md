@@ -31,9 +31,9 @@
 
 ## 6. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 6.1 Start the backend on a scratch store with literal env vars and `USE_STUB_VOICE_PROVIDER=success`; create a session, generate its voice-over, and read `GET /sessions/:id`: the timestamps stage shows `Stub provider` / `native timestamps`, and the stored attempt is `stub-voice:native`
-- [ ] 6.2 Insert a legacy `elevenlabs-native` attempt in the scratch store and confirm it still reads as ElevenLabs
-- [ ] 6.3 Record both in `reports/YYYY-MM-DD-step-6-manual-endpoint-testing.md`
+- [x] 6.1 Start the backend on a scratch store with literal env vars and `USE_STUB_VOICE_PROVIDER=success`; create a session, generate its voice-over, and read `GET /sessions/:id`: the timestamps stage shows `Stub provider` / `native timestamps`, and the stored attempt is `stub-voice:native`
+- [x] 6.2 Insert a legacy `elevenlabs-native` attempt in the scratch store and confirm it still reads as ElevenLabs
+- [x] 6.3 Record both in `reports/YYYY-MM-DD-step-6-manual-endpoint-testing.md`
 
 ## 7. Frontend: E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
