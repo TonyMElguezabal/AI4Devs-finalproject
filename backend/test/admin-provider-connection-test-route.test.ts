@@ -10,6 +10,7 @@ import { db, resetAll } from "../src/db.ts";
 import { resetKeyStoreCache, setLegacyCredentialLoader } from "../src/keyStore.ts";
 import { CONNECTION_CHECKS, resetConnectionCheckFetch, setConnectionCheckFetch } from "../src/providerConnectionCheck.ts";
 import { seedProviderProfiles } from "../src/providerProfiles.ts";
+import type { AdapterTypeId } from "../src/providerTypes.ts";
 import { buildApp } from "../src/server.ts";
 import { createAppLogger } from "../src/telemetry/logFile.ts";
 
@@ -62,8 +63,8 @@ async function addImageProfile(): Promise<string> {
 describe("GET /admin/provider-types", () => {
   it("states per type whether its check is charged and what it covers", async () => {
     const { types } = (await call("GET", "/admin/provider-types")).json();
-    for (const type of types as { id: string; connectionCheck: { charged: boolean; covers: string } }[]) {
-      expect(type.connectionCheck).toEqual({ charged: CONNECTION_CHECKS[type.id]!.charged, covers: CONNECTION_CHECKS[type.id]!.covers });
+    for (const type of types as { id: AdapterTypeId; connectionCheck: { charged: boolean; covers: string } }[]) {
+      expect(type.connectionCheck).toEqual({ charged: CONNECTION_CHECKS[type.id].charged, covers: CONNECTION_CHECKS[type.id].covers });
     }
   });
 });
@@ -85,7 +86,7 @@ describe("POST /admin/provider-profiles/:id/test", () => {
   it("answers no-key for a profile without a key and sends nothing", async () => {
     const response = await call("POST", "/admin/provider-profiles/Fal.ai/test", {});
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ outcome: "no-key", covers: CONNECTION_CHECKS["fal-image"]!.covers });
+    expect(response.json()).toEqual({ outcome: "no-key", covers: CONNECTION_CHECKS["fal-image"].covers });
     expect(fetchStub).not.toHaveBeenCalled();
   });
 
@@ -93,7 +94,7 @@ describe("POST /admin/provider-profiles/:id/test", () => {
     const id = await addImageProfile();
     const response = await call("POST", `/admin/provider-profiles/${id}/test`, {});
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ outcome: "connected", covers: CONNECTION_CHECKS["fal-image"]!.covers });
+    expect(response.json()).toEqual({ outcome: "connected", covers: CONNECTION_CHECKS["fal-image"].covers });
     expect(fetchStub).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(fetchStub.mock.calls[0]![1])).toContain(KEY);
   });
@@ -101,17 +102,17 @@ describe("POST /admin/provider-profiles/:id/test", () => {
   it("answers the vendor's HTTP status for an unexpected answer", async () => {
     const id = await addImageProfile();
     fetchStub.mockImplementation(() => Promise.resolve(new Response("{}", { status: 502 })));
-    expect((await call("POST", `/admin/provider-profiles/${id}/test`, {})).json()).toEqual({ outcome: "unexpected", covers: CONNECTION_CHECKS["fal-image"]!.covers, httpStatus: 502 });
+    expect((await call("POST", `/admin/provider-profiles/${id}/test`, {})).json()).toEqual({ outcome: "unexpected", covers: CONNECTION_CHECKS["fal-image"].covers, httpStatus: 502 });
   });
 
   describe("a charged check", () => {
     let original: boolean;
     beforeEach(() => {
-      original = CONNECTION_CHECKS["fal-image"]!.charged;
-      CONNECTION_CHECKS["fal-image"]!.charged = true;
+      original = CONNECTION_CHECKS["fal-image"].charged;
+      CONNECTION_CHECKS["fal-image"].charged = true;
     });
     afterEach(() => {
-      CONNECTION_CHECKS["fal-image"]!.charged = original;
+      CONNECTION_CHECKS["fal-image"].charged = original;
     });
 
     it("is refused with 409 charge-not-accepted and nothing is sent when the charge is not accepted", async () => {
@@ -173,7 +174,7 @@ describe("a test never reveals the key", () => {
     const response = await call("POST", `/admin/provider-profiles/${id}/test`, {});
     await app.close();
 
-    expect(response.json()).toEqual({ outcome: "key-rejected", covers: CONNECTION_CHECKS["fal-image"]!.covers });
+    expect(response.json()).toEqual({ outcome: "key-rejected", covers: CONNECTION_CHECKS["fal-image"].covers });
     expect(response.body).not.toContain(KEY);
     const output = stdout.join("");
     const file = readFileSync(join(logDir, "vid4you.log"), "utf8");

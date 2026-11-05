@@ -17,7 +17,7 @@ describe("the per-adapter tables are keyed by the shipped adapter types", () => 
 
   it("rejects a table that misses an adapter type", () => {
     // @ts-expect-error every shipped adapter type needs a connection check
-    const incomplete: typeof CONNECTION_CHECKS = { "openai-reasoning": CONNECTION_CHECKS["openai-reasoning"]! };
+    const incomplete: typeof CONNECTION_CHECKS = { "openai-reasoning": CONNECTION_CHECKS["openai-reasoning"] };
     expect(Object.keys(incomplete)).not.toEqual(SHIPPED);
   });
 

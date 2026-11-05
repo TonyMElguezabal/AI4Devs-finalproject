@@ -10,10 +10,10 @@
 
 ## 2. Backend: Key the tables by adapter type (design Decisions 1-3)
 
-- [ ] 2.1 Export `AdapterTypeId = keyof typeof PARAMETER_SHAPES` from `providerTypes.ts` and use it in `ADAPTER_VENDORS`
-- [ ] 2.2 Type `CONNECTION_CHECKS` as `Record<AdapterTypeId, ConnectionCheck>`. Widen it at the two lookups by a stored `adapterType` (`runConnectionCheck` and the connection test route in `adminProviderRoutes.ts`), as `db.ts` does for `ADAPTER_VENDORS`
-- [ ] 2.3 Turn `ADAPTER_TYPE_DEFINITIONS` into `Record<AdapterTypeId, Omit<AdapterType, "id">>`, type `AdapterType.id` as `AdapterTypeId`, and derive `ADAPTER_TYPES` with the same order and key order
-- [ ] 2.4 `npm run typecheck`, `npm run lint` and the tests from 1.1 pass
+- [x] 2.1 Export `AdapterTypeId = keyof typeof PARAMETER_SHAPES` from `providerTypes.ts` and use it in `ADAPTER_VENDORS`
+- [x] 2.2 Type `CONNECTION_CHECKS` as `Record<AdapterTypeId, ConnectionCheck>`. Widen it at the two lookups by a stored `adapterType` (`runConnectionCheck` and the connection test route in `adminProviderRoutes.ts`), as `db.ts` does for `ADAPTER_VENDORS`
+- [x] 2.3 Turn `ADAPTER_TYPE_DEFINITIONS` into `Record<AdapterTypeId, Omit<AdapterType, "id">>`, type `AdapterType.id` as `AdapterTypeId`, and derive `ADAPTER_TYPES` with the same order and key order
+- [x] 2.4 `npm run typecheck`, `npm run lint` and the tests from 1.1 pass
 
 ## 3. Backend: Prove acceptance criterion 2 by hand (design Risks)
 
