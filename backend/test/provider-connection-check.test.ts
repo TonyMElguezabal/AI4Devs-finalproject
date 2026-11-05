@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { CONNECTION_CHECKS, type ConnectionOutcome } from "../src/providerConnectionCheck.ts";
-import { ADAPTER_TYPES } from "../src/providerTypes.ts";
+import { ADAPTER_TYPES, type AdapterTypeId } from "../src/providerTypes.ts";
 
 // test-provider-connection (JOS-220), group 2 — design Decision 2: one check per adapter type, one request, no key in the result.
 
 const KEY = "sk-example-1234567890ab";
 
 interface Case {
-  type: string;
+  type: AdapterTypeId;
   parameters: Record<string, unknown>;
   host: string;
   /** The URL the one request must go to, and the method. */
@@ -82,11 +82,11 @@ const CASES: Case[] = [
 const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status });
 const stubFetch = (status: number, body: unknown) => vi.fn<typeof fetch>(() => Promise.resolve(reply(status, body)));
 const run = (testCase: Case, fetchFn: typeof fetch): Promise<ConnectionOutcome> =>
-  CONNECTION_CHECKS[testCase.type]!.run(testCase.parameters, KEY, fetchFn, AbortSignal.timeout(10_000));
+  CONNECTION_CHECKS[testCase.type].run(testCase.parameters, KEY, fetchFn, AbortSignal.timeout(10_000));
 
 describe("every adapter type has a connection check", () => {
-  it("covers the whole catalogue and nothing else", () => {
-    expect(Object.keys(CONNECTION_CHECKS).sort()).toEqual(ADAPTER_TYPES.map((type) => type.id).sort());
+  // The checks themselves are matched to the shipped adapter types in adapter-type-tables.test.ts (JOS-262).
+  it("has a test case for every adapter type in the catalogue", () => {
     expect(CASES.map((testCase) => testCase.type).sort()).toEqual(ADAPTER_TYPES.map((type) => type.id).sort());
   });
 
