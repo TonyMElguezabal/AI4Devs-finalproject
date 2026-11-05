@@ -43,10 +43,10 @@
 
 ## 7. Frontend: E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the frontend and backend on scratch stores
-- [ ] 7.2 Open `/admin`, start adding a profile for each stage, and check that the adapter type choices, the form fields and the connection-check note match the base commit
-- [ ] 7.3 Stop the servers and remove the scratch stores
-- [ ] 7.4 Create report `openspec/changes/key-per-adapter-tables/reports/YYYY-MM-DD-step-7-e2e-playwright.md`
+- [x] 7.1 Start the frontend and backend on scratch stores
+- [x] 7.2 Open `/admin`, start adding a profile for each stage, and check that the adapter type choices, the form fields and the connection-check note match the base commit
+- [x] 7.3 Stop the servers and remove the scratch stores
+- [x] 7.4 Create report `openspec/changes/key-per-adapter-tables/reports/YYYY-MM-DD-step-7-e2e-playwright.md`
 
 ## 8. Update Technical Documentation (MANDATORY)
 
