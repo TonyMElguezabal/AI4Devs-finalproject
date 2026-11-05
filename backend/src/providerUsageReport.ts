@@ -6,6 +6,7 @@ export function nearestRankPercentile(values: readonly number[], fraction: numbe
 }
 
 import { db } from "./db.ts";
+import { NOT_NATIVE_TIMESTAMPS_SQL } from "./nativeTimestampsProvider.ts";
 
 export type ReportStage = "voice" | "alignment" | "reasoning" | "image" | "video";
 
@@ -74,7 +75,7 @@ function readCountedAttempts(filter: AttemptFilter): CountedAttempt[] {
                            WHEN 'timestamps' THEN (SELECT duration_seconds FROM voice_overs v WHERE v.run_id = a.run_id)
                            ELSE 1 END AS units
        FROM stage_attempts a
-       WHERE a.stage IN ('voice-over', 'timestamps', 'decomposition') AND a.provider_id IS NOT NULL AND a.provider_id <> 'elevenlabs-native'
+       WHERE a.stage IN ('voice-over', 'timestamps', 'decomposition') AND a.provider_id IS NOT NULL AND ${NOT_NATIVE_TIMESTAMPS_SQL}
          AND a.sent_at IS NOT NULL AND a.outcome IN ('success', 'late-success', 'transient', 'not-retryable', 'timed-out')
          AND ${sessionFilter.sql}`,
     )

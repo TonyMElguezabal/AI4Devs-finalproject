@@ -15,12 +15,12 @@
 
 ## 3. Backend: Display, telemetry, reports and retries (TDD; AC2-AC4; design Decisions 3-4)
 
-- [ ] 3.1 Write failing tests: `describeProvider("timestamps", "stub-voice:native")` is `Stub provider` / `native timestamps`, `"ElevenLabs:native"` is ElevenLabs / `native timestamps`, legacy unchanged; telemetry reports `stub` and `ElevenLabs`; both reports leave `…:native` attempts out; `startNewCycle` keeps a `…:native` provider
-- [ ] 3.2 Update `stageDiagnostics.ts`, `telemetryProviderOf` in `db.ts`, `failuresReport.ts`, `providerUsageReport.ts` and `retry/stageAttemptRecorder.ts` to use the helpers
+- [x] 3.1 Write failing tests: `describeProvider("timestamps", "stub-voice:native")` is `Stub provider` / `native timestamps`, `"ElevenLabs:native"` is ElevenLabs / `native timestamps`, legacy unchanged; telemetry reports `stub` and `ElevenLabs`; both reports leave `…:native` attempts out; `startNewCycle` keeps a `…:native` provider
+- [x] 3.2 Update `stageDiagnostics.ts`, `telemetryProviderOf` in `db.ts`, `failuresReport.ts`, `providerUsageReport.ts` and `retry/stageAttemptRecorder.ts` to use the helpers
 
 ## 4. Backend: Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 4.1 Update tests that pin `elevenlabs-native` as the newly recorded id; keep the ones that read stored legacy rows (AC4)
+- [x] 4.1 Update tests that pin `elevenlabs-native` as the newly recorded id; keep the ones that read stored legacy rows (AC4)
 
 ## 5. Backend: Run Unit Tests and Verify Database State (MANDATORY)
 

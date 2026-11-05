@@ -37,6 +37,13 @@ describe("describeProvider shows a readable provider for each stage", () => {
     expect(describeProvider("timestamps", "elevenlabs-forced-alignment")).toEqual({ name: "ElevenLabs", model: "forced alignment" });
   });
 
+  // attribute-native-timestamps-to-voice-provider (JOS-264) — native timestamps name the voice provider that made them;
+  // `elevenlabs-native` above is the id stored before (AC4).
+  it("timestamps: native timestamps show the voice provider that produced them (AC2, AC3)", () => {
+    expect(describeProvider("timestamps", "stub-voice:native")).toEqual({ name: "Stub provider", model: "native timestamps" });
+    expect(describeProvider("timestamps", `${VOICE_PROVIDER.name}:native`)).toEqual({ name: "ElevenLabs", model: "native timestamps" });
+  });
+
   it("instructions: the reasoning provider and model", () => {
     expect(describeProvider("instructions", DECOMPOSITION_ATTEMPT_PROVIDER)).toEqual({ name: DECOMPOSITION_PROVIDER.name, model: DECOMPOSITION_PROVIDER.model });
   });

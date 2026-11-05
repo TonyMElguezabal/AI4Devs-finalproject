@@ -102,6 +102,16 @@ describe("the provider label of a stage attempt", () => {
     expect(calls).toContainEqual({ stage: "timestamps", provider: "ElevenLabs", outcome: "success" });
   });
 
+  // attribute-native-timestamps-to-voice-provider (JOS-264) — the vendor of the voice provider that produced them (AC2, AC3);
+  // `elevenlabs-native` above is the id stored before (AC4).
+  it("is the voice provider's vendor for native timestamps", async () => {
+    expect(await attemptProvider("timestamps", `${SEEDED_PROFILES.voice.id}:native`)).toBe("ElevenLabs");
+  });
+
+  it("is stub for native timestamps from the stub voice provider", async () => {
+    expect(await attemptProvider("timestamps", "stub-voice:native")).toBe("stub");
+  });
+
   it("is local for the assembly stage, which calls no provider", async () => {
     expect(await attemptProvider("assembly", null)).toBe("local");
   });
