@@ -10,8 +10,8 @@
 
 ## 2. Backend: Record the voice provider (TDD; AC1)
 
-- [ ] 2.1 Write failing tests in `obtain-narration-timestamps.test.ts`: a session bound to `stub-voice` records `stub-voice:native`; one bound to `ElevenLabs` records `ElevenLabs:native`; neither binds an alignment provider
-- [ ] 2.2 Replace `NATIVE_PROVIDER` in `narrationTimestampsPhase.ts` with the bound voice id (`run.voiceProviderId ?? activeProviderId("voice")`)
+- [x] 2.1 Write failing tests in `obtain-narration-timestamps.test.ts`: a session bound to `stub-voice` records `stub-voice:native`; one bound to `ElevenLabs` records `ElevenLabs:native`; neither binds an alignment provider
+- [x] 2.2 Replace `NATIVE_PROVIDER` in `narrationTimestampsPhase.ts` with the bound voice id (`run.voiceProviderId ?? activeProviderId("voice")`)
 
 ## 3. Backend: Display, telemetry, reports and retries (TDD; AC2-AC4; design Decisions 3-4)
 
