@@ -84,6 +84,8 @@
 
 ## 11. Live check on the Grafana stack (MANUAL with the Developer; design D6; JOS-256)
 
+> Not done in this change. Archived on 2026-11-04 with 11.1–11.4 open, at the owner's request: the live check moves to JOS-256, which stays open in Linear and is done later on its own branch, with its report and the `infra/grafana/README.md` correction. The relay drops `route` until it is redeployed by a merge into `main`.
+
 - [ ] 11.1 Run a `development` backend with error consent on, the real endpoint and `VID4YOU_ERROR_TRIGGERS=1`; send `POST /dev/errors/route-crash` with tag `jos-256-<date>`, and one not-retryable stage failure with the stub image provider
 - [ ] 11.2 With the Developer's go-ahead and logged-in browser, find both in Loki (`service_name="vid4you"`, `detected_level="error"`) and check `stage`, `provider`, `error_code`, `service_version`
 - [ ] 11.3 Open `release-health` with Environment = `development` and check the errors are counted

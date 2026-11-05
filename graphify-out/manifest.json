@@ -5382,9 +5382,9 @@
     "semantic_hash": ""
   },
   "openspec/specs/app-telemetry/spec.md": {
-    "mtime": 1793811104.1352284,
-    "seen": 1793826568.670828,
-    "ast_hash": "5a257700f21e5248c40c5eef779db6c4",
+    "mtime": 1793837415.4735193,
+    "seen": 1793837446.701239,
+    "ast_hash": "de467812e87a29920e7bfc474f0cd65a",
     "semantic_hash": ""
   },
   "openspec/specs/chunk-image-generation/spec.md": {
@@ -9287,70 +9287,76 @@
     "ast_hash": "3a15444c029d4527dcce0f8a393789a2",
     "semantic_hash": ""
   },
-  "openspec/changes/cover-error-reporting/.openspec.yaml": {
-    "mtime": 1793814242.8190036,
-    "seen": 1793826568.6703832,
-    "ast_hash": "69c36d23f2f6a5ad6d931f82c72ac905",
-    "semantic_hash": ""
-  },
-  "openspec/changes/cover-error-reporting/design.md": {
-    "mtime": 1793826509.2932198,
-    "seen": 1793826568.6703842,
-    "ast_hash": "fe7f8c48212cd87a2bc0a4afb95e77af",
-    "semantic_hash": ""
-  },
-  "openspec/changes/cover-error-reporting/proposal.md": {
-    "mtime": 1793825338.5407639,
-    "seen": 1793826568.670385,
-    "ast_hash": "36a4fad5fc4c01620a5fe760db2c524d",
-    "semantic_hash": ""
-  },
-  "openspec/changes/cover-error-reporting/reports/2026-11-04-catch-audit.md": {
-    "mtime": 1793825888.2602265,
-    "seen": 1793826568.6703858,
-    "ast_hash": "e9b7ec4d41e913fe4172f900f30a43d2",
-    "semantic_hash": ""
-  },
-  "openspec/changes/cover-error-reporting/reports/2026-11-04-step-10-e2e-playwright.md": {
-    "mtime": 1793826434.0975492,
-    "seen": 1793826568.670387,
-    "ast_hash": "41a813a2dda3bf955de6e931442ec764",
-    "semantic_hash": ""
-  },
-  "openspec/changes/cover-error-reporting/reports/2026-11-04-step-8-unit-test-and-db-verification.md": {
-    "mtime": 1793826178.0079823,
-    "seen": 1793826568.670388,
-    "ast_hash": "ceef74ec66a5a1739ccb093e3adf86b9",
-    "semantic_hash": ""
-  },
-  "openspec/changes/cover-error-reporting/reports/2026-11-04-step-9-manual-endpoint-testing.md": {
-    "mtime": 1793826308.1867101,
-    "seen": 1793826568.670388,
-    "ast_hash": "102a90e05dcf5f175dcd6762f704051a",
-    "semantic_hash": ""
-  },
-  "openspec/changes/cover-error-reporting/specs/app-telemetry/spec.md": {
-    "mtime": 1793826509.2930415,
-    "seen": 1793826568.670389,
-    "ast_hash": "5bd711faa512bdcbeafa1e0e1bbc710f",
-    "semantic_hash": ""
-  },
-  "openspec/changes/cover-error-reporting/specs/frontend-error-capture/spec.md": {
-    "mtime": 1793814309.271794,
-    "seen": 1793826568.6703901,
-    "ast_hash": "cdfdeb751840f231558e4f5ecc75c983",
-    "semantic_hash": ""
-  },
-  "openspec/changes/cover-error-reporting/tasks.md": {
-    "mtime": 1793826527.981994,
-    "seen": 1793826568.670391,
-    "ast_hash": "92f0a7a528fde4e61f7b1c4ffd44ec44",
-    "semantic_hash": ""
-  },
   "openspec/specs/internal-workflow-verification/spec.md": {
     "mtime": 1793811104.1403317,
     "seen": 1793826568.671249,
     "ast_hash": "ce428ea87622e9059f0d6e4c41c2a989",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-11-04-cover-error-reporting/.openspec.yaml": {
+    "mtime": 1793814242.8190036,
+    "seen": 1793837446.700524,
+    "ast_hash": "69c36d23f2f6a5ad6d931f82c72ac905",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-11-04-cover-error-reporting/design.md": {
+    "mtime": 1793826509.2932198,
+    "seen": 1793837446.7005272,
+    "ast_hash": "fe7f8c48212cd87a2bc0a4afb95e77af",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-11-04-cover-error-reporting/proposal.md": {
+    "mtime": 1793825338.5407639,
+    "seen": 1793837446.7005289,
+    "ast_hash": "36a4fad5fc4c01620a5fe760db2c524d",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-11-04-cover-error-reporting/reports/2026-11-04-catch-audit.md": {
+    "mtime": 1793825888.2602265,
+    "seen": 1793837446.7005298,
+    "ast_hash": "e9b7ec4d41e913fe4172f900f30a43d2",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-11-04-cover-error-reporting/reports/2026-11-04-step-10-e2e-playwright.md": {
+    "mtime": 1793826434.0975492,
+    "seen": 1793837446.700531,
+    "ast_hash": "41a813a2dda3bf955de6e931442ec764",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-11-04-cover-error-reporting/reports/2026-11-04-step-8-unit-test-and-db-verification.md": {
+    "mtime": 1793826178.0079823,
+    "seen": 1793837446.700533,
+    "ast_hash": "ceef74ec66a5a1739ccb093e3adf86b9",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-11-04-cover-error-reporting/reports/2026-11-04-step-9-manual-endpoint-testing.md": {
+    "mtime": 1793826308.1867101,
+    "seen": 1793837446.700534,
+    "ast_hash": "102a90e05dcf5f175dcd6762f704051a",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-11-04-cover-error-reporting/specs/app-telemetry/spec.md": {
+    "mtime": 1793826509.2930415,
+    "seen": 1793837446.700535,
+    "ast_hash": "5bd711faa512bdcbeafa1e0e1bbc710f",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-11-04-cover-error-reporting/specs/frontend-error-capture/spec.md": {
+    "mtime": 1793814309.271794,
+    "seen": 1793837446.700536,
+    "ast_hash": "cdfdeb751840f231558e4f5ecc75c983",
+    "semantic_hash": ""
+  },
+  "openspec/changes/archive/2026-11-04-cover-error-reporting/tasks.md": {
+    "mtime": 1793837397.7445068,
+    "seen": 1793837446.7005372,
+    "ast_hash": "1d5f0f6bf8b9ab58dc08dffec836988a",
+    "semantic_hash": ""
+  },
+  "openspec/specs/frontend-error-capture/spec.md": {
+    "mtime": 1793837415.4739277,
+    "seen": 1793837446.70165,
+    "ast_hash": "03295e86bb66a02e068e66b6b4c44681",
     "semantic_hash": ""
   }
 }
