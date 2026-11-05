@@ -5,8 +5,8 @@
 
 ## 1. Backend: The native id format (TDD; design Decisions 1-2)
 
-- [ ] 1.1 Write failing tests for `nativeTimestampsProviderId`, `isNativeTimestampsProviderId` and `voiceProviderIdOfNative`, legacy `elevenlabs-native` included
-- [ ] 1.2 Create `backend/src/nativeTimestampsProvider.ts` with no imports, and make them pass
+- [x] 1.1 Write failing tests for `nativeTimestampsProviderId`, `isNativeTimestampsProviderId` and `voiceProviderIdOfNative`, legacy `elevenlabs-native` included
+- [x] 1.2 Create `backend/src/nativeTimestampsProvider.ts` with no imports, and make them pass
 
 ## 2. Backend: Record the voice provider (TDD; AC1)
 
