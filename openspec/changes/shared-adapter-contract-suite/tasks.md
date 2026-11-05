@@ -5,11 +5,11 @@
 
 ## 1. Backend: The shared contract suite (TDD; design Decisions 1-3)
 
-- [ ] 1.1 Write `backend/test/adapter-contract.test.ts` with the `ContractOperation` and `AdapterContractFixture` types, a single `classify(result)` function, and the answer table of Decision 2 (valid answer; 400, 401, 402, 403, 404, 413, 422; 408, 429, 500, 502, 503, 504; refused connection; timeout; malformed 200). Every case counts requests
-- [ ] 1.2 Add the meta-test of Decision 3, and type the fixtures `Record<AdapterTypeId, AdapterContractFixture>`, starting empty
-- [ ] 1.3 Confirm the change fails first: `npm run typecheck` names the five missing adapter types, and the meta-test fails (record the output)
-- [ ] 1.4 Add the fixtures, one per adapter type, from the Context table. Reuse the success bodies of the per-adapter tests: `openai-reasoning` `generate`; `elevenlabs-voice` `synthesize`; `elevenlabs-alignment` `align`; `fal-image` `submit`; `runninghub-video` `submit` (two requests on success) and `poll`
-- [ ] 1.5 Run the suite on scratch `DB_PATH` and `PROJECTS_ROOT`. If any adapter disagrees with the table, stop: it is either a fixture error or a real gap, and a real gap needs an artifact update and the product owner, not a code fix in this story
+- [x] 1.1 Write `backend/test/adapter-contract.test.ts` with the `ContractOperation` and `AdapterContractFixture` types, a single `classify(result)` function, and the answer table of Decision 2 (valid answer; 400, 401, 402, 403, 404, 413, 422; 408, 429, 500, 502, 503, 504; refused connection; timeout; malformed 200). Every case counts requests
+- [x] 1.2 Add the meta-test of Decision 3, and type the fixtures `Record<AdapterTypeId, AdapterContractFixture>`, starting empty
+- [x] 1.3 Confirm the change fails first: `npm run typecheck` names the five missing adapter types, and the meta-test fails (record the output)
+- [x] 1.4 Add the fixtures, one per adapter type, from the Context table. Reuse the success bodies of the per-adapter tests: `openai-reasoning` `generate`; `elevenlabs-voice` `synthesize`; `elevenlabs-alignment` `align`; `fal-image` `submit`; `runninghub-video` `submit` (two requests on success) and `poll`
+- [x] 1.5 Run the suite on scratch `DB_PATH` and `PROJECTS_ROOT`. If any adapter disagrees with the table, stop: it is either a fixture error or a real gap, and a real gap needs an artifact update and the product owner, not a code fix in this story
 
 ## 2. Backend: Prove the meta-test by hand (design Decision 3)
 
