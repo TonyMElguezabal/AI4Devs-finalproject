@@ -35,11 +35,11 @@
 
 ## 6. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 6.1 Before section 2, start the backend from the base commit on a scratch store with literal env vars and save the `GET /admin/provider-types` response
-- [ ] 6.2 On this branch, start the backend the same way, save the same response, and `diff` the two files (expected: identical)
-- [ ] 6.3 `POST /admin/provider-profiles/:id/test` for a profile with no key (expected: `no-key` with the same `covers` as before), for an unknown id (404), and without the password (401)
-- [ ] 6.4 Confirm no request changed the store (no create, update or delete endpoints are involved), then stop the servers
-- [ ] 6.5 Create report `openspec/changes/key-per-adapter-tables/reports/YYYY-MM-DD-step-6-manual-endpoint-testing.md`
+- [x] 6.1 Before section 2, start the backend from the base commit on a scratch store with literal env vars and save the `GET /admin/provider-types` response
+- [x] 6.2 On this branch, start the backend the same way, save the same response, and `diff` the two files (expected: identical)
+- [x] 6.3 `POST /admin/provider-profiles/:id/test` for a profile with no key (expected: `no-key` with the same `covers` as before), for an unknown id (404), and without the password (401)
+- [x] 6.4 Confirm no request changed the store (no create, update or delete endpoints are involved), then stop the servers
+- [x] 6.5 Create report `openspec/changes/key-per-adapter-tables/reports/YYYY-MM-DD-step-6-manual-endpoint-testing.md`
 
 ## 7. Frontend: E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
