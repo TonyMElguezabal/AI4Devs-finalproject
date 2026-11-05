@@ -54,7 +54,7 @@
 ## 9. Decide and Update Documentation (MANDATORY)
 
 - [x] 9.1 Write the recommendation per limit and for the video concurrency (keep or change, with the margin); if a limit should change, open a separate OpenSpec change for it
-- [ ] 9.2 Update `readme.md` sections 2.4 and 4.1 (Spanish): confirm or remove the "provisional" wording
+- [x] 9.2 Update `readme.md` sections 2.4 and 4.1 (Spanish): confirm or remove the "provisional" wording
 - [ ] 9.3 Post the result as a comment on JOS-197
 - [ ] 9.4 Run `graphify update .`
 - [ ] 9.5 Open the pull request linking JOS-209; archive the change after merge
