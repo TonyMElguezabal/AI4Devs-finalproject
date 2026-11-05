@@ -1,3 +1,5 @@
+Linear-Issue: JOS-262
+
 ## Why
 
 A new vendor always arrives as a new adapter type in code (JOS-261, epic E18). `ADAPTER_VENDORS` is keyed by the adapter types in `PARAMETER_SHAPES`, so a new type does not compile until it names its vendor. The other per-adapter tables are not keyed that way. `CONNECTION_CHECKS` is a `Record<string, …>`, and the `/admin` form descriptions are a plain array, so a new type can ship with no connection test and no form. The runtime test that guards them compares them with each other, not with `PARAMETER_SHAPES`, so it still passes when both miss the same type. JOS-262 makes the compiler catch these gaps before the shared contract suite (JOS-263) builds on the same list.
