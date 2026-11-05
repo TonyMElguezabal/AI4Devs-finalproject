@@ -17,8 +17,8 @@
 
 ## 3. Backend: Prove acceptance criterion 2 by hand (design Risks)
 
-- [ ] 3.1 Add a scratch key to `PARAMETER_SHAPES`, run `npm run typecheck`, and record the errors that name `CONNECTION_CHECKS`, `ADAPTER_VENDORS` and the form table
-- [ ] 3.2 Revert the scratch key and confirm `git diff` shows no trace of it
+- [x] 3.1 Add a scratch key to `PARAMETER_SHAPES`, run `npm run typecheck`, and record the errors that name `CONNECTION_CHECKS`, `ADAPTER_VENDORS` and the form table
+- [x] 3.2 Revert the scratch key and confirm `git diff` shows no trace of it
 
 ## 4. Backend: Review and Update Existing Unit Tests (MANDATORY)
 
