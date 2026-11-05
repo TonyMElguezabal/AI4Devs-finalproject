@@ -48,4 +48,4 @@
 ## 9. Delivery
 
 - [x] 9.1 Commit on the feature branch
-- [ ] 9.2 Ask before pushing. Open a PR into `feature/entrega-3-JAME` that explains the cause and the fix
+- [x] 9.2 (PR #167 opened 2026-11-05) Ask before pushing. Open a PR into `feature/entrega-3-JAME` that explains the cause and the fix
