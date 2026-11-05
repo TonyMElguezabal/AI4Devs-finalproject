@@ -90,7 +90,8 @@ describe("submit", () => {
     });
     const result = await providerWith(fetchFn).submit(INSTRUCTION);
 
-    expect(result).toEqual({ kind: "failed_transient", reason: "the image provider could not be reached" });
+    // alert-unresponsive-provider (JOS-257) Decision 1 — the provider never answered, so the failure carries the mark.
+    expect(result).toEqual({ kind: "failed_transient", reason: "the image provider could not be reached", unresponsive: true });
   });
 
   it("classifies HTTP errors by the product owner rule (4xx except 408/429 not retryable, else transient)", async () => {

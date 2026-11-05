@@ -9,6 +9,7 @@ export const ALLOWED_ATTRIBUTE_KEYS: readonly string[] = [
   "os.type",
   "host.arch",
   "stage",
+  "route", // cover-error-reporting (JOS-252): method and route pattern of a 5xx route error
   "provider",
   "outcome",
   "unit",

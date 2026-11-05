@@ -13,7 +13,7 @@ import {
   resetAll,
 } from "../src/db.ts";
 import { ensureProfiles, insertProfile } from "../src/providerProfiles.ts";
-import { ADAPTER_VENDORS, PARAMETER_SHAPES, SEEDED_PROFILES } from "../src/providerTypes.ts";
+import { ADAPTER_VENDORS, SEEDED_PROFILES } from "../src/providerTypes.ts";
 import { flushTelemetry, resetTelemetryForTest, setConsent, setTelemetryExportersForTest } from "../src/telemetry/index.ts";
 import { ulid } from "../src/util/ulid.ts";
 
@@ -80,7 +80,6 @@ describe("ADAPTER_VENDORS", () => {
       "fal-image": "Fal.ai",
       "runninghub-video": "RunningHub",
     });
-    expect(Object.keys(ADAPTER_VENDORS).sort()).toEqual(Object.keys(PARAMETER_SHAPES).sort());
   });
 });
 
@@ -109,6 +108,7 @@ describe("the provider label of a stage attempt", () => {
 
   it("is stub for a stub identifier", async () => {
     expect(await attemptProvider("voice-over", "stub-voice")).toBe("stub");
+    expect(await attemptProvider("decomposition", "stub-reasoning")).toBe("stub"); // USE_STUB_DECOMPOSITION (JOS-243)
   });
 
   it("is the vendor, not the id or the typed label, for a provider added on /admin", async () => {

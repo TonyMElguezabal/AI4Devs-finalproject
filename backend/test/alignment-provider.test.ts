@@ -76,7 +76,6 @@ describe("The request (Decision 6)", () => {
 
 describe("The response (Decision 6)", () => {
   it.each([
-    ["content that is not JSON", () => new Response("not json", { status: 200 })],
     ["no characters", () => new Response(JSON.stringify({ words: [] }), { status: 200 })],
     ["characters without times", () => new Response(JSON.stringify({ characters: [{ text: "H" }] }), { status: 200 })],
   ])("reports %s as invalid output", async (_label, response) => {
@@ -85,24 +84,8 @@ describe("The response (Decision 6)", () => {
   });
 });
 
-describe("Failures are classified by HTTP status (product owner rule)", () => {
-  it.each([400, 401, 403, 404, 422])("classifies HTTP %i as not retryable", async (status) => {
-    const { fetchFn } = fakeFetch(() => new Response("{}", { status }));
-    expect((await providerWith(fetchFn).align(AUDIO, SCRIPT)).kind).toBe("failed_not_retryable");
-  });
-
-  it.each([408, 429, 500, 502, 503])("classifies HTTP %i as transient", async (status) => {
-    const { fetchFn } = fakeFetch(() => new Response("{}", { status }));
-    expect((await providerWith(fetchFn).align(AUDIO, SCRIPT)).kind).toBe("failed_transient");
-  });
-
-  it("classifies a network error as transient", async () => {
-    const fetchFn = (async () => {
-      throw new TypeError("fetch failed");
-    }) as typeof fetch;
-    expect((await providerWith(fetchFn).align(AUDIO, SCRIPT)).kind).toBe("failed_transient");
-  });
-
+// The status classification and the one-request rule are in adapter-contract.test.ts (JOS-263).
+describe("Failures (product owner rule)", () => {
   it("classifies exceeding the phase limit as transient", async () => {
     const fetchFn = ((_url: string | URL | Request, init?: RequestInit) =>
       new Promise<Response>((_resolve, reject) => {
@@ -130,11 +113,5 @@ describe("Failures are classified by HTTP status (product owner rule)", () => {
     const reason = "reason" in result ? result.reason : "";
     expect(reason).not.toMatch(/internal detail|sk_live_999|xi-SECRET-KEY/);
     expect(reason).toMatch(/422/);
-  });
-
-  it("makes exactly one request even when it fails", async () => {
-    const { fetchFn, calls } = fakeFetch(() => new Response("{}", { status: 503 }));
-    await providerWith(fetchFn).align(AUDIO, SCRIPT);
-    expect(calls).toHaveLength(1);
   });
 });

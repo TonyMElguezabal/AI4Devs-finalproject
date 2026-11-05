@@ -2,6 +2,7 @@ import { claimScheduledAttempt, getScheduledAttempts, getStageAttempt } from "..
 import * as concurrency from "../concurrency.ts";
 import { admitLaunch } from "../launchGate.ts";
 import type { AttemptStage, StageAttempt } from "../types.ts";
+import { recordCaughtError } from "../telemetry/index.ts";
 
 // bounded-retry-policy (JOS-184) Decisions 4 and 9 — releases scheduled
 // attempts. A retry is persisted before anything is armed; the timer is only a
@@ -136,7 +137,8 @@ export function sendWithSlot<T>(
 export function releaseAttempt(attemptId: string, now: () => Date = () => new Date()): ReleaseResult {
   const attempt = getStageAttempt(attemptId);
   const { result, settled } = dispatch<void>(attemptId, attempt ? senders.get(attempt.stage) : undefined, now);
-  settled.catch(() => {});
+  // cover-error-reporting (JOS-253): `settled` rejects only when a sender throws, a bug no attempt outcome records.
+  settled.catch((error: unknown) => recordCaughtError(error, attempt ? { stage: attempt.stage } : {}));
   return result;
 }
 

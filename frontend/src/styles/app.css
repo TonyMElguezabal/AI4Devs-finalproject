@@ -454,6 +454,15 @@ button.toggle[aria-expanded="true"] .icon {
   color: var(--color-muted);
 }
 
+/* cover-error-reporting (JOS-254) — the render-error fallback: the start form's card spacing, the button at its natural width. */
+.error-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
 .start-form {
   display: flex;
   flex-direction: column;

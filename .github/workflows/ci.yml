@@ -3,7 +3,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [feature/entrega-2-JAME, main]
+    branches: [feature/entrega-2-JAME, feature/entrega-3-JAME, main]
   push:
     branches: [main, feature/entrega-2-JAME]
   workflow_call: # release.yml reuses this job as the one definition of "the tests pass" (JOS-206)

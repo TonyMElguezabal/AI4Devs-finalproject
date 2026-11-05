@@ -12,7 +12,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { ADAPTER_VENDORS, SEEDED_PROFILES } from "./providerTypes.ts";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
-import { getConsent, normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
+import { normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
 import { ulid } from "./util/ulid.ts";
 import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
@@ -1044,6 +1044,7 @@ function snapshotReferenceImage(projectFolder: string): Run["referenceImage"] {
   try {
     bytes = readFileSync(file.path);
   } catch {
+    // the file vanished since it was chosen: the session starts without a reference image, as with none set.
     return null;
   }
   const path = writeArtefactOnce(projectFolder, `reference-image.${extension}`, bytes);
@@ -1745,10 +1746,16 @@ export function claimScheduledAttempt(attemptId: string, sentAt: string, notBefo
 
 /** JOS-185 Decision 3 — the one update that decides a timeout: only an in-flight attempt can time out, once. */
 export function timeOutAttempt(attemptId: string, finishedAt: string, errorMessage?: string): boolean {
-  const result = db
-    .prepare("UPDATE stage_attempts SET outcome = 'timed-out', finished_at = ?, error_message = ? WHERE id = ? AND outcome = 'in-flight'")
-    .run(finishedAt, errorMessage ?? null, attemptId);
-  return Number(result.changes) > 0;
+  const row = db
+    .prepare(
+      "UPDATE stage_attempts SET outcome = 'timed-out', finished_at = ?, error_message = ? WHERE id = ? AND outcome = 'in-flight' RETURNING run_id, stage, provider_id, sent_at",
+    )
+    .get(finishedAt, errorMessage ?? null, attemptId) as { run_id: string; stage: string; provider_id: string | null; sent_at: string | null } | undefined;
+  if (!row) return false;
+  // alert-unresponsive-provider (JOS-257) Decision 3 — the call got no answer in time: reported once, here, where the
+  // timeout is decided. A late result changes `late_result_at` only and is never reported again.
+  reportStageAttempt(row, { outcome: "timed-out", finishedAt });
+  return true;
 }
 
 /** Every attempt that has been sent and has no outcome yet — what the timeout watcher checks against each stage's deadline. */
@@ -1847,6 +1854,8 @@ export function completeStageAttempt(
     externalRequestId?: string;
     errorCode?: string;
     errorMessage?: string;
+    /** alert-unresponsive-provider (JOS-257) Decision 2 — the adapter's mark, for telemetry only: never stored. */
+    unresponsive?: boolean;
   },
 ): boolean {
   if ((outcome.outcome as StageAttemptOutcome) === "in-flight") {
@@ -1895,11 +1904,9 @@ function telemetryProviderOf(identifier: string | null, stage: string): string {
 
 function reportStageAttempt(
   row: { run_id: string; stage: string; provider_id: string | null; sent_at: string | null },
-  outcome: { outcome: string; finishedAt: string; errorCode?: string; errorMessage?: string },
+  outcome: { outcome: string; finishedAt: string; errorCode?: string; errorMessage?: string; unresponsive?: boolean },
 ): void {
   try {
-    const consent = getConsent();
-    if (!consent.providerUsage && !consent.errors) return;
     const provider = telemetryProviderOf(row.provider_id, row.stage);
     const normalized = normalizeOutcome(outcome.outcome);
     let billed: BilledUnit | undefined;
@@ -1909,7 +1916,7 @@ function reportStageAttempt(
     }
     const sentAt = row.sent_at ? Date.parse(row.sent_at) : NaN;
     const latencyMs = Number.isNaN(sentAt) ? 0 : Math.max(0, Date.parse(outcome.finishedAt) - sentAt);
-    recordProviderCall({ stage: row.stage, provider, outcome: outcome.outcome, latencyMs, billed });
+    recordProviderCall({ stage: row.stage, provider, outcome: outcome.outcome, latencyMs, billed, unresponsive: outcome.unresponsive });
     if (normalized === "not-retryable") {
       recordError({
         stage: row.stage,
@@ -2365,6 +2372,8 @@ export function insertProviderRequest(
   mode: ProviderOutcomeMode,
   attemptNumber: number,
   stage: "image" | "video" = "image",
+  /** alert-unresponsive-provider (JOS-257) Decision 2 — the adapter's mark, for telemetry only: never stored. */
+  mark: { unresponsive?: boolean } = {},
 ): ProviderRequestRow {
   const sentAt = nowIso();
   // record-attempt-provider (JOS-222) Decision 1 — the stage's binding cannot change while an attempt is in flight.
@@ -2372,15 +2381,13 @@ export function insertProviderRequest(
     `INSERT INTO provider_requests (id, scene_id, sent_at, latency_ms, mode, attempt_number, resolved, stage, provider_id)
      VALUES (?, ?, ?, ?, ?, ?, 0, ?, (SELECT CASE WHEN ? = 'video' THEN video_provider ELSE provider END FROM scenes WHERE id = ?))`,
   ).run(id, sceneId, sentAt, latencyMs, mode, attemptNumber, stage, stage, sceneId);
-  reportProviderRequest(sceneId, latencyMs, mode, stage);
+  reportProviderRequest(sceneId, latencyMs, mode, stage, mark.unresponsive);
   return getProviderRequest(id)!;
 }
 
 /** add-observability-telemetry (JOS-199) Decision 4 — the image and clip stages report here, not through stage attempts. */
-function reportProviderRequest(sceneId: string, latencyMs: number, mode: ProviderOutcomeMode, stage: "image" | "video"): void {
+function reportProviderRequest(sceneId: string, latencyMs: number, mode: ProviderOutcomeMode, stage: "image" | "video", unresponsive?: boolean): void {
   try {
-    const consent = getConsent();
-    if (!consent.providerUsage && !consent.errors) return;
     const scene = db
       .prepare("SELECT provider, video_provider, requested_duration_seconds FROM scenes WHERE id = ?")
       .get(sceneId) as
@@ -2392,7 +2399,7 @@ function reportProviderRequest(sceneId: string, latencyMs: number, mode: Provide
     let billed: BilledUnit | undefined;
     if (stage === "image") billed = { unit: "images", amount: 1 };
     else if (typeof scene.requested_duration_seconds === "number") billed = { unit: "clip_seconds", amount: scene.requested_duration_seconds };
-    recordProviderCall({ stage, provider, outcome: mode, latencyMs, billed });
+    recordProviderCall({ stage, provider, outcome: mode, latencyMs, billed, unresponsive });
     if (normalized === "not-retryable") {
       recordError({ stage, provider, outcome: normalized, message: `${stage} request failed (${mode})` });
     }

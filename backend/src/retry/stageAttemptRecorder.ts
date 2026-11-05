@@ -21,7 +21,15 @@ import { decideRetry, retryDelaySeconds, type RetryDelayConfig } from "./retryPo
 
 export type AttemptReport =
   | { outcome: "success"; externalRequestId?: string }
-  | { outcome: "transient" | "not-retryable"; errorMessage: string; errorCode?: string; externalRequestId?: string; retryAfterSeconds?: number };
+  | {
+      outcome: "transient" | "not-retryable";
+      errorMessage: string;
+      errorCode?: string;
+      externalRequestId?: string;
+      retryAfterSeconds?: number;
+      /** alert-unresponsive-provider (JOS-257) Decision 2 — the adapter's mark, passed to telemetry only. */
+      unresponsive?: boolean;
+    };
 
 export type RecordedOutcome =
   | { action: "complete" }
@@ -68,7 +76,9 @@ export function recordAttemptOutcome(attemptId: string, report: AttemptReport, o
       outcome: report.outcome,
       finishedAt: now.toISOString(),
       ...(report.externalRequestId ? { externalRequestId: report.externalRequestId } : {}),
-      ...(report.outcome !== "success" ? { errorMessage: report.errorMessage, ...(report.errorCode ? { errorCode: report.errorCode } : {}) } : {}),
+      ...(report.outcome !== "success"
+        ? { errorMessage: report.errorMessage, ...(report.errorCode ? { errorCode: report.errorCode } : {}), ...(report.unresponsive ? { unresponsive: true } : {}) }
+        : {}),
     });
     if (!completed) return { action: "ignored" };
 

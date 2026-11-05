@@ -12,6 +12,7 @@ import {
   resetScheduler,
   sendWithSlot,
 } from "../src/retry/retryScheduler.ts";
+import { resetTelemetryForTest, setErrorLog } from "../src/telemetry/index.ts";
 import type { StageAttempt } from "../src/types.ts";
 
 // bounded-retry-policy (JOS-184), group 4 — the scheduler releases due retries
@@ -312,5 +313,25 @@ describe("sendWithSlot", () => {
     await sendWithSlot(attempt.id, () => undefined, clock);
 
     expect(await sendWithSlot(attempt.id, () => undefined, clock)).toEqual({ sent: false, reason: "gone" });
+  });
+});
+
+// cover-error-reporting (JOS-253), design D2 — a sender that throws is a bug no attempt outcome records, so the
+// rejection `releaseAttempt` used to swallow is reported with the attempt's stage; the release result is unchanged.
+describe("A sender that throws", () => {
+  it("is reported with the attempt's stage and still counts as sent", async () => {
+    const reported: Array<{ fields: Record<string, string>; message: string }> = [];
+    setErrorLog({ error: (fields, message) => reported.push({ fields, message }) });
+    registerAttemptSender("image", () => {
+      throw new TypeError("sender bug");
+    });
+    const retry = scheduleRetry(newRunId());
+
+    expect(releaseAttempt(retry.id, clock)).toBe("sent");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toMatchObject({ fields: { stage: "image", errorCode: "TypeError" }, message: "sender bug" });
+    resetTelemetryForTest();
   });
 });

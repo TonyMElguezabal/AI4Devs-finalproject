@@ -94,37 +94,14 @@ describe("The request", () => {
   });
 });
 
-describe("Failure classification (product owner rule: 4xx except 408/429 not retryable, else transient)", () => {
-  it.each([400, 401, 403, 404, 422])("HTTP %d is not retryable", async (status) => {
-    const { fetchFn } = fakeFetch(() => new Response("", { status }));
-    expect(await providerWith(fetchFn).submit(INSTRUCTION)).toEqual({
-      kind: "failed_not_retryable",
-      reason: `the image provider answered HTTP ${status}`,
-    });
-  });
-
-  it.each([408, 429])("HTTP %d is transient", async (status) => {
-    const { fetchFn } = fakeFetch(() => new Response("", { status }));
-    expect(await providerWith(fetchFn).submit(INSTRUCTION)).toEqual({
-      kind: "failed_transient",
-      reason: `the image provider answered HTTP ${status}`,
-    });
-  });
-
-  it.each([500, 502, 503])("HTTP %d is transient", async (status) => {
-    const { fetchFn } = fakeFetch(() => new Response("", { status }));
-    expect(await providerWith(fetchFn).submit(INSTRUCTION)).toEqual({
-      kind: "failed_transient",
-      reason: `the image provider answered HTTP ${status}`,
-    });
-  });
-
+// The status classification is in adapter-contract.test.ts (JOS-263); its reason wording in image-provider-queue.test.ts.
+describe("Failures", () => {
   it("a network error is transient", async () => {
     const fetchFn = (async () => {
       throw new Error("fetch failed");
     }) as typeof fetch;
     const result = await providerWith(fetchFn).submit(INSTRUCTION);
-    expect(result).toEqual({ kind: "failed_transient", reason: "the image provider could not be reached" });
+    expect(result).toEqual({ kind: "failed_transient", reason: "the image provider could not be reached", unresponsive: true });
   });
 
   it("an unexpected response shape is transient", async () => {

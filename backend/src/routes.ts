@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { recordProductEvent, setConsent } from "./telemetry/index.ts";
+import { recordError, recordProductEvent, setConsent } from "./telemetry/index.ts";
 import { getUpdateResult } from "./telemetry/updateCheck.ts";
 import { BUILD } from "./config/build.ts";
 import { z } from "zod";
@@ -321,6 +321,33 @@ const retryAcceptedSchema = z.object({ ok: z.literal(true), held: z.boolean().de
 // add-observability-telemetry (JOS-199) — the install ID stays in the store and is never returned.
 const telemetryConsentBodySchema = z.object({ errors: z.boolean(), providerUsage: z.boolean(), productUsage: z.boolean() }).strict();
 const telemetryConsentResponseSchema = telemetryConsentBodySchema.extend({ answered: z.boolean() });
+
+// cover-error-reporting (JOS-254), design D3 — the frontend's uncaught, rejected and render errors. The caps live in the
+// schema, so an oversized report is refused before anything is written.
+const frontendErrorBodySchema = z
+  .object({
+    kind: z.enum(["error", "unhandledrejection", "render"]),
+    message: z.string().max(1000),
+    stack: z.string().max(8000).optional(),
+  })
+  .strict();
+const FRONTEND_ERROR_LIMIT = 10;
+const FRONTEND_ERROR_WINDOW_MS = 60_000;
+// ponytail: one global window; per-kind or per-message limits if one noisy error hides the others.
+let frontendErrorWindow = { startedAt: 0, count: 0 };
+
+export function resetFrontendErrorLimitForTest(): void {
+  frontendErrorWindow = { startedAt: 0, count: 0 };
+}
+
+/** True when this report may be passed on; the first refusal in a window is the one that warns. */
+function takeFrontendErrorSlot(warn: (message: string) => void): boolean {
+  const now = Date.now();
+  if (now - frontendErrorWindow.startedAt >= FRONTEND_ERROR_WINDOW_MS) frontendErrorWindow = { startedAt: now, count: 0 };
+  frontendErrorWindow.count++;
+  if (frontendErrorWindow.count === FRONTEND_ERROR_LIMIT + 1) warn(`more than ${FRONTEND_ERROR_LIMIT} frontend error reports in a minute; the rest are dropped`);
+  return frontendErrorWindow.count <= FRONTEND_ERROR_LIMIT;
+}
 function consentView({ errors, providerUsage, productUsage, answered }: TelemetrySettings) {
   return { errors, providerUsage, productUsage, answered };
 }
@@ -372,6 +399,17 @@ export const routes: FastifyPluginAsync = async (app) => {
       const saved = saveTelemetryConsent(request.body);
       setConsent(saved); // applies at once, without a restart (spec: Per-signal opt-in consent)
       return consentView(saved);
+    },
+  );
+
+  typed.post(
+    "/telemetry/frontend-errors",
+    { schema: { body: frontendErrorBodySchema, response: { 204: z.null() } } },
+    async (request, reply) => {
+      const { kind, message, stack } = request.body;
+      // Consent is checked inside recordError: with it off the report is only written to the local log.
+      if (takeFrontendErrorSlot((warning) => request.log.warn(warning))) recordError({ stage: "frontend", errorCode: kind, message, stack });
+      return reply.code(204).send(null);
     },
   );
 

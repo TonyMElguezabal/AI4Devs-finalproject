@@ -48,12 +48,15 @@ export const PARAMETER_SHAPES = {
   },
 } as const;
 
+/** The adapter types this build ships (JOS-262): every table of per-adapter-type behaviour is keyed by it. */
+export type AdapterTypeId = keyof typeof PARAMETER_SHAPES;
+
 /**
  * report-stable-provider-name (JOS-213), Decision 1 — the one vendor name telemetry reports for each adapter type. An adapter
  * type sends to its own vendor's host, so this is fixed; a profile's label is free text and is never sent. Keyed by the shapes'
  * keys, so a new adapter type does not compile until it names its vendor.
  */
-export const ADAPTER_VENDORS: Record<keyof typeof PARAMETER_SHAPES, string> = {
+export const ADAPTER_VENDORS: Record<AdapterTypeId, string> = {
   "openai-reasoning": "OpenAI",
   "elevenlabs-voice": "ElevenLabs",
   "elevenlabs-alignment": "ElevenLabs",
@@ -100,21 +103,20 @@ export type ParameterField = {
 };
 
 export interface AdapterType {
-  id: string;
+  id: AdapterTypeId;
   stage: ProviderStage;
   label: string;
   fields: ParameterField[];
 }
 
-const ADAPTER_TYPE_DEFINITIONS: AdapterType[] = [
-  {
-    id: "openai-reasoning",
+// key-per-adapter-tables (JOS-262), design Decision 3 — keyed by adapter type, so a new type needs its form here.
+const ADAPTER_TYPE_DEFINITIONS: Record<AdapterTypeId, Omit<AdapterType, "id">> = {
+  "openai-reasoning": {
     stage: "reasoning",
     label: "OpenAI",
     fields: [{ path: ["model"], label: "Model", kind: "text", required: true, help: "The model identifier used for the script division and the visual instructions." }],
   },
-  {
-    id: "elevenlabs-voice",
+  "elevenlabs-voice": {
     stage: "voice",
     label: "ElevenLabs",
     fields: [
@@ -125,20 +127,17 @@ const ADAPTER_TYPE_DEFINITIONS: AdapterType[] = [
       { path: ["speed"], label: "Speed", kind: "text", required: true, acceptsNumber: true, help: "Write default, or a number from 0.7 to 1.2." },
     ],
   },
-  {
-    id: "elevenlabs-alignment",
+  "elevenlabs-alignment": {
     stage: "alignment",
     label: "ElevenLabs forced alignment",
     fields: [{ path: ["endpoint"], label: "Endpoint path", kind: "text", required: true, help: "A path on the vendor's host, such as /v1/forced-alignment." }],
   },
-  {
-    id: "fal-image",
+  "fal-image": {
     stage: "image",
     label: "Fal.ai",
     fields: [{ path: ["model"], label: "Model", kind: "text", required: true, help: "For example fal-ai/flux/dev." }],
   },
-  {
-    id: "runninghub-video",
+  "runninghub-video": {
     stage: "video",
     label: "RunningHub",
     fields: [
@@ -147,10 +146,11 @@ const ADAPTER_TYPE_DEFINITIONS: AdapterType[] = [
       { path: ["admittedDurationSeconds", "max"], label: "Longest clip (seconds)", kind: "number", required: true },
     ],
   },
-];
+};
 
 /** Every adapter type ends with the optional price and currency fields, labelled with its stage's billed unit. */
-export const ADAPTER_TYPES: AdapterType[] = ADAPTER_TYPE_DEFINITIONS.map((type) => ({
+export const ADAPTER_TYPES: AdapterType[] = Object.entries(ADAPTER_TYPE_DEFINITIONS).map(([id, type]) => ({
+  id: id as AdapterTypeId,
   ...type,
   fields: [
     ...type.fields,

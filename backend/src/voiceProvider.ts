@@ -32,7 +32,7 @@ export type VoiceSynthesisResult =
       nativeTimestamps?: unknown;
       providerRequestId?: string;
     }
-  | { kind: "failed_transient"; reason: string }
+  | { kind: "failed_transient"; reason: string; /** alert-unresponsive-provider (JOS-257) Decision 1 — set only when `fetch` itself failed: the provider never answered. */ unresponsive?: true }
   | { kind: "failed_not_retryable"; reason: string };
 
 /** The port the voice phase depends on; tests pass a stub, production the ElevenLabs adapter. */
@@ -89,6 +89,7 @@ export function createElevenLabsVoiceProvider(
             timedOut && timeoutMs !== undefined
               ? `the voice provider did not answer within the ${Math.round(timeoutMs / 1000)} s time limit`
               : "the voice provider could not be reached",
+          unresponsive: true,
         };
       }
 
