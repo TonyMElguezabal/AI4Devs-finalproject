@@ -6,7 +6,7 @@
 
 ## Setup (7.1)
 
-- **Backend:** `node src/server.ts` on port 3199 (`NODE_ENV=development`), with literal scratch `DB_PATH`, `PROJECTS_ROOT`, `SETTINGS_PATH` and `SECRETS_PATH`. `secrets.json` was `{}`, and `ADMIN_PASSWORD=jos262-pass`.
+- **Backend:** `node src/server.ts` on port 3199 (`NODE_ENV=development`), with literal scratch `DB_PATH`, `PROJECTS_ROOT`, `SETTINGS_PATH` and `SECRETS_PATH`. `secrets.json` was `{}`, and `ADMIN_PASSWORD=<password>`.
 - **Frontend:** `VITE_API_BASE=http://127.0.0.1:3199 npx vite --port 5173`, opened at `http://localhost:5173/admin`.
 - **Only the branch was run.** The frontend is unchanged, and step 6 showed that `GET /admin/provider-types` answers byte for byte as on the base commit. So the page can only differ from the base if it renders that catalogue wrongly, and that is what was checked.
 

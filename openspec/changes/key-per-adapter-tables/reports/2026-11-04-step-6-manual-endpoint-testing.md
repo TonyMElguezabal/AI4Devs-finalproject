@@ -10,7 +10,7 @@
 - **Isolation:** each run had its own scratch store. Every variable was written literally:
   ```
   NODE_ENV=development PORT=3262 DB_PATH=<scratch>/<run>/db.sqlite PROJECTS_ROOT=<scratch>/<run>/projects \
-  SETTINGS_PATH=<scratch>/<run>/settings.json SECRETS_PATH=<scratch>/<run>/secrets.json ADMIN_PASSWORD=jos262-pass node src/server.ts
+  SETTINGS_PATH=<scratch>/<run>/settings.json SECRETS_PATH=<scratch>/<run>/secrets.json ADMIN_PASSWORD=<password> node src/server.ts
   ```
 - **Guard:** in both runs, `db.sqlite`, `logs/` and `projects/` appeared in the scratch folder. `backend/data/` was not used.
 - **Secrets:** `secrets.json` was `{}`, so no profile had a key and no request reached a vendor.
@@ -18,7 +18,7 @@
 ## 6.2 `GET /admin/provider-types`
 
 ```
-curl -H 'Authorization: Bearer jos262-pass' localhost:3262/admin/provider-types   → 200
+curl -H 'Authorization: Bearer <password>' localhost:3262/admin/provider-types   → 200
 diff base-provider-types.json branch-provider-types.json                         → no difference (3552 bytes)
 ```
 

@@ -21,3 +21,6 @@
 
 # Throwaway admin password of a scratch server on port 3199 in a curl example of the JOS-188 probe report (not a credential).
 8c5e32f18eb2956a0aa46b2cf89e4e3f24fc03d4:openspec/changes/probe-provider-request-caps/reports/2026-10-29-step-8-curl-endpoint-testing.md:curl-auth-header:15
+
+# Throwaway ADMIN_PASSWORD of a scratch server in a curl report (JOS-262); replaced with <password> in the next commit.
+e034aa50c94251e05837469ebd8ba135af7be28d:openspec/changes/key-per-adapter-tables/reports/2026-11-04-step-6-manual-endpoint-testing.md:curl-auth-header:21
