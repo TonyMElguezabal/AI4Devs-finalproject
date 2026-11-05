@@ -5,7 +5,7 @@
 - Session `01M62HR247Y7RAYGQQS9AHB9M5`, "Should You Sell Your House to Retire Early? Sell vs Rent Math": 1,521 words, 57 scenes, started 2026-10-29 00:42 UTC, final video built 03:57 UTC (3 h 15 min end to end).
 - Windows machine, packaged build, real providers (OpenAI, ElevenLabs, Fal.ai, RunningHub), limits from the run's `settings.default.json`: voice 600 s, decomposition 600 s, image 300 s, video 1200 s.
 - **Run condition:** `maxSimultaneousRequests.image` was 6 for the whole run (the application was not restarted after the setting was lowered from 200). Image timings and failures describe 6 in flight, not the 200 default. Video concurrency was 3.
-- No billing or balance interruption was recorded by the owner (to be confirmed by the owner).
+- No billing or balance interruption happened during the run (confirmed by the owner on 2026-11-05).
 - Source: copy of `vid4you.sqlite` with its `-wal` and `-shm` files (the first copy lacked them and stopped mid-run). Report produced with `node scripts/sessionTimingReport.ts <db> 01M62HR247Y7RAYGQQS9AHB9M5 <settings>` after the script was changed to read image and video attempts from `provider_requests` (design Decision 7).
 
 ## Final video probe (acceptance criterion 4)

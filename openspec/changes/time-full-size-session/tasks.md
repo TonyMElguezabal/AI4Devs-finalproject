@@ -45,8 +45,8 @@
 
 ## 8. The full-size run (owner at the Windows machine)
 
-- [ ] 8.1 Owner approves the spend: the script, the expected number of clips and the RunningHub balance; record the approval in `reports/`
-- [ ] 8.2 Build the executable for Windows x64 from `main` (or take the release artifact) and complete the stubbed JOS-205 checks first; a defect there stops this task and is fixed under JOS-205
+- [x] 8.1 Owner approves the spend: the script, the expected number of clips and the RunningHub balance; record the approval in `reports/`
+- [x] 8.2 Build the executable for Windows x64 from `main` (or take the release artifact) and complete the stubbed JOS-205 checks first; a defect there stops this task and is fixed under JOS-205
 - [x] 8.3 Put the real provider keys in the data folder of that build, run the 1,500-1,800 word session end to end, and record any billing or balance interruption with its time
 - [x] 8.4 Close the application, copy `vid4you.sqlite` (and the project folder) off the Windows machine, and probe the final video with `ffprobe` (duration within one frame of the narration, 1920x1080, 30 fps)
 - [x] 8.5 Produce the report with `npm run report:session-timing` and save it with the interruption log and probe output under `reports/`
