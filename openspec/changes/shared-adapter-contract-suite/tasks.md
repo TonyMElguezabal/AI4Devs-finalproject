@@ -33,21 +33,21 @@
 
 ## 5. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 5.1 Confirm `git diff --stat origin/feature/entrega-3-JAME -- backend/src frontend` is empty. No production code changed, so no endpoint can answer differently
-- [ ] 5.2 Start the backend on a scratch store with literal env vars and check `GET /health` and `GET /admin/provider-types` answer 200, so the branch runs. Stop it
-- [ ] 5.3 Record 5.1 and 5.2 in `openspec/changes/shared-adapter-contract-suite/reports/YYYY-MM-DD-step-5-manual-endpoint-testing.md`
+- [x] 5.1 Confirm `git diff --stat origin/feature/entrega-3-JAME -- backend/src frontend` is empty. No production code changed, so no endpoint can answer differently
+- [x] 5.2 Start the backend on a scratch store with literal env vars and check `GET /health` and `GET /admin/provider-types` answer 200, so the branch runs. Stop it
+- [x] 5.3 Record 5.1 and 5.2 in `openspec/changes/shared-adapter-contract-suite/reports/YYYY-MM-DD-step-5-manual-endpoint-testing.md`
 
 ## 6. Frontend: E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 6.1 Not applicable: no frontend or backend runtime code changes (5.1). Record this in the step 5 report
+- [x] 6.1 Not applicable: no frontend or backend runtime code changes (5.1). Record this in the step 5 report
 
 ## 7. Update Technical Documentation (MANDATORY)
 
-- [ ] 7.1 Add to `docs/backend-standards.md` § Provider adapters: a new adapter type must add a fixture to `test/adapter-contract.test.ts`, and the shared table is the one place its status classification is tested
-- [ ] 7.2 Confirm `docs/api-spec.yml` and `docs/data-model.md` need no change
-- [ ] 7.3 Run `graphify update .`
+- [x] 7.1 Add to `docs/backend-standards.md` § Provider adapters: a new adapter type must add a fixture to `test/adapter-contract.test.ts`, and the shared table is the one place its status classification is tested
+- [x] 7.2 Confirm `docs/api-spec.yml` and `docs/data-model.md` need no change
+- [x] 7.3 Run `graphify update .`
 
 ## 8. Delivery
 
-- [ ] 8.1 Commit on the feature branch
+- [x] 8.1 Commit on the feature branch
 - [ ] 8.2 Ask before pushing. Open a PR into `feature/entrega-3-JAME` that explains the architectural motivation, lists the removed cases with their replacements, and proposes the `classifyHttpStatus` extraction as a follow-up
