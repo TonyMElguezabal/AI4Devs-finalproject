@@ -13,8 +13,8 @@
 
 ## 2. Backend: Prove the meta-test by hand (design Decision 3)
 
-- [ ] 2.1 Add a scratch key to `PARAMETER_SHAPES` (with stub entries in the three JOS-262 tables, so only this suite is missing it), run `npm run typecheck` and the suite, and record that both name the key
-- [ ] 2.2 Revert, and confirm `git diff -- backend/src` is empty
+- [x] 2.1 Add a scratch key to `PARAMETER_SHAPES` (with stub entries in the three JOS-262 tables, so only this suite is missing it), run `npm run typecheck` and the suite, and record that both name the key
+- [x] 2.2 Revert, and confirm `git diff -- backend/src` is empty
 
 ## 3. Backend: Review and Update Existing Unit Tests (MANDATORY; design Decision 4)
 

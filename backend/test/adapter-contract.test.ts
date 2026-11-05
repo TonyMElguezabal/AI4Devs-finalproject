@@ -135,7 +135,12 @@ const neverAnswered = (operation: ContractOperation) => (operation.marksUnrespon
 
 const FAILURES: VendorAnswer[] = [
   ...NOT_RETRYABLE.map((status) => ({ name: `HTTP ${status}`, answer: () => new Response("{}", { status }), expected: () => "not-retryable" })),
-  ...TRANSIENT.map((status) => ({ name: `HTTP ${status}`, answer: () => new Response("{}", { status }), expected: () => "transient" })),
+  // A 429 carries Retry-After, which no adapter may honour with a hidden retry: the retry policy owns every retry.
+  ...TRANSIENT.map((status) => ({
+    name: `HTTP ${status}`,
+    answer: () => new Response("{}", { status, headers: status === 429 ? { "Retry-After": "1" } : {} }),
+    expected: () => "transient",
+  })),
   {
     name: "a refused connection",
     answer: () => {

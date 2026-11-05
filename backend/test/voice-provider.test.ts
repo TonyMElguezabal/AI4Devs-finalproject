@@ -129,33 +129,16 @@ describe("A successful response", () => {
 
     expect(result.kind).toBe("failed_transient");
   });
-
-  it("treats a success response that is not JSON as a transient failure", async () => {
-    const { fetchFn } = fakeFetch(() => new Response("not json", { status: 200 }));
-
-    const result = await providerWith(fetchFn).synthesize(REQUEST);
-
-    expect(result.kind).toBe("failed_transient");
-  });
 });
 
-describe("Failure classification by HTTP status (design Decision 4)", () => {
-  it.each([400, 401, 402, 403, 404, 413, 422])("HTTP %i is not retryable", async (status) => {
-    const { fetchFn } = fakeFetch(() => new Response("provider detail", { status }));
+// The status classification and the one-request rule are in adapter-contract.test.ts (JOS-263).
+describe("Failure reasons (design Decision 4)", () => {
+  it("names the HTTP status in the reason", async () => {
+    const { fetchFn } = fakeFetch(() => new Response("provider detail", { status: 422 }));
 
     const result = await providerWith(fetchFn).synthesize(REQUEST);
 
-    expect(result.kind).toBe("failed_not_retryable");
-    if (result.kind !== "failed_not_retryable") return;
-    expect(result.reason).toContain(String(status));
-  });
-
-  it.each([408, 429, 500, 502, 503, 504])("HTTP %i is transient", async (status) => {
-    const { fetchFn } = fakeFetch(() => new Response("provider detail", { status }));
-
-    const result = await providerWith(fetchFn).synthesize(REQUEST);
-
-    expect(result.kind).toBe("failed_transient");
+    expect(result.kind === "failed_not_retryable" && result.reason).toContain("422");
   });
 
   it("a network error is transient", async () => {

@@ -300,34 +300,6 @@ describe("RunningHub adapter (JOS-196 — the live API's request and answer shap
     expect(poll.kind).toBe("failed_transient");
   });
 
-  it("submit: 4xx except 408/429 is not retryable", async () => {
-    const mockFetch = async (): Promise<Response> => new Response("forbidden", { status: 403 });
-    const provider = createRunningHubVideoProvider({
-      fetchFn: mockFetch,
-      loadKey: () => "test-api-key",
-    });
-    const result = await provider.submit({
-      imageBytes: VALID_IMAGE,
-      instruction: "animate",
-      durationSeconds: 8,
-    });
-    expect(result.kind).toBe("failed_not_retryable");
-  });
-
-  it("submit: 408 is transient", async () => {
-    const mockFetch = async (): Promise<Response> => new Response("timeout", { status: 408 });
-    const provider = createRunningHubVideoProvider({
-      fetchFn: mockFetch,
-      loadKey: () => "test-api-key",
-    });
-    const result = await provider.submit({
-      imageBytes: VALID_IMAGE,
-      instruction: "animate",
-      durationSeconds: 8,
-    });
-    expect(result.kind).toBe("failed_transient");
-  });
-
   it("submit: an unexpected response shape is transient", async () => {
     const mockFetch = async (): Promise<Response> =>
       new Response(JSON.stringify({ unexpected: true }), {
