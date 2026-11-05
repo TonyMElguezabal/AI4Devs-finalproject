@@ -159,3 +159,70 @@ The stage diagnostics SHALL show a provider's display name and its model or endp
 - **WHEN** a scene is generated through it
 - **THEN** the scene's diagnostics show "Flux pro"
 
+### Requirement: Every shipped adapter type is complete in each per-adapter table
+
+Each table that holds per-adapter-type behaviour SHALL be keyed by the adapter types the application ships, as defined by their parameter rules. This covers the vendor name telemetry reports, the connection check and the `/admin` form description with its display name. Adding an adapter type without an entry in one of these tables SHALL fail the type check that CI runs, and the failure SHALL name the missing entry. Tables keyed by stage or by profile are not covered.
+
+#### Scenario: A new adapter type without a connection check
+
+- **GIVEN** a developer adds an adapter type to the parameter rules and gives it a vendor name and a form description but no connection check
+- **WHEN** `npm run typecheck` runs
+- **THEN** it fails with an error that names the new adapter type as missing from the connection checks
+
+#### Scenario: A table widened back to any string
+
+- **GIVEN** the connection checks, the vendor names or the form descriptions are retyped to accept any string as an adapter type
+- **WHEN** `npm run typecheck` runs
+- **THEN** it fails on the adapter-type table test
+
+#### Scenario: Every table matches the shipped adapter types
+
+- **WHEN** the unit tests run
+- **THEN** the connection checks, the vendor names and the `/admin` adapter-type catalogue each list exactly the adapter types in the parameter rules, and the catalogue keeps its current order
+
+#### Scenario: Existing behaviour is unchanged
+
+- **WHEN** the Administrator lists the adapter types on `/admin` or tests a profile's connection
+- **THEN** the response is the same as before this change, field for field and in the same order
+
+### Requirement: Every shipped adapter type passes the shared adapter contract
+
+Every adapter type the application ships SHALL pass one shared contract against a fake vendor, run in CI, for each operation of the adapter that sends a request to its vendor. The contract SHALL check:
+- a valid answer gives the operation's success result;
+- an HTTP 4xx answer other than 408 and 429 is not retryable;
+- an HTTP 408, 429 or 5xx answer is transient;
+- a refused connection or a timeout is transient, marked unresponsive where the adapter type marks it;
+- a malformed body is a defined failure, never a thrown error.
+
+Every failure case SHALL make exactly one request to the vendor. An adapter type the application ships SHALL have contract fixtures, or the build fails.
+
+#### Scenario: A rejected key is not retryable
+
+- **GIVEN** any shipped adapter type and a fake vendor that answers HTTP 401
+- **WHEN** the adapter's operation runs
+- **THEN** it returns a not-retryable failure after exactly one request
+
+#### Scenario: A busy vendor is transient
+
+- **GIVEN** any shipped adapter type and a fake vendor that answers HTTP 503
+- **WHEN** the adapter's operation runs
+- **THEN** it returns a transient failure after exactly one request
+
+#### Scenario: A vendor that never answers
+
+- **GIVEN** a fake vendor whose connection is refused or times out
+- **WHEN** the operation of an adapter type that marks unresponsive calls runs
+- **THEN** it returns a transient failure marked unresponsive after exactly one request
+
+#### Scenario: A malformed answer
+
+- **GIVEN** any shipped adapter type and a fake vendor that answers HTTP 200 with a body that is not the expected shape
+- **WHEN** the adapter's operation runs
+- **THEN** it returns a defined failure and does not throw
+
+#### Scenario: A new adapter type without fixtures
+
+- **GIVEN** an adapter type added to the parameter rules with no contract fixtures
+- **WHEN** `npm run typecheck` and `npm test` run
+- **THEN** both fail, and the test failure names the adapter type
+
