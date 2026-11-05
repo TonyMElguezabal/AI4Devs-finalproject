@@ -1,3 +1,5 @@
+import type { AdapterTypeId } from "./providerTypes.ts";
+
 // test-provider-connection (JOS-220), design Decisions 2 and 5 — one connection check per adapter type. Each check sends
 // exactly one request to its vendor's own host (kept here, like the adapters do), built from constants and the profile's
 // validated parameters, so a key can only go to that vendor. The vendor's raw answer is read for the fields below and
@@ -25,6 +27,7 @@ async function readJson(response: Response): Promise<unknown> {
   try {
     return await response.json();
   } catch {
+    // a body that is not JSON: the check reports the HTTP status alone.
     return undefined;
   }
 }
@@ -51,7 +54,8 @@ async function lookup(
 
 const bodyField = (body: unknown, path: string[]): unknown => path.reduce<unknown>((value, name) => (typeof value === "object" && value !== null ? (value as Record<string, unknown>)[name] : undefined), body);
 
-export const CONNECTION_CHECKS: Record<string, ConnectionCheck> = {
+// key-per-adapter-tables (JOS-262), design Decision 2 — keyed by adapter type, so a new type needs its check here.
+export const CONNECTION_CHECKS: Record<AdapterTypeId, ConnectionCheck> = {
   "openai-reasoning": {
     charged: false,
     covers: "The key and the model were checked.",
@@ -108,5 +112,5 @@ export function resetConnectionCheckFetch(): void {
 
 /** The one entry point of the route: runs the check of an adapter type with the time limit. */
 export function runConnectionCheck(adapterType: string, parameters: Record<string, unknown>, key: string): Promise<ConnectionOutcome> {
-  return CONNECTION_CHECKS[adapterType]!.run(parameters, key, checkFetch, AbortSignal.timeout(CHECK_TIMEOUT_MS));
+  return (CONNECTION_CHECKS as Record<string, ConnectionCheck | undefined>)[adapterType]!.run(parameters, key, checkFetch, AbortSignal.timeout(CHECK_TIMEOUT_MS));
 }

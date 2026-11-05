@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { adminDeniedSchema } from "./adminAccess.ts";
-import { CONNECTION_CHECKS, runConnectionCheck } from "./providerConnectionCheck.ts";
+import { CONNECTION_CHECKS, runConnectionCheck, type ConnectionCheck } from "./providerConnectionCheck.ts";
 import { keyFor } from "./keyStore.ts";
 import { getProfile } from "./providerProfiles.ts";
 import { createProfile, deleteProfile, editProfile, listProfileViews } from "./providerAdmin.ts";
@@ -57,7 +57,7 @@ export function registerProviderProfileRoutes(admin: FastifyInstance): void {
     "/provider-types",
     { schema: { response: { 200: z.object({ types: z.array(z.object({ id: z.string(), stage: z.enum(PROVIDER_STAGES), label: z.string(), fields: z.array(fieldSchema), connectionCheck: connectionCheckSchema })) }), 401: adminDeniedSchema } } },
     // eslint-disable-next-line @typescript-eslint/require-await -- a Fastify handler is async by contract, so a throw becomes a rejected reply
-    async () => ({ types: ADAPTER_TYPES.map((type) => ({ ...type, connectionCheck: { charged: CONNECTION_CHECKS[type.id]!.charged, covers: CONNECTION_CHECKS[type.id]!.covers } })) }),
+    async () => ({ types: ADAPTER_TYPES.map((type) => ({ ...type, connectionCheck: { charged: CONNECTION_CHECKS[type.id].charged, covers: CONNECTION_CHECKS[type.id].covers } })) }),
   );
 
   typedAdmin.get(
@@ -132,7 +132,7 @@ export function registerProviderProfileRoutes(admin: FastifyInstance): void {
     async (request, reply) => {
       const profile = getProfile(request.params.id);
       if (!profile) return reply.code(404).send({ ok: false as const, reason: "not-found" as const });
-      const { charged, covers } = CONNECTION_CHECKS[profile.adapterType]!;
+      const { charged, covers } = (CONNECTION_CHECKS as Record<string, ConnectionCheck | undefined>)[profile.adapterType]!;
       let key: string;
       try {
         key = keyFor(profile.id);

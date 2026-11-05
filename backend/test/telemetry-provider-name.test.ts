@@ -13,7 +13,7 @@ import {
   resetAll,
 } from "../src/db.ts";
 import { ensureProfiles, insertProfile } from "../src/providerProfiles.ts";
-import { ADAPTER_VENDORS, PARAMETER_SHAPES, SEEDED_PROFILES } from "../src/providerTypes.ts";
+import { ADAPTER_VENDORS, SEEDED_PROFILES } from "../src/providerTypes.ts";
 import { flushTelemetry, resetTelemetryForTest, setConsent, setTelemetryExportersForTest } from "../src/telemetry/index.ts";
 import { ulid } from "../src/util/ulid.ts";
 
@@ -80,7 +80,6 @@ describe("ADAPTER_VENDORS", () => {
       "fal-image": "Fal.ai",
       "runninghub-video": "RunningHub",
     });
-    expect(Object.keys(ADAPTER_VENDORS).sort()).toEqual(Object.keys(PARAMETER_SHAPES).sort());
   });
 });
 
@@ -103,12 +102,23 @@ describe("the provider label of a stage attempt", () => {
     expect(calls).toContainEqual({ stage: "timestamps", provider: "ElevenLabs", outcome: "success" });
   });
 
+  // attribute-native-timestamps-to-voice-provider (JOS-264) — the vendor of the voice provider that produced them (AC2, AC3);
+  // `elevenlabs-native` above is the id stored before (AC4).
+  it("is the voice provider's vendor for native timestamps", async () => {
+    expect(await attemptProvider("timestamps", `${SEEDED_PROFILES.voice.id}:native`)).toBe("ElevenLabs");
+  });
+
+  it("is stub for native timestamps from the stub voice provider", async () => {
+    expect(await attemptProvider("timestamps", "stub-voice:native")).toBe("stub");
+  });
+
   it("is local for the assembly stage, which calls no provider", async () => {
     expect(await attemptProvider("assembly", null)).toBe("local");
   });
 
   it("is stub for a stub identifier", async () => {
     expect(await attemptProvider("voice-over", "stub-voice")).toBe("stub");
+    expect(await attemptProvider("decomposition", "stub-reasoning")).toBe("stub"); // USE_STUB_DECOMPOSITION (JOS-243)
   });
 
   it("is the vendor, not the id or the typed label, for a provider added on /admin", async () => {

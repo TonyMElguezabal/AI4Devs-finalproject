@@ -55,10 +55,12 @@ describe("providerUsageReport", () => {
     const alignmentRun = seedAttempt({ stage: "timestamps", providerId: "align-a", sentAt: AT, outcome: "success", latencyMs: 2000 });
     seedVoiceOver(alignmentRun, 12.5);
     seedAttempt({ stage: "timestamps", providerId: "elevenlabs-native", sentAt: AT, outcome: "success" });
+    seedAttempt({ stage: "timestamps", providerId: "voice-a:native", sentAt: AT, outcome: "success" }); // JOS-264
     seedAttempt({ stage: "decomposition", providerId: "llm-a", sentAt: AT, outcome: "success", latencyMs: 4000 });
 
     expect(rowOf("alignment", "align-a")).toMatchObject({ attempts: 1, successes: 1, billedUnits: 12.5, unit: "audio_seconds", medianLatencyMs: 2000 });
     expect(rowOf("alignment", "elevenlabs-native")).toBeUndefined();
+    expect(rowOf("alignment", "voice-a:native")).toBeUndefined();
     expect(rowOf("reasoning", "llm-a")).toMatchObject({ attempts: 1, billedUnits: 1, unit: "requests" });
   });
 

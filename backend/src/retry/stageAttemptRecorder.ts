@@ -10,6 +10,7 @@ import {
   timeOutAttempt,
 } from "../db.ts";
 import { RETRY_DELAY_SECONDS } from "../config/providers.ts";
+import { isNativeTimestampsProviderId } from "../nativeTimestampsProvider.ts";
 import type { AttemptStage, StageAttempt } from "../types.ts";
 import { armScheduledAttempt } from "./retryScheduler.ts";
 import { decideRetry, retryDelaySeconds, type RetryDelayConfig } from "./retryPolicy.ts";
@@ -21,7 +22,15 @@ import { decideRetry, retryDelaySeconds, type RetryDelayConfig } from "./retryPo
 
 export type AttemptReport =
   | { outcome: "success"; externalRequestId?: string }
-  | { outcome: "transient" | "not-retryable"; errorMessage: string; errorCode?: string; externalRequestId?: string; retryAfterSeconds?: number };
+  | {
+      outcome: "transient" | "not-retryable";
+      errorMessage: string;
+      errorCode?: string;
+      externalRequestId?: string;
+      retryAfterSeconds?: number;
+      /** alert-unresponsive-provider (JOS-257) Decision 2 — the adapter's mark, passed to telemetry only. */
+      unresponsive?: boolean;
+    };
 
 export type RecordedOutcome =
   | { action: "complete" }
@@ -68,7 +77,9 @@ export function recordAttemptOutcome(attemptId: string, report: AttemptReport, o
       outcome: report.outcome,
       finishedAt: now.toISOString(),
       ...(report.externalRequestId ? { externalRequestId: report.externalRequestId } : {}),
-      ...(report.outcome !== "success" ? { errorMessage: report.errorMessage, ...(report.errorCode ? { errorCode: report.errorCode } : {}) } : {}),
+      ...(report.outcome !== "success"
+        ? { errorMessage: report.errorMessage, ...(report.errorCode ? { errorCode: report.errorCode } : {}), ...(report.unresponsive ? { unresponsive: true } : {}) }
+        : {}),
     });
     if (!completed) return { action: "ignored" };
 
@@ -136,9 +147,6 @@ export type NewCycleResult =
   | { started: true; attempt: StageAttempt }
   | { started: false; reason: "not-failed" | "not-retryable" };
 
-/** The attempt provider recorded when native timestamps were used: no provider is bound for it (narrationTimestampsPhase.ts). */
-const NATIVE_TIMESTAMPS_PROVIDER = "elevenlabs-native";
-
 /**
  * move-failed-stage-to-active-provider (JOS-172), design Decision 5 — the provider a session-level stage instance is bound
  * to, which a manual retry uses instead of copying the latest attempt: a stage the Administrator moved retries on the
@@ -180,7 +188,8 @@ export function startNewCycle(ref: StageInstanceRef, options: RecorderOptions = 
       runId: ref.sessionId,
       stage: ref.stage,
       ...(ref.sceneId ? { sceneId: ref.sceneId } : {}),
-      providerId: latest.providerId === NATIVE_TIMESTAMPS_PROVIDER ? latest.providerId : (boundProviderOf(ref) ?? latest.providerId),
+      // Native timestamps bind no provider (narrationTimestampsPhase.ts), so their attempt keeps its own.
+      providerId: isNativeTimestampsProviderId(latest.providerId) ? latest.providerId : (boundProviderOf(ref) ?? latest.providerId),
       queuedAt: now.toISOString(),
       dueAt: now.toISOString(),
       cycle: latest.cycle + 1,

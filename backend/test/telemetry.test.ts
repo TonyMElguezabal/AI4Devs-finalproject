@@ -154,13 +154,33 @@ describe("normalizeOutcome", () => {
     "late-success": "success",
     transient: "transient",
     transient_failure: "transient",
-    "timed-out": "transient",
+    "timed-out": "unresponsive",
     "not-retryable": "not-retryable",
     not_retryable_failure: "not-retryable",
   };
 
   it.each([...STAGE_ATTEMPT_OUTCOMES, ...PROVIDER_OUTCOME_MODES])("maps %s to a documented value", (raw) => {
     expect(normalizeOutcome(raw)).toBe(expected[raw] ?? "other");
+  });
+
+  // alert-unresponsive-provider (JOS-257), design Decision 2 — a call that got no answer is `unresponsive`, whatever
+  // vocabulary its raw outcome comes from; a call the provider answered keeps today's mapping.
+  it.each(["transient", "transient_failure", "timed-out"])("maps %s with the unresponsive flag to unresponsive", (raw) => {
+    expect(normalizeOutcome(raw, { unresponsive: true })).toBe("unresponsive");
+  });
+
+  it("ignores a false unresponsive flag", () => {
+    expect(normalizeOutcome("transient_failure", { unresponsive: false })).toBe("transient");
+  });
+});
+
+describe("unresponsive provider calls (alert-unresponsive-provider, JOS-257)", () => {
+  it("counts a flagged call under outcome unresponsive and an answered one under transient", async () => {
+    setConsent(ALL_ON);
+    recordProviderCall({ stage: "image", provider: "Fal.ai", outcome: "transient_failure", latencyMs: 30000, unresponsive: true });
+    recordProviderCall({ stage: "image", provider: "Fal.ai", outcome: "transient_failure", latencyMs: 120 });
+    const calls = (await exportedPoints()).filter((point) => point.name === "vid4you_provider_calls_total");
+    expect(calls.map((point) => point.attributes.outcome).sort()).toEqual(["transient", "unresponsive"]);
   });
 });
 

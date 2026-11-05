@@ -6,8 +6,8 @@ Vid4You runs on your computer. **Nothing leaves it for telemetry unless you turn
 
 | Signal | What it sends when on |
 |---|---|
-| **Send error reports** | The error's code, message and stack trace, with file paths and your user name replaced by `[path]` and `[user]`. Sent for uncaught errors, unhandled promise rejections, and AI-provider calls that failed in a way that cannot be retried (with the stage and provider name). |
-| **Send provider usage and cost counts** | For each call to an AI provider: the stage (voice-over, image, video, …), the provider's name, the outcome (success, transient failure, not retryable, other), how long it took, and the billed units (images, clip seconds, voice characters). |
+| **Send error reports** | The error's code, message and stack trace, with file paths and your user name replaced by `[path]` and `[user]`. Sent for uncaught errors, unhandled promise rejections, AI-provider calls that failed in a way that cannot be retried (with the stage and provider name), server errors in the app's own requests (with the kind of request, for example `GET /sessions/:id`, never its contents or ids), errors on the page itself (the message cut to 1000 characters and the stack to 8000), and other unexpected errors the app catches (with the stage). |
+| **Send provider usage and cost counts** | For each call to an AI provider: the stage (voice-over, image, video, …), the provider's name, the outcome (success, transient failure, no answer from the provider, not retryable, other), how long it took, and the billed units (images, clip seconds, voice characters). |
 | **Send anonymous usage counts** | How many times the app starts, how many sessions begin, and how many final videos are made. |
 
 Every signal also carries: the app version and channel (production or UAT), your operating system type and CPU architecture, and a random identifier for this installation. The identifier is generated once by the app; it is not derived from you or your computer and cannot be traced back to you.

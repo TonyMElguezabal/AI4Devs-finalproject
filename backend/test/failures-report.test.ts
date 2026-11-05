@@ -64,6 +64,7 @@ describe("failuresReport — failed attempts per stage and outcome", () => {
     seedAttempt({ stage: "voice-over", providerId: "voice-b", sentAt: AT, outcome: "not-retryable" });
     seedAttempt({ stage: "voice-over", providerId: "voice-b", sentAt: AT, outcome: "timed-out" });
     seedAttempt({ stage: "timestamps", providerId: "elevenlabs-native", sentAt: AT, outcome: "transient" });
+    seedAttempt({ stage: "timestamps", providerId: "voice-a:native", sentAt: AT, outcome: "transient" }); // JOS-264
     seedAttempt({ stage: "decomposition", providerId: "llm-a", sentAt: AT, outcome: "superseded" });
     const { sceneIds } = await registerScenes([7, 8]);
     bindScene(sceneIds[0]!, { provider: "img-a", videoProvider: "vid-a" });

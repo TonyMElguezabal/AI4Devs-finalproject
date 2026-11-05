@@ -7,10 +7,10 @@ import {
   VOICE_PROVIDER,
 } from "./config/providers.ts";
 import { resolveProfileId } from "./keyStore.ts";
+import { voiceProviderIdOfNative } from "./nativeTimestampsProvider.ts";
 import { ensureProfiles, getProfile } from "./providerProfiles.ts";
 import type { ProviderStage } from "./providerTypes.ts";
-import { STUB_PROVIDER_NAME, type AttemptStage } from "./types.ts";
-import { STUB_VIDEO_PROVIDER_NAME } from "./videoProvider.ts";
+import type { AttemptStage } from "./types.ts";
 
 // see-provider-and-attempts (JOS-166), design Decisions 2 and 4 — what the page may show about a stage:
 // a readable provider (name and model) and an attempt count. Nothing else of an attempt record leaves
@@ -40,19 +40,16 @@ const DISPLAY: Record<DiagnosticStage, ReadonlyMap<string | null, ProviderDispla
   image: new Map([
     [IMAGE_PROVIDER.name, { name: IMAGE_PROVIDER.name, model: IMAGE_PROVIDER.model }],
     [LEGACY_IMAGE_PROVIDER_IDENTIFIER, { name: IMAGE_PROVIDER.name, model: IMAGE_PROVIDER.model }],
-    [STUB_PROVIDER_NAME, stub(STUB_PROVIDER_NAME)],
   ]),
   // The endpoint path is configuration detail the User does not need, so the model is a fixed label.
   video: new Map([
     [VIDEO_PROVIDER.name, { name: VIDEO_PROVIDER.name, model: "minimax/hailuo-h3" }],
     [LEGACY_VIDEO_PROVIDER_IDENTIFIER, { name: VIDEO_PROVIDER.name, model: "minimax/hailuo-h3" }],
-    [STUB_VIDEO_PROVIDER_NAME, stub(STUB_VIDEO_PROVIDER_NAME)],
   ]),
   "voice-over": new Map([
     [VOICE_PROVIDER.name, { name: VOICE_PROVIDER.name, model: VOICE_PROVIDER.model }],
-    ["stub-voice", stub("stub-voice")],
   ]),
-  // `narrationTimestampsPhase.ts` records these two as the provider of each timestamps attempt.
+  // The ids timestamps attempts were recorded with before JOS-264; a native attempt now names its voice provider.
   timestamps: new Map([
     ["elevenlabs-native", { name: "ElevenLabs", model: "native timestamps" }],
     ["elevenlabs-forced-alignment", { name: "ElevenLabs", model: "forced alignment" }],
@@ -111,7 +108,11 @@ function describeProfile(stage: DiagnosticStage, identifier: string | null): Pro
  * id, an endpoint or something a configuration change left behind.
  */
 export function describeProvider(stage: DiagnosticStage, identifier: string | null): ProviderDisplay {
-  const found = describeProfile(stage, identifier) ?? DISPLAY[stage].get(identifier);
+  // attribute-native-timestamps-to-voice-provider (JOS-264) — native timestamps are shown as the voice provider that made them.
+  const nativeVoice = stage === "timestamps" && !DISPLAY.timestamps.has(identifier) ? voiceProviderIdOfNative(identifier) : null;
+  if (nativeVoice !== null) return { ...describeProvider("voice-over", nativeVoice), model: "native timestamps" };
+  // verify-internal-workflow (JOS-243) — every stub identifier starts with `stub-`, as `telemetryProviderOf` (db.ts) assumes.
+  const found = describeProfile(stage, identifier) ?? DISPLAY[stage].get(identifier) ?? (identifier?.startsWith("stub-") ? stub(identifier) : undefined);
   if (found) return { ...found };
   const key = `${stage}:${identifier}`;
   if (!alreadyLogged.has(key)) {

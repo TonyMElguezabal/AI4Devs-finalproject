@@ -48,6 +48,12 @@ describe("startNewCycle takes the stage's binding", () => {
     expect(startNewCycle({ sessionId: runId, stage: "timestamps" }, options)).toMatchObject({ started: true, attempt: { providerId: "elevenlabs-native" } });
   });
 
+  it("a native provider named after the voice provider is kept too (JOS-264)", () => {
+    const runId = failedStage("timestamps", "stub-voice:native");
+    setBinding("timestamps", runId, "stub-b");
+    expect(startNewCycle({ sessionId: runId, stage: "timestamps" }, options)).toMatchObject({ started: true, attempt: { providerId: "stub-voice:native" } });
+  });
+
   it("automatic retries inside a cycle still copy the previous attempt", () => {
     const runId = randomUUID();
     createRun(runId, "Automatic", "A short script.", "en");

@@ -37,6 +37,13 @@ describe("describeProvider shows a readable provider for each stage", () => {
     expect(describeProvider("timestamps", "elevenlabs-forced-alignment")).toEqual({ name: "ElevenLabs", model: "forced alignment" });
   });
 
+  // attribute-native-timestamps-to-voice-provider (JOS-264) — native timestamps name the voice provider that made them;
+  // `elevenlabs-native` above is the id stored before (AC4).
+  it("timestamps: native timestamps show the voice provider that produced them (AC2, AC3)", () => {
+    expect(describeProvider("timestamps", "stub-voice:native")).toEqual({ name: "Stub provider", model: "native timestamps" });
+    expect(describeProvider("timestamps", `${VOICE_PROVIDER.name}:native`)).toEqual({ name: "ElevenLabs", model: "native timestamps" });
+  });
+
   it("instructions: the reasoning provider and model", () => {
     expect(describeProvider("instructions", DECOMPOSITION_ATTEMPT_PROVIDER)).toEqual({ name: DECOMPOSITION_PROVIDER.name, model: DECOMPOSITION_PROVIDER.model });
   });
@@ -49,6 +56,13 @@ describe("describeProvider shows a readable provider for each stage", () => {
     expect(describeProvider("image", STUB_PROVIDER_NAME)).toEqual({ name: "Stub provider", model: STUB_PROVIDER_NAME });
     expect(describeProvider("video", STUB_VIDEO_PROVIDER_NAME)).toEqual({ name: "Stub provider", model: STUB_VIDEO_PROVIDER_NAME });
     expect(describeProvider("voice-over", "stub-voice")).toEqual({ name: "Stub provider", model: "stub-voice" });
+  });
+
+  // verify-internal-workflow (JOS-243) — any `stub-` identifier, including the decomposition stubs, is a stub provider.
+  it("any stub- identifier: Stub provider, with the identifier as the model, and nothing logged", () => {
+    expect(describeProvider("instructions", "stub-reasoning")).toEqual({ name: "Stub provider", model: "stub-reasoning" });
+    expect(describeProvider("timestamps", "stub-alignment")).toEqual({ name: "Stub provider", model: "stub-alignment" });
+    expect(logged).toEqual([]);
   });
 });
 

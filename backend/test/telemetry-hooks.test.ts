@@ -8,8 +8,10 @@ import {
   db,
   getTelemetrySettings,
   insertProviderRequest,
+  acceptLateResult,
   recordStageAttempt,
   resetAll,
+  timeOutAttempt,
 } from "../src/db.ts";
 import { ensureProfiles } from "../src/providerProfiles.ts";
 import { SEEDED_PROFILES } from "../src/providerTypes.ts";
@@ -143,5 +145,65 @@ describe("insertProviderRequest", () => {
       provider: "RunningHub",
       outcome: "not-retryable",
     });
+  });
+});
+
+// alert-unresponsive-provider (JOS-257), design Decision 2 — the adapter's mark reaches the metric through both
+// recording paths; nothing new is stored.
+describe("unresponsive calls", () => {
+  const calls = async () => (await points()).filter((point) => point.name === "vid4you_provider_calls_total");
+
+  it("records a marked image request as unresponsive and stores the same mode as before", async () => {
+    const sceneId = sceneWith(SEEDED_PROFILES.video.id, 6);
+    const requestId = randomUUID();
+    insertProviderRequest(requestId, sceneId, 30000, "transient_failure", 1, "image", { unresponsive: true });
+    expect(await calls()).toContainEqual({
+      name: "vid4you_provider_calls_total",
+      attributes: { stage: "image", provider: "Fal.ai", outcome: "unresponsive" },
+      value: 1,
+    });
+    expect(db.prepare("SELECT mode FROM provider_requests WHERE id = ?").get(requestId)).toEqual({ mode: "transient_failure" });
+  });
+
+  it("records an unmarked transient clip request as transient", async () => {
+    const sceneId = sceneWith(SEEDED_PROFILES.video.id, 6);
+    insertProviderRequest(randomUUID(), sceneId, 1200, "transient_failure", 1, "video");
+    expect((await calls()).map((point) => point.attributes.outcome)).toEqual(["transient"]);
+  });
+
+  it("records a marked voice-over attempt as unresponsive and stores the outcome transient", async () => {
+    const attempt = voiceAttempt();
+    completeStageAttempt(attempt.id, { outcome: "transient", finishedAt: FINISHED, errorMessage: "the voice provider could not be reached", unresponsive: true });
+    expect(await calls()).toContainEqual({
+      name: "vid4you_provider_calls_total",
+      attributes: { stage: "voice-over", provider: "ElevenLabs", outcome: "unresponsive" },
+      value: 1,
+    });
+    expect(db.prepare("SELECT outcome FROM stage_attempts WHERE id = ?").get(attempt.id)).toEqual({ outcome: "transient" });
+  });
+});
+
+// alert-unresponsive-provider (JOS-257), design Decision 3 — a timed-out attempt is a call that got no answer in time.
+// Before this change it reached no metric at all; it now counts once, as unresponsive, whatever arrives later.
+describe("timeOutAttempt", () => {
+  const voiceCalls = async () =>
+    (await points()).filter((point) => point.name === "vid4you_provider_calls_total" && point.attributes.stage === "voice-over");
+
+  it("records one unresponsive call with the attempt's provider and its latency", async () => {
+    const attempt = voiceAttempt();
+    expect(timeOutAttempt(attempt.id, FINISHED, "the voice provider did not answer in time")).toBe(true);
+    expect(await voiceCalls()).toEqual([
+      { name: "vid4you_provider_calls_total", attributes: { stage: "voice-over", provider: "ElevenLabs", outcome: "unresponsive" }, value: 1 },
+    ]);
+    const latency = (await points()).find((point) => point.name === "vid4you_provider_call_duration_ms");
+    expect(latency?.value).toMatchObject({ sum: 4000, count: 1 });
+  });
+
+  it("records nothing more for a second timeout or a late result", async () => {
+    const attempt = voiceAttempt();
+    timeOutAttempt(attempt.id, FINISHED);
+    expect(timeOutAttempt(attempt.id, FINISHED)).toBe(false);
+    acceptLateResult(attempt.id, FINISHED);
+    expect((await voiceCalls()).map((point) => point.value)).toEqual([1]);
   });
 });

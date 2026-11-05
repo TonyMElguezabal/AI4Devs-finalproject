@@ -87,6 +87,7 @@ export function derivePauses(script: string, scenes: readonly PauseScene[], char
   try {
     spans = sentenceSpeechSpans(script, located.map((entry) => entry.sentence), characters);
   } catch {
+    // characters that do not match the script: no derivable pauses, which the view shows as such.
     return new Map();
   }
   const pauses = new Map<string, number>();

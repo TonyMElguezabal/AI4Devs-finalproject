@@ -96,24 +96,9 @@ describe("The response is validated (Decision 4, AC3)", () => {
   });
 });
 
-describe("Failures are classified by HTTP status (product owner rule)", () => {
-  it.each([400, 401, 403, 404, 422])("classifies HTTP %i as not retryable", async (status) => {
-    const { fetchFn } = fakeFetch(() => new Response("{}", { status }));
-    expect((await generatorWith(fetchFn).generate(FRAGMENTS, "en")).kind).toBe("failed_not_retryable");
-  });
-
-  it.each([408, 429, 500, 502, 503])("classifies HTTP %i as transient", async (status) => {
-    const { fetchFn } = fakeFetch(() => new Response("{}", { status }));
-    expect((await generatorWith(fetchFn).generate(FRAGMENTS, "en")).kind).toBe("failed_transient");
-  });
-
-  it("classifies a network error as transient", async () => {
-    const fetchFn = (async () => {
-      throw new TypeError("fetch failed");
-    }) as typeof fetch;
-    expect((await generatorWith(fetchFn).generate(FRAGMENTS, "en")).kind).toBe("failed_transient");
-  });
-
+// The status classification and the one-request rule are in adapter-contract.test.ts (JOS-263); a refused connection
+// is transient without the unresponsive mark until JOS-260.
+describe("Failures (product owner rule)", () => {
   it("classifies exceeding the phase limit as transient", async () => {
     const fetchFn = ((_url: string | URL | Request, init?: RequestInit) =>
       new Promise<Response>((_resolve, reject) => {
@@ -141,12 +126,6 @@ describe("Failures are classified by HTTP status (product owner rule)", () => {
     const reason = "reason" in result ? result.reason : "";
     expect(reason).not.toMatch(/secret internal detail|sk-live-123|sk-test-SECRET/);
     expect(reason).toMatch(/400/);
-  });
-
-  it("makes exactly one request even when it fails", async () => {
-    const { fetchFn, calls } = fakeFetch(() => new Response("{}", { status: 503 }));
-    await generatorWith(fetchFn).generate(FRAGMENTS, "en");
-    expect(calls).toHaveLength(1);
   });
 });
 

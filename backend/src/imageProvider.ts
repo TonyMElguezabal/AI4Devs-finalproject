@@ -16,7 +16,7 @@ export type GeneratedImage = { source: "bytes"; bytes: Buffer; contentType: stri
 
 /** `retryAfterSeconds` is the provider's own request for a later retry (`Retry-After` on HTTP 429). */
 export type ImageFailure =
-  | { kind: "failed_transient"; reason: string; retryAfterSeconds?: number }
+  | { kind: "failed_transient"; reason: string; retryAfterSeconds?: number; /** alert-unresponsive-provider (JOS-257) Decision 1 — set only when `fetch` itself failed: the provider never answered. */ unresponsive?: true }
   | { kind: "failed_not_retryable"; reason: string };
 
 export type ImageGenerationResult = { kind: "success"; image: GeneratedImage } | ImageFailure;
@@ -138,7 +138,7 @@ export function createFalAiImageProvider(
           ),
         });
       } catch {
-        return { kind: "failed_transient", reason: "the image provider could not be reached" };
+        return { kind: "failed_transient", reason: "the image provider could not be reached", unresponsive: true };
       }
 
       if (!response.ok) {

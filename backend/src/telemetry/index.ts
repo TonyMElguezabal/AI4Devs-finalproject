@@ -15,7 +15,7 @@ import { redactPaths } from "../util/redactPaths.ts";
 
 export type ProductEvent = "app_start" | "session_started" | "final_video";
 export type BilledUnit = { unit: "clip_seconds" | "images" | "voice_characters"; amount: number };
-export type NormalizedOutcome = "success" | "transient" | "not-retryable" | "other";
+export type NormalizedOutcome = "success" | "transient" | "unresponsive" | "not-retryable" | "other";
 
 type Exporters = { metrics: PushMetricExporter; logs: LogRecordExporter };
 type Instruments = {
@@ -34,6 +34,10 @@ let loggerProvider: LoggerProvider | null = null;
 let instruments: Instruments | null = null;
 let logger: (message: string) => void = (message) => console.warn(message);
 let lastWarningAt = 0;
+// verify-internal-workflow (JOS-243), design D5 — the local log every reported error is written to, whatever the consent.
+// The boot code sets it to the application logger; until then (unit tests, in-process apps) nothing is written.
+type ErrorLog = { error: (fields: Record<string, string>, message: string) => void };
+let errorLog: ErrorLog | null = null;
 
 /** Refreshed by the boot code and by `PUT /telemetry/consent`, so a change applies without a restart (Decision 3). */
 export function setConsent(next: TelemetrySettings): void {
@@ -53,26 +57,37 @@ export function setTelemetryLogger(next: (message: string) => void): void {
   logger = next;
 }
 
+export function setErrorLog(next: ErrorLog): void {
+  errorLog = next;
+}
+
 export function resetTelemetryForTest(): void {
   void meterProvider?.shutdown().catch(() => {});
   void loggerProvider?.shutdown().catch(() => {});
   meterProvider = loggerProvider = instruments = null;
   exporterOverride = null;
   lastWarningAt = 0;
+  errorLog = null;
   logger = (message) => console.warn(message);
   settings = { errors: false, providerUsage: false, productUsage: false, answered: false, installId: "" };
 }
 
-/** Decision 4 — one place maps both the stage-attempt and the provider-request vocabularies. */
-export function normalizeOutcome(raw: string): NormalizedOutcome {
+/**
+ * Decision 4 — one place maps both the stage-attempt and the provider-request vocabularies.
+ * alert-unresponsive-provider (JOS-257) Decision 2: a call that got no answer — timed out, or flagged by its adapter
+ * because `fetch` itself failed — is `unresponsive`, apart from a provider that answered with a retryable error.
+ */
+export function normalizeOutcome(raw: string, mark: { unresponsive?: boolean } = {}): NormalizedOutcome {
+  if (mark.unresponsive) return "unresponsive";
   switch (raw) {
     case "success":
     case "late-success":
       return "success";
     case "transient":
     case "transient_failure":
-    case "timed-out":
       return "transient";
+    case "timed-out":
+      return "unresponsive";
     case "not-retryable":
     case "not_retryable_failure":
       return "not-retryable";
@@ -87,11 +102,12 @@ export function recordProviderCall(call: {
   outcome: string;
   latencyMs: number;
   billed?: BilledUnit;
+  unresponsive?: boolean;
 }): void {
   if (!settings.providerUsage) return;
   guarded(() => {
     const { calls, duration, billed } = getInstruments();
-    const outcome = normalizeOutcome(call.outcome);
+    const outcome = normalizeOutcome(call.outcome, { unresponsive: call.unresponsive });
     calls.add(1, { stage: call.stage, provider: call.provider, outcome });
     duration.record(call.latencyMs, { stage: call.stage, provider: call.provider });
     if (outcome === "success" && call.billed) {
@@ -102,17 +118,21 @@ export function recordProviderCall(call: {
 
 export function recordError(error: {
   stage?: string;
+  /** cover-error-reporting (JOS-252) D1 — method and route pattern, from the code; not scrubbed (any `/` would become `[path]`). */
+  route?: string;
   provider?: string;
   errorCode?: string;
   outcome?: string;
   message: string;
   stack?: string;
 }): void {
+  writeErrorLog(error);
   if (!settings.errors) return;
   guarded(() => {
     getProviders();
     const attributes: Record<string, string> = { "exception.message": redactPaths(error.message) };
     if (error.stage) attributes.stage = error.stage;
+    if (error.route) attributes.route = error.route;
     if (error.provider) attributes.provider = error.provider;
     if (error.errorCode) attributes["error.code"] = error.errorCode;
     if (error.outcome) attributes.outcome = error.outcome;
@@ -124,6 +144,31 @@ export function recordError(error: {
       attributes,
     });
   });
+}
+
+/**
+ * cover-error-reporting (JOS-253), design D2 — an error a `catch` caught that no other path reports: a bug, not a
+ * provider outcome. Anything thrown is accepted; a non-Error becomes one, as the process handlers do.
+ */
+export function recordCaughtError(reason: unknown, context: { stage?: string; provider?: string } = {}): void {
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  recordError({ ...context, errorCode: error.name, message: error.message, stack: error.stack });
+}
+
+function writeErrorLog(error: Parameters<typeof recordError>[0]): void {
+  if (!errorLog) return;
+  const fields: Record<string, string> = {};
+  if (error.stage) fields.stage = error.stage;
+  if (error.route) fields.route = error.route;
+  if (error.provider) fields.provider = error.provider;
+  if (error.errorCode) fields.errorCode = error.errorCode;
+  if (error.outcome) fields.outcome = error.outcome;
+  if (error.stack) fields.stack = redactPaths(error.stack);
+  try {
+    errorLog.error(fields, redactPaths(error.message));
+  } catch {
+    // A failing log must never fail the caller (a database write or the process handlers).
+  }
 }
 
 export function recordProductEvent(event: ProductEvent): void {

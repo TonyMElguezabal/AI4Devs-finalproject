@@ -25,6 +25,7 @@ import { createDecompositionFailure } from "./sessionStateMachine.ts";
 import type { TimestampCharacter } from "./narrationTimestamps.ts";
 import type { DecompositionFailure, Run, StageAttempt } from "./types.ts";
 import type { VisualInstructionGenerator } from "./visualInstructions.ts";
+import { recordCaughtError } from "./telemetry/index.ts";
 
 // segment-script-into-chunks (JOS-140) — PRD §5 step 4, design Decisions 5 and
 // 7: segment the session's stored timestamps into fragments and register them
@@ -61,6 +62,7 @@ function readStoredCharacters(run: Run, relativePath: string): TimestampCharacte
     const parsed = storedFileSchema.safeParse(JSON.parse(readFileSync(resolveArtefactPath(run.projectFolder, relativePath), "utf8")));
     return parsed.success ? parsed.data.characters : null;
   } catch {
+    // unreadable stored timestamps: the caller records it as a segmentation failure.
     return null;
   }
 }
@@ -270,6 +272,7 @@ function waitingAfterNarration(sessionId: string): boolean {
 function startInBackground(sessionId: string): void {
   logger.info({ event: "decomposition.launch", sessionId });
   runDecompositionPhase(sessionId, getDecompositionDependencies()).catch((err: unknown) => {
+    recordCaughtError(err, { stage: "decomposition" }); // cover-error-reporting (JOS-253): a throw here is a bug, not an outcome
     logger.info({ event: "decomposition.launch.error", sessionId, reason: err instanceof Error ? err.name : "unknown" });
   });
 }

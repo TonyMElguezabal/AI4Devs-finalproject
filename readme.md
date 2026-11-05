@@ -145,7 +145,7 @@ Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en
 | `STAGE_CONCURRENCY_LIMIT` | límites de `config/providers.ts` | Sustituye el límite de peticiones simultáneas de la etapa de imagen (solo pruebas manuales). |
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | 2 y 30 | Acortan la espera entre reintentos para pruebas manuales. |
 | `BODY_LIMIT_BYTES` | 50 MiB | Tamaño máximo del cuerpo de una petición. |
-| `ALLOW_TEST_ENDPOINTS`, `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_IMAGE_PROVIDER`, `VOICE_STUB_DELAY_MS` | desactivadas | Solo para pruebas: activan endpoints de prueba y proveedores simulados. La aplicación empaquetada las ignora. |
+| `ALLOW_TEST_ENDPOINTS`, `USE_STUB_VOICE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_IMAGE_PROVIDER`, `USE_STUB_DECOMPOSITION`, `USE_STUB_SCRIPT_MODERATION`, `VOICE_STUB_DELAY_MS`, `VID4YOU_ERROR_TRIGGERS` | desactivadas | Solo para pruebas: activan endpoints de prueba y proveedores simulados. La aplicación empaquetada las ignora. |
 
 **Publicar una versión y revertirla**
 
@@ -194,7 +194,7 @@ Estado del MVP a 20-oct-2026. Ninguna impide generar un video; todas están regi
 | Limitación | Efecto | Seguimiento |
 |---|---|---|
 | Un clip cuyo intento agota el tiempo se vuelve a pedir al proveedor, y la tarea anterior sigue en marcha y se factura. | Una escena puede costar varias tareas de video (el 14-oct-2026, los clips de 14 s agotaron el tiempo en 8 de 8 intentos). Una sesión corta con clips de 6 s y 11 s sí terminó. | JOS-204 |
-| Los tiempos máximos por fase (voz y razonamiento 600 s, video 1200 s, y la espera máxima de un clip, 2400 s) son provisionales: solo se midió una sesión de 2 escenas con la compilación actual. | Una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips) puede agotar el tiempo. | JOS-209 |
+| El tiempo máximo de imagen (300 s) no está confirmado con la versión actual: la sesión de tamaño real (JOS-209) lo midió antes de que la imagen siguiera la cola de Fal.ai (JOS-239), cuando 300 s incluía la espera en cola. | Si la generación real es más lenta, una imagen se cancela a los 600 s (el doble del límite) y la escena falla. | JOS-268 |
 | Los límites reales de peticiones por etapa de RunningHub y ElevenLabs, y los casos límite de la división por cláusulas (§6.1), no están verificados. | El límite de peticiones simultáneas usa los valores de `config/providers.ts`, sin contrastar con los límites reales. | JOS-188, JOS-189 (posteriores al MVP) |
 | La comprobación del guion muestra un único mensaje genérico para cuatro causas distintas (falta `OPENAI_KEY`, fichero de claves ilegible, sin red hacia OpenAI, error de OpenAI). | El usuario debe revisar la tabla de la sección 1.5 para descubrir cuál es. | Aplazada por el propietario del producto |
 | El ejecutable no está firmado. | Windows (SmartScreen) y macOS (Gatekeeper) muestran una advertencia al abrirlo. | JOS-207 |
@@ -298,7 +298,7 @@ Los ficheros `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` y `codex.md` apuntan a los es
 
 - El ejecutable se construye con `npm run package:<plataforma>` en `backend/` (JOS-205) y se publica con `release.yml` (JOS-206). Los ffmpeg y ffprobe que fija son una compilación GPL con componentes `nonfree` que **no se puede redistribuir**; el propietario decidió publicarla igualmente (el software no está pensado para distribuirse y el repositorio es público solo por el curso). Las notas de cada versión lo indican. Sustituirla solo exige cambiar `backend/packaging/targets.ts`.
 - El ejecutable no está firmado.
-- Aún no se han medido tiempos con una sesión de tamaño real (1.500–1.800 palabras, 30–50 clips): los límites máximos por fase (voz y razonamiento 600 s, video 1200 s) y la espera máxima de un clip (2400 s) son provisionales.
+- Una sesión de tamaño real (1.521 palabras, 57 escenas, JOS-209) confirmó los tiempos máximos de voz y razonamiento (600 s) y de video (1200 s, con una espera máxima por clip de 2400 s). El de imagen (300 s) queda pendiente de medir con la versión actual (JOS-268).
 
 ### **2.5. Seguridad**
 
@@ -500,7 +500,7 @@ flowchart LR
 - El límite de peticiones simultáneas por etapa es compartido entre sesiones y atiende por orden de llegada (voz 3, alineación 2, video 3); esperar turno no cuenta como intento ni como tiempo de ejecución.
 - Un fallo transitorio se reintenta hasta 3 veces tras el intento inicial, con espera exponencial de 2 s (tope 30 s); un fallo no reintentable pasa directo a `failed`. Un reintento manual abre un ciclo nuevo.
 - El resultado de cada llamada (proveedor, intentos, causa) queda en `stage_attempts` / `provider_requests`, sin credenciales.
-- Los tiempos máximos de voz, razonamiento y video son provisionales hasta medir una sesión de tamaño real.
+- Los tiempos máximos de voz, razonamiento y video están confirmados con una sesión de tamaño real (JOS-209); el de imagen está pendiente de medir con la versión actual (JOS-268).
 
 ---
 

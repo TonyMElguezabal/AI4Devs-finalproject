@@ -1,4 +1,4 @@
-import { recordError, shutdownTelemetry } from "./index.ts";
+import { recordCaughtError, shutdownTelemetry } from "./index.ts";
 
 // add-observability-telemetry (JOS-199), group 4 — report an uncaught exception or unhandled rejection, then keep
 // today's behavior: print it and exit with 1 (Node's default for both). Registering a listener removes that
@@ -9,8 +9,7 @@ export function installProcessErrorHandlers(
   print: (error: unknown) => void = (error) => console.error(error),
 ): void {
   const report = (reason: unknown) => {
-    const error = reason instanceof Error ? reason : new Error(String(reason));
-    recordError({ errorCode: error.name, message: error.message, stack: error.stack });
+    recordCaughtError(reason);
     void shutdownTelemetry(2000).finally(() => {
       print(reason);
       exit(1);
