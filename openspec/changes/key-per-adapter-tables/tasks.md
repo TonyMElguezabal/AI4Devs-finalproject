@@ -50,11 +50,11 @@
 
 ## 8. Update Technical Documentation (MANDATORY)
 
-- [ ] 8.1 Add to `docs/backend-standards.md` the rule that a table holding per-adapter-type behaviour is keyed by `AdapterTypeId`
-- [ ] 8.2 Confirm `docs/api-spec.yml` and `docs/data-model.md` need no change (no contract or schema change)
-- [ ] 8.3 Run `graphify update .`
+- [x] 8.1 Add to `docs/backend-standards.md` the rule that a table holding per-adapter-type behaviour is keyed by `AdapterTypeId`
+- [x] 8.2 Confirm `docs/api-spec.yml` and `docs/data-model.md` need no change (no contract or schema change)
+- [x] 8.3 Run `graphify update .`
 
 ## 9. Delivery
 
-- [ ] 9.1 Commit on the feature branch
+- [x] 9.1 Commit on the feature branch
 - [ ] 9.2 Ask before pushing. Open a PR into `feature/entrega-3-JAME` that explains the architectural motivation and copies the audit table from design.md § Context, including the per-stage adapter construction gap left for JOS-263
