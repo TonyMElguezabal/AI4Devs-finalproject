@@ -37,15 +37,15 @@
 
 ## 7. Frontend: E2E Testing with Playwright MCP (MANDATORY if applicable - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Open the stubbed session from 6.1 in the browser and confirm the diagnostics show `Stub provider` for timestamps; record it in `reports/YYYY-MM-DD-step-7-e2e-testing.md`
+- [x] 7.1 Open the stubbed session from 6.1 in the browser and confirm the diagnostics show `Stub provider` for timestamps; record it in `reports/YYYY-MM-DD-step-7-e2e-testing.md`
 
 ## 8. Update Technical Documentation (MANDATORY)
 
-- [ ] 8.1 Update `docs/backend-standards.md` where it describes the timestamps attempt's provider, and `docs/data-model.md` if it lists `elevenlabs-native`
-- [ ] 8.2 Confirm `docs/api-spec.yml` needs no change
-- [ ] 8.3 Run `graphify update .`
+- [x] 8.1 Update `docs/backend-standards.md` where it describes the timestamps attempt's provider, and `docs/data-model.md` if it lists `elevenlabs-native`
+- [x] 8.2 Confirm `docs/api-spec.yml` needs no change
+- [x] 8.3 Run `graphify update .`
 
 ## 9. Delivery
 
-- [ ] 9.1 Commit on the feature branch
+- [x] 9.1 Commit on the feature branch
 - [ ] 9.2 Ask before pushing. Open a PR into `feature/entrega-3-JAME` that explains the cause and the fix
