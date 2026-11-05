@@ -85,8 +85,8 @@ const run = (testCase: Case, fetchFn: typeof fetch): Promise<ConnectionOutcome> 
   CONNECTION_CHECKS[testCase.type].run(testCase.parameters, KEY, fetchFn, AbortSignal.timeout(10_000));
 
 describe("every adapter type has a connection check", () => {
-  it("covers the whole catalogue and nothing else", () => {
-    expect(Object.keys(CONNECTION_CHECKS).sort()).toEqual(ADAPTER_TYPES.map((type) => type.id).sort());
+  // The checks themselves are matched to the shipped adapter types in adapter-type-tables.test.ts (JOS-262).
+  it("has a test case for every adapter type in the catalogue", () => {
     expect(CASES.map((testCase) => testCase.type).sort()).toEqual(ADAPTER_TYPES.map((type) => type.id).sort());
   });
 

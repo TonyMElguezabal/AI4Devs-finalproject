@@ -22,16 +22,16 @@
 
 ## 4. Backend: Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 4.1 Review `provider-types.test.ts`, `provider-connection-check.test.ts`, `admin-provider-connection-test-route.test.ts` and `telemetry-provider-name.test.ts`. Keep them unchanged unless a test only re-checks what 1.1 now covers. Record the decision
+- [x] 4.1 Review `provider-types.test.ts`, `provider-connection-check.test.ts`, `admin-provider-connection-test-route.test.ts` and `telemetry-provider-name.test.ts`. Keep them unchanged unless a test only re-checks what 1.1 now covers. Record the decision
 
 ## 5. Backend: Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 5.1 Capture the pre-test baseline of `provider_profiles` (row count and checksum) in the local store
-- [ ] 5.2 Run the targeted tests (`adapter-type-tables`, `provider-types`, `provider-connection-check`, `admin-provider-connection-test-route`) with a scratch `DB_PATH` and `PROJECTS_ROOT`
-- [ ] 5.3 Run the full backend suite (`npm test`) with a scratch `DB_PATH` and `PROJECTS_ROOT`, plus `npm run typecheck` and `npm run lint`. Coverage of the touched modules must not decrease
-- [ ] 5.4 Verify the post-test state of the local store matches 5.1, and restore it if it does not
-- [ ] 5.5 Create report `openspec/changes/key-per-adapter-tables/reports/YYYY-MM-DD-step-5-unit-test-and-db-verification.md`
-- [ ] 5.6 Mark step complete only after tests pass and the report exists
+- [x] 5.1 Capture the pre-test baseline of `provider_profiles` (row count and checksum) in the local store
+- [x] 5.2 Run the targeted tests (`adapter-type-tables`, `provider-types`, `provider-connection-check`, `admin-provider-connection-test-route`) with a scratch `DB_PATH` and `PROJECTS_ROOT`
+- [x] 5.3 Run the full backend suite (`npm test`) with a scratch `DB_PATH` and `PROJECTS_ROOT`, plus `npm run typecheck` and `npm run lint`. Coverage of the touched modules must not decrease
+- [x] 5.4 Verify the post-test state of the local store matches 5.1, and restore it if it does not
+- [x] 5.5 Create report `openspec/changes/key-per-adapter-tables/reports/YYYY-MM-DD-step-5-unit-test-and-db-verification.md`
+- [x] 5.6 Mark step complete only after tests pass and the report exists
 
 ## 6. Backend: Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
