@@ -5,8 +5,8 @@
 
 ## 1. Backend: Adapter-type table tests (TDD; design Decision 4)
 
-- [ ] 1.1 Write `backend/test/adapter-type-tables.test.ts`. Use `expectTypeOf` to assert that `CONNECTION_CHECKS` is `Record<AdapterTypeId, ConnectionCheck>`, that `ADAPTER_VENDORS` is `Record<AdapterTypeId, string>` and that `AdapterType["id"]` is `AdapterTypeId`. Add one `// @ts-expect-error` fixture typed `typeof CONNECTION_CHECKS` with one entry missing, and add runtime tests that the keys of `CONNECTION_CHECKS` and `ADAPTER_VENDORS`, and the ids of `ADAPTER_TYPES` in order, equal `Object.keys(PARAMETER_SHAPES)`
-- [ ] 1.2 Confirm the change fails first: `npm run typecheck` fails on the missing `AdapterTypeId` export and the widened types (record the output)
+- [x] 1.1 Write `backend/test/adapter-type-tables.test.ts`. Use `expectTypeOf` to assert that `CONNECTION_CHECKS` is `Record<AdapterTypeId, ConnectionCheck>`, that `ADAPTER_VENDORS` is `Record<AdapterTypeId, string>` and that `AdapterType["id"]` is `AdapterTypeId`. Add one `// @ts-expect-error` fixture typed `typeof CONNECTION_CHECKS` with one entry missing, and add runtime tests that the keys of `CONNECTION_CHECKS` and `ADAPTER_VENDORS`, and the ids of `ADAPTER_TYPES` in order, equal `Object.keys(PARAMETER_SHAPES)`
+- [x] 1.2 Confirm the change fails first: `npm run typecheck` fails on the missing `AdapterTypeId` export and the widened types (record the output)
 
 ## 2. Backend: Key the tables by adapter type (design Decisions 1-3)
 
