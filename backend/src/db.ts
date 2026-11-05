@@ -10,6 +10,7 @@
 // this is no longer a disposable stand-in, it is the decision.
 import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import { voiceProviderIdOfNative } from "./nativeTimestampsProvider.ts";
 import { ADAPTER_VENDORS, SEEDED_PROFILES } from "./providerTypes.ts";
 import { stageInstanceKey } from "./retry/retryPolicy.ts";
 import { normalizeOutcome, recordError, recordProductEvent, recordProviderCall, type BilledUnit } from "./telemetry/index.ts";
@@ -1889,6 +1890,9 @@ export function completeStageAttempt(
 function telemetryProviderOf(identifier: string | null, stage: string): string {
   if (identifier === null) return stage === "assembly" ? "local" : "unknown";
   if (identifier === "elevenlabs-native") return "ElevenLabs";
+  // attribute-native-timestamps-to-voice-provider (JOS-264) — native timestamps report their voice provider's vendor.
+  const nativeVoice = voiceProviderIdOfNative(identifier);
+  if (nativeVoice !== null) return telemetryProviderOf(nativeVoice, "voice-over");
   if (identifier.startsWith("stub-")) return "stub";
   // The ids image and clip scenes stored before the first profiles existed; literals because config/providers.ts loads the
   // settings file when imported. They are LEGACY_IMAGE_PROVIDER_IDENTIFIER and LEGACY_VIDEO_PROVIDER_IDENTIFIER there.

@@ -23,6 +23,7 @@ import {
   type TimestampCharacter,
   type UsabilityResult,
 } from "./narrationTimestamps.ts";
+import { nativeTimestampsProviderId } from "./nativeTimestampsProvider.ts";
 import { broadcast } from "./orchestrator.ts";
 import { registerSlotKeyResolver, sendWithSlot } from "./retry/retryScheduler.ts";
 import { createDecompositionFailure } from "./sessionStateMachine.ts";
@@ -39,7 +40,6 @@ import type { DecompositionFailure, Run, StageAttempt, TimestampMechanism, Voice
 // completes.
 
 export const STORED_FILE = "narration-timestamps.json";
-const NATIVE_PROVIDER = "elevenlabs-native";
 /** Recorded on an attempt's `error_code` once native timestamps were judged unusable (Decision 5). */
 const NATIVE_UNUSABLE = "native-unusable";
 
@@ -141,7 +141,9 @@ export async function obtainNarrationTimestamps(
     const recorded = scheduleStageAttempt({
       runId,
       stage: "timestamps",
-      providerId: nativePath ? NATIVE_PROVIDER : bindAlignmentProviderFor(runId),
+      // JOS-264 — native timestamps name the session's voice provider, as the voice-over phase resolves it; no alignment
+      // provider is bound for them.
+      providerId: nativePath ? nativeTimestampsProviderId(run.voiceProviderId ?? activeProviderId("voice")) : bindAlignmentProviderFor(runId),
       queuedAt: startedAt,
       dueAt: startedAt,
       trigger: "initial",

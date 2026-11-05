@@ -7,6 +7,7 @@ import {
   VOICE_PROVIDER,
 } from "./config/providers.ts";
 import { resolveProfileId } from "./keyStore.ts";
+import { voiceProviderIdOfNative } from "./nativeTimestampsProvider.ts";
 import { ensureProfiles, getProfile } from "./providerProfiles.ts";
 import type { ProviderStage } from "./providerTypes.ts";
 import type { AttemptStage } from "./types.ts";
@@ -48,7 +49,7 @@ const DISPLAY: Record<DiagnosticStage, ReadonlyMap<string | null, ProviderDispla
   "voice-over": new Map([
     [VOICE_PROVIDER.name, { name: VOICE_PROVIDER.name, model: VOICE_PROVIDER.model }],
   ]),
-  // `narrationTimestampsPhase.ts` records these two as the provider of each timestamps attempt.
+  // The ids timestamps attempts were recorded with before JOS-264; a native attempt now names its voice provider.
   timestamps: new Map([
     ["elevenlabs-native", { name: "ElevenLabs", model: "native timestamps" }],
     ["elevenlabs-forced-alignment", { name: "ElevenLabs", model: "forced alignment" }],
@@ -107,6 +108,9 @@ function describeProfile(stage: DiagnosticStage, identifier: string | null): Pro
  * id, an endpoint or something a configuration change left behind.
  */
 export function describeProvider(stage: DiagnosticStage, identifier: string | null): ProviderDisplay {
+  // attribute-native-timestamps-to-voice-provider (JOS-264) — native timestamps are shown as the voice provider that made them.
+  const nativeVoice = stage === "timestamps" && !DISPLAY.timestamps.has(identifier) ? voiceProviderIdOfNative(identifier) : null;
+  if (nativeVoice !== null) return { ...describeProvider("voice-over", nativeVoice), model: "native timestamps" };
   // verify-internal-workflow (JOS-243) — every stub identifier starts with `stub-`, as `telemetryProviderOf` (db.ts) assumes.
   const found = describeProfile(stage, identifier) ?? DISPLAY[stage].get(identifier) ?? (identifier?.startsWith("stub-") ? stub(identifier) : undefined);
   if (found) return { ...found };
