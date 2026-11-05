@@ -91,11 +91,20 @@ Image and video attempts come from the request log; a transient failure lasting 
 ## Reading the tables
 
 - **Image:** 244 attempts for 57 images, 139 of them lasting the full 300 s (counted as timed out). Every scene eventually succeeded, in up to 4 attempts. The slowest success took 296 s, so the margin is 300/296 = 1.01: the limit is not comfortable at all, and the 139 timeouts show many requests are slower than it. Measured at concurrency 6 only.
-- **Video:** 58 attempts, one transient failure at 219 s (clip 56, retried and succeeded), no timeout. The slowest success took 1,261 s, above the 1,200 s limit; the three slowest clips (1,261 s, 1,074 s, 1,023 s) were the first three sent, at 01:31:18 UTC. **Open question:** why a request over the limit counted as a success; the owner or the attempt-timeout code must explain it before the margin of 1,200/1,261 is trusted.
+- **Video:** 58 attempts, one transient failure at 219 s (clip 56, retried and succeeded), no timeout. The slowest success took 1,261 s, above the 1,200 s limit; the three slowest clips (1,261 s, 1,074 s, 1,023 s) were the first three sent, at 01:31:18 UTC. **Explained:** the video limit is not a hard stop. In this release (keep-clip-task-on-timeout, JOS-204) a clip past 1,200 s keeps its one RunningHub task and is only given up at the ceiling of twice the limit, 2,400 s from the send (`videoTaskCeilingMs`). Clip 2 was followed past the limit and succeeded with no new task. The margin is 2,400/1,261 = 1.90 against the ceiling (1,200/1,261 = 0.95 against the limit).
 - **Single sample:** one run, one script, one afternoon of provider load.
 
-## Draft recommendation (not decided; task 9.1)
+## Recommendation (task 9.1, decided by the owner on 2026-11-05)
 
-- Voice (60 s of 600), decomposition (116 s of 600): keep.
-- Video: keep 1,200 s only if the 1,261 s success is explained; otherwise raise it (suggested 1,800 s) through an OpenSpec change.
-- Image: 300 s is too tight even at concurrency 6 (139 of 244 attempts hit it, margin 1.01), so raise it through an OpenSpec change. The slowest times are censored at 300 s, so the number needs headroom over what was observed; if the real distribution is wanted, run only the image stage at concurrency 200 with a temporary higher limit (for example 900 s), without paying for video.
+| Item | Observed | Limit | Margin | Decision |
+|---|---|---|---|---|
+| Voice limit | 60 s | 600 s | 10.0 | Keep 600 s |
+| Decomposition limit | 116 s | 600 s | 5.17 | Keep 600 s |
+| Video limit | 1,261 s slowest success | 1,200 s (ceiling 2,400 s) | 1.90 vs ceiling | Keep 1,200 s |
+| Video concurrency | 3 in flight, no failure caused by it | 4 on `main` (JOS-188) | - | Keep 4 |
+| Image limit | 139 of 244 attempts cut at 300 s | 300 s | 1.01 | Keep 300 s; recheck on `main` |
+
+- **Video:** the 1,261 s success is designed behaviour (see "Reading the tables"). The three slowest clips were the first three sent, which points to a cold start at the provider rather than the steady pace. No OpenSpec change.
+- **Video concurrency:** the run used 3; JOS-188 has since set 4 from the measured provider limits. This run gives no reason to change it.
+- **Image:** the run measured behaviour that `main` no longer has. In the release the run used (most likely `e968b94`, the last one published before the run started; inferred, not recorded at the time) an image request was synchronous: the 300 s counted queue wait plus generation, and each cut sent a new billed request. On `main` (follow-fal-image-queue, JOS-239) queue time is not counted, nothing happens at 300 s, and a request is cancelled only at twice the limit, 600 s of generation (`imageTaskCeilingMs`). Since every slow attempt in the run was cut at 300 s, the run cannot say how long generation alone takes. The 300 s figure stays, unconfirmed for `main`; a follow-up ticket (JOS-268) checks the image timings on the next full or image-only run on `main`. No OpenSpec change now.
+- **Run condition:** image concurrency was 6 for the whole run, which is also the current default on `main`. Video concurrency was 3.
