@@ -34,12 +34,12 @@
 
 ## 4. Frontend tests first, then implementation
 
-- [ ] 4.1 Test `ProviderProfilesSection`: the `json` field (a parse error is shown before saving; server problems show under the field with their path); "Duplicate" prefills the add form without the key and offers to reuse it; the host-change warning shows before saving
-- [ ] 4.2 Implement the `json` field kind, "Duplicate" with `copyKeyFrom`, and the warning; add `copyKeyFrom` to the API client
+- [x] 4.1 Test `ProviderProfilesSection`: the `json` field (a parse error is shown before saving; server problems show under the field with their path); "Duplicate" prefills the add form without the key and offers to reuse it; the host-change warning shows before saving
+- [x] 4.2 Implement the `json` field kind, "Duplicate" with `copyKeyFrom`, and the warning; add `copyKeyFrom` to the API client
 
 ## 5. Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Review the provider-types and provider-profiles route tests, `adapters-no-hidden-retries`, the per-adapter table tests, the telemetry vendor tests and the API surface tests for assumptions of one video type; update them
+- [x] 5.1 Review the provider-types and provider-profiles route tests, `adapters-no-hidden-retries`, the per-adapter table tests, the telemetry vendor tests and the API surface tests for assumptions of one video type; update them
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 

@@ -15,7 +15,8 @@ interface Props {
   refreshKey?: number;
 }
 
-type FormState = { kind: "add"; stage: ProviderStage } | { kind: "edit"; profile: ProfileView };
+/** An add form may start from a profile to duplicate (JOS-219): its parameters, not its key. */
+type FormState = { kind: "add"; stage: ProviderStage; from?: ProfileView } | { kind: "edit"; profile: ProfileView };
 
 function valueAt(source: Record<string, unknown>, path: string[]): unknown {
   return path.reduce<unknown>((current, key) => (current && typeof current === "object" ? (current as Record<string, unknown>)[key] : undefined), source);
@@ -38,6 +39,22 @@ function coerce(field: ParameterFieldInfo, raw: string): unknown {
   return raw;
 }
 
+/** The host a connector's key is bound to; undefined when the base URL does not parse. */
+function hostOf(baseUrl: unknown): string | undefined {
+  try {
+    return new URL(String(baseUrl)).host;
+  } catch {
+    return undefined;
+  }
+}
+
+/** A field's form text: a JSON field shows its object formatted. */
+function fieldText(field: ParameterFieldInfo, value: unknown): string {
+  if (value === undefined) return "";
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string -- a non-JSON parameter value is a string or a number
+  return field.kind === "json" ? JSON.stringify(value, null, 2) : String(value);
+}
+
 function keyText(profile: ProfileView): string {
   if (profile.keyStatus === "stored") return profile.keyHint ? `Key stored (…${profile.keyHint})` : "Key stored";
   return profile.keyStatus === "environment" ? "Key from the environment" : "Key missing";
@@ -58,6 +75,8 @@ function resultText(result: ConnectionTestResult, vendor: string): string {
       return `Unexpected answer from ${vendor} (HTTP ${result.httpStatus ?? "unknown"}).`;
     case "no-key":
       return "This provider has no key.";
+    case "no-check":
+      return "This connector's requests define no connection check, so nothing was sent.";
   }
 }
 
@@ -160,6 +179,11 @@ export function ProviderProfilesSection({ password, onDenied, onChanged, refresh
                     {!profile.usable && profile.problems.map((problem) => <div key={problem.field + problem.message}>{problem.message}</div>)}
                     <div>
                       <button type="button" onClick={() => setForm({ kind: "edit", profile })}>{`Edit ${profile.label}`}</button>{" "}
+                      {profile.adapterType === "configured-video" && (
+                        <>
+                          <button type="button" onClick={() => setForm({ kind: "add", stage, from: profile })}>{`Duplicate ${profile.label}`}</button>{" "}
+                        </>
+                      )}
                       {confirming === profile.id ? (
                         <>
                           <button type="button" onClick={() => void handleDelete(profile)}>{`Confirm delete ${profile.label}`}</button>{" "}
@@ -194,16 +218,17 @@ export function ProviderProfilesSection({ password, onDenied, onChanged, refresh
               <button type="button" onClick={() => setForm({ kind: "add", stage })}>{`Add ${STAGE_LABELS[stage].toLowerCase()} provider`}</button>
               {form && ((form.kind === "add" && form.stage === stage) || (form.kind === "edit" && form.profile.stage === stage)) && (
                 <ProfileForm
-                  key={form.kind === "edit" ? form.profile.id : "add"}
+                  key={form.kind === "edit" ? form.profile.id : `add-${form.from?.id ?? ""}`}
                   form={form}
                   stage={stage}
                   types={types.filter((type) => type.stage === stage)}
                   password={password}
                   onDenied={onDenied}
                   onCancel={() => setForm(undefined)}
-                  onSaved={async () => {
+                  onSaved={async (keyCleared) => {
+                    const edited = form.kind === "edit" ? form.profile.label : undefined;
                     setForm(undefined);
-                    setNotice(undefined);
+                    setNotice(keyCleared && edited ? `The key of ${edited} was cleared because its host changed. Type the key for the new host.` : undefined);
                     onChanged();
                     await load();
                   }}
@@ -223,24 +248,28 @@ interface FormProps {
   password: string;
   onDenied: () => void;
   onCancel: () => void;
-  onSaved: () => Promise<void>;
+  onSaved: (keyCleared: boolean) => Promise<void>;
 }
 
 function ProfileForm({ form, stage, types, password, onDenied, onCancel, onSaved }: FormProps) {
   const editing = form.kind === "edit" ? form.profile : undefined;
-  const [typeId, setTypeId] = useState<string>(editing?.adapterType ?? types[0]?.id ?? "");
+  const source = editing ?? (form.kind === "add" ? form.from : undefined);
+  const [typeId, setTypeId] = useState<string>(source?.adapterType ?? types[0]?.id ?? "");
   const type = types.find((candidate) => candidate.id === typeId);
-  const [label, setLabel] = useState(editing?.label ?? "");
+  const [label, setLabel] = useState(editing?.label ?? (source ? `${source.label} (copy)` : ""));
   const [values, setValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
-    for (const field of types.find((candidate) => candidate.id === (editing?.adapterType ?? types[0]?.id))?.fields ?? []) {
-      const current = editing ? valueAt(editing.parameters, field.path) : undefined;
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string -- a parameter value is a string or a number
-      initial[field.path.join(".")] = current === undefined ? "" : String(current);
+    for (const field of types.find((candidate) => candidate.id === (source?.adapterType ?? types[0]?.id))?.fields ?? []) {
+      initial[field.path.join(".")] = fieldText(field, source ? valueAt(source.parameters, field.path) : undefined);
     }
     return initial;
   });
   const [apiKey, setApiKey] = useState("");
+  // configurable-video-connector (JOS-219), Decisions 5 and 6 — a key stays on its host: a duplicate may reuse it there,
+  // and an edit that moves a connector to another host clears it.
+  const duplicated = form.kind === "add" && form.from?.keyStatus === "stored" ? form.from : undefined;
+  const [reuseKey, setReuseKey] = useState(duplicated !== undefined);
+  const hostChanged = editing?.adapterType === "configured-video" && editing.keyStatus === "stored" && !apiKey && hostOf(values.baseUrl) !== hostOf(editing.parameters.baseUrl);
   const [problems, setProblems] = useState<ProfileProblem[]>([]);
   const [saving, setSaving] = useState(false);
   const title = editing ? `Edit ${STAGE_LABELS[stage].toLowerCase()} provider ${editing.label}` : `Add ${STAGE_LABELS[stage].toLowerCase()} provider`;
@@ -253,17 +282,23 @@ function ProfileForm({ form, stage, types, password, onDenied, onCancel, onSaved
       const raw = values[field.path.join(".")] ?? "";
       // An empty optional field is left out, so clearing the price makes the profile unpriced again.
       if (!field.required && raw.trim() === "") continue;
-      setAt(parameters, field.path, coerce(field, raw));
+      if (field.kind === "json") {
+        try {
+          setAt(parameters, field.path, JSON.parse(raw));
+        } catch {
+          return setProblems([{ field: field.path.join("."), message: `${field.label} is not valid JSON` }]);
+        }
+      } else setAt(parameters, field.path, coerce(field, raw));
     }
     setSaving(true);
     setProblems([]);
     try {
-      const input = { label, parameters, ...(apiKey ? { apiKey } : {}) };
+      const input = { label, parameters, ...(apiKey ? { apiKey } : duplicated && reuseKey ? { copyKeyFrom: duplicated.id } : {}) };
       const result = editing ? await editProviderProfile(password, editing.id, input) : await createProviderProfile(password, { ...input, stage, adapterType: type.id });
       if (result.kind === "denied") onDenied();
       else if (result.kind === "invalid") setProblems(result.problems);
       else if (result.kind === "not-found") setProblems([{ field: "", message: "This provider no longer exists." }]);
-      else await onSaved();
+      else await onSaved(result.kind === "ok" && result.keyCleared === true);
     } catch {
       setProblems([{ field: "", message: "The provider could not be saved. Is the app running?" }]);
     } finally {
@@ -296,7 +331,11 @@ function ProfileForm({ form, stage, types, password, onDenied, onCancel, onSaved
         return (
           <div className="field" key={id}>
             <label htmlFor={id}>{field.label}</label>
-            <input id={id} type="text" value={values[field.path.join(".")] ?? ""} onChange={(event) => setValues({ ...values, [field.path.join(".")]: event.target.value })} />
+            {field.kind === "json" ? (
+              <textarea id={id} rows={16} spellCheck={false} value={values[field.path.join(".")] ?? ""} onChange={(event) => setValues({ ...values, [field.path.join(".")]: event.target.value })} />
+            ) : (
+              <input id={id} type="text" value={values[field.path.join(".")] ?? ""} onChange={(event) => setValues({ ...values, [field.path.join(".")]: event.target.value })} />
+            )}
             {field.help && <small>{field.help}</small>}
           </div>
         );
@@ -305,7 +344,17 @@ function ProfileForm({ form, stage, types, password, onDenied, onCancel, onSaved
         <label htmlFor={`key-${stage}`}>API key</label>
         <input id={`key-${stage}`} type="password" autoComplete="off" value={apiKey} onChange={(event) => setApiKey(event.target.value)} />
         {editing && <small>Leave empty to keep the current key.</small>}
+        {hostChanged && <small role="status">Saving with a new host clears the stored key: type the key for the new host.</small>}
       </div>
+      {duplicated && (
+        <div className="field">
+          <label>
+            <input type="checkbox" checked={reuseKey} onChange={(event) => setReuseKey(event.target.checked)} />{" "}
+            {`Reuse the key of ${duplicated.label}${duplicated.keyHint ? ` (…${duplicated.keyHint})` : ""}`}
+          </label>
+          <small>Only while the host stays the same; a key typed above is used instead.</small>
+        </div>
+      )}
       {problems.length > 0 && (
         <div role="alert" className="form-error">
           {problems.map((problem) => (
