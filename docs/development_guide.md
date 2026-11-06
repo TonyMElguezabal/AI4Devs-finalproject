@@ -16,11 +16,13 @@ Two ways to run, both on `127.0.0.1:3100`. Run one at a time: a second instance 
 
 ### Packaged app (macOS)
 
-This is what users get. Build it from the repository root, then start it:
+This is what users get. Build it, then start it:
 
 ```bash
-node openspec/changes/define-production-deployment/poc/local/build.mjs
-./openspec/changes/define-production-deployment/poc/local/out/Vid4You
+cd backend
+npm ci && (cd ../frontend && npm ci)
+npm run package:darwin-arm64        # or package:darwin-x64 on an Intel Mac
+./dist-package/darwin-arm64/Vid4You
 ```
 
 - The app opens the page in your browser. A second launch opens the running app instead of starting another.
@@ -245,7 +247,7 @@ feature/jos-<n>-<name>  ──PR──▶  feature/entrega-2-JAME (UAT pre-relea
 
 - Feature work branches from `feature/entrega-2-JAME` and merges back into it, never straight into `main`.
 - A production release is published only for a source tree that already has a UAT pre-release, after a reviewer approves; otherwise it fails closed. The branch-to-channel mapping is declared in one place so it can change later.
-- The pipeline that does this is a follow-up story (L7); until then, the proof-of-concept build is `node openspec/changes/define-production-deployment/poc/local/build.mjs` (macOS executable in `poc/local/out/`).
+- The pipeline that does this is `.github/workflows/release.yml`. It builds with the same `npm run package:<target>` (in `backend/`) as a local build, which writes the executable, `ffmpeg` and `ffprobe` to `backend/dist-package/<target>/`. A local build is not signed.
 - Hosted options (Cloudflare Tunnel + VM, Cloudflare Containers) were evaluated and set aside; their evidence stays in the change's reports.
 
 ## Specifications

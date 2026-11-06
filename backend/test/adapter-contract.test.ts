@@ -3,8 +3,10 @@ import { createElevenLabsAlignmentProvider } from "../src/alignmentProvider.ts";
 import { createFalAiImageProvider } from "../src/imageProvider.ts";
 import { PARAMETER_SHAPES, type AdapterTypeId } from "../src/providerTypes.ts";
 import { createRunningHubVideoProvider } from "../src/videoProvider.ts";
+import { createConfiguredVideoProvider } from "../src/videoConnector.ts";
 import { createOpenAiVisualInstructionGenerator } from "../src/visualInstructions.ts";
 import { createElevenLabsVoiceProvider } from "../src/voiceProvider.ts";
+import { runningHubParameters, runwayParameters } from "./videoConnectorFixtures.ts";
 
 // shared-adapter-contract-suite (JOS-263), design Decisions 1-3 — one table of vendor answers that every operation of
 // every shipped adapter type must classify the same way, against a fake vendor, with exactly one request per failure.
@@ -19,6 +21,8 @@ interface ContractOperation {
   malformed: "transient" | "invalid-output";
   marksUnresponsive: boolean;
   requestsOnSuccess: number;
+  /** A vendor answer this operation maps differently, by failure name: a poll whose definition declares 404 as not found. */
+  overrides?: Record<string, string>;
 }
 
 interface AdapterContractFixture {
@@ -117,6 +121,49 @@ const FIXTURES: Record<AdapterTypeId, AdapterContractFixture> = {
       },
     ],
   },
+  // configurable-video-connector (JOS-219), task 2.4 — the connector, run with each definition of the docs page.
+  "configured-video": {
+    operations: [
+      {
+        name: "Runway submit",
+        call: (fetchFn) => createConfiguredVideoProvider({ fetchFn, loadKey: KEY, parameters: runwayParameters() }).submit({ imageBytes: Buffer.from("image"), instruction: "animate", durationSeconds: 6 }),
+        validAnswer: () => json({ id: "task-1", estimatedCost: { credits: 50 } }),
+        successKind: "submitted",
+        malformed: "transient",
+        marksUnresponsive: true,
+        requestsOnSuccess: 1,
+      },
+      {
+        name: "Runway poll",
+        call: (fetchFn) => createConfiguredVideoProvider({ fetchFn, loadKey: KEY, parameters: runwayParameters() }).poll("task-1"),
+        validAnswer: () => json({ id: "task-1", status: "SUCCEEDED", output: ["https://cdn.example/clip.mp4"] }),
+        successKind: "success",
+        malformed: "transient",
+        marksUnresponsive: true,
+        requestsOnSuccess: 1,
+        overrides: { "HTTP 404": "not_found" },
+      },
+      {
+        name: "RunningHub submit",
+        call: (fetchFn) => createConfiguredVideoProvider({ fetchFn, loadKey: KEY, parameters: runningHubParameters() }).submit({ imageBytes: Buffer.from("image"), instruction: "animate", durationSeconds: 6 }),
+        validAnswer: (url) =>
+          url.includes("/media/upload") ? json({ code: 0, msg: "success", data: { download_url: "https://cdn.runninghub.io/img/a.png" } }) : runningHubTask({ taskId: "task-1", status: "QUEUED" }),
+        successKind: "submitted",
+        malformed: "transient",
+        marksUnresponsive: true,
+        requestsOnSuccess: 2,
+      },
+      {
+        name: "RunningHub poll",
+        call: (fetchFn) => createConfiguredVideoProvider({ fetchFn, loadKey: KEY, parameters: runningHubParameters() }).poll("task-1"),
+        validAnswer: () => runningHubTask({ taskId: "task-1", status: "SUCCESS", results: [{ url: "https://cdn.runninghub.io/output/clip.mp4", outputType: "mp4" }] }),
+        successKind: "success",
+        malformed: "transient",
+        marksUnresponsive: true,
+        requestsOnSuccess: 1,
+      },
+    ],
+  },
 };
 
 /** The one reading of an adapter's result that every case asserts on. */
@@ -189,7 +236,7 @@ describe.each(OPERATIONS)("$label", ({ operation }) => {
   it.each(FAILURES)("classifies $name after exactly one request", async (failure) => {
     const { fetchFn, requests } = countingFetch(failure.answer);
 
-    expect(classify(await operation.call(fetchFn))).toBe(failure.expected(operation));
+    expect(classify(await operation.call(fetchFn))).toBe(operation.overrides?.[failure.name] ?? failure.expected(operation));
     expect(requests).toHaveLength(1);
   });
 });

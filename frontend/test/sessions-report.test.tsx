@@ -233,7 +233,9 @@ describe("SessionsReport estimated cost", () => {
     const table = await screen.findByRole("table", { name: "Sessions" });
     expect(within(table).getByRole("columnheader", { name: "Estimated cost" })).toBeInTheDocument();
     const cell = within(table).getByRole("cell", { name: "Estimated cost of Lighthouse: EUR 1.70, USD 0.25 (estimate, excludes unpriced providers)" });
-    expect(cell).toHaveTextContent("EUR 1.70, USD 0.25 (excludes unpriced providers)");
+    expect(cell).toHaveTextContent(/^EUR 1\.70, USD 0\.25$/);
+    // admin-tabs-and-tables (JOS-270): the note is told once under the table, not in each row.
+    expect(screen.getAllByText(/excludes unpriced providers/i).filter((element) => element.tagName === "P")).toHaveLength(1);
     expect(within(table).getByRole("cell", { name: "Estimated cost of Harbour: none" })).toHaveTextContent("—");
   });
 });

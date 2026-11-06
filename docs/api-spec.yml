@@ -21,6 +21,11 @@
 # file (same
 # command) whenever a route changes, rather than hand-editing it out of sync.
 #
+# configurable-video-connector (JOS-219) - 2026-11-06: no new path. Generated from the running app
+# (`GET /docs/yaml`) for the provider-profile paths: the `configured-video` adapter type, the `json`
+# field kind, `copyKeyFrom` on `POST /admin/provider-profiles`, `keyCleared` on a saved profile, and
+# the `no-check` connection test outcome.
+#
 # cover-error-reporting (JOS-245) - 2026-11-04: new path `POST /telemetry/frontend-errors`, generated
 # from the running app (`app.swagger()`); the 204 keeps a description only, like the other 204s here. The
 # error-trigger routes (`/dev/errors/*`) exist only with VID4YOU_ERROR_TRIGGERS=1 and are not part of the contract.
@@ -3435,6 +3440,7 @@ paths:
                                   - text
                                   - number
                                   - choice
+                                  - json
                               required:
                                 type: boolean
                               help:
@@ -3555,6 +3561,10 @@ paths:
                           type: boolean
                         retired:
                           type: boolean
+                        keyCleared:
+                          type: boolean
+                          enum:
+                            - true
                       required:
                         - id
                         - stage
@@ -3617,6 +3627,8 @@ paths:
                   additionalProperties: {}
                 apiKey:
                   type: string
+                copyKeyFrom:
+                  type: string
               required:
                 - stage
                 - adapterType
@@ -3678,6 +3690,10 @@ paths:
                     type: boolean
                   retired:
                     type: boolean
+                  keyCleared:
+                    type: boolean
+                    enum:
+                      - true
                 required:
                   - id
                   - stage
@@ -3836,6 +3852,10 @@ paths:
                     type: boolean
                   retired:
                     type: boolean
+                  keyCleared:
+                    type: boolean
+                    enum:
+                      - true
                 required:
                   - id
                   - stage
@@ -4063,6 +4083,7 @@ paths:
                       - unreachable
                       - unexpected
                       - no-key
+                      - no-check
                   covers:
                     type: string
                   httpStatus:
