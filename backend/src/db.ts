@@ -1902,7 +1902,15 @@ function telemetryProviderOf(identifier: string | null, stage: string): string {
       : identifier === "/openapi/v2/minimax/hailuo-h3/image-to-video"
         ? SEEDED_PROFILES.video.id
         : identifier;
-  const row = db.prepare("SELECT adapter_type FROM provider_profiles WHERE id = ?").get(profileId) as { adapter_type: string } | undefined;
+  const row = db.prepare("SELECT adapter_type, parameters FROM provider_profiles WHERE id = ?").get(profileId) as { adapter_type: string; parameters: string } | undefined;
+  // configurable-video-connector (JOS-219), Decision 7 — a connector's vendor is its base URL host, a hostname by validation.
+  if (row?.adapter_type === "configured-video") {
+    try {
+      return new URL(String((JSON.parse(row.parameters) as { baseUrl?: unknown }).baseUrl)).host;
+    } catch {
+      return "unknown";
+    }
+  }
   return (row && (ADAPTER_VENDORS as Record<string, string | undefined>)[row.adapter_type]) ?? "unknown";
 }
 

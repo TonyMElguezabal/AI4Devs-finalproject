@@ -25,12 +25,12 @@
 
 ## 3. Backend implementation
 
-- [ ] 3.1 `providerTypes.ts`: the `configured-video` parameter schema with its definition rules, vendor "Configured connector", the form fields and the `json` field kind (Decisions 1, 2, 5, 8)
-- [ ] 3.2 `videoConnector.ts`: templates, path reading (reusing the `bodyField` reducer, moved to a shared helper), upload, submit, poll and classification (Decisions 2–4)
-- [ ] 3.3 `videoProvider.ts`: the `VIDEO_ADAPTERS` table used by `defaultRegistry()` (Decision 7)
-- [ ] 3.4 `providerAdmin.ts` and the profile routes: the duration rule for every video type, the key cleared on a host change, `copyKeyFrom` (Decisions 5, 6)
-- [ ] 3.5 `providerConnectionCheck.ts`: the definition's check step; `db.ts`: the telemetry vendor; `stageDiagnostics.ts`: the model (Decision 7)
-- [ ] 3.6 `config/settings.ts`: the two output sizes; `providerTypes.ts`: RunningHub's `resolution` with default `768P` and the connector's resolution check; `videoProvider.ts`: read the profile's resolution; remove `VIDEO_GENERATION_SETTING` (Decision 9)
+- [x] 3.1 `providerTypes.ts`: the `configured-video` parameter schema with its definition rules, vendor "Configured connector", the form fields and the `json` field kind (Decisions 1, 2, 5, 8)
+- [x] 3.2 `videoConnector.ts`: templates, path reading (reusing the `bodyField` reducer, moved to a shared helper), upload, submit, poll and classification (Decisions 2–4)
+- [x] 3.3 `videoProvider.ts`: the `VIDEO_ADAPTERS` table used by `defaultRegistry()` (Decision 7)
+- [x] 3.4 `providerAdmin.ts` and the profile routes: the duration rule for every video type, the key cleared on a host change, `copyKeyFrom` (Decisions 5, 6)
+- [x] 3.5 `providerConnectionCheck.ts`: the definition's check step; `db.ts`: the telemetry vendor; `stageDiagnostics.ts`: the model (Decision 7)
+- [x] 3.6 `config/settings.ts`: the two output sizes; `providerTypes.ts`: RunningHub's `resolution` with default `768P` and the connector's resolution check; `videoProvider.ts`: read the profile's resolution; remove `VIDEO_GENERATION_SETTING` (Decision 9)
 
 ## 4. Frontend tests first, then implementation
 

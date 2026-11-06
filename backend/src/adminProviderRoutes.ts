@@ -29,12 +29,14 @@ export const profileViewSchema = z.object({
   problems: z.array(problemSchema),
   active: z.boolean(),
   retired: z.boolean(),
+  /** configurable-video-connector (JOS-219), Decision 5 — set when this save changed a connector's host and cleared its key. */
+  keyCleared: z.literal(true).optional(),
 });
 
 const fieldSchema = z.object({
   path: z.array(z.string()),
   label: z.string(),
-  kind: z.enum(["text", "number", "choice"]),
+  kind: z.enum(["text", "number", "choice", "json"]),
   required: z.boolean(),
   help: z.string().optional(),
   choices: z.array(z.string()).optional(),
@@ -45,7 +47,7 @@ const connectionCheckSchema = z.object({ charged: z.boolean(), covers: z.string(
 
 // test-provider-connection (JOS-220), design Decision 5 — the closed result of a test: the page writes the sentences.
 const testResultSchema = z.strictObject({
-  outcome: z.enum(["connected", "key-rejected", "not-found", "unreachable", "unexpected", "no-key"]),
+  outcome: z.enum(["connected", "key-rejected", "not-found", "unreachable", "unexpected", "no-key", "no-check"]),
   covers: z.string(),
   httpStatus: z.number().optional(),
 });
@@ -71,7 +73,7 @@ export function registerProviderProfileRoutes(admin: FastifyInstance): void {
     "/provider-profiles",
     {
       schema: {
-        body: z.object({ stage: z.enum(PROVIDER_STAGES), adapterType: z.string(), label: z.string(), parameters: z.record(z.unknown()), apiKey: z.string().optional() }),
+        body: z.object({ stage: z.enum(PROVIDER_STAGES), adapterType: z.string(), label: z.string(), parameters: z.record(z.unknown()), apiKey: z.string().optional(), copyKeyFrom: z.string().optional() }),
         response: { 201: profileViewSchema, 400: z.union([problemsSchema, validationErrorSchema]), 401: adminDeniedSchema },
       },
     },
@@ -132,7 +134,9 @@ export function registerProviderProfileRoutes(admin: FastifyInstance): void {
     async (request, reply) => {
       const profile = getProfile(request.params.id);
       if (!profile) return reply.code(404).send({ ok: false as const, reason: "not-found" as const });
-      const { charged, covers } = (CONNECTION_CHECKS as Record<string, ConnectionCheck | undefined>)[profile.adapterType]!;
+      const check = (CONNECTION_CHECKS as Record<string, ConnectionCheck | undefined>)[profile.adapterType]!;
+      const { covers } = check;
+      const charged = check.chargedFor?.(profile.parameters) ?? check.charged;
       let key: string;
       try {
         key = keyFor(profile.id);

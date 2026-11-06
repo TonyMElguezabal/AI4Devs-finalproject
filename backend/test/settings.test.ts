@@ -67,7 +67,9 @@ function problemsOf(result: ReturnType<typeof loadSettings>): string[] {
 describe("Reading the two files (Decision 1)", () => {
   it("returns the defaults when no override file exists", () => {
     const result = loadSettings({ defaultsPath, overridePath });
-    expect(result).toEqual({ ok: true, settings: validSettings() });
+    // configurable-video-connector (JOS-219): a video section without a resolution gets RunningHub's 768P.
+    const expected = validSettings();
+    expect(result).toEqual({ ok: true, settings: { ...expected, video: { ...(expected.video as Json), resolution: "768P" } } });
   });
 
   it("replaces only the keys a partial override sets", () => {
@@ -268,6 +270,7 @@ describe("The shipped defaults file (task 2.3)", () => {
           name: "RunningHub",
           endpoint: "/openapi/v2/minimax/hailuo-h3/image-to-video",
           admittedDurationSeconds: { min: 5, max: 15 },
+          resolution: "768P",
         },
         segmentation: { lowerBoundSeconds: 5 },
         speedFactorLimit: 2,

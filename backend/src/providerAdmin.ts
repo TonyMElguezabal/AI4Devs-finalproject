@@ -1,7 +1,7 @@
 import { ulid } from "./util/ulid.ts";
 import { SEGMENTATION_LOWER_BOUND_SECONDS, LEGACY_IMAGE_PROVIDER_IDENTIFIER, LEGACY_VIDEO_PROVIDER_IDENTIFIER } from "./config/providers.ts";
 import { db } from "./db.ts";
-import { clearProfileKey, keyStatusOf, storeProfileKey, type KeyStatus } from "./keyStore.ts";
+import { clearProfileKey, copyProfileKey, keyStatusOf, storeProfileKey, type KeyStatus } from "./keyStore.ts";
 import {
   activeProfileIdOf,
   ensureProfiles,
@@ -28,6 +28,8 @@ export interface ProfileView extends KeyStatus {
   problems: ParameterProblem[];
   active: boolean;
   retired: boolean;
+  /** Set when this save changed a connector's host and so cleared its key (JOS-219, Decision 5). */
+  keyCleared?: true;
 }
 
 const NO_KEY_PROBLEM: ParameterProblem = { field: "apiKey", message: "apiKey: no API key is stored or found for this provider" };
@@ -44,7 +46,8 @@ export function profileProblems(profile: ProviderProfile): ParameterProblem[] {
 
 /** The rule the settings apply at start-up (JOS-174), applied at save time: the shortest clip may not exceed the segmentation lower bound. */
 function videoCrossCheck(adapterType: string, parameters: Record<string, unknown>): ParameterProblem[] {
-  if (adapterType !== "runninghub-video") return [];
+  // configurable-video-connector (JOS-219): every video adapter type, as the requirement says.
+  if (getAdapterType(adapterType)?.stage !== "video") return [];
   const range = parameters.admittedDurationSeconds as { min: number; max: number };
   return range.min > SEGMENTATION_LOWER_BOUND_SECONDS
     ? [{ field: "admittedDurationSeconds.min", message: `admittedDurationSeconds.min: must not be longer than the ${SEGMENTATION_LOWER_BOUND_SECONDS} s segmentation lower bound` }]
@@ -80,7 +83,27 @@ function labelProblem(stage: ProviderStage, label: string, selfId?: string): Par
   return taken ? { field: "label", message: `label: another ${stage} provider already has this name` } : undefined;
 }
 
-export function createProfile(input: { stage: ProviderStage; adapterType: string; label: string; parameters: unknown; apiKey?: string }, now: () => Date = () => new Date()): SaveResult {
+/** A connector's host, the one place its key may go; undefined for every other adapter type or an unreadable URL. */
+function connectorHost(adapterType: string, parameters: unknown): string | undefined {
+  if (adapterType !== "configured-video") return undefined;
+  try {
+    return new URL(String((parameters as { baseUrl?: unknown }).baseUrl)).host;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Decision 6: a key is copied only between connectors on the same host, and only a stored one. */
+function copyKeyProblem(input: { adapterType: string; parameters: unknown; copyKeyFrom?: string }): ParameterProblem | undefined {
+  if (input.copyKeyFrom === undefined) return undefined;
+  const source = getProfile(input.copyKeyFrom);
+  const host = connectorHost(input.adapterType, input.parameters);
+  const sameHost = source !== undefined && host !== undefined && connectorHost(source.adapterType, source.parameters) === host;
+  if (!sameHost) return { field: "copyKeyFrom", message: "copyKeyFrom: a key can only be copied from a configured connector on the same host" };
+  return keyStatusOf(source.id).keyStatus === "stored" ? undefined : { field: "copyKeyFrom", message: "copyKeyFrom: that provider has no stored key to copy" };
+}
+
+export function createProfile(input: { stage: ProviderStage; adapterType: string; label: string; parameters: unknown; apiKey?: string; copyKeyFrom?: string }, now: () => Date = () => new Date()): SaveResult {
   ensureProfiles();
   const problems: ParameterProblem[] = [];
   const type = getAdapterType(input.adapterType);
@@ -93,6 +116,8 @@ export function createProfile(input: { stage: ProviderStage; adapterType: string
   }
   const label = labelProblem(input.stage, input.label);
   if (label) problems.push(label);
+  const copyKey = copyKeyProblem(input);
+  if (copyKey) problems.push(copyKey);
   if (problems.length > 0) return { ok: false, kind: "invalid", problems: problems.sort((a, b) => a.field.localeCompare(b.field)) };
 
   const parameters = validateProviderParameters(input.adapterType, input.parameters);
@@ -100,6 +125,7 @@ export function createProfile(input: { stage: ProviderStage; adapterType: string
   const id = ulid();
   insertProfile({ id, stage: input.stage, adapterType: input.adapterType, label: input.label.trim(), parameters: parameters.parameters }, now().toISOString());
   if (input.apiKey) storeProfileKey(id, input.apiKey);
+  else if (input.copyKeyFrom !== undefined) copyProfileKey(input.copyKeyFrom, id);
   return { ok: true, profile: toView(getProfile(id)!) };
 }
 
@@ -115,9 +141,12 @@ export function editProfile(id: string, input: { label: string; parameters: unkn
   if (label) problems.push(label);
   if (problems.length > 0 || !parameters.ok) return { ok: false, kind: "invalid", problems: problems.sort((a, b) => a.field.localeCompare(b.field)) };
 
+  // Decision 5: a key never follows a connector to a new host; it must be typed again for that host.
+  const keyCleared = connectorHost(profile.adapterType, profile.parameters) !== connectorHost(profile.adapterType, parameters.parameters) && keyStatusOf(id).keyStatus === "stored" && !input.apiKey;
   updateProfile(id, { label: input.label.trim(), parameters: parameters.parameters }, now().toISOString());
+  if (keyCleared) clearProfileKey(id);
   if (input.apiKey) storeProfileKey(id, input.apiKey);
-  return { ok: true, profile: toView(getProfile(id)!) };
+  return { ok: true, profile: { ...toView(getProfile(id)!), ...(keyCleared ? { keyCleared: true as const } : {}) } };
 }
 
 /** An earlier build stored the image model and the video endpoint for the seeded profiles; those bindings count for them too. */

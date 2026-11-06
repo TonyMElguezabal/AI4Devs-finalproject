@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { BILLED_UNITS, ADAPTER_TYPES, validateProviderParameters } from "../src/providerTypes.ts";
+import { runwayParameters } from "./videoConnectorFixtures.ts";
 
 // add-provider-price-per-unit (JOS-226), groups 2.1 and 2.3 — design Decisions 1, 2 and 3.
 
@@ -11,7 +12,8 @@ const base: Record<string, Record<string, unknown>> = {
   "elevenlabs-voice": { model: "eleven_v3", voiceId: "v", voiceName: "V", outputFormat: "mp3_44100_128", speed: "default" },
   "elevenlabs-alignment": { endpoint: "/v1/forced-alignment" },
   "fal-image": { model: "fal-ai/flux/dev" },
-  "runninghub-video": { endpoint: "/task/openapi/ai-app/run", admittedDurationSeconds: { min: 3, max: 8 } },
+  "runninghub-video": { endpoint: "/task/openapi/ai-app/run", admittedDurationSeconds: { min: 3, max: 8 }, resolution: "768P" },
+  "configured-video": runwayParameters(),
 };
 
 describe.each(Object.keys(base))("price parameters of %s", (type) => {

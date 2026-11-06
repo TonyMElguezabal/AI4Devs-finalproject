@@ -169,7 +169,7 @@ describe("RunningHub adapter (JOS-196 — the live API's request and answer shap
     expect(result).toEqual({
       kind: "submitted",
       requestId: taskId,
-      sentBody: { prompt: "animate the scene", duration: 8, resolution: "2K", firstFrameUrl: uploadUrl },
+      sentBody: { prompt: "animate the scene", duration: 8, resolution: "768P", firstFrameUrl: uploadUrl },
     });
 
     const upload = calls.find((c) => c.url.includes("/media/upload"));
@@ -187,7 +187,7 @@ describe("RunningHub adapter (JOS-196 — the live API's request and answer shap
     const body = JSON.parse(submitCall!.options?.body as string);
     expect(body.prompt).toBe("animate the scene");
     expect(body.duration).toBe(8);
-    expect(body.resolution).toBe("2K");
+    expect(body.resolution).toBe("768P");
     expect(body.firstFrameUrl).toBe(uploadUrl);
   });
 

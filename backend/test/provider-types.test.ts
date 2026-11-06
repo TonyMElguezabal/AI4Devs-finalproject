@@ -29,7 +29,7 @@ describe("the adapter-type catalogue", () => {
       for (const field of type.fields) {
         expect(field.path.length).toBeGreaterThan(0);
         expect(field.label.length).toBeGreaterThan(0);
-        expect(["text", "number", "choice"]).toContain(field.kind);
+        expect(["text", "number", "choice", "json"]).toContain(field.kind);
         expect(typeof field.required).toBe("boolean");
       }
     }
@@ -37,7 +37,8 @@ describe("the adapter-type catalogue", () => {
 
   it("has a field for every key the schema accepts", () => {
     const paths = (type: string) => adapterTypesOf("video").concat(...PROVIDER_STAGES.map(adapterTypesOf)).find((t) => t.id === type)!.fields.map((f) => f.path.join("."));
-    expect(paths("runninghub-video").sort()).toEqual(["admittedDurationSeconds.max", "admittedDurationSeconds.min", "endpoint", "priceCurrency", "pricePerUnit"]);
+    expect(paths("runninghub-video").sort()).toEqual(["admittedDurationSeconds.max", "admittedDurationSeconds.min", "endpoint", "priceCurrency", "pricePerUnit", "resolution"]);
+    expect(paths("configured-video").sort()).toEqual(["admittedDurationSeconds.max", "admittedDurationSeconds.min", "baseUrl", "model", "priceCurrency", "pricePerUnit", "requests", "resolution"]);
     expect(paths("elevenlabs-voice").sort()).toEqual(["model", "outputFormat", "priceCurrency", "pricePerUnit", "speed", "voiceId", "voiceName"]);
   });
 });

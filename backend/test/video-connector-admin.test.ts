@@ -9,6 +9,7 @@ import { SETTINGS } from "../src/config/providers.ts";
 import { resetAll } from "../src/db.ts";
 import { keyFor, resetKeyStoreCache, setLegacyCredentialLoader, storeProfileKey } from "../src/keyStore.ts";
 import { insertProfile, seedProviderProfiles } from "../src/providerProfiles.ts";
+import { resetConnectionCheckFetch, setConnectionCheckFetch } from "../src/providerConnectionCheck.ts";
 import { buildApp } from "../src/server.ts";
 import { describeProvider } from "../src/stageDiagnostics.ts";
 import { getVideoProviderRegistry, resetVideoProviderRegistry } from "../src/videoProvider.ts";
@@ -41,16 +42,20 @@ beforeEach(async () => {
   setAdminPasswordReader(() => PASSWORD);
   requests = [];
   answer = () => json({}, 500);
-  vi.stubGlobal("fetch", async (url: string | URL | Request, init: RequestInit = {}) => {
+  const stub = async (url: string | URL | Request, init: RequestInit = {}) => {
     requests.push({ url: String(url), init });
     return answer(String(url));
-  });
+  };
+  vi.stubGlobal("fetch", stub);
+  // The connection check holds its own fetch, read when its module loads.
+  setConnectionCheckFetch(stub);
   app = await buildApp();
 });
 
 afterEach(async () => {
   await app.close();
   vi.unstubAllGlobals();
+  resetConnectionCheckFetch();
   resetAdminPasswordReader();
   rmSync(folder, { recursive: true, force: true });
   delete process.env.PROVIDER_KEY_PATH;
@@ -74,7 +79,7 @@ const connectorBody = (overrides: Record<string, unknown> = {}, parameters: Reco
 
 async function addConnector(overrides: Record<string, unknown> = {}, parameters: Record<string, unknown> = {}) {
   const response = await call("POST", "/admin/provider-profiles", connectorBody(overrides, parameters));
-  return { response, profile: response.json() as Record<string, unknown> & { id: string } };
+  return { response, profile: response.json<Record<string, unknown> & { id: string }>() };
 }
 
 describe("the video registry builds each profile with its own adapter type (task 2.5)", () => {
