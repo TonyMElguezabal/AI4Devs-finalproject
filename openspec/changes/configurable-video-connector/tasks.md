@@ -5,11 +5,11 @@
 
 ## 1. Confirm the two vendors live (design Open Questions)
 
-- [ ] 1.1 Get a Runway API key from the owner (with credits); use the existing RunningHub key; keep every key out of files, logs and reports
-- [ ] 1.2 With curl, send one Runway `wan3` and one `kling_4` image-to-video request (4–5 s, `auto_720p` to keep it cheap, a real scene PNG as a data URI); record the task-id field, the poll answers (including `THROTTLED` if seen), an unknown task id, the `output` link and the charge
-- [ ] 1.3 Find a free Runway request that proves the key (for the check step); record its answers for a good and a wrong key
-- [ ] 1.4 Record Runway's answers for a 400 (bad ratio on Kling, an unknown field on Kling) and a 401
-- [ ] 1.5 Write both definitions in `docs/video-connector-definitions.md` from what passed, and the run in `reports/YYYY-MM-DD-step-1-live-vendors.md` (keys removed); update the design's Decision 1 values if they differ
+- [x] 1.1 Get a Runway API key from the owner (with credits); use the existing RunningHub key; keep every key out of files, logs and reports
+- [x] 1.2 With curl, send one Runway `wan3` and one `kling_4` image-to-video request (4–5 s, `auto_720p` to keep it cheap, a real scene PNG as a data URI); record the task-id field, the poll answers (including `THROTTLED` if seen), an unknown task id, the `output` link and the charge
+- [x] 1.3 Find a free Runway request that proves the key (for the check step); record its answers for a good and a wrong key
+- [x] 1.4 Record Runway's answers for a 400 (bad ratio on Kling, an unknown field on Kling) and a 401
+- [x] 1.5 Write both definitions in `docs/video-connector-definitions.md` from what passed, and the run in `reports/YYYY-MM-DD-step-1-live-vendors.md` (keys removed); update the design's Decision 1 values if they differ
 
 ## 2. Backend tests first (TDD)
 

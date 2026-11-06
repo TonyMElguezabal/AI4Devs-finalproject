@@ -86,7 +86,7 @@ RunningHub through the connector differs only in `requests`:
             "videoUrlAt": "results[0].url", "errorAt": "errorCode", "okErrorValues": ["", null] }
 ```
 
-The exact values (the Runway task-id field, the check path, the RunningHub submit path) are confirmed live in task 1. Both definitions are kept in `docs/video-connector-definitions.md` and used as the test fixtures, so the docs cannot drift from what passes.
+The Runway values were confirmed live in task 1 (`reports/2026-11-06-step-1-live-vendors.md`): `taskIdAt: "id"`, the free check `GET /v1/organization`, and 404 for an unknown task. The RunningHub values are the ones the coded adapter sends. Both definitions are kept in `docs/video-connector-definitions.md` and used as the test fixtures, so the docs cannot drift from what passes.
 
 One profile is one definition plus one model. A second model on the same vendor is a duplicated profile (Decision 6).
 
@@ -110,6 +110,7 @@ One profile is one definition plus one model. A second model on the same vendor 
 
 - HTTP answers use the shared rule: a 4xx other than 408 and 429 is not retryable; a 408, a 429 or a 5xx is transient.
 - A failed `fetch` is transient and marked unresponsive (JOS-257).
+- The reason for a non-2xx answer names the step and the HTTP status only. It never includes the body, because Runway's 401 body repeats the last 3 characters of the key (task 1).
 - An answer that does not parse, or lacks the value at `taskIdAt`, `urlAt` or `statusAt`, is a transient failure naming the step and the missing path.
 - A 2xx answer whose `errorAt` value is not in `okErrorValues` (default `["", null]`, and a missing value is ok) is a transient failure. Its reason names the step and carries the vendor's code and up to 120 characters of the message, never the key.
 - A task in `failedWhen` stays transient, because the app has no confirmed not-retryable signal (`NOT_RETRYABLE_FAILURE_SIGNAL_CONFIRMED`). Runway's `SAFETY.*` codes are recorded in the reason, and treating them as not retryable is a follow-up.
@@ -163,7 +164,7 @@ The owner decided this on 2026-11-06 to keep cost down.
 
 - [A vendor needs something the definition cannot express] → It is listed as a non-goal. That vendor gets a coded adapter, as RunningHub has today. The table per video type keeps that open.
 - [The Administrator writes a wrong definition and pays for failed clips] → Save-time validation catches structure, placeholders and paths. The connection check catches the host and key. A submit that fails with a 4xx is not retried, and the first failing clip shows the step and the vendor's message in the scene details.
-- [Runway's concurrency is per tier and queues extra tasks as `THROTTLED`] → `THROTTLED` is not in `failedWhen`, so it is pending. The video time limit still bounds it.
+- [Runway runs one clip per model at a time on this tier (task 1), and a clip takes about 4–5 minutes] → Extra tasks wait as `THROTTLED`, which counts as pending. With the video request cap at 4, the fourth clip waits about three clips' time, so it ends near 18 minutes, under the 20-minute video limit (1200 s) but close. If clips time out in the live run (task 8), the fix is a request cap per profile, in a follow-up ticket. This change does not lower the stage-wide cap for every vendor.
 - [A data URI of a 2K PNG makes a large body] → The live proof measures it on Runway. The image stage's PNG is about 1920×1088, under 5 MB.
 - [Runway links expire in 24–48 h] → The clip is downloaded as soon as `poll` sees success, as today.
 - [Telemetry now carries a host that the Administrator typed] → The host is constrained to a hostname (Decision 5) and is the vendor's public API host. Labels are still never sent.
@@ -174,5 +175,5 @@ No database change. Existing profiles are untouched, and RunningHub stays seeded
 
 ## Open Questions
 
-- Confirmed live in task 1: the field that holds Runway's task id, a free Runway request for the check, RunningHub's submit path as a connector path, and whether Runway answers an unknown task with 404.
+- Task 1 confirmed Runway's task id, check and not-found answers. Runway's failure field (`failureCode`) is still unconfirmed, because a failed task could not be triggered for free. A wrong path would only drop the vendor's code from the reason.
 - Whether to retire the coded `runninghub-video` adapter once its connector definition has run a full session (follow-up ticket).
