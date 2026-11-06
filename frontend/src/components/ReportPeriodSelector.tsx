@@ -53,7 +53,7 @@ export function ReportPeriodSelector({ onChange }: { onChange: (period: ReportPe
   }
 
   return (
-    <fieldset>
+    <fieldset className="segmented">
       <legend>Period</legend>
       {CHOICES.map(({ value, label }) => (
         <label key={value}>
@@ -61,7 +61,7 @@ export function ReportPeriodSelector({ onChange }: { onChange: (period: ReportPe
         </label>
       ))}
       {choice === "custom" && (
-        <div>
+        <div className="segmented-dates">
           <label>
             From date <input type="date" value={firstDay} onChange={(event) => pick(event.target.value, lastDay)} />
           </label>

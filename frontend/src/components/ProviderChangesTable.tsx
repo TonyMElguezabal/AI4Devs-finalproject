@@ -1,3 +1,4 @@
+import { formatInstant } from "../format";
 import type { ProviderChangesReport, ProviderStage } from "../types";
 
 const STAGE_LABELS: Record<ProviderStage, string> = { reasoning: "Reasoning", voice: "Voice", alignment: "Alignment", image: "Image", video: "Video" };
@@ -8,7 +9,7 @@ const HEADERS = ["When", "What", "Stage", "Session", "Scene", "From", "To"];
 export function ProviderChangesTable({ report }: { report: ProviderChangesReport }) {
   if (report.entries.length === 0) return <p>There were no provider changes in this period.</p>;
   return (
-    <table>
+    <div className="table-scroll"><table className="data-table">
       <caption>Provider changes</caption>
       <thead>
         <tr>
@@ -22,7 +23,7 @@ export function ProviderChangesTable({ report }: { report: ProviderChangesReport
       <tbody>
         {report.entries.map((entry, index) => (
           <tr key={`${entry.changedAt}:${index}`}>
-            <td>{new Date(entry.changedAt).toLocaleString()}</td>
+            <td>{formatInstant(entry.changedAt)}</td>
             <td>{KIND_LABELS[entry.kind]}</td>
             <td>{STAGE_LABELS[entry.stage]}</td>
             <td>{entry.sessionTitle ?? ""}</td>
@@ -32,6 +33,6 @@ export function ProviderChangesTable({ report }: { report: ProviderChangesReport
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   );
 }
