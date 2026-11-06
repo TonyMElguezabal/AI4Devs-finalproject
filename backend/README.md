@@ -24,6 +24,7 @@ RUN_PROVIDER_CONTRACT_TESTS=1 npx vitest run test/voice-provider.contract.test.t
 - `src/server.ts` builds the app; `src/routes.ts` holds the HTTP surface; `src/orchestrator.ts` the session and scene state machine, boot recovery and assembly; `src/launchGate.ts` the phase-launch gate (pause, request caps, retries).
 - `src/retry/` the retry policy, scheduler and per-attempt time limit; `src/config/` providers, limits, credentials and ffmpeg paths; `src/telemetry/` the opt-in telemetry.
 - `src/db.ts` the SQLite schema and migrations (`docs/data-model.md`).
+- `src/providerTypes.ts` the adapter-type catalogue and parameter validation; `src/videoProvider.ts` the coded RunningHub adapter and the video registry; `src/videoConnector.ts` the configured video connector, whose requests the Administrator writes on `/admin` (definitions for Runway and RunningHub in `docs/video-connector-definitions.md`).
 
 ## Environment
 
