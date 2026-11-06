@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { getSessionScenesReport, getSessionsReport } from "../api/client";
+import { formatInstant } from "../format";
 import { formatCosts } from "./EstimatedCostTable";
 import type { ReportPeriod, SceneReportRow, SessionReportRow, SessionScenesReport, SessionsReport as SessionsReportData } from "../types";
 
@@ -11,7 +12,6 @@ const number = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
 const factor = new Intl.NumberFormat("en", { maximumFractionDigits: 2 });
 const dash = "—";
 const seconds = (value: number | null) => (value === null ? dash : `${number.format(value)} s`);
-const created = (iso: string) => new Date(iso).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" });
 const stateText = (row: SessionReportRow) => (row.state === "final-video-ready" ? "Final video ready" : row.state === "failed" ? `Failed in ${row.failedPhase}` : "In progress");
 /** A stored warning is an enum such as `exceeds-maximum`; it reads as words. */
 const warningText = (value: string | null) => (value === null ? dash : value.replace(/-/g, " "));
@@ -20,7 +20,8 @@ const EXCLUDES = "excludes unpriced providers";
 function SessionCostCell({ row }: { row: SessionReportRow }) {
   const amounts = row.estimatedCost.length === 0 ? null : formatCosts(row.estimatedCost);
   const name = amounts === null && !row.excludesUnpricedProvider ? "none" : `${amounts ?? "none"} (estimate${row.excludesUnpricedProvider ? `, ${EXCLUDES}` : ""})`;
-  return <td aria-label={`Estimated cost of ${row.title}: ${name}`}>{`${amounts ?? dash}${row.excludesUnpricedProvider ? ` (${EXCLUDES})` : ""}`}</td>;
+  // The note itself is told once under the table (admin-tabs-and-tables, JOS-270); the row keeps it for a screen reader.
+  return <td className="num" aria-label={`Estimated cost of ${row.title}: ${name}`}>{amounts ?? dash}</td>;
 }
 
 interface Props {
@@ -82,12 +83,13 @@ export function SessionsReport({ password, period, onDenied }: Props) {
   if (list.report.rows.length === 0) return <p>No sessions were created in this period.</p>;
 
   return (
-    <table>
+    <>
+    <div className="table-scroll"><table className="data-table">
       <caption>Sessions</caption>
       <thead>
         <tr>
-          {HEADERS.map((header) => (
-            <th key={header} scope="col">
+          {HEADERS.map((header, index) => (
+            <th key={header} scope="col" className={index >= 4 && index <= 9 ? "num" : undefined}>
               {header}
             </th>
           ))}
@@ -98,14 +100,14 @@ export function SessionsReport({ password, period, onDenied }: Props) {
           <Fragment key={row.id}>
             <tr>
               <td>{row.title}</td>
-              <td>{created(row.createdAt)}</td>
+              <td>{formatInstant(row.createdAt)}</td>
               <td>{stateText(row)}</td>
               <td>{row.paused ? "Paused" : dash}</td>
-              <td>{number.format(row.scenes)}</td>
-              <td>{number.format(row.failedScenes)}</td>
-              <td>{number.format(row.attempts)}</td>
-              <td>{seconds(row.secondsToVoiceOver)}</td>
-              <td>{seconds(row.secondsToFinalVideo)}</td>
+              <td className="num">{number.format(row.scenes)}</td>
+              <td className="num">{number.format(row.failedScenes)}</td>
+              <td className="num">{number.format(row.attempts)}</td>
+              <td className="num">{seconds(row.secondsToVoiceOver)}</td>
+              <td className="num">{seconds(row.secondsToFinalVideo)}</td>
               <SessionCostCell row={row} />
               <td>
                 <button type="button" aria-expanded={Boolean(open[row.id])} aria-label={`Scenes of ${row.title}`} onClick={() => toggle(row.id)}>
@@ -123,7 +125,9 @@ export function SessionsReport({ password, period, onDenied }: Props) {
           </Fragment>
         ))}
       </tbody>
-    </table>
+    </table></div>
+    {list.report.rows.some((row) => row.excludesUnpricedProvider) && <p className="table-note">{`The estimated cost ${EXCLUDES}.`}</p>}
+    </>
   );
 }
 
@@ -138,7 +142,7 @@ function SceneTable({ title, scenes }: { title: string; scenes: SessionScenesRep
   }
   if (scenes.rows.length === 0) return <p>This session has no scenes.</p>;
   return (
-    <table>
+    <div className="table-scroll"><table className="data-table">
       <caption>{`Scenes of ${title}`}</caption>
       <thead>
         <tr>
@@ -156,15 +160,15 @@ function SceneTable({ title, scenes }: { title: string; scenes: SessionScenesRep
             <td>{scene.status}</td>
             <td>{scene.imageProvider ?? dash}</td>
             <td>{scene.clipProvider ?? dash}</td>
-            <td>{number.format(scene.imageAttempts)}</td>
-            <td>{number.format(scene.clipAttempts)}</td>
-            <td>{seconds(scene.requestedDurationSeconds)}</td>
+            <td className="num">{number.format(scene.imageAttempts)}</td>
+            <td className="num">{number.format(scene.clipAttempts)}</td>
+            <td className="num">{seconds(scene.requestedDurationSeconds)}</td>
             <td>{scene.speedFactor === null ? dash : `${factor.format(scene.speedFactor)}×`}</td>
             <td>{warningText(scene.durationWarning)}</td>
             <td>{warningText(scene.speedFactorWarning)}</td>
           </tr>
         ))}
       </tbody>
-    </table>
+    </table></div>
   );
 }

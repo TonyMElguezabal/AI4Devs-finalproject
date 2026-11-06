@@ -1,3 +1,4 @@
+import { NOT_RECORDED } from "../format";
 import type { PipelinePhase, PipelineTimeReport } from "../types";
 
 const PHASE_LABELS: Record<PipelinePhase, string> = { "voice-over": "Voice-over", decomposition: "Decomposition", scenes: "Scenes", assembly: "Assembly" };
@@ -5,8 +6,8 @@ const PHASES = Object.keys(PHASE_LABELS) as PipelinePhase[];
 
 const number = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
 const seconds = (value: number | null) => (value === null ? "—" : `${number.format(value)} s`);
-/** A `null` count is "not recorded" (scene attempts store no time-out outcome), which is not the same as 0. */
-const count = (value: number | null) => (value === null ? "not recorded" : number.format(value));
+/** A `null` count is NOT_RECORDED (scene attempts store no time-out outcome), which is not the same as 0. */
+const count = (value: number | null) => (value === null ? NOT_RECORDED : number.format(value));
 
 /**
  * record-phase-instants-and-pipeline-report (JOS-228), design Decisions 4 and 5 — the pipeline-time report: elapsed
@@ -18,12 +19,12 @@ export function PipelineTimeTables({ report }: { report: PipelineTimeReport }) {
   }
   return (
     <>
-      <table>
+      <div className="table-scroll"><table className="data-table">
         <caption>Pipeline time</caption>
         <thead>
           <tr>
-            {["Phase", "Sessions", "Median time", "95th-percentile time", "Timed out", "Finished late", "Superseded"].map((header) => (
-              <th key={header} scope="col">
+            {["Phase", "Sessions", "Median time", "95th-percentile time", "Timed out", "Finished late", "Superseded"].map((header, index) => (
+              <th key={header} scope="col" className={index >= 1 ? "num" : undefined}>
                 {header}
               </th>
             ))}
@@ -33,24 +34,24 @@ export function PipelineTimeTables({ report }: { report: PipelineTimeReport }) {
           {report.phases.map((row) => (
             <tr key={row.phase}>
               <td>{PHASE_LABELS[row.phase]}</td>
-              <td>{number.format(row.sessions)}</td>
-              <td>{seconds(row.medianSeconds)}</td>
-              <td>{seconds(row.p95Seconds)}</td>
-              <td>{count(row.timedOut)}</td>
-              <td>{count(row.finishedLate)}</td>
-              <td>{count(row.superseded)}</td>
+              <td className="num">{number.format(row.sessions)}</td>
+              <td className="num">{seconds(row.medianSeconds)}</td>
+              <td className="num">{seconds(row.p95Seconds)}</td>
+              <td className="num">{count(row.timedOut)}</td>
+              <td className="num">{count(row.finishedLate)}</td>
+              <td className="num">{count(row.superseded)}</td>
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
       {report.sessions.length > 0 && (
-        <table>
+        <div className="table-scroll"><table className="data-table">
           <caption>Pipeline time per session</caption>
           <thead>
             <tr>
               <th scope="col">Session</th>
               {PHASES.map((phase) => (
-                <th key={phase} scope="col">
+                <th key={phase} scope="col" className="num">
                   {PHASE_LABELS[phase]}
                 </th>
               ))}
@@ -66,7 +67,7 @@ export function PipelineTimeTables({ report }: { report: PipelineTimeReport }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </>
   );
