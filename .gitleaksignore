@@ -24,3 +24,9 @@
 
 # Throwaway ADMIN_PASSWORD of a scratch server in a curl report (JOS-262); replaced with <password> in the next commit.
 e034aa50c94251e05837469ebd8ba135af7be28d:openspec/changes/key-per-adapter-tables/reports/2026-11-04-step-6-manual-endpoint-testing.md:curl-auth-header:21
+# A provider profile id sent as copyKeyFrom in the JOS-219 curl report, not a key.
+b280a71dfcb5de2b01fe6b48b4d646e1b45837b8:openspec/changes/configurable-video-connector/reports/2026-11-06-step-7-curl-endpoint-testing.md:generic-api-key:136
+# Same profile id, second copyKeyFrom call in that report.
+b280a71dfcb5de2b01fe6b48b4d646e1b45837b8:openspec/changes/configurable-video-connector/reports/2026-11-06-step-7-curl-endpoint-testing.md:generic-api-key:156
+# Fake key of the JOS-219 connector unit test.
+36017c0477785667bfb28cc9585de612b80de66e:backend/test/video-connector.test.ts:generic-api-key:9

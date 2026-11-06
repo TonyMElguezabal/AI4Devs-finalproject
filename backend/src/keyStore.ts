@@ -92,6 +92,11 @@ export function storeProfileKey(profileId: string, key: string): void {
   db.prepare("UPDATE provider_profiles SET api_key_encrypted = ?, updated_at = ? WHERE id = ?").run(encrypt(key), new Date().toISOString(), profileId);
 }
 
+/** configurable-video-connector (JOS-219), Decision 6 — copies the encrypted key as stored: it is never decrypted to copy it. */
+export function copyProfileKey(fromProfileId: string, toProfileId: string): void {
+  db.prepare("UPDATE provider_profiles SET api_key_encrypted = ?, updated_at = ? WHERE id = ?").run(storedBlob(fromProfileId), new Date().toISOString(), toProfileId);
+}
+
 export function clearProfileKey(profileId: string): void {
   db.prepare("UPDATE provider_profiles SET api_key_encrypted = NULL, updated_at = ? WHERE id = ?").run(new Date().toISOString(), profileId);
 }

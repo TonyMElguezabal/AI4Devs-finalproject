@@ -154,13 +154,8 @@ export const VIDEO_ADMITTED_DURATIONS_SECONDS: readonly number[] = Array.from(
 export const SEGMENTATION_LOWER_BOUND_SECONDS = settings.segmentation.lowerBoundSeconds;
 export const SEGMENTATION_UPPER_BOUND_SECONDS = VIDEO_ADMITTED_DURATION_SECONDS.max;
 
-/**
- * Generation setting, deliberately ABOVE the final FINAL_OUTPUT target
- * (below) in every dimension — RunningHub's `768P` tier (1344×768@24fps) and
- * `2K` tier (2560×1440@24fps) both miss D08's 1920×1080@30fps natively
- * (report: step 3). `2K` is used so assembly downscales rather than upscales.
- */
-export const VIDEO_GENERATION_SETTING = { resolution: "2K", nativeWidth: 2560, nativeHeight: 1440, nativeFps: 24 } as const;
+// configurable-video-connector (JOS-219), Decision 9 — the clip resolution is a video profile parameter (RunningHub
+// 768P, 1344×768@24fps); the fixed 2K generation setting is gone. Assembly scales every clip to FINAL_OUTPUT.
 
 // ---- Image generation (§7.1) ----
 

@@ -1,11 +1,13 @@
 import type { AdapterTypeId } from "./providerTypes.ts";
+import { runConnectorCheck } from "./videoConnector.ts";
 
 // test-provider-connection (JOS-220), design Decisions 2 and 5 — one connection check per adapter type. Each check sends
 // exactly one request to its vendor's own host (kept here, like the adapters do), built from constants and the profile's
 // validated parameters, so a key can only go to that vendor. The vendor's raw answer is read for the fields below and
 // never returned.
 
-export type ConnectionOutcomeName = "connected" | "key-rejected" | "not-found" | "unreachable" | "unexpected";
+/** `no-check` (configurable-video-connector, JOS-219): a connector definition without a check step; nothing is sent. */
+export type ConnectionOutcomeName = "connected" | "key-rejected" | "not-found" | "unreachable" | "unexpected" | "no-check";
 
 export interface ConnectionOutcome {
   outcome: ConnectionOutcomeName;
@@ -16,6 +18,8 @@ export interface ConnectionOutcome {
 export interface ConnectionCheck {
   /** Whether the vendor charges for the request. */
   charged: boolean;
+  /** For a type whose check comes from the profile (a connector), whether that profile's check is charged. */
+  chargedFor?: (parameters: Record<string, unknown>) => boolean;
   /** What a pass proves, in words for the Administrator. */
   covers: string;
   run(parameters: Record<string, unknown>, key: string, fetchFn: typeof fetch, signal: AbortSignal): Promise<ConnectionOutcome>;
@@ -96,6 +100,12 @@ export const CONNECTION_CHECKS: Record<AdapterTypeId, ConnectionCheck> = {
       if (code === 806) return { outcome: "key-rejected" };
       return { outcome: "unexpected", httpStatus: response.status };
     },
+  },
+  "configured-video": {
+    charged: false,
+    chargedFor: (parameters) => (parameters.requests as { check?: { charged?: boolean } } | undefined)?.check?.charged === true,
+    covers: "Only the key was checked. The model and the requests were not.",
+    run: runConnectorCheck,
   },
 };
 

@@ -59,7 +59,7 @@ describe("GET /admin/provider-types", () => {
     const response = await call("GET", "/admin/provider-types");
     expect(response.statusCode).toBe(200);
     const { types } = response.json();
-    expect(types.map((type: { id: string }) => type.id).sort()).toEqual(["elevenlabs-alignment", "elevenlabs-voice", "fal-image", "openai-reasoning", "runninghub-video"]);
+    expect(types.map((type: { id: string }) => type.id).sort()).toEqual(["configured-video", "elevenlabs-alignment", "elevenlabs-voice", "fal-image", "openai-reasoning", "runninghub-video"]);
     const image = types.find((type: { id: string }) => type.id === "fal-image");
     expect(image).toMatchObject({ stage: "image", label: "Fal.ai", fields: [{ path: ["model"], kind: "text", required: true }, { path: ["pricePerUnit"], label: "Price per image" }, { path: ["priceCurrency"], label: "Currency" }] });
   });

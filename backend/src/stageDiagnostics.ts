@@ -94,7 +94,8 @@ function describeProfile(stage: DiagnosticStage, identifier: string | null): Pro
     case "timestamps":
       return { name: profile.label, model: "forced alignment" };
     case "video":
-      return { name: profile.label, model: profile.id === "RunningHub" ? "minimax/hailuo-h3" : null };
+      // configurable-video-connector (JOS-219): a connector names its model; the seeded RunningHub profile's endpoint does.
+      return { name: profile.label, model: typeof profile.parameters.model === "string" ? profile.parameters.model : profile.id === "RunningHub" ? "minimax/hailuo-h3" : null };
     default: {
       const model = profile.parameters.model;
       return { name: profile.label, model: typeof model === "string" ? model : null };
