@@ -328,3 +328,64 @@ describe("the optional price fields", () => {
     expect(within(form).getByLabelText("Price per image")).toHaveValue("-1");
   });
 });
+
+// admin-tabs-and-tables (JOS-270), group 4 — compact rows with an overflow menu.
+describe("ProviderProfilesSection compact rows", () => {
+  const renderSection = () => render(<ProviderProfilesSection password={PASSWORD} onDenied={() => undefined} onChanged={() => undefined} />);
+
+  it("shows the name once, an Active badge and the key source, with Edit visible", async () => {
+    stubBackend();
+    renderSection();
+    const row = within(await screen.findByRole("listitem", { name: "Fal.ai provider" }));
+    expect(row.getAllByText("Fal.ai")).toHaveLength(1);
+    expect(row.getByText("Active")).toHaveClass("badge");
+    expect(row.getByText("Key stored (…90ab)")).toBeInTheDocument();
+    expect(row.getByRole("button", { name: "Edit Fal.ai" }).closest("details")).toBeNull();
+  });
+
+  it("keeps Test connection and Delete in the 'More actions' menu", async () => {
+    stubBackend();
+    renderSection();
+    const row = within(await screen.findByRole("listitem", { name: "Fal.ai provider" }));
+    const menu = row.getByLabelText("More actions for Fal.ai").closest("details")!;
+    expect(within(menu).getByRole("button", { name: "Test connection Fal.ai" })).toBeInTheDocument();
+    expect(within(menu).getByRole("button", { name: "Delete Fal.ai" })).toBeInTheDocument();
+  });
+
+  it("opens the menu, closes it when an action is chosen, and asks for the delete confirmation in the row", async () => {
+    stubBackend();
+    renderSection();
+    const user = userEvent.setup();
+    const row = within(await screen.findByRole("listitem", { name: "Fal.ai provider" }));
+    const menu = row.getByLabelText("More actions for Fal.ai").closest("details")!;
+
+    await user.click(row.getByLabelText("More actions for Fal.ai"));
+    expect(menu).toHaveAttribute("open");
+    await user.click(within(menu).getByRole("button", { name: "Delete Fal.ai" }));
+    expect(menu).not.toBeInTheDocument();
+    expect(row.getByRole("button", { name: "Confirm delete Fal.ai" })).toBeInTheDocument();
+  });
+
+  it("closes the menu with Escape and returns the focus to its button", async () => {
+    stubBackend();
+    renderSection();
+    const user = userEvent.setup();
+    const row = within(await screen.findByRole("listitem", { name: "Fal.ai provider" }));
+    const summary = row.getByLabelText("More actions for Fal.ai");
+    const menu = summary.closest("details")!;
+
+    await user.click(summary);
+    expect(menu).toHaveAttribute("open");
+    await user.keyboard("{Escape}");
+    expect(menu).not.toHaveAttribute("open");
+    expect(summary).toHaveFocus();
+  });
+
+  it("puts 'Add … provider' in the stage card header", async () => {
+    stubBackend();
+    renderSection();
+    const group = within(await screen.findByRole("group", { name: "Image providers" }));
+    const add = group.getByRole("button", { name: "Add image provider" });
+    expect(add.parentElement).toHaveClass("stage-card-head");
+  });
+});

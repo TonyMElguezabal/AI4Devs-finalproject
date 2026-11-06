@@ -5,34 +5,34 @@
 
 ## 1. Frontend: Tabs (TDD)
 
-- [ ] 1.1 Write failing tests in `frontend/test/admin-page.test.tsx` for the "tabs" scenarios: first tab, choosing a tab sets the hash, `#providers` on load, unknown hash, Reports requests nothing until selected, 401 from another tab locks the page, arrow keys move between tabs
-- [ ] 1.2 Implement the tabs in `AdminTools.tsx` (state from `location.hash`, `replaceState`, `hashchange`, `tablist`/`tab`/`tabpanel` roles); keep the `refreshKey` wiring
-- [ ] 1.3 Add tab styles to `styles/app.css`
+- [x] 1.1 Write failing tests in `frontend/test/admin-page.test.tsx` for the "tabs" scenarios: first tab, choosing a tab sets the hash, `#providers` on load, unknown hash, Reports requests nothing until selected, 401 from another tab locks the page, arrow keys move between tabs
+- [x] 1.2 Implement the tabs in `AdminTools.tsx` (state from `location.hash`, `replaceState`, `hashchange`, `tablist`/`tab`/`tabpanel` roles); keep the `refreshKey` wiring
+- [x] 1.3 Add tab styles to `styles/app.css`
 
 ## 2. Frontend: Table style, formats and period selector (TDD)
 
-- [ ] 2.1 Write failing tests: radios are not full width (a stylesheet-free check on the class/markup), the period selector keeps its four choices and default, `formatInstant` output, `n/a` for not-recorded cells, the unpriced-providers note appears once in the sessions report
-- [ ] 2.2 Add `frontend/src/format.ts` (`formatInstant`, shared number format) and use it in `ProviderChangesTable`, `SessionsReport` and the other tables
-- [ ] 2.3 Add `.table-scroll` and `.data-table` to `app.css`; wrap and class every report table (`ReportsSection`, `EstimatedCostTable`, `PipelineTimeTables`, `FailuresTables`, `ProviderChangesTable`, `SessionsReport`)
-- [ ] 2.4 Exclude radios and checkboxes from the global `input` rule; style `ReportPeriodSelector` as a segmented control
-- [ ] 2.5 Move the "excludes unpriced providers" note of the sessions report to one footnote
+- [x] 2.1 Write failing tests: radios are not full width (a stylesheet-free check on the class/markup), the period selector keeps its four choices and default, `formatInstant` output, `n/a` for not-recorded cells, the unpriced-providers note appears once in the sessions report
+- [x] 2.2 Add `frontend/src/format.ts` (`formatInstant`, shared number format) and use it in `ProviderChangesTable`, `SessionsReport` and the other tables
+- [x] 2.3 Add `.table-scroll` and `.data-table` to `app.css`; wrap and class every report table (`ReportsSection`, `EstimatedCostTable`, `PipelineTimeTables`, `FailuresTables`, `ProviderChangesTable`, `SessionsReport`)
+- [x] 2.4 Exclude radios and checkboxes from the global `input` rule; style `ReportPeriodSelector` as a segmented control
+- [x] 2.5 Move the "excludes unpriced providers" note of the sessions report to one footnote
 
 ## 3. Frontend: Reports tiles and panels (TDD)
 
-- [ ] 3.1 Write failing tests in `frontend/test/reports-section.test.tsx`: summary tiles from loaded reports, `—` for a report that failed, panels open/closed by default
-- [ ] 3.2 Add the summary tiles and wrap each report in `<details>` in `ReportsSection.tsx`
+- [x] 3.1 Write failing tests in `frontend/test/reports-section.test.tsx`: summary tiles from loaded reports, `—` for a report that failed, panels open/closed by default
+- [x] 3.2 Add the summary tiles and wrap each report in `<details>` in `ReportsSection.tsx`
 
 ## 4. Frontend: Active providers and provider rows (TDD)
 
-- [ ] 4.1 Write failing tests in `active-providers-section.test.tsx` (one row per stage, source badge) and `provider-profiles-section.test.tsx` (name once, `Active` badge, `Edit` visible, `Test connection` and `Delete` inside `More actions for …`, delete still confirms, Escape closes the menu)
-- [ ] 4.2 Restyle `ActiveProvidersSection` as a compact grid; keep the select names and the source strings
-- [ ] 4.3 Rework the rows and the card header of `ProviderProfilesSection` with the `<details>` menu
+- [x] 4.1 Write failing tests in `active-providers-section.test.tsx` (one row per stage, source badge) and `provider-profiles-section.test.tsx` (name once, `Active` badge, `Edit` visible, `Test connection` and `Delete` inside `More actions for …`, delete still confirms, Escape closes the menu)
+- [x] 4.2 Restyle `ActiveProvidersSection` as a compact grid; keep the select names and the source strings
+- [x] 4.3 Rework the rows and the card header of `ProviderProfilesSection` with the `<details>` menu
 
 ## 5. Frontend: Review and Update Existing Unit Tests (MANDATORY)
 
-- [ ] 5.1 Update the tests that click `Delete …` or `Send charged test …` / `Test connection …` directly (`provider-profiles-section`, `provider-connection-test-section`, `video-connector-section`) to open the menu first
-- [ ] 5.2 Update tests that assumed all tools on one page (`admin-page`, `failed-stages-section`, `visual-style-section`) to select the right tab
-- [ ] 5.3 Run `npm run lint` and `npm run typecheck` in `frontend/`
+- [x] 5.1 Existing tests that click `Delete …`, `Test connection …` or `Duplicate …` (`provider-profiles-section`, `provider-connection-test-section`, `video-connector-section`) keep passing unchanged: jsdom does not hide a closed `<details>`, so they reach the menu items; the real open/close behaviour is covered by the new menu tests and by task 8.4
+- [x] 5.2 No existing test renders `AdminTools` (the section tests render their section alone), so none assumed one page; `admin-tools.test.tsx` covers the tabs. Fixtures of `reports-section.test.tsx` that answered every report with the usage shape now answer `/estimated-cost` with its own shape, and `n/a` replaces `not recorded`
+- [x] 5.3 Run `npm run lint` and `npm run typecheck` in `frontend/`
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 

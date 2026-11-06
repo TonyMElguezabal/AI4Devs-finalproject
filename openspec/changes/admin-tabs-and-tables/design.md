@@ -46,7 +46,7 @@ Each report is a `<details><summary>`: provider usage and sessions `open`, other
 
 ### Decision 8: Provider rows and the overflow menu
 
-A row shows the name once (the profile's `label`; the description is shown only when it differs), an `Active` badge, and the key source as muted text. `Edit {label}` stays a visible button. `Test connection {label}` and `Delete {label}` live in a `<details class="menu">` opened by a `More actions for {label}` summary; selecting an item closes it. Delete confirmation and the charged-test confirmation stay inline in the row, exactly as now. `Add {stage} provider` moves into the stage card header.
+A row shows the name once (the profile's `label`; the description is shown only when it differs), an `Active` badge, and the key source as muted text. `Edit {label}` stays a visible button. `Test connection {label}`, `Duplicate {label}` (a configured connector only) and `Delete {label}` live in a `<details class="menu">` opened by a `More actions for {label}` summary; selecting an item closes it. Delete confirmation and the charged-test confirmation stay inline in the row, exactly as now. `Add {stage} provider` moves into the stage card header.
 Alternative: a popover/menu library: rejected, `<details>` does it with no dependency; Escape closes it through a small key handler.
 
 ### Decision 9: Active providers grid

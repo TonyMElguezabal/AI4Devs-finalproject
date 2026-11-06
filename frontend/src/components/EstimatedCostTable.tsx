@@ -24,7 +24,7 @@ export function EstimatedCostTable({ report }: { report: EstimatedCostReport }) 
   if (report.rows.length === 0) return null;
   return (
     <>
-      <table>
+      <div className="table-scroll"><table className="data-table">
         <caption>Estimated cost (estimates, in each provider's currency)</caption>
         <thead>
           <tr>
@@ -42,8 +42,8 @@ export function EstimatedCostTable({ report }: { report: EstimatedCostReport }) 
               <tr key={`${row.stage}:${row.providerId}`}>
                 <td>{STAGE_LABELS[row.stage]}</td>
                 <td>{row.providerLabel}</td>
-                <td>{units(row.billedUnits, row.unit)}</td>
-                <td>{units(row.failedUnits, row.unit)}</td>
+                <td className="num">{units(row.billedUnits, row.unit)}</td>
+                <td className="num">{units(row.failedUnits, row.unit)}</td>
                 <td>{row.pricePerUnit === null ? "Unpriced" : `${price.format(row.pricePerUnit)} ${row.currency}`}</td>
                 <td aria-label={`Estimated cost of ${row.providerLabel}: ${cost === null ? "unpriced" : `${cost} (estimate)`}`}>{cost ?? "Unpriced"}</td>
               </tr>
@@ -58,7 +58,7 @@ export function EstimatedCostTable({ report }: { report: EstimatedCostReport }) 
             </tr>
           ))}
         </tfoot>
-      </table>
+      </table></div>
       {report.totalsExcludeUnpriced && <p>The totals exclude unpriced providers.</p>}
       <p>Failed units are shown but not priced; a vendor may still bill some failed requests, such as a rejected input.</p>
     </>

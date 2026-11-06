@@ -35,7 +35,7 @@ The "Active providers" section SHALL show one row per stage with the stage's sel
 - **THEN** the Reasoning, Voice, Alignment, Image and Video providers each have one row with a select and a source badge
 
 ### Requirement: Provider profiles are compact rows with an overflow menu
-The "Providers" section SHALL show one card per stage with one row per profile: its name once, an "Active" badge when it is the active one, and its key source. "Edit {name}" SHALL be a visible button; "Test connection {name}" and "Delete {name}" SHALL be inside a "More actions for {name}" disclosure that closes when an item is chosen or Escape is pressed. "Delete" and the charged test SHALL still ask for confirmation in the row. "Add {stage} provider" SHALL be in the card header.
+The "Providers" section SHALL show one card per stage with one row per profile: its name once, an "Active" badge when it is the active one, and its key source. "Edit {name}" SHALL be a visible button; "Test connection {name}", "Duplicate {name}" (a configured video connector only) and "Delete {name}" SHALL be inside a "More actions for {name}" disclosure that closes when an item is chosen or Escape is pressed. "Delete" and the charged test SHALL still ask for confirmation in the row. "Add {stage} provider" SHALL be in the card header.
 
 #### Scenario: Row content
 - **WHEN** a stage has one active profile named "OpenAI" with its key from the environment

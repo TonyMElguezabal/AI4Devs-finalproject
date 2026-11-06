@@ -68,7 +68,7 @@ export function AdminPage({ tools }: Props) {
   }
 
   return (
-    <div className="start">
+    <div className={state.kind === "unlocked" ? "start admin-wide" : "start"}>
       <div className="start-head pop">
         <h1>Administrator</h1>
       </div>

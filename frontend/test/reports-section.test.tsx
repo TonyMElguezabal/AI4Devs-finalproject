@@ -172,6 +172,7 @@ describe("ReportsSection", () => {
         if (url.includes("/failures")) return new Response(JSON.stringify(emptyFailures), { status: 200 });
         if (url.includes("/provider-changes")) return new Response(JSON.stringify(emptyProviderChanges), { status: 200 });
         if (url.includes("/sessions")) return new Response(JSON.stringify(emptySessions), { status: 200 });
+        if (url.includes("/estimated-cost")) return new Response(JSON.stringify(emptyEstimatedCost), { status: 200 });
         return ok([]);
       }),
     );
@@ -306,7 +307,9 @@ describe("ReportsSection pipeline time", () => {
               ? emptyProviderChanges
               : parsed.pathname.endsWith("/sessions")
                 ? emptySessions
-                : reportOf([]);
+                : parsed.pathname.endsWith("/estimated-cost")
+                  ? emptyEstimatedCost
+                  : reportOf([]);
         return new Response(JSON.stringify(body), { status: 200 });
       }),
     );
@@ -316,7 +319,7 @@ describe("ReportsSection pipeline time", () => {
     expect(request.searchParams.get("from")).toBe(new Date(NOW.getTime() - 30 * DAY_MS).toISOString());
   });
 
-  it("shows seconds per phase, a dash for no time and 'not recorded' for the scenes counts", async () => {
+  it("shows seconds per phase, a dash for no time and 'n/a' for the scenes counts", async () => {
     withPipeline(() => new Response(JSON.stringify(pipelineReport), { status: 200 }));
     render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
 
@@ -325,7 +328,7 @@ describe("ReportsSection pipeline time", () => {
     const cells = (index: number) => within(rows[index]!).getAllByRole("cell").map((cell) => cell.textContent);
     expect(cells(0)).toEqual(["Voice-over", "2", "20 s", "1,234.5 s", "1", "2", "3"]);
     expect(cells(1)).toEqual(["Decomposition", "0", "—", "—", "0", "0", "0"]);
-    expect(cells(2)).toEqual(["Scenes", "1", "90 s", "90 s", "not recorded", "not recorded", "not recorded"]);
+    expect(cells(2)).toEqual(["Scenes", "1", "90 s", "90 s", "n/a", "n/a", "n/a"]);
   });
 
   it("lists each session with a dash for a phase that has no time", async () => {
@@ -393,7 +396,9 @@ describe("ReportsSection failures and retries", () => {
               ? emptyProviderChanges
               : parsed.pathname.endsWith("/sessions")
                 ? emptySessions
-                : reportOf([]);
+                : parsed.pathname.endsWith("/estimated-cost")
+                  ? emptyEstimatedCost
+                  : reportOf([]);
         return new Response(JSON.stringify(body), { status: 200 });
       }),
     );
@@ -407,7 +412,7 @@ describe("ReportsSection failures and retries", () => {
     expect(failuresCalls()[1]!.searchParams.get("from")).toBe(new Date(NOW.getTime() - 7 * DAY_MS).toISOString());
   });
 
-  it("shows one row per stage, with 'not recorded' for the scene stages' budgets and manual retries", async () => {
+  it("shows one row per stage, with 'n/a' for the scene stages' budgets and manual retries", async () => {
     withFailures(answer(failuresReport));
     render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
 
@@ -423,7 +428,7 @@ describe("ReportsSection failures and retries", () => {
     const rows = within(table).getAllByRole("row").slice(1);
     const cells = (index: number) => within(rows[index]!).getAllByRole("cell").map((cell) => cell.textContent);
     expect(cells(0)).toEqual(["Voice", "3", "1", "1", "1", "2"]);
-    expect(cells(1)).toEqual(["Video", "0", "4", "0", "not recorded", "not recorded"]);
+    expect(cells(1)).toEqual(["Video", "0", "4", "0", "n/a", "n/a"]);
   });
 
   it("lists the failure wordings with their counts", async () => {
@@ -508,7 +513,9 @@ describe("ReportsSection provider changes", () => {
               ? changesReport
               : parsed.pathname.endsWith("/sessions")
                 ? emptySessions
-                : reportOf([]);
+                : parsed.pathname.endsWith("/estimated-cost")
+                  ? emptyEstimatedCost
+                  : reportOf([]);
         return new Response(JSON.stringify(body), { status: 200 });
       }),
     );
@@ -614,5 +621,67 @@ describe("ReportsSection estimated cost", () => {
 
     await waitFor(() => expect(screen.queryByText(/Could not load the estimated cost report/)).not.toBeInTheDocument());
     expect(await screen.findByRole("table", { name: /Estimated cost/ })).toBeInTheDocument();
+  });
+});
+
+// admin-tabs-and-tables (JOS-270), group 3 — summary tiles and collapsible panels.
+describe("ReportsSection summary and panels", () => {
+  const tile = (name: string) => within(screen.getByRole("group", { name: "Summary" })).getByText(name).parentElement!;
+
+  it("shows tiles for attempts, success rate, estimated cost and failed scenes now", async () => {
+    stubBackend(
+      () => ok([voiceRow, clipRow]),
+      undefined,
+      () => new Response(JSON.stringify({ ...emptyFailures, failedScenesNow: { image: 2, video: 1 } }), { status: 200 }),
+      undefined,
+      () => new Response(JSON.stringify({ ...emptyEstimatedCost, totals: [{ currency: "USD", estimatedCost: 4.5 }] }), { status: 200 }),
+    );
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+
+    await waitFor(() => expect(tile("Attempts")).toHaveTextContent("7"));
+    expect(tile("Success rate")).toHaveTextContent("42.9%");
+    expect(tile("Estimated cost")).toHaveTextContent("USD 4.50");
+    expect(tile("Failed scenes now")).toHaveTextContent("3");
+  });
+
+  it("shows a dash on the tile of a report that could not be loaded and keeps the others", async () => {
+    stubBackend(
+      () => ok([voiceRow]),
+      undefined,
+      undefined,
+      undefined,
+      () => new Response("{}", { status: 500 }),
+    );
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+
+    await waitFor(() => expect(tile("Attempts")).toHaveTextContent("5"));
+    await waitFor(() => expect(tile("Estimated cost")).toHaveTextContent("—"));
+  });
+
+  it("opens the provider-usage and sessions panels and closes the others", async () => {
+    stubBackend(() => ok([voiceRow]));
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+    await screen.findByRole("table", { name: "Provider usage" });
+
+    const panel = (name: string) => screen.getByText(name, { selector: "summary" }).closest("details")!;
+    expect(panel("Provider usage")).toHaveAttribute("open");
+    expect(panel("Sessions")).toHaveAttribute("open");
+    for (const name of ["Estimated cost", "Pipeline time", "Failures and retries", "Provider changes"]) expect(panel(name)).not.toHaveAttribute("open");
+  });
+
+  it("scrolls a wide table inside its own wrapper", async () => {
+    stubBackend(() => ok([voiceRow]));
+    render(<ReportsSection password={PASSWORD} onDenied={() => {}} />);
+    const table = await screen.findByRole("table", { name: "Provider usage" });
+    expect(table.parentElement).toHaveClass("table-scroll");
+    expect(table).toHaveClass("data-table");
+  });
+});
+
+describe("ReportPeriodSelector as a segmented control", () => {
+  it("keeps the radios inside the segmented control, so the global input rule can leave them out", () => {
+    render(<ReportPeriodSelector onChange={() => {}} />);
+    const radio = screen.getByRole("radio", { name: "Last 30 days" });
+    expect(radio.closest("fieldset")).toHaveClass("segmented");
   });
 });

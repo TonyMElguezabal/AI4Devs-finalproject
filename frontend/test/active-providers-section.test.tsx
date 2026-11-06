@@ -135,3 +135,16 @@ describe("ActiveProvidersSection", () => {
     await waitFor(() => expect(loads()).toBe(2));
   });
 });
+
+// admin-tabs-and-tables (JOS-270), group 4 — one compact row per stage.
+describe("ActiveProvidersSection rows", () => {
+  it("shows each stage's select and source badge in one row", async () => {
+    stubBackend();
+    render(<ActiveProvidersSection password={PASSWORD} onDenied={() => undefined} />);
+    for (const stage of ["Reasoning", "Voice", "Alignment", "Image", "Video"]) {
+      const select = await screen.findByRole("combobox", { name: `${stage} provider` });
+      const row = within(select.closest(".active-row") as HTMLElement);
+      expect(row.getByText("from settings files")).toHaveClass("badge");
+    }
+  });
+});

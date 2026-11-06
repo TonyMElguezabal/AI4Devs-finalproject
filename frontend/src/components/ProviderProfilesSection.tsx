@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { createProviderProfile, deleteProviderProfile, editProviderProfile, getProviderProfiles, testProviderConnection } from "../api/client";
+import { ActionMenu } from "./ActionMenu";
 import type { AdapterTypeInfo, ConnectionTestResult, ParameterFieldInfo, ProfileProblem, ProfileView, ProviderStage } from "../types";
 
 const STAGES: ProviderStage[] = ["reasoning", "voice", "alignment", "image", "video"];
@@ -169,53 +170,59 @@ export function ProviderProfilesSection({ password, onDenied, onChanged, refresh
         STAGES.map((stage) => {
           const stageProfiles = profiles.filter((profile) => profile.stage === stage && !profile.retired);
           return (
-            <div role="group" aria-label={`${STAGE_LABELS[stage]} providers`} key={stage}>
-              <h3>{STAGE_LABELS[stage]}</h3>
-              <ul>
+            <div role="group" aria-label={`${STAGE_LABELS[stage]} providers`} key={stage} className="stage-card">
+              <div className="stage-card-head">
+                <h3>{STAGE_LABELS[stage]}</h3>
+                <button type="button" onClick={() => setForm({ kind: "add", stage })}>{`Add ${STAGE_LABELS[stage].toLowerCase()} provider`}</button>
+              </div>
+              <ul className="provider-list">
                 {stageProfiles.map((profile) => (
-                  <li key={profile.id} aria-label={`${profile.label} provider`}>
-                    <strong>{profile.label}</strong> <span>{types.find((type) => type.id === profile.adapterType)?.label ?? profile.adapterType}</span>{" "}
-                    <span>{keyText(profile)}</span> {profile.active && <span>Active</span>}
-                    {!profile.usable && profile.problems.map((problem) => <div key={problem.field + problem.message}>{problem.message}</div>)}
-                    <div>
-                      <button type="button" onClick={() => setForm({ kind: "edit", profile })}>{`Edit ${profile.label}`}</button>{" "}
-                      {profile.adapterType === "configured-video" && (
-                        <>
-                          <button type="button" onClick={() => setForm({ kind: "add", stage, from: profile })}>{`Duplicate ${profile.label}`}</button>{" "}
-                        </>
-                      )}
+                  <li key={profile.id} aria-label={`${profile.label} provider`} className="provider-row">
+                    <div className="provider-main">
+                      <strong>{profile.label}</strong>
+                      {typeOf(profile)?.label !== profile.label && <span className="badge badge-muted">{typeOf(profile)?.label ?? profile.adapterType}</span>}
+                      <span className="field-hint">{keyText(profile)}</span>
+                      {profile.active && <span className="badge">Active</span>}
+                    </div>
+                    <div className="row-actions">
+                      <button type="button" onClick={() => setForm({ kind: "edit", profile })}>{`Edit ${profile.label}`}</button>
                       {confirming === profile.id ? (
                         <>
-                          <button type="button" onClick={() => void handleDelete(profile)}>{`Confirm delete ${profile.label}`}</button>{" "}
+                          <button type="button" onClick={() => void handleDelete(profile)}>{`Confirm delete ${profile.label}`}</button>
                           <button type="button" onClick={() => setConfirming(undefined)}>Cancel</button>
                         </>
                       ) : (
-                        <button type="button" onClick={() => setConfirming(profile.id)}>{`Delete ${profile.label}`}</button>
-                      )}{" "}
-                      {profile.keyStatus !== "missing" && (
-                        <button
-                          type="button"
-                          disabled={testing === profile.id || (form?.kind === "edit" && form.profile.id === profile.id)}
-                          onClick={() => (chargedCheck(profile) ? setChargeFor(profile.id) : void handleTest(profile, false))}
-                        >{`Test connection ${profile.label}`}</button>
+                        <ActionMenu label={`More actions for ${profile.label}`}>
+                          {profile.adapterType === "configured-video" && (
+                            <button type="button" onClick={() => setForm({ kind: "add", stage, from: profile })}>{`Duplicate ${profile.label}`}</button>
+                          )}
+                          {profile.keyStatus !== "missing" && (
+                            <button
+                              type="button"
+                              disabled={testing === profile.id || (form?.kind === "edit" && form.profile.id === profile.id)}
+                              onClick={() => (chargedCheck(profile) ? setChargeFor(profile.id) : void handleTest(profile, false))}
+                            >{`Test connection ${profile.label}`}</button>
+                          )}
+                          <button type="button" onClick={() => setConfirming(profile.id)}>{`Delete ${profile.label}`}</button>
+                        </ActionMenu>
                       )}
                     </div>
+                    {!profile.usable && profile.problems.map((problem) => <div className="provider-extra" key={problem.field + problem.message}>{problem.message}</div>)}
                     {chargeFor === profile.id && (
-                      <div role="status">
+                      <div role="status" className="provider-extra">
                         <p>{`This check is charged by ${vendorOf(profile)}. ${coversOf(profile)}`}</p>
                         <button type="button" onClick={() => void handleTest(profile, true)}>{`Send charged test of ${profile.label}`}</button>{" "}
                         <button type="button" onClick={() => setChargeFor(undefined)}>{`Cancel test of ${profile.label}`}</button>
                       </div>
                     )}
                     {testResults[profile.id] && (
-                      <p role="status">
+                      <p role="status" className="provider-extra">
                         <span>{resultText(testResults[profile.id]!, vendorOf(profile))}</span> <span>{testResults[profile.id]!.covers}</span>
                       </p>
                     )}
                   </li>
                 ))}
               </ul>
-              <button type="button" onClick={() => setForm({ kind: "add", stage })}>{`Add ${STAGE_LABELS[stage].toLowerCase()} provider`}</button>
               {form && ((form.kind === "add" && form.stage === stage) || (form.kind === "edit" && form.profile.stage === stage)) && (
                 <ProfileForm
                   key={form.kind === "edit" ? form.profile.id : `add-${form.from?.id ?? ""}`}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getEstimatedCostReport, getFailuresReport, getPipelineTimeReport, getProviderChangesReport, getProviderUsageReport } from "../api/client";
 import type { EstimatedCostReport, FailuresReport, PipelineTimeReport, ProviderChangesReport, ProviderStage, ProviderUsageReport, ReportPeriod } from "../types";
-import { EstimatedCostTable } from "./EstimatedCostTable";
+import { EstimatedCostTable, formatCosts } from "./EstimatedCostTable";
 import { FailuresTables } from "./FailuresTables";
 import { PipelineTimeTables } from "./PipelineTimeTables";
 import { ProviderChangesTable } from "./ProviderChangesTable";
@@ -115,74 +115,115 @@ export function ReportsSection({ password, onDenied }: Props) {
 
   const showsSceneStage = report?.rows.some((row) => row.stage === "image" || row.stage === "video");
 
+  // admin-tabs-and-tables (JOS-270), Decision 6 — the tiles read what is already loaded; a report that is not loaded gives a dash.
+  const attempts = report?.rows.reduce((sum, row) => sum + row.attempts, 0);
+  const successes = report?.rows.reduce((sum, row) => sum + row.successes, 0);
+  const successRate = attempts === undefined || successes === undefined ? undefined : attempts === 0 ? 0 : Math.round((successes / attempts) * 1000) / 10;
+  const tiles: [string, string][] = [
+    ["Attempts", attempts === undefined ? "—" : number.format(attempts)],
+    ["Success rate", successRate === undefined ? "—" : `${number.format(successRate)}%`],
+    ["Estimated cost", cost === undefined || cost.totals.length === 0 ? "—" : formatCosts(cost.totals)],
+    ["Failed scenes now", failures === undefined ? "—" : number.format(failures.failedScenesNow.image + failures.failedScenesNow.video)],
+  ];
+
   return (
     <section aria-label="Reports" className="field">
       <h2>Reports</h2>
       <ReportPeriodSelector onChange={changePeriod} />
-      {error && (
-        <p role="alert" className="form-error">
-          {error}
-        </p>
-      )}
-      {report === undefined && !error && <p className="session-loading">Loading the report…</p>}
-      {report?.rows.length === 0 && <p>No provider activity in this period.</p>}
-      {report && report.rows.length > 0 && (
-        <table>
-          <caption>Provider usage</caption>
-          <thead>
-            <tr>
-              {HEADERS.map((header) => (
-                <th key={header} scope="col">
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {report.rows.map((row) => (
-              <tr key={`${row.stage}:${row.providerId}`}>
-                <td>{STAGE_LABELS[row.stage]}</td>
-                <td>{row.providerLabel}</td>
-                <td>{number.format(row.attempts)}</td>
-                <td>{number.format(row.successes)}</td>
-                <td>{number.format(row.transient)}</td>
-                <td>{number.format(row.notRetryable)}</td>
-                <td>{number.format(row.timedOut)}</td>
-                <td>{`${number.format(row.successRatePercent)}%`}</td>
-                <td>{latency(row.medianLatencyMs)}</td>
-                <td>{latency(row.p95LatencyMs)}</td>
-                <td>{`${number.format(row.billedUnits)} ${UNIT_LABELS[row.unit] ?? row.unit}`}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {report?.sceneAttemptsFollowCurrentProvider && showsSceneStage && <p>Image and clip attempts are counted for the scene's current provider.</p>}
-      {costError && (
-        <p role="alert" className="form-error">
-          {costError}
-        </p>
-      )}
-      {cost && <EstimatedCostTable report={cost} />}
-      {pipelineError && (
-        <p role="alert" className="form-error">
-          {pipelineError}
-        </p>
-      )}
-      {pipeline && <PipelineTimeTables report={pipeline} />}
-      {failuresError && (
-        <p role="alert" className="form-error">
-          {failuresError}
-        </p>
-      )}
-      {failures && <FailuresTables report={failures} />}
-      {changesError && (
-        <p role="alert" className="form-error">
-          {changesError}
-        </p>
-      )}
-      {changes && <ProviderChangesTable report={changes} />}
-      <SessionsReport password={password} period={period} onDenied={lockOnce} />
+      <div role="group" aria-label="Summary">
+        <dl className="summary-tiles">
+          {tiles.map(([name, value]) => (
+            <div key={name}>
+              <dt>{name}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      <details className="report-panel" open>
+        <summary>Provider usage</summary>
+        {error && (
+          <p role="alert" className="form-error">
+            {error}
+          </p>
+        )}
+        {report === undefined && !error && <p className="session-loading">Loading the report…</p>}
+        {report?.rows.length === 0 && <p>No provider activity in this period.</p>}
+        {report && report.rows.length > 0 && (
+          <div className="table-scroll">
+            <table className="data-table">
+              <caption>Provider usage</caption>
+              <thead>
+                <tr>
+                  {HEADERS.map((header) => (
+                    <th key={header} scope="col">
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {report.rows.map((row) => (
+                  <tr key={`${row.stage}:${row.providerId}`}>
+                    <td>{STAGE_LABELS[row.stage]}</td>
+                    <td>{row.providerLabel}</td>
+                    <td className="num">{number.format(row.attempts)}</td>
+                    <td className="num">{number.format(row.successes)}</td>
+                    <td className="num">{number.format(row.transient)}</td>
+                    <td className="num">{number.format(row.notRetryable)}</td>
+                    <td className="num">{number.format(row.timedOut)}</td>
+                    <td className="num">{`${number.format(row.successRatePercent)}%`}</td>
+                    <td className="num">{latency(row.medianLatencyMs)}</td>
+                    <td className="num">{latency(row.p95LatencyMs)}</td>
+                    <td className="num">{`${number.format(row.billedUnits)} ${UNIT_LABELS[row.unit] ?? row.unit}`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {report?.sceneAttemptsFollowCurrentProvider && showsSceneStage && <p className="table-note">Image and clip attempts are counted for the scene's current provider.</p>}
+      </details>
+      <details className="report-panel">
+        <summary>Estimated cost</summary>
+        {costError && (
+          <p role="alert" className="form-error">
+            {costError}
+          </p>
+        )}
+        {cost && <EstimatedCostTable report={cost} />}
+      </details>
+      <details className="report-panel">
+        <summary>Pipeline time</summary>
+        {pipelineError && (
+          <p role="alert" className="form-error">
+            {pipelineError}
+          </p>
+        )}
+        {pipeline && <PipelineTimeTables report={pipeline} />}
+      </details>
+      <details className="report-panel">
+        <summary>Failures and retries</summary>
+        {failuresError && (
+          <p role="alert" className="form-error">
+            {failuresError}
+          </p>
+        )}
+        {failures && <FailuresTables report={failures} />}
+      </details>
+      <details className="report-panel">
+        <summary>Provider changes</summary>
+        {changesError && (
+          <p role="alert" className="form-error">
+            {changesError}
+          </p>
+        )}
+        {changes && <ProviderChangesTable report={changes} />}
+      </details>
+      <details className="report-panel" open>
+        <summary>Sessions</summary>
+        <SessionsReport password={password} period={period} onDenied={lockOnce} />
+      </details>
     </section>
   );
 }
