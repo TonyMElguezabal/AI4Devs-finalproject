@@ -65,4 +65,4 @@ This change adds and changes no endpoint; the check is that the Administrator en
 
 - [x] 9.1 Update `docs/frontend-standards.md`: the Administrator page rows (tabs and hash), the section/accessible-name table, the overflow menu and the table style classes
 - [x] 9.2 Run `graphify update .`
-- [ ] 9.3 Post the result on JOS-270
+- [x] 9.3 Post the result on JOS-270
