@@ -17,6 +17,26 @@ A stage's registry SHALL build each of its profiles with the adapter of that pro
 - **WHEN** `npm run typecheck` runs
 - **THEN** it fails
 
+### Requirement: A video profile requests clips of at most 1080p
+
+A video profile SHALL request clips at 1080p or below, to keep the cost per clip second down. The coded RunningHub profile SHALL accept only `768P` as its resolution. A configured connector profile SHALL be refused at save time when its resolution names a tier above 1080p: `2K`, `4K`, `1440`, `2160`, `2560` or `3840`, in any letter case. A refused resolution SHALL be listed as a problem on `resolution` that names the 1080p limit. A clip below the final video's size SHALL be scaled up by the assembly, and SHALL NOT be refused.
+
+#### Scenario: RunningHub at 2K
+
+- **WHEN** the Administrator saves the RunningHub profile with resolution `2K`
+- **THEN** the save is refused with a problem on `resolution` that names the 1080p limit
+
+#### Scenario: A connector tier above 1080p
+
+- **WHEN** the Administrator saves a connector profile with resolution `2K` or `auto_1440p`
+- **THEN** the save is refused with a problem on `resolution` that names the 1080p limit
+
+#### Scenario: A 768P clip in a 1080p video
+
+- **GIVEN** a final video size of 1920×1080 and RunningHub at `768P`
+- **WHEN** the session is assembled
+- **THEN** each 1344×768 clip is scaled to 1920×1080, and the assembly succeeds
+
 ## MODIFIED Requirements
 
 ### Requirement: A saved profile is valid, and every problem is listed

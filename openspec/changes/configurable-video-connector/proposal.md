@@ -19,6 +19,10 @@ Video models keep coming out (Wan, Kling, Veo, Seedance, ...), each served by it
 - **The video stage builds each profile with the adapter of its own type**: the coded RunningHub adapter or the connector. Today every video profile is built as RunningHub.
 - **The shortest-clip rule applies to every video adapter type**, as the requirement already says. Today the code checks it only for RunningHub.
 - **Telemetry names a connector's vendor by its host** (for example `api.dev.runwayml.com`). The free-text label is still never sent.
+- **Video quality is capped at 1080p to keep cost down** (owner decision, 2026-11-06). Today RunningHub clips are 2K at $0.12 per second, and the app scales them down to 1080p anyway.
+  - The final video is **720p (1280×720) or 1080p (1920×1080)**, set in the settings files. 1080p is the default, and any other size stops the app at start-up.
+  - Each video profile names its clip resolution, and nothing above 1080p is accepted. RunningHub requests **768P** (1344×768, about 36% cheaper than 2K), including the existing seeded profile. A connector resolution that names 2K or above is refused.
+  - A clip smaller than the final video is scaled up by the assembly.
 - **Unchanged:** the coded `runninghub-video` adapter stays seeded and active by default. Retiring it in favour of its connector definition is a follow-up, once parity is shown.
 
 Non-goals:
@@ -40,7 +44,9 @@ The Cloudflare `minimax/h3` model may fit the connector if Cloudflare accepts a 
 
 ### Modified Capabilities
 
-- `provider-profiles`: a stage builds each profile with the adapter of the profile's own type, and the shortest-duration rule applies to every video adapter type.
+- `provider-profiles`: a stage builds each profile with the adapter of the profile's own type, the shortest-duration rule applies to every video adapter type, and a video profile requests clips of at most 1080p.
+- `final-video-assembly`: the final video is 720p or 1080p from the settings, with subtitles scaled to the frame.
+- `runninghub-video-adapter`: the clip resolution comes from the profile and is `768P`, not the fixed `2K`.
 - `provider-connection-test`: a connector profile is checked with its definition's own check step, and one without a check step says so and sends nothing.
 
 ## Impact
@@ -53,10 +59,13 @@ The Cloudflare `minimax/h3` model may fit the connector if Cloudflare accepts a 
   - `providerAdmin.ts`: the duration rule, clearing the key on a host change, duplicating a profile;
   - `db.ts`: the telemetry vendor;
   - `stageDiagnostics.ts`: the model shown;
+  - `config/settings.ts`: the two accepted output sizes;
+  - `config/providers.ts`: the fixed `2K` generation setting is removed;
+  - `subtitles.ts`: probably no change. libass scales the 1920×1080 subtitle frame to the video, and a 720p render confirms it;
   - the shared adapter contract fixtures.
 - Frontend: the `/admin` profile form gets a new field kind, a JSON text area for the requests (headers and steps), and plain fields for the base URL, model, resolution and durations. It also gets a "Duplicate" action and a warning that changing the host clears the key.
 - Docs: a new `docs/video-connector-definitions.md` holds the Runway and RunningHub definitions as worked examples. The tests use the same files as fixtures.
 - API: `GET /admin/provider-types` lists the new type. `POST /admin/provider-profiles` accepts `copyKeyFrom`. There is no new endpoint.
 - Database: none. Profile parameters are already JSON.
 - Docs: PRD §11.2 and §11.3 (new version; this reverses JOS-218's "no generic adapter" non-goal), `docs/api-spec.yml`, `docs/backend-standards.md`, the backend README.
-- Cost: the live proof spends a few clips on Runway (Wan 3.0 at 1080p is $0.20 per second, Kling 4.0 at 1080p is $0.235 per second) and RunningHub. Runway clips are 1080p. The final video is 1920×1080 and the assembly already scales every clip, so no resolution change is needed.
+- Cost: every RunningHub clip gets cheaper. 768P is $0.077 per second, against $0.12 for 2K. The Administrator should update RunningHub's price per clip second on `/admin`, or the cost report keeps using the 2K price. The live proof spends a few clips on Runway, at 720p to keep it cheap: Wan 3.0 $0.10 per second, Kling 4.0 $0.157 per second. It also spends a few on RunningHub.

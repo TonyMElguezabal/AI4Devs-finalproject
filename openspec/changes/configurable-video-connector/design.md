@@ -24,7 +24,7 @@ The two vendors that prove the design:
 | Limits | Wan 2–30 s, Kling 3–30 s; Kling image-to-video needs `ratio` `auto_720p` or `auto_1080p`; Kling refuses unknown fields | 5–15 s |
 | Output | up to 1080p, links kept 24–48 h | 2K |
 
-The final video is 1920×1080, and the assembly scales every clip (`ffmpegAssemblyTool.ts`, `scale=`). The clip check accepts any MP4. So 1080p clips need no change.
+The final video is 1920×1080 (the `output` setting), and the assembly scales every clip (`ffmpegAssemblyTool.ts`, `scale=`). The clip check accepts any MP4. RunningHub is hard-coded to `2K` (`VIDEO_GENERATION_SETTING`), which is downscaled at assembly. Its other tier is `768P` (1344×768): $0.385 against $0.60 per 5-second clip (JOS-165 spike).
 
 ## Goals / Non-Goals
 
@@ -143,7 +143,23 @@ With this, a typed definition can send the key only to the host it was entered f
 
 *Alternative:* one form field per step value. Rejected: about twenty fields, nested lists for statuses, and a body template still needs a JSON editor.
 
+### Decision 9: Video quality is capped at 1080p
+
+The owner decided this on 2026-11-06 to keep cost down.
+
+- **Final video.** `output` in `config/settings.ts` accepts exactly `{ width: 1280, height: 720 }` or `{ width: 1920, height: 1080 }`, with `fps` unchanged. Anything else fails at start-up with a problem on `output`. The shipped default stays 1080p. Subtitles keep their 1920×1080 frame (`PlayResX`/`PlayResY` in `subtitles.ts`). libass scales that frame to the video, so position and size relative to the frame stay the same at 720p. A 720p render in the manual tests confirms this. If it does not hold, `SUBTITLE_STYLE` takes its frame from the output setting.
+- **RunningHub.** `PARAMETER_SHAPES["runninghub-video"]` gains `resolution: z.literal("768P").default("768P")`. A profile stored without it, which includes the seeded one, gets the default and requests `768P`. `VIDEO_GENERATION_SETTING` (fixed `2K`, 2560×1440) is removed. The adapter reads the profile's value and puts it in `sentBody`, so the clip request status shows `768P`.
+- **Connector.** `resolution` is a vendor string, because each vendor names its tiers in its own way (`auto_720p`, `720p`, `768P`). It is refused when it matches `/2k|4k|1440|2160|2560|3840/i`. `// ponytail: a name check, not a measurement; a vendor that calls a tier above 1080p something else gets through. If that happens, check the downloaded clip's height (JOS-265 inspects generated clips).`
+- **Upscaling is allowed.** RunningHub's 768P (1344×768) into a 1080p video is scaled by the existing `scale=` filter, so no rule ties the clip size to the final size.
+
+*Alternatives:* 
+- Keep 2K for RunningHub. Rejected by the owner: the assembly downscales it anyway, and it costs about 56% more than 768P.
+- Put the final size on `/admin`. Rejected: operational settings stay in files (PRD §11.2).
+
 ## Risks / Trade-offs
+
+- [Existing RunningHub price is the 2K price] → The cost report keeps using it until the Administrator updates the price on `/admin`. The release note and PRD §11.3 say so, and the change does not edit stored prices.
+- [768P clips look softer in a 1080p video] → The owner accepted this for cost. 2K is not offered.
 
 - [A vendor needs something the definition cannot express] → It is listed as a non-goal. That vendor gets a coded adapter, as RunningHub has today. The table per video type keeps that open.
 - [The Administrator writes a wrong definition and pays for failed clips] → Save-time validation catches structure, placeholders and paths. The connection check catches the host and key. A submit that fails with a 4xx is not retried, and the first failing clip shows the step and the vendor's message in the scene details.

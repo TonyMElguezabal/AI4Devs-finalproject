@@ -6,7 +6,7 @@
 ## 1. Confirm the two vendors live (design Open Questions)
 
 - [ ] 1.1 Get a Runway API key from the owner (with credits); use the existing RunningHub key; keep every key out of files, logs and reports
-- [ ] 1.2 With curl, send one Runway `wan3` and one `kling_4` image-to-video request (4–5 s, `auto_1080p`, a real scene PNG as a data URI); record the task-id field, the poll answers (including `THROTTLED` if seen), an unknown task id, the `output` link and the charge
+- [ ] 1.2 With curl, send one Runway `wan3` and one `kling_4` image-to-video request (4–5 s, `auto_720p` to keep it cheap, a real scene PNG as a data URI); record the task-id field, the poll answers (including `THROTTLED` if seen), an unknown task id, the `output` link and the charge
 - [ ] 1.3 Find a free Runway request that proves the key (for the check step); record its answers for a good and a wrong key
 - [ ] 1.4 Record Runway's answers for a 400 (bad ratio on Kling, an unknown field on Kling) and a 401
 - [ ] 1.5 Write both definitions in `docs/video-connector-definitions.md` from what passed, and the run in `reports/YYYY-MM-DD-step-1-live-vendors.md` (keys removed); update the design's Decision 1 values if they differ
@@ -21,6 +21,7 @@
 - [ ] 2.6 Admin: shortest clip 8 refused for a connector profile; a host change clears the key and says so; `copyKeyFrom` copies for the same host and is refused for another host or type; the key is never in a response
 - [ ] 2.7 Connection check: the definition's check step (connected, 401/403 key rejected, unreachable, unexpected); no check step sends nothing; a charged check needs confirmation
 - [ ] 2.8 Telemetry vendor is the base URL host; scene details show the label and `model`; a restart while a connector clip is pending polls it and does not resubmit
+- [ ] 2.9 Resolution cap (Decision 9): `output` accepts only 1280×720 and 1920×1080 and refuses 2560×1440 at start-up; RunningHub accepts only `768P`, a stored profile without `resolution` submits `768P`, and `sentBody.resolution` is `768P`; a connector resolution of `2K`, `auto_1440p` or `4K` is refused on `resolution`, and `auto_720p` and `768P` are accepted
 
 ## 3. Backend implementation
 
@@ -29,6 +30,7 @@
 - [ ] 3.3 `videoProvider.ts`: the `VIDEO_ADAPTERS` table used by `defaultRegistry()` (Decision 7)
 - [ ] 3.4 `providerAdmin.ts` and the profile routes: the duration rule for every video type, the key cleared on a host change, `copyKeyFrom` (Decisions 5, 6)
 - [ ] 3.5 `providerConnectionCheck.ts`: the definition's check step; `db.ts`: the telemetry vendor; `stageDiagnostics.ts`: the model (Decision 7)
+- [ ] 3.6 `config/settings.ts`: the two output sizes; `providerTypes.ts`: RunningHub's `resolution` with default `768P` and the connector's resolution check; `videoProvider.ts`: read the profile's resolution; remove `VIDEO_GENERATION_SETTING` (Decision 9)
 
 ## 4. Frontend tests first, then implementation
 
@@ -60,10 +62,11 @@
 - [ ] 8.2 With each connector profile active in turn (Wan, Kling, RunningHub), run a short session (two scenes) to its final video; check the clips pass the MP4 checks, the scene details name the profile and model, and the clip request status shows no image data or key
 - [ ] 8.3 Restart the backend while one connector clip is pending; check it is polled by its stored id and not resubmitted
 - [ ] 8.4 Make the coded RunningHub profile active again; record the run, the cost and screenshots in `reports/YYYY-MM-DD-step-8-live-proof-and-e2e.md`
+- [ ] 8.5 With the pinned ffmpeg (`FFMPEG_PATH`), assemble one session at output 1280×720 and one at 1920×1080 from 768P RunningHub clips; check the sizes with ffprobe and that the subtitles sit in the same place and size relative to the frame (screenshots in the step 8 report)
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [ ] 9.1 Update the PRD (new version, previous kept): §11.2 and §11.3 describe the configured video connector, the key bound to its host, duplication, and what the connector does not cover
+- [ ] 9.1 Update the PRD (new version, previous kept): §11.2 and §11.3 describe the configured video connector, the key bound to its host, duplication, and what the connector does not cover; §7.3, §11.3 and D08 state the 720p/1080p output, the 1080p clip cap and RunningHub at 768P, with a note to update RunningHub's price on `/admin`
 - [ ] 9.2 Update `docs/api-spec.yml` (the new type, the `json` field kind, `copyKeyFrom`, the key-cleared answer)
 - [ ] 9.3 Update `docs/backend-standards.md` (provider profiles: a video adapter type needs an entry in `VIDEO_ADAPTERS`; when a coded adapter is still the right choice) and the backend README
 - [ ] 9.4 Update JOS-219 with the new scope and the result, open a follow-up ticket to retire the coded RunningHub adapter, and run `graphify update .`
