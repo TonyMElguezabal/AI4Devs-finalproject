@@ -16,6 +16,7 @@ import { ensureProfiles, insertProfile } from "../src/providerProfiles.ts";
 import { ADAPTER_VENDORS, SEEDED_PROFILES } from "../src/providerTypes.ts";
 import { flushTelemetry, resetTelemetryForTest, setConsent, setTelemetryExportersForTest } from "../src/telemetry/index.ts";
 import { ulid } from "../src/util/ulid.ts";
+import { runwayParameters } from "./videoConnectorFixtures.ts";
 
 // report-stable-provider-name (JOS-213) — the `provider` label of every metric and error record is a fixed vendor
 // name, never the identifier the attempt or the scene stored.
@@ -79,6 +80,7 @@ describe("ADAPTER_VENDORS", () => {
       "elevenlabs-alignment": "ElevenLabs",
       "fal-image": "Fal.ai",
       "runninghub-video": "RunningHub",
+      "configured-video": "Configured connector",
     });
   });
 });
@@ -164,6 +166,17 @@ describe("the provider label of an image or clip request", () => {
     const exported = await everyExportedAttribute();
     expect(exported).not.toContain("flux");
     expect(exported).not.toContain("/openapi");
+  });
+
+  // configurable-video-connector (JOS-219), Decision 7 — a connector's vendor is the host of its base URL.
+  it("is the base URL host, not the id or the typed label, for a configured connector", async () => {
+    const id = ulid();
+    insertProfile({ id, stage: "video", adapterType: "configured-video", label: "Runway Kling", parameters: runwayParameters({ model: "kling_4" }) }, SENT);
+    insertProviderRequest(randomUUID(), scene(SEEDED_PROFILES.image.id, id), 100, "success", 1, "video");
+    expect(await callAttributes()).toContainEqual({ stage: "video", provider: "api.dev.runwayml.com", outcome: "success" });
+    const exported = await everyExportedAttribute();
+    expect(exported).not.toContain(id);
+    expect(exported).not.toContain("Runway Kling");
   });
 
   it("is the vendor, not the id or the typed label, for an image provider added on /admin", async () => {

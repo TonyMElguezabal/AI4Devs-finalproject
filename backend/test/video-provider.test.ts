@@ -351,3 +351,33 @@ describe("downloadGeneratedClip", () => {
     expect(result).toEqual({ ok: false, reason: "the generated clip could not be downloaded" });
   });
 });
+
+// configurable-video-connector (JOS-219), Decision 9 — RunningHub requests 768P, from the profile, not a fixed 2K.
+describe("RunningHub clip resolution", () => {
+  async function submittedResolution(parameters?: { endpoint: string; resolution?: "768P" }) {
+    const bodies: Array<Record<string, unknown>> = [];
+    const fetchFn = (async (url: string | URL | Request, init: RequestInit = {}) => {
+      if (String(url).includes("/media/upload")) return new Response(JSON.stringify({ code: 0, data: { download_url: "https://cdn.runninghub.io/a.png" } }), { status: 200 });
+      bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+      return new Response(JSON.stringify({ taskId: "T1", status: "QUEUED", errorCode: "" }), { status: 200 });
+    }) as typeof fetch;
+    const result = await createRunningHubVideoProvider({ fetchFn, loadKey: () => "test-api-key", ...(parameters ? { parameters } : {}) }).submit({
+      imageBytes: VALID_IMAGE,
+      instruction: "animate",
+      durationSeconds: 8,
+    });
+    return { sent: bodies[0]?.resolution, recorded: result.kind === "submitted" ? result.sentBody?.resolution : undefined };
+  }
+
+  it("sends and records the profile's 768P", async () => {
+    expect(await submittedResolution({ endpoint: VIDEO_PROVIDER.endpoint, resolution: "768P" })).toEqual({ sent: "768P", recorded: "768P" });
+  });
+
+  it("sends 768P for a profile saved before this change, which names no resolution", async () => {
+    expect(await submittedResolution({ endpoint: VIDEO_PROVIDER.endpoint })).toEqual({ sent: "768P", recorded: "768P" });
+  });
+
+  it("sends 768P without a profile (the settings' video provider)", async () => {
+    expect(await submittedResolution()).toEqual({ sent: "768P", recorded: "768P" });
+  });
+});
