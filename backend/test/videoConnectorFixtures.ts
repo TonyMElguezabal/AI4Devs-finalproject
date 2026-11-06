@@ -7,7 +7,7 @@ import { join } from "node:path";
 const DOC = readFileSync(join(import.meta.dirname, "../../docs/video-connector-definitions.md"), "utf8");
 
 /** The `requests` JSON that follows `<!-- fixture: name -->` in the docs page. */
-export function definitionRequests(name: "runway" | "runninghub"): Record<string, unknown> {
+export function definitionRequests(name: "runway" | "runninghub" | "minimax"): Record<string, unknown> {
   const match = new RegExp(`<!-- fixture: ${name} -->\\s*\`\`\`json\\n([\\s\\S]*?)\`\`\``).exec(DOC);
   if (!match) throw new Error(`no fixture "${name}" in docs/video-connector-definitions.md`);
   return JSON.parse(match[1]!) as Record<string, unknown>;
@@ -32,6 +32,17 @@ export function runningHubParameters(overrides: Record<string, unknown> = {}): R
     resolution: "768P",
     admittedDurationSeconds: { min: 5, max: 15 },
     requests: definitionRequests("runninghub"),
+    ...overrides,
+  };
+}
+
+export function miniMaxParameters(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    baseUrl: "https://api.minimax.io",
+    model: "MiniMax-H3",
+    resolution: "768P",
+    admittedDurationSeconds: { min: 5, max: 15 },
+    requests: definitionRequests("minimax"),
     ...overrides,
   };
 }

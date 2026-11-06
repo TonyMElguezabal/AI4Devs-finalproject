@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { validateProviderParameters } from "../src/providerTypes.ts";
 import { createConfiguredVideoProvider } from "../src/videoConnector.ts";
-import { definitionRequests, json, recordingFetch, runningHubParameters, runwayParameters, withStep } from "./videoConnectorFixtures.ts";
+import { definitionRequests, json, miniMaxParameters, recordingFetch, runningHubParameters, runwayParameters, withStep } from "./videoConnectorFixtures.ts";
 
 // configurable-video-connector (JOS-219), tasks 2.1-2.3 and 2.9 — a video provider described by a definition on /admin:
 // what a definition may say, how its templates are filled, and how the connector runs the submit-and-poll port.
@@ -25,9 +25,10 @@ const sentJson = (init: RequestInit): Record<string, unknown> => JSON.parse(Stri
 const headersOf = (init: RequestInit): Record<string, string> => init.headers as Record<string, string>;
 
 describe("a connector definition (task 2.1)", () => {
-  it("accepts both definitions of the docs page", () => {
+  it("accepts the three definitions of the docs page", () => {
     expect(problemFields(runwayParameters())).toEqual([]);
     expect(problemFields(runningHubParameters())).toEqual([]);
+    expect(problemFields(miniMaxParameters())).toEqual([]);
   });
 
   it.each([
@@ -299,5 +300,51 @@ describe("the connector (task 2.3)", () => {
       expect(await connector.poll("63ef7987-6a42-4170-9e76-34172d13207f")).toEqual({ kind: "pending" });
       expect(requests.map((request) => `${request.init.method} ${request.url}`)).toEqual(["GET https://api.dev.runwayml.com/v1/tasks/63ef7987-6a42-4170-9e76-34172d13207f"]);
     });
+  });
+});
+
+// Proven live on 2026-11-06 (a five-scene session, 57 clip seconds, USD 4.56 at 0.08 per second): MiniMax H3 called directly.
+describe("the MiniMax H3 definition", () => {
+  const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2]);
+
+  it("submits the scene text and its image as the first frame, then returns the task id", async () => {
+    const { connector, requests } = provider(miniMaxParameters(), () => json({ task_id: "424010985738629" }));
+
+    const result = await connector.submit({ ...SUBMIT, imageBytes: JPEG });
+
+    expect(result).toMatchObject({ kind: "submitted", requestId: "424010985738629" });
+    expect(requests[0]!.url).toBe("https://api.minimax.io/v2/video_generation");
+    expect(headersOf(requests[0]!.init)).toMatchObject({ Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" });
+    expect(sentJson(requests[0]!.init)).toEqual({
+      model: "MiniMax-H3",
+      content: [
+        { type: "text", text: "animate the harbor" },
+        { type: "image_url", image_url: { url: `data:image/jpeg;base64,${JPEG.toString("base64")}` }, role: "first_frame" },
+      ],
+      resolution: "768P",
+      duration: 6,
+    });
+  });
+
+  it("polls the task by id in the path and reads the clip URL from task.content.url", async () => {
+    const { connector, requests } = provider(miniMaxParameters(), () => json({ task: { status: "succeeded", content: { url: "https://video-product.cdn.minimax.io/a/output.mp4" } } }));
+
+    expect(await connector.poll("424010985738629")).toEqual({ kind: "success", clip: { source: "temporary-url", url: "https://video-product.cdn.minimax.io/a/output.mp4" } });
+    expect(requests[0]!.url).toBe("https://api.minimax.io/v2/query/video_generation/424010985738629");
+    expect(requests[0]!.init.method).toBe("GET");
+  });
+
+  it.each([
+    ["queued", { kind: "pending" }],
+    ["running", { kind: "pending" }],
+    ["failed", { kind: "failed_transient", reason: "the video task ended in failed" }],
+    ["cancelled", { kind: "failed_transient", reason: "the video task ended in cancelled" }],
+  ])("reads the status %s", async (status, expected) => {
+    const { connector } = provider(miniMaxParameters(), () => json({ task: { status } }));
+    expect(await connector.poll("1")).toEqual(expected);
+  });
+
+  it("refuses MiniMax's 2K, naming the 1080p limit", () => {
+    expect(problemFields(miniMaxParameters({ resolution: "2K" }))).toEqual(["resolution"]);
   });
 });

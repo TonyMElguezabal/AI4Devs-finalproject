@@ -111,6 +111,56 @@ The same calls the coded `runninghub-video` adapter makes (verified in JOS-196 a
 
 RunningHub's free key check sends the key in the request body (`/uc/openapi/accountStatus`). The connector puts the key only in headers, so this definition has no check step, and its connection test says so.
 
+## MiniMax: H3, called directly
+
+Verified on 2026-11-06 with a five-scene session: 57 clip seconds, one attempt each, a 1080p final video, USD 4.56 on the MiniMax balance (USD 0.08 per second). Source: MiniMax's [create](https://platform.minimax.io/docs/api-reference/video-generation-v2-create) and query pages. The same model through RunningHub at 2K was USD 0.12 per second.
+
+| Field | Value |
+|---|---|
+| Base URL | `https://api.minimax.io` |
+| Model | `MiniMax-H3` |
+| Resolution | `768P` (the only H3 value within the 1080p limit; MiniMax also offers `2K`, which is refused) |
+| Admitted durations | 5 to 15 (MiniMax allows 4 to 15) |
+| Price | USD 0.08 per clip second at 768P |
+
+<!-- fixture: minimax -->
+```json
+{
+  "headers": { "Authorization": "Bearer {key}" },
+  "submit": {
+    "method": "POST",
+    "path": "/v2/video_generation",
+    "body": {
+      "model": "{model}",
+      "content": [
+        { "type": "text", "text": "{instruction}" },
+        { "type": "image_url", "image_url": { "url": "{image_data_uri}" }, "role": "first_frame" }
+      ],
+      "resolution": "{resolution}",
+      "duration": "{duration}"
+    },
+    "taskIdAt": "task_id"
+  },
+  "poll": {
+    "method": "GET",
+    "path": "/v2/query/video_generation/{task_id}",
+    "statusAt": "task.status",
+    "doneWhen": ["succeeded"],
+    "failedWhen": ["failed", "cancelled"],
+    "videoUrlAt": "task.content.url"
+  }
+}
+```
+
+Notes:
+- The image goes inline as a base64 data URI (JPEG, PNG and others up to 30 MB). MiniMax prefers URLs for large files; a scene image is far below the limit.
+- `queued` and `running` are still running. Errors arrive as the HTTP status (402 is an empty balance, 401 a wrong key), so no `errorAt` is needed.
+- There is no `check` step: MiniMax documents no free call to check a key, so the connection test says nothing was sent. The first clip is the first proof.
+- `ratio` is left out: a first-frame request is always `adaptive`.
+- Output links are time-limited. The application downloads each clip as soon as it is ready.
+- Clips came back slightly longer than requested (13 s asked, 13.7 s received), and billing followed the requested seconds. The final video cuts each clip to its scene.
+- **MiniMax-H3-Highspeed, -Lite and -Max:** use "Duplicate" and change the model and price. They accept only `480P` or `768P`, and `-Max` starts at 5 s. `-Lite` does not support `adaptive`, so it likely needs a `ratio` such as `16:9` in the body (not tried). Reference video and audio (`reference_video`, `reference_audio`) are a different mode that cannot be mixed with a first frame, and the connector has nothing to send for them.
+
 ## What does not fit
 
 These need a coded adapter:
