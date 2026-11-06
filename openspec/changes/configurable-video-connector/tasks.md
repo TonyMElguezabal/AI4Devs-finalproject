@@ -43,12 +43,12 @@
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 6.1 Capture the pre-test database baseline (scratch `DB_PATH` and `PROJECTS_ROOT`, never `backend/data`)
-- [ ] 6.2 Run the targeted tests for the connector, registry, admin, connection check, telemetry and form
-- [ ] 6.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend` and `frontend`
-- [ ] 6.4 Verify post-test database state and restore if needed
-- [ ] 6.5 Create report `reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
-- [ ] 6.6 Mark the step complete only after tests pass and the report exists
+- [x] 6.1 Capture the pre-test database baseline (scratch `DB_PATH` and `PROJECTS_ROOT`, never `backend/data`)
+- [x] 6.2 Run the targeted tests for the connector, registry, admin, connection check, telemetry and form
+- [x] 6.3 Run `npm run typecheck`, `npm run lint` and `npm test` in `backend` and `frontend`
+- [x] 6.4 Verify post-test database state and restore if needed
+- [x] 6.5 Create report `reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md`
+- [x] 6.6 Mark the step complete only after tests pass and the report exists
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
