@@ -88,8 +88,8 @@ export function SessionsReport({ password, period, onDenied }: Props) {
       <caption>Sessions</caption>
       <thead>
         <tr>
-          {HEADERS.map((header) => (
-            <th key={header} scope="col">
+          {HEADERS.map((header, index) => (
+            <th key={header} scope="col" className={index >= 4 && index <= 9 ? "num" : undefined}>
               {header}
             </th>
           ))}

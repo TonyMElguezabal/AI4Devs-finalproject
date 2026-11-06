@@ -23,8 +23,8 @@ export function PipelineTimeTables({ report }: { report: PipelineTimeReport }) {
         <caption>Pipeline time</caption>
         <thead>
           <tr>
-            {["Phase", "Sessions", "Median time", "95th-percentile time", "Timed out", "Finished late", "Superseded"].map((header) => (
-              <th key={header} scope="col">
+            {["Phase", "Sessions", "Median time", "95th-percentile time", "Timed out", "Finished late", "Superseded"].map((header, index) => (
+              <th key={header} scope="col" className={index >= 1 ? "num" : undefined}>
                 {header}
               </th>
             ))}
@@ -51,7 +51,7 @@ export function PipelineTimeTables({ report }: { report: PipelineTimeReport }) {
             <tr>
               <th scope="col">Session</th>
               {PHASES.map((phase) => (
-                <th key={phase} scope="col">
+                <th key={phase} scope="col" className="num">
                   {PHASE_LABELS[phase]}
                 </th>
               ))}

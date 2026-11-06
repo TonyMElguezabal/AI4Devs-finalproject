@@ -207,7 +207,7 @@ export function ProviderProfilesSection({ password, onDenied, onChanged, refresh
                         </ActionMenu>
                       )}
                     </div>
-                    {!profile.usable && profile.problems.map((problem) => <div className="provider-extra" key={problem.field + problem.message}>{problem.message}</div>)}
+                    {!profile.usable && profile.problems.map((problem) => <div className="provider-extra field-hint" key={problem.field + problem.message}>{problem.message}</div>)}
                     {chargeFor === profile.id && (
                       <div role="status" className="provider-extra">
                         <p>{`This check is charged by ${vendorOf(profile)}. ${coversOf(profile)}`}</p>

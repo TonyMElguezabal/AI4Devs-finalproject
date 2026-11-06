@@ -23,8 +23,8 @@ export function FailuresTables({ report }: { report: FailuresReport }) {
           <caption>Failures and retries</caption>
           <thead>
             <tr>
-              {FAILURE_HEADERS.map((header) => (
-                <th key={header} scope="col">
+              {FAILURE_HEADERS.map((header, index) => (
+                <th key={header} scope="col" className={index >= 1 ? "num" : undefined}>
                   {header}
                 </th>
               ))}
@@ -49,8 +49,8 @@ export function FailuresTables({ report }: { report: FailuresReport }) {
           <caption>Most frequent failure wordings</caption>
           <thead>
             <tr>
-              {["Stage", "Wording", "Attempts"].map((header) => (
-                <th key={header} scope="col">
+              {["Stage", "Wording", "Attempts"].map((header, index) => (
+                <th key={header} scope="col" className={index === 2 ? "num" : undefined}>
                   {header}
                 </th>
               ))}
@@ -72,7 +72,7 @@ export function FailuresTables({ report }: { report: FailuresReport }) {
         <thead>
           <tr>
             <th scope="col">Failed at</th>
-            <th scope="col">Scenes</th>
+            <th scope="col" className="num">Scenes</th>
           </tr>
         </thead>
         <tbody>

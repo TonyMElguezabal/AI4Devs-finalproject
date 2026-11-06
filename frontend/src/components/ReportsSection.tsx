@@ -155,8 +155,8 @@ export function ReportsSection({ password, onDenied }: Props) {
               <caption>Provider usage</caption>
               <thead>
                 <tr>
-                  {HEADERS.map((header) => (
-                    <th key={header} scope="col">
+                  {HEADERS.map((header, index) => (
+                    <th key={header} scope="col" className={index >= 2 ? "num" : undefined}>
                       {header}
                     </th>
                   ))}

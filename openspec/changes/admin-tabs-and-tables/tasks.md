@@ -36,33 +36,33 @@
 
 ## 6. Run Unit Tests and Verify Database State (MANDATORY)
 
-- [ ] 6.1 Capture the pre-test database baseline (counts of `sessions`, `provider_profiles` and the settings rows) using a scratch `DB_PATH` and `PROJECTS_ROOT`
-- [ ] 6.2 Run the targeted `/admin` frontend tests
-- [ ] 6.3 Run the full frontend suite and the backend suite with the scratch `DB_PATH` and `PROJECTS_ROOT`
-- [ ] 6.4 Verify the post-test database state and restore it if needed
-- [ ] 6.5 Create `reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md` in this change folder
-- [ ] 6.6 Mark this step complete only after the tests pass and the report exists
+- [x] 6.1 Capture the pre-test database baseline (counts of `sessions`, `provider_profiles` and the settings rows) using a scratch `DB_PATH` and `PROJECTS_ROOT`
+- [x] 6.2 Run the targeted `/admin` frontend tests
+- [x] 6.3 Run the full frontend suite and the backend suite with the scratch `DB_PATH` and `PROJECTS_ROOT`
+- [x] 6.4 Verify the post-test database state and restore it if needed
+- [x] 6.5 Create `reports/YYYY-MM-DD-step-6-unit-test-and-db-verification.md` in this change folder
+- [x] 6.6 Mark this step complete only after the tests pass and the report exists
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
 This change adds and changes no endpoint; the check is that the Administrator endpoints the tabs call still answer as before.
 
-- [ ] 7.1 Start the backend with a scratch `DB_PATH` and `PROJECTS_ROOT` and an `ADMIN_PASSWORD`
-- [ ] 7.2 `curl` `GET /admin/access` (no password: 401 `password-required`; right password: 200) and `GET /admin/reports/provider-usage` (401 without, 200 with)
-- [ ] 7.3 Record the commands and answers in `reports/YYYY-MM-DD-step-7-curl-verification.md`; confirm no data changed
+- [x] 7.1 Start the backend with a scratch `DB_PATH` and `PROJECTS_ROOT` and an `ADMIN_PASSWORD`
+- [x] 7.2 `curl` `GET /admin/access` (no password: 401 `password-required`; right password: 200) and `GET /admin/reports/provider-usage` (401 without, 200 with)
+- [x] 7.3 Record the commands and answers in `reports/YYYY-MM-DD-step-7-curl-verification.md`; confirm no data changed
 
 ## 8. E2E Testing with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 Start the frontend and the backend with scratch directories and some sessions and attempts
-- [ ] 8.2 Open `/admin`, unlock, and walk the four tabs; check the hash after each and after a reload
-- [ ] 8.3 Reports: change the period (including a custom range), check the tiles, open and close panels, scroll the wide table inside its wrapper
-- [ ] 8.4 Providers: open the overflow menu, run a connection test against the stub, confirm and cancel a delete
-- [ ] 8.5 Take screenshots at 1280 px and 375 px and check that nothing extends past a card (acceptance criterion of JOS-270)
-- [ ] 8.6 Check keyboard use of the tabs, the segmented control, the panels and the menu
-- [ ] 8.7 Restore the environment; write `reports/YYYY-MM-DD-step-8-e2e-verification.md`
+- [x] 8.1 Start the frontend and the backend with scratch directories and some sessions and attempts
+- [x] 8.2 Open `/admin`, unlock, and walk the four tabs; check the hash after each and after a reload
+- [x] 8.3 Reports: change the period (including a custom range), check the tiles, open and close panels, scroll the wide table inside its wrapper
+- [x] 8.4 Providers: open the overflow menu, run a connection test against the stub, confirm and cancel a delete
+- [x] 8.5 Take screenshots at 1280 px and 375 px and check that nothing extends past a card (acceptance criterion of JOS-270)
+- [x] 8.6 Check keyboard use of the tabs, the segmented control, the panels and the menu
+- [x] 8.7 Restore the environment; write `reports/YYYY-MM-DD-step-8-e2e-verification.md`
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [ ] 9.1 Update `docs/frontend-standards.md`: the Administrator page rows (tabs and hash), the section/accessible-name table, the overflow menu and the table style classes
-- [ ] 9.2 Run `graphify update .`
+- [x] 9.1 Update `docs/frontend-standards.md`: the Administrator page rows (tabs and hash), the section/accessible-name table, the overflow menu and the table style classes
+- [x] 9.2 Run `graphify update .`
 - [ ] 9.3 Post the result on JOS-270

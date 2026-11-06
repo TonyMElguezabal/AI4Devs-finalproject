@@ -28,8 +28,8 @@ export function EstimatedCostTable({ report }: { report: EstimatedCostReport }) 
         <caption>Estimated cost (estimates, in each provider's currency)</caption>
         <thead>
           <tr>
-            {HEADERS.map((header) => (
-              <th key={header} scope="col">
+            {HEADERS.map((header, index) => (
+              <th key={header} scope="col" className={index >= 2 ? "num" : undefined}>
                 {header}
               </th>
             ))}
