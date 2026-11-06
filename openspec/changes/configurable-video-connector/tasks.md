@@ -58,11 +58,11 @@
 
 ## 8. Live proof and E2E with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 8.1 On `/admin`, add the Runway `wan3` profile from the docs definition through the form, test it, duplicate it for `kling_4`, and add the RunningHub connector profile
-- [ ] 8.2 With each connector profile active in turn (Wan, Kling, RunningHub), run a short session (two scenes) to its final video; check the clips pass the MP4 checks, the scene details name the profile and model, and the clip request status shows no image data or key
-- [ ] 8.3 Restart the backend while one connector clip is pending; check it is polled by its stored id and not resubmitted
-- [ ] 8.4 Make the coded RunningHub profile active again; record the run, the cost and screenshots in `reports/YYYY-MM-DD-step-8-live-proof-and-e2e.md`
-- [ ] 8.5 With the pinned ffmpeg (`FFMPEG_PATH`), assemble one session at output 1280×720 and one at 1920×1080 from 768P RunningHub clips; check the sizes with ffprobe and that the subtitles sit in the same place and size relative to the frame (screenshots in the step 8 report)
+- [x] 8.1 On `/admin`, add the Runway `wan3` profile from the docs definition through the form, test it, duplicate it for `kling_4`, and add the RunningHub connector profile
+- [x] 8.2 With each connector profile active in turn (Wan, Kling, RunningHub), run a short session (two scenes) to its final video; check the clips pass the MP4 checks, the scene details name the profile and model, and the clip request status shows no image data or key
+- [x] 8.3 Restart the backend while one connector clip is pending; check it is polled by its stored id and not resubmitted
+- [x] 8.4 Make the coded RunningHub profile active again; record the run, the cost and screenshots in `reports/YYYY-MM-DD-step-8-live-proof-and-e2e.md`
+- [x] 8.5 With the pinned ffmpeg (`FFMPEG_PATH`), assemble one session at output 1280×720 and one at 1920×1080 from 768P RunningHub clips; check the sizes with ffprobe and that the subtitles sit in the same place and size relative to the frame (screenshots in the step 8 report)
 
 ## 9. Update Technical Documentation (MANDATORY)
 
