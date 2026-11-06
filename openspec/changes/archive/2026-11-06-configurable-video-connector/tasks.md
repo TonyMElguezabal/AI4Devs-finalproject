@@ -70,4 +70,4 @@
 - [x] 9.2 Update `docs/api-spec.yml` (the new type, the `json` field kind, `copyKeyFrom`, the key-cleared answer)
 - [x] 9.3 Update `docs/backend-standards.md` (provider profiles: a video adapter type needs an entry in `VIDEO_ADAPTERS`; when a coded adapter is still the right choice) and the backend README
 - [x] 9.4 Update JOS-219 with the new scope and the result, open a follow-up ticket to retire the coded RunningHub adapter, and run `graphify update .`
-- [ ] 9.5 Open the pull request into `feature/entrega-3-JAME` linking JOS-219; archive the change after merge
+- [x] 9.5 Open the pull request into `feature/entrega-3-JAME` linking JOS-219; archive the change after merge (PR #171, merged 2026-11-06)
