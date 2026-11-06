@@ -66,8 +66,8 @@
 
 ## 9. Update Technical Documentation (MANDATORY)
 
-- [ ] 9.1 Update the PRD (new version, previous kept): §11.2 and §11.3 describe the configured video connector, the key bound to its host, duplication, and what the connector does not cover; §7.3, §11.3 and D08 state the 720p/1080p output, the 1080p clip cap and RunningHub at 768P, with a note to update RunningHub's price on `/admin`
-- [ ] 9.2 Update `docs/api-spec.yml` (the new type, the `json` field kind, `copyKeyFrom`, the key-cleared answer)
-- [ ] 9.3 Update `docs/backend-standards.md` (provider profiles: a video adapter type needs an entry in `VIDEO_ADAPTERS`; when a coded adapter is still the right choice) and the backend README
+- [x] 9.1 Update the PRD (new version, previous kept): §11.2 and §11.3 describe the configured video connector, the key bound to its host, duplication, and what the connector does not cover; §7.3, §11.3 and D08 state the 720p/1080p output, the 1080p clip cap and RunningHub at 768P, with a note to update RunningHub's price on `/admin`
+- [x] 9.2 Update `docs/api-spec.yml` (the new type, the `json` field kind, `copyKeyFrom`, the key-cleared answer)
+- [x] 9.3 Update `docs/backend-standards.md` (provider profiles: a video adapter type needs an entry in `VIDEO_ADAPTERS`; when a coded adapter is still the right choice) and the backend README
 - [ ] 9.4 Update JOS-219 with the new scope and the result, open a follow-up ticket to retire the coded RunningHub adapter, and run `graphify update .`
 - [ ] 9.5 Open the pull request into `feature/entrega-3-JAME` linking JOS-219; archive the change after merge
