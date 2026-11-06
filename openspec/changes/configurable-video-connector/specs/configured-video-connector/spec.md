@@ -31,6 +31,13 @@ The connector SHALL fill the definition's paths, headers and JSON bodies with th
 - **WHEN** a clip is submitted
 - **THEN** `promptImage` is `data:image/png;base64,` followed by the scene image
 
+#### Scenario: The data URI and the upload name the image's real type
+
+- **GIVEN** a scene image that is a JPEG (the image provider's usual output)
+- **WHEN** a clip is submitted
+- **THEN** `{image_data_uri}` starts with `data:image/jpeg;base64,` and an upload step sends the file as `image/jpeg` named `frame.jpg`
+- **AND** the type is read from the image's first bytes with the sniffer the image stage already uses (PNG or JPEG); any other image is sent as PNG, as before
+
 ### Requirement: The connector follows the submit and poll pattern
 
 The connector SHALL run the upload step (when defined) and the submit step as one attempt, and SHALL take the request id from the submit answer at `taskIdAt`. When polling, a status in `doneWhen` with a URL at `videoUrlAt` SHALL be a success with that URL as a temporary link. A status in `doneWhen` without a URL, or a status in `failedWhen`, SHALL be a transient failure. The poll step's not-found status SHALL be not found. Any other status SHALL be pending. A clip in progress at a restart SHALL be followed by its stored request id and not requested again.

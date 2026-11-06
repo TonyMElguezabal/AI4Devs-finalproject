@@ -14,7 +14,7 @@
 ## 2. Backend tests first (TDD)
 
 - [x] 2.1 Definition validation: base URL rules (https, host only), steps with paths not URLs, required paths, unknown placeholders, `{image_url}` without upload, `{task_id}` outside poll, `{key}` outside headers; every problem listed with its path
-- [x] 2.2 Template filling: a whole-string placeholder is typed (`duration` as a number); embedded placeholders are text and URL-encoded in paths; no field is added; `{image_data_uri}` and `{image_base64}` are the scene image
+- [x] 2.2 Template filling: a whole-string placeholder is typed (`duration` as a number); embedded placeholders are text and URL-encoded in paths; no field is added; `{image_data_uri}` and `{image_base64}` are the scene image; the data URI and the upload name the image's real type (PNG or JPEG)
 - [x] 2.3 Connector against a stubbed `fetch`, with both doc definitions as fixtures: upload then submit; task id at `taskIdAt`; `sentBody` holds only prompt, duration, resolution; poll maps `doneWhen` with and without URL, `failedWhen`, other statuses, not-found status; `errorAt` against `okErrorValues`
 - [x] 2.4 Add `configured-video` fixtures (Runway and RunningHub definitions) to `adapter-contract.test.ts`; one request per failure case
 - [x] 2.5 Registry: a coded RunningHub profile and a Runway connector profile each resolve to their own adapter, host and key; a bound retry stays on its host

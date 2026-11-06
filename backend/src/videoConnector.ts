@@ -1,3 +1,4 @@
+import { sniffImageExtension } from "./imageOutputCheck.ts";
 import type { VideoGenerationResult, VideoProvider, VideoSubmitResult } from "./videoProvider.ts";
 
 // configurable-video-connector (JOS-219), design Decisions 1-5 — one video adapter whose requests come from a definition the
@@ -120,11 +121,13 @@ export function createConfiguredVideoProvider(options: { fetchFn?: typeof fetch;
       const loaded = loadKeyOrFail();
       if ("failure" in loaded) return loaded.failure;
       const imageBase64 = imageBytes.toString("base64");
-      const values: Values = { instruction, duration: durationSeconds, model, resolution, image_base64: imageBase64, image_data_uri: `data:image/png;base64,${imageBase64}` };
+      // The image's real type: Runway refuses a JPEG labelled PNG ("Failed to fetch image metadata").
+      const [imageType, extension] = sniffImageExtension(imageBytes) === "jpg" ? ["image/jpeg", "jpg"] : ["image/png", "png"];
+      const values: Values = { instruction, duration: durationSeconds, model, resolution, image_base64: imageBase64, image_data_uri: `data:${imageType};base64,${imageBase64}` };
 
       if (requests.upload) {
         const form = new FormData();
-        form.append(requests.upload.multipartField, new Blob([new Uint8Array(imageBytes)], { type: "image/png" }), "frame.png");
+        form.append(requests.upload.multipartField, new Blob([new Uint8Array(imageBytes)], { type: imageType }), `frame.${extension}`);
         const uploaded = await send("upload", requests.upload, values, loaded.key, form);
         if (!uploaded.ok) return uploaded.failure;
         const url = textOf(readPath(uploaded.body, requests.upload.urlAt));

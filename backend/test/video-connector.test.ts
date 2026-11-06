@@ -124,6 +124,24 @@ describe("the templates (task 2.2)", () => {
     expect(sentJson(sent[0]!.init)).toEqual({ text: "Scene: animate the harbor (6 s)", image: IMAGE.toString("base64") });
   });
 
+  // Found in step 8: Runway refuses a JPEG labelled PNG ("Failed to fetch image metadata"), and the image provider sends JPEGs.
+  it.each([
+    ["a JPEG", Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2]), "image/jpeg", "frame.jpg"],
+    ["a PNG", Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), "image/png", "frame.png"],
+    ["anything else", IMAGE, "image/png", "frame.png"],
+  ])("names the real type of %s in the data URI and the upload", async (_name, imageBytes, type, fileName) => {
+    const runway = provider(runwayParameters(), () => json({ id: "task-1" }));
+    await runway.connector.submit({ ...SUBMIT, imageBytes });
+    expect(sentJson(runway.requests[0]!.init).promptImage).toBe(`data:${type};base64,${imageBytes.toString("base64")}`);
+
+    const runningHub = provider(runningHubParameters(), (url) =>
+      url.endsWith("/media/upload/binary") ? json({ data: { download_url: "https://cdn.runninghub.io/a" } }) : json({ taskId: "T1", errorCode: "" }),
+    );
+    await runningHub.connector.submit({ ...SUBMIT, imageBytes });
+    const file = (runningHub.requests[0]!.init.body as FormData).get("file") as File;
+    expect([file.type, file.name]).toEqual([type, fileName]);
+  });
+
   it("URL-encodes a placeholder in a path", async () => {
     const { connector, requests } = provider(runwayParameters(), () => runwayTask({ status: "RUNNING" }));
 
