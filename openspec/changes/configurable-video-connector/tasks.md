@@ -52,9 +52,9 @@
 
 ## 7. Manual Endpoint Testing with curl (MANDATORY - AGENT MUST EXECUTE)
 
-- [ ] 7.1 Start the backend with a scratch data folder and the Administrator password; `GET /admin/provider-types` lists `configured-video` with its fields
-- [ ] 7.2 `POST /admin/provider-profiles` the Runway definition (valid; with `{key}` in the body; with shortest clip 8; with an `http://` base URL); test its connection with the real key and a wrong one; duplicate it for `kling_4` with `copyKeyFrom`; change its host and confirm the key is cleared
-- [ ] 7.3 Restore the scratch database (delete the profiles, RunningHub active) and document commands and responses (keys redacted) in `reports/YYYY-MM-DD-step-7-curl-endpoint-testing.md`
+- [x] 7.1 Start the backend with a scratch data folder and the Administrator password; `GET /admin/provider-types` lists `configured-video` with its fields
+- [x] 7.2 `POST /admin/provider-profiles` the Runway definition (valid; with `{key}` in the body; with shortest clip 8; with an `http://` base URL); test its connection with the real key and a wrong one; duplicate it for `kling_4` with `copyKeyFrom`; change its host and confirm the key is cleared
+- [x] 7.3 Restore the scratch database (delete the profiles, RunningHub active) and document commands and responses (keys redacted) in `reports/YYYY-MM-DD-step-7-curl-endpoint-testing.md`
 
 ## 8. Live proof and E2E with Playwright MCP (MANDATORY - AGENT MUST EXECUTE)
 
