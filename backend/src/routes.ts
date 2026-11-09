@@ -6,6 +6,7 @@ import { z } from "zod";
 import { jsonSchemaTransform, type ZodTypeProvider } from "fastify-type-provider-zod";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { extname } from "node:path";
+import { getMediaToolsCheck } from "./mediaToolsCheck.ts";
 import { getScriptModerator } from "./scriptModeration.ts";
 import { launchVoiceOverFor } from "./voiceOverPhase.ts";
 import { retryDecomposition } from "./decompositionRetry.ts";
@@ -440,6 +441,13 @@ export const routes: FastifyPluginAsync = async (app) => {
       },
     },
     async (request, reply) => {
+      // detect-blocked-media-tools (JOS-271) Decision 1 — a session whose tools cannot finish it is refused before the
+      // content check (a paid request) and before anything is created.
+      const tools = await getMediaToolsCheck()();
+      if (!tools.ok) {
+        reply.code(503);
+        return { ok: false, reason: tools.message };
+      }
       const verdict = await getScriptModerator().moderate(request.body.script);
       if (verdict.kind === "flagged") {
         reply.code(422);

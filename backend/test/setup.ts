@@ -1,6 +1,7 @@
 import { beforeEach } from "vitest";
 import { resetRetryDelayConfig } from "../src/retry/stageAttemptRecorder.ts";
 import { resetScheduler } from "../src/retry/retryScheduler.ts";
+import { setMediaToolsCheck } from "../src/mediaToolsCheck.ts";
 import { setScriptModerator } from "../src/scriptModeration.ts";
 import { createStubVoiceProvider, setVoiceProviderRegistry } from "../src/voiceProvider.ts";
 
@@ -19,6 +20,9 @@ beforeEach(async () => {
   const { setImagePollIntervalMs } = await import("../src/orchestrator.ts");
   setImagePollIntervalMs(1);
   setScriptModerator({ moderate: async () => ({ kind: "clean" }) });
+  // detect-blocked-media-tools (JOS-271): the readiness check would start the machine's real ffmpeg and ffprobe, so each
+  // test starts with tools that are ready; a test of the check itself installs its own.
+  setMediaToolsCheck(async () => ({ ok: true }));
   resetScheduler();
   resetRetryDelayConfig();
   setVoiceProviderRegistry({
