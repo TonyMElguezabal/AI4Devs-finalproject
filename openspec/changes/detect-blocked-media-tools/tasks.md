@@ -34,19 +34,19 @@
 
 ## 5. Manual Endpoint Testing with curl (MANDATORY - agent executes)
 
-- [ ] 5.1 Start the backend with isolated `DB_PATH` and `PROJECTS_ROOT`, written as literal environment values
-- [ ] 5.2 With a working `ffmpeg`/`ffprobe`: `POST /sessions` answers `201`
-- [ ] 5.3 With `FFPROBE_PATH` pointing at a copy that has the quarantine flag (or a killed stand-in): `POST /sessions` answers `503`, names `ffprobe`, creates no session and sends no provider request
-- [ ] 5.4 Remove the block and repeat without restarting the backend: `POST /sessions` answers `201` (AC3)
-- [ ] 5.5 Save the commands and outputs in `reports/YYYY-MM-DD-step-5-manual-endpoint-testing.md`
+- [x] 5.1 Start the backend with isolated `DB_PATH` and `PROJECTS_ROOT`, written as literal environment values
+- [x] 5.2 With a working `ffmpeg`/`ffprobe`: `POST /sessions` answers `201`
+- [x] 5.3 With `FFPROBE_PATH` pointing at a copy that has the quarantine flag (or a killed stand-in): `POST /sessions` answers `503`, names `ffprobe`, creates no session and sends no provider request
+- [x] 5.4 Remove the block and repeat without restarting the backend: `POST /sessions` answers `201` (AC3)
+- [x] 5.5 Save the commands and outputs in `reports/YYYY-MM-DD-step-5-manual-endpoint-testing.md`
 
 ## 6. E2E Testing with Playwright MCP
 
-- [ ] 6.1 Submit a script in the interface while a tool is blocked and confirm the `503` reason is shown to the User; if the reason is not shown, add the smallest frontend fix and its test
+- [x] 6.1 Submit a script in the interface while a tool is blocked and confirm the `503` reason is shown to the User; if the reason is not shown, add the smallest frontend fix and its test
 
 ## 7. Update Technical Documentation (MANDATORY)
 
-- [ ] 7.1 Update `docs/backend-standards.md` (media assembly and create-session behaviour, the `USE_STUB_ASSEMBLY_TOOL` and `FFMPEG_PATH` notes)
-- [ ] 7.2 Update `docs/api-spec.yml` with the `503` answer of `POST /sessions`
-- [ ] 7.3 Run `graphify update .`
+- [x] 7.1 Update `docs/backend-standards.md` (media assembly and create-session behaviour, the `USE_STUB_ASSEMBLY_TOOL` and `FFMPEG_PATH` notes)
+- [x] 7.2 Update `docs/api-spec.yml` with the `503` answer of `POST /sessions`
+- [x] 7.3 Run `graphify update .`
 - [ ] 7.4 Commit on the feature branch; open the pull request linking JOS-271 only when asked; archive the change after merge
