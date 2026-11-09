@@ -201,6 +201,7 @@
 # when none) on /admin/settings/reference-image. All answer 401 as `/admin/access` without the password. The settings body is
 # `visualStylePrompt`, `referenceImage` or null, `updatedAt`; the image's file path is never returned. PUT and DELETE are allowed
 # because these are app settings, not session content. The image routes are hand-described because their body is raw bytes.
+# JOS-271 (detect-blocked-media-tools) - 2026-11-09: `POST /sessions` also answers 503 when `ffmpeg` or `ffprobe` cannot run (missing, blocked by the operating system) or `ffmpeg` has no `subtitles` filter; the check runs before the content check and nothing is created. Hand-written 503 description; no schema change.
 openapi: 3.0.3
 info:
   title: Vid4You API
@@ -885,7 +886,7 @@ paths:
                   - reason
                 additionalProperties: false
         "503":
-          description: The content check could not produce a verdict (timeout, network error, error status or missing credential). Nothing is created; the script may be submitted again.
+          description: The session cannot be accepted yet. Either the media tools cannot run (`ffmpeg` or `ffprobe` is missing or blocked by the operating system, or `ffmpeg` has no `subtitles` filter; detect-blocked-media-tools, JOS-271; `reason` names the tool and the fix, never a file path; the check runs before the content check), or the content check could not produce a verdict (timeout, network error, error status or missing credential). Nothing is created; the script may be submitted again.
           content:
             application/json:
               schema:
