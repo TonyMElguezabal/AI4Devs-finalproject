@@ -2,6 +2,7 @@
 
 - Ticket: JOS-203 (section L1). Written 2026-10-20 on `main` @ `ae20ee26` (CI green on that SHA).
 - This report supersedes the evaluation in `mvp-release-gates.md`, which was written on `f4b6e492` and is out of date (it still lists the README PR, the cleanup and the security scan as open). The gates file is refreshed from section A below in a follow-up.
+- **Update 2026-11-10:** the sentence "the packaged build and release workflow do not exist yet" in section A and rows 5 and 6 of the action list are out of date. The repeatable build (JOS-205, `2026-10-27-package-executables-build`) and the release workflow (JOS-206, `2026-10-27-enable-release-workflow`) are done and archived, and `release.yml` has published versions (latest `2026.11.09-da080cc`). Still open: signing (JOS-207, change `sign-executables`) and the database upgrade/downgrade check (JOS-210). The rest of this report is kept as written on 2026-10-20.
 - Evidence level: spec- and test-level plus the real runs listed in D. No human reviewed every acceptance criterion (see A and G).
 
 ## A. Executive summary

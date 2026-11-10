@@ -189,7 +189,7 @@ Cada comando deja `Vid4You` (`Vid4You.exe` en Windows), `ffmpeg` y `ffprobe` en 
 
 ### **1.6. Limitaciones conocidas**
 
-Estado del MVP a 20-oct-2026. Ninguna impide generar un video; todas están registradas para tratarlas después.
+Estado del MVP a 10-nov-2026. Ninguna impide generar un video; todas están registradas para tratarlas después.
 
 | Limitación | Efecto | Seguimiento |
 |---|---|---|
@@ -198,7 +198,7 @@ Estado del MVP a 20-oct-2026. Ninguna impide generar un video; todas están regi
 | Los límites reales de peticiones por etapa de RunningHub y ElevenLabs, y los casos límite de la división por cláusulas (§6.1), no están verificados. | El límite de peticiones simultáneas usa los valores de `config/providers.ts`, sin contrastar con los límites reales. | JOS-188, JOS-189 (posteriores al MVP) |
 | La comprobación del guion muestra un único mensaje genérico para cuatro causas distintas (falta `OPENAI_KEY`, fichero de claves ilegible, sin red hacia OpenAI, error de OpenAI). | El usuario debe revisar la tabla de la sección 1.5 para descubrir cuál es. | Aplazada por el propietario del producto |
 | El ejecutable no está firmado. | Windows (SmartScreen) y macOS (Gatekeeper) muestran una advertencia al abrirlo. | JOS-207 |
-| El ejecutable se construye con un comando por plataforma (JOS-205), pero el ffmpeg fijado no es redistribuible y no hay flujo de publicación (ver 2.4). | No hay versiones publicadas ni actualización automática. | JOS-205, JOS-206 |
+| El ejecutable se construye con un comando por plataforma (JOS-205) y `release.yml` publica las versiones (JOS-206, ver 2.4), pero el ffmpeg fijado no es redistribuible (decisión del propietario) y no hay actualización automática. | La aplicación solo avisa de que hay una versión nueva; se instala a mano. | JOS-205 y JOS-206 (hechos) |
 | No se ha verificado que una versión anterior abra una base de datos migrada por una posterior. | Volver a una versión anterior exige restaurar la copia de la carpeta de datos (ver arriba). | JOS-210 |
 | Las pruebas de contrato con proveedores reales no se ejecutan en CI (ver 2.6). | Un cambio en la API de un proveedor solo se detecta en una ejecución real. | — |
 | Algunas revisiones humanas de los cambios archivados (por ejemplo, la 17.7 de `define-provider-configuration`) se aceptaron como excepción y no se realizaron. | Esos cambios tienen evidencia de pruebas automáticas pero no revisión humana. | JOS-203, M7 |
@@ -322,14 +322,18 @@ npm test            # vitest run
 npm run build       # solo frontend: tsc --noEmit && vite build
 ```
 
-- **Unitarias e integración (vitest)**: en la última validación completa (rama `chore/sync-integration-branches` en `eeda3198`, 22-oct-2026, PR #93) pasaron 2.090 pruebas de backend (5 omitidas, las de contrato con proveedores) y 312 de frontend, con chequeo de tipos y lint limpios y compilación del frontend correcta. CI ejecuta chequeo de tipos, lint, pruebas y búsqueda de secretos en cada PR.
+- **Unitarias e integración (vitest)**: el 10-nov-2026 (rama `feature/jos-265-check-generated-clip` en `5e9d5574`, que solo añade documentos a `main`) pasaron 2.730 pruebas de backend (11 omitidas: contrato con proveedores y subtítulos con ffmpeg real) y 483 de frontend; el chequeo de tipos y el lint los ejecuta CI, en verde en `main` tras la PR #176. CI ejecuta chequeo de tipos, lint, pruebas y búsqueda de secretos en cada PR.
+- **Cobertura (JOS-277)**: `npm run coverage` en `backend/` y `frontend/` mide con V8 el código de `src/` y escribe un informe HTML en `coverage/`; CI lo ejecuta en lugar de `npm test` y falla si las sentencias o las líneas bajan del suelo fijado en `vitest.config.ts`. Medida del 10-nov-2026: backend 95,7 % (suelo 94 %), frontend 97,5 % (suelo 96 %). Mide líneas ejecutadas, no la calidad de las pruebas, y no cuenta los procesos hijo que arrancan las pruebas E2E.
+- **E2E de API con proveedores simulados (en CI)**: `backend/test/workflow-end-to-end.test.ts` (JOS-243, JOS-248) arranca el `node src/server.ts` real en carpetas temporales, con todos los proveedores simulados por variables de entorno (`backend/test/workflowServer.ts`), crea una sesión con `POST /sessions`, espera a `final-video` con las cuatro fases completas y descarga el video; comprueba también que no toca `data/`. `workflow-stage-failure.test.ts` cubre el fallo de una etapa. Corren dentro de `npm test`, así que CI las ejecuta en cada PR.
+- **Contrato de la API (en CI)**: `backend/test/api-spec-routes.test.ts` (JOS-275) compara `docs/api-spec.yml` con las rutas que registra el backend; una ruta sin documentar o una operación documentada sin ruta hace fallar la prueba y la nombra.
 - **Pruebas de contrato con proveedores reales**: existen cuatro ficheros (`backend/test/*.contract.test.ts`) que llaman a las APIs reales y solo se ejecutan con `RUN_PROVIDER_CONTRACT_TESTS=1` y claves reales; no se ejecutan en CI.
+- **E2E en navegador con proveedores simulados (en CI)**: `e2e/tests/main-flow.spec.ts` (JOS-272) abre la interfaz en Chromium con Playwright, crea una sesión desde el formulario y descarga el video final, sobre el backend y el frontend reales con todos los proveedores simulados y carpetas temporales (no toca `backend/data/`). Se ejecuta con `npm test` en `e2e/` y como trabajo `e2e` de `.github/workflows/ci.yml`; si falla, CI sube el informe y la traza de Playwright.
 - **Pruebas manuales de endpoints con curl y E2E en navegador (Playwright)**: las ejecuta el agente por cada cambio y deja un informe en `openspec/changes/archive/<cambio>/reports/`.
 - **Sesión real de extremo a extremo**: el 20-oct-2026 una sesión corta con los cuatro proveedores reales llegó a `final-video` con un intento por etapa, y el ejecutable de Windows generó un video completo (informes en `openspec/changes/archive/2026-10-19-raise-video-time-limit/reports/` y `…/define-production-deployment/reports/`).
 - **Búsqueda de secretos (JOS-211)**: el trabajo `secrets` de `.github/workflows/ci.yml` ejecuta gitleaks 8.30.1 (versión fijada y suma SHA-256 comprobada) sobre los commits de la PR o del push, no solo sobre el árbol final, con permisos de solo lectura y sin mostrar el valor encontrado. Los falsos positivos conocidos están en `.gitleaks.toml` (la caché de hashes de `graphify-out/`, por ruta) y en `.gitleaksignore` (ocho ejemplos antiguos, cada uno con su motivo). En local, desde la raíz del repositorio (todo el historial, unos 70 s): `gitleaks git --redact --verbose .` (`brew install gitleaks` o la página de versiones). Si CI encuentra una clave real, hay que revocarla y rotarla en el proveedor además de quitarla de todos los commits de la rama.
 - **Lint y análisis estático**: ESLint 9 con las reglas *type-aware* de typescript-eslint en `backend/` y `frontend/` (más las reglas de React Hooks en el frontend), sobre el código y las pruebas, y como paso de CI que hace fallar la PR (JOS-208). Una excepción se suprime en su línea con el motivo; no hay desactivaciones globales.
 - **Ejecutable empaquetado (macOS arm64, 20-oct-2026)**: construido con el script de la prueba de concepto desde una copia temporal y arrancado en otro puerto con una carpeta de datos vacía: `/health` y la página responden 200, un `Origin` o `Host` ajeno recibe 403, `/docs` y los endpoints de prueba responden 404 aunque `ALLOW_TEST_ENDPOINTS=1` esté definida, y un segundo arranque detecta la instancia en marcha y sale. No se probó una sesión completa con este binario (sí en Windows, ver arriba).
-- **No ejecutado**: las pruebas de contrato con proveedores reales no se ejecutan en CI ni se han ejecutado para este cierre, y el ejecutable empaquetado no tiene un script de construcción integrado (ver 1.6).
+- **No ejecutado**: las pruebas de contrato con proveedores reales no se ejecutan en CI ni se han ejecutado para este cierre, y la prueba de humo del ejecutable (`npm run package:smoke` en `backend/`) tampoco se ejecuta en CI.
 
 La estrategia sigue TDD y los pasos obligatorios de `docs/openspec-tasks-mandatory-steps.md`.
 
@@ -509,7 +513,7 @@ flowchart LR
 La plantilla pide 3 historias principales; aquí se documentan las **8** que representan el flujo MVP completo de principio a fin (`docs/PRD.md` §5), en orden. Cada una tiene ya su change de OpenSpec con especificación completa en Given/When/Then (`openspec/changes/<slug>/specs/`); esta sección resume cada historia en el formato estándar y enlaza al detalle técnico en vez de duplicarlo. Los criterios de aceptación referencian las entidades reales de la sección 3 (`Session`, `Chunk`, `StageExecution`), no `docs/data-model.md` (contenido heredado de otro proyecto, aún sin actualizar).
 
 **Historia de Usuario 1 — Iniciar un proyecto de video**
-_Detalle técnico: [`openspec/changes/start-video-project`](openspec/changes/archive/2026-10-19-start-video-project)_
+_Detalle técnico: [`openspec/changes/archive/2026-10-19-start-video-project`](openspec/changes/archive/2026-10-19-start-video-project)_
 
 Como usuario, quiero iniciar un proyecto con un título, un guion y un idioma, para que el sistema comience a generar mi video narrado.
 
@@ -520,7 +524,7 @@ Criterios de aceptación:
 - **Given** una sesión ya registrada, **when** se consulta su título, guion o idioma, **then** son exactamente lo enviado y no pueden modificarse después.
 
 **Historia de Usuario 2 — Generar la narración completa (voice-over)**
-_Detalle técnico: [`openspec/changes/generate-voice-over`](openspec/changes/archive/2026-10-19-generate-voice-over)_
+_Detalle técnico: [`openspec/changes/archive/2026-10-19-generate-voice-over`](openspec/changes/archive/2026-10-19-generate-voice-over)_
 
 Como usuario, quiero que el sistema narre automáticamente mi guion completo en un único audio, para no tener que grabar ni contratar una voz.
 
@@ -531,7 +535,7 @@ Criterios de aceptación:
 - **Given** una narración ya completada, **when** llega una segunda confirmación de éxito, **then** no se crea un segundo voice-over ni se relanza ninguna fase.
 
 **Historia de Usuario 3 — Descomponer el guion en escenas**
-_Detalle técnico: [`openspec/changes/decompose-script-into-chunks`](openspec/changes/archive/2026-10-19-decompose-script-into-chunks)_
+_Detalle técnico: [`openspec/changes/archive/2026-10-19-decompose-script-into-chunks`](openspec/changes/archive/2026-10-19-decompose-script-into-chunks)_
 
 Como usuario, quiero que el sistema divida automáticamente mi guion narrado en escenas con sus instrucciones visuales, para no tener que segmentarlo ni describir cada imagen manualmente.
 
@@ -543,7 +547,7 @@ Criterios de aceptación:
 - **Given** una oración que no cabe en las cotas de duración y no tiene frontera de cláusula, **when** se segmenta, **then** se conserva entera con una advertencia de factor de velocidad, sin que esto sea un fallo.
 
 **Historia de Usuario 4 — Generar la imagen de una escena**
-_Detalle técnico: [`openspec/changes/generate-chunk-image`](openspec/changes/archive/2026-10-19-generate-chunk-image)_
+_Detalle técnico: [`openspec/changes/archive/2026-10-19-generate-chunk-image`](openspec/changes/archive/2026-10-19-generate-chunk-image)_
 
 Como usuario, quiero que el sistema genere automáticamente la imagen de cada escena a partir de su instrucción visual, para no tener que crear ni subir imágenes manualmente.
 
@@ -554,7 +558,7 @@ Criterios de aceptación:
 - **Given** una escena que falla en esta etapa, **when** otras escenas de la sesión siguen procesando, **then** no se ven afectadas por ese fallo.
 
 **Historia de Usuario 5 — Generar el clip de video de una escena**
-_Detalle técnico: [`openspec/changes/generate-chunk-video`](openspec/changes/archive/2026-10-19-generate-chunk-video)_
+_Detalle técnico: [`openspec/changes/archive/2026-10-19-generate-chunk-video`](openspec/changes/archive/2026-10-19-generate-chunk-video)_
 
 Como usuario, quiero que el sistema anime automáticamente la imagen de cada escena ajustando su duración a lo narrado, para obtener un clip sincronizado sin animarlo manualmente.
 
@@ -566,7 +570,7 @@ Criterios de aceptación:
 - **Given** un clip exitoso, **when** otras escenas siguen procesando o han fallado, **then** ese clip puede descargarse individualmente.
 
 **Historia de Usuario 6 — Montar el video final**
-_Detalle técnico: [`openspec/changes/assemble-final-video`](openspec/changes/archive/2026-10-19-assemble-final-video)_
+_Detalle técnico: [`openspec/changes/archive/2026-10-19-assemble-final-video`](openspec/changes/archive/2026-10-19-assemble-final-video)_
 
 Como usuario, quiero que el sistema una automáticamente todas mis escenas completas con la narración en un único MP4, para obtener un video listo para publicar sin editarlo manualmente.
 
@@ -579,7 +583,7 @@ Criterios de aceptación:
 - **Given** una sesión en `final-video`, **when** se consulta, **then** el MP4 final está disponible para descarga (el MP3, las marcas de tiempo y los textos generados nunca lo están).
 
 **Historia de Usuario 7 — Consultar el progreso de una sesión**
-_Detalle técnico: [`openspec/changes/consult-session`](openspec/changes/archive/2026-10-19-consult-session)_
+_Detalle técnico: [`openspec/changes/archive/2026-10-19-consult-session`](openspec/changes/archive/2026-10-19-consult-session)_
 
 Como usuario, quiero consultar el progreso, los resultados y los errores de mi sesión por su identificador, para hacer seguimiento de mi video sin necesitar una cuenta.
 
@@ -591,7 +595,7 @@ Criterios de aceptación:
 - **Given** una página de sesión abierta, **when** cambia el estado de una fase o escena, **then** se refleja en vivo sin recargar la página.
 
 **Historia de Usuario 8 — Reintentar automáticamente ante fallos transitorios**
-_Detalle técnico: [`openspec/changes/bounded-retry-policy`](openspec/changes/archive/2026-10-19-bounded-retry-policy) y [`openspec/changes/stage-execution-time-limit`](openspec/changes/archive/2026-10-05-stage-execution-time-limit)_
+_Detalle técnico: [`openspec/changes/archive/2026-10-19-bounded-retry-policy`](openspec/changes/archive/2026-10-19-bounded-retry-policy) y [`openspec/changes/archive/2026-10-05-stage-execution-time-limit`](openspec/changes/archive/2026-10-05-stage-execution-time-limit)_
 
 Como usuario, quiero que el sistema reintente automáticamente una etapa que falla por una causa temporal, para no perder mi progreso ante errores pasajeros de los proveedores.
 
@@ -616,7 +620,7 @@ Nota histórica (Entrega 1): estos tickets se redactaron cuando `docs/data-model
 
 **Descripción:** Implementar la función que agrupa las oraciones del guion narrado en chunks respetando las cotas de duración admitidas por el proveedor de video y los tres casos límite del PRD §6.1.1 (guion completo por debajo de la cota inferior, oración corta que fuerza dividir la siguiente en frontera de cláusula, y oración sin frontera de cláusula que debe conservarse entera con advertencia de factor de velocidad). Es lógica pura, independiente del proveedor, que se ejecuta después de obtener las marcas de tiempo del voice-over.
 
-**Criterios de aceptación** (`openspec/changes/decompose-script-into-chunks/tasks.md`, grupo 6):
+**Criterios de aceptación** (`openspec/changes/archive/2026-10-19-decompose-script-into-chunks/tasks.md`, grupo 6):
 - Segmentación ordinaria: los cortes solo ocurren en fronteras de oración, y cada chunk resultante respeta la cota superior e inferior.
 - Excepción de cláusula: una oración que por sí sola supera la cota superior se divide en coma, punto y coma o conjunción.
 - Caso límite 1: un guion completo por debajo de la cota inferior produce un único chunk.
@@ -636,7 +640,7 @@ Nota histórica (Entrega 1): estos tickets se redactaron cuando `docs/data-model
 
 **Descripción:** Construir la página que muestra una sesión por su identificador: título, guion, estado, escenas y resultados disponibles. Debe manejar el estado "sin escenas todavía" sin tratarlo como error, mostrar un estado "no encontrada" con opción de iniciar un proyecto nuevo, quedar en una ruta direccionable por el identificador de sesión, y dejar preparado el punto de conexión donde se enganchará la actualización en vivo (historia de actualizaciones en tiempo real, fuera de alcance de este ticket).
 
-**Criterios de aceptación** (`openspec/changes/consult-session/tasks.md`, grupo 4):
+**Criterios de aceptación** (`openspec/changes/archive/2026-10-19-consult-session/tasks.md`, grupo 4):
 - La página muestra título, guion, estado y resultados disponibles de la sesión consultada.
 - Una sesión sin escenas aún muestra "no disponibles todavía", no un error.
 - Las escenas se renderizan en el orden recibido (orden ascendente de `sequence_number`, ya garantizado por el backend).
@@ -657,7 +661,7 @@ Nota histórica (Entrega 1): estos tickets se redactaron cuando `docs/data-model
 
 **Descripción:** Diseñar e implementar la migración y los repositorios que garantizan que una sesión tenga como máximo un voice-over, incluso ante confirmaciones de éxito duplicadas o concurrentes del proveedor de voz, junto con el registro de intentos (proveedor usado, secuencia de intento) que alimenta el diagnóstico de la etapa.
 
-**Criterios de aceptación** (`openspec/changes/generate-voice-over/tasks.md`, grupo 3):
+**Criterios de aceptación** (`openspec/changes/archive/2026-10-19-generate-voice-over/tasks.md`, grupo 3):
 - Un segundo intento de guardar un voice-over para una sesión que ya tiene uno es rechazado por la propia base de datos (restricción de unicidad), no solo por lógica de aplicación.
 - Dos inserciones concurrentes para la misma sesión resultan en exactamente un voice-over persistido, nunca dos.
 - El proveedor de voz vinculado a una sesión, una vez fijado en el primer intento, no se sobrescribe en intentos posteriores.
@@ -692,7 +696,7 @@ Las 3 Pull Requests principales son las de entrega. El resto de las PR del proye
   - 6. Tickets de trabajo (uno de backend, uno de frontend, uno de base de datos).
 - `openspec/changes/`: 4 changes nuevos y completos (`decompose-script-into-chunks`, `generate-chunk-image`, `generate-chunk-video`, `assemble-final-video`), cada uno con `proposal.md`, `design.md`, especificación en Given/When/Then y `tasks.md`, generados con las skills `enrich-us` y `openspec-propose` a partir de `docs/PRD.md`.
 - `prompts.md`: registro de los prompts usados para producir las secciones anteriores.
-- **Nota de alcance:** `docs/base-standards.md` y `docs/data-model.md` no se modifican en esta PR — siguen siendo contenido heredado de un proyecto anterior no relacionado con Vid4You (ver nota en la sección 6 del README). Tampoco existe ningún `docker-compose.yml` en el repositorio; no forma parte de este diff.
+- **Nota de alcance:** `docs/base-standards.md` y `docs/data-model.md` no se modifican en esta PR — siguen siendo contenido heredado de un proyecto anterior no relacionado con Vid4You (ver nota en la sección 6 del README) (estado en esa PR; hoy `docs/data-model.md`, `docs/base-standards.md` y los estándares de backend y frontend describen Vid4You). Tampoco existe ningún `docker-compose.yml` en el repositorio; no forma parte de este diff.
 
 **Cómo probarlo/revisarlo:**
 - Confirmar que `readme.md` sigue la estructura de la plantilla oficial de AI4Devs-finalproject (índice, numeración y anclas de las secciones 0 a 7).
@@ -728,4 +732,14 @@ Las 3 Pull Requests principales son las de entrega. El resto de las PR del proye
 
 **Pull Request 3 — `feature/entrega-3-JAME` → `main`**
 
-_Pendiente — se documentará en la Entrega Final, al incluir código funcional._
+**Título:** `Promote feature/entrega-3-JAME to main (JOS-209, JOS-243, JOS-245, JOS-246, JOS-262, JOS-263, JOS-264)` (#170, fusionada el 5-nov-2026; 335 ficheros, +13.013/−4.867), seguida de `Sync feature/entrega-3-JAME into main` (#175, 6-nov-2026; 170 ficheros).
+
+**Descripción:** la rama de integración de la Entrega 3 se promueve a `main`, que es el entorno oficial y la rama de la que `release.yml` construye las versiones. Incluye, entre otros:
+- **Pruebas y CI:** E2E del flujo interno con proveedores simulados (JOS-243, #161); cobertura de errores (JOS-245, #163); búsqueda de secretos con gitleaks (JOS-211, #148); CI en las PR hacia la rama de integración (#150).
+- **Operación de proveedores:** alerta cuando un proveedor deja de responder (JOS-246, #160); tablas por tipo de adaptador y suite de contrato compartida (JOS-262, JOS-263, #165, #166); marcas de tiempo nativas atribuidas al proveedor de voz de la sesión (JOS-264, #167); la imagen sigue la cola de Fal.ai (JOS-239).
+- **Producto:** reconstruir una escena y el video final (JOS-235, #137); subtítulos quemados (JOS-237, #140); recuento de palabras del guion (JOS-236, #138); versión visible en la barra superior (JOS-238, #146); informes de `/admin` (coste estimado, tiempos, fallos, sesiones, cambios de proveedor); un solo trabajo de proveedor por escena aunque el clip agote el tiempo (JOS-204, #127).
+- **Conector de video configurable** (JOS-219, #171 a #173): el administrador añade un modelo de video de cualquier proveedor desde `/admin` sin cambiar el código (Runway, RunningHub, MiniMax) y límite de 1080p; `/admin` reorganizado en pestañas (JOS-270, #174).
+- Cada cambio de OpenSpec se archivó en su propia PR con la sincronización de sus especificaciones (por ejemplo #168, #169).
+- **Después de estas PR:** E2E en navegador con Playwright en CI (JOS-272, #177 a #180, ver 2.6). En curso: PRD con la cabecera simplificada (JOS-273, #181), sincronización de `main` con la rama de integración (JOS-274), comprobación de `docs/api-spec.yml` contra las rutas (JOS-275) y cobertura de pruebas (JOS-277).
+
+**Cómo probarlo/revisarlo:** los trabajos `test` (backend y frontend), `e2e` y `secrets` de CI en verde; `cd backend && npm test` y `cd frontend && npm test`; `cd e2e && npm test`; revisar `openspec/specs/` y `docs/release/mvp-closure-report.md`. Un push a `main` con un árbol de código nuevo inicia `release.yml`, que espera la aprobación del entorno `release`.
