@@ -1,7 +1,7 @@
-# Graph Report - wt-readme  (2026-11-10)
+# Graph Report - wt-prd  (2026-11-10)
 
 ## Corpus Check
-- 1474 files · ~1,855,049 words
+- 1474 files · ~1,853,739 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 25 file(s) not represented in the graph (top: (none) 12, .jsonl 4, .dot 2)
 
