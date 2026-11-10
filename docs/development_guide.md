@@ -221,7 +221,14 @@ npm run typecheck
 cd frontend
 npm test
 npm run typecheck
+
+# browser end to end (needs `npm ci` in backend/ and frontend/, and `npx playwright install chromium` once)
+cd e2e
+npm test
+npm run typecheck
 ```
+
+The browser test (`e2e/tests/main-flow.spec.ts`, JOS-272) starts the real backend on port 3101 with every provider stubbed and the real Vite frontend on port 5173, both on scratch folders, then drives the start form to the downloaded final video in Chromium (about 10 s). Both ports must be free: a server already listening there fails the run, naming the port. After a failure, open the trace with `npx playwright show-trace test-results/<test>/trace.zip`; CI uploads the same files as the `playwright-report` artifact.
 
 Notes from running the suites on a clean checkout:
 
