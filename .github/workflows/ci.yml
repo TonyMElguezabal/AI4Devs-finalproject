@@ -33,7 +33,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test
+      - run: npm run coverage # vitest run with the coverage floor of vitest.config.ts (JOS-277)
         env:
           # Tests must never reuse a developer database or a real provider.
           DB_PATH: ${{ runner.temp }}/vid4you-test.db
