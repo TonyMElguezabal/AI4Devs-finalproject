@@ -189,7 +189,7 @@ Cada comando deja `Vid4You` (`Vid4You.exe` en Windows), `ffmpeg` y `ffprobe` en 
 
 ### **1.6. Limitaciones conocidas**
 
-Estado del MVP a 20-oct-2026. Ninguna impide generar un video; todas están registradas para tratarlas después.
+Estado del MVP a 10-nov-2026. Ninguna impide generar un video; todas están registradas para tratarlas después.
 
 | Limitación | Efecto | Seguimiento |
 |---|---|---|
@@ -198,7 +198,7 @@ Estado del MVP a 20-oct-2026. Ninguna impide generar un video; todas están regi
 | Los límites reales de peticiones por etapa de RunningHub y ElevenLabs, y los casos límite de la división por cláusulas (§6.1), no están verificados. | El límite de peticiones simultáneas usa los valores de `config/providers.ts`, sin contrastar con los límites reales. | JOS-188, JOS-189 (posteriores al MVP) |
 | La comprobación del guion muestra un único mensaje genérico para cuatro causas distintas (falta `OPENAI_KEY`, fichero de claves ilegible, sin red hacia OpenAI, error de OpenAI). | El usuario debe revisar la tabla de la sección 1.5 para descubrir cuál es. | Aplazada por el propietario del producto |
 | El ejecutable no está firmado. | Windows (SmartScreen) y macOS (Gatekeeper) muestran una advertencia al abrirlo. | JOS-207 |
-| El ejecutable se construye con un comando por plataforma (JOS-205), pero el ffmpeg fijado no es redistribuible y no hay flujo de publicación (ver 2.4). | No hay versiones publicadas ni actualización automática. | JOS-205, JOS-206 |
+| El ejecutable se construye con un comando por plataforma (JOS-205) y `release.yml` publica las versiones (JOS-206, ver 2.4), pero el ffmpeg fijado no es redistribuible (decisión del propietario) y no hay actualización automática. | La aplicación solo avisa de que hay una versión nueva; se instala a mano. | JOS-205 y JOS-206 (hechos) |
 | No se ha verificado que una versión anterior abra una base de datos migrada por una posterior. | Volver a una versión anterior exige restaurar la copia de la carpeta de datos (ver arriba). | JOS-210 |
 | Las pruebas de contrato con proveedores reales no se ejecutan en CI (ver 2.6). | Un cambio en la API de un proveedor solo se detecta en una ejecución real. | — |
 | Algunas revisiones humanas de los cambios archivados (por ejemplo, la 17.7 de `define-provider-configuration`) se aceptaron como excepción y no se realizaron. | Esos cambios tienen evidencia de pruebas automáticas pero no revisión humana. | JOS-203, M7 |
@@ -322,14 +322,15 @@ npm test            # vitest run
 npm run build       # solo frontend: tsc --noEmit && vite build
 ```
 
-- **Unitarias e integración (vitest)**: en la última validación completa (rama `chore/sync-integration-branches` en `eeda3198`, 22-oct-2026, PR #93) pasaron 2.090 pruebas de backend (5 omitidas, las de contrato con proveedores) y 312 de frontend, con chequeo de tipos y lint limpios y compilación del frontend correcta. CI ejecuta chequeo de tipos, lint, pruebas y búsqueda de secretos en cada PR.
+- **Unitarias e integración (vitest)**: el 10-nov-2026 (rama `feature/jos-265-check-generated-clip` en `5e9d5574`, que solo añade documentos a `main`) pasaron 2.730 pruebas de backend (11 omitidas: contrato con proveedores y subtítulos con ffmpeg real) y 483 de frontend; el chequeo de tipos y el lint los ejecuta CI, en verde en `main` tras la PR #176. CI ejecuta chequeo de tipos, lint, pruebas y búsqueda de secretos en cada PR.
+- **E2E de API con proveedores simulados (en CI)**: `backend/test/workflow-end-to-end.test.ts` (JOS-243, JOS-248) arranca el `node src/server.ts` real en carpetas temporales, con todos los proveedores simulados por variables de entorno (`backend/test/workflowServer.ts`), crea una sesión con `POST /sessions`, espera a `final-video` con las cuatro fases completas y descarga el video; comprueba también que no toca `data/`. `workflow-stage-failure.test.ts` cubre el fallo de una etapa. Corren dentro de `npm test`, así que CI las ejecuta en cada PR.
 - **Pruebas de contrato con proveedores reales**: existen cuatro ficheros (`backend/test/*.contract.test.ts`) que llaman a las APIs reales y solo se ejecutan con `RUN_PROVIDER_CONTRACT_TESTS=1` y claves reales; no se ejecutan en CI.
 - **Pruebas manuales de endpoints con curl y E2E en navegador (Playwright)**: las ejecuta el agente por cada cambio y deja un informe en `openspec/changes/archive/<cambio>/reports/`.
 - **Sesión real de extremo a extremo**: el 20-oct-2026 una sesión corta con los cuatro proveedores reales llegó a `final-video` con un intento por etapa, y el ejecutable de Windows generó un video completo (informes en `openspec/changes/archive/2026-10-19-raise-video-time-limit/reports/` y `…/define-production-deployment/reports/`).
 - **Búsqueda de secretos (JOS-211)**: el trabajo `secrets` de `.github/workflows/ci.yml` ejecuta gitleaks 8.30.1 (versión fijada y suma SHA-256 comprobada) sobre los commits de la PR o del push, no solo sobre el árbol final, con permisos de solo lectura y sin mostrar el valor encontrado. Los falsos positivos conocidos están en `.gitleaks.toml` (la caché de hashes de `graphify-out/`, por ruta) y en `.gitleaksignore` (ocho ejemplos antiguos, cada uno con su motivo). En local, desde la raíz del repositorio (todo el historial, unos 70 s): `gitleaks git --redact --verbose .` (`brew install gitleaks` o la página de versiones). Si CI encuentra una clave real, hay que revocarla y rotarla en el proveedor además de quitarla de todos los commits de la rama.
 - **Lint y análisis estático**: ESLint 9 con las reglas *type-aware* de typescript-eslint en `backend/` y `frontend/` (más las reglas de React Hooks en el frontend), sobre el código y las pruebas, y como paso de CI que hace fallar la PR (JOS-208). Una excepción se suprime en su línea con el motivo; no hay desactivaciones globales.
 - **Ejecutable empaquetado (macOS arm64, 20-oct-2026)**: construido con el script de la prueba de concepto desde una copia temporal y arrancado en otro puerto con una carpeta de datos vacía: `/health` y la página responden 200, un `Origin` o `Host` ajeno recibe 403, `/docs` y los endpoints de prueba responden 404 aunque `ALLOW_TEST_ENDPOINTS=1` esté definida, y un segundo arranque detecta la instancia en marcha y sale. No se probó una sesión completa con este binario (sí en Windows, ver arriba).
-- **No ejecutado**: las pruebas de contrato con proveedores reales no se ejecutan en CI ni se han ejecutado para este cierre, y el ejecutable empaquetado no tiene un script de construcción integrado (ver 1.6).
+- **No ejecutado**: las pruebas de contrato con proveedores reales no se ejecutan en CI ni se han ejecutado para este cierre, y la prueba de humo del ejecutable (`npm run package:smoke` en `backend/`) tampoco se ejecuta en CI. La interfaz no tiene pruebas E2E automatizadas en navegador: son manuales (ver arriba).
 
 La estrategia sigue TDD y los pasos obligatorios de `docs/openspec-tasks-mandatory-steps.md`.
 
