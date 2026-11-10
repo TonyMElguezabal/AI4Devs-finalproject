@@ -24,7 +24,8 @@ import {
   writeArtefactOnce,
 } from "./db.ts";
 import { activeProviderId } from "./activeProvider.ts";
-import { FFPROBE } from "./config/ffmpeg.ts";
+import { classifyToolStartFailure, FFPROBE } from "./config/ffmpeg.ts";
+import { describeToolProblem } from "./mediaToolsCheck.ts";
 import { VOICE_PROVIDER } from "./config/providers.ts";
 import { resolveProfileId } from "./keyStore.ts";
 import { ensureProfiles, getProfile } from "./providerProfiles.ts";
@@ -119,8 +120,11 @@ async function probeAudio(audio: Uint8Array): Promise<{ ok: true; durationSecond
     try {
       ({ stdout } = await execFileAsync(FFPROBE, ["-v", "error", "-show_entries", "format=format_name,duration", "-of", "json", file]));
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-        return { ok: false, unavailable: true, detail: "ffprobe is not installed, so the audio could not be checked" };
+      // detect-blocked-media-tools (JOS-271) Decision 4 — a tool that could not start (missing, or blocked by the
+      // operating system) says nothing about the audio; only a tool that ran and rejected the file does.
+      const problem = classifyToolStartFailure(err);
+      if (problem === "missing" || problem === "blocked") {
+        return { ok: false, unavailable: true, detail: `${describeToolProblem(problem, "ffprobe")} The audio could not be checked.` };
       }
       return { ok: false, unavailable: false, detail: "the returned audio could not be decoded as an MP3" };
     }
