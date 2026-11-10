@@ -12,7 +12,7 @@
 ## 2. CI
 
 - [x] 2.1 Add the `e2e` job to `.github/workflows/ci.yml` (design Decision 6) using the action SHAs already pinned there; upload `e2e/playwright-report` and traces on failure
-- [ ] 2.2 Push the branch only after the owner approves; confirm the `e2e` job is green on the PR and that a deliberately broken form (reverted afterwards) turns it red
+- [x] 2.2 Push the branch only after the owner approves; confirm the `e2e` job is green on the PR and that a deliberately broken form (reverted afterwards) turns it red
 
 ## 3. Review and Update Existing Unit Tests (MANDATORY)
 
@@ -34,5 +34,5 @@
 
 - [x] 7.1 `readme.md` §2.6: replace "La interfaz no tiene pruebas E2E automatizadas en navegador" with the new test, its command and that CI runs it; remove the matching item from §1.6 if any
 - [x] 7.2 `docs/development_guide.md`: how to run `e2e/` locally, the ports it needs (3101, 5173) and how to open the trace of a failure
-- [ ] 7.3 Refresh `docs/release/mvp-release-gates.md` rows that mention browser tests, if any
+- [x] 7.3 Refresh `docs/release/mvp-release-gates.md` rows that mention browser tests, if any
 - [x] 7.4 Run `graphify update .` and commit the graph
