@@ -230,6 +230,8 @@ npm run typecheck
 
 The browser test (`e2e/tests/main-flow.spec.ts`, JOS-272) starts the real backend on port 3101 with every provider stubbed and the real Vite frontend on port 5173, both on scratch folders, then drives the start form to the downloaded final video in Chromium (about 10 s). Both ports must be free: a server already listening there fails the run, naming the port. After a failure, open the trace with `npx playwright show-trace test-results/<test>/trace.zip`; CI uploads the same files as the `playwright-report` artifact.
 
+Coverage: `npm run coverage` in `backend/` or `frontend/` runs the same tests with V8 coverage, prints a summary and writes `coverage/index.html`. It fails below the floor in `vitest.config.ts` (statements and lines: backend 94 %, frontend 96 %); raise the floor when the measured value rises, never lower it to pass.
+
 Notes from running the suites on a clean checkout:
 
 - Set `DB_PATH` and `PROJECTS_ROOT` as above; the default `data/` paths are shared across all test files.
