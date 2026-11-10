@@ -236,6 +236,7 @@ Notes from running the suites on a clean checkout:
 - `ffprobe` must be on `PATH`, otherwise the voice-over tests fail with "ffprobe is not installed".
 - `providerConfig.test.ts` reads `docs/PRD-v1.4.md`, so the `docs/` tree must be present.
 - `test/orchestrator.test.ts` is timing-sensitive and fails occasionally in a full run; rerun the file alone before treating it as a regression.
+- `api-spec-routes.test.ts` (JOS-275) compares `docs/api-spec.yml` with the routes the backend registers. Adding a route without a spec entry, or removing one the spec documents, fails it and names the operation; a route that is deliberately not in the contract goes in its `NOT_IN_THE_CONTRACT` list with a reason.
 - The `*.contract.test.ts` files call real providers and are skipped when no key is set.
 - `workflow-end-to-end.test.ts` and `workflow-stage-failure.test.ts` spawn the real `node src/server.ts` with every provider stubbed and run a session over HTTP (about 6 s each). They give the server its own scratch folders and keys file, so they never touch `data/` or `.secrets.json`. Run them alone with `npx vitest run test/workflow-`.
 
