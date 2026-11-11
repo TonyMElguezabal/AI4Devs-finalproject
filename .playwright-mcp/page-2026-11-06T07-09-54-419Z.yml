@@ -1,0 +1,156 @@
+- generic [ref=f1e2]:
+  - banner [ref=f1e3]:
+    - generic [ref=f1e4]: Vid4You
+    - generic "Vid4You version 0.0.0-dev" [ref=f1e13]: Development build
+  - main [ref=f1e8]:
+    - generic [ref=f1e9]:
+      - heading "Administrator" [level=1] [ref=f1e11]
+      - region "Administrator tools" [ref=f1e20]:
+        - region "Visual style" [ref=f1e21]:
+          - heading "Visual style" [level=2] [ref=f1e22]
+          - paragraph [ref=f1e23]: One visual style for every new project. Projects already started keep the style they began with.
+          - form "Visual style prompt form" [ref=f1e24]:
+            - generic [ref=f1e25]:
+              - generic [ref=f1e26]: Visual style prompt
+              - textbox "Visual style prompt" [ref=f1e27]
+              - generic [ref=f1e28]: "Describe the art style and any recurring characters. It guides the image and video instructions of every scene. The pipeline rules (one instruction pair per script fragment, in the required JSON format) always apply: if this text conflicts with them, these rules win."
+              - generic [ref=f1e29]: 0 / 8000
+            - button "Save prompt" [ref=f1e31] [cursor=pointer]
+          - region "Reference image settings" [ref=f1e32]:
+            - generic [ref=f1e33]:
+              - generic [ref=f1e34]: Reference image
+              - button "Reference image" [ref=f1e35]
+              - generic [ref=f1e36]: PNG, JPEG or WebP, up to 5 MB. It is sent to the image provider with every scene of sessions created afterwards.
+        - region "Active providers" [ref=f1e37]:
+          - heading "Active providers" [level=2] [ref=f1e38]
+          - paragraph [ref=f1e39]: A change applies to work that has not started its stage yet. Work already running keeps its provider.
+          - generic [ref=f1e40]:
+            - generic [ref=f1e41]: Reasoning provider
+            - combobox "Reasoning provider" [disabled] [ref=f1e42]:
+              - option "OpenAI" [selected]
+            - generic [ref=f1e43]: from settings files
+          - generic [ref=f1e44]:
+            - generic [ref=f1e45]: Voice provider
+            - combobox "Voice provider" [disabled] [ref=f1e46]:
+              - option "ElevenLabs" [selected]
+            - generic [ref=f1e47]: from settings files
+          - generic [ref=f1e48]:
+            - generic [ref=f1e49]: Alignment provider
+            - combobox "Alignment provider" [disabled] [ref=f1e50]:
+              - option "ElevenLabs" [selected]
+            - generic [ref=f1e51]: from settings files
+          - generic [ref=f1e52]:
+            - generic [ref=f1e53]: Image provider
+            - combobox "Image provider" [disabled] [ref=f1e54]:
+              - option "Fal.ai" [selected]
+            - generic [ref=f1e55]: from settings files
+          - generic [ref=f1e56]:
+            - generic [ref=f1e57]: Video provider
+            - combobox "Video provider" [ref=f1e58]:
+              - option "RunningHub" [selected]
+              - option "Runway Wan"
+            - generic [ref=f1e59]: from settings files
+        - region "Providers" [ref=f1e60]:
+          - heading "Providers" [level=2] [ref=f1e61]
+          - paragraph [ref=f1e62]: Each provider has its own parameters and API key. An API key is stored encrypted on this computer and is never shown again.
+          - group "Reasoning providers" [ref=f1e63]:
+            - heading "Reasoning" [level=3] [ref=f1e64]
+            - list [ref=f1e65]:
+              - listitem "OpenAI provider" [ref=f1e66]:
+                - strong [ref=f1e67]: OpenAI
+                - text: OpenAI Key from the environment Active
+                - generic [ref=f1e68]:
+                  - button "Edit OpenAI" [ref=f1e69] [cursor=pointer]
+                  - button "Delete OpenAI" [ref=f1e70] [cursor=pointer]
+                  - button "Test connection OpenAI" [ref=f1e71] [cursor=pointer]
+            - button "Add reasoning provider" [ref=f1e72] [cursor=pointer]
+          - group "Voice providers" [ref=f1e73]:
+            - heading "Voice" [level=3] [ref=f1e74]
+            - list [ref=f1e75]:
+              - listitem "ElevenLabs provider" [ref=f1e76]:
+                - strong [ref=f1e77]: ElevenLabs
+                - text: ElevenLabs Key from the environment Active
+                - generic [ref=f1e78]:
+                  - button "Edit ElevenLabs" [ref=f1e79] [cursor=pointer]
+                  - button "Delete ElevenLabs" [ref=f1e80] [cursor=pointer]
+                  - button "Test connection ElevenLabs" [ref=f1e81] [cursor=pointer]
+            - button "Add voice provider" [ref=f1e82] [cursor=pointer]
+          - group "Alignment providers" [ref=f1e83]:
+            - heading "Alignment" [level=3] [ref=f1e84]
+            - list [ref=f1e85]:
+              - listitem "ElevenLabs provider" [ref=f1e86]:
+                - strong [ref=f1e87]: ElevenLabs
+                - text: ElevenLabs forced alignment Key from the environment Active
+                - generic [ref=f1e88]:
+                  - button "Edit ElevenLabs" [ref=f1e89] [cursor=pointer]
+                  - button "Delete ElevenLabs" [ref=f1e90] [cursor=pointer]
+                  - button "Test connection ElevenLabs" [ref=f1e91] [cursor=pointer]
+            - button "Add alignment provider" [ref=f1e92] [cursor=pointer]
+          - group "Image providers" [ref=f1e93]:
+            - heading "Image" [level=3] [ref=f1e94]
+            - list [ref=f1e95]:
+              - listitem "Fal.ai provider" [ref=f1e96]:
+                - strong [ref=f1e97]: Fal.ai
+                - text: Fal.ai Key from the environment Active
+                - generic [ref=f1e98]:
+                  - button "Edit Fal.ai" [ref=f1e99] [cursor=pointer]
+                  - button "Delete Fal.ai" [ref=f1e100] [cursor=pointer]
+                  - button "Test connection Fal.ai" [ref=f1e101] [cursor=pointer]
+            - button "Add image provider" [ref=f1e102] [cursor=pointer]
+          - group "Video providers" [ref=f1e103]:
+            - heading "Video" [level=3] [ref=f1e104]
+            - list [ref=f1e105]:
+              - listitem "RunningHub provider" [ref=f1e106]:
+                - strong [ref=f1e107]: RunningHub
+                - text: RunningHub Key from the environment Active
+                - generic [ref=f1e108]:
+                  - button "Edit RunningHub" [ref=f1e109] [cursor=pointer]
+                  - button "Delete RunningHub" [ref=f1e110] [cursor=pointer]
+                  - button "Test connection RunningHub" [ref=f1e111] [cursor=pointer]
+              - listitem "Runway Wan provider" [ref=f1e196]:
+                - strong [ref=f1e197]: Runway Wan
+                - text: Configured connector Key missing
+                - generic [ref=f1e198]: "apiKey: no API key is stored or found for this provider"
+                - generic [ref=f1e199]:
+                  - button "Edit Runway Wan" [ref=f1e200] [cursor=pointer]
+                  - button "Duplicate Runway Wan" [ref=f1e201] [cursor=pointer]
+                  - button "Delete Runway Wan" [ref=f1e202] [cursor=pointer]
+            - button "Add video provider" [ref=f1e112] [cursor=pointer]
+        - region "Failed stages" [ref=f1e113]:
+          - heading "Failed stages" [level=2] [ref=f1e114]
+          - paragraph [ref=f1e115]: "A failed stage still bound to a provider other than the active one can be moved to the active provider. The move sends nothing: retry the stage from its session page."
+          - paragraph [ref=f1e116]: No failed stage is on a provider other than the active one.
+        - region "Reports" [ref=f1e117]:
+          - heading "Reports" [level=2] [ref=f1e118]
+          - group "Period" [ref=f1e119]:
+            - generic [ref=f1e121]:
+              - radio "Last 7 days" [ref=f1e122]
+              - text: Last 7 days
+            - generic [ref=f1e123]:
+              - radio "Last 30 days" [checked] [ref=f1e124]
+              - text: Last 30 days
+            - generic [ref=f1e125]:
+              - radio "All time" [ref=f1e126]
+              - text: All time
+            - generic [ref=f1e127]:
+              - radio "Custom range" [ref=f1e128]
+              - text: Custom range
+          - paragraph [ref=f1e129]: No provider activity in this period.
+          - paragraph [ref=f1e130]: No pipeline activity in this period.
+          - paragraph [ref=f1e131]: No failures or retries in this period.
+          - table [ref=f1e132]:
+            - caption [ref=f1e133]: Scenes failed now
+            - rowgroup [ref=f1e134]:
+              - row [ref=f1e135]:
+                - columnheader "Failed at" [ref=f1e136]
+                - columnheader "Scenes" [ref=f1e137]
+            - rowgroup [ref=f1e138]:
+              - row [ref=f1e139]:
+                - cell "Image" [ref=f1e140]
+                - cell "0" [ref=f1e141]
+              - row [ref=f1e142]:
+                - cell "Clip" [ref=f1e143]
+                - cell "0" [ref=f1e144]
+          - paragraph [ref=f1e145]: These are the scenes that are failed right now, whatever period is chosen.
+          - paragraph [ref=f1e146]: There were no provider changes in this period.
+          - paragraph [ref=f1e147]: No sessions were created in this period.

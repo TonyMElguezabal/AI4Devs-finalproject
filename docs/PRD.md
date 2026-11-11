@@ -2,7 +2,7 @@
 
 **Versión:** 1.33  
 **Alcance:** MVP  
-**Status (v1.33, awaiting the product owner's approval):** every generated clip is checked from its own file before it is stored: it must be a readable MP4 whose first frame decodes, horizontal and at least 1920×1080, and as long as requested within −0.5 s to +1 s; a clip that fails is a failed attempt of the video stage (`check-generated-clip`, JOS-265, §7.2). The previous version is kept in `docs/PRD-v1.32.md`.
+**Status (v1.33, Approved):** every generated clip is checked from its own file before it is stored: it must be a readable MP4 whose first frame decodes, horizontal and at least 1920×1080, and as long as requested within −0.5 s to +1 s; a clip that fails is a failed attempt of the video stage (`check-generated-clip`, JOS-265, §7.2). The previous version is kept in `docs/PRD-v1.32.md`.
 
 The history of every version since v1.8, with its origin, the sections it changed and its approval state, is in §16; the archived versions are the `docs/PRD-v1.*.md` files. The MVP remains a single-user application on the user's own computer, and all product decisions remain closed.
 

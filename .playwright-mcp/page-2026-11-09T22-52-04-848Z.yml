@@ -1,0 +1,24 @@
+- generic [ref=e22]:
+  - banner [ref=e23]:
+    - generic [ref=e24]: Vid4You
+    - button "Privacy" [ref=e28] [cursor=pointer]
+    - generic "Vid4You version 0.0.0-dev" [ref=e29]: Development build
+  - main [ref=e30]:
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - heading "Turn a script into a narrated video" [level=1] [ref=e33]
+        - paragraph [ref=e34]: Paste your script and pick the narration language. Vid4You records the voice-over, splits it into scenes, and generates an image and a clip for each.
+      - form "Start a project" [ref=e35]:
+        - generic [ref=e36]:
+          - generic [ref=e37]: Title
+          - textbox "Title" [ref=e38]
+        - generic [ref=e39]:
+          - generic [ref=e40]: Script
+          - textbox "Script" [ref=e41]
+        - generic [ref=e42]:
+          - generic [ref=e43]: Language
+          - combobox "Language" [ref=e44]:
+            - option "Select a language" [selected]
+            - option "English"
+            - option "Español"
+        - button "Start project" [disabled] [ref=e46]

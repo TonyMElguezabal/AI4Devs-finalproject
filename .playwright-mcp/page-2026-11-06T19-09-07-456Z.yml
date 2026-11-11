@@ -1,0 +1,163 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: Vid4You
+    - generic "Vid4You version 0.0.0-dev" [ref=e13]: Development build
+  - main [ref=e8]:
+    - generic [ref=e9]:
+      - heading "Administrator" [level=1] [ref=e11]
+      - region "Administrator tools" [ref=e20]:
+        - tablist "Administrator tools" [ref=e21]:
+          - tab "Settings" [ref=e22] [cursor=pointer]
+          - tab "Providers" [ref=e23] [cursor=pointer]
+          - tab "Failed stages" [ref=e24] [cursor=pointer]
+          - tab "Reports" [active] [selected] [ref=e25] [cursor=pointer]
+        - tabpanel "Reports" [ref=e66]:
+          - region "Reports" [ref=e67]:
+            - heading "Reports" [level=2] [ref=e68]
+            - group "Period" [ref=e69]:
+              - generic [ref=e71] [cursor=pointer]:
+                - radio "Last 7 days" [ref=e72]
+                - text: Last 7 days
+              - generic [ref=e73] [cursor=pointer]:
+                - radio "Last 30 days" [checked] [ref=e74]
+                - text: Last 30 days
+              - generic [ref=e75] [cursor=pointer]:
+                - radio "All time" [ref=e76]
+                - text: All time
+              - generic [ref=e77] [cursor=pointer]:
+                - radio "Custom range" [ref=e78]
+                - text: Custom range
+            - group "Summary" [ref=e79]:
+              - generic [ref=e80]:
+                - generic [ref=e81]:
+                  - term [ref=e82]: Attempts
+                  - definition [ref=e83]: "8"
+                - generic [ref=e84]:
+                  - term [ref=e85]: Success rate
+                  - definition [ref=e86]: 100%
+                - generic [ref=e87]:
+                  - term [ref=e88]: Estimated cost
+                  - definition [ref=e89]: —
+                - generic [ref=e90]:
+                  - term [ref=e91]: Failed scenes now
+                  - definition [ref=e92]: "0"
+            - group [ref=e93]:
+              - generic "Provider usage" [ref=e94] [cursor=pointer]
+              - table [ref=e96]:
+                - caption [ref=e97]: Provider usage
+                - rowgroup [ref=e98]:
+                  - row [ref=e99]:
+                    - columnheader "Stage" [ref=e100]
+                    - columnheader "Provider" [ref=e101]
+                    - columnheader "Attempts" [ref=e102]
+                    - columnheader "Successes" [ref=e103]
+                    - columnheader "Transient failures" [ref=e104]
+                    - columnheader "Not-retryable failures" [ref=e105]
+                    - columnheader "Timed out" [ref=e106]
+                    - columnheader "Success rate" [ref=e107]
+                    - columnheader "Median latency" [ref=e108]
+                    - columnheader "95th-percentile latency" [ref=e109]
+                    - columnheader "Billed units" [ref=e110]
+                - rowgroup [ref=e111]:
+                  - row [ref=e112]:
+                    - cell "Voice" [ref=e113]
+                    - cell "stub-voice" [ref=e114]
+                    - cell "2" [ref=e115]
+                    - cell "2" [ref=e116]
+                    - cell "0" [ref=e117]
+                    - cell "0" [ref=e118]
+                    - cell "0" [ref=e119]
+                    - cell "100%" [ref=e120]
+                    - cell "45 ms" [ref=e121]
+                    - cell "72 ms" [ref=e122]
+                    - cell "236 characters" [ref=e123]
+                  - row [ref=e124]:
+                    - cell "Reasoning" [ref=e125]
+                    - cell "stub-reasoning" [ref=e126]
+                    - cell "2" [ref=e127]
+                    - cell "2" [ref=e128]
+                    - cell "0" [ref=e129]
+                    - cell "0" [ref=e130]
+                    - cell "0" [ref=e131]
+                    - cell "100%" [ref=e132]
+                    - cell "2 ms" [ref=e133]
+                    - cell "5 ms" [ref=e134]
+                    - cell "2 requests" [ref=e135]
+                  - row [ref=e136]:
+                    - cell "Image" [ref=e137]
+                    - cell "stub-image" [ref=e138]
+                    - cell "2" [ref=e139]
+                    - cell "2" [ref=e140]
+                    - cell "0" [ref=e141]
+                    - cell "0" [ref=e142]
+                    - cell "0" [ref=e143]
+                    - cell "100%" [ref=e144]
+                    - cell "5,002 ms" [ref=e145]
+                    - cell "5,016 ms" [ref=e146]
+                    - cell "2 images" [ref=e147]
+                  - row [ref=e148]:
+                    - cell "Video" [ref=e149]
+                    - cell "stub-video-provider" [ref=e150]
+                    - cell "2" [ref=e151]
+                    - cell "2" [ref=e152]
+                    - cell "0" [ref=e153]
+                    - cell "0" [ref=e154]
+                    - cell "0" [ref=e155]
+                    - cell "100%" [ref=e156]
+                    - cell "3 ms" [ref=e157]
+                    - cell "4 ms" [ref=e158]
+                    - cell "10 clip seconds" [ref=e159]
+              - paragraph [ref=e160]: Image and clip attempts are counted for the scene's current provider.
+            - group [ref=e161]:
+              - generic "Estimated cost" [ref=e162] [cursor=pointer]
+            - group [ref=e163]:
+              - generic "Pipeline time" [ref=e164] [cursor=pointer]
+            - group [ref=e165]:
+              - generic "Failures and retries" [ref=e166] [cursor=pointer]
+            - group [ref=e167]:
+              - generic "Provider changes" [ref=e168] [cursor=pointer]
+            - group [ref=e169]:
+              - generic "Sessions" [ref=e170] [cursor=pointer]
+              - table [ref=e172]:
+                - caption [ref=e173]: Sessions
+                - rowgroup [ref=e174]:
+                  - row [ref=e175]:
+                    - columnheader "Session" [ref=e176]
+                    - columnheader "Created" [ref=e177]
+                    - columnheader "State" [ref=e178]
+                    - columnheader "Paused" [ref=e179]
+                    - columnheader "Scenes" [ref=e180]
+                    - columnheader "Failed scenes" [ref=e181]
+                    - columnheader "Attempts" [ref=e182]
+                    - columnheader "Seconds to voice-over" [ref=e183]
+                    - columnheader "Seconds to final video" [ref=e184]
+                    - columnheader "Estimated cost" [ref=e185]
+                    - columnheader "Details" [ref=e186]
+                - rowgroup [ref=e187]:
+                  - row [ref=e188]:
+                    - cell "Harbour morning" [ref=e189]
+                    - cell "Nov 6, 2026, 1:08 PM" [ref=e190]
+                    - cell "Final video ready" [ref=e191]
+                    - cell "—" [ref=e192]
+                    - cell "1" [ref=e193]
+                    - cell "0" [ref=e194]
+                    - cell "5" [ref=e195]
+                    - cell "0 s" [ref=e196]
+                    - cell "5.1 s" [ref=e197]
+                    - 'cell "Estimated cost of Harbour morning: none (estimate, excludes unpriced providers)" [ref=e198]': —
+                    - cell [ref=e199]:
+                      - button "Scenes of Harbour morning" [ref=e200] [cursor=pointer]: Scenes
+                  - row [ref=e201]:
+                    - cell "Lighthouse keeper" [ref=e202]
+                    - cell "Nov 6, 2026, 1:08 PM" [ref=e203]
+                    - cell "Final video ready" [ref=e204]
+                    - cell "—" [ref=e205]
+                    - cell "1" [ref=e206]
+                    - cell "0" [ref=e207]
+                    - cell "5" [ref=e208]
+                    - cell "0.1 s" [ref=e209]
+                    - cell "5.1 s" [ref=e210]
+                    - 'cell "Estimated cost of Lighthouse keeper: none (estimate, excludes unpriced providers)" [ref=e211]': —
+                    - cell [ref=e212]:
+                      - button "Scenes of Lighthouse keeper" [ref=e213] [cursor=pointer]: Scenes
+              - paragraph [ref=e214]: The estimated cost excludes unpriced providers.
