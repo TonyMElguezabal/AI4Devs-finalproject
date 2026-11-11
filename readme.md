@@ -246,7 +246,7 @@ flowchart TD
         Backend["Backend / orquestador de etapas\n(Fastify + Zod, máquina de estados,\nreintentos, límite por etapa)"]
         DB[("SQLite (node:sqlite)\nsesiones, escenas, intentos")]
         Files[("Carpetas de proyecto\nguion, MP3, marcas de tiempo,\nimágenes, clips, MP4 final")]
-        FFmpeg["ffmpeg / ffprobe\n(montaje y medición de audio)"]
+        FFmpeg["ffmpeg / ffprobe\n(montaje y medición de audio y de clips)"]
     end
 
     Usuario -->|HTTP local| Frontend
@@ -523,6 +523,8 @@ flowchart LR
 | Alineación | ElevenLabs Forced Alignment | MP3 y guion | Marcas de tiempo | 5 s |
 | Imagen | Fal.ai `fal-ai/flux/dev` | Instrucción `IMAGE` | Imagen 16:9 | 300 s |
 | Video | RunningHub MiniMax-H3 «Hailuo-03» | Imagen, instrucción `VIDEO`, duración de 5 a 15 s | Clip | 1200 s; si la tarea sigue en marcha, se espera hasta 2400 s |
+
+Cada clip se mide con `ffprobe` antes de guardarse (JOS-265): debe ser un MP4 legible cuyo primer fotograma se decodifica, horizontal y de al menos 1920×1080, con una duración de la solicitada −0,5 s a +1 s. Si no cumple, cuenta como un intento fallido de la etapa de video (PRD §7.2).
 
 **Notas de integración**
 - Un proveedor activo por etapa; el administrador lo cambia en `/admin` sin reiniciar (PRD §11.2). Las llamadas de los adaptadores no reintentan por su cuenta: cada llamada es exactamente un intento registrado.

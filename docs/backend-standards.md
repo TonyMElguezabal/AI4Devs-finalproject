@@ -156,7 +156,7 @@ interface VideoProvider {
 
 **Stage-aware scene recovery** (`retry-or-correct-image`, JOS-157; `retry-or-correct-clip`, JOS-158): the existing session-scoped scene retry/correction routes dispatch from persisted failed-stage state. An image failure (no stored image) changes the scene to `submitted` and launches the image stage; a clip failure (stored image, no committed clip) changes it to `image-complete` and launches the video stage. The conditional writes include `(sessionId, sceneId)`, failed status and stage-specific result preconditions; correction updates only the corresponding instruction (`image_instruction` or `video_instruction`) with the state transition. Clip recovery preserves the image, video provider binding, timing, narrative content and other scenes. A successful transition that is held by a paused session still broadcasts the current snapshot, so the page learns the updated held state without waiting for a provider callback. No client-supplied stage selector is accepted.
 
-**MP4 validation**: `completeVideoStage` checks the first 8 bytes of the downloaded clip for the `ftyp` box before writing it to disk — `bytes[4..7] === 'ftyp'` — and rejects non-MP4 data as a transient failure.
+**Clip validation**: the video stage measures the downloaded clip with `checkClip` (ffprobe, `backend/src/clipOutputCheck.ts`) before writing it to disk, and rejects a clip that is not a readable MP4, is not horizontal 1920×1080 or larger, or has the wrong length as a transient failure (see "The clip check" above). It replaced the earlier check of the first 8 bytes for the `ftyp` box.
 
 ### The active provider and the bind points (`change-active-provider-from-admin`, JOS-171)
 
