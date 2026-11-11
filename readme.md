@@ -639,67 +639,7 @@ Criterios de aceptación:
 
 > Documenta 3 de los tickets de trabajo principales del desarrollo, uno de backend, uno de frontend, y uno de bases de datos. Da todo el detalle requerido para desarrollar la tarea de inicio a fin teniendo en cuenta las buenas prácticas al respecto. 
 
-Las 8 historias de la sección 5 ya cuentan, cada una, con su change de OpenSpec completo (`proposal.md`, `design.md`, specs en Given/When/Then y `tasks.md` con el desglose técnico) en `openspec/changes/`: 4 ya existían en el repositorio y 4 se generaron para esta entrega vía la skill `openspec-propose` (el flujo `/new` + `/ff` no existe como comando en este proyecto — `openspec-propose` es su equivalente disponible y ya cubre ambos pasos, incluyendo `tasks.md`). Por eso los 3 tickets de esta sección se seleccionan directamente de ese desglose ya generado, sin crear artefactos nuevos.
-
-Nota histórica (Entrega 1): estos tickets se redactaron cuando `docs/data-model.md` aún era contenido heredado de otro proyecto y se apoyaron en las secciones 2 y 3 de este README. Desde entonces `docs/data-model.md` se reescribió con el modelo implementado (sección 3.0) y `docs/backend-standards.md` y `docs/frontend-standards.md` describen el stack real.
-
-**Ticket 1 (Backend) — Algoritmo de segmentación del guion en escenas**
-
-**Descripción:** Implementar la función que agrupa las oraciones del guion narrado en chunks respetando las cotas de duración admitidas por el proveedor de video y los tres casos límite del PRD §6.1.1 (guion completo por debajo de la cota inferior, oración corta que fuerza dividir la siguiente en frontera de cláusula, y oración sin frontera de cláusula que debe conservarse entera con advertencia de factor de velocidad). Es lógica pura, independiente del proveedor, que se ejecuta después de obtener las marcas de tiempo del voice-over.
-
-**Criterios de aceptación** (`openspec/changes/archive/2026-10-19-decompose-script-into-chunks/tasks.md`, grupo 6):
-- Segmentación ordinaria: los cortes solo ocurren en fronteras de oración, y cada chunk resultante respeta la cota superior e inferior.
-- Excepción de cláusula: una oración que por sí sola supera la cota superior se divide en coma, punto y coma o conjunción.
-- Caso límite 1: un guion completo por debajo de la cota inferior produce un único chunk.
-- Caso límite 2: una oración corta cuya agrupación con la siguiente superaría el máximo provoca la división de la siguiente oración en frontera de cláusula.
-- Caso límite 3: una oración que debe dividirse y no tiene frontera de cláusula se conserva entera, marcando `speed_factor_warning`, sin que esto sea un fallo.
-- Los 5 casos anteriores tienen al menos un test unitario en verde antes de considerarse implementados (TDD).
-
-**Prioridad:** Alta. Es lógica núcleo de la que depende todo el pipeline creativo (imagen, video y montaje no tienen nada que procesar sin chunks correctos), y el PRD dedica una regla intrincada de 3 casos límite a esta función — un error aquí es silencioso y se propaga a todas las escenas.
-
-**Estimación:** 5 puntos (~2-3 días para una persona), por tratarse de un algoritmo con múltiples ramas de decisión que exige TDD caso por caso, aunque esté bien acotado (sin llamadas a proveedores externos).
-
-**Historia de usuario relacionada:** Historia 3 — Descomponer el guion en escenas.
-
----
-
-**Ticket 2 (Frontend) — Página de sesión (consulta y progreso en vivo)**
-
-**Descripción:** Construir la página que muestra una sesión por su identificador: título, guion, estado, escenas y resultados disponibles. Debe manejar el estado "sin escenas todavía" sin tratarlo como error, mostrar un estado "no encontrada" con opción de iniciar un proyecto nuevo, quedar en una ruta direccionable por el identificador de sesión, y dejar preparado el punto de conexión donde se enganchará la actualización en vivo (historia de actualizaciones en tiempo real, fuera de alcance de este ticket).
-
-**Criterios de aceptación** (`openspec/changes/archive/2026-10-19-consult-session/tasks.md`, grupo 4):
-- La página muestra título, guion, estado y resultados disponibles de la sesión consultada.
-- Una sesión sin escenas aún muestra "no disponibles todavía", no un error.
-- Las escenas se renderizan en el orden recibido (orden ascendente de `sequence_number`, ya garantizado por el backend).
-- Un identificador inexistente muestra el estado "no encontrada" con una acción para iniciar un nuevo proyecto.
-- La página vive en una ruta que contiene el identificador de la sesión, y el formulario de inicio navega a ella tras un registro exitoso.
-- Todos los elementos siguen la convención de nomenclatura accesible ya definida para el proyecto.
-- Los 4 casos de UI anteriores (con datos, sin escenas, no encontrada, navegación) tienen al menos un test de componente en verde (TDD).
-
-**Prioridad:** Alta. Es la única superficie de UI que consultan prácticamente todas las demás historias (imagen, video, montaje, pausa, corrección) para mostrar su resultado — sin esta página no hay forma de ver el progreso de un proyecto.
-
-**Estimación:** 5 puntos (~3 días para una persona), por combinar varios estados de UI (con datos, vacío, no encontrado), integración con la navegación del formulario de inicio, y el punto de extensión para las actualizaciones en vivo, sin ser en sí misma una pantalla con lógica de negocio compleja.
-
-**Historia de usuario relacionada:** Historia 7 — Consultar el progreso de una sesión.
-
----
-
-**Ticket 3 (Base de datos) — Persistencia del voice-over con unicidad por sesión**
-
-**Descripción:** Diseñar e implementar la migración y los repositorios que garantizan que una sesión tenga como máximo un voice-over, incluso ante confirmaciones de éxito duplicadas o concurrentes del proveedor de voz, junto con el registro de intentos (proveedor usado, secuencia de intento) que alimenta el diagnóstico de la etapa.
-
-**Criterios de aceptación** (`openspec/changes/archive/2026-10-19-generate-voice-over/tasks.md`, grupo 3):
-- Un segundo intento de guardar un voice-over para una sesión que ya tiene uno es rechazado por la propia base de datos (restricción de unicidad), no solo por lógica de aplicación.
-- Dos inserciones concurrentes para la misma sesión resultan en exactamente un voice-over persistido, nunca dos.
-- El proveedor de voz vinculado a una sesión, una vez fijado en el primer intento, no se sobrescribe en intentos posteriores.
-- Existe un registro de intento (append-only) por cada llamada al proveedor, con su secuencia y resultado.
-- Los 4 puntos anteriores tienen al menos un test en verde antes de considerarse implementados (TDD), incluyendo el caso de concurrencia.
-
-**Prioridad:** Alta. Protege directamente una garantía de integridad ya cerrada en el PRD (§12.1: una confirmación de éxito repetida no debe duplicar resultados ni relanzar una fase), y el mismo patrón de unicidad + registro de intentos se reutiliza en todas las demás etapas del pipeline.
-
-**Estimación:** 3 puntos (~1-2 días para una persona). Alcance contenido (una migración y dos repositorios), pero el test de inserciones concurrentes exige verificar el comportamiento real de la restricción de unicidad bajo carrera, no solo su existencia.
-
-**Historia de usuario relacionada:** Historia 2 — Generar la narración completa (voice-over).
+El backlog se gestionó en Linear (proyecto Vid4You, equipo JOS), con 18 épicas (E1 a E18) y los tickets JOS-124 a JOS-279. Hay demasiados tickets para listarlos aquí, y cada uno tiene su detalle en Linear. Su desglose técnico (`proposal.md`, `design.md`, specs en Given/When/Then y `tasks.md`) está en `openspec/changes/` y, una vez terminado, en `openspec/changes/archive/`.
 
 ---
 
@@ -729,7 +669,7 @@ Las 3 Pull Requests principales son las de entrega. El resto de las PR del proye
 - Confirmar que `readme.md` sigue la estructura de la plantilla oficial de AI4Devs-finalproject (índice, numeración y anclas de las secciones 0 a 7).
 - Revisar que el diagrama Mermaid de la sección 3 (modelo de datos) sea coherente con las entidades usadas en las secciones 5 y 6 (`Session`, `Chunk`, `StageExecution`).
 - Ejecutar `openspec validate <nombre-del-change> --strict` sobre cada uno de los 4 changes nuevos y confirmar que devuelve "is valid".
-- Revisar que los 3 tickets de la sección 6 no excedan el alcance descrito en los `tasks.md` de los que provienen.
+- Revisar que los tickets no excedan el alcance descrito en los `tasks.md` de los que provienen.
 - Confirmar que ninguna sección afirma como decidido un stack, proveedor o pieza de infraestructura que en realidad sigue pendiente (deben quedar marcados explícitamente como TBD).
 
 **Pull Request 2 — `feature/entrega-2-JAME` → `main`**
