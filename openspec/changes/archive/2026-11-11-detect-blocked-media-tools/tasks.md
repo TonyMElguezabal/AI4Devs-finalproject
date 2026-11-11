@@ -49,4 +49,4 @@
 - [x] 7.1 Update `docs/backend-standards.md` (media assembly and create-session behaviour, the `USE_STUB_ASSEMBLY_TOOL` and `FFMPEG_PATH` notes)
 - [x] 7.2 Update `docs/api-spec.yml` with the `503` answer of `POST /sessions`
 - [x] 7.3 Run `graphify update .`
-- [ ] 7.4 Commit on the feature branch; open the pull request linking JOS-271 only when asked; archive the change after merge
+- [x] 7.4 Commit on the feature branch; open the pull request linking JOS-271 only when asked; archive the change after merge (PR #176 merged; archived by this change)
