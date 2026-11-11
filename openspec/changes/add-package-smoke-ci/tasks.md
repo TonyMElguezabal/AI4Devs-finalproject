@@ -1,6 +1,6 @@
 ## 0. Setup: Create Feature Branch (MANDATORY - FIRST STEP)
 
-- [ ] 0.1 Ticket JOS-279 (Chore, Improvement). Branch `chore/jos-279-package-smoke-ci` made with `git worktree add --no-track` from `origin/feature/entrega-3-JAME`; open its PR against `feature/entrega-3-JAME`, and confirm the PR is still OPEN before adding commits to its branch
+- [x] 0.1 Ticket JOS-279 (Chore, Improvement). Branch `chore/jos-279-package-smoke-ci` made with `git worktree add --no-track` from `origin/feature/entrega-3-JAME`; open its PR against `feature/entrega-3-JAME`, and confirm the PR is still OPEN before adding commits to its branch
 
 ## 1. Smoke script (TDD)
 
@@ -10,7 +10,7 @@
 ## 2. CI
 
 - [x] 2.1 Add `.github/workflows/package-smoke.yml` (design Decisions 1-2), using the action SHAs `ci.yml` pins
-- [ ] 2.2 Confirm the job is green on the PR and red on a deliberately broken packaged entry (reverted afterwards); confirm it does not run on a documentation-only pull request
+- [x] 2.2 Confirm the job is green on the PR and red on a deliberately broken packaged entry (reverted afterwards); confirm it does not run on a documentation-only pull request Result 2026-11-11: green in 1 m 57 s on the PR; red with "Vid4You failed to start: Error: deliberate break" in the log when the entry was broken (commit reverted); a docs-only PR such as #189 has no `package-smoke` check, since the paths do not match.
 
 ## 3. Review and Update Existing Unit Tests (MANDATORY)
 
