@@ -52,4 +52,4 @@
 ## 9. Delivery
 
 - [x] 9.1 Commit on the feature branch
-- [ ] 9.2 Ask before pushing. Open a PR into `feature/entrega-3-JAME` that explains the motivation and the measured real clips
+- [x] 9.2 Ask before pushing. Open a PR into `feature/entrega-3-JAME` that explains the motivation and the measured real clips (PR #200, merged)
