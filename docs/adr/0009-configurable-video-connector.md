@@ -1,6 +1,6 @@
 # ADR 0009 — Admin-configured video connector (JOS-219)
 
-- Status: Accepted (product-owner decisions, 2026-11-06); the PRD text (v1.32) is awaiting approval
+- Status: Accepted (product-owner decisions, 2026-11-06); the PRD text (v1.32) was approved by the product owner on 2026-11-11
 - Date: 2026-11-06
 - Change: `configurable-video-connector` (archived `2026-11-06-configurable-video-connector`; full design in its `design.md`)
 

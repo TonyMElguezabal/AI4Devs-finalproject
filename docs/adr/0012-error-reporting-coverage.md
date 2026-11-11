@@ -1,6 +1,6 @@
 # ADR 0012 — How errors reach the telemetry (JOS-245)
 
-- Status: Accepted (2026-11-04); the PRD text is awaiting approval
+- Status: Accepted (2026-11-04); the PRD text was approved by the product owner on 2026-11-11
 - Date: 2026-11-04
 - Change: `cover-error-reporting` (archived `2026-11-04-cover-error-reporting`; full design in its `design.md`)
 

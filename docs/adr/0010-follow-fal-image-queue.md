@@ -1,6 +1,6 @@
 # ADR 0010 — Follow fal.ai's image queue instead of resending (JOS-239)
 
-- Status: Accepted (2026-10-30); the PRD text (v1.30) is awaiting approval
+- Status: Accepted (2026-10-30); the PRD text (v1.30) was approved by the product owner on 2026-11-11
 - Date: 2026-10-30
 - Change: `follow-fal-image-queue` (archived `2026-10-30-follow-fal-image-queue`; full design in its `design.md`)
 
