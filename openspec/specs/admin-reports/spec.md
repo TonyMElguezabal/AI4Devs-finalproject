@@ -38,7 +38,7 @@ An aggregate report SHALL take a period `[from, to)` and count only the attempts
 - **THEN** it is answered 400 naming the parameter
 
 ### Requirement: The Reports section and its period selector on /admin
-Once unlocked, `/admin` SHALL show a "Reports" section with a period selector offering "Last 7 days", "Last 30 days", "All time" and "Custom range". "Last 30 days" SHALL be selected when the section opens. A custom range SHALL be two dates read in the computer's time zone, from the start of the first day to the end of the last day. Changing the period SHALL reload the report for the new period.
+Once unlocked, `/admin` SHALL show a "Reports" section in the "Reports" tab with a period selector, presented as a segmented control, offering "Last 7 days", "Last 30 days", "All time" and "Custom range". "Last 30 days" SHALL be selected when the section opens. A custom range SHALL be two dates read in the computer's time zone, from the start of the first day to the end of the last day. Changing the period SHALL reload the reports for the new period. Above the reports the section SHALL show summary tiles: attempts, success rate, estimated cost and failed scenes now; a tile whose report is not loaded or failed SHALL show "—". Each report SHALL be a collapsible panel; provider usage and sessions SHALL be open when the section opens. Every report table SHALL scroll horizontally inside its own wrapper, right-align its numbers, show instants in one format, and show a value that was not recorded as "n/a".
 
 #### Scenario: Default period
 - **WHEN** the Administrator opens the Reports section
@@ -55,6 +55,22 @@ Once unlocked, `/admin` SHALL show a "Reports" section with a period selector of
 #### Scenario: Access lost while reading a report
 - **WHEN** the report request is answered 401
 - **THEN** the page locks again as for any other `/admin` request
+
+#### Scenario: Summary tiles
+- **WHEN** the provider-usage, estimated-cost and failures reports are loaded
+- **THEN** the tiles show the total attempts, the overall success rate, the estimated cost total and the number of scenes failed now
+
+#### Scenario: A report that failed to load
+- **WHEN** the estimated-cost report could not be loaded
+- **THEN** its tile shows "—" and the other tiles and panels are unaffected
+
+#### Scenario: Panels
+- **WHEN** the Reports section opens
+- **THEN** the provider-usage and sessions panels are open and the others are closed, and each can be opened or closed with the keyboard
+
+#### Scenario: One footnote for unpriced providers
+- **WHEN** the sessions report has rows whose estimated cost excludes unpriced providers
+- **THEN** the note "excludes unpriced providers" appears once under the table, not in each row
 
 ### Requirement: Provider-usage report
 `GET /admin/reports/provider-usage` SHALL return one row per stage (voice, alignment, reasoning, image, video) and provider that has at least one counted attempt in the period, each with: the provider id and its display name, attempts, successes, transient failures, not-retryable failures, timed-out attempts, success rate (successes over attempts, in percent, one decimal), the median and the 95th-percentile request latency in milliseconds (nearest rank), and the billed units with their unit. A counted attempt is one that was sent and has a final outcome; a late success SHALL count as a success. Billed units SHALL count successful attempts only: voice characters (the script's length) for voice, audio seconds (the voice-over's duration) for alignment, one request for reasoning, one image for image, and the requested clip seconds for video. The Reports section SHALL show these rows in a table.
