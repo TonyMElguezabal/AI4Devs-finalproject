@@ -1,5 +1,7 @@
 # ADR 0005 — Provider selection and hardcoded operating parameters
 
+> Numbering note: two ADRs share the number 0005 (this one and `0005-media-assembly.md`). Both are linked by number from other files, so neither was renumbered; later ADRs continue from 0009. Provider profiles and the configurable video connector that grew from this ADR are in ADR 0009.
+
 - Status: Accepted
 - Date: 2026-09-27
 - Change: `define-provider-configuration` (JOS-165, US-33)

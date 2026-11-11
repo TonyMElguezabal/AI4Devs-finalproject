@@ -209,6 +209,32 @@ Metrics are exported every 60 s and on SIGINT/SIGTERM. `VID4YOU_CHANNEL=producti
 
 Every error reported to telemetry (a stage or request that failed for good, an uncaught exception) is also written to the local log file `logs/vid4you.log` at `error` level, whether or not the error signal is on. The log never leaves the machine.
 
+### Environment variable reference
+
+The one list of every variable the backend reads. The README table (section 1.4) is a short copy for users.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `3100` | Backend port (listens on `127.0.0.1` only). |
+| `DB_PATH` | `data/skeleton.sqlite` | SQLite file, relative to `backend/`. |
+| `PROJECTS_ROOT` | `data/projects` | Where project folders are written. A relative path works (assembly uses absolute paths). Tests need their own scratch `DB_PATH` and `PROJECTS_ROOT`. |
+| `SECRETS_PATH` | `backend/.secrets.json` | Credentials file. The packaged app sets it to its data folder. |
+| `PROVIDER_KEY_PATH` | `data/provider-keys.key` | Master key (mode 0600) for the provider keys stored encrypted in the database. |
+| `SETTINGS_DEFAULTS_PATH` | `backend/config/settings.default.json` | Shipped defaults. The packaged app writes an embedded copy to its data folder and points here. |
+| `SETTINGS_PATH` | `data/settings.json` | Optional per-user settings override, merged over the defaults at start-up. |
+| `SUBTITLE_FONT_PATH` | `backend/assets/fonts/Montserrat-Bold.ttf` | Font for the burned-in subtitles. |
+| `FFMPEG_PATH`, `FFPROBE_PATH` | automatic | Tool paths; otherwise `/opt/homebrew/bin`, then the `PATH`. |
+| `CORS_ALLOWED_ORIGINS` | empty | Extra allowed origins, comma-separated. |
+| `BODY_LIMIT_BYTES` | 50 MiB | Largest request body. |
+| `STAGE_CONCURRENCY_LIMIT` | from settings | Overrides the image-stage simultaneous-request cap (manual tests only). |
+| `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | 2, 30 | Retry back-off (shortened for manual tests). |
+| `ADMIN_PASSWORD` | none | Unlocks `/admin` (see "Administrator password"). A secret: environment or `.secrets.json`. |
+| `OPENAI_KEY`, `FAL_API_KEY`, `RUNNINGHUB_API_KEY`, `ELEVENLABS_KEY` | none | Provider keys, used until a key is saved on `/admin` (see "Provider credentials"). |
+| `VID4YOU_DATA_DIR`, `VID4YOU_PORT`, `VID4YOU_NO_BROWSER` | user data folder, `3100`, empty | Packaged app only: data folder, port, and (with `1`) do not open the browser. `XDG_DATA_HOME` and `APPDATA` only choose the default data folder on Linux and Windows. |
+| `VID4YOU_VERSION`, `VID4YOU_CHANNEL`, `VID4YOU_RELEASE_TAG`, `VID4YOU_TELEMETRY_ENDPOINT` | `0.0.0-dev`, `development`, none, `https://otel.vid4you.download` | Build identity, set by the release build; see "Telemetry (opt-in)". |
+| `RUN_PROVIDER_CONTRACT_TESTS` | unset | `1` runs the contract tests against the real providers (needs real keys). |
+| Test-only switches | unset | `ALLOW_TEST_ENDPOINTS`, `USE_STUB_*`, `VOICE_STUB_DELAY_MS`, `ASSEMBLY_STUB_DELAY_MS`, `VID4YOU_ERROR_TRIGGERS`: see "Development-only switches". The packaged app ignores them. |
+
 ## Test
 
 ```bash

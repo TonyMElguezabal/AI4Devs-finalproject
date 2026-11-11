@@ -449,7 +449,7 @@ Tracked here so this document is never mistaken for settling more than it has:
 
 - ~~Persistence engine and schema~~ — **decided**: embedded SQLite (`docs/adr/0002-persistence.md`). See [Persistence](#persistence).
 - ~~Live-update transport~~ — **decided**: Server-Sent Events (`docs/adr/0003-live-updates.md`). See [Live Updates](#live-updates).
-- **Frontend stack and its interop contract with this backend** — `define-frontend-stack` (US-42b, JOS-180).
+- ~~Frontend stack and its interop contract with this backend~~ — **decided**: React 18 with Vite (`docs/adr/0004-frontend-stack.md`, `define-frontend-stack`, JOS-180). See `docs/frontend-standards.md`.
 - ~~Hardcoded values~~ (retry backoff base/cap, per-phase max execution times, concurrency caps, speed-factor limits) — **decided**: `backend/src/config/providers.ts` (`define-provider-configuration`, US-33, JOS-165, `docs/adr/0005-provider-selection.md`). The speed-factor limit (`2.0`) was fixed by `record-speed-adjustment-factor` (JOS-148) from `define-media-assembly` (JOS-182)'s measurement. **Still open**: assembly's per-phase max time, pending implementation of the assembly stage; voice/alignment/video's per-stage request caps, no real rate limit found yet for those three.
 - ~~Whether the walking skeleton becomes `backend/`'s seed~~ — **decided**: yes, promoted (`start-video-project`, JOS-134). The five-stage model is implemented stage by stage, each in its own change (`generate-voice-over`, `decompose-script-into-chunks`, `generate-chunk-image`, `generate-chunk-video`, `assemble-final-video`); `harden-backend-foundation` (JOS-186) closed the two checks the spikes left open (concurrency accounting after a restart, write capacity at 300 scenes) and made this document match the real layout.
 
