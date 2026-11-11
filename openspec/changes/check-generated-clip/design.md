@@ -62,6 +62,7 @@ A clip is accepted only if all of these hold, in this order (the first that fail
 - `orchestrator.ts` calls the check through `setClipCheck(fn)`, defaulting to `checkClip`. `test/setup.ts` installs an accepting check before each test, as it installs stub providers, so the tests that deliver placeholder bytes keep testing what they test. A test about the check installs the real one.
 - New tests make real clips with ffmpeg (`-f lavfi -i color=black:s=<w>x<h>:d=<s>:r=1`, a few kB each), cached per shape in the test.
 - **The stub video provider** gets a `clipFor(durationSeconds)` option. One helper, `stubClipMaker(ffmpegPath, folder)`, makes a 1920×1080 clip with ffmpeg at the requested duration, cached per duration in that folder. `bootstrap.ts` and `packaging/smokeStubs.ts` both use it, so every stubbed run goes through the real check: the E14 workflow tests, manual testing and the packaged smoke test. They already need ffmpeg for assembly or ship it.
+- **A refused clip can be produced on demand.** `USE_STUB_VIDEO_PROVIDER=short-clip` (manual endpoint testing and the workflow tests only, like the other stub modes) makes the stub answer with a clip 3 s shorter than requested (never under 1 s), so a scene can be watched failing at `video` with the check's reason without a real provider.
 - **Alternative rejected:** skipping the check for `stub-` providers. It is less code, but a fully stubbed run would no longer prove the check works.
 
 ## Risks / Trade-offs

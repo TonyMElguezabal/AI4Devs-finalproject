@@ -1,4 +1,7 @@
+import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { z } from "zod";
 import { keyFor, stageApiKey } from "./keyStore.ts";
 import { buildProfileRegistry, profileRegistrySlot } from "./profileRegistry.ts";
@@ -209,12 +212,34 @@ export type StubVideoProviderMode =
   | "pending"
   | "request-lost";
 
+/**
+ * check-generated-clip (JOS-265), design Decision 4 — a real 1920x1080 clip of the requested length, made with ffmpeg and
+ * kept per duration in `folder`, so a stubbed run passes the same clip check a real provider's clip does. One frame per
+ * second keeps each file a few kilobytes.
+ */
+export function stubClipMaker(ffmpegPath: string, folder: string): (durationSeconds: number) => Buffer {
+  const made = new Map<number, Buffer>();
+  return (durationSeconds) => {
+    const cached = made.get(durationSeconds);
+    if (cached) return cached;
+    mkdirSync(folder, { recursive: true });
+    const file = join(folder, `stub-clip-${durationSeconds}s.mp4`);
+    if (!existsSync(file)) {
+      execFileSync(ffmpegPath, ["-loglevel", "error", "-f", "lavfi", "-i", `color=black:s=1920x1080:d=${durationSeconds}:r=1`, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-y", file]);
+    }
+    const bytes = readFileSync(file);
+    made.set(durationSeconds, bytes);
+    return bytes;
+  };
+}
+
 export function createStubVideoProvider(
   mode: StubVideoProviderMode,
-  options: { bytes?: Buffer; url?: string } = {},
+  options: { bytes?: Buffer; url?: string; clipFor?: (durationSeconds: number) => Buffer } = {},
 ): VideoProvider & { calls: string[] } {
   const calls: string[] = [];
   const submitted = new Map<string, StubVideoProviderMode>();
+  const requestedSeconds = new Map<string, number>();
 
   return {
     calls,
@@ -224,6 +249,7 @@ export function createStubVideoProvider(
       // Unique across restarts, like a real provider task id: `provider_requests.id` is a primary key and survives a restart.
       const requestId = `stub-video-req-${randomUUID()}`;
       submitted.set(requestId, mode);
+      requestedSeconds.set(requestId, durationSeconds);
       return { kind: "submitted", requestId, sentBody: { prompt: instruction, duration: durationSeconds, resolution: "768P", firstFrameUrl: "https://stub.example/frame.png" } };
     },
     // eslint-disable-next-line @typescript-eslint/require-await -- implements the async video provider contract
@@ -232,7 +258,8 @@ export function createStubVideoProvider(
       const m = submitted.get(requestId) ?? mode;
       switch (m) {
         case "success-bytes":
-          return { kind: "success", clip: { source: "bytes", bytes: options.bytes ?? Buffer.alloc(0) } };
+          // An id from before a restart has no recorded duration; the option's fixed bytes answer it.
+          return { kind: "success", clip: { source: "bytes", bytes: (options.clipFor && requestedSeconds.has(requestId) ? options.clipFor(requestedSeconds.get(requestId)!) : options.bytes) ?? Buffer.alloc(0) } };
         case "success-temporary-url":
           return { kind: "success", clip: { source: "temporary-url", url: options.url ?? "https://cdn.example.com/stub.mp4" } };
         case "transient-failure":

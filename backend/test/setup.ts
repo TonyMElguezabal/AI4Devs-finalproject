@@ -17,8 +17,11 @@ beforeEach(async () => {
   // follow-fal-image-queue (JOS-239): an image request is checked every 5 s in production; tests check it every millisecond.
   // Imported here, not at the top: a static import would load the orchestrator before a test file's `vi.mock` of the
   // provider constants takes effect.
-  const { setImagePollIntervalMs } = await import("../src/orchestrator.ts");
+  const { setClipCheck, setImagePollIntervalMs } = await import("../src/orchestrator.ts");
   setImagePollIntervalMs(1);
+  // check-generated-clip (JOS-265): the clip check would run the machine's real ffprobe on placeholder bytes, so each test
+  // starts with a check that accepts every clip; a test of the check itself installs the real one.
+  setClipCheck(async () => ({ ok: true }));
   setScriptModerator({ moderate: async () => ({ kind: "clean" }) });
   // detect-blocked-media-tools (JOS-271): the readiness check would start the machine's real ffmpeg and ffprobe, so each
   // test starts with tools that are ready; a test of the check itself installs its own.

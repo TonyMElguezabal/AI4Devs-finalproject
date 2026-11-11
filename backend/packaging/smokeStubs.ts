@@ -1,16 +1,15 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { setDecompositionDependencies } from "../src/decompositionDependencies.ts";
 import { createStubAlignmentProvider, createStubInstructionGenerator } from "../src/decompositionStubs.ts";
 import { createStubImageProvider, setImageProviderRegistry } from "../src/imageProvider.ts";
 import { setScriptModerator } from "../src/scriptModeration.ts";
-import { createStubVideoProvider, setVideoProviderRegistry, STUB_VIDEO_PROVIDER_NAME } from "../src/videoProvider.ts";
+import { createStubVideoProvider, setVideoProviderRegistry, stubClipMaker, STUB_VIDEO_PROVIDER_NAME } from "../src/videoProvider.ts";
 import { createStubVoiceProvider, setVoiceProviderRegistry } from "../src/voiceProvider.ts";
 
 // package-executables-build (JOS-205) Decision 7 — the `--smoke` flavor only. It lets one session reach `final-video` through
 // the executable with no provider key; a release build never contains this file (a test asserts it). The real ffmpeg makes
-// the one stub clip, and the real assembly tool then joins it.
+// a stub clip at each requested duration (check-generated-clip, JOS-265), so it passes the real clip check, and the real
+// assembly tool then joins them.
 export function installSmokeStubs(options: { ffmpegPath: string; dataDir: string }): void {
   setScriptModerator({ moderate: () => Promise.resolve({ kind: "clean" as const }) });
   setDecompositionDependencies({ alignmentProvider: createStubAlignmentProvider(), instructionGenerator: createStubInstructionGenerator() });
@@ -22,13 +21,9 @@ export function installSmokeStubs(options: { ffmpegPath: string; dataDir: string
   png.writeUInt32BE(1088, 20);
   setImageProviderRegistry({ defaultIdentifier: "stub-image", adapters: { "stub-image": createStubImageProvider("success-bytes", { bytes: png }) } });
   setVoiceProviderRegistry({ defaultIdentifier: "stub-voice", adapters: { "stub-voice": createStubVoiceProvider("success") } });
-  const clipPath = join(options.dataDir, "smoke-clip.mp4");
-  if (!existsSync(clipPath)) {
-    execFileSync(options.ffmpegPath, ["-loglevel", "error", "-f", "lavfi", "-i", "testsrc=size=1920x1088:rate=24", "-t", "1", "-pix_fmt", "yuv420p", "-c:v", "libx264", clipPath]);
-  }
   setVideoProviderRegistry({
     defaultIdentifier: STUB_VIDEO_PROVIDER_NAME,
-    adapters: { [STUB_VIDEO_PROVIDER_NAME]: createStubVideoProvider("success-bytes", { bytes: readFileSync(clipPath) }) },
+    adapters: { [STUB_VIDEO_PROVIDER_NAME]: createStubVideoProvider("success-bytes", { clipFor: stubClipMaker(options.ffmpegPath, join(options.dataDir, "smoke-clips")) }) },
   });
   console.log("smoke-stubs installed: providers are stubs, this is not a release build");
 }
