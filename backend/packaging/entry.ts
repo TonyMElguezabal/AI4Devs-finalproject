@@ -25,6 +25,7 @@ function readAsset(name: string): Buffer | undefined {
 }
 
 async function main(): Promise<void> {
+  throw new Error("deliberate break (JOS-279 task 2.2)");
   if (!__VID4YOU_SMOKE__) sanitizeEnvironment(process.env);
   const dataDir = resolveDataDir({ platform: process.platform, env: process.env });
   const runtime = buildRuntimeEnvironment({ dataDir, binDir: dirname(process.execPath), platform: process.platform });
