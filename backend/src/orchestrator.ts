@@ -117,6 +117,7 @@ import {
   type SessionState,
   type StageAttempt,
 } from "./types.ts";
+import { checkClip, type ClipCheckOutcome } from "./clipOutputCheck.ts";
 import { redactPaths } from "./util/redactPaths.ts";
 import { recordCaughtError } from "./telemetry/index.ts";
 
@@ -878,8 +879,17 @@ registerStageLauncher(imageStageLauncher);
 
 // ---- Video stage (generate-chunk-video, JOS-146) ----
 
-function isMp4(bytes: Buffer): boolean {
-  return bytes.length >= 8 && bytes.subarray(4, 8).toString("ascii") === "ftyp";
+/**
+ * check-generated-clip (JOS-265), design Decisions 3-4 — every clip is measured from its own bytes before it is stored.
+ * Replaceable, like the assembly tool: `test/setup.ts` installs an accepting check so tests that deliver placeholder
+ * bytes keep testing what they test; a test of the check installs the real one.
+ */
+let clipCheck: (bytes: Uint8Array, requestedSeconds: number) => Promise<ClipCheckOutcome> = (bytes, requestedSeconds) => checkClip(bytes, requestedSeconds);
+export function setClipCheck(check: typeof clipCheck): void {
+  clipCheck = check;
+}
+export function resetClipCheck(): void {
+  clipCheck = (bytes, requestedSeconds) => checkClip(bytes, requestedSeconds);
 }
 
 function applyVideoFailureOutcome(
@@ -1008,11 +1018,15 @@ async function pollVideoRequestOnce(
     clipBytes = downloaded.bytes;
   }
 
-  if (!isMp4(clipBytes)) {
-    insertProviderRequest(requestId, sceneId, latencyMs, "transient_failure", attemptNumber, "video");
+  // A clip is never launched without its requested duration (runVideoAttempt), so it is set here.
+  const checked = await clipCheck(clipBytes, fresh.requestedDurationSeconds ?? 0);
+  if (!checked.ok) {
+    // A tool that cannot run says nothing about the clip, and a retry would be a paid request that fails the same way.
+    const kind = checked.unavailable ? "failed_not_retryable" : "failed_transient";
+    insertProviderRequest(requestId, sceneId, latencyMs, checked.unavailable ? "not_retryable_failure" : "transient_failure", attemptNumber, "video");
     markProviderRequestResolved(requestId);
     concurrency.release(VIDEO_STAGE, sceneId);
-    applyVideoFailureOutcome(sceneId, { kind: "failed_transient", reason: "the downloaded file is not an MP4" }, attemptNumber);
+    applyVideoFailureOutcome(sceneId, { kind, reason: checked.reason }, attemptNumber);
     broadcast(fresh.runId);
     return;
   }

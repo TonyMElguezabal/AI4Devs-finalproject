@@ -1,0 +1,64 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: Vid4You
+    - generic "Vid4You version 0.0.0-dev" [ref=e13]: Development build
+  - main [ref=e8]:
+    - generic [ref=e9]:
+      - heading "Administrator" [level=1] [ref=e11]
+      - region "Administrator tools" [ref=e20]:
+        - tablist "Administrator tools" [ref=e21]:
+          - tab "Settings" [ref=e22] [cursor=pointer]
+          - tab "Providers" [ref=e23] [cursor=pointer]
+          - tab "Failed stages" [ref=e24] [cursor=pointer]
+          - tab "Reports" [selected] [ref=e25] [cursor=pointer]
+        - tabpanel "Reports" [ref=e313]:
+          - region "Reports" [ref=e314]:
+            - heading "Reports" [level=2] [ref=e315]
+            - group "Period" [ref=e316]:
+              - generic [ref=e318] [cursor=pointer]:
+                - radio "Last 7 days" [ref=e319]
+                - text: Last 7 days
+              - generic [ref=e320] [cursor=pointer]:
+                - radio "Last 30 days" [ref=e321]
+                - text: Last 30 days
+              - generic [ref=e322] [cursor=pointer]:
+                - radio "All time" [ref=e323]
+                - text: All time
+              - generic [ref=e324] [cursor=pointer]:
+                - radio "Custom range" [checked] [ref=e325]
+                - text: Custom range
+              - generic [ref=e462]:
+                - generic [ref=e463] [cursor=pointer]:
+                  - text: From date
+                  - textbox "From date" [ref=e464]: 2026-11-01
+                - generic [ref=e465] [cursor=pointer]:
+                  - text: To date
+                  - textbox "To date" [active] [ref=e466]: 2026-11-03
+            - group "Summary" [ref=e326]:
+              - generic [ref=e327]:
+                - generic [ref=e328]:
+                  - term [ref=e329]: Attempts
+                  - definition [ref=e330]: "0"
+                - generic [ref=e331]:
+                  - term [ref=e332]: Success rate
+                  - definition [ref=e333]: 0%
+                - generic [ref=e334]:
+                  - term [ref=e335]: Estimated cost
+                  - definition [ref=e336]: —
+                - generic [ref=e337]:
+                  - term [ref=e338]: Failed scenes now
+                  - definition [ref=e339]: "0"
+            - group [ref=e340]:
+              - generic "Provider usage" [ref=e341] [cursor=pointer]
+              - paragraph [ref=e511]: No provider activity in this period.
+            - group [ref=e408]:
+              - generic "Estimated cost" [ref=e409] [cursor=pointer]
+            - group [ref=e410]:
+              - generic "Pipeline time" [ref=e411] [cursor=pointer]
+            - group [ref=e412]:
+              - generic "Failures and retries" [ref=e413] [cursor=pointer]
+            - group [ref=e414]:
+              - generic "Provider changes" [ref=e415] [cursor=pointer]
+            - group [ref=e416]:
+              - generic "Sessions" [ref=e417] [cursor=pointer]
+              - paragraph [ref=e512]: No sessions were created in this period.

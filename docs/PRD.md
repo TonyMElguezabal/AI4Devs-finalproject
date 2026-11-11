@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.32  
+**Versión:** 1.33  
 **Alcance:** MVP  
-**Status (v1.32, Approved):** the Administrator adds a video model of any vendor on `/admin`, without a code change, by writing the vendor's requests in a configured connector; a key is bound to its connector's host, and a connector can be duplicated for another model of the same vendor; the final video is 720p or 1080p, no clip is generated above 1080p, and RunningHub generates at 768P (`configurable-video-connector`, JOS-219, §7.3, §11.2, §11.3, D08). The previous version is kept in `docs/PRD-v1.31.md`.
+**Status (v1.33, Approved):** every generated clip is checked from its own file before it is stored: it must be a readable MP4 whose first frame decodes, horizontal and at least 1920×1080, and as long as requested within −0.5 s to +1 s; a clip that fails is a failed attempt of the video stage (`check-generated-clip`, JOS-265, §7.2). The previous version is kept in `docs/PRD-v1.32.md`.
 
 The history of every version since v1.8, with its origin, the sections it changed and its approval state, is in §16; the archived versions are the `docs/PRD-v1.*.md` files. The MVP remains a single-user application on the user's own computer, and all product decisions remain closed.
 
@@ -169,6 +169,7 @@ Cada clip utiliza la imagen generada y la instrucción `VIDEO`. La duración sol
 
 - El sistema solicita la duración admitida por el proveedor **más próxima** al intervalo narrado. Se admite que la duración solicitada sea menor que el intervalo, lo que implica ralentizar el clip durante el montaje. "Closest" means the admitted duration requiring the smallest speed change (speed-up or slow-down ratio) to match the interval, not the fewest seconds; an exact tie goes to the longer duration.
 - Cuando el intervalo narrado es inferior a la menor duración admitida, se solicita esa menor duración.
+- **Comprobación del clip (JOS-265, product owner decision 2026-11-05).** El sistema mide cada clip generado a partir de su propio archivo, antes de guardarlo, y no confía en los datos que informa el proveedor. Un clip se acepta solo si es un MP4 legible cuyo primer fotograma se decodifica, si su video es horizontal y de al menos 1920×1080 (tamaño), y si su duración medida está entre la duración solicitada menos 0,5 s y la solicitada más 1 s (duración). Un clip que no cumple cuenta como un intento fallido transitorio de la etapa de video, con un motivo legible (por ejemplo, «the generated clip lasts 6.0 s, but 10 s was requested»), y sigue la política de reintentos de §10.1; si se agotan, la escena queda en `failed` en la etapa de video. Si no se puede ejecutar ffprobe, el intento falla como no reintentable, porque un reintento no podría tener éxito.
 - El sistema no debe asumir que todos los proveedores admiten las mismas duraciones ni cualquier valor intermedio. The set of admitted durations is configured for the video provider (§11).
 - El máximo habitual previsto es de 15 segundos; un proveedor que admita 20 segundos puede utilizar ese máximo. **Recorded (§11.3): the video provider's measured admitted range, the shipped default, is 5-15 seconds** — the "usual" 15-second expectation is exactly the measured maximum, not just a placeholder guess.
 
@@ -508,6 +509,14 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 10 | No hay requisitos no funcionales, objetivo de negocio ni métricas de éxito definidos para el MVP. **Closed (product owner, 2026-11-11)**: los requisitos funcionales (§13) se cumplen y se verificaron con el último video generado; no se definen requisitos no funcionales ni métricas de éxito adicionales para el MVP. | Documento completo |
 
 ## 16. Registro de cambios
+
+### From version 1.32 to 1.33
+
+Origin: `check-generated-clip` (JOS-265), 2026-11-11. **Awaiting the product owner's approval.**
+
+| Change | Origin |
+|---|---|
+| §7.2: every clip is checked from its own file before it is stored (readable MP4, first frame decodes, horizontal and at least 1920×1080, duration from the requested −0.5 s to +1 s); a failed check is a failed attempt of the video stage with a readable reason. | Product owner decisions 2026-11-05 (size and duration rules) |
 
 ### From version 1.31 to 1.32
 

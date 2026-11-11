@@ -1,0 +1,114 @@
+- generic:
+  - generic:
+    - banner:
+      - generic: Vid4You
+      - generic: Live
+      - button: Privacy
+      - button: New project
+      - generic: Development build
+    - dialog [ref=e1]:
+      - generic [ref=e2]:
+        - heading "Help improve Vid4You" [level=2] [ref=e3]
+        - paragraph [ref=e4]:
+          - text: Nothing is sent unless you turn it on here. No script, media, file name or key is ever sent. You can change this at any time from Privacy.
+          - link "Privacy policy" [active] [ref=e5] [cursor=pointer]:
+            - /url: https://github.com/TonyMElguezabal/AI4Devs-finalproject/blob/main/PRIVACY.md
+        - generic [ref=e6]:
+          - checkbox "Send error reports" [ref=e7]
+          - generic [ref=e8]: Send error reports
+          - generic [ref=e9]: What failed and where, with file paths and your user name removed.
+        - generic [ref=e10]:
+          - checkbox "Send provider usage and cost counts" [ref=e11]
+          - generic [ref=e12]: Send provider usage and cost counts
+          - generic [ref=e13]: How many provider calls ran, how long they took and how much was billed.
+        - generic [ref=e14]:
+          - checkbox "Send anonymous usage counts" [ref=e15]
+          - generic [ref=e16]: Send anonymous usage counts
+          - generic [ref=e17]: How often the app starts, sessions begin and final videos are made.
+        - generic [ref=e18]:
+          - button "Not now" [ref=e19] [cursor=pointer]
+          - button "Save" [ref=e20] [cursor=pointer]
+    - main:
+      - region:
+        - complementary:
+          - generic:
+            - generic: Project
+            - heading [level=1]: Clip check short
+            - generic:
+              - generic: en
+              - time: Started Nov 11, 11:19 AM
+          - group:
+            - generic: Show script
+          - region:
+            - generic:
+              - generic: Session state
+              - generic: Needs attention
+            - alert: "Failed phase: scenes"
+            - paragraph: "Failed scenes: 1"
+            - button: Pause session
+          - generic:
+            - generic:
+              - generic: Scenes done
+              - generic: 0 of 1
+            - progressbar
+            - group:
+              - generic:
+                - generic:
+                  - term: Done
+                  - definition: 0 of 1
+                - generic:
+                  - term: Failed at clip
+                  - definition: 1 · 1
+                - generic:
+                  - term: Clips left
+                  - definition: "1"
+          - paragraph:
+            - text: Session
+            - code: 01M75SZ9248NMFTR1QB2EE4M9T
+        - generic:
+          - group:
+            - generic:
+              - generic: Voice-over
+              - generic: Complete
+            - generic:
+              - generic: Decomposition
+              - generic: Complete
+            - generic:
+              - generic: Scenes
+              - generic: Failed
+            - generic:
+              - generic: Final video
+              - generic: Not started
+          - region:
+            - generic:
+              - heading [level=2]: Voice-over
+              - generic: Complete
+            - list:
+              - listitem: "Voice-over: Stub provider (stub-voice), 1 attempt"
+          - region:
+            - generic:
+              - heading [level=2]: Decomposition
+              - generic: Complete
+            - list:
+              - listitem: "Timestamps: Stub provider (native timestamps), 1 attempt"
+              - listitem: "Scene instructions: Stub provider (stub-reasoning), 1 attempt"
+          - region:
+            - generic:
+              - heading [level=2]: Scenes
+              - generic: Failed
+            - region:
+              - list:
+                - listitem:
+                  - generic:
+                    - generic [aria-hidden]: "1"
+                  - generic:
+                    - generic:
+                      - generic: Failed
+                      - generic: 5 s
+                    - alert: the generated clip lasts 2.0 s, but 5 s was requested (video retry budget exhausted after 4 attempts)
+                    - button: View scene 1 details
+          - region:
+            - generic:
+              - heading [level=2]: Final video
+              - generic: Not started
+            - paragraph: Available once every scene is done

@@ -1,0 +1,120 @@
+- generic [ref=f4e22]:
+  - banner [ref=f4e23]:
+    - generic [ref=f4e24]: Vid4You
+    - generic [ref=f4e28]: Live
+    - button "Privacy" [ref=f4e30] [cursor=pointer]
+    - button "New project" [ref=f4e31] [cursor=pointer]
+    - generic "Vid4You version 0.0.0-dev" [ref=f4e34]: Development build
+  - main [ref=f4e35]:
+    - region "Session" [ref=f4e36]:
+      - complementary [ref=f4e37]:
+        - generic [ref=f4e38]:
+          - generic [ref=f4e39]: Project
+          - 'heading "JOS-219 connector proof: Runway Kling" [level=1] [ref=f4e40]'
+          - generic [ref=f4e41]:
+            - generic [ref=f4e42]: en
+            - time [ref=f4e43]: Started Nov 6, 01:21 AM
+        - group [ref=f4e44]:
+          - generic "Show script" [ref=f4e45] [cursor=pointer]
+        - region "Session status" [ref=f4e49]:
+          - generic [ref=f4e50]:
+            - generic [ref=f4e51]: Session state
+            - generic [ref=f4e52]: Final video ready
+        - generic [ref=f4e56]:
+          - generic [ref=f4e57]:
+            - generic [ref=f4e58]: Scenes done
+            - generic [ref=f4e59]: 2 of 2
+          - progressbar "Scenes done" [ref=f4e60]
+          - group "Scene progress" [ref=f4e61]:
+            - generic [ref=f4e63]:
+              - term [ref=f4e64]: Done
+              - definition [ref=f4e65]: 2 of 2
+        - paragraph [ref=f4e66]:
+          - text: Session
+          - code [ref=f4e67]: 01M6QVQ0V4VN8CVHPJYB4HG8FA
+      - generic [ref=f4e68]:
+        - group "Pipeline progress" [ref=f4e69]:
+          - generic [ref=f4e70]:
+            - generic [ref=f4e71]: Voice-over
+            - generic [ref=f4e76]: Complete
+          - generic [ref=f4e77]:
+            - generic [ref=f4e78]: Decomposition
+            - generic [ref=f4e83]: Complete
+          - generic [ref=f4e84]:
+            - generic [ref=f4e85]: Scenes
+            - generic [ref=f4e90]: Complete
+          - generic [ref=f4e91]:
+            - generic [ref=f4e92]: Final video
+            - generic [ref=f4e97]: Complete
+        - region "Voice-over phase" [ref=f4e98]:
+          - generic [ref=f4e99]:
+            - heading "Voice-over" [level=2] [ref=f4e100]
+            - generic [ref=f4e101]: Complete
+          - list "Voice-over stages" [ref=f4e105]:
+            - listitem [ref=f4e106]: "Voice-over: ElevenLabs (eleven_multilingual_v2), 1 attempt"
+        - region "Decomposition phase" [ref=f4e107]:
+          - generic [ref=f4e108]:
+            - heading "Decomposition" [level=2] [ref=f4e109]
+            - generic [ref=f4e110]: Complete
+          - list "Decomposition stages" [ref=f4e114]:
+            - listitem [ref=f4e115]: "Timestamps: ElevenLabs (native timestamps), 1 attempt"
+            - listitem [ref=f4e116]: "Scene instructions: OpenAI (gpt-6-astra), 1 attempt"
+        - region "Scenes phase" [ref=f4e117]:
+          - generic [ref=f4e118]:
+            - heading "Scenes" [level=2] [ref=f4e119]
+            - generic [ref=f4e120]: Complete
+          - region "Scenes" [ref=f4e124]:
+            - list [ref=f4e125]:
+              - listitem "Scene 1" [ref=f4e126]:
+                - generic [ref=f4e129]:
+                  - generic [ref=f4e130]:
+                    - generic [ref=f4e131]: Done
+                    - generic [ref=f4e135]: 9 s
+                  - button "Hide scene 1 details" [expanded] [active] [ref=f4e167] [cursor=pointer]
+                - generic [ref=f4e168]:
+                  - generic [ref=f4e169]:
+                    - img "Scene 1 image" [ref=f4e170]
+                    - paragraph [ref=f4e171]:
+                      - link "Download scene 1 image" [ref=f4e172] [cursor=pointer]:
+                        - /url: http://127.0.0.1:3200/sessions/01M6QVQ0V4VN8CVHPJYB4HG8FA/scenes/b87b11f0-693d-45cd-b604-f220ae1f8f9f/download/image
+                      - link "Download scene 1 video" [ref=f4e175] [cursor=pointer]:
+                        - /url: http://127.0.0.1:3200/sessions/01M6QVQ0V4VN8CVHPJYB4HG8FA/scenes/b87b11f0-693d-45cd-b604-f220ae1f8f9f/download/video
+                  - generic [ref=f4e178]:
+                    - generic [ref=f4e179]:
+                      - term [ref=f4e180]: PROMPT
+                      - definition [ref=f4e181]: A lighthouse keeper climbs the spiral stairs at dusk, carrying a small brass lamp as the wind rattles the old windows.
+                      - term [ref=f4e182]: IMAGE
+                      - definition [ref=f4e183]: Horizontal 16:9 cinematic still inside an old stone lighthouse at dusk. A lighthouse keeper in a weathered wool coat climbs a narrow spiral staircase, carrying a small glowing brass lamp. Show the keeper mid-step from slightly below, with the staircase curling overhead. Warm lamplight illuminates worn steps and rough masonry, contrasting with cool violet twilight through old wooden-framed windows. Beyond the glass, a windswept sea is visible. No text.
+                      - term [ref=f4e184]: VIDEO
+                      - definition [ref=f4e185]: Animate for the full narrated fragment with a slow upward tracking movement following the keeper's steady climb around the spiral staircase. Let the brass lamp swing gently with each step and its flame flicker, casting moving shadows across the stone walls. Make the old windowpanes and loose wooden frames visibly tremble in gusts of wind. Preserve the warm lamplight and cool dusk contrast.
+                      - term [ref=f4e186]: Requested duration
+                      - definition [ref=f4e187]: "9"
+                      - term [ref=f4e188]: Speed factor
+                      - definition [ref=f4e189]: "1.054728700339857"
+                    - generic [ref=f4e190]:
+                      - generic [ref=f4e191]: Pause after scene 1
+                      - generic [ref=f4e192]:
+                        - spinbutton "Pause after scene 1" [ref=f4e193]: "0.603"
+                        - generic [ref=f4e194]: s
+                        - button "Reset scene 1 pause" [disabled] [ref=f4e195]
+                      - paragraph [ref=f4e196]: From 0.2 s to 3.0 s, in steps of 0.1 s. Originally 0.6 s.
+                    - group "Scene 1 image diagnostics" [ref=f4e197]: "Image: Fal.ai (fal-ai/flux/dev), 1 attempt"
+                    - group "Scene 1 clip diagnostics" [ref=f4e198]: "Clip: Runway Kling (kling_4), 1 attempt"
+                    - button "Rebuild scene 1" [ref=f4e199] [cursor=pointer]
+              - listitem "Scene 2" [ref=f4e139]:
+                - generic [aria-hidden] [ref=f4e141]: "2"
+                - generic [ref=f4e142]:
+                  - generic [ref=f4e143]:
+                    - generic [ref=f4e144]: Done
+                    - generic [ref=f4e148]: 7 s
+                  - button "View scene 2 details" [ref=f4e149] [cursor=pointer]
+        - region "Final video phase" [ref=f4e152]:
+          - generic [ref=f4e153]:
+            - heading "Final video" [level=2] [ref=f4e154]
+            - generic [ref=f4e155]: Complete
+          - list "Final video stages" [ref=f4e159]:
+            - listitem [ref=f4e160]: "Assembly: Local assembly (ffmpeg), 1 attempt"
+          - generic [ref=f4e162]:
+            - link "Download final video" [ref=f4e163] [cursor=pointer]:
+              - /url: http://127.0.0.1:3200/sessions/01M6QVQ0V4VN8CVHPJYB4HG8FA/download/final-video
+            - generic [ref=f4e166]: Version 1

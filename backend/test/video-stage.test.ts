@@ -28,8 +28,10 @@ import {
   resetAssemblyTool,
   resetVideoStageStartDelayMs,
   setAssemblyTool,
+  setClipCheck,
   toSnapshot,
 } from "../src/orchestrator.ts";
+import { checkClip } from "../src/clipOutputCheck.ts";
 import {
   createStubVideoProvider,
   resetVideoDownloadFetch,
@@ -386,6 +388,8 @@ describe("Group 5 — Completion (Decision 8)", () => {
   });
 
   it("a file that is not an MP4 counts as a failed transient attempt", async () => {
+    // check-generated-clip (JOS-265): the "not an MP4" rule is now part of the clip check, so this test runs the real one.
+    setClipCheck(checkClip);
     const runId = randomUUID();
     createRun(runId, "not mp4 test", "script", "en");
 
@@ -393,10 +397,14 @@ describe("Group 5 — Completion (Decision 8)", () => {
     setVideoProviderRegistry({ defaultIdentifier: TEST_VIDEO_PROVIDER_ID, adapters: { [TEST_VIDEO_PROVIDER_ID]: provider } });
 
     const sceneIds = await bringToImageComplete(runId);
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // The real check runs ffprobe on every attempt: wait for the whole retry budget so no attempt outlives the test.
+    for (let waited = 0; getScene(sceneIds[0]!)?.status !== "failed" && waited < 5000; waited += 20) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
 
     const scene = getScene(sceneIds[0]!);
-    expect(["failed", "image-complete"].includes(scene?.status ?? "")).toBe(true);
+    expect(scene?.status).toBe("failed");
+    expect(scene?.lastError).toContain("not an MP4");
     expect(scene?.videoResult).toBeNull();
   });
 });

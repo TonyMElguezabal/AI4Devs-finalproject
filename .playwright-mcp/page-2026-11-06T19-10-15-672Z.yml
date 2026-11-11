@@ -1,0 +1,18 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: Vid4You
+    - generic "Vid4You version 0.0.0-dev" [ref=e13]: Development build
+  - main [ref=e8]:
+    - generic [ref=e9]:
+      - heading "Administrator" [level=1] [ref=e11]
+      - region "Administrator tools" [ref=e20]:
+        - tablist "Administrator tools" [ref=e21]:
+          - tab "Settings" [ref=e22] [cursor=pointer]
+          - tab "Providers" [ref=e23] [cursor=pointer]
+          - tab "Failed stages" [active] [selected] [ref=e24] [cursor=pointer]
+          - tab "Reports" [ref=e25] [cursor=pointer]
+        - tabpanel "Failed stages" [ref=e308]:
+          - region "Failed stages" [ref=e309]:
+            - heading "Failed stages" [level=2] [ref=e310]
+            - paragraph [ref=e311]: "A failed stage still bound to a provider other than the active one can be moved to the active provider. The move sends nothing: retry the stage from its session page."
+            - paragraph [ref=e312]: No failed stage is on a provider other than the active one.
