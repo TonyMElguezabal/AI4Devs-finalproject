@@ -209,7 +209,7 @@ Estado del MVP a 10-nov-2026. Ninguna impide generar un video; todas están regi
 | El tiempo máximo de imagen (300 s) no está confirmado con la versión actual: la sesión de tamaño real (JOS-209) lo midió antes de que la imagen siguiera la cola de Fal.ai (JOS-239), cuando 300 s incluía la espera en cola. | Si la generación real es más lenta, una imagen se cancela a los 600 s (el doble del límite) y la escena falla. | JOS-268 |
 | Los límites reales de peticiones por etapa de RunningHub y ElevenLabs, y los casos límite de la división por cláusulas (§6.1), no están verificados. | El límite de peticiones simultáneas usa los valores de `config/providers.ts`, sin contrastar con los límites reales. | JOS-188, JOS-189 (posteriores al MVP) |
 | La comprobación del guion muestra un único mensaje genérico para cuatro causas distintas (falta `OPENAI_KEY`, fichero de claves ilegible, sin red hacia OpenAI, error de OpenAI). | El usuario debe revisar la tabla de la sección 1.5 para descubrir cuál es. | Aplazada por el propietario del producto |
-| El ejecutable no está firmado (decisión del propietario: los certificados de pago se aplazan). | Windows (SmartScreen) y macOS (Gatekeeper) muestran una advertencia al abrirlo; se evita con los comandos de desbloqueo de la sección 1.6. | JOS-207 (cerrado con los comandos de desbloqueo) |
+| El ejecutable no está firmado (decisión del propietario: los certificados de pago se aplazan). | Windows (SmartScreen) y macOS (Gatekeeper) muestran una advertencia al abrirlo; se evita con los comandos de desbloqueo de la sección 1.4. | JOS-207 (cerrado con los comandos de desbloqueo) |
 | El ejecutable se construye con un comando por plataforma (JOS-205) y `release.yml` publica las versiones (JOS-206, ver 2.4), pero el ffmpeg fijado no es redistribuible (decisión del propietario) y no hay actualización automática. | La aplicación solo avisa de que hay una versión nueva; se instala a mano. | JOS-205 y JOS-206 (hechos) |
 | No se ha verificado que una versión anterior abra una base de datos migrada por una posterior. | Volver a una versión anterior exige restaurar la copia de la carpeta de datos (ver arriba). | JOS-210 |
 | Las pruebas de contrato con proveedores reales no se ejecutan en CI (ver 2.6). | Un cambio en la API de un proveedor solo se detecta en una ejecución real. | — |
@@ -309,7 +309,7 @@ Los ficheros `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` y `codex.md` apuntan a los es
 **Limitaciones conocidas del despliegue** (la lista completa está en la sección 1.6)
 
 - El ejecutable se construye con `npm run package:<plataforma>` en `backend/` (JOS-205) y se publica con `release.yml` (JOS-206). Los ffmpeg y ffprobe que fija son una compilación GPL con componentes `nonfree` que **no se puede redistribuir**; el propietario decidió publicarla igualmente (el software no está pensado para distribuirse y el repositorio es público solo por el curso). Las notas de cada versión lo indican. Sustituirla solo exige cambiar `backend/packaging/targets.ts`.
-- El ejecutable no está firmado; los comandos de desbloqueo de la sección 1.6 evitan la advertencia (JOS-207).
+- El ejecutable no está firmado; los comandos de desbloqueo de la sección 1.4 evitan la advertencia (JOS-207).
 - Una sesión de tamaño real (1.521 palabras, 57 escenas, JOS-209) confirmó los tiempos máximos de voz y razonamiento (600 s) y de video (1200 s, con una espera máxima por clip de 2400 s). El de imagen (300 s) queda pendiente de medir con la versión actual (JOS-268).
 
 ### **2.5. Seguridad**
