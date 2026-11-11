@@ -71,7 +71,20 @@ The system SHALL store a pause edit per scene, replaceable any number of times, 
 
 ### Requirement: Rebuilding applies the edits in a new final-video version
 
-The system SHALL accept a rebuild command only when the session has a final video, no assembly is running, and the current edits differ from those the current final video was built with; otherwise it SHALL refuse with 409 and a reason. An accepted rebuild SHALL open a new assembly cycle in which each edited pause's silence is cut or inserted at the pause's midpoint, every later scene's interval is shifted by the accumulated change, and clips are retimed to those shifted intervals. On success it SHALL write a new file `final-video-<version>.mp4`, record the version with the edits it used, and make it the current final video; no earlier final-video file SHALL be replaced or deleted.
+The system SHALL accept a rebuild command only when all of these hold:
+- the session has a final video;
+- no assembly is running;
+- every scene is `chunk-complete`;
+- either the current edits differ from those the current final video was built with, or a scene was rebuilt after the current final video was built (`staleScenes`, spec `scene-rebuild`).
+
+Otherwise it SHALL refuse with 409 and a reason, using `scenes-not-complete` while any scene is not `chunk-complete`.
+
+An accepted rebuild SHALL open a new assembly cycle using every scene's current clip. In that cycle:
+- each edited pause's silence is cut or inserted at the pause's midpoint;
+- every later scene's interval is shifted by the accumulated change;
+- clips are retimed to those shifted intervals.
+
+On success it SHALL write a new file `final-video-<version>.mp4`, record the version with the edits it used, make it the current final video, and clear `staleScenes`. No earlier final-video file SHALL be replaced or deleted.
 
 #### Scenario: A trimmed pause
 
@@ -82,9 +95,21 @@ The system SHALL accept a rebuild command only when the session has a final vide
 
 #### Scenario: Nothing to rebuild
 
-- **GIVEN** a final video built with exactly the current edits
+- **GIVEN** a final video built with exactly the current edits, and no scene rebuilt since
 - **WHEN** the User rebuilds
 - **THEN** the command is refused with 409 `nothing-to-rebuild`
+
+#### Scenario: A rebuilt scene makes the final video stale
+
+- **GIVEN** a final video whose automatic rebuild after a scene rebuild failed
+- **WHEN** the User rebuilds
+- **THEN** the command is accepted even with no pause edits, and the new version uses the rebuilt scene's clip
+
+#### Scenario: A scene is still being rebuilt
+
+- **GIVEN** a final video with pause edits pending, and scene 6 being rebuilt (`image-generating`)
+- **WHEN** the User rebuilds the final video
+- **THEN** the command is refused with 409 `scenes-not-complete` and no assembly starts
 
 #### Scenario: A rebuild while one is running
 
