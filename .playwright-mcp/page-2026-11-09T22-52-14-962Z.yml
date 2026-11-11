@@ -1,0 +1,26 @@
+- generic [ref=e22]:
+  - banner [ref=e23]:
+    - generic [ref=e24]: Vid4You
+    - button "Privacy" [ref=e28] [cursor=pointer]
+    - generic "Vid4You version 0.0.0-dev" [ref=e29]: Development build
+  - main [ref=e30]:
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - heading "Turn a script into a narrated video" [level=1] [ref=e33]
+        - paragraph [ref=e34]: Paste your script and pick the narration language. Vid4You records the voice-over, splits it into scenes, and generates an image and a clip for each.
+      - form "Start a project" [ref=e35]:
+        - generic [ref=e36]:
+          - generic [ref=e37]: Title
+          - textbox "Title" [ref=e38]: E2E blocked tool
+        - generic [ref=e39]:
+          - generic [ref=e40]: Script
+          - textbox "Script" [ref=e41]: A short script about a harbor at dusk.
+          - paragraph [ref=e47]: 8 words · Estimated video duration ~0:03
+        - generic [ref=e42]:
+          - generic [ref=e43]: Language
+          - combobox "Language" [ref=e44]:
+            - option "Select a language"
+            - option "English" [selected]
+            - option "Español"
+        - alert [ref=e48]: "Error: The operating system blocked ffprobe, so the video could not be assembled. On macOS, run this in a terminal and try again: xattr -dr com.apple.quarantine <the Vid4You folder>"
+        - button "Start project" [ref=e46] [cursor=pointer]

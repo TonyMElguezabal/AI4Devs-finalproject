@@ -62,6 +62,8 @@ Vid4You es una aplicación web que convierte un guion de texto en un video narra
 - Persistencia de sesiones, estados y resultados, incluso tras reinicios del sistema: el trabajo en curso se retoma solo al volver a arrancar.
 - Ajuste manual de la pausa que sigue a una escena y reconstrucción del video final, que conserva las versiones anteriores.
 - Reconstrucción de una escena ya generada («Rebuild scene»): se generan de nuevo su imagen y su clip, con las instrucciones `IMAGE` y `VIDEO` editables, y el video final se reconstruye solo con una versión nueva. Los archivos anteriores se conservan.
+- Subtítulos quemados en el video final, recuento de palabras del guion al escribirlo y versión de la aplicación visible en la barra superior.
+- Zona de administración protegida con contraseña (`/admin`): proveedores y claves, estilo visual e imagen de referencia, etapas fallidas y reportes de uso, tiempos, fallos y coste estimado.
 - Aplicación local para macOS y Windows (un ejecutable que abre el navegador), con telemetría opcional y desactivada por defecto.
 
 ### **1.3. Diseño y experiencia de usuario:**
@@ -113,14 +115,15 @@ Tras desbloquear `/admin`, la sección «Reports» muestra el uso de cada provee
 
 Las claves se pueden introducir en `/admin` (sección «Providers»): se guardan cifradas en la base de datos local, no se vuelven a mostrar (solo su estado y los cuatro últimos caracteres) y la aplicación las pide por el rol de la etapa, no por el nombre del proveedor. Las variables de abajo siguen valiendo como respaldo para los cinco proveedores creados a partir de los ajustes, hasta que se guarda una clave para ellos; una clave guardada gana. La clave maestra del cifrado es un fichero aparte (`PROVIDER_KEY_PATH`, por defecto `data/provider-keys.key`, modo 0600): protege la base de datos copiada por sí sola, no a quien pueda leer ambos ficheros.
 
-Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en el repositorio, que ya lo ignora). Los nombres son:
+Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en el repositorio, que ya lo ignora). Los nombres son (`ADMIN_PASSWORD` es la contraseña única que desbloquea `/admin`; sin ella la aplicación arranca y `/admin` indica cómo definirla):
 
 ```json
 {
   "OPENAI_KEY": "…",
   "FAL_API_KEY": "…",
   "RUNNINGHUB_API_KEY": "…",
-  "ELEVENLABS_KEY": "…"
+  "ELEVENLABS_KEY": "…",
+  "ADMIN_PASSWORD": "…"
 }
 ```
 
@@ -128,7 +131,7 @@ Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en
 - En la aplicación empaquetada es `.secrets.json` dentro de la carpeta de datos del usuario (ver más abajo).
 - En Windows, comprobar que el fichero se llama exactamente `.secrets.json` (el Bloc de notas puede guardarlo como `.secrets.json.txt`) y que está en UTF-8 sin BOM; en caso contrario las claves no se leen y la creación de sesiones falla con el mensaje "The content check is temporarily unavailable".
 
-**Variables de entorno**
+**Variables de entorno** (la lista completa está en `docs/development_guide.md`, «Environment variable reference»)
 
 | Variable | Valor por defecto | Para qué sirve |
 |---|---|---|
@@ -138,8 +141,11 @@ Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en
 | `FFMPEG_PATH`, `FFPROBE_PATH` | resolución automática | Ruta a `ffmpeg` y `ffprobe`. |
 | `SUBTITLE_FONT_PATH` | `backend/assets/fonts/Montserrat-Bold.ttf` | Fuente de los subtítulos. La aplicación empaquetada la escribe en su carpeta de datos y fija esta variable. |
 | `SECRETS_PATH` | `backend/.secrets.json` | Fichero de credenciales. La aplicación empaquetada lo fija en su carpeta de datos. |
+| `SETTINGS_PATH` | `data/settings.json` | Ajustes del usuario que se combinan sobre los por defecto al arrancar. |
+| `PROVIDER_KEY_PATH` | `data/provider-keys.key` | Clave maestra que cifra las claves de proveedor guardadas en la base de datos. |
 | `SETTINGS_DEFAULTS_PATH` | `backend/config/settings.default.json` | Ajustes por defecto. La aplicación empaquetada escribe en cada arranque una copia incrustada en su carpeta de datos y apunta a ella. |
 | `VID4YOU_DATA_DIR` | carpeta de datos del usuario | Solo la aplicación empaquetada: cambia la carpeta donde guarda la base de datos, los proyectos, `.secrets.json`, los ajustes y la clave maestra. |
+| `VID4YOU_VERSION`, `VID4YOU_CHANNEL`, `VID4YOU_RELEASE_TAG`, `VID4YOU_TELEMETRY_ENDPOINT` | `0.0.0-dev`, `development`, vacío, relé del proyecto | Identidad de la compilación; la fija la construcción de la versión, no el usuario. |
 | `VID4YOU_PORT`, `VID4YOU_NO_BROWSER` | `3100`, vacío | Solo la aplicación empaquetada: puerto y, con `1`, no abrir el navegador. |
 | `CORS_ALLOWED_ORIGINS` | vacío | Orígenes adicionales permitidos (lista separada por comas). Por defecto solo el servidor Vite y el propio backend. |
 | `STAGE_CONCURRENCY_LIMIT` | límites de `config/providers.ts` | Sustituye el límite de peticiones simultáneas de la etapa de imagen (solo pruebas manuales). |
@@ -197,7 +203,7 @@ Cada comando deja `Vid4You` (`Vid4You.exe` en Windows), `ffmpeg` y `ffprobe` en 
 | Una escena generada tiene un defecto (contenido equivocado, texto erróneo en la imagen) | La imagen o el clip no salieron como se pedía | Abrir los detalles de la escena, pulsar «Rebuild scene», corregir `IMAGE` y/o `VIDEO` si hace falta y confirmar; se generan de nuevo imagen y clip (una petición de cada uno) y el video final se reconstruye solo. |
 | El video final tiene una pausa demasiado larga o corta | Pausa original tras una escena | Ajustar la pausa de esa escena y reconstruir el video final; los intentos anteriores se conservan como versiones. |
 
-**Copia de seguridad y vuelta atrás.** Los datos de usuario están en la carpeta de datos (SQLite y proyectos); copiarla entera con la aplicación cerrada es una copia de seguridad completa. Para volver a una versión anterior, cerrar la aplicación, restaurar la copia de la carpeta de datos y volver a instalar el ejecutable o la rama anterior. No se ha verificado que una versión antigua del programa pueda abrir una base de datos migrada por una versión más nueva; por eso la copia previa a cada actualización es necesaria.
+**Copia de seguridad y vuelta atrás.** Los datos de usuario están en la carpeta de datos (SQLite y proyectos); copiarla entera con la aplicación cerrada es una copia de seguridad completa. Para volver a una versión anterior, cerrar la aplicación, restaurar la copia de la carpeta de datos y volver a instalar el ejecutable o la rama anterior. Abrir una base de datos migrada por una versión más nueva con una versión antigua funcionó en la prueba hecha (versión de 28-oct-2026, nivel 25, sobre una base de nivel 27), pero no está garantizado: el programa no comprueba el nivel de la base y ignora los que no conoce. Por eso la copia previa a cada actualización es necesaria y volver atrás significa restaurarla: las sesiones creadas después de actualizar se pierden (`docs/release/db-compatibility-report.md`, JOS-210).
 
 ### **1.6. Limitaciones conocidas**
 
@@ -207,11 +213,11 @@ Estado del MVP a 10-nov-2026. Ninguna impide generar un video; todas están regi
 |---|---|---|
 | Un clip cuyo intento agota el tiempo se vuelve a pedir al proveedor, y la tarea anterior sigue en marcha y se factura. | Una escena puede costar varias tareas de video (el 14-oct-2026, los clips de 14 s agotaron el tiempo en 8 de 8 intentos). Una sesión corta con clips de 6 s y 11 s sí terminó. | JOS-204 |
 | El tiempo máximo de imagen (300 s) no está confirmado con la versión actual: la sesión de tamaño real (JOS-209) lo midió antes de que la imagen siguiera la cola de Fal.ai (JOS-239), cuando 300 s incluía la espera en cola. | Si la generación real es más lenta, una imagen se cancela a los 600 s (el doble del límite) y la escena falla. | JOS-268 |
-| Los límites reales de peticiones por etapa de RunningHub y ElevenLabs, y los casos límite de la división por cláusulas (§6.1), no están verificados. | El límite de peticiones simultáneas usa los valores de `config/providers.ts`, sin contrastar con los límites reales. | JOS-188, JOS-189 (posteriores al MVP) |
+| Los casos límite de la división por cláusulas (§6.1) no están verificados. Los límites de peticiones de ElevenLabs y RunningHub sí se midieron (JOS-188, 29-oct-2026: voz 4 de 5 posibles, video 4, medido hasta 6), pero con las cuentas del desarrollador. | Esos casos solo tienen pruebas unitarias, no una comprobación con guiones reales. | JOS-189 (posterior al MVP) |
 | La comprobación del guion muestra un único mensaje genérico para cuatro causas distintas (falta `OPENAI_KEY`, fichero de claves ilegible, sin red hacia OpenAI, error de OpenAI). | El usuario debe revisar la tabla de la sección 1.5 para descubrir cuál es. | Aplazada por el propietario del producto |
 | El ejecutable no está firmado (decisión del propietario: los certificados de pago se aplazan). | Windows (SmartScreen) y macOS (Gatekeeper) muestran una advertencia al abrirlo; se evita con los comandos de desbloqueo de la sección 1.4. | JOS-207 (cerrado con los comandos de desbloqueo) |
 | El ejecutable se construye con un comando por plataforma (JOS-205) y `release.yml` publica las versiones (JOS-206, ver 2.4), pero el ffmpeg fijado no es redistribuible (decisión del propietario) y no hay actualización automática. | La aplicación solo avisa de que hay una versión nueva; se instala a mano. | JOS-205 y JOS-206 (hechos) |
-| No se ha verificado que una versión anterior abra una base de datos migrada por una posterior. | Volver a una versión anterior exige restaurar la copia de la carpeta de datos (ver arriba). | JOS-210 |
+| El programa no comprueba el nivel de la base de datos: una versión antigua abre una base migrada por una más nueva sin avisar. | Funcionó en la prueba hecha, pero no está garantizado; volver a una versión anterior exige restaurar la copia de la carpeta de datos (ver arriba). | JOS-210 (informe hecho; comprobación de arranque en JOS-278) |
 | Las pruebas de contrato con proveedores reales no se ejecutan en CI (ver 2.6). | Un cambio en la API de un proveedor solo se detecta en una ejecución real. | — |
 | Algunas revisiones humanas de los cambios archivados (por ejemplo, la 17.7 de `define-provider-configuration`) se aceptaron como excepción y no se realizaron. | Esos cambios tienen evidencia de pruebas automáticas pero no revisión humana. | JOS-203, M7 |
 
@@ -221,7 +227,7 @@ Estado del MVP a 10-nov-2026. Ninguna impide generar un video; todas están regi
 
 ### **2.1. Diagrama de arquitectura:**
 
-El stack está decidido y documentado en los ADR de `docs/adr/`: backend en TypeScript sobre Node.js con Fastify y Zod (ADR 0001), persistencia en SQLite embebido mediante `node:sqlite` (ADR 0002), actualizaciones en vivo con Server-Sent Events (ADR 0003), frontend en React 18 con Vite (ADR 0004), montaje de video con ffmpeg (ADR 0005) y distribución como aplicación local empaquetada (ADR 0007).
+El stack está decidido y documentado en los ADR de `docs/adr/`: backend en TypeScript sobre Node.js con Fastify y Zod (ADR 0001), persistencia en SQLite embebido mediante `node:sqlite` (ADR 0002), actualizaciones en vivo con Server-Sent Events (ADR 0003), frontend en React 18 con Vite (ADR 0004), montaje de video con ffmpeg (ADR 0005) y distribución como aplicación local empaquetada (ADR 0007). Después se añadieron los informes de `/admin` (ADR 0008), el conector de video configurable (ADR 0009), la cola de imágenes de fal.ai (ADR 0010), las tablas por tipo de adaptador (ADR 0011), la cobertura de errores (ADR 0012) y las capas de pruebas automáticas (ADR 0013).
 
 ```mermaid
 flowchart TD
@@ -240,7 +246,7 @@ flowchart TD
         Backend["Backend / orquestador de etapas\n(Fastify + Zod, máquina de estados,\nreintentos, límite por etapa)"]
         DB[("SQLite (node:sqlite)\nsesiones, escenas, intentos")]
         Files[("Carpetas de proyecto\nguion, MP3, marcas de tiempo,\nimágenes, clips, MP4 final")]
-        FFmpeg["ffmpeg / ffprobe\n(montaje y medición de audio)"]
+        FFmpeg["ffmpeg / ffprobe\n(montaje y medición de audio y de clips)"]
     end
 
     Usuario -->|HTTP local| Frontend
@@ -286,12 +292,13 @@ AI4Devs-finalproject/
 │   ├── src/telemetry/#   telemetría opt-in y aviso de nueva versión
 │   └── test/         #   pruebas unitarias y de integración
 ├── frontend/         # SPA React + Vite y sus pruebas
+├── e2e/              # Prueba E2E en navegador (Playwright) con proveedores simulados
 ├── docs/             # PRD (y versiones anteriores), ADR, spec de API, modelo de datos, estándares
 ├── openspec/         # Specs vigentes (specs/) y cambios archivados con sus informes (changes/archive/)
 ├── infra/            # Relé de telemetría y paneles de Grafana
 ├── packages/specboot # Utilidad de arranque de OpenSpec
 ├── ai-specs/         # Skills y agentes reutilizables (fuente canónica)
-├── .github/workflows # CI (typecheck, lint, pruebas y búsqueda de secretos) y despliegue del relé de telemetría
+├── .github/workflows # CI, prueba de humo del ejecutable, publicación de versiones y despliegue del relé de telemetría
 ├── PRIVACY.md        # Política de privacidad de la telemetría
 └── readme.md
 ```
@@ -303,7 +310,7 @@ Los ficheros `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` y `codex.md` apuntan a los es
 - **Dónde se ejecuta**: en el equipo del usuario, escuchando solo en `127.0.0.1`; llama a los proveedores de IA en la nube. No hay servidor central ni cuentas (ADR 0007).
 - **Entorno**: `main` es el entorno oficial (decisión del propietario del producto, 20-oct-2026; ADR 0007 enmendado). La rama `feature/entrega-2-JAME` fue la rama de integración del MVP y se promovió a `main` mediante la PR #71. Cada push a `main` con un árbol de código nuevo construye y publica una versión mediante `.github/workflows/release.yml` (JOS-206), tras una aprobación manual (ver 1.4, "Publicar una versión y revertirla").
 - **Publicación**: `.github/workflows/release.yml` (JOS-206). Un push a `main` ejecuta las comprobaciones, construye macOS arm64, macOS x64 y Windows x64 una sola vez por árbol de código (`git rev-parse HEAD^{tree}`) y, tras la aprobación del entorno `release`, publica una versión `release-<hash del árbol>` con `SHA256SUMS.txt`; un trabajo final descarga los ficheros y comprueba las sumas. Un árbol que ya tiene versión no se reconstruye, y un push a otra rama, o con `[skip release]` en el mensaje del último commit, no construye nada.
-- **Integración continua**: `.github/workflows/ci.yml` ejecuta, en cada PR hacia `feature/entrega-2-JAME` o `main` y en cada push a `main` o a la rama de integración, el chequeo de tipos, el lint y las pruebas de backend (con ffmpeg instalado) y de frontend, sobre Node 24, y un trabajo `secrets` con gitleaks (ver 2.5). Las pruebas nunca usan una base de datos ni un proveedor reales.
+- **Integración continua**: `.github/workflows/ci.yml` ejecuta, en cada PR hacia `feature/entrega-2-JAME`, `feature/entrega-3-JAME` o `main` y en cada push a `main` o a `feature/entrega-2-JAME`, tres trabajos: `test` (chequeo de tipos, lint y pruebas con cobertura de backend, con ffmpeg instalado, y de frontend, sobre Node 24), `e2e` (Playwright con proveedores simulados, ver 2.6) y `secrets` (gitleaks, ver 2.5). `.github/workflows/package-smoke.yml` construye en macOS la variante de humo del ejecutable y pasa una sesión por él (JOS-279). Las pruebas nunca usan una base de datos ni un proveedor reales.
 - **Telemetría**: un relé (`infra/telemetry-relay/`, despliegue en `.github/workflows/telemetry-relay.yml`) recibe los datos opt-in, los filtra y los reenvía a Grafana Cloud.
 
 **Limitaciones conocidas del despliegue** (la lista completa está en la sección 1.6)
@@ -334,18 +341,19 @@ npm test            # vitest run
 npm run build       # solo frontend: tsc --noEmit && vite build
 ```
 
-- **Unitarias e integración (vitest)**: el 10-nov-2026 (rama `feature/jos-265-check-generated-clip` en `5e9d5574`, que solo añade documentos a `main`) pasaron 2.730 pruebas de backend (11 omitidas: contrato con proveedores y subtítulos con ffmpeg real) y 483 de frontend; el chequeo de tipos y el lint los ejecuta CI, en verde en `main` tras la PR #176. CI ejecuta chequeo de tipos, lint, pruebas y búsqueda de secretos en cada PR.
+- **Unitarias e integración (vitest)**: el 11-nov-2026 (rama `feature/entrega-3-JAME`, con JOS-265) pasaron 2.973 pruebas de backend (12 omitidas: contrato con proveedores y subtítulos con ffmpeg real) y 509 de frontend, con chequeo de tipos y lint limpios. CI ejecuta chequeo de tipos, lint, pruebas y búsqueda de secretos en cada PR.
 - **Cobertura (JOS-277)**: `npm run coverage` en `backend/` y `frontend/` mide con V8 el código de `src/` y escribe un informe HTML en `coverage/`; CI lo ejecuta en lugar de `npm test` y falla si las sentencias o las líneas bajan del suelo fijado en `vitest.config.ts`. Medida del 10-nov-2026: backend 95,7 % (suelo 94 %), frontend 97,5 % (suelo 96 %). Mide líneas ejecutadas, no la calidad de las pruebas, y no cuenta los procesos hijo que arrancan las pruebas E2E.
 - **E2E de API con proveedores simulados (en CI)**: `backend/test/workflow-end-to-end.test.ts` (JOS-243, JOS-248) arranca el `node src/server.ts` real en carpetas temporales, con todos los proveedores simulados por variables de entorno (`backend/test/workflowServer.ts`), crea una sesión con `POST /sessions`, espera a `final-video` con las cuatro fases completas y descarga el video; comprueba también que no toca `data/`. `workflow-stage-failure.test.ts` cubre el fallo de una etapa. Corren dentro de `npm test`, así que CI las ejecuta en cada PR.
 - **Contrato de la API (en CI)**: `backend/test/api-spec-routes.test.ts` (JOS-275) compara `docs/api-spec.yml` con las rutas que registra el backend; una ruta sin documentar o una operación documentada sin ruta hace fallar la prueba y la nombra.
 - **Pruebas de contrato con proveedores reales**: existen cuatro ficheros (`backend/test/*.contract.test.ts`) que llaman a las APIs reales y solo se ejecutan con `RUN_PROVIDER_CONTRACT_TESTS=1` y claves reales; no se ejecutan en CI.
 - **E2E en navegador con proveedores simulados (en CI)**: `e2e/tests/main-flow.spec.ts` (JOS-272) abre la interfaz en Chromium con Playwright, crea una sesión desde el formulario y descarga el video final, sobre el backend y el frontend reales con todos los proveedores simulados y carpetas temporales (no toca `backend/data/`). Se ejecuta con `npm test` en `e2e/` y como trabajo `e2e` de `.github/workflows/ci.yml`; si falla, CI sube el informe y la traza de Playwright.
+- **Prueba de humo del ejecutable (en CI, macOS)**: `backend/packaging/smokeRun.ts` (JOS-279) arranca la variante de humo construida con `npm run package:smoke`, en una carpeta de datos temporal y el puerto 3102, comprueba `/health` y la página incluida, lleva una sesión hasta `final-video`, descarga el video y detiene el ejecutable. El trabajo `package-smoke` (`.github/workflows/package-smoke.yml`) la ejecuta en los pull requests que cambian `backend/` o `frontend/`; en local, `npm run package:smoke && npm run package:smoke:run` en `backend/`.
 - **Pruebas manuales de endpoints con curl y E2E en navegador (Playwright)**: las ejecuta el agente por cada cambio y deja un informe en `openspec/changes/archive/<cambio>/reports/`.
 - **Sesión real de extremo a extremo**: el 20-oct-2026 una sesión corta con los cuatro proveedores reales llegó a `final-video` con un intento por etapa, y el ejecutable de Windows generó un video completo (informes en `openspec/changes/archive/2026-10-19-raise-video-time-limit/reports/` y `…/define-production-deployment/reports/`).
 - **Búsqueda de secretos (JOS-211)**: el trabajo `secrets` de `.github/workflows/ci.yml` ejecuta gitleaks 8.30.1 (versión fijada y suma SHA-256 comprobada) sobre los commits de la PR o del push, no solo sobre el árbol final, con permisos de solo lectura y sin mostrar el valor encontrado. Los falsos positivos conocidos están en `.gitleaks.toml` (la caché de hashes de `graphify-out/`, por ruta) y en `.gitleaksignore` (ocho ejemplos antiguos, cada uno con su motivo). En local, desde la raíz del repositorio (todo el historial, unos 70 s): `gitleaks git --redact --verbose .` (`brew install gitleaks` o la página de versiones). Si CI encuentra una clave real, hay que revocarla y rotarla en el proveedor además de quitarla de todos los commits de la rama.
 - **Lint y análisis estático**: ESLint 9 con las reglas *type-aware* de typescript-eslint en `backend/` y `frontend/` (más las reglas de React Hooks en el frontend), sobre el código y las pruebas, y como paso de CI que hace fallar la PR (JOS-208). Una excepción se suprime en su línea con el motivo; no hay desactivaciones globales.
 - **Ejecutable empaquetado (macOS arm64, 20-oct-2026)**: construido con el script de la prueba de concepto desde una copia temporal y arrancado en otro puerto con una carpeta de datos vacía: `/health` y la página responden 200, un `Origin` o `Host` ajeno recibe 403, `/docs` y los endpoints de prueba responden 404 aunque `ALLOW_TEST_ENDPOINTS=1` esté definida, y un segundo arranque detecta la instancia en marcha y sale. No se probó una sesión completa con este binario (sí en Windows, ver arriba).
-- **No ejecutado**: las pruebas de contrato con proveedores reales no se ejecutan en CI ni se han ejecutado para este cierre, y la prueba de humo del ejecutable (`npm run package:smoke` en `backend/`) tampoco se ejecuta en CI.
+- **No ejecutado**: las pruebas de contrato con proveedores reales no se ejecutan en CI ni se han ejecutado para este cierre.
 
 La estrategia sigue TDD y los pasos obligatorios de `docs/openspec-tasks-mandatory-steps.md`.
 
@@ -353,17 +361,19 @@ La estrategia sigue TDD y los pasos obligatorios de `docs/openspec-tasks-mandato
 
 ## 3. Modelo de Datos
 
-> El motor de persistencia está decidido: SQLite embebido mediante `node:sqlite` (ADR 0002). El modelo **implementado** es el que describe `docs/data-model.md` (tablas `runs`, `scenes`, `provider_requests`, `stage_attempts`, `voice_overs`, `narration_timestamps`, `scene_results`, `scene_video_results`, `scene_pause_edits`, `final_video_builds`, `telemetry_settings` y `schema_migrations`); la tabla de equivalencias de la sección 3.0 lo relaciona con el diagrama conceptual de la Entrega 1 (3.1), que se conserva como referencia de diseño. Las entidades `User` y `Role`, y el campo `Session.owner_id`, siguen siendo diseño **a futuro**: el MVP no implementa autenticación ni cuentas (`docs/PRD.md` §2.1, §2.3, §12.3).
+> El motor de persistencia está decidido: SQLite embebido mediante `node:sqlite` (ADR 0002). El modelo **implementado** es el que describe `docs/data-model.md` (tablas `runs`, `scenes`, `provider_requests`, `stage_attempts`, `voice_overs`, `narration_timestamps`, `scene_results`, `scene_video_results`, `scene_pause_edits`, `final_video_builds`, `telemetry_settings`, `active_providers`, `provider_profiles`, `app_settings`, `phase_instants`, `provider_changes` y `schema_migrations`; 27 migraciones aplicadas); la tabla de equivalencias de la sección 3.0 lo relaciona con el diagrama conceptual de la Entrega 1 (3.1), que se conserva como referencia de diseño. Las entidades `User` y `Role`, y el campo `Session.owner_id`, siguen siendo diseño **a futuro**: no hay cuentas; la única barrera es la contraseña compartida del administrador para `/admin` (`docs/PRD.md` §2.1, §2.3, §12.3).
 
 ### **3.0. Modelo implementado (resumen)**
 
 | Concepto del diagrama conceptual | Tabla(s) reales | Notas |
 |---|---|---|
-| `Session` | `runs` | Título, guion e idioma inmutables; estado derivado de los registros (no hay columna de estado de voz); marca de pausa; ruta del video final. |
-| `Chunk` | `scenes` | Estados: `submitted`, `image-generating`, `image-complete`, `video-generating`, `chunk-complete`, `failed`. Guarda intervalo de narración, instrucciones `IMAGE`/`VIDEO`, duración solicitada y factor de velocidad. |
+| `Session` | `runs` | Título, guion e idioma inmutables; estado derivado de los registros (no hay columna de estado de voz); marca de pausa; ruta del video final; `final_video_stale` (una escena se reconstruyó después del video final) e `image_sweep_at` (el único barrido de imágenes fallidas al final de la sesión, JOS-239). |
+| `Chunk` | `scenes` | Estados: `submitted`, `image-generating`, `image-complete`, `video-generating`, `chunk-complete`, `failed`. Guarda intervalo de narración, instrucciones `IMAGE`/`VIDEO`, duración solicitada, factor de velocidad y `rebuild_count` (veces que se reconstruyó). |
 | `StageExecution` | `stage_attempts` (voz, marcas de tiempo, descomposición, montaje) y `provider_requests` (imagen y video) | Cada intento queda registrado con ciclo, secuencia dentro del ciclo, disparador (`initial`, `automatic`, `manual`), resultado y causa. La restricción única `(stageInstanceKey, cycle, sequenceInCycle)` impide pasar de 4 intentos por ciclo. |
 | Resultados | `voice_overs`, `narration_timestamps`, `scene_results`, `scene_video_results` | Confirmaciones idempotentes: una repetición de éxito no duplica ni sobrescribe. |
 | — (añadidas después) | `scene_pause_edits`, `final_video_builds` | Ajuste manual de pausas y versiones del video final (`final-video-2.mp4`, …). |
+| — (administración) | `provider_profiles`, `active_providers`, `provider_changes`, `app_settings` | Perfiles de proveedor con su clave cifrada, el activo de cada etapa, el registro de sus cambios y los ajustes editables (estilo visual, imagen de referencia). |
+| — (informes) | `phase_instants` | Instante en que empieza y termina cada fase, para el informe de tiempos. |
 | — | `telemetry_settings`, `schema_migrations` | Consentimiento de telemetría y migraciones aplicadas. |
 
 El estado de la sesión (`submitted`, `voice-over-generating`, `voice-over-complete`, `chunk-decomposing`, `chunks-processing`, `final-video-generating`, `final-video`, `failed`) se deriva de estos registros; la pausa es una marca adicional, no un estado (`docs/PRD.md` §8–§9).
@@ -449,7 +459,7 @@ erDiagram
 | **Role** *(futuro)* | Rol de autorización: `user` (por defecto) o `administrator`. No existe en el MVP. | `id` PK; `name`. | PRD §2.1, §11.2 (capacidades del rol Administrador: configuración, diagnóstico, cambio de proveedor, reportes en `/admin`) |
 
 **No incluidas como entidades propias:**
-- **Proveedores de IA**: en el MVP están hardcodeados (`docs/PRD.md` §11, sin ficheros de configuración ni interfaz de administración), por lo que `StageExecution.provider` es un valor identificador simple, no una fila de una tabla `Provider` configurable. Esa tabla podría introducirse si el rol Administrador post-MVP llega a reasignar proveedores (§11.2).
+- **Proveedores de IA**: en el diseño de la Entrega 1 eran fijos y `StageExecution.provider` un valor simple. La implementación los añadió después como configurables desde `/admin`: `provider_profiles` (perfiles por etapa y su clave cifrada), `active_providers` (el activo de cada etapa) y `provider_changes` (registro de cambios), ver `docs/data-model.md` §4e–§4i.
 - **Marcas de tiempo detalladas (timestamps crudos)**: el PRD las trata como un fichero conservado localmente (§12.1, `Session.timestamps_path`), no como filas individuales por marca; el intervalo ya asignado a cada escena vive en `Chunk.narration_start_seconds`/`narration_duration_seconds`.
 
 ---
@@ -470,18 +480,21 @@ El backend expone una API REST local (JSON, más un flujo SSE) que consume el fr
 | `POST /sessions/{id}/scenes/{sceneId}/retry` | Reintento manual de la imagen o del clip fallido de una escena. | 404, 409. |
 | `POST /sessions/{id}/scenes/{sceneId}/correct` | Corrige solo la instrucción `IMAGE` o `VIDEO` de una escena fallida y la relanza. | 404, 409. |
 | `POST /sessions/{id}/scenes/{sceneId}/pause` | Ajusta (segundos) la pausa que sigue a una escena. | 404, 409, 422 fuera de rango. |
+| `POST /sessions/{id}/scenes/{sceneId}/rebuild` | Reconstruye una escena ya generada (imagen y clip) con instrucciones `IMAGE`/`VIDEO` opcionales; el video final se reconstruye solo. Responde 202. | 400, 404, 409 (`scene-not-ready`, `assembly-in-progress`). |
 | `POST /sessions/{id}/final-video/rebuild` | Reconstruye el video final con las pausas ajustadas (nueva versión del fichero). Responde 202. | 404, 409. |
 | `GET /sessions/{id}/scenes/{sceneId}/image`, `…/download/{kind}` | Imagen de la escena y descarga de su imagen o clip durante el proceso. | 404, 409 (descarga de clip o imagen aún no disponible). |
 | `GET /sessions/{id}/download/final-video` | Descarga el MP4 final. | 404, 409 si aún no existe. |
 | `GET` y `PUT /telemetry/consent` | Lee o guarda el consentimiento de telemetría. | — |
-| `GET /app/update` | Indica si hay una versión nueva publicada. | — |
+| `GET /app/update`, `GET /app/version` | Indica si hay una versión nueva publicada, y la versión en ejecución. | — |
+| `POST /telemetry/frontend-errors` | Recibe los errores capturados por la interfaz (solo con consentimiento). | — |
+| `GET /admin/access` y el resto de `/admin/*` | Zona del administrador, protegida con contraseña (`ADMIN_PASSWORD`): ajustes (estilo visual, imagen de referencia), perfiles y proveedor activo de cada etapa, prueba de conexión, etapas fallidas y reportes (`provider-usage`, `estimated-cost`, `pipeline-time`, `failures`, `sessions`, `provider-changes`). Sin contraseña correcta responden 401. | 401. |
 | `POST /internal/provider-callback/{requestId}` | Entrada interna para resultados de proveedores. No es parte de la API pública. | — |
 
 **Reglas comunes.** Las rutas con `{id}` de otra sesión nunca devuelven datos ajenos (aislamiento entre sesiones). Los fallos devuelven un cuerpo con la causa legible; los errores de credenciales nunca incluyen el valor de la clave.
 
 ### 4.1. Servicios externos consumidos
 
-La aplicación también es **cliente** de un proveedor por etapa, fijados en el código (`backend/src/config/providers.ts`, valores verificados con llamadas reales en `docs/PRD.md` §11.3 y `docs/adr/0005-provider-selection.md`):
+La aplicación también es **cliente** de un proveedor por etapa. Los valores por defecto están en `backend/config/settings.default.json` (verificados con llamadas reales en `docs/PRD.md` §11.3 y `docs/adr/0005-provider-selection.md`) y el administrador puede añadir, editar y activar otros perfiles desde `/admin`, incluido un conector de video configurable (Runway, RunningHub, MiniMax; JOS-219). La tabla y el diagrama muestran los proveedores por defecto:
 
 ```mermaid
 flowchart LR
@@ -511,9 +524,11 @@ flowchart LR
 | Imagen | Fal.ai `fal-ai/flux/dev` | Instrucción `IMAGE` | Imagen 16:9 | 300 s |
 | Video | RunningHub MiniMax-H3 «Hailuo-03» | Imagen, instrucción `VIDEO`, duración de 5 a 15 s | Clip | 1200 s; si la tarea sigue en marcha, se espera hasta 2400 s |
 
+Cada clip se mide con `ffprobe` antes de guardarse (JOS-265): debe ser un MP4 legible cuyo primer fotograma se decodifica, horizontal y de al menos 1920×1080, con una duración de la solicitada −0,5 s a +1 s. Si no cumple, cuenta como un intento fallido de la etapa de video (PRD §7.2).
+
 **Notas de integración**
-- Un solo proveedor por etapa, sin configuración ni cambio en tiempo de ejecución (PRD §11.2). Las llamadas de los adaptadores no reintentan por su cuenta: cada llamada es exactamente un intento registrado.
-- El límite de peticiones simultáneas por etapa es compartido entre sesiones y atiende por orden de llegada (voz 3, alineación 2, video 3); esperar turno no cuenta como intento ni como tiempo de ejecución.
+- Un proveedor activo por etapa; el administrador lo cambia en `/admin` sin reiniciar (PRD §11.2). Las llamadas de los adaptadores no reintentan por su cuenta: cada llamada es exactamente un intento registrado.
+- El límite de peticiones simultáneas por etapa es compartido entre sesiones y atiende por orden de llegada (por defecto: razonamiento 50, imagen 6, voz 4, alineación 2, video 4; los de voz y video, medidos en JOS-188; ajustables en los ajustes); esperar turno no cuenta como intento ni como tiempo de ejecución.
 - Un fallo transitorio se reintenta hasta 3 veces tras el intento inicial, con espera exponencial de 2 s (tope 30 s); un fallo no reintentable pasa directo a `failed`. Un reintento manual abre un ciclo nuevo.
 - El resultado de cada llamada (proveedor, intentos, causa) queda en `stage_attempts` / `provider_requests`, sin credenciales.
 - Los tiempos máximos de voz, razonamiento y video están confirmados con una sesión de tamaño real (JOS-209); el de imagen está pendiente de medir con la versión actual (JOS-268).
@@ -522,7 +537,7 @@ flowchart LR
 
 ## 5. Historias de Usuario
 
-La plantilla pide 3 historias principales; aquí se documentan las **8** que representan el flujo MVP completo de principio a fin (`docs/PRD.md` §5), en orden. Cada una tiene ya su change de OpenSpec con especificación completa en Given/When/Then (`openspec/changes/<slug>/specs/`); esta sección resume cada historia en el formato estándar y enlaza al detalle técnico en vez de duplicarlo. Los criterios de aceptación referencian las entidades reales de la sección 3 (`Session`, `Chunk`, `StageExecution`), no `docs/data-model.md` (contenido heredado de otro proyecto, aún sin actualizar).
+La plantilla pide 3 historias principales; aquí se documentan las **8** que representan el flujo MVP completo de principio a fin (`docs/PRD.md` §5), en orden. Cada una tiene ya su change de OpenSpec con especificación completa en Given/When/Then (`openspec/changes/<slug>/specs/`); esta sección resume cada historia en el formato estándar y enlaza al detalle técnico en vez de duplicarlo. Los criterios de aceptación referencian las entidades reales de la sección 3 (`Session`, `Chunk`, `StageExecution`), no el detalle físico de `docs/data-model.md`.
 
 **Historia de Usuario 1 — Iniciar un proyecto de video**
 _Detalle técnico: [`openspec/changes/archive/2026-10-19-start-video-project`](openspec/changes/archive/2026-10-19-start-video-project)_
@@ -624,67 +639,7 @@ Criterios de aceptación:
 
 > Documenta 3 de los tickets de trabajo principales del desarrollo, uno de backend, uno de frontend, y uno de bases de datos. Da todo el detalle requerido para desarrollar la tarea de inicio a fin teniendo en cuenta las buenas prácticas al respecto. 
 
-Las 8 historias de la sección 5 ya cuentan, cada una, con su change de OpenSpec completo (`proposal.md`, `design.md`, specs en Given/When/Then y `tasks.md` con el desglose técnico) en `openspec/changes/`: 4 ya existían en el repositorio y 4 se generaron para esta entrega vía la skill `openspec-propose` (el flujo `/new` + `/ff` no existe como comando en este proyecto — `openspec-propose` es su equivalente disponible y ya cubre ambos pasos, incluyendo `tasks.md`). Por eso los 3 tickets de esta sección se seleccionan directamente de ese desglose ya generado, sin crear artefactos nuevos.
-
-Nota histórica (Entrega 1): estos tickets se redactaron cuando `docs/data-model.md` aún era contenido heredado de otro proyecto y se apoyaron en las secciones 2 y 3 de este README. Desde entonces `docs/data-model.md` se reescribió con el modelo implementado (sección 3.0) y `docs/backend-standards.md` y `docs/frontend-standards.md` describen el stack real.
-
-**Ticket 1 (Backend) — Algoritmo de segmentación del guion en escenas**
-
-**Descripción:** Implementar la función que agrupa las oraciones del guion narrado en chunks respetando las cotas de duración admitidas por el proveedor de video y los tres casos límite del PRD §6.1.1 (guion completo por debajo de la cota inferior, oración corta que fuerza dividir la siguiente en frontera de cláusula, y oración sin frontera de cláusula que debe conservarse entera con advertencia de factor de velocidad). Es lógica pura, independiente del proveedor, que se ejecuta después de obtener las marcas de tiempo del voice-over.
-
-**Criterios de aceptación** (`openspec/changes/archive/2026-10-19-decompose-script-into-chunks/tasks.md`, grupo 6):
-- Segmentación ordinaria: los cortes solo ocurren en fronteras de oración, y cada chunk resultante respeta la cota superior e inferior.
-- Excepción de cláusula: una oración que por sí sola supera la cota superior se divide en coma, punto y coma o conjunción.
-- Caso límite 1: un guion completo por debajo de la cota inferior produce un único chunk.
-- Caso límite 2: una oración corta cuya agrupación con la siguiente superaría el máximo provoca la división de la siguiente oración en frontera de cláusula.
-- Caso límite 3: una oración que debe dividirse y no tiene frontera de cláusula se conserva entera, marcando `speed_factor_warning`, sin que esto sea un fallo.
-- Los 5 casos anteriores tienen al menos un test unitario en verde antes de considerarse implementados (TDD).
-
-**Prioridad:** Alta. Es lógica núcleo de la que depende todo el pipeline creativo (imagen, video y montaje no tienen nada que procesar sin chunks correctos), y el PRD dedica una regla intrincada de 3 casos límite a esta función — un error aquí es silencioso y se propaga a todas las escenas.
-
-**Estimación:** 5 puntos (~2-3 días para una persona), por tratarse de un algoritmo con múltiples ramas de decisión que exige TDD caso por caso, aunque esté bien acotado (sin llamadas a proveedores externos).
-
-**Historia de usuario relacionada:** Historia 3 — Descomponer el guion en escenas.
-
----
-
-**Ticket 2 (Frontend) — Página de sesión (consulta y progreso en vivo)**
-
-**Descripción:** Construir la página que muestra una sesión por su identificador: título, guion, estado, escenas y resultados disponibles. Debe manejar el estado "sin escenas todavía" sin tratarlo como error, mostrar un estado "no encontrada" con opción de iniciar un proyecto nuevo, quedar en una ruta direccionable por el identificador de sesión, y dejar preparado el punto de conexión donde se enganchará la actualización en vivo (historia de actualizaciones en tiempo real, fuera de alcance de este ticket).
-
-**Criterios de aceptación** (`openspec/changes/archive/2026-10-19-consult-session/tasks.md`, grupo 4):
-- La página muestra título, guion, estado y resultados disponibles de la sesión consultada.
-- Una sesión sin escenas aún muestra "no disponibles todavía", no un error.
-- Las escenas se renderizan en el orden recibido (orden ascendente de `sequence_number`, ya garantizado por el backend).
-- Un identificador inexistente muestra el estado "no encontrada" con una acción para iniciar un nuevo proyecto.
-- La página vive en una ruta que contiene el identificador de la sesión, y el formulario de inicio navega a ella tras un registro exitoso.
-- Todos los elementos siguen la convención de nomenclatura accesible ya definida para el proyecto.
-- Los 4 casos de UI anteriores (con datos, sin escenas, no encontrada, navegación) tienen al menos un test de componente en verde (TDD).
-
-**Prioridad:** Alta. Es la única superficie de UI que consultan prácticamente todas las demás historias (imagen, video, montaje, pausa, corrección) para mostrar su resultado — sin esta página no hay forma de ver el progreso de un proyecto.
-
-**Estimación:** 5 puntos (~3 días para una persona), por combinar varios estados de UI (con datos, vacío, no encontrado), integración con la navegación del formulario de inicio, y el punto de extensión para las actualizaciones en vivo, sin ser en sí misma una pantalla con lógica de negocio compleja.
-
-**Historia de usuario relacionada:** Historia 7 — Consultar el progreso de una sesión.
-
----
-
-**Ticket 3 (Base de datos) — Persistencia del voice-over con unicidad por sesión**
-
-**Descripción:** Diseñar e implementar la migración y los repositorios que garantizan que una sesión tenga como máximo un voice-over, incluso ante confirmaciones de éxito duplicadas o concurrentes del proveedor de voz, junto con el registro de intentos (proveedor usado, secuencia de intento) que alimenta el diagnóstico de la etapa.
-
-**Criterios de aceptación** (`openspec/changes/archive/2026-10-19-generate-voice-over/tasks.md`, grupo 3):
-- Un segundo intento de guardar un voice-over para una sesión que ya tiene uno es rechazado por la propia base de datos (restricción de unicidad), no solo por lógica de aplicación.
-- Dos inserciones concurrentes para la misma sesión resultan en exactamente un voice-over persistido, nunca dos.
-- El proveedor de voz vinculado a una sesión, una vez fijado en el primer intento, no se sobrescribe en intentos posteriores.
-- Existe un registro de intento (append-only) por cada llamada al proveedor, con su secuencia y resultado.
-- Los 4 puntos anteriores tienen al menos un test en verde antes de considerarse implementados (TDD), incluyendo el caso de concurrencia.
-
-**Prioridad:** Alta. Protege directamente una garantía de integridad ya cerrada en el PRD (§12.1: una confirmación de éxito repetida no debe duplicar resultados ni relanzar una fase), y el mismo patrón de unicidad + registro de intentos se reutiliza en todas las demás etapas del pipeline.
-
-**Estimación:** 3 puntos (~1-2 días para una persona). Alcance contenido (una migración y dos repositorios), pero el test de inserciones concurrentes exige verificar el comportamiento real de la restricción de unicidad bajo carrera, no solo su existencia.
-
-**Historia de usuario relacionada:** Historia 2 — Generar la narración completa (voice-over).
+El backlog se gestionó en Linear (proyecto Vid4You, equipo JOS), con 18 épicas (E1 a E18) y los tickets JOS-124 a JOS-279. Hay demasiados tickets para listarlos aquí, y cada uno tiene su detalle en Linear. Su desglose técnico (`proposal.md`, `design.md`, specs en Given/When/Then y `tasks.md`) está en `openspec/changes/` y, una vez terminado, en `openspec/changes/archive/`.
 
 ---
 
@@ -714,7 +669,7 @@ Las 3 Pull Requests principales son las de entrega. El resto de las PR del proye
 - Confirmar que `readme.md` sigue la estructura de la plantilla oficial de AI4Devs-finalproject (índice, numeración y anclas de las secciones 0 a 7).
 - Revisar que el diagrama Mermaid de la sección 3 (modelo de datos) sea coherente con las entidades usadas en las secciones 5 y 6 (`Session`, `Chunk`, `StageExecution`).
 - Ejecutar `openspec validate <nombre-del-change> --strict` sobre cada uno de los 4 changes nuevos y confirmar que devuelve "is valid".
-- Revisar que los 3 tickets de la sección 6 no excedan el alcance descrito en los `tasks.md` de los que provienen.
+- Revisar que los tickets no excedan el alcance descrito en los `tasks.md` de los que provienen.
 - Confirmar que ninguna sección afirma como decidido un stack, proveedor o pieza de infraestructura que en realidad sigue pendiente (deben quedar marcados explícitamente como TBD).
 
 **Pull Request 2 — `feature/entrega-2-JAME` → `main`**
@@ -744,14 +699,19 @@ Las 3 Pull Requests principales son las de entrega. El resto de las PR del proye
 
 **Pull Request 3 — `feature/entrega-3-JAME` → `main`**
 
-**Título:** `Promote feature/entrega-3-JAME to main (JOS-209, JOS-243, JOS-245, JOS-246, JOS-262, JOS-263, JOS-264)` (#170, fusionada el 5-nov-2026; 335 ficheros, +13.013/−4.867), seguida de `Sync feature/entrega-3-JAME into main` (#175, 6-nov-2026; 170 ficheros).
+**Título:** `Promote feature/entrega-3-JAME to main`, repetida en cada promoción: #151 (JOS-211, JOS-227, JOS-238), #170 (JOS-209, JOS-243, JOS-245, JOS-246, JOS-262 a JOS-264; 5-nov-2026, 335 ficheros), #187 (JOS-272 a JOS-277) y #189 (JOS-207), con sus sincronizaciones `Sync main with feature/entrega-3-JAME` (#93, #124, #131, #136, #143, #175).
 
-**Descripción:** la rama de integración de la Entrega 3 se promueve a `main`, que es el entorno oficial y la rama de la que `release.yml` construye las versiones. Incluye, entre otros:
-- **Pruebas y CI:** E2E del flujo interno con proveedores simulados (JOS-243, #161); cobertura de errores (JOS-245, #163); búsqueda de secretos con gitleaks (JOS-211, #148); CI en las PR hacia la rama de integración (#150).
-- **Operación de proveedores:** alerta cuando un proveedor deja de responder (JOS-246, #160); tablas por tipo de adaptador y suite de contrato compartida (JOS-262, JOS-263, #165, #166); marcas de tiempo nativas atribuidas al proveedor de voz de la sesión (JOS-264, #167); la imagen sigue la cola de Fal.ai (JOS-239).
-- **Producto:** reconstruir una escena y el video final (JOS-235, #137); subtítulos quemados (JOS-237, #140); recuento de palabras del guion (JOS-236, #138); versión visible en la barra superior (JOS-238, #146); informes de `/admin` (coste estimado, tiempos, fallos, sesiones, cambios de proveedor); un solo trabajo de proveedor por escena aunque el clip agote el tiempo (JOS-204, #127).
-- **Conector de video configurable** (JOS-219, #171 a #173): el administrador añade un modelo de video de cualquier proveedor desde `/admin` sin cambiar el código (Runway, RunningHub, MiniMax) y límite de 1080p; `/admin` reorganizado en pestañas (JOS-270, #174).
-- Cada cambio de OpenSpec se archivó en su propia PR con la sincronización de sus especificaciones (por ejemplo #168, #169).
-- **Después de estas PR:** E2E en navegador con Playwright en CI (JOS-272, #177 a #180, ver 2.6). En curso: PRD con la cabecera simplificada (JOS-273, #181), sincronización de `main` con la rama de integración (JOS-274), comprobación de `docs/api-spec.yml` contra las rutas (JOS-275) y cobertura de pruebas (JOS-277).
+**Descripción:** `feature/entrega-3-JAME` es la rama de integración de todo lo hecho **después del MVP** (la promoción #71 del 20-oct-2026, PRD v1.10) hasta el cierre del proyecto (PRD v1.33). Cada ticket entró por su propia PR contra esta rama (#79 a #201) y cada cambio de OpenSpec se archivó en una PR aparte con la sincronización de sus especificaciones (103 cambios archivados en total). `main` es el entorno oficial y la rama de la que `release.yml` construye las versiones. Lo añadido desde el MVP, por áreas:
 
-**Cómo probarlo/revisarlo:** los trabajos `test` (backend y frontend), `e2e` y `secrets` de CI en verde; `cd backend && npm test` y `cd frontend && npm test`; `cd e2e && npm test`; revisar `openspec/specs/` y `docs/release/mvp-closure-report.md`. Un push a `main` con un árbol de código nuevo inicia `release.yml`, que espera la aprobación del entorno `release`.
+- **Administración (`/admin`, épica E11):** protegida con una contraseña de administrador (JOS-173); proveedores y parámetros en ficheros de ajustes (JOS-174) y gestionados desde la pantalla, con su clave (JOS-218, JOS-171); mover una etapa fallida al proveedor activo (JOS-172); probar la conexión de un proveedor (JOS-220); imagen de referencia y estilo visual para la generación de imágenes (JOS-201, JOS-202); informes de uso por proveedor, coste estimado, tiempos de cada fase, fallos y reintentos, sesiones con detalle por escena y cambios de proveedor (JOS-222 a JOS-229, ADR 0008); pestañas, tablas y selector de periodo reorganizados (JOS-270).
+- **Proveedores y conectores:** modelo de imagen cambiado a Seedream v5 Pro edit (JOS-230); la imagen sigue la cola de Fal.ai en lugar de reenviar la petición, lo que evita tiempos agotados y cobros duplicados (JOS-239, ADR 0010); un solo trabajo de proveedor por escena aunque el clip agote el tiempo (JOS-204); límites de peticiones simultáneas medidos con proveedores reales (JOS-188) y tiempo de un guion de tamaño real medido (JOS-209); **conector de video configurable** (JOS-219, ADR 0009): el administrador añade un modelo de video de cualquier proveedor sin cambiar el código (Runway, RunningHub, MiniMax H3), con límite de 1080p.
+- **Producto:** nombre del video final igual al título del proyecto (JOS-193); estado de la petición del clip mientras se genera (JOS-200, JOS-233) y resumen del progreso de las escenas (JOS-234); reconstruir una escena ya generada y el video final (JOS-235); recuento de palabras y duración estimada del guion (JOS-236); **subtítulos incrustados** en el video final (JOS-237); versión visible en la barra superior (JOS-238); aviso cuando falla pausar o continuar (JOS-217); nombre estable del proveedor en la telemetría (JOS-213).
+- **Calidad de la salida:** cada clip generado se mide con `ffprobe` antes de guardarse (JOS-265, PRD v1.33): debe ser un MP4 legible, horizontal, de al menos 1920×1080 y de la duración pedida (−0,5 s a +1 s); el proveedor simulado ya produce clips reales. Tablas por tipo de adaptador y suite de contrato compartida para todos los adaptadores (JOS-262, JOS-263, ADR 0011); marcas de tiempo nativas atribuidas al proveedor de voz de la sesión (JOS-264); caída de conexión al descargar una imagen o un clip ya no tumba el backend.
+- **Observabilidad y operación:** alerta crítica en Grafana cuando un proveedor deja de responder (JOS-246); cobertura de errores en rutas, bloques `catch` y frontend (JOS-245, ADR 0012); `ffmpeg` o `ffprobe` bloqueados por macOS se detectan, se rechaza la sesión y no se reintenta de pago en pago (JOS-271); compatibilidad de la base de datos al subir y bajar de versión medida (JOS-210).
+- **Pruebas y CI:** análisis estático y lint en CI (JOS-208); búsqueda de secretos con gitleaks (JOS-211); verificación del flujo interno de extremo a extremo con proveedores simulados (JOS-243); E2E en navegador con Playwright (JOS-272); prueba de humo del ejecutable empaquetado en macOS (JOS-279); comprobación de `docs/api-spec.yml` contra las rutas (JOS-275); cobertura con suelo mínimo en backend y frontend (JOS-277); estrategia de pruebas automatizadas (ADR 0013).
+- **Distribución:** script repetible para construir los ejecutables (JOS-205); `release.yml` con una sola vía de publicación, etiquetas por hash del árbol y aprobación manual (JOS-206); correcciones de Windows (arranque del servidor, `spawnSync npm ENOENT`, JOS-232); firma de ejecutables preparada pero aplazada hasta tener certificados, con los comandos para desbloquearlos a mano (JOS-207).
+- **Documentación:** PRD de v1.11 a v1.33 (cabecera con un solo estado, JOS-273, y versiones archivadas en `docs/PRD-v1.*.md`); README, informe de cierre, ADR 0008 a 0013, estándares de backend y guía de desarrollo al día con el sistema implementado (JOS-272, JOS-276).
+
+**Estado (cierre del proyecto, 11-nov-2026):** todo está en `main`. La última sincronización `Sync feature/entrega-3-JAME into main` llevó a `main` lo posterior a #189 (#190 a #202: JOS-210, JOS-279, JOS-265, los archivos de OpenSpec y las correcciones de documentación); la corrección de JOS-271 ya había entrado directamente en `main` (#176). `main` y `feature/entrega-3-JAME` tienen el mismo código, no quedan PR abiertas y no hay más trabajo pendiente de integrar.
+
+**Cómo probarlo/revisarlo:** los trabajos `test` (backend y frontend), `e2e` y `secrets` de CI en verde; `cd backend && npm run coverage` y `cd frontend && npm run coverage`; `cd e2e && npm test`; revisar `openspec/specs/` y `docs/release/mvp-closure-report.md`. Un push a `main` con un árbol de código nuevo inicia `release.yml`, que espera la aprobación del entorno `release`.

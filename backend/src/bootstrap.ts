@@ -1,11 +1,13 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import * as concurrency from "./concurrency.ts";
 import { STAGE } from "./types.ts";
 import { setRetryDelayConfig } from "./retry/stageAttemptRecorder.ts";
 import { setVoiceProviderRegistry, createStubVoiceProvider as createStubVoice, type StubVoiceProviderMode } from "./voiceProvider.ts";
 import { setImageProviderRegistry, createStubImageProvider, type StubImageProviderMode } from "./imageProvider.ts";
-import { setVideoProviderRegistry, createStubVideoProvider, STUB_VIDEO_PROVIDER_NAME, type StubVideoProviderMode } from "./videoProvider.ts";
-import { ffmpegHasSubtitleFilter } from "./config/ffmpeg.ts";
+import { setVideoProviderRegistry, createStubVideoProvider, stubClipMaker, STUB_VIDEO_PROVIDER_NAME, type StubVideoProviderMode } from "./videoProvider.ts";
+import { ffmpegHasSubtitleFilter, FFMPEG } from "./config/ffmpeg.ts";
 import { recoverOnBoot } from "./orchestrator.ts";
 import { setDecompositionLogger } from "./decompositionPhase.ts";
 import { setVoiceOverLogger } from "./voiceOverPhase.ts";
@@ -27,14 +29,17 @@ export interface StartServerOptions {
 
 export async function startServer(options: StartServerOptions = {}): Promise<FastifyInstance> {
   if (STAGE_CONCURRENCY_OVERRIDE) concurrency.setLimit(STAGE, Number(STAGE_CONCURRENCY_OVERRIDE));
-  // USE_STUB_VIDEO_PROVIDER=success|success-bytes|pending|request-lost|transient-failure|not-retryable-failure — manual endpoint testing only.
+  // USE_STUB_VIDEO_PROVIDER=success|success-bytes|short-clip|pending|request-lost|transient-failure|not-retryable-failure — manual endpoint testing only.
   // `pending` leaves every clip unfinished, so a restart can be watched resuming it; `success` is an alias of `success-bytes`.
   const stubVideoMode = process.env.USE_STUB_VIDEO_PROVIDER;
   if (stubVideoMode) {
-    const bytes = Buffer.from("00000000667479706d703432", "hex"); // minimal ftyp mp4
-    const resolvedMode: StubVideoProviderMode = stubVideoMode === "success" ? "success-bytes"
+    // check-generated-clip (JOS-265): a stubbed run passes the real clip check, so the stub answers with a real clip.
+    const makeClip = stubClipMaker(FFMPEG, join(tmpdir(), "vid4you-stub-clips"));
+    // `short-clip` answers 3 s short of the request (never under 1 s), so the clip check refuses it.
+    const clipFor = stubVideoMode === "short-clip" ? (seconds: number) => makeClip(Math.max(1, seconds - 3)) : makeClip;
+    const resolvedMode: StubVideoProviderMode = stubVideoMode === "success" || stubVideoMode === "short-clip" ? "success-bytes"
       : (["success-bytes", "pending", "request-lost", "not-retryable-failure"] as const).find((m) => m === stubVideoMode) ?? "transient-failure";
-    const stub = createStubVideoProvider(resolvedMode, { bytes });
+    const stub = createStubVideoProvider(resolvedMode, { clipFor });
     setVideoProviderRegistry({ defaultIdentifier: STUB_VIDEO_PROVIDER_NAME, adapters: { [STUB_VIDEO_PROVIDER_NAME]: stub } });
   }
   // USE_STUB_IMAGE_PROVIDER=success|transient-failure|not-retryable-failure — manual endpoint testing only: every image is a valid 1920x1088 PNG header.

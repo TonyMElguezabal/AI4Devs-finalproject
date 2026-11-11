@@ -1,0 +1,18 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: Vid4You
+    - generic "Vid4You version 0.0.0-dev" [ref=e13]: Development build
+  - main [ref=e8]:
+    - generic [ref=e9]:
+      - heading "Administrator" [level=1] [ref=e11]
+      - region "Administrator tools" [ref=e20]:
+        - tablist "Administrator tools" [ref=e21]:
+          - tab "Settings" [ref=e22] [cursor=pointer]
+          - tab "Providers" [selected] [ref=e23] [cursor=pointer]
+          - tab "Failed stages" [ref=e24] [cursor=pointer]
+          - tab "Reports" [active] [ref=e25] [cursor=pointer]
+        - tabpanel "Providers" [ref=e215]:
+          - region "Providers" [ref=e216]:
+            - heading "Providers" [level=2] [ref=e217]
+            - paragraph [ref=e218]: Each provider has its own parameters and API key. An API key is stored encrypted on this computer and is never shown again.
+            - paragraph [ref=e219]: Loading providers…

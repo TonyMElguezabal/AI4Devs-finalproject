@@ -1,0 +1,2 @@
+[     308ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-HCIN4FJ4.js?v=50e97e6e:21606
+[   14748ms] [ERROR] Failed to load resource: the server responded with a status of 503 (Service Unavailable) @ http://127.0.0.1:3199/sessions:0

@@ -1,8 +1,8 @@
 # PRD — Vid4You
 
-**Versión:** 1.32  
+**Versión:** 1.33  
 **Alcance:** MVP  
-**Status (v1.32, awaiting the product owner's approval):** the Administrator adds a video model of any vendor on `/admin`, without a code change, by writing the vendor's requests in a configured connector; a key is bound to its connector's host, and a connector can be duplicated for another model of the same vendor; the final video is 720p or 1080p, no clip is generated above 1080p, and RunningHub generates at 768P (`configurable-video-connector`, JOS-219, §7.3, §11.2, §11.3, D08). The previous version is kept in `docs/PRD-v1.31.md`.
+**Status (v1.33, Approved):** every generated clip is checked from its own file before it is stored: it must be a readable MP4 whose first frame decodes, horizontal and at least 1920×1080, and as long as requested within −0.5 s to +1 s; a clip that fails is a failed attempt of the video stage (`check-generated-clip`, JOS-265, §7.2). The previous version is kept in `docs/PRD-v1.32.md`.
 
 The history of every version since v1.8, with its origin, the sections it changed and its approval state, is in §16; the archived versions are the `docs/PRD-v1.*.md` files. The MVP remains a single-user application on the user's own computer, and all product decisions remain closed.
 
@@ -169,6 +169,7 @@ Cada clip utiliza la imagen generada y la instrucción `VIDEO`. La duración sol
 
 - El sistema solicita la duración admitida por el proveedor **más próxima** al intervalo narrado. Se admite que la duración solicitada sea menor que el intervalo, lo que implica ralentizar el clip durante el montaje. "Closest" means the admitted duration requiring the smallest speed change (speed-up or slow-down ratio) to match the interval, not the fewest seconds; an exact tie goes to the longer duration.
 - Cuando el intervalo narrado es inferior a la menor duración admitida, se solicita esa menor duración.
+- **Comprobación del clip (JOS-265, product owner decision 2026-11-05).** El sistema mide cada clip generado a partir de su propio archivo, antes de guardarlo, y no confía en los datos que informa el proveedor. Un clip se acepta solo si es un MP4 legible cuyo primer fotograma se decodifica, si su video es horizontal y de al menos 1920×1080 (tamaño), y si su duración medida está entre la duración solicitada menos 0,5 s y la solicitada más 1 s (duración). Un clip que no cumple cuenta como un intento fallido transitorio de la etapa de video, con un motivo legible (por ejemplo, «the generated clip lasts 6.0 s, but 10 s was requested»), y sigue la política de reintentos de §10.1; si se agotan, la escena queda en `failed` en la etapa de video. Si no se puede ejecutar ffprobe, el intento falla como no reintentable, porque un reintento no podría tener éxito.
 - El sistema no debe asumir que todos los proveedores admiten las mismas duraciones ni cualquier valor intermedio. The set of admitted durations is configured for the video provider (§11).
 - El máximo habitual previsto es de 15 segundos; un proveedor que admita 20 segundos puede utilizar ese máximo. **Recorded (§11.3): the video provider's measured admitted range, the shipped default, is 5-15 seconds** — the "usual" 15-second expectation is exactly the measured maximum, not just a placeholder guess.
 
@@ -504,14 +505,22 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 6 | No se trata la concurrencia entre sesiones ni los límites de tasa del proveedor activo. **Closed in v1.3** (hardcoded request limit per stage, first come first served, §10.1). | §11 |
 | 7 | No se define el mecanismo de actualización del progreso en la interfaz. **Closed in v1.3** (live updates without reloading, §8.3). | §8.3 |
 | 8 | No se define la regla de desambiguación de carpetas con títulos iguales. **Closed in v1.3** (title + creation date/time + counter, §12.2). | §12.2, AC15 |
-| 9 | No hay requisitos no funcionales, objetivo de negocio ni métricas de éxito. **Still open in v1.3** (known gap). | Documento completo |
-| 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
+| 9 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
+| 10 | No hay requisitos no funcionales, objetivo de negocio ni métricas de éxito definidos para el MVP. **Closed (product owner, 2026-11-11)**: los requisitos funcionales (§13) se cumplen y se verificaron con el último video generado; no se definen requisitos no funcionales ni métricas de éxito adicionales para el MVP. | Documento completo |
 
 ## 16. Registro de cambios
 
+### From version 1.32 to 1.33
+
+Origin: `check-generated-clip` (JOS-265), 2026-11-11. **Approved by the product owner, 2026-11-11.**
+
+| Change | Origin |
+|---|---|
+| §7.2: every clip is checked from its own file before it is stored (readable MP4, first frame decodes, horizontal and at least 1920×1080, duration from the requested −0.5 s to +1 s); a failed check is a failed attempt of the video stage with a readable reason. | Product owner decisions 2026-11-05 (size and duration rules) |
+
 ### From version 1.31 to 1.32
 
-Origin: `configurable-video-connector` (JOS-219), 2026-11-06. **Awaiting the product owner's approval.**
+Origin: `configurable-video-connector` (JOS-219), 2026-11-06. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -520,7 +529,7 @@ Origin: `configurable-video-connector` (JOS-219), 2026-11-06. **Awaiting the pro
 
 ### From version 1.30 to 1.31
 
-Origin: `alert-unresponsive-provider` (JOS-246), 2026-11-03. **Awaiting the product owner's approval.**
+Origin: `alert-unresponsive-provider` (JOS-246), 2026-11-03. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -529,7 +538,7 @@ Origin: `alert-unresponsive-provider` (JOS-246), 2026-11-03. **Awaiting the prod
 
 ### From version 1.29 to 1.30
 
-Origin: `follow-fal-image-queue` (JOS-239), 2026-10-30. **Awaiting the product owner's approval.**
+Origin: `follow-fal-image-queue` (JOS-239), 2026-10-30. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -539,7 +548,7 @@ Origin: `follow-fal-image-queue` (JOS-239), 2026-10-30. **Awaiting the product o
 
 ### From version 1.28 to 1.29
 
-Origin: `probe-provider-request-caps` (JOS-188), 2026-10-29. **Awaiting the product owner's approval.**
+Origin: `probe-provider-request-caps` (JOS-188), 2026-10-29. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -554,7 +563,7 @@ Origin: `report-estimated-cost` (JOS-227), 2026-10-27. **Approved by the product
 | §11.4: the estimated-cost report (catalogue R2) moves from "a later release" into scope as specified above: per stage and provider, per-currency totals, unpriced providers shown as unpriced, failed units shown and not priced, and a cost per session in the Sessions report. §2.3 already sends the reports to the version that builds them and needs no change. | JOS-227 |
 ### From version 1.26 to 1.27
 
-Origin: `add-burned-in-subtitles` (JOS-237), 2026-10-28. **Awaiting the product owner's approval.**
+Origin: `add-burned-in-subtitles` (JOS-237), 2026-10-28. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -563,7 +572,7 @@ Origin: `add-burned-in-subtitles` (JOS-237), 2026-10-28. **Awaiting the product 
 
 ### From version 1.25 to 1.26
 
-Origin: `show-script-word-count` (JOS-236), 2026-10-28. **Awaiting the product owner's approval.**
+Origin: `show-script-word-count` (JOS-236), 2026-10-28. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -571,7 +580,7 @@ Origin: `show-script-word-count` (JOS-236), 2026-10-28. **Awaiting the product o
 
 ### From version 1.24 to 1.25
 
-Origin: `rebuild-scene` (JOS-235), 2026-10-28. **Awaiting the product owner's approval.**
+Origin: `rebuild-scene` (JOS-235), 2026-10-28. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -582,7 +591,7 @@ Origin: `rebuild-scene` (JOS-235), 2026-10-28. **Awaiting the product owner's ap
 
 ### From version 1.23 to 1.24
 
-Origin: `keep-clip-task-on-timeout` (JOS-204), 2026-10-27. **Awaiting the product owner's approval.**
+Origin: `keep-clip-task-on-timeout` (JOS-204), 2026-10-27. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -591,7 +600,7 @@ Origin: `keep-clip-task-on-timeout` (JOS-204), 2026-10-27. **Awaiting the produc
 
 ### From version 1.22 to 1.23
 
-Origin: `record-provider-changes` (JOS-229), 2026-10-27. **Awaiting the product owner's approval.**
+Origin: `record-provider-changes` (JOS-229), 2026-10-27. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -599,7 +608,7 @@ Origin: `record-provider-changes` (JOS-229), 2026-10-27. **Awaiting the product 
 
 ### From version 1.21 to 1.22
 
-Origin: `switch-reference-image-model` (JOS-230), 2026-10-26. **Awaiting the product owner's approval.**
+Origin: `switch-reference-image-model` (JOS-230), 2026-10-26. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -608,7 +617,7 @@ Origin: `switch-reference-image-model` (JOS-230), 2026-10-26. **Awaiting the pro
 
 ### From version 1.20 to 1.21
 
-Origin: `test-provider-connection` (JOS-220), 2026-10-26. **Awaiting the product owner's approval.**
+Origin: `test-provider-connection` (JOS-220), 2026-10-26. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -617,7 +626,7 @@ Origin: `test-provider-connection` (JOS-220), 2026-10-26. **Awaiting the product
 
 ### From version 1.19 to 1.20
 
-Origin: `show-video-request-status` (JOS-200), 2026-10-26. **Awaiting the product owner's approval.**
+Origin: `show-video-request-status` (JOS-200), 2026-10-26. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -627,7 +636,7 @@ Origin: `show-video-request-status` (JOS-200), 2026-10-26. **Awaiting the produc
 
 ### From version 1.18 to 1.19
 
-Origin: `use-reference-image-in-generation` (JOS-202), 2026-10-26. **Awaiting the product owner's approval.**
+Origin: `use-reference-image-in-generation` (JOS-202), 2026-10-26. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -637,7 +646,7 @@ Origin: `use-reference-image-in-generation` (JOS-202), 2026-10-26. **Awaiting th
 
 ### From version 1.17 to 1.18
 
-Origin: `add-provider-price-per-unit` (JOS-226), 2026-10-23. **Awaiting the product owner's approval.**
+Origin: `add-provider-price-per-unit` (JOS-226), 2026-10-23. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -645,7 +654,7 @@ Origin: `add-provider-price-per-unit` (JOS-226), 2026-10-23. **Awaiting the prod
 
 ### From version 1.16 to 1.17
 
-Origin: `admin-visual-style-prompt` (JOS-201), 2026-10-19, drafted as v1.10 on `feature/entrega-3-JAME`; merged into this line on 2026-10-22. **Awaiting the product owner's approval.**
+Origin: `admin-visual-style-prompt` (JOS-201), 2026-10-19, drafted as v1.10 on `feature/entrega-3-JAME`; merged into this line on 2026-10-22. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -653,7 +662,7 @@ Origin: `admin-visual-style-prompt` (JOS-201), 2026-10-19, drafted as v1.10 on `
 | New §11.5 (drafted as §11.4, which v1.16 gives to the reports): one visual style prompt (0 to 8,000 characters) and one optional reference image (PNG, JPEG or WebP, up to 5 MB). A session keeps the prompt it was created with, through retries and restarts. The prompt guides the reasoning request that writes the instructions; the pipeline rules win on any conflict. The image is stored but not sent to any provider yet (a spike must first verify a reference-capable image model, §11; JOS-202). | Product owner, JOS-201 |
 
 ### From version 1.15 to 1.16
-Origin: `define-admin-reports` (JOS-175), 2026-10-22. **Awaiting the product owner's approval** (text reviewed and approved in chat on 2026-10-22; record the approval on the PR).
+Origin: `define-admin-reports` (JOS-175), 2026-10-22. **Approved by the product owner, 2026-11-11** (text reviewed and approved in chat on 2026-10-22; record the approval on the PR).
 
 | Change | Origin |
 |---|---|
@@ -663,7 +672,7 @@ Origin: `define-admin-reports` (JOS-175), 2026-10-22. **Awaiting the product own
 
 ### From version 1.14 to 1.15
 
-Origin: `move-failed-stage-to-active-provider` (JOS-172), 2026-10-22. **Awaiting the product owner's approval.**
+Origin: `move-failed-stage-to-active-provider` (JOS-172), 2026-10-22. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -685,7 +694,7 @@ Origin: `manage-providers-from-admin` (JOS-218), 2026-10-21. **Approved by the p
 
 ### From version 1.12 to 1.13
 
-Origin: `change-active-provider-from-admin` (JOS-171), 2026-10-21. **Awaiting the product owner's approval.**
+Origin: `change-active-provider-from-admin` (JOS-171), 2026-10-21. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -696,7 +705,7 @@ Origin: `change-active-provider-from-admin` (JOS-171), 2026-10-21. **Awaiting th
 
 ### From version 1.11 to 1.12
 
-Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19. **Awaiting the product owner's approval.**
+Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -707,7 +716,7 @@ Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19. **Awaiting t
 
 ### From version 1.10 to 1.11
 
-Origin: `protect-admin-with-password` (JOS-173), 2026-10-19. **Awaiting the product owner's approval.** v1.12 (JOS-174) and v1.13 (JOS-171) are drafted on their own branches and are not on this branch yet; the three drafts edit the same paragraphs of §2.1 and §2.3, and whichever merges second or third rebases its text.
+Origin: `protect-admin-with-password` (JOS-173), 2026-10-19. **Approved by the product owner, 2026-11-11.** v1.12 (JOS-174) and v1.13 (JOS-171) are drafted on their own branches and are not on this branch yet; the three drafts edit the same paragraphs of §2.1 and §2.3, and whichever merges second or third rebases its text.
 
 | Change | Origin |
 |---|---|

@@ -185,7 +185,7 @@ These exist for manual endpoint testing and **must never be set in UAT or produc
 | Variable | Effect |
 |---|---|
 | `ALLOW_TEST_ENDPOINTS` | enables `POST /internal/test/quick-voice-over` and `POST /internal/test/quick-scene` |
-| `USE_STUB_VOICE_PROVIDER`, `USE_STUB_IMAGE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_ASSEMBLY_TOOL` | replace a provider with a stub (values are listed in `backend/src/server.ts` and `backend/src/bootstrap.ts`) |
+| `USE_STUB_VOICE_PROVIDER`, `USE_STUB_IMAGE_PROVIDER`, `USE_STUB_VIDEO_PROVIDER`, `USE_STUB_ASSEMBLY_TOOL` | replace a provider with a stub (values are listed in `backend/src/server.ts` and `backend/src/bootstrap.ts`). Stubbed video clips are real ffmpeg-made clips at the requested length, so they pass the clip check; `USE_STUB_VIDEO_PROVIDER=short-clip` answers 3 s short, which the check refuses |
 | `VID4YOU_ERROR_TRIGGERS=1` | registers `POST /dev/errors/route-crash` and `POST /dev/errors/unhandled-rejection` (optional body `{"tag":"..."}`), which fail on purpose so an error can be followed to the log file and Grafana (`cover-error-reporting`, JOS-245). The second one ends the process. Ignored by a packaged build |
 | `USE_STUB_DECOMPOSITION=success`, `USE_STUB_SCRIPT_MODERATION=clean` | replace the reasoning and alignment providers, and the script check, with succeeding stubs (`configureProviderStubs` in `backend/src/server.ts`). Together with the four above, a session runs to `final-video` with no provider key. Unlike the others, an unknown value keeps the real provider and logs a warning at boot. The stub assembly tool writes a small placeholder file (not a playable MP4), so the final-video download works |
 | `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | shorten retry delays |
@@ -209,6 +209,32 @@ Metrics are exported every 60 s and on SIGINT/SIGTERM. `VID4YOU_CHANNEL=producti
 
 Every error reported to telemetry (a stage or request that failed for good, an uncaught exception) is also written to the local log file `logs/vid4you.log` at `error` level, whether or not the error signal is on. The log never leaves the machine.
 
+### Environment variable reference
+
+The one list of every variable the backend reads. The README table (section 1.4) is a short copy for users.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `3100` | Backend port (listens on `127.0.0.1` only). |
+| `DB_PATH` | `data/skeleton.sqlite` | SQLite file, relative to `backend/`. |
+| `PROJECTS_ROOT` | `data/projects` | Where project folders are written. A relative path works (assembly uses absolute paths). Tests need their own scratch `DB_PATH` and `PROJECTS_ROOT`. |
+| `SECRETS_PATH` | `backend/.secrets.json` | Credentials file. The packaged app sets it to its data folder. |
+| `PROVIDER_KEY_PATH` | `data/provider-keys.key` | Master key (mode 0600) for the provider keys stored encrypted in the database. |
+| `SETTINGS_DEFAULTS_PATH` | `backend/config/settings.default.json` | Shipped defaults. The packaged app writes an embedded copy to its data folder and points here. |
+| `SETTINGS_PATH` | `data/settings.json` | Optional per-user settings override, merged over the defaults at start-up. |
+| `SUBTITLE_FONT_PATH` | `backend/assets/fonts/Montserrat-Bold.ttf` | Font for the burned-in subtitles. |
+| `FFMPEG_PATH`, `FFPROBE_PATH` | automatic | Tool paths; otherwise `/opt/homebrew/bin`, then the `PATH`. |
+| `CORS_ALLOWED_ORIGINS` | empty | Extra allowed origins, comma-separated. |
+| `BODY_LIMIT_BYTES` | 50 MiB | Largest request body. |
+| `STAGE_CONCURRENCY_LIMIT` | from settings | Overrides the image-stage simultaneous-request cap (manual tests only). |
+| `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | 2, 30 | Retry back-off (shortened for manual tests). |
+| `ADMIN_PASSWORD` | none | Unlocks `/admin` (see "Administrator password"). A secret: environment or `.secrets.json`. |
+| `OPENAI_KEY`, `FAL_API_KEY`, `RUNNINGHUB_API_KEY`, `ELEVENLABS_KEY` | none | Provider keys, used until a key is saved on `/admin` (see "Provider credentials"). |
+| `VID4YOU_DATA_DIR`, `VID4YOU_PORT`, `VID4YOU_NO_BROWSER` | user data folder, `3100`, empty | Packaged app only: data folder, port, and (with `1`) do not open the browser. `XDG_DATA_HOME` and `APPDATA` only choose the default data folder on Linux and Windows. |
+| `VID4YOU_VERSION`, `VID4YOU_CHANNEL`, `VID4YOU_RELEASE_TAG`, `VID4YOU_TELEMETRY_ENDPOINT` | `0.0.0-dev`, `development`, none, `https://otel.vid4you.download` | Build identity, set by the release build; see "Telemetry (opt-in)". |
+| `RUN_PROVIDER_CONTRACT_TESTS` | unset | `1` runs the contract tests against the real providers (needs real keys). |
+| Test-only switches | unset | `ALLOW_TEST_ENDPOINTS`, `USE_STUB_*`, `VOICE_STUB_DELAY_MS`, `ASSEMBLY_STUB_DELAY_MS`, `VID4YOU_ERROR_TRIGGERS`: see "Development-only switches". The packaged app ignores them. |
+
 ## Test
 
 ```bash
@@ -229,6 +255,8 @@ npm run typecheck
 ```
 
 The browser test (`e2e/tests/main-flow.spec.ts`, JOS-272) starts the real backend on port 3101 with every provider stubbed and the real Vite frontend on port 5173, both on scratch folders, then drives the start form to the downloaded final video in Chromium (about 10 s). Both ports must be free: a server already listening there fails the run, naming the port. After a failure, open the trace with `npx playwright show-trace test-results/<test>/trace.zip`; CI uploads the same files as the `playwright-report` artifact.
+
+The packaged executable has its own smoke run (JOS-279). In `backend/`, `npm run package:smoke` builds the stub-provider flavor for `darwin-arm64` (about 25 s, downloads Node and ffmpeg once) and `npm run package:smoke:run` starts it on a scratch data folder and port 3102, runs one session to the final video and removes everything it created. CI does the same on macOS (`.github/workflows/package-smoke.yml`) for pull requests that change `backend/` or `frontend/`; a failure prints the executable's log in the job output.
 
 Coverage: `npm run coverage` in `backend/` or `frontend/` runs the same tests with V8 coverage, prints a summary and writes `coverage/index.html`. It fails below the floor in `vitest.config.ts` (statements and lines: backend 94 %, frontend 96 %); raise the floor when the measured value rises, never lower it to pass.
 

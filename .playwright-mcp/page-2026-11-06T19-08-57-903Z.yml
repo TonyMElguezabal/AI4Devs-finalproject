@@ -1,0 +1,57 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: Vid4You
+    - generic "Vid4You version 0.0.0-dev" [ref=e13]: Development build
+  - main [ref=e8]:
+    - generic [ref=e9]:
+      - heading "Administrator" [level=1] [ref=e11]
+      - region "Administrator tools" [ref=e20]:
+        - tablist "Administrator tools" [ref=e21]:
+          - tab "Settings" [selected] [ref=e22] [cursor=pointer]
+          - tab "Providers" [ref=e23] [cursor=pointer]
+          - tab "Failed stages" [ref=e24] [cursor=pointer]
+          - tab "Reports" [ref=e25] [cursor=pointer]
+        - tabpanel "Settings" [ref=e26]:
+          - region "Visual style" [ref=e27]:
+            - heading "Visual style" [level=2] [ref=e28]
+            - paragraph [ref=e29]: One visual style for every new project. Projects already started keep the style they began with.
+            - form "Visual style prompt form" [ref=e30]:
+              - generic [ref=e31]:
+                - generic [ref=e32]: Visual style prompt
+                - textbox "Visual style prompt" [ref=e33]
+                - generic [ref=e34]: "Describe the art style and any recurring characters. It guides the image and video instructions of every scene. The pipeline rules (one instruction pair per script fragment, in the required JSON format) always apply: if this text conflicts with them, these rules win."
+                - generic [ref=e35]: 0 / 8000
+              - button "Save prompt" [ref=e37] [cursor=pointer]
+            - region "Reference image settings" [ref=e38]:
+              - generic [ref=e39]:
+                - generic [ref=e40]: Reference image
+                - button "Reference image" [ref=e41]
+                - generic [ref=e42]: PNG, JPEG or WebP, up to 5 MB. It is sent to the image provider with every scene of sessions created afterwards.
+          - region "Active providers" [ref=e43]:
+            - heading "Active providers" [level=2] [ref=e44]
+            - paragraph [ref=e45]: A change applies to work that has not started its stage yet. Work already running keeps its provider.
+            - generic [ref=e46]:
+              - generic [ref=e47]: Reasoning provider
+              - combobox "Reasoning provider" [disabled] [ref=e48]:
+                - option "stub-reasoning" [selected]
+              - generic [ref=e49]: from settings files
+            - generic [ref=e50]:
+              - generic [ref=e51]: Voice provider
+              - combobox "Voice provider" [disabled] [ref=e52]:
+                - option "stub-voice" [selected]
+              - generic [ref=e53]: from settings files
+            - generic [ref=e54]:
+              - generic [ref=e55]: Alignment provider
+              - combobox "Alignment provider" [disabled] [ref=e56]:
+                - option "stub-alignment" [selected]
+              - generic [ref=e57]: from settings files
+            - generic [ref=e58]:
+              - generic [ref=e59]: Image provider
+              - combobox "Image provider" [disabled] [ref=e60]:
+                - option "stub-image" [selected]
+              - generic [ref=e61]: from settings files
+            - generic [ref=e62]:
+              - generic [ref=e63]: Video provider
+              - combobox "Video provider" [disabled] [ref=e64]:
+                - option "stub-video-provider" [selected]
+              - generic [ref=e65]: from settings files

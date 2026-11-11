@@ -1,0 +1,98 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]: Vid4You
+    - generic "Vid4You version 0.0.0-dev" [ref=e13]: Development build
+  - main [ref=e8]:
+    - generic [ref=e9]:
+      - heading "Administrator" [level=1] [ref=e11]
+      - region "Administrator tools" [ref=e20]:
+        - tablist "Administrator tools" [ref=e21]:
+          - tab "Settings" [ref=e22] [cursor=pointer]
+          - tab "Providers" [selected] [ref=e23] [cursor=pointer]
+          - tab "Failed stages" [ref=e24] [cursor=pointer]
+          - tab "Reports" [ref=e25] [cursor=pointer]
+        - tabpanel "Providers" [ref=e215]:
+          - region "Providers" [ref=e216]:
+            - heading "Providers" [level=2] [ref=e217]
+            - paragraph [ref=e218]: Each provider has its own parameters and API key. An API key is stored encrypted on this computer and is never shown again.
+            - group "Reasoning providers" [ref=e220]:
+              - generic [ref=e221]:
+                - heading "Reasoning" [level=3] [ref=e222]
+                - button "Add reasoning provider" [ref=e223] [cursor=pointer]
+              - list [ref=e224]:
+                - listitem "OpenAI provider" [ref=e225]:
+                  - generic [ref=e226]:
+                    - strong [ref=e227]: OpenAI
+                    - generic [ref=e228]: Key missing
+                    - generic [ref=e229]: Active
+                  - generic [ref=e230]:
+                    - button "Edit OpenAI" [ref=e231] [cursor=pointer]
+                    - group [ref=e232]:
+                      - generic "More actions for OpenAI" [ref=e233] [cursor=pointer]:
+                        - generic [aria-hidden] [ref=e234]: ⋯
+                  - generic [ref=e235]: "apiKey: no API key is stored or found for this provider"
+            - group "Voice providers" [ref=e236]:
+              - generic [ref=e237]:
+                - heading "Voice" [level=3] [ref=e238]
+                - button "Add voice provider" [ref=e239] [cursor=pointer]
+              - list [ref=e240]:
+                - listitem "ElevenLabs provider" [ref=e241]:
+                  - generic [ref=e242]:
+                    - strong [ref=e243]: ElevenLabs
+                    - generic [ref=e244]: Key missing
+                    - generic [ref=e245]: Active
+                  - generic [ref=e246]:
+                    - button "Edit ElevenLabs" [ref=e247] [cursor=pointer]
+                    - group [ref=e248]:
+                      - generic "More actions for ElevenLabs" [ref=e249] [cursor=pointer]:
+                        - generic [aria-hidden] [ref=e250]: ⋯
+                  - generic [ref=e251]: "apiKey: no API key is stored or found for this provider"
+            - group "Alignment providers" [ref=e252]:
+              - generic [ref=e253]:
+                - heading "Alignment" [level=3] [ref=e254]
+                - button "Add alignment provider" [ref=e255] [cursor=pointer]
+              - list [ref=e256]:
+                - listitem "ElevenLabs provider" [ref=e257]:
+                  - generic [ref=e258]:
+                    - strong [ref=e259]: ElevenLabs
+                    - generic [ref=e260]: ElevenLabs forced alignment
+                    - generic [ref=e261]: Key missing
+                    - generic [ref=e262]: Active
+                  - generic [ref=e263]:
+                    - button "Edit ElevenLabs" [ref=e264] [cursor=pointer]
+                    - group [ref=e265]:
+                      - generic "More actions for ElevenLabs" [ref=e266] [cursor=pointer]:
+                        - generic [aria-hidden] [ref=e267]: ⋯
+                  - generic [ref=e268]: "apiKey: no API key is stored or found for this provider"
+            - group "Image providers" [ref=e269]:
+              - generic [ref=e270]:
+                - heading "Image" [level=3] [ref=e271]
+                - button "Add image provider" [ref=e272] [cursor=pointer]
+              - list [ref=e273]:
+                - listitem "Fal.ai provider" [ref=e274]:
+                  - generic [ref=e275]:
+                    - strong [ref=e276]: Fal.ai
+                    - generic [ref=e277]: Key missing
+                    - generic [ref=e278]: Active
+                  - generic [ref=e279]:
+                    - button "Edit Fal.ai" [ref=e280] [cursor=pointer]
+                    - group [ref=e305]:
+                      - generic "More actions for Fal.ai" [ref=e306] [cursor=pointer]:
+                        - generic [aria-hidden] [ref=e307]: ⋯
+                  - generic [ref=e284]: "apiKey: no API key is stored or found for this provider"
+            - group "Video providers" [ref=e285]:
+              - generic [ref=e286]:
+                - heading "Video" [level=3] [ref=e287]
+                - button "Add video provider" [ref=e288] [cursor=pointer]
+              - list [ref=e289]:
+                - listitem "RunningHub provider" [ref=e290]:
+                  - generic [ref=e291]:
+                    - strong [ref=e292]: RunningHub
+                    - generic [ref=e293]: Key missing
+                    - generic [ref=e294]: Active
+                  - generic [ref=e295]:
+                    - button "Edit RunningHub" [ref=e296] [cursor=pointer]
+                    - group [ref=e297]:
+                      - generic "More actions for RunningHub" [ref=e298] [cursor=pointer]:
+                        - generic [aria-hidden] [ref=e299]: ⋯
+                  - generic [ref=e300]: "apiKey: no API key is stored or found for this provider"

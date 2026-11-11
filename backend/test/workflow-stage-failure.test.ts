@@ -53,3 +53,28 @@ describe("a permanent image failure stops the session cleanly", () => {
     expect(existsSync(scratch)).toBe(false);
   });
 });
+
+describe("a refused clip stops the session cleanly (check-generated-clip, JOS-265)", () => {
+  it("fails every scene on the video stage with the check's reason, never reaches assembly, and logs the failure", { timeout: 120_000 }, async () => {
+    server = await startWorkflowServer({ ...ALL_STUBS_SUCCEEDING, USE_STUB_VIDEO_PROVIDER: "short-clip" });
+    const { baseUrl } = server;
+
+    const created = await fetch(`${baseUrl}/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Short clip test", script: WORKFLOW_SCRIPT, language: "en" }),
+    });
+    expect(created.status, server.output()).toBe(201);
+    const { sessionId } = ((await created.json()) as { session: { sessionId: string } }).session;
+
+    const stopped = await waitFor(
+      async () => (await (await fetch(`${baseUrl}/sessions/${sessionId}`)).json()) as Snapshot,
+      (snapshot) => (snapshot.scenes?.length ?? 0) > 0 && snapshot.scenes.every((scene) => scene.state === "failed"),
+      { timeoutMs: 90_000, intervalMs: 200, what: "every scene to fail" },
+    );
+    expect(stopped.scenes.every((scene) => scene.affectedStage === "video"), JSON.stringify(stopped.scenes)).toBe(true);
+    expect(JSON.stringify(stopped.scenes)).toMatch(/the generated clip lasts [\d.]+ s, but [\d.]+ s was requested/);
+    expect(stopped.session.phases.find(({ phase }) => phase === "assembly")?.status).toBe("pending");
+    expect(stopped.session.finalVideoUrl).toBeUndefined();
+  });
+});

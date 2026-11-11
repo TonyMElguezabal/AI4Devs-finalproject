@@ -1,0 +1,45 @@
+- generic:
+  - generic:
+    - banner:
+      - generic: Vid4You
+      - button: Privacy
+      - generic: Development build
+    - dialog [ref=f3e1]:
+      - generic [ref=f3e2]:
+        - heading "Help improve Vid4You" [level=2] [ref=f3e3]
+        - paragraph [ref=f3e4]:
+          - text: Nothing is sent unless you turn it on here. No script, media, file name or key is ever sent. You can change this at any time from Privacy.
+          - link "Privacy policy" [active] [ref=f3e5] [cursor=pointer]:
+            - /url: https://github.com/TonyMElguezabal/AI4Devs-finalproject/blob/main/PRIVACY.md
+        - generic [ref=f3e6]:
+          - checkbox "Send error reports" [ref=f3e7]
+          - generic [ref=f3e8]: Send error reports
+          - generic [ref=f3e9]: What failed and where, with file paths and your user name removed.
+        - generic [ref=f3e10]:
+          - checkbox "Send provider usage and cost counts" [ref=f3e11]
+          - generic [ref=f3e12]: Send provider usage and cost counts
+          - generic [ref=f3e13]: How many provider calls ran, how long they took and how much was billed.
+        - generic [ref=f3e14]:
+          - checkbox "Send anonymous usage counts" [ref=f3e15]
+          - generic [ref=f3e16]: Send anonymous usage counts
+          - generic [ref=f3e17]: How often the app starts, sessions begin and final videos are made.
+        - generic [ref=f3e18]:
+          - button "Not now" [ref=f3e19] [cursor=pointer]
+          - button "Save" [ref=f3e20] [cursor=pointer]
+    - main:
+      - generic:
+        - generic:
+          - heading [level=1]: Turn a script into a narrated video
+          - paragraph: Paste your script and pick the narration language. Vid4You records the voice-over, splits it into scenes, and generates an image and a clip for each.
+        - form:
+          - generic:
+            - generic: Title
+            - textbox
+          - generic:
+            - generic: Script
+            - textbox
+          - generic:
+            - generic: Language
+            - combobox
+          - generic:
+            - button [disabled]: Start project
