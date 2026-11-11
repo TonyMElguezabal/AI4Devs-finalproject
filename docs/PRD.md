@@ -2,7 +2,7 @@
 
 **Versión:** 1.32  
 **Alcance:** MVP  
-**Status (v1.32, awaiting the product owner's approval):** the Administrator adds a video model of any vendor on `/admin`, without a code change, by writing the vendor's requests in a configured connector; a key is bound to its connector's host, and a connector can be duplicated for another model of the same vendor; the final video is 720p or 1080p, no clip is generated above 1080p, and RunningHub generates at 768P (`configurable-video-connector`, JOS-219, §7.3, §11.2, §11.3, D08). The previous version is kept in `docs/PRD-v1.31.md`.
+**Status (v1.32, Approved):** the Administrator adds a video model of any vendor on `/admin`, without a code change, by writing the vendor's requests in a configured connector; a key is bound to its connector's host, and a connector can be duplicated for another model of the same vendor; the final video is 720p or 1080p, no clip is generated above 1080p, and RunningHub generates at 768P (`configurable-video-connector`, JOS-219, §7.3, §11.2, §11.3, D08). The previous version is kept in `docs/PRD-v1.31.md`.
 
 The history of every version since v1.8, with its origin, the sections it changed and its approval state, is in §16; the archived versions are the `docs/PRD-v1.*.md` files. The MVP remains a single-user application on the user's own computer, and all product decisions remain closed.
 
@@ -504,8 +504,7 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 6 | No se trata la concurrencia entre sesiones ni los límites de tasa del proveedor activo. **Closed in v1.3** (hardcoded request limit per stage, first come first served, §10.1). | §11 |
 | 7 | No se define el mecanismo de actualización del progreso en la interfaz. **Closed in v1.3** (live updates without reloading, §8.3). | §8.3 |
 | 8 | No se define la regla de desambiguación de carpetas con títulos iguales. **Closed in v1.3** (title + creation date/time + counter, §12.2). | §12.2, AC15 |
-| 9 | No hay requisitos no funcionales, objetivo de negocio ni métricas de éxito. **Still open in v1.3** (known gap). | Documento completo |
-| 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
+| 9 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
 
 ## 16. Registro de cambios
 
