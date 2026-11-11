@@ -230,6 +230,8 @@ npm run typecheck
 
 The browser test (`e2e/tests/main-flow.spec.ts`, JOS-272) starts the real backend on port 3101 with every provider stubbed and the real Vite frontend on port 5173, both on scratch folders, then drives the start form to the downloaded final video in Chromium (about 10 s). Both ports must be free: a server already listening there fails the run, naming the port. After a failure, open the trace with `npx playwright show-trace test-results/<test>/trace.zip`; CI uploads the same files as the `playwright-report` artifact.
 
+The packaged executable has its own smoke run (JOS-279). In `backend/`, `npm run package:smoke` builds the stub-provider flavor for `darwin-arm64` (about 25 s, downloads Node and ffmpeg once) and `npm run package:smoke:run` starts it on a scratch data folder and port 3102, runs one session to the final video and removes everything it created. CI does the same on macOS (`.github/workflows/package-smoke.yml`) for pull requests that change `backend/` or `frontend/`; a failure prints the executable's log in the job output.
+
 Coverage: `npm run coverage` in `backend/` or `frontend/` runs the same tests with V8 coverage, prints a summary and writes `coverage/index.html`. It fails below the floor in `vitest.config.ts` (statements and lines: backend 94 %, frontend 96 %); raise the floor when the measured value rises, never lower it to pass.
 
 Notes from running the suites on a clean checkout:
