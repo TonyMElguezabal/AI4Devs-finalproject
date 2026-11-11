@@ -3,6 +3,7 @@
 - Refreshed on 2026-10-22 from `docs/release/mvp-closure-report.md` (written on `main` @ `ae20ee26`, 2026-10-20), which superseded the first evaluation of these gates on `f4b6e492`. The evidence for each row is in the closure report section named in it.
 - Changed since the closure report: lint and static analysis run in both packages and in CI (JOS-208, PR #82), so the "no lint step" gap is closed.
 - Tracking ticket: JOS-203 (sections K1-K3, L1).
+- **Update 2026-11-11:** the "no repeatable packaged build", "no release workflow" and "downgrade unverified" items in the rows below are closed (JOS-205, JOS-206, JOS-210); only signing (JOS-207, deferred by the owner) and the owner's acceptance rows remain. The newer evidence is listed in the closure report's updates.
 - Status words: **Met**, **Met with exceptions** (evidence exists, a named gap is accepted or pending acceptance), **Not met**, **Needs owner** (only the product owner can decide).
 
 ## Summary

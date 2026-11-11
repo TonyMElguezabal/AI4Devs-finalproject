@@ -2,6 +2,7 @@
 
 - Status: Accepted (product-owner decision, 2026-10-22); the PRD text that puts the reports in scope is awaiting approval (see *Consequences*)
 - Date: 2026-10-22
+- Later update (2026-11-11): the three "Later" reports were built after their recording needs were met: R2 Estimated cost (JOS-227), R6 Pipeline time (JOS-228) and R7 Provider changes (JOS-229). R5 stays dropped.
 - Change: `define-admin-reports` (JOS-175, US-40)
 
 ## Context

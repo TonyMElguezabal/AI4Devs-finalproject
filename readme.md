@@ -128,7 +128,7 @@ Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en
 - En la aplicación empaquetada es `.secrets.json` dentro de la carpeta de datos del usuario (ver más abajo).
 - En Windows, comprobar que el fichero se llama exactamente `.secrets.json` (el Bloc de notas puede guardarlo como `.secrets.json.txt`) y que está en UTF-8 sin BOM; en caso contrario las claves no se leen y la creación de sesiones falla con el mensaje "The content check is temporarily unavailable".
 
-**Variables de entorno**
+**Variables de entorno** (la lista completa está en `docs/development_guide.md`, «Environment variable reference»)
 
 | Variable | Valor por defecto | Para qué sirve |
 |---|---|---|
@@ -138,8 +138,11 @@ Se leen primero del entorno y después del fichero `.secrets.json` (nunca van en
 | `FFMPEG_PATH`, `FFPROBE_PATH` | resolución automática | Ruta a `ffmpeg` y `ffprobe`. |
 | `SUBTITLE_FONT_PATH` | `backend/assets/fonts/Montserrat-Bold.ttf` | Fuente de los subtítulos. La aplicación empaquetada la escribe en su carpeta de datos y fija esta variable. |
 | `SECRETS_PATH` | `backend/.secrets.json` | Fichero de credenciales. La aplicación empaquetada lo fija en su carpeta de datos. |
+| `SETTINGS_PATH` | `data/settings.json` | Ajustes del usuario que se combinan sobre los por defecto al arrancar. |
+| `PROVIDER_KEY_PATH` | `data/provider-keys.key` | Clave maestra que cifra las claves de proveedor guardadas en la base de datos. |
 | `SETTINGS_DEFAULTS_PATH` | `backend/config/settings.default.json` | Ajustes por defecto. La aplicación empaquetada escribe en cada arranque una copia incrustada en su carpeta de datos y apunta a ella. |
 | `VID4YOU_DATA_DIR` | carpeta de datos del usuario | Solo la aplicación empaquetada: cambia la carpeta donde guarda la base de datos, los proyectos, `.secrets.json`, los ajustes y la clave maestra. |
+| `VID4YOU_VERSION`, `VID4YOU_CHANNEL`, `VID4YOU_RELEASE_TAG`, `VID4YOU_TELEMETRY_ENDPOINT` | `0.0.0-dev`, `development`, vacío, relé del proyecto | Identidad de la compilación; la fija la construcción de la versión, no el usuario. |
 | `VID4YOU_PORT`, `VID4YOU_NO_BROWSER` | `3100`, vacío | Solo la aplicación empaquetada: puerto y, con `1`, no abrir el navegador. |
 | `CORS_ALLOWED_ORIGINS` | vacío | Orígenes adicionales permitidos (lista separada por comas). Por defecto solo el servidor Vite y el propio backend. |
 | `STAGE_CONCURRENCY_LIMIT` | límites de `config/providers.ts` | Sustituye el límite de peticiones simultáneas de la etapa de imagen (solo pruebas manuales). |
@@ -221,7 +224,7 @@ Estado del MVP a 10-nov-2026. Ninguna impide generar un video; todas están regi
 
 ### **2.1. Diagrama de arquitectura:**
 
-El stack está decidido y documentado en los ADR de `docs/adr/`: backend en TypeScript sobre Node.js con Fastify y Zod (ADR 0001), persistencia en SQLite embebido mediante `node:sqlite` (ADR 0002), actualizaciones en vivo con Server-Sent Events (ADR 0003), frontend en React 18 con Vite (ADR 0004), montaje de video con ffmpeg (ADR 0005) y distribución como aplicación local empaquetada (ADR 0007).
+El stack está decidido y documentado en los ADR de `docs/adr/`: backend en TypeScript sobre Node.js con Fastify y Zod (ADR 0001), persistencia en SQLite embebido mediante `node:sqlite` (ADR 0002), actualizaciones en vivo con Server-Sent Events (ADR 0003), frontend en React 18 con Vite (ADR 0004), montaje de video con ffmpeg (ADR 0005) y distribución como aplicación local empaquetada (ADR 0007). Después se añadieron los informes de `/admin` (ADR 0008), el conector de video configurable (ADR 0009), la cola de imágenes de fal.ai (ADR 0010), las tablas por tipo de adaptador (ADR 0011), la cobertura de errores (ADR 0012) y las capas de pruebas automáticas (ADR 0013).
 
 ```mermaid
 flowchart TD
