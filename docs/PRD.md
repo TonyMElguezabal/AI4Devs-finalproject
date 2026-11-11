@@ -505,6 +505,7 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 7 | No se define el mecanismo de actualización del progreso en la interfaz. **Closed in v1.3** (live updates without reloading, §8.3). | §8.3 |
 | 8 | No se define la regla de desambiguación de carpetas con títulos iguales. **Closed in v1.3** (title + creation date/time + counter, §12.2). | §12.2, AC15 |
 | 9 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
+| 10 | No hay requisitos no funcionales, objetivo de negocio ni métricas de éxito definidos para el MVP. **Closed (product owner, 2026-11-11)**: los requisitos funcionales (§13) se cumplen y se verificaron con el último video generado; no se definen requisitos no funcionales ni métricas de éxito adicionales para el MVP. | Documento completo |
 
 ## 16. Registro de cambios
 
