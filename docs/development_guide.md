@@ -16,11 +16,13 @@ Two ways to run, both on `127.0.0.1:3100`. Run one at a time: a second instance 
 
 ### Packaged app (macOS)
 
-This is what users get. Build it from the repository root, then start it:
+This is what users get. Build it, then start it:
 
 ```bash
-node openspec/changes/define-production-deployment/poc/local/build.mjs
-./openspec/changes/define-production-deployment/poc/local/out/Vid4You
+cd backend
+npm ci && (cd ../frontend && npm ci)
+npm run package:darwin-arm64        # or package:darwin-x64 on an Intel Mac
+./dist-package/darwin-arm64/Vid4You
 ```
 
 - The app opens the page in your browser. A second launch opens the running app instead of starting another.
@@ -207,6 +209,32 @@ Metrics are exported every 60 s and on SIGINT/SIGTERM. `VID4YOU_CHANNEL=producti
 
 Every error reported to telemetry (a stage or request that failed for good, an uncaught exception) is also written to the local log file `logs/vid4you.log` at `error` level, whether or not the error signal is on. The log never leaves the machine.
 
+### Environment variable reference
+
+The one list of every variable the backend reads. The README table (section 1.4) is a short copy for users.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `3100` | Backend port (listens on `127.0.0.1` only). |
+| `DB_PATH` | `data/skeleton.sqlite` | SQLite file, relative to `backend/`. |
+| `PROJECTS_ROOT` | `data/projects` | Where project folders are written. A relative path works (assembly uses absolute paths). Tests need their own scratch `DB_PATH` and `PROJECTS_ROOT`. |
+| `SECRETS_PATH` | `backend/.secrets.json` | Credentials file. The packaged app sets it to its data folder. |
+| `PROVIDER_KEY_PATH` | `data/provider-keys.key` | Master key (mode 0600) for the provider keys stored encrypted in the database. |
+| `SETTINGS_DEFAULTS_PATH` | `backend/config/settings.default.json` | Shipped defaults. The packaged app writes an embedded copy to its data folder and points here. |
+| `SETTINGS_PATH` | `data/settings.json` | Optional per-user settings override, merged over the defaults at start-up. |
+| `SUBTITLE_FONT_PATH` | `backend/assets/fonts/Montserrat-Bold.ttf` | Font for the burned-in subtitles. |
+| `FFMPEG_PATH`, `FFPROBE_PATH` | automatic | Tool paths; otherwise `/opt/homebrew/bin`, then the `PATH`. |
+| `CORS_ALLOWED_ORIGINS` | empty | Extra allowed origins, comma-separated. |
+| `BODY_LIMIT_BYTES` | 50 MiB | Largest request body. |
+| `STAGE_CONCURRENCY_LIMIT` | from settings | Overrides the image-stage simultaneous-request cap (manual tests only). |
+| `RETRY_BASE_DELAY_SECONDS`, `RETRY_CAP_DELAY_SECONDS` | 2, 30 | Retry back-off (shortened for manual tests). |
+| `ADMIN_PASSWORD` | none | Unlocks `/admin` (see "Administrator password"). A secret: environment or `.secrets.json`. |
+| `OPENAI_KEY`, `FAL_API_KEY`, `RUNNINGHUB_API_KEY`, `ELEVENLABS_KEY` | none | Provider keys, used until a key is saved on `/admin` (see "Provider credentials"). |
+| `VID4YOU_DATA_DIR`, `VID4YOU_PORT`, `VID4YOU_NO_BROWSER` | user data folder, `3100`, empty | Packaged app only: data folder, port, and (with `1`) do not open the browser. `XDG_DATA_HOME` and `APPDATA` only choose the default data folder on Linux and Windows. |
+| `VID4YOU_VERSION`, `VID4YOU_CHANNEL`, `VID4YOU_RELEASE_TAG`, `VID4YOU_TELEMETRY_ENDPOINT` | `0.0.0-dev`, `development`, none, `https://otel.vid4you.download` | Build identity, set by the release build; see "Telemetry (opt-in)". |
+| `RUN_PROVIDER_CONTRACT_TESTS` | unset | `1` runs the contract tests against the real providers (needs real keys). |
+| Test-only switches | unset | `ALLOW_TEST_ENDPOINTS`, `USE_STUB_*`, `VOICE_STUB_DELAY_MS`, `ASSEMBLY_STUB_DELAY_MS`, `VID4YOU_ERROR_TRIGGERS`: see "Development-only switches". The packaged app ignores them. |
+
 ## Test
 
 ```bash
@@ -219,7 +247,18 @@ npm run typecheck
 cd frontend
 npm test
 npm run typecheck
+
+# browser end to end (needs `npm ci` in backend/ and frontend/, and `npx playwright install chromium` once)
+cd e2e
+npm test
+npm run typecheck
 ```
+
+The browser test (`e2e/tests/main-flow.spec.ts`, JOS-272) starts the real backend on port 3101 with every provider stubbed and the real Vite frontend on port 5173, both on scratch folders, then drives the start form to the downloaded final video in Chromium (about 10 s). Both ports must be free: a server already listening there fails the run, naming the port. After a failure, open the trace with `npx playwright show-trace test-results/<test>/trace.zip`; CI uploads the same files as the `playwright-report` artifact.
+
+The packaged executable has its own smoke run (JOS-279). In `backend/`, `npm run package:smoke` builds the stub-provider flavor for `darwin-arm64` (about 25 s, downloads Node and ffmpeg once) and `npm run package:smoke:run` starts it on a scratch data folder and port 3102, runs one session to the final video and removes everything it created. CI does the same on macOS (`.github/workflows/package-smoke.yml`) for pull requests that change `backend/` or `frontend/`; a failure prints the executable's log in the job output.
+
+Coverage: `npm run coverage` in `backend/` or `frontend/` runs the same tests with V8 coverage, prints a summary and writes `coverage/index.html`. It fails below the floor in `vitest.config.ts` (statements and lines: backend 94 %, frontend 96 %); raise the floor when the measured value rises, never lower it to pass.
 
 Notes from running the suites on a clean checkout:
 
@@ -227,6 +266,7 @@ Notes from running the suites on a clean checkout:
 - `ffprobe` must be on `PATH`, otherwise the voice-over tests fail with "ffprobe is not installed".
 - `providerConfig.test.ts` reads `docs/PRD-v1.4.md`, so the `docs/` tree must be present.
 - `test/orchestrator.test.ts` is timing-sensitive and fails occasionally in a full run; rerun the file alone before treating it as a regression.
+- `api-spec-routes.test.ts` (JOS-275) compares `docs/api-spec.yml` with the routes the backend registers. Adding a route without a spec entry, or removing one the spec documents, fails it and names the operation; a route that is deliberately not in the contract goes in its `NOT_IN_THE_CONTRACT` list with a reason.
 - The `*.contract.test.ts` files call real providers and are skipped when no key is set.
 - `workflow-end-to-end.test.ts` and `workflow-stage-failure.test.ts` spawn the real `node src/server.ts` with every provider stubbed and run a session over HTTP (about 6 s each). They give the server its own scratch folders and keys file, so they never touch `data/` or `.secrets.json`. Run them alone with `npx vitest run test/workflow-`.
 
@@ -245,7 +285,7 @@ feature/jos-<n>-<name>  ──PR──▶  feature/entrega-2-JAME (UAT pre-relea
 
 - Feature work branches from `feature/entrega-2-JAME` and merges back into it, never straight into `main`.
 - A production release is published only for a source tree that already has a UAT pre-release, after a reviewer approves; otherwise it fails closed. The branch-to-channel mapping is declared in one place so it can change later.
-- The pipeline that does this is a follow-up story (L7); until then, the proof-of-concept build is `node openspec/changes/define-production-deployment/poc/local/build.mjs` (macOS executable in `poc/local/out/`).
+- The pipeline that does this is `.github/workflows/release.yml`. It builds with the same `npm run package:<target>` (in `backend/`) as a local build, which writes the executable, `ffmpeg` and `ffprobe` to `backend/dist-package/<target>/`. A local build is not signed.
 - Hosted options (Cloudflare Tunnel + VM, Cloudflare Containers) were evaluated and set aside; their evidence stays in the change's reports.
 
 ## Specifications

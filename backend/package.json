@@ -9,11 +9,13 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "package:darwin-arm64": "node packaging/build.ts darwin-arm64",
     "package:darwin-x64": "node packaging/build.ts darwin-x64",
     "package:win32-x64": "node packaging/build.ts win32-x64",
     "report:session-timing": "node scripts/sessionTimingReport.ts",
-    "package:smoke": "node packaging/build.ts darwin-arm64 --smoke"
+    "package:smoke": "node packaging/build.ts darwin-arm64 --smoke",
+    "package:smoke:run": "node packaging/smokeRun.ts dist-package/darwin-arm64-smoke"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",
@@ -34,6 +36,7 @@
   "devDependencies": {
     "@eslint/js": "9.39.5",
     "@types/node": "^22.10.5",
+    "@vitest/coverage-v8": "^3.2.7",
     "esbuild": "0.28.2",
     "eslint": "9.39.5",
     "postject": "1.0.0-alpha.6",

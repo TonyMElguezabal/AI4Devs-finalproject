@@ -14,7 +14,8 @@
   "video": {
     "name": "RunningHub",
     "endpoint": "/openapi/v2/minimax/hailuo-h3/image-to-video",
-    "admittedDurationSeconds": { "min": 5, "max": 15 }
+    "admittedDurationSeconds": { "min": 5, "max": 15 },
+    "resolution": "768P"
   },
   "segmentation": { "lowerBoundSeconds": 5 },
   "speedFactorLimit": 2,

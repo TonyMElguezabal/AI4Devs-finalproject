@@ -205,7 +205,8 @@ export interface ProviderView {
 export interface ParameterFieldInfo {
   path: string[];
   label: string;
-  kind: "text" | "number" | "choice";
+  /** `json` (JOS-219): an object edited as JSON text, such as a connector's requests. */
+  kind: "text" | "number" | "choice" | "json";
   required: boolean;
   help?: string;
   choices?: string[];
@@ -220,7 +221,7 @@ export interface AdapterTypeInfo {
   /** test-provider-connection (JOS-220): whether the vendor charges for the check, and what a pass proves. */
   connectionCheck: { charged: boolean; covers: string };
 }
-export type ConnectionOutcome = "connected" | "key-rejected" | "not-found" | "unreachable" | "unexpected" | "no-key";
+export type ConnectionOutcome = "connected" | "key-rejected" | "not-found" | "unreachable" | "unexpected" | "no-key" | "no-check";
 export interface ConnectionTestResult {
   outcome: ConnectionOutcome;
   covers: string;
@@ -242,6 +243,8 @@ export interface ProfileView {
   problems: ProfileProblem[];
   active: boolean;
   retired: boolean;
+  /** configurable-video-connector (JOS-219): set on the answer to a save that changed a connector's host and cleared its key. */
+  keyCleared?: true;
 }
 
 /** move-failed-stage-to-active-provider (JOS-172) — one row of `GET /admin/failed-stages`. */

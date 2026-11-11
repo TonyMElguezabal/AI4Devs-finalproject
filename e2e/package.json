@@ -1,0 +1,16 @@
+{
+  "name": "vid4you-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Vid4You browser-level end-to-end test: the real frontend and backend with every provider stubbed (JOS-272, add-browser-e2e).",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3"
+  }
+}

@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { keyFor, stageApiKey } from "./keyStore.ts";
 import { buildProfileRegistry, profileRegistrySlot } from "./profileRegistry.ts";
-import { VIDEO_PROVIDER, VIDEO_GENERATION_SETTING } from "./config/providers.ts";
+import { VIDEO_PROVIDER } from "./config/providers.ts";
+import type { ProviderProfile } from "./providerProfiles.ts";
+import type { VideoAdapterTypeId } from "./providerTypes.ts";
+import { classifyHttpStatus, createConfiguredVideoProvider } from "./videoConnector.ts";
 
 // generate-chunk-video (JOS-146) — the video stage's provider port (Decision 3):
 // RunningHub's async submit-and-poll shape. Unlike Fal.ai's image stage (one
@@ -38,10 +41,6 @@ export interface VideoProvider {
 
 const RUNNINGHUB_BASE = "https://www.runninghub.ai";
 
-function classifyHttpStatus(status: number): "failed_transient" | "failed_not_retryable" {
-  return status >= 400 && status < 500 && status !== 408 && status !== 429 ? "failed_not_retryable" : "failed_transient";
-}
-
 /** The upload answer: `{ code: 0, msg: "success", data: { download_url } }`, or the flat task envelope with an `errorCode`. */
 const uploadResponseSchema = z.object({
   code: z.number().optional(),
@@ -72,11 +71,13 @@ function providerErrorReason(step: string, envelope: { code?: number | undefined
 }
 
 export function createRunningHubVideoProvider(
-  options: { fetchFn?: typeof fetch; loadKey?: () => string; parameters?: { endpoint: string } } = {},
+  options: { fetchFn?: typeof fetch; loadKey?: () => string; parameters?: { endpoint: string; resolution?: string } } = {},
 ): VideoProvider {
   const fetchFn = options.fetchFn ?? fetch;
   // manage-providers-from-admin (JOS-218): the endpoint path comes from the profile; without one, the settings' video endpoint.
   const endpoint = (options.parameters ?? { endpoint: VIDEO_PROVIDER.endpoint }).endpoint;
+  // configurable-video-connector (JOS-219), Decision 9: 768P, also for a profile stored before the resolution was a parameter.
+  const resolution = options.parameters?.resolution ?? "768P";
   const loadKey = options.loadKey ?? (() => stageApiKey("video"));
 
   async function doUpload(imageBytes: Buffer, apiKey: string): Promise<{ ok: true; url: string } | { ok: false; kind: "failed_transient" | "failed_not_retryable"; reason: string; unresponsive?: true }> {
@@ -124,7 +125,7 @@ export function createRunningHubVideoProvider(
       const sentBody = {
         prompt: instruction,
         duration: durationSeconds,
-        resolution: VIDEO_GENERATION_SETTING.resolution,
+        resolution,
         firstFrameUrl: upload.url,
       };
       let response: Response;
@@ -223,7 +224,7 @@ export function createStubVideoProvider(
       // Unique across restarts, like a real provider task id: `provider_requests.id` is a primary key and survives a restart.
       const requestId = `stub-video-req-${randomUUID()}`;
       submitted.set(requestId, mode);
-      return { kind: "submitted", requestId, sentBody: { prompt: instruction, duration: durationSeconds, resolution: VIDEO_GENERATION_SETTING.resolution, firstFrameUrl: "https://stub.example/frame.png" } };
+      return { kind: "submitted", requestId, sentBody: { prompt: instruction, duration: durationSeconds, resolution: "768P", firstFrameUrl: "https://stub.example/frame.png" } };
     },
     // eslint-disable-next-line @typescript-eslint/require-await -- implements the async video provider contract
     async poll(requestId) {
@@ -259,11 +260,22 @@ export interface VideoProviderRegistry {
   retired?: readonly string[];
 }
 
+/**
+ * configurable-video-connector (JOS-219), Decision 7 — the adapter of each video adapter type, with the profile's
+ * parameters and its own key. Keyed by the video adapter types, so a new one does not compile until it is built here.
+ */
+const VIDEO_ADAPTERS: Record<VideoAdapterTypeId, (profile: ProviderProfile) => VideoProvider> = {
+  "runninghub-video": (profile) => createRunningHubVideoProvider({ parameters: profile.parameters as { endpoint: string; resolution?: string }, loadKey: () => keyFor(profile.id) }),
+  "configured-video": (profile) => createConfiguredVideoProvider({ parameters: profile.parameters, loadKey: () => keyFor(profile.id) }),
+};
+
 function defaultRegistry(): VideoProviderRegistry {
-  // manage-providers-from-admin (JOS-218): one adapter per video profile, with the profile's endpoint path and its own key.
-  return buildProfileRegistry("video", (profile) =>
-    createRunningHubVideoProvider({ parameters: profile.parameters as { endpoint: string }, loadKey: () => keyFor(profile.id) }),
-  );
+  // manage-providers-from-admin (JOS-218): one adapter per video profile.
+  return buildProfileRegistry("video", (profile) => {
+    const build = (VIDEO_ADAPTERS as Record<string, ((profile: ProviderProfile) => VideoProvider) | undefined>)[profile.adapterType];
+    if (!build) throw new Error(`video profile "${profile.id}" has an adapter type this build does not ship`);
+    return build(profile);
+  });
 }
 
 const slot = profileRegistrySlot<VideoProvider, VideoProviderRegistry>(defaultRegistry);

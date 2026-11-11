@@ -19,3 +19,8 @@ infra/*/.wrangler/
 
 # Packaged executables (package-executables-build, JOS-205)
 backend/dist-package/
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+backend/coverage/
+frontend/coverage/

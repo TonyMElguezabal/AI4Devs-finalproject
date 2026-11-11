@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { CONNECTION_CHECKS, type ConnectionOutcome } from "../src/providerConnectionCheck.ts";
 import { ADAPTER_TYPES, type AdapterTypeId } from "../src/providerTypes.ts";
+import { runwayParameters } from "./videoConnectorFixtures.ts";
 
 // test-provider-connection (JOS-220), group 2 — design Decision 2: one check per adapter type, one request, no key in the result.
 
@@ -76,6 +77,17 @@ const CASES: Case[] = [
     keyIn: (init) => JSON.parse(init.body as string).apikey === KEY,
     connected: { status: 200, body: { code: 0, msg: "success" } },
     rejected: { status: 200, body: { code: 806, msg: "APIKEY_USER_NOT_FOUND", data: null } },
+  },
+  {
+    // configurable-video-connector (JOS-219), Decision 7 — the definition's own check step, with its headers.
+    type: "configured-video",
+    parameters: runwayParameters(),
+    host: "api.dev.runwayml.com",
+    url: "https://api.dev.runwayml.com/v1/organization",
+    method: "GET",
+    keyIn: header("Authorization", `Bearer ${KEY}`),
+    connected: { status: 200, body: { creditBalance: 4886 } },
+    rejected: { status: 401, body: { error: "not an active key" } },
   },
 ];
 

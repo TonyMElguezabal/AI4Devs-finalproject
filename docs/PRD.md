@@ -1,8 +1,10 @@
 # PRD — Vid4You
 
-**Versión:** 1.31  
+**Versión:** 1.32  
 **Alcance:** MVP  
-**Status (v1.31, awaiting the product owner's approval):** provider-usage telemetry reports a call that got no answer from the provider (it timed out or could not reach it) with its own outcome, and the Developer gets a critical alert when a provider stops responding (`alert-unresponsive-provider`, JOS-246, §12.4). The previous version is kept in `docs/PRD-v1.30.md`. **Status (v1.30, awaiting the product owner's approval):** an image request is sent once to the provider's queue and followed until it ends, instead of being abandoned at the time limit and resent: the image limit counts from when the provider starts the request, automatic image retries wait, the image cap is 6, and a failed image a retry can fix is retried once more at the end of the session (`follow-fal-image-queue`, JOS-239, §10.1, §11.3). The previous version is kept in `docs/PRD-v1.29.md`. **Status (v1.29, awaiting the product owner's approval):** the shipped request caps are set from measured limits: voice 4 (ElevenLabs allows 5), alignment 2 and video 4 (`probe-provider-request-caps`, JOS-188, §11.3). The previous version is kept in `docs/PRD-v1.28.md`. **Status (v1.28, Approved):** the Administrator's estimated-cost report moves into scope: billed units times the price per unit of each provider, per stage and provider, with totals per currency and a cost per session in the Sessions report (`report-estimated-cost`, JOS-227, §11.4). The previous version is kept in `docs/PRD-v1.27.md`. **Status (v1.27, Approved):** the final video burns the script in as subtitles, one line at a time, with the word being narrated highlighted (`add-burned-in-subtitles`, JOS-237, §7.3, AC25). The previous version is kept in `docs/PRD-v1.26.md`. **Status (v1.26, Approved):** the start form shows the script's word count and an estimated video duration, for information only (`show-script-word-count`, JOS-236, §4.1). The previous version is kept in `docs/PRD-v1.25.md`. **Status (v1.25, awaiting the product owner's approval):** the User can rebuild a generated scene when they see a defect in it: its image and clip are generated again, optionally with edited `IMAGE` and `VIDEO` instructions, and the final video is rebuilt from the updated scene (`rebuild-scene`, JOS-235, §2.3, §10.3, §11.2, AC24). The previous version is kept in `docs/PRD-v1.24.md`. **Status (v1.24, awaiting the product owner's approval):** a clip that passes its phase limit while the provider still runs it is no longer failed and resent: the same provider task keeps being followed, so one scene costs one task, until twice the limit (a 2400 s clip wait ceiling, §11.3), when the scene fails as not retryable and can be retried by hand (`keep-clip-task-on-timeout`, JOS-204, §10.1, §11.3). The previous version is kept in `docs/PRD-v1.23.md`. **Status (v1.23, awaiting the product owner's approval):** the application records every change of an active provider and every move of a failed stage from this version on, and the Administrator's Reports section lists them (`record-provider-changes`, JOS-229, §11.4). The previous version is kept in `docs/PRD-v1.22.md`. **Status (v1.22, awaiting the product owner's approval):** the reference-image model is `bytedance/seedream/v5/pro/edit` and the image stage's maximum time is 300 s, after the first full run showed garbled text and a drifting style with the previous model (`switch-reference-image-model`, JOS-230, §3, §11.3, §11.5). The previous version is kept in `docs/PRD-v1.21.md`. **Status (v1.21, awaiting the product owner's approval):** the Administrator can test a saved provider's connection on `/admin`: one request to the vendor with the stored key, its cost stated before it is sent, and what it checked stated with the result (`test-provider-connection`, JOS-220, §2.1, §11.2). The previous version is kept in `docs/PRD-v1.20.md`. **Status (v1.20, awaiting the product owner's approval):** while a scene's clip is generating, its details show the request sent, when it was sent, the elapsed time, an estimated arrival calculated from earlier clips, and the request body as sent (`show-video-request-status`, JOS-200, §3). The previous version is kept in `docs/PRD-v1.19.md`. **Status (v1.19, awaiting the product owner's approval):** the `/admin` reference image is sent to the image provider with every scene of the sessions created after it is saved (`use-reference-image-in-generation`, JOS-202, §2.1, §11.3, §11.5). The previous version is kept in `docs/PRD-v1.18.md`. **Status (v1.18, awaiting the product owner's approval):** the Administrator can enter an optional price per unit and currency on each provider on `/admin` (`add-provider-price-per-unit`, JOS-226, §11.4). The previous version is kept in `docs/PRD-v1.17.md`. **Status (v1.17, awaiting the product owner's approval):** the visual style prompt and reference image of `/admin` (`admin-visual-style-prompt`, JOS-201, drafted on its own line as v1.10) join this version behind the Administrator password, as §11.5 (§2.1, §2.2). The previous version is kept in `docs/PRD-v1.16.md`. **Status (v1.16, awaiting the product owner's approval):** the Administrator's reports are defined: provider usage, failures and retries, and sessions in the first release; estimated cost, pipeline time and provider changes later (`define-admin-reports`, JOS-175, §2.1, §2.3, §11.4). **Status (v1.15, awaiting the product owner's approval):** the Administrator moves a failed stage to the current active provider on `/admin` (`move-failed-stage-to-active-provider`, JOS-172, §2.1, §2.3, §7.2, §11.2). **Status (v1.14, approved by the product owner 2026-10-22):** the Administrator adds, edits and deletes providers, their parameters and their API keys on `/admin` (`manage-providers-from-admin`, JOS-218, §2.1, §2.3, §11, §11.2). **Status (v1.13, awaiting the product owner's approval):** the Administrator can change the active provider of each stage on `/admin` (`change-active-provider-from-admin`, JOS-171, §2.1, §2.3, §11, §11.2). **Status (v1.12, awaiting the product owner's approval):** providers and generation parameters are read from local settings files at start-up instead of being hardcoded (`configure-providers-and-parameters`, JOS-174, §2.1, §2.3, §11, §11.2, §11.3). **Status (v1.11, awaiting the product owner's approval):** one shared Administrator password protects `/admin` (`protect-admin-with-password`, JOS-173, §2.1, §2.3, §12.3). **Status (v1.10):** the final MP4's audio is the voice-over's MP3 stream copied unchanged, not AAC (§7.3, D08), and the automatic-retry delay (2 s base, 30 s cap) is recorded (§11.3) (JOS-203). **Status (v1.9):** opt-in telemetry, a published privacy policy and a new-version notice are added (`add-observability-telemetry`, JOS-199, §12.4). **Status (v1.8):** the maximum times of the reasoning and voice stages are raised to 600 s and the video stage's to 1200 s (`raise-video-time-limit`, JOS-197); the MVP remains a single-user application on the user's own computer (v1.7). All product decisions remain closed. Changes are listed in §16. The previous versions are kept in `docs/PRD-v1.14.md` and `docs/PRD-v1.13.md`.
+**Status (v1.32, Approved):** the Administrator adds a video model of any vendor on `/admin`, without a code change, by writing the vendor's requests in a configured connector; a key is bound to its connector's host, and a connector can be duplicated for another model of the same vendor; the final video is 720p or 1080p, no clip is generated above 1080p, and RunningHub generates at 768P (`configurable-video-connector`, JOS-219, §7.3, §11.2, §11.3, D08). The previous version is kept in `docs/PRD-v1.31.md`.
+
+The history of every version since v1.8, with its origin, the sections it changed and its approval state, is in §16; the archived versions are the `docs/PRD-v1.*.md` files. The MVP remains a single-user application on the user's own computer, and all product decisions remain closed.
 
 ## 1. Objetivo del producto
 
@@ -190,7 +192,7 @@ El montaje debe conservar todo el contenido narrado y la secuencia de escenas, s
 
 El video final solo puede generarse cuando todas las escenas estén en `chunk-complete`. Una sesión con una escena fallida o pendiente no puede alcanzar `final-video`.
 
-**Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are configured (shipped default 1920×1080 at 30 fps), with H.264 video. The audio is the voice-over's MP3 stream copied into the MP4 without re-encoding; only a rebuild with an adjusted pause re-encodes it (to AAC).
+**Final MP4 output (v1.3).** The audio track is the voice-over only; each clip's own sound is removed. Resolution and frame rate are configured: 1280×720 or 1920×1080 (shipped default 1920×1080 at 30 fps), with H.264 video. Clips of any other size are scaled to it (v1.32). The audio is the voice-over's MP3 stream copied into the MP4 without re-encoding; only a rebuild with an adjusted pause re-encodes it (to AAC).
 
 **Subtítulos (JOS-237, product owner decision 2026-10-28).** El video final muestra el guion como subtítulos incrustados en la imagen, en todas las escenas y en todo montaje (el primero, el reintento y la reconstrucción). El texto es el del guion, de una línea en una línea y de 32 caracteres como máximo: una línea no parte palabras ni cruza el final de una frase, y prefiere cortar tras una coma, un punto y coma o dos puntos. Cada línea aparece cuando se pronuncia su primera palabra y ha desaparecido antes de que aparezca la siguiente. La palabra que se está narrando se resalta en `#FFCDD0` y vuelve a blanco cuando la narración pasa a la siguiente; el resto del texto es blanco con un contorno oscuro (Montserrat Bold, 48 px en el cuadro de 1920×1080, abajo y centrado, igual en todos los idiomas). Los tiempos salen de las marcas de tiempo de la narración (§11.1) y se desplazan igual que la narración cuando el usuario ajusta una pausa. No requieren ninguna llamada a un proveedor ni tienen coste. Los subtítulos no se pueden desactivar y no se entrega un archivo de subtítulos aparte. Si no se pueden construir (las marcas de tiempo no se pueden leer o no coinciden con el guion) o dibujar (la herramienta de montaje no admite subtítulos o falta la fuente), el montaje falla como no reintentable y la causa lo dice; nunca se entrega un video sin ellos. Un video final anterior no cambia hasta que el usuario lo reconstruye.
 
@@ -320,6 +322,8 @@ A stage tied to a provider that is unavailable keeps retrying that same provider
 
 The Administrator can test a saved provider's connection on `/admin`. A test sends exactly one request, with no retry, to the host of the provider's vendor, with the provider's stored key and current parameters; it shows one of: connected, key rejected, model or voice not found, vendor unreachable, or an unexpected answer with its HTTP status. Each result says what the check covered: the key and the model (reasoning, image), the key and the voice but not the voice model (voice), or only the key, not the endpoint (alignment, video). A pass proves what it covered and nothing more: it does not prove the balance, the content filters or the endpoint's parameters. Every check shipped today is a free lookup. A check the vendor charges for would be stated on the page before it is sent and refused by the server until the Administrator confirms it. A test shows neither the key nor the vendor's answer and changes nothing: no provider, key, binding, attempt or usage record is written, and the test is not counted in the reports (§11.4). A restricted key (for example one that cannot read voices) can fail the test and still work for generation.
 
+**Configured video connector (JOS-219, v1.32).** Besides the coded RunningHub provider, a video provider can be a configured connector: the Administrator writes, on `/admin`, the vendor's base URL (`https://` and a host only), the model, the clip resolution, the admitted durations and the vendor's requests as JSON (headers, an optional upload of the scene image, the submit, the poll and an optional connection check), with placeholders the application fills (`{instruction}`, `{duration}`, `{model}`, `{resolution}`, the scene image, the task id and the key). Runway (Wan, Kling) and RunningHub were proven this way; their definitions are in `docs/video-connector-definitions.md`. The key is sent only in the definition's headers and only to the connector's host: changing the host clears the stored key, which must be typed again. "Duplicate" starts a new connector from an existing one, for another model of the same vendor, and can reuse its stored key on the same host without showing it. A connector does not cover vendors that need a signed request, a key in a body or a query, a callback, or more steps than upload, submit and poll; those still need a coded provider. A vendor's refusal is shown by its step and HTTP status (or its own error code), never by its message, because vendors echo parts of the key.
+
 A change to the configured admitted durations, languages, or any other setting, after a restart, does not alter what existing sessions have already established: intervals, chunks, requested durations, speed factors, warnings, the session's language, and completed results stay as they were. A stage that already has a bound provider keeps it for its retries.
 
 ### 11.3 Recorded providers and parameter values (JOS-165)
@@ -332,13 +336,13 @@ Defined by `define-provider-configuration` (JOS-165) and, since v1.10, shipped a
 | Voice | ElevenLabs | `eleven_multilingual_v2`, voice "Burt Reynolds™" |
 | Alignment | ElevenLabs | Forced Alignment API — same account as Voice |
 | Image | Fal.ai | `fal-ai/flux/dev`; with a reference image, `bytedance/seedream/v5/pro/edit` (setting `imageReferenceModel`, §11.5) |
-| Video | RunningHub | MiniMax-H3 "Hailuo-03" |
+| Video | RunningHub | MiniMax-H3 "Hailuo-03", at 768P (v1.32); other vendors through a configured connector (§11.2) |
 
 | Parameter | Value | Notes |
 |---|---|---|
 | Video admitted durations | 5-15 seconds | Both ends measured with real calls |
 | Segmentation lower bound (§6.1) | 5 seconds | = video provider's measured minimum |
-| Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps, H.264 video, voice-over MP3 audio copied unchanged | Neither the image nor video provider natively produces this; the assembly stage normalizes down from higher-than-target generation settings (2560×1440@24fps video, 1920×1088 image) |
+| Output resolution and frame rate (final MP4, §7.3, D08) | 1920×1080 @ 30fps (1280×720 also allowed), H.264 video, voice-over MP3 audio copied unchanged | The assembly scales every clip to the output size. Since v1.32 RunningHub generates at 768P (1344×768@24fps, upscaled for 1080p) instead of 2K, to cut the clip cost (USD 0.077 instead of 0.12 per second: update RunningHub's price per clip second on `/admin`); no video provider may be set above 1080p |
 | Supported script languages (§4.1, D09) | English, Spanish | Each verified independently across voice, alignment and reasoning |
 | Acceptable speed-factor limit | **Provisional** | `define-media-assembly` (JOS-182) recommends 0.5x-2.0x (its ADR, Decision 5); `decide-silence-allocation` (JOS-142) verified D11's adopted rule against that recommendation (max 1.08x observed). Not yet the fixed constant: US-33 records it, and JOS-182's own PR is not yet merged into this branch's history. |
 | Per-phase maximum times | Reasoning 600s, Image 300s, Voice 600s, Alignment 5s, Video 1200s, Assembly provisional, Clip wait ceiling 2400s | Set above the observed slow tail; assembly depends on JOS-182. Re-measured at the product's real script size in v1.8 (2026-10-13/14): reasoning 208.6 s for 67 fragments (was 20 s), voice 151 s for 10,217 characters (was 10 s), video clips at 2K 394 s for 7 s, 528 s for 12 s, 546 s for 13 s and above 610 s for 14 s (was 240 s; 15 s is admitted); provisional until a full-size session (1,500-1,800 words, 30-50 chunks) has been timed; image raised from 120 s to 300 s in v1.22: `bytedance/seedream/v5/pro/edit` took 84 to 233 s (127 s on average, 8 scenes) and 125 s in the real-adapter check (JOS-230); **image request ceiling 600 s (JOS-239):** the image limit counts from when the provider starts the request (time in the provider's queue does not count), and a request still running at twice the limit is cancelled and the scene fails with no retry in that cycle; **clip wait ceiling 2400 s (JOS-204):** twice the video limit, counted from the moment the clip task was sent. A clip past its 1200 s limit keeps its one provider task (which the provider keeps running and billing) instead of being resent; at the ceiling the scene fails as not retryable and can be retried by hand. Provisional like the limit: the 14 s clips measured 661-730 s on 2026-10-14, well inside it |
@@ -467,7 +471,7 @@ Las decisiones marcadas como abiertas no están aprobadas y deben cerrarse antes
 | D05 | Dependencia de enlaces temporales del proveedor. | **Closed (v1.3)** | Every temporary-link result, images included, is saved locally before its link expires (§12.2). |
 | D06 | Continuación de otras escenas tras un fallo y reintentos posteriores a una acción manual. | **Closed (v1.3)** | Other scenes keep generating; each manual retry starts a new cycle of up to three automatic retries (§10.2). |
 | D07 | Autorización y acceso a las sesiones. | **Cerrada (revisada en v1.7)** | Aplicación monousuario instalada en el equipo del usuario; sin cuentas ni autorización; solo la propia interfaz local puede usar la aplicación. La separación entre sesiones es integridad funcional, no seguridad (§12.3). |
-| D08 | Parámetros de salida del MP4 final. | **Closed (v1.3)** | Voice-over-only audio (clip sound removed); hardcoded resolution and frame rate (expected 1920×1080 at 30 fps); H.264 video; audio is the voice-over MP3 copied unchanged, AAC only after a pause adjustment (§7.3, v1.10). |
+| D08 | Parámetros de salida del MP4 final. | **Closed (v1.3)** | Voice-over-only audio (clip sound removed); configured resolution and frame rate, 1280×720 or 1920×1080 only (shipped 1920×1080 at 30 fps, v1.32); H.264 video; audio is the voice-over MP3 copied unchanged, AAC only after a pause adjustment (§7.3, v1.10). |
 | D09 | Idiomas admitidos. | **Closed (v1.3)** | Hardcoded list of supported languages; the User selects the script language from that list when starting a project, and no provider is called before that (§4.1). |
 | D10 | Momento exacto del bloqueo del guion durante la generación de voz. | **Closed (v1.3)** | The script is locked when the User starts the project (§4.2). |
 | D11 | Asignación de los silencios de la narración a una escena. | **Cerrada (JOS-142, 2026-09-29)** | La escena previa absorbe el silencio posterior (comparada frente a repartir el silencio entre escenas contiguas, la regla interina de JOS-140, ahora descartada). Umbral: hasta 2 s aceptable, 3 s empieza a sentirse lento; ningún guion real supera 1.26 s. Verificado según §14.1. |
@@ -500,14 +504,23 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 | 6 | No se trata la concurrencia entre sesiones ni los límites de tasa del proveedor activo. **Closed in v1.3** (hardcoded request limit per stage, first come first served, §10.1). | §11 |
 | 7 | No se define el mecanismo de actualización del progreso en la interfaz. **Closed in v1.3** (live updates without reloading, §8.3). | §8.3 |
 | 8 | No se define la regla de desambiguación de carpetas con títulos iguales. **Closed in v1.3** (title + creation date/time + counter, §12.2). | §12.2, AC15 |
-| 9 | No hay requisitos no funcionales, objetivo de negocio ni métricas de éxito. **Still open in v1.3** (known gap). | Documento completo |
-| 10 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
+| 9 | No hay política de contenido para guiones enviados a proveedores de terceros. **Closed in v1.3** (providers' own content filters only, §4.1). | §4.1, §11 |
+| 10 | No hay requisitos no funcionales, objetivo de negocio ni métricas de éxito definidos para el MVP. **Closed (product owner, 2026-11-11)**: los requisitos funcionales (§13) se cumplen y se verificaron con el último video generado; no se definen requisitos no funcionales ni métricas de éxito adicionales para el MVP. | Documento completo |
 
 ## 16. Registro de cambios
 
+### From version 1.31 to 1.32
+
+Origin: `configurable-video-connector` (JOS-219), 2026-11-06. **Approved by the product owner, 2026-11-11.**
+
+| Change | Origin |
+|---|---|
+| §11.2: a video provider can be a configured connector whose requests the Administrator writes on `/admin`; its key is bound to its host; "Duplicate" with key reuse on the same host; what a connector does not cover. | Product owner request: add video models (Wan, Kling, Veo, Seedance…) without code |
+| §7.3, §11.3, D08: the final video is 1280×720 or 1920×1080; no clip resolution above 1080p; RunningHub generates at 768P instead of 2K, and its price on `/admin` must be updated. | Product owner decision 2026-11-06: scale first, lower clip cost |
+
 ### From version 1.30 to 1.31
 
-Origin: `alert-unresponsive-provider` (JOS-246), 2026-11-03. **Awaiting the product owner's approval.**
+Origin: `alert-unresponsive-provider` (JOS-246), 2026-11-03. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -516,7 +529,7 @@ Origin: `alert-unresponsive-provider` (JOS-246), 2026-11-03. **Awaiting the prod
 
 ### From version 1.29 to 1.30
 
-Origin: `follow-fal-image-queue` (JOS-239), 2026-10-30. **Awaiting the product owner's approval.**
+Origin: `follow-fal-image-queue` (JOS-239), 2026-10-30. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -526,7 +539,7 @@ Origin: `follow-fal-image-queue` (JOS-239), 2026-10-30. **Awaiting the product o
 
 ### From version 1.28 to 1.29
 
-Origin: `probe-provider-request-caps` (JOS-188), 2026-10-29. **Awaiting the product owner's approval.**
+Origin: `probe-provider-request-caps` (JOS-188), 2026-10-29. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -541,7 +554,7 @@ Origin: `report-estimated-cost` (JOS-227), 2026-10-27. **Approved by the product
 | §11.4: the estimated-cost report (catalogue R2) moves from "a later release" into scope as specified above: per stage and provider, per-currency totals, unpriced providers shown as unpriced, failed units shown and not priced, and a cost per session in the Sessions report. §2.3 already sends the reports to the version that builds them and needs no change. | JOS-227 |
 ### From version 1.26 to 1.27
 
-Origin: `add-burned-in-subtitles` (JOS-237), 2026-10-28. **Awaiting the product owner's approval.**
+Origin: `add-burned-in-subtitles` (JOS-237), 2026-10-28. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -550,7 +563,7 @@ Origin: `add-burned-in-subtitles` (JOS-237), 2026-10-28. **Awaiting the product 
 
 ### From version 1.25 to 1.26
 
-Origin: `show-script-word-count` (JOS-236), 2026-10-28. **Awaiting the product owner's approval.**
+Origin: `show-script-word-count` (JOS-236), 2026-10-28. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -558,7 +571,7 @@ Origin: `show-script-word-count` (JOS-236), 2026-10-28. **Awaiting the product o
 
 ### From version 1.24 to 1.25
 
-Origin: `rebuild-scene` (JOS-235), 2026-10-28. **Awaiting the product owner's approval.**
+Origin: `rebuild-scene` (JOS-235), 2026-10-28. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -569,7 +582,7 @@ Origin: `rebuild-scene` (JOS-235), 2026-10-28. **Awaiting the product owner's ap
 
 ### From version 1.23 to 1.24
 
-Origin: `keep-clip-task-on-timeout` (JOS-204), 2026-10-27. **Awaiting the product owner's approval.**
+Origin: `keep-clip-task-on-timeout` (JOS-204), 2026-10-27. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -578,7 +591,7 @@ Origin: `keep-clip-task-on-timeout` (JOS-204), 2026-10-27. **Awaiting the produc
 
 ### From version 1.22 to 1.23
 
-Origin: `record-provider-changes` (JOS-229), 2026-10-27. **Awaiting the product owner's approval.**
+Origin: `record-provider-changes` (JOS-229), 2026-10-27. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -586,7 +599,7 @@ Origin: `record-provider-changes` (JOS-229), 2026-10-27. **Awaiting the product 
 
 ### From version 1.21 to 1.22
 
-Origin: `switch-reference-image-model` (JOS-230), 2026-10-26. **Awaiting the product owner's approval.**
+Origin: `switch-reference-image-model` (JOS-230), 2026-10-26. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -595,7 +608,7 @@ Origin: `switch-reference-image-model` (JOS-230), 2026-10-26. **Awaiting the pro
 
 ### From version 1.20 to 1.21
 
-Origin: `test-provider-connection` (JOS-220), 2026-10-26. **Awaiting the product owner's approval.**
+Origin: `test-provider-connection` (JOS-220), 2026-10-26. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -604,7 +617,7 @@ Origin: `test-provider-connection` (JOS-220), 2026-10-26. **Awaiting the product
 
 ### From version 1.19 to 1.20
 
-Origin: `show-video-request-status` (JOS-200), 2026-10-26. **Awaiting the product owner's approval.**
+Origin: `show-video-request-status` (JOS-200), 2026-10-26. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -614,7 +627,7 @@ Origin: `show-video-request-status` (JOS-200), 2026-10-26. **Awaiting the produc
 
 ### From version 1.18 to 1.19
 
-Origin: `use-reference-image-in-generation` (JOS-202), 2026-10-26. **Awaiting the product owner's approval.**
+Origin: `use-reference-image-in-generation` (JOS-202), 2026-10-26. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -624,7 +637,7 @@ Origin: `use-reference-image-in-generation` (JOS-202), 2026-10-26. **Awaiting th
 
 ### From version 1.17 to 1.18
 
-Origin: `add-provider-price-per-unit` (JOS-226), 2026-10-23. **Awaiting the product owner's approval.**
+Origin: `add-provider-price-per-unit` (JOS-226), 2026-10-23. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -632,7 +645,7 @@ Origin: `add-provider-price-per-unit` (JOS-226), 2026-10-23. **Awaiting the prod
 
 ### From version 1.16 to 1.17
 
-Origin: `admin-visual-style-prompt` (JOS-201), 2026-10-19, drafted as v1.10 on `feature/entrega-3-JAME`; merged into this line on 2026-10-22. **Awaiting the product owner's approval.**
+Origin: `admin-visual-style-prompt` (JOS-201), 2026-10-19, drafted as v1.10 on `feature/entrega-3-JAME`; merged into this line on 2026-10-22. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -640,7 +653,7 @@ Origin: `admin-visual-style-prompt` (JOS-201), 2026-10-19, drafted as v1.10 on `
 | New §11.5 (drafted as §11.4, which v1.16 gives to the reports): one visual style prompt (0 to 8,000 characters) and one optional reference image (PNG, JPEG or WebP, up to 5 MB). A session keeps the prompt it was created with, through retries and restarts. The prompt guides the reasoning request that writes the instructions; the pipeline rules win on any conflict. The image is stored but not sent to any provider yet (a spike must first verify a reference-capable image model, §11; JOS-202). | Product owner, JOS-201 |
 
 ### From version 1.15 to 1.16
-Origin: `define-admin-reports` (JOS-175), 2026-10-22. **Awaiting the product owner's approval** (text reviewed and approved in chat on 2026-10-22; record the approval on the PR).
+Origin: `define-admin-reports` (JOS-175), 2026-10-22. **Approved by the product owner, 2026-11-11** (text reviewed and approved in chat on 2026-10-22; record the approval on the PR).
 
 | Change | Origin |
 |---|---|
@@ -650,7 +663,7 @@ Origin: `define-admin-reports` (JOS-175), 2026-10-22. **Awaiting the product own
 
 ### From version 1.14 to 1.15
 
-Origin: `move-failed-stage-to-active-provider` (JOS-172), 2026-10-22. **Awaiting the product owner's approval.**
+Origin: `move-failed-stage-to-active-provider` (JOS-172), 2026-10-22. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -672,7 +685,7 @@ Origin: `manage-providers-from-admin` (JOS-218), 2026-10-21. **Approved by the p
 
 ### From version 1.12 to 1.13
 
-Origin: `change-active-provider-from-admin` (JOS-171), 2026-10-21. **Awaiting the product owner's approval.**
+Origin: `change-active-provider-from-admin` (JOS-171), 2026-10-21. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -683,7 +696,7 @@ Origin: `change-active-provider-from-admin` (JOS-171), 2026-10-21. **Awaiting th
 
 ### From version 1.11 to 1.12
 
-Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19. **Awaiting the product owner's approval.**
+Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
@@ -694,7 +707,7 @@ Origin: `configure-providers-and-parameters` (JOS-174), 2026-10-19. **Awaiting t
 
 ### From version 1.10 to 1.11
 
-Origin: `protect-admin-with-password` (JOS-173), 2026-10-19. **Awaiting the product owner's approval.** v1.12 (JOS-174) and v1.13 (JOS-171) are drafted on their own branches and are not on this branch yet; the three drafts edit the same paragraphs of §2.1 and §2.3, and whichever merges second or third rebases its text.
+Origin: `protect-admin-with-password` (JOS-173), 2026-10-19. **Approved by the product owner, 2026-11-11.** v1.12 (JOS-174) and v1.13 (JOS-171) are drafted on their own branches and are not on this branch yet; the three drafts edit the same paragraphs of §2.1 and §2.3, and whichever merges second or third rebases its text.
 
 | Change | Origin |
 |---|---|

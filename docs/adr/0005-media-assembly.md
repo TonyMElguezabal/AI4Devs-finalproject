@@ -1,5 +1,7 @@
 # ADR 0005 — Video and audio assembly tooling
 
+> Numbering note: two ADRs share the number 0005 (this one and `0005-provider-selection.md`). Both are linked by number from other files, so neither was renumbered; later ADRs continue from 0009.
+
 - Status: Accepted
 - Date: 2026-09-26
 - Change: `define-media-assembly` (JOS-182, US-42-adjacent spike)

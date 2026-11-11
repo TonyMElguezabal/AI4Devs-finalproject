@@ -1,5 +1,6 @@
 import { MAX_ATTEMPTS_PER_CYCLE } from "./config/providers.ts";
 import { db } from "./db.ts";
+import { NOT_NATIVE_TIMESTAMPS_SQL } from "./nativeTimestampsProvider.ts";
 import { STAGE_ORDER, countedAttempts, type ReportStage } from "./providerUsageReport.ts";
 
 // report-failures-and-retries (JOS-224), design Decisions 1–6 — where retries are wasted: failed attempts by stage and outcome, exhausted
@@ -49,7 +50,7 @@ function sessionAttempts(from: string | null, to: string): SessionAttemptRow[] {
     .prepare(
       `SELECT stage, outcome, attempt_trigger, sequence_in_cycle, error_message
        FROM stage_attempts
-       WHERE stage IN ('voice-over', 'timestamps', 'decomposition') AND (provider_id IS NULL OR provider_id <> 'elevenlabs-native')
+       WHERE stage IN ('voice-over', 'timestamps', 'decomposition') AND (provider_id IS NULL OR (${NOT_NATIVE_TIMESTAMPS_SQL}))
          AND (? IS NULL OR COALESCE(sent_at, queued_at) >= ?) AND COALESCE(sent_at, queued_at) < ?`,
     )
     .all(from, from, to) as unknown as SessionAttemptRow[];

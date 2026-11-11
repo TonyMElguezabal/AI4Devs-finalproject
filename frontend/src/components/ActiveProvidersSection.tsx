@@ -80,7 +80,7 @@ export function ActiveProvidersSection({ password, onDenied, refreshKey = 0, onC
         const id = `provider-${view.stage}`;
         const label = STAGE_LABELS[view.stage];
         return (
-          <div className="field" key={view.stage}>
+          <div className="active-row" key={view.stage}>
             <label htmlFor={id}>{`${label} provider`}</label>
             <select
               id={id}
@@ -94,8 +94,8 @@ export function ActiveProvidersSection({ password, onDenied, refreshKey = 0, onC
                 </option>
               ))}
             </select>
-            <span>{view.source === "admin" ? "set on /admin" : "from settings files"}</span>
-            {view.orphanedChoice && <span role="status">{`The choice "${view.orphanedChoice}" is no longer shipped; the settings default is used.`}</span>}
+            <span className="badge badge-muted">{view.source === "admin" ? "set on /admin" : "from settings files"}</span>
+            {view.orphanedChoice && <span role="status" className="field-hint">{`The choice "${view.orphanedChoice}" is no longer shipped; the settings default is used.`}</span>}
           </div>
         );
       })}

@@ -19,7 +19,6 @@ const ACCEPTED_PROVIDERS = {
   video: ["RunningHub"],
 } as const;
 
-const evenPositiveInteger = positiveInteger.multipleOf(2);
 /** A maximum time in seconds, or null for "not timed" (spec stage-execution-time-limit). The key itself is required. */
 const maxTimeSeconds = z.number().positive().nullable();
 
@@ -50,8 +49,10 @@ const settingsSchema = z
       alignment: positiveInteger,
       video: positiveInteger,
     }),
-    /** Width and height are even because H.264 requires it. */
-    output: z.strictObject({ width: evenPositiveInteger, height: evenPositiveInteger, fps: positiveInteger }),
+    /** configurable-video-connector (JOS-219), Decision 9 — the final video is 720p or 1080p; both are even, as H.264 requires. */
+    output: z
+      .strictObject({ width: positiveInteger, height: positiveInteger, fps: positiveInteger })
+      .refine(({ width, height }) => (width === 1280 && height === 720) || (width === 1920 && height === 1080), { message: "must be 1280×720 or 1920×1080" }),
     languages: z.array(z.strictObject({ code: z.string().regex(/^[a-z]{2}$/), label: nonEmptyString })).min(1),
   })
   .superRefine((settings, context) => {

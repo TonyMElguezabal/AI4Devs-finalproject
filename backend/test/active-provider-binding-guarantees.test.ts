@@ -56,7 +56,8 @@ describe("native timestamps bind no alignment provider", () => {
     expect(result).toEqual({ ok: true, mechanism: "native" });
     expect(align.calls).toBe(0);
     expect(getRun(runId)!.alignmentProviderId).toBeNull();
-    expect(getStageAttempts(runId, "timestamps").map((attempt) => attempt.providerId)).toEqual(["elevenlabs-native"]);
+    // JOS-264 — the native attempt names the voice provider, not the alignment provider the session could have bound.
+    expect(getStageAttempts(runId, "timestamps").map((attempt) => attempt.providerId)).toEqual([`${activeProviderId("voice")}:native`]);
   });
 });
 

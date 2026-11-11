@@ -205,7 +205,7 @@ export async function putAdminProvider(password: string, stage: ProviderStage, p
 
 export type ProfilesResult = { kind: "ok"; types: AdapterTypeInfo[]; profiles: ProfileView[] } | { kind: "denied" };
 export type ProfileWriteResult =
-  | { kind: "ok" }
+  | { kind: "ok"; keyCleared?: boolean }
   | { kind: "denied" }
   | { kind: "invalid"; problems: ProfileProblem[] }
   | { kind: "not-found" }
@@ -228,7 +228,8 @@ async function writeProfile(response: Response): Promise<ProfileWriteResult> {
     return { kind: "invalid", problems: Array.isArray(body.problems) ? (body.problems as ProfileProblem[]) : [{ field: "", message: body.message ?? "the request is not valid" }] };
   }
   if (!response.ok) throw new Error(`request failed with ${response.status}`);
-  return { kind: "ok" };
+  const saved = (await response.json().catch(() => ({}))) as { keyCleared?: boolean };
+  return saved.keyCleared ? { kind: "ok", keyCleared: true } : { kind: "ok" };
 }
 
 export interface ProfileInput {
@@ -236,6 +237,8 @@ export interface ProfileInput {
   parameters: Record<string, unknown>;
   /** Left out to keep the key a profile already has. */
   apiKey?: string;
+  /** configurable-video-connector (JOS-219): a new connector reuses the stored key of this one, on the same host. */
+  copyKeyFrom?: string;
 }
 
 const JSON_HEADERS = { "Content-Type": "application/json" };

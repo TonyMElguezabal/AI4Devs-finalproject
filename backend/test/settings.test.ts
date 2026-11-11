@@ -67,7 +67,9 @@ function problemsOf(result: ReturnType<typeof loadSettings>): string[] {
 describe("Reading the two files (Decision 1)", () => {
   it("returns the defaults when no override file exists", () => {
     const result = loadSettings({ defaultsPath, overridePath });
-    expect(result).toEqual({ ok: true, settings: validSettings() });
+    // configurable-video-connector (JOS-219): a video section without a resolution gets RunningHub's 768P.
+    const expected = validSettings();
+    expect(result).toEqual({ ok: true, settings: { ...expected, video: { ...(expected.video as Json), resolution: "768P" } } });
   });
 
   it("replaces only the keys a partial override sets", () => {
@@ -147,8 +149,11 @@ describe("Field rules and consistency checks (Decisions 2 and 5)", () => {
       path: "languages",
     },
     { name: "a language code that is not two lowercase letters", override: { languages: [{ code: "EN", label: "English" }] }, path: "languages.0.code" },
-    { name: "an odd output width", override: { output: { width: 1921 } }, path: "output.width" },
-    { name: "an odd output height", override: { output: { height: 1081 } }, path: "output.height" },
+    // configurable-video-connector (JOS-219), Decision 9 — the final video is 720p or 1080p, nothing else.
+    { name: "an odd output width", override: { output: { width: 1921 } }, path: "output", mentions: "1280×720 or 1920×1080" },
+    { name: "an odd output height", override: { output: { height: 1081 } }, path: "output", mentions: "1280×720 or 1920×1080" },
+    { name: "a 2K output", override: { output: { width: 2560, height: 1440 } }, path: "output", mentions: "1280×720 or 1920×1080" },
+    { name: "a 720p width with a 1080p height", override: { output: { width: 1280 } }, path: "output", mentions: "1280×720 or 1920×1080" },
     { name: "a request cap of 0", override: { maxSimultaneousRequests: { video: 0 } }, path: "maxSimultaneousRequests.video" },
     { name: "a voice speed of 1.5", override: { voice: { speed: 1.5 } }, path: "voice.speed" },
     { name: "a speed-factor limit below 1", override: { speedFactorLimit: 0.5 }, path: "speedFactorLimit" },
@@ -163,6 +168,19 @@ describe("Field rules and consistency checks (Decisions 2 and 5)", () => {
     expect(problems).toHaveLength(1);
     expect(problems[0]!.startsWith(`${path}: `)).toBe(true);
     if (mentions) expect(problems[0]).toContain(mentions);
+  });
+
+  it("accepts a 720p final video", () => {
+    writeOverride({ output: { width: 1280, height: 720 } });
+    const result = loadSettings({ defaultsPath, overridePath });
+    expect(result.ok && result.settings.output).toEqual({ width: 1280, height: 720, fps: 30 });
+  });
+
+  it("gives the RunningHub provider 768P when the settings name no resolution, and refuses 2K", () => {
+    const result = loadSettings({ defaultsPath, overridePath });
+    expect(result.ok && result.settings.video.resolution).toBe("768P");
+    writeOverride({ video: { resolution: "2K" } });
+    expect(problemsOf(loadSettings({ defaultsPath, overridePath }))).toEqual([expect.stringMatching(/^video\.resolution: /)]);
   });
 
   it("accepts a voice speed inside the range ElevenLabs accepts", () => {
@@ -252,6 +270,7 @@ describe("The shipped defaults file (task 2.3)", () => {
           name: "RunningHub",
           endpoint: "/openapi/v2/minimax/hailuo-h3/image-to-video",
           admittedDurationSeconds: { min: 5, max: 15 },
+          resolution: "768P",
         },
         segmentation: { lowerBoundSeconds: 5 },
         speedFactorLimit: 2,

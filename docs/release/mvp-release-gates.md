@@ -3,6 +3,7 @@
 - Refreshed on 2026-10-22 from `docs/release/mvp-closure-report.md` (written on `main` @ `ae20ee26`, 2026-10-20), which superseded the first evaluation of these gates on `f4b6e492`. The evidence for each row is in the closure report section named in it.
 - Changed since the closure report: lint and static analysis run in both packages and in CI (JOS-208, PR #82), so the "no lint step" gap is closed.
 - Tracking ticket: JOS-203 (sections K1-K3, L1).
+- **Update 2026-11-11:** the "no repeatable packaged build", "no release workflow" and "downgrade unverified" items in the rows below are closed (JOS-205, JOS-206, JOS-210); only signing (JOS-207, deferred by the owner) and the owner's acceptance rows remain. The newer evidence is listed in the closure report's updates.
 - Status words: **Met**, **Met with exceptions** (evidence exists, a named gap is accepted or pending acceptance), **Not met**, **Needs owner** (only the product owner can decide).
 
 ## Summary
@@ -30,7 +31,7 @@ Verdict of the closure report: **Ready with Exceptions** for the MVP as a local 
 |---|---|---|
 | Application builds | **Met with exceptions** | Type checks and the frontend build pass. The packaged executables come only from the archived proof of concept, not from a repeatable build (JOS-205). |
 | Automated tests and CI pass | Met | Backend 1,720 passed and frontend 258 passed on `3d0334c9`; CI green on `ae20ee26` (closure report D). The real-provider contract tests are opt-in and not run in CI. |
-| Critical end-to-end flows validated | **Met with exceptions** | A 2-scene session with the four real providers reached `final-video`; the Windows executable generated a full video; the macOS executable passed its start-up checks. Not done: a full-size session (JOS-209), a browser E2E on the release SHA, a real kill-and-restart run. |
+| Critical end-to-end flows validated | **Met with exceptions** | A 2-scene session with the four real providers reached `final-video`; the Windows executable generated a full video; the macOS executable passed its start-up checks. Not done: a full-size session (JOS-209), a browser E2E on the release SHA (since 2026-11-10 CI runs one, stubbed, on every pull request: JOS-272), a real kill-and-restart run. |
 | No release-blocking defect or security finding | **Met with exceptions** | gitleaks over all history found no real secret; `npm audit --omit=dev` is 0; the API accepts only its own origins; credential files are ignored anywhere; lint runs in CI (JOS-208). Gaps: API-key-shaped text is not scrubbed from telemetry error text (JOS-212); what Grafana stores and a failing-run log are not checked (closure report G2); gitleaks runs in CI (JOS-211). |
 | Repository cleanup is complete or exceptions documented | Met | Approved removals done (#76); kept items listed in `cleanup-inventory.md` (closure report E). |
 | Documentation reflects the implementation | Met | README rewritten (#68) and corrected (#77); PRD, specs, ADRs and API spec current (closure report F). |

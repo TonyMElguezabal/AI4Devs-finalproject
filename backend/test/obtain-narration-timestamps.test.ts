@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { beforeEach, describe, expect, it } from "vitest";
+import { activeProviderId } from "../src/activeProvider.ts";
 import type { AlignmentProvider, AlignmentResult } from "../src/alignmentProvider.ts";
 import {
+  bindVoiceProvider,
   createRun,
   getNarrationTimestamps,
   getRun,
@@ -107,8 +109,24 @@ describe("Usable native timestamps are used (AC2)", () => {
 
   it("records one timestamps attempt for the native mechanism, completed as a success", async () => {
     const { runId } = newNarratedSession();
+    bindVoiceProvider(runId, "ElevenLabs");
     await obtainNarrationTimestamps(runId, stubAlignment().provider);
-    expect(getStageAttempts(runId, "timestamps")).toMatchObject([{ providerId: "elevenlabs-native", outcome: "success" }]);
+    expect(getStageAttempts(runId, "timestamps")).toMatchObject([{ providerId: "ElevenLabs:native", outcome: "success" }]);
+  });
+
+  // attribute-native-timestamps-to-voice-provider (JOS-264), AC1 — the voice provider bound to the session, never a fixed vendor.
+  it("names the session's voice provider, and binds no alignment provider", async () => {
+    const { runId } = newNarratedSession();
+    bindVoiceProvider(runId, "stub-voice");
+    await obtainNarrationTimestamps(runId, stubAlignment().provider);
+    expect(getStageAttempts(runId, "timestamps")).toMatchObject([{ providerId: "stub-voice:native", outcome: "success" }]);
+    expect(getRun(runId)?.alignmentProviderId).toBeNull();
+  });
+
+  it("names the active voice provider when none is bound", async () => {
+    const { runId } = newNarratedSession();
+    await obtainNarrationTimestamps(runId, stubAlignment().provider);
+    expect(getStageAttempts(runId, "timestamps")).toMatchObject([{ providerId: `${activeProviderId("voice")}:native` }]);
   });
 
   it("leaves the voice-over untouched", async () => {
@@ -254,7 +272,7 @@ describe("A retry after unusable native timestamps goes straight to alignment (A
     expect(result).toEqual({ ok: true, mechanism: "alignment" });
     expect(calls).toHaveLength(1);
     const attempts = getStageAttempts(runId, "timestamps");
-    expect(attempts.map((a) => a.providerId)).toEqual(["elevenlabs-native", "elevenlabs-forced-alignment"]);
+    expect(attempts.map((a) => a.providerId)).toEqual([`${activeProviderId("voice")}:native`, "elevenlabs-forced-alignment"]);
     expect(attempts[1]).toMatchObject({ outcome: "success", errorCode: "native-unusable" });
   });
 
@@ -267,7 +285,7 @@ describe("A retry after unusable native timestamps goes straight to alignment (A
     await obtainNarrationTimestamps(runId, provider);
     expect(calls).toHaveLength(1);
     expect(getStageAttempts(runId, "timestamps").map((a) => a.providerId)).toEqual([
-      "elevenlabs-native",
+      `${activeProviderId("voice")}:native`,
       "elevenlabs-forced-alignment",
       "elevenlabs-forced-alignment",
     ]);

@@ -33,12 +33,49 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test
+      - run: npm run coverage # vitest run with the coverage floor of vitest.config.ts (JOS-277)
         env:
           # Tests must never reuse a developer database or a real provider.
           DB_PATH: ${{ runner.temp }}/vid4you-test.db
           PROJECTS_ROOT: ${{ runner.temp }}/vid4you-projects
           USE_STUB_VOICE_PROVIDER: "1"
+
+  # JOS-272, add-browser-e2e: the User's main flow in a real browser, on the real frontend and backend with every provider stubbed.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24 # backend runs TypeScript natively (strip-only)
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg # ffprobe validates the voice-over audio
+      - run: npm ci
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npm ci
+        working-directory: e2e
+      - run: npx playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npm run typecheck
+        working-directory: e2e
+      - run: npm test
+        working-directory: e2e
+        env:
+          CI: "true"
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7
 
   secrets:
     runs-on: ubuntu-latest

@@ -92,9 +92,11 @@ When `providerUsage` is on, every finished provider call SHALL be recorded exact
 - provider-request recording (`insertProviderRequest`), for the image and clip stages.
 
 The metrics SHALL be:
-- an attempt counter labelled by `stage`, `provider` and `outcome`, where `outcome` is normalised to `success`, `transient`, `not-retryable` or `other`;
+- an attempt counter labelled by `stage`, `provider` and `outcome`, where `outcome` is normalised to `success`, `transient`, `unresponsive`, `not-retryable` or `other`;
 - a latency histogram in milliseconds;
 - billed-unit counters, counted on success only, where the unit is known: clip seconds requested, images generated and voice characters sent.
+
+`unresponsive` SHALL be used for a call that got no answer from the provider: a stage attempt that ended `timed-out`, a request that exceeded its call time limit, or a request that could not reach the provider (DNS, connection refused or reset). A provider that answered, with any HTTP status, SHALL NOT be `unresponsive`: a retryable answer stays `transient`. Reporting a call as `unresponsive` SHALL NOT change how the application retries it. For the decomposition (reasoning) and alignment stages, only a `timed-out` attempt SHALL be `unresponsive`; a request to those providers that could not reach them is still reported as `transient`.
 
 #### Scenario: Completed attempt is counted once
 - **WHEN** `providerUsage` is on and a voice-over attempt is completed with outcome `success`
@@ -107,6 +109,26 @@ The metrics SHALL be:
 #### Scenario: Repeated completion is not double-counted
 - **WHEN** the store refuses a second completion of an attempt that is already complete
 - **THEN** no metric is recorded for the refused completion
+
+#### Scenario: Timed-out attempt is unresponsive
+- **WHEN** `providerUsage` is on and a voice-over attempt ends `timed-out`
+- **THEN** the attempt counter increases by one for `voice-over`, its provider and `unresponsive`
+
+#### Scenario: Request that hits its call time limit is unresponsive
+- **WHEN** `providerUsage` is on and an image request is aborted because the provider did not answer within the call time limit
+- **THEN** the attempt counter increases by one for `image`, `Fal.ai` and `unresponsive`, and the request is retried exactly as before
+
+#### Scenario: Provider that cannot be reached is unresponsive
+- **WHEN** `providerUsage` is on and a clip request fails because the connection to the provider is refused
+- **THEN** the attempt counter increases by one for `video`, `RunningHub` and `unresponsive`
+
+#### Scenario: Unreachable reasoning provider is still transient
+- **WHEN** `providerUsage` is on and a decomposition attempt fails because the connection to OpenAI is refused, before the stage's time limit
+- **THEN** the attempt counter increases by one for `decomposition`, `OpenAI` and `transient`
+
+#### Scenario: Retryable HTTP answer stays transient
+- **WHEN** `providerUsage` is on and the provider answers a request with HTTP 503
+- **THEN** the attempt counter increases by one for that stage, provider and `transient`, not `unresponsive`
 
 ### Requirement: Product usage events
 When `productUsage` is on, the application SHALL count:
@@ -157,7 +179,7 @@ The Grafana dashboards SHALL be stored as JSON in the repository and imported in
 
 ### Requirement: The provider label is a fixed vendor name
 
-Every provider-usage metric and error record SHALL set `provider` to one value from a fixed set defined in the code, and SHALL NOT send the identifier stored for the attempt or the scene. The value SHALL be the vendor of the adapter type of the provider profile the identifier names (`OpenAI`, `ElevenLabs`, `Fal.ai` or `RunningHub`), after resolving the legacy image and clip identifiers to their seeded profiles. ElevenLabs' native timestamps SHALL report `ElevenLabs`. The assembly stage, which calls no provider, SHALL report `local`. A stub provider SHALL report `stub`. Any other identifier, a missing one included, SHALL report `unknown`. A profile's admin-editable label SHALL NOT be sent (JOS-213).
+Every provider-usage metric and error record SHALL set `provider` to one value from a fixed set defined in the code, and SHALL NOT send the identifier stored for the attempt or the scene. The value SHALL be the vendor of the adapter type of the provider profile the identifier names (`OpenAI`, `ElevenLabs`, `Fal.ai` or `RunningHub`), after resolving the legacy image and clip identifiers to their seeded profiles. Native timestamps SHALL report the value of the voice provider that produced them, and the legacy native identifier `elevenlabs-native` SHALL report `ElevenLabs`. The assembly stage, which calls no provider, SHALL report `local`. A stub provider SHALL report `stub`. Any other identifier, a missing one included, SHALL report `unknown`. A profile's admin-editable label SHALL NOT be sent (JOS-213).
 
 #### Scenario: Each stage reports its vendor
 
@@ -168,6 +190,16 @@ Every provider-usage metric and error record SHALL set `provider` to one value f
 
 - **WHEN** a voice-over attempt and a native timestamps attempt complete
 - **THEN** both carry `provider` `ElevenLabs` and differ only by `stage`
+
+#### Scenario: Native timestamps from the stub voice provider report stub
+
+- **WHEN** a native timestamps attempt completes for a session whose voice provider is the stub
+- **THEN** it carries `provider` `stub`
+
+#### Scenario: A legacy native identifier reports ElevenLabs
+
+- **WHEN** an attempt stored with `elevenlabs-native` is reported
+- **THEN** it carries `provider` `ElevenLabs`
 
 #### Scenario: Legacy identifiers resolve to their vendor
 
@@ -284,3 +316,4 @@ A CI test SHALL spawn the real backend with its OTLP endpoint pointed at a fake 
 #### Scenario: Consent off
 - **WHEN** error consent is off and the same errors are triggered
 - **THEN** the log file holds each at `error` level, and the receiver gets no log record
+
