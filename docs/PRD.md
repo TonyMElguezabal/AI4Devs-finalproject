@@ -512,7 +512,7 @@ Registrados para priorización. No impiden definir el MVP ni iniciar su refinami
 
 ### From version 1.32 to 1.33
 
-Origin: `check-generated-clip` (JOS-265), 2026-11-11. **Awaiting the product owner's approval.**
+Origin: `check-generated-clip` (JOS-265), 2026-11-11. **Approved by the product owner, 2026-11-11.**
 
 | Change | Origin |
 |---|---|
